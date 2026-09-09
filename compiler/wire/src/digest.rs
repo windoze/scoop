@@ -2,7 +2,7 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-use crate::cbor::{WireEncodeV1, encode};
+use crate::cbor::{WireEncode, encode};
 
 /// A content digest. Semantic identities use distinct newtypes in
 /// `scoop-identity` and cannot be converted from this type through safe APIs.
@@ -67,7 +67,7 @@ pub fn byte_span(bytes: &[u8]) -> Result<Vec<u8>, HashError> {
 
 pub fn domain_separated_cbor_hash(
     domain: &str,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<Digest256, HashError> {
     if !domain.is_ascii() || domain.as_bytes().contains(&0) {
         return Err(HashError::InvalidDomain);
@@ -83,13 +83,13 @@ pub fn domain_separated_cbor_hash(
 
 #[cfg(test)]
 mod tests {
-    use crate::cbor::{Encoder, WireEncodeV1};
+    use crate::cbor::{Encoder, WireEncode};
 
     use super::{byte_span, domain_separated_cbor_hash, sha256};
 
     struct One;
 
-    impl WireEncodeV1 for One {
+    impl WireEncode for One {
         fn encode(&self, encoder: &mut Encoder) -> Result<(), crate::cbor::EncodeError> {
             encoder.unsigned(1)
         }

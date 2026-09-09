@@ -1,19 +1,19 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{CallableMaterializationV1, ExactCallableSignatureV1, StructuralDefinitionPathV1};
+use super::{CallableMaterialization, ExactCallableSignature, StructuralDefinitionPath};
 use crate::ids::derive_persistent_id;
 use crate::{PersistentExactTypeId, PersistentTypeId};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ClosureEnvironmentRoleV1 {
+pub enum ClosureEnvironmentRole {
     Lambda,
     AnonymousFunction,
     CallableReference,
 }
 
-impl WireEncodeV1 for ClosureEnvironmentRoleV1 {
+impl WireEncode for ClosureEnvironmentRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Lambda => 1,
@@ -24,17 +24,17 @@ impl WireEncodeV1 for ClosureEnvironmentRoleV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableAdapterEnvironmentKeyV1 {
+pub enum CallableAdapterEnvironmentKey {
     Static {
-        source: ExactCallableSignatureV1,
-        target: ExactCallableSignatureV1,
+        source: ExactCallableSignature,
+        target: ExactCallableSignature,
     },
     Dynamic {
-        target: ExactCallableSignatureV1,
+        target: ExactCallableSignature,
     },
 }
 
-impl WireEncodeV1 for CallableAdapterEnvironmentKeyV1 {
+impl WireEncode for CallableAdapterEnvironmentKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Static { source, target } => {
@@ -56,20 +56,20 @@ impl WireEncodeV1 for CallableAdapterEnvironmentKeyV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum GeneratedNominalKeyV1 {
+pub enum GeneratedNominalKey {
     ClosureEnvironment {
-        callable: CallableMaterializationV1,
-        role: ClosureEnvironmentRoleV1,
+        callable: CallableMaterialization,
+        role: ClosureEnvironmentRole,
     },
     CallableAdapterEnvironment {
-        key: CallableAdapterEnvironmentKeyV1,
+        key: CallableAdapterEnvironmentKey,
     },
     CoroutineFrame {
-        source_callable: CallableMaterializationV1,
+        source_callable: CallableMaterialization,
     },
     ContinuationAdapterEnvironment {
-        source_callable: CallableMaterializationV1,
-        suspension_site: StructuralDefinitionPathV1,
+        source_callable: CallableMaterialization,
+        suspension_site: StructuralDefinitionPath,
     },
     CoroutineStep {
         result: PersistentExactTypeId,
@@ -85,7 +85,7 @@ pub enum GeneratedNominalKeyV1 {
     },
 }
 
-impl WireEncodeV1 for GeneratedNominalKeyV1 {
+impl WireEncode for GeneratedNominalKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::ClosureEnvironment { callable, role } => {
@@ -121,11 +121,10 @@ impl WireEncodeV1 for GeneratedNominalKeyV1 {
 
 impl PersistentTypeId {
     pub fn from_generated_key(
-        key: &GeneratedNominalKeyV1,
+        key: &GeneratedNominalKey,
     ) -> Result<Self, GeneratedNominalIdentityError> {
         validate_key(key)?;
-        derive_persistent_id("scoop-type-id-v1", &GeneratedTypeIdentityKeyV1(key))
-            .map_err(Into::into)
+        derive_persistent_id("scoop-type-id-v1", &GeneratedTypeIdentityKey(key)).map_err(Into::into)
     }
 }
 
@@ -154,12 +153,12 @@ impl From<HashError> for GeneratedNominalIdentityError {
     }
 }
 
-fn validate_key(key: &GeneratedNominalKeyV1) -> Result<(), GeneratedNominalIdentityError> {
+fn validate_key(key: &GeneratedNominalKey) -> Result<(), GeneratedNominalIdentityError> {
     let target = match key {
-        GeneratedNominalKeyV1::CallableAdapterEnvironment {
+        GeneratedNominalKey::CallableAdapterEnvironment {
             key:
-                CallableAdapterEnvironmentKeyV1::Static { target, .. }
-                | CallableAdapterEnvironmentKeyV1::Dynamic { target },
+                CallableAdapterEnvironmentKey::Static { target, .. }
+                | CallableAdapterEnvironmentKey::Dynamic { target },
         } => Some(target),
         _ => None,
     };
@@ -170,9 +169,9 @@ fn validate_key(key: &GeneratedNominalKeyV1) -> Result<(), GeneratedNominalIdent
     }
 }
 
-struct GeneratedTypeIdentityKeyV1<'key>(&'key GeneratedNominalKeyV1);
+struct GeneratedTypeIdentityKey<'key>(&'key GeneratedNominalKey);
 
-impl WireEncodeV1 for GeneratedTypeIdentityKeyV1<'_> {
+impl WireEncode for GeneratedTypeIdentityKey<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encode_tag(encoder, 2)?;
@@ -189,7 +188,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -201,16 +200,16 @@ fn encode_value_sum(
 mod tests {
     use scoop_wire::encode;
 
-    use super::GeneratedNominalKeyV1;
+    use super::GeneratedNominalKey;
     use crate::{
-        CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOwnerV1,
+        CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
         ConeIdentity, PersistentExactTypeId, PersistentFunctionId, PersistentTypeId,
     };
 
     #[test]
     fn generated_nominal_uses_the_type_domain_with_generated_tag() {
         let payload = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let key = GeneratedNominalKeyV1::BoxedValue { payload };
+        let key = GeneratedNominalKey::BoxedValue { payload };
         assert_eq!(
             hex(&encode(&key).unwrap()),
             format!("a20006015820{payload}")
@@ -226,14 +225,14 @@ mod tests {
     #[test]
     fn adapter_environment_rejects_target_receiver() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let target = crate::ExactCallableSignatureV1::new(
-            crate::EffectV1::Ordinary,
+        let target = crate::ExactCallableSignature::new(
+            crate::Effect::Ordinary,
             Some(exact),
             Vec::new(),
             exact,
         );
-        let key = GeneratedNominalKeyV1::CallableAdapterEnvironment {
-            key: super::CallableAdapterEnvironmentKeyV1::Dynamic { target },
+        let key = GeneratedNominalKey::CallableAdapterEnvironment {
+            key: super::CallableAdapterEnvironmentKey::Dynamic { target },
         };
         assert_eq!(
             PersistentTypeId::from_generated_key(&key),
@@ -244,12 +243,12 @@ mod tests {
     #[test]
     fn closure_environment_keeps_materialization_context() {
         let function = PersistentFunctionId(ConeIdentity::CORE.0);
-        let key = GeneratedNominalKeyV1::ClosureEnvironment {
-            callable: CallableMaterializationV1::new(
-                CallableTemplateOwnerV1::Function(function),
-                CallableMaterializationContextV1::NoSubstitution,
+        let key = GeneratedNominalKey::ClosureEnvironment {
+            callable: CallableMaterialization::new(
+                CallableTemplateOwner::Function(function),
+                CallableMaterializationContext::NoSubstitution,
             ),
-            role: super::ClosureEnvironmentRoleV1::Lambda,
+            role: super::ClosureEnvironmentRole::Lambda,
         };
         let encoded = encode(&key).unwrap();
         assert_eq!(&encoded[..3], b"\xa3\x00\x01");

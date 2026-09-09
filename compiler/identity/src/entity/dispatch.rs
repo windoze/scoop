@@ -1,6 +1,6 @@
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::DispatchDeclarationOwnerV1;
+use super::DispatchDeclarationOwner;
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentDispatchSlotId, PersistentDispatchTableId, PersistentExactTypeId,
@@ -8,14 +8,14 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DispatchRoleV1 {
+pub enum DispatchRole {
     VirtualMethod,
     InterfaceMethod,
     PropertyGetter,
     PropertySetter,
 }
 
-impl WireEncodeV1 for DispatchRoleV1 {
+impl WireEncode for DispatchRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::VirtualMethod => 1,
@@ -27,50 +27,50 @@ impl WireEncodeV1 for DispatchRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DispatchSlotKeyV1 {
-    owner: DispatchDeclarationOwnerV1,
-    role: DispatchRoleV1,
+pub struct DispatchSlotKey {
+    owner: DispatchDeclarationOwner,
+    role: DispatchRole,
 }
 
-impl DispatchSlotKeyV1 {
+impl DispatchSlotKey {
     pub const fn virtual_method(owner: PersistentFunctionId) -> Self {
         Self {
-            owner: DispatchDeclarationOwnerV1::Function(owner),
-            role: DispatchRoleV1::VirtualMethod,
+            owner: DispatchDeclarationOwner::Function(owner),
+            role: DispatchRole::VirtualMethod,
         }
     }
 
     pub const fn interface_method(owner: PersistentFunctionId) -> Self {
         Self {
-            owner: DispatchDeclarationOwnerV1::Function(owner),
-            role: DispatchRoleV1::InterfaceMethod,
+            owner: DispatchDeclarationOwner::Function(owner),
+            role: DispatchRole::InterfaceMethod,
         }
     }
 
     pub const fn property_getter(owner: PersistentPropertyAccessorId) -> Self {
         Self {
-            owner: DispatchDeclarationOwnerV1::Accessor(owner),
-            role: DispatchRoleV1::PropertyGetter,
+            owner: DispatchDeclarationOwner::Accessor(owner),
+            role: DispatchRole::PropertyGetter,
         }
     }
 
     pub const fn property_setter(owner: PersistentPropertyAccessorId) -> Self {
         Self {
-            owner: DispatchDeclarationOwnerV1::Accessor(owner),
-            role: DispatchRoleV1::PropertySetter,
+            owner: DispatchDeclarationOwner::Accessor(owner),
+            role: DispatchRole::PropertySetter,
         }
     }
 
-    pub const fn owner(&self) -> DispatchDeclarationOwnerV1 {
+    pub const fn owner(&self) -> DispatchDeclarationOwner {
         self.owner
     }
 
-    pub const fn role(&self) -> DispatchRoleV1 {
+    pub const fn role(&self) -> DispatchRole {
         self.role
     }
 }
 
-impl WireEncodeV1 for DispatchSlotKeyV1 {
+impl WireEncode for DispatchSlotKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -81,18 +81,18 @@ impl WireEncodeV1 for DispatchSlotKeyV1 {
 }
 
 impl PersistentDispatchSlotId {
-    pub fn from_key(key: &DispatchSlotKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &DispatchSlotKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-dispatch-slot-id-v1", key)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DispatchTableRoleV1 {
+pub enum DispatchTableRole {
     VTable,
     ITable,
 }
 
-impl WireEncodeV1 for DispatchTableRoleV1 {
+impl WireEncode for DispatchTableRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::VTable => 1,
@@ -102,12 +102,12 @@ impl WireEncodeV1 for DispatchTableRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum OptionalExactInterfaceV1 {
+pub enum OptionalExactInterface {
     Absent,
     Present(PersistentExactTypeId),
 }
 
-impl WireEncodeV1 for OptionalExactInterfaceV1 {
+impl WireEncode for OptionalExactInterface {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Absent => {
@@ -120,18 +120,18 @@ impl WireEncodeV1 for OptionalExactInterfaceV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DispatchTableKeyV1 {
+pub struct DispatchTableKey {
     exact_type: PersistentExactTypeId,
-    role: DispatchTableRoleV1,
-    interface: OptionalExactInterfaceV1,
+    role: DispatchTableRole,
+    interface: OptionalExactInterface,
 }
 
-impl DispatchTableKeyV1 {
+impl DispatchTableKey {
     pub const fn vtable(exact_type: PersistentExactTypeId) -> Self {
         Self {
             exact_type,
-            role: DispatchTableRoleV1::VTable,
-            interface: OptionalExactInterfaceV1::Absent,
+            role: DispatchTableRole::VTable,
+            interface: OptionalExactInterface::Absent,
         }
     }
 
@@ -141,8 +141,8 @@ impl DispatchTableKeyV1 {
     ) -> Self {
         Self {
             exact_type,
-            role: DispatchTableRoleV1::ITable,
-            interface: OptionalExactInterfaceV1::Present(interface),
+            role: DispatchTableRole::ITable,
+            interface: OptionalExactInterface::Present(interface),
         }
     }
 
@@ -150,16 +150,16 @@ impl DispatchTableKeyV1 {
         self.exact_type
     }
 
-    pub const fn role(&self) -> DispatchTableRoleV1 {
+    pub const fn role(&self) -> DispatchTableRole {
         self.role
     }
 
-    pub const fn interface(&self) -> OptionalExactInterfaceV1 {
+    pub const fn interface(&self) -> OptionalExactInterface {
         self.interface
     }
 }
 
-impl WireEncodeV1 for DispatchTableKeyV1 {
+impl WireEncode for DispatchTableKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -172,7 +172,7 @@ impl WireEncodeV1 for DispatchTableKeyV1 {
 }
 
 impl PersistentDispatchTableId {
-    pub fn from_key(key: &DispatchTableKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &DispatchTableKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-dispatch-table-id-v1", key)
     }
 }
@@ -185,7 +185,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -198,11 +198,10 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        DispatchRoleV1, DispatchSlotKeyV1, DispatchTableKeyV1, DispatchTableRoleV1,
-        OptionalExactInterfaceV1,
+        DispatchRole, DispatchSlotKey, DispatchTableKey, DispatchTableRole, OptionalExactInterface,
     };
     use crate::{
-        ConeIdentity, DispatchDeclarationOwnerV1, PersistentDispatchSlotId,
+        ConeIdentity, DispatchDeclarationOwner, PersistentDispatchSlotId,
         PersistentDispatchTableId, PersistentExactTypeId, PersistentFunctionId,
         PersistentPropertyAccessorId,
     };
@@ -210,7 +209,7 @@ mod tests {
     #[test]
     fn dispatch_slot_has_fixed_identity() {
         let function = PersistentFunctionId(ConeIdentity::CORE.0);
-        let key = DispatchSlotKeyV1::virtual_method(function);
+        let key = DispatchSlotKey::virtual_method(function);
         assert_eq!(
             hex(&encode(&key).unwrap()),
             format!("a201a20001015820{function}0201")
@@ -228,23 +227,20 @@ mod tests {
         let function = PersistentFunctionId(ConeIdentity::CORE.0);
         let accessor = PersistentPropertyAccessorId(ConeIdentity::SINGLE_FILE.0);
         assert_eq!(
-            DispatchSlotKeyV1::interface_method(function).owner(),
-            DispatchDeclarationOwnerV1::Function(function)
+            DispatchSlotKey::interface_method(function).owner(),
+            DispatchDeclarationOwner::Function(function)
         );
-        let setter = DispatchSlotKeyV1::property_setter(accessor);
-        assert_eq!(
-            setter.owner(),
-            DispatchDeclarationOwnerV1::Accessor(accessor)
-        );
-        assert_eq!(setter.role(), DispatchRoleV1::PropertySetter);
+        let setter = DispatchSlotKey::property_setter(accessor);
+        assert_eq!(setter.owner(), DispatchDeclarationOwner::Accessor(accessor));
+        assert_eq!(setter.role(), DispatchRole::PropertySetter);
     }
 
     #[test]
     fn vtable_has_explicit_absent_interface_and_fixed_identity() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let key = DispatchTableKeyV1::vtable(exact);
-        assert_eq!(key.role(), DispatchTableRoleV1::VTable);
-        assert_eq!(key.interface(), OptionalExactInterfaceV1::Absent);
+        let key = DispatchTableKey::vtable(exact);
+        assert_eq!(key.role(), DispatchTableRole::VTable);
+        assert_eq!(key.interface(), OptionalExactInterface::Absent);
         assert_eq!(
             PersistentDispatchTableId::from_key(&key)
                 .unwrap()
@@ -257,12 +253,9 @@ mod tests {
     fn itable_requires_an_interface_identity() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
         let interface = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);
-        let key = DispatchTableKeyV1::itable(exact, interface);
-        assert_eq!(key.role(), DispatchTableRoleV1::ITable);
-        assert_eq!(
-            key.interface(),
-            OptionalExactInterfaceV1::Present(interface)
-        );
+        let key = DispatchTableKey::itable(exact, interface);
+        assert_eq!(key.role(), DispatchTableRole::ITable);
+        assert_eq!(key.interface(), OptionalExactInterface::Present(interface));
     }
 
     fn hex(bytes: &[u8]) -> String {

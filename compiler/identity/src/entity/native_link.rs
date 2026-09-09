@@ -1,17 +1,17 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbolV1};
+use super::{CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbol};
 use crate::ids::derive_persistent_id;
 use crate::{NativeLinkRequirementId, PersistentNativeExternalSymbolId, TargetProfileWireId};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NativeLinkSymbolV1(Vec<u8>);
+pub struct NativeLinkSymbol(Vec<u8>);
 
-impl NativeLinkSymbolV1 {
+impl NativeLinkSymbol {
     pub fn darwin_macho_external(
-        logical: &SourceNativeSymbolV1,
+        logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
         let logical = logical.as_bytes();
         if logical.first() == Some(&0x01) {
@@ -31,25 +31,25 @@ impl NativeLinkSymbolV1 {
     }
 }
 
-impl WireEncodeV1 for NativeLinkSymbolV1 {
+impl WireEncode for NativeLinkSymbol {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.0)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NativeExternalSymbolKeyV1 {
+pub struct NativeExternalSymbolKey {
     target_profile: TargetProfileWireId,
-    native_link_symbol: NativeLinkSymbolV1,
+    native_link_symbol: NativeLinkSymbol,
 }
 
-impl NativeExternalSymbolKeyV1 {
+impl NativeExternalSymbolKey {
     pub fn darwin_macho_external(
-        logical: &SourceNativeSymbolV1,
+        logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
         Ok(Self {
             target_profile: TargetProfileWireId::darwin_aarch64(),
-            native_link_symbol: NativeLinkSymbolV1::darwin_macho_external(logical)?,
+            native_link_symbol: NativeLinkSymbol::darwin_macho_external(logical)?,
         })
     }
 
@@ -57,12 +57,12 @@ impl NativeExternalSymbolKeyV1 {
         &self.target_profile
     }
 
-    pub fn native_link_symbol(&self) -> &NativeLinkSymbolV1 {
+    pub fn native_link_symbol(&self) -> &NativeLinkSymbol {
         &self.native_link_symbol
     }
 }
 
-impl WireEncodeV1 for NativeExternalSymbolKeyV1 {
+impl WireEncode for NativeExternalSymbolKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -73,7 +73,7 @@ impl WireEncodeV1 for NativeExternalSymbolKeyV1 {
 }
 
 impl PersistentNativeExternalSymbolId {
-    pub fn from_key(key: &NativeExternalSymbolKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &NativeExternalSymbolKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-native-link-symbol-v1", key)
     }
 }
@@ -92,21 +92,21 @@ impl CanonicalNativeGroupName {
     }
 }
 
-impl WireEncodeV1 for CanonicalNativeGroupName {
+impl WireEncode for CanonicalNativeGroupName {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.text(&self.0)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum NativeLibraryKindV1 {
+pub enum NativeLibraryKind {
     TargetDefault,
     Dynamic,
     StaticArchive,
     Framework,
 }
 
-impl WireEncodeV1 for NativeLibraryKindV1 {
+impl WireEncode for NativeLibraryKind {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::TargetDefault => 1,
@@ -118,7 +118,7 @@ impl WireEncodeV1 for NativeLibraryKindV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum NativeLibraryGroupingV1 {
+pub enum NativeLibraryGrouping {
     Independent,
     OrderedGroup {
         name: CanonicalNativeGroupName,
@@ -126,7 +126,7 @@ pub enum NativeLibraryGroupingV1 {
     },
 }
 
-impl WireEncodeV1 for NativeLibraryGroupingV1 {
+impl WireEncode for NativeLibraryGrouping {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Independent => encode_empty_sum(encoder, 1),
@@ -143,27 +143,27 @@ impl WireEncodeV1 for NativeLibraryGroupingV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NativeLinkRequirementKeyV1 {
+pub struct NativeLinkRequirementKey {
     target_profile: TargetProfileWireId,
     library: CanonicalNativeLibraryName,
-    kind: NativeLibraryKindV1,
-    grouping: NativeLibraryGroupingV1,
+    kind: NativeLibraryKind,
+    grouping: NativeLibraryGrouping,
 }
 
-impl NativeLinkRequirementKeyV1 {
+impl NativeLinkRequirementKey {
     pub fn target_default(library: CanonicalNativeLibraryName) -> Self {
         Self {
             target_profile: TargetProfileWireId::darwin_aarch64(),
             library,
-            kind: NativeLibraryKindV1::TargetDefault,
-            grouping: NativeLibraryGroupingV1::Independent,
+            kind: NativeLibraryKind::TargetDefault,
+            grouping: NativeLibraryGrouping::Independent,
         }
     }
 
     pub fn for_darwin(
         library: CanonicalNativeLibraryName,
-        kind: NativeLibraryKindV1,
-        grouping: NativeLibraryGroupingV1,
+        kind: NativeLibraryKind,
+        grouping: NativeLibraryGrouping,
     ) -> Self {
         Self {
             target_profile: TargetProfileWireId::darwin_aarch64(),
@@ -178,7 +178,7 @@ impl NativeLinkRequirementKeyV1 {
     }
 }
 
-impl WireEncodeV1 for NativeLinkRequirementKeyV1 {
+impl WireEncode for NativeLinkRequirementKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
@@ -193,18 +193,18 @@ impl WireEncodeV1 for NativeLinkRequirementKeyV1 {
 }
 
 impl NativeLinkRequirementId {
-    pub fn from_key(key: &NativeLinkRequirementKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &NativeLinkRequirementKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-native-link-requirement-v1", key)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum NativeLibraryBindingV1 {
+pub enum NativeLibraryBinding {
     DefaultNativeNamespace,
     Requirement(NativeLinkRequirementId),
 }
 
-impl WireEncodeV1 for NativeLibraryBindingV1 {
+impl WireEncode for NativeLibraryBinding {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::DefaultNativeNamespace => encode_empty_sum(encoder, 1),
@@ -245,7 +245,7 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -257,24 +257,24 @@ fn encode_value_sum(
 mod tests {
     use scoop_wire::encode;
 
-    use super::{NativeExternalSymbolKeyV1, NativeLinkRequirementKeyV1, NativeLinkSymbolV1};
+    use super::{NativeExternalSymbolKey, NativeLinkRequirementKey, NativeLinkSymbol};
     use crate::{
         CanonicalNativeLibraryName, NativeLinkRequirementId, PersistentNativeExternalSymbolId,
-        SourceNativeSymbolV1,
+        SourceNativeSymbol,
     };
 
     #[test]
     fn macho_normalization_preserves_existing_underscore() {
-        let plain = SourceNativeSymbolV1::new("foo").unwrap();
-        let underscored = SourceNativeSymbolV1::new("_foo").unwrap();
+        let plain = SourceNativeSymbol::new("foo").unwrap();
+        let underscored = SourceNativeSymbol::new("_foo").unwrap();
         assert_eq!(
-            NativeLinkSymbolV1::darwin_macho_external(&plain)
+            NativeLinkSymbol::darwin_macho_external(&plain)
                 .unwrap()
                 .as_bytes(),
             b"_foo"
         );
         assert_eq!(
-            NativeLinkSymbolV1::darwin_macho_external(&underscored)
+            NativeLinkSymbol::darwin_macho_external(&underscored)
                 .unwrap()
                 .as_bytes(),
             b"__foo"
@@ -283,8 +283,8 @@ mod tests {
 
     #[test]
     fn native_symbol_identity_has_fixed_vector() {
-        let logical = SourceNativeSymbolV1::new("foo").unwrap();
-        let key = NativeExternalSymbolKeyV1::darwin_macho_external(&logical).unwrap();
+        let logical = SourceNativeSymbol::new("foo").unwrap();
+        let key = NativeExternalSymbolKey::darwin_macho_external(&logical).unwrap();
         assert_eq!(
             hex(&encode(&key).unwrap()),
             "a201a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d61617263683634030102445f666f6f"
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn target_default_requirement_has_fixed_vector() {
-        let key = NativeLinkRequirementKeyV1::target_default(
+        let key = NativeLinkRequirementKey::target_default(
             CanonicalNativeLibraryName::new("sample").unwrap(),
         );
         assert_eq!(

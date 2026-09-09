@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, WireEncodeV1};
+use scoop_wire::{Encoder, WireEncode};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CapabilityId {
@@ -44,7 +44,7 @@ impl CapabilityId {
     }
 }
 
-impl WireEncodeV1 for CapabilityId {
+impl WireEncode for CapabilityId {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -71,7 +71,7 @@ macro_rules! capability_refinement {
             }
         }
 
-        impl WireEncodeV1 for $name {
+        impl WireEncode for $name {
             fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
                 self.0.encode(encoder)
             }

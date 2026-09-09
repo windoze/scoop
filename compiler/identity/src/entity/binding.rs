@@ -1,8 +1,8 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{SourceDeclarationIdentityError, SourceDeclarationKeyV1, SourceDeclarationKindV1};
+use super::{SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationKind};
 use crate::ids::derive_persistent_id;
 use crate::{
     CanonicalIdentifier, ConeIdentity, PackagePath, PersistentEnumVariantId,
@@ -13,12 +13,12 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum BindingNamespaceV1 {
+pub enum BindingNamespace {
     Type,
     Value,
 }
 
-impl WireEncodeV1 for BindingNamespaceV1 {
+impl WireEncode for BindingNamespace {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Type => 1,
@@ -28,7 +28,7 @@ impl WireEncodeV1 for BindingNamespaceV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum BindableEntityV1 {
+pub enum BindableEntity {
     Type(PersistentTypeId),
     GenericType(PersistentGenericTypeId),
     ObjectValue(PersistentObjectValueId),
@@ -40,7 +40,7 @@ pub enum BindableEntityV1 {
     EnumVariant(PersistentEnumVariantId),
 }
 
-impl WireEncodeV1 for BindableEntityV1 {
+impl WireEncode for BindableEntity {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Type(id) => encode_value_sum(encoder, 1, id),
@@ -57,7 +57,7 @@ impl WireEncodeV1 for BindableEntityV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum BindingRoleV1 {
+pub enum BindingRole {
     TypeName,
     ObjectValue,
     Function,
@@ -68,7 +68,7 @@ pub enum BindingRoleV1 {
     EnumVariant,
 }
 
-impl WireEncodeV1 for BindingRoleV1 {
+impl WireEncode for BindingRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::TypeName => 1,
@@ -84,120 +84,116 @@ impl WireEncodeV1 for BindingRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BindingTargetV1 {
-    namespace: BindingNamespaceV1,
-    target: BindableEntityV1,
-    role: BindingRoleV1,
+pub struct BindingTarget {
+    namespace: BindingNamespace,
+    target: BindableEntity,
+    role: BindingRole,
 }
 
-impl BindingTargetV1 {
-    pub fn type_name(key: &SourceDeclarationKeyV1) -> Result<Self, BindingTargetError> {
+impl BindingTarget {
+    pub fn type_name(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
         if !key.declaration_kind().is_nominal() {
             return Err(BindingTargetError::ExpectedNominal);
         }
         let target = if key.duplicate_signature().type_parameter_count() == 0 {
-            BindableEntityV1::Type(
+            BindableEntity::Type(
                 PersistentTypeId::from_source_declaration(key)
                     .map_err(BindingTargetError::SourceDeclaration)?,
             )
         } else {
-            BindableEntityV1::GenericType(
+            BindableEntity::GenericType(
                 PersistentGenericTypeId::from_source_declaration(key)
                     .map_err(BindingTargetError::SourceDeclaration)?,
             )
         };
         Ok(Self::new(
-            BindingNamespaceV1::Type,
+            BindingNamespace::Type,
             target,
-            BindingRoleV1::TypeName,
+            BindingRole::TypeName,
         ))
     }
 
-    pub fn object_value(key: &SourceDeclarationKeyV1) -> Result<Self, BindingTargetError> {
-        if key.declaration_kind() != SourceDeclarationKindV1::Object {
+    pub fn object_value(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
+        if key.declaration_kind() != SourceDeclarationKind::Object {
             return Err(BindingTargetError::ExpectedObject);
         }
         let target = PersistentObjectValueId::from_source_object(key)
             .map_err(BindingTargetError::SourceDeclaration)?;
         Ok(Self::new(
-            BindingNamespaceV1::Value,
-            BindableEntityV1::ObjectValue(target),
-            BindingRoleV1::ObjectValue,
+            BindingNamespace::Value,
+            BindableEntity::ObjectValue(target),
+            BindingRole::ObjectValue,
         ))
     }
 
-    pub fn function(key: &SourceDeclarationKeyV1) -> Result<Self, BindingTargetError> {
+    pub fn function(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
         function_target(key, false)
     }
 
-    pub fn extension_function(key: &SourceDeclarationKeyV1) -> Result<Self, BindingTargetError> {
+    pub fn extension_function(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
         function_target(key, true)
     }
 
-    pub fn property(key: &SourceDeclarationKeyV1) -> Result<Self, BindingTargetError> {
-        if key.declaration_kind() != SourceDeclarationKindV1::Property {
+    pub fn property(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
+        if key.declaration_kind() != SourceDeclarationKind::Property {
             return Err(BindingTargetError::ExpectedProperty);
         }
         let target = PersistentPropertyId::from_source_declaration(key)
             .map_err(BindingTargetError::SourceDeclaration)?;
         Ok(Self::new(
-            BindingNamespaceV1::Value,
-            BindableEntityV1::Property(target),
-            BindingRoleV1::Property,
+            BindingNamespace::Value,
+            BindableEntity::Property(target),
+            BindingRole::Property,
         ))
     }
 
-    pub fn extension_property(key: &SourceDeclarationKeyV1) -> Result<Self, BindingTargetError> {
-        if key.declaration_kind() != SourceDeclarationKindV1::ExtensionProperty {
+    pub fn extension_property(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
+        if key.declaration_kind() != SourceDeclarationKind::ExtensionProperty {
             return Err(BindingTargetError::ExpectedExtensionProperty);
         }
         let target = PersistentExtensionPropertyId::from_source_declaration(key)
             .map_err(BindingTargetError::SourceDeclaration)?;
         Ok(Self::new(
-            BindingNamespaceV1::Value,
-            BindableEntityV1::ExtensionProperty(target),
-            BindingRoleV1::ExtensionProperty,
+            BindingNamespace::Value,
+            BindableEntity::ExtensionProperty(target),
+            BindingRole::ExtensionProperty,
         ))
     }
 
-    pub fn type_alias(key: &SourceDeclarationKeyV1) -> Result<Self, BindingTargetError> {
-        if key.declaration_kind() != SourceDeclarationKindV1::TypeAlias {
+    pub fn type_alias(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
+        if key.declaration_kind() != SourceDeclarationKind::TypeAlias {
             return Err(BindingTargetError::ExpectedTypeAlias);
         }
         let target = PersistentTypeAliasId::from_source_declaration(key)
             .map_err(BindingTargetError::SourceDeclaration)?;
         Ok(Self::new(
-            BindingNamespaceV1::Type,
-            BindableEntityV1::TypeAlias(target),
-            BindingRoleV1::TypeAlias,
+            BindingNamespace::Type,
+            BindableEntity::TypeAlias(target),
+            BindingRole::TypeAlias,
         ))
     }
 
     pub const fn enum_variant(target: PersistentEnumVariantId) -> Self {
         Self::new(
-            BindingNamespaceV1::Value,
-            BindableEntityV1::EnumVariant(target),
-            BindingRoleV1::EnumVariant,
+            BindingNamespace::Value,
+            BindableEntity::EnumVariant(target),
+            BindingRole::EnumVariant,
         )
     }
 
-    pub const fn namespace(&self) -> BindingNamespaceV1 {
+    pub const fn namespace(&self) -> BindingNamespace {
         self.namespace
     }
 
-    pub const fn target(&self) -> BindableEntityV1 {
+    pub const fn target(&self) -> BindableEntity {
         self.target
     }
 
-    pub const fn role(&self) -> BindingRoleV1 {
+    pub const fn role(&self) -> BindingRole {
         self.role
     }
 
-    const fn new(
-        namespace: BindingNamespaceV1,
-        target: BindableEntityV1,
-        role: BindingRoleV1,
-    ) -> Self {
+    const fn new(namespace: BindingNamespace, target: BindableEntity, role: BindingRole) -> Self {
         Self {
             namespace,
             target,
@@ -207,21 +203,21 @@ impl BindingTargetV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ExportBindingKeyV1 {
+pub struct ExportBindingKey {
     exporter: ConeIdentity,
     package: PackagePath,
-    namespace: BindingNamespaceV1,
+    namespace: BindingNamespace,
     name: CanonicalIdentifier,
-    target: BindableEntityV1,
-    role: BindingRoleV1,
+    target: BindableEntity,
+    role: BindingRole,
 }
 
-impl ExportBindingKeyV1 {
+impl ExportBindingKey {
     pub fn new(
         exporter: ConeIdentity,
         package: PackagePath,
         name: CanonicalIdentifier,
-        binding: BindingTargetV1,
+        binding: BindingTarget,
     ) -> Self {
         Self {
             exporter,
@@ -234,7 +230,7 @@ impl ExportBindingKeyV1 {
     }
 }
 
-impl WireEncodeV1 for ExportBindingKeyV1 {
+impl WireEncode for ExportBindingKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         encoder.field(1)?;
@@ -253,20 +249,20 @@ impl WireEncodeV1 for ExportBindingKeyV1 {
 }
 
 impl PersistentExportBindingId {
-    pub fn from_key(key: &ExportBindingKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &ExportBindingKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-export-binding-id-v1", key)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum LocalBindingRoleV1 {
+pub enum LocalBindingRole {
     Declaration,
     ExactImport,
     StarImport,
     AliasImport,
 }
 
-impl WireEncodeV1 for LocalBindingRoleV1 {
+impl WireEncode for LocalBindingRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Declaration => 1,
@@ -278,24 +274,24 @@ impl WireEncodeV1 for LocalBindingRoleV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct LocalBindingKeyV1 {
+pub struct LocalBindingKey {
     origin: ConeIdentity,
     source: SourceIdentity,
     package: PackagePath,
-    namespace: BindingNamespaceV1,
+    namespace: BindingNamespace,
     local_name: CanonicalIdentifier,
-    target: BindableEntityV1,
-    binding_role: BindingRoleV1,
-    source_role: LocalBindingRoleV1,
+    target: BindableEntity,
+    binding_role: BindingRole,
+    source_role: LocalBindingRole,
 }
 
-impl LocalBindingKeyV1 {
+impl LocalBindingKey {
     pub fn new(
         source: SourceIdentity,
         package: PackagePath,
         local_name: CanonicalIdentifier,
-        binding: BindingTargetV1,
-        source_role: LocalBindingRoleV1,
+        binding: BindingTarget,
+        source_role: LocalBindingRole,
     ) -> Self {
         Self {
             origin: source.cone(),
@@ -318,7 +314,7 @@ impl LocalBindingKeyV1 {
     }
 }
 
-impl WireEncodeV1 for LocalBindingKeyV1 {
+impl WireEncode for LocalBindingKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(8)?;
         encoder.field(1)?;
@@ -341,7 +337,7 @@ impl WireEncodeV1 for LocalBindingKeyV1 {
 }
 
 impl PersistentLocalBindingId {
-    pub fn from_key(key: &LocalBindingKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &LocalBindingKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-local-binding-id-v1", key)
     }
 }
@@ -384,10 +380,10 @@ impl fmt::Display for BindingTargetError {
 impl std::error::Error for BindingTargetError {}
 
 fn function_target(
-    key: &SourceDeclarationKeyV1,
+    key: &SourceDeclarationKey,
     extension: bool,
-) -> Result<BindingTargetV1, BindingTargetError> {
-    if key.declaration_kind() != SourceDeclarationKindV1::Function {
+) -> Result<BindingTarget, BindingTargetError> {
+    if key.declaration_kind() != SourceDeclarationKind::Function {
         return Err(BindingTargetError::ExpectedFunction);
     }
     if key.duplicate_signature().receiver_is_present() != extension {
@@ -398,23 +394,23 @@ fn function_target(
         });
     }
     let target = if key.duplicate_signature().type_parameter_count() == 0 {
-        BindableEntityV1::Function(
+        BindableEntity::Function(
             PersistentFunctionId::from_source_declaration(key)
                 .map_err(BindingTargetError::SourceDeclaration)?,
         )
     } else {
-        BindableEntityV1::GenericFunction(
+        BindableEntity::GenericFunction(
             PersistentGenericFunctionId::from_source_declaration(key)
                 .map_err(BindingTargetError::SourceDeclaration)?,
         )
     };
-    Ok(BindingTargetV1::new(
-        BindingNamespaceV1::Value,
+    Ok(BindingTarget::new(
+        BindingNamespace::Value,
         target,
         if extension {
-            BindingRoleV1::ExtensionFunction
+            BindingRole::ExtensionFunction
         } else {
-            BindingRoleV1::Function
+            BindingRole::Function
         },
     ))
 }
@@ -427,7 +423,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -440,19 +436,19 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        BindableEntityV1, BindingRoleV1, BindingTargetError, BindingTargetV1, ExportBindingKeyV1,
-        LocalBindingKeyV1, LocalBindingRoleV1,
+        BindableEntity, BindingRole, BindingTarget, BindingTargetError, ExportBindingKey,
+        LocalBindingKey, LocalBindingRole,
     };
     use crate::{
-        CanonicalIdentifier, ConeIdentity, DeclarationScopeV1, DefinitionOwnerChainV1, PackagePath,
-        PersistentEnumVariantId, PersistentExportBindingId, SignatureTypeKeyV1,
-        SourceDeclarationKeyV1, SourceDeclarationSiteV1, SourceIdentity,
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, PackagePath,
+        PersistentEnumVariantId, PersistentExportBindingId, SignatureTypeKey, SourceDeclarationKey,
+        SourceDeclarationSite, SourceIdentity,
     };
 
     #[test]
     fn export_binding_has_fixed_identity() {
-        let target = BindingTargetV1::enum_variant(PersistentEnumVariantId(ConeIdentity::CORE.0));
-        let key = ExportBindingKeyV1::new(
+        let target = BindingTarget::enum_variant(PersistentEnumVariantId(ConeIdentity::CORE.0));
+        let key = ExportBindingKey::new(
             ConeIdentity::SINGLE_FILE,
             package(),
             identifier("Case"),
@@ -473,48 +469,48 @@ mod tests {
     #[test]
     fn function_role_distinguishes_receiver_presence() {
         let ordinary = function(None);
-        let extension = function(Some(SignatureTypeKeyV1::Nominal(crate::PersistentTypeId(
+        let extension = function(Some(SignatureTypeKey::Nominal(crate::PersistentTypeId(
             ConeIdentity::CORE.0,
         ))));
-        let ordinary_target = BindingTargetV1::function(&ordinary).unwrap();
-        assert_eq!(ordinary_target.role(), BindingRoleV1::Function);
+        let ordinary_target = BindingTarget::function(&ordinary).unwrap();
+        assert_eq!(ordinary_target.role(), BindingRole::Function);
         assert!(matches!(
             ordinary_target.target(),
-            BindableEntityV1::Function(_)
+            BindableEntity::Function(_)
         ));
         assert_eq!(
-            BindingTargetV1::extension_function(&ordinary),
+            BindingTarget::extension_function(&ordinary),
             Err(BindingTargetError::ExpectedExtensionFunction)
         );
         assert_eq!(
-            BindingTargetV1::function(&extension),
+            BindingTarget::function(&extension),
             Err(BindingTargetError::ExpectedOrdinaryFunction)
         );
-        assert!(BindingTargetV1::extension_function(&extension).is_ok());
+        assert!(BindingTarget::extension_function(&extension).is_ok());
     }
 
     #[test]
     fn local_binding_origin_is_forced_to_source_cone() {
         let source = SourceIdentity::single_file();
-        let key = LocalBindingKeyV1::new(
+        let key = LocalBindingKey::new(
             source.clone(),
             package(),
             identifier("Case"),
-            BindingTargetV1::enum_variant(PersistentEnumVariantId(ConeIdentity::CORE.0)),
-            LocalBindingRoleV1::ExactImport,
+            BindingTarget::enum_variant(PersistentEnumVariantId(ConeIdentity::CORE.0)),
+            LocalBindingRole::ExactImport,
         );
         assert_eq!(key.origin(), source.cone());
         assert_eq!(key.source(), &source);
         assert!(encode(&key).is_ok());
     }
 
-    fn function(receiver: Option<SignatureTypeKeyV1>) -> SourceDeclarationKeyV1 {
-        SourceDeclarationKeyV1::function(
-            SourceDeclarationSiteV1::new(
+    fn function(receiver: Option<SignatureTypeKey>) -> SourceDeclarationKey {
+        SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
                 ConeIdentity::CORE,
                 package(),
-                DefinitionOwnerChainV1::top_level(),
-                DeclarationScopeV1::ConeWide,
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
             )
             .unwrap(),
             identifier("run"),

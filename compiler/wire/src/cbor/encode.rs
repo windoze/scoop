@@ -62,18 +62,18 @@ impl Default for Encoder {
     }
 }
 
-pub trait WireEncodeV1 {
+pub trait WireEncode {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError>;
 }
 
-pub fn encode(value: &impl WireEncodeV1) -> Result<Vec<u8>, EncodeError> {
+pub fn encode(value: &impl WireEncode) -> Result<Vec<u8>, EncodeError> {
     let mut encoder = Encoder::new();
     value.encode(&mut encoder)?;
     Ok(encoder.into_bytes())
 }
 
 pub(crate) fn encode_with_limit(
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
     max_length: usize,
 ) -> Result<Vec<u8>, EncodeError> {
     let mut encoder = Encoder::with_max_length(Some(max_length));

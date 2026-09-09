@@ -2,7 +2,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use scoop_wire::{
-    Decoder, Digest256, Encoder, HashError, WireDecodeV1, WireEncodeV1, WireError, WireErrorKind,
+    Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
     domain_separated_cbor_hash,
 };
 
@@ -15,13 +15,13 @@ mod private {
 /// This trait is sealed and exposes no raw-byte constructor. Each public id
 /// remains a separate Rust type and can only be constructed from its specified
 /// canonical semantic key.
-pub trait PersistentIdV1: private::Sealed + Copy + fmt::Debug + Eq + Ord + std::hash::Hash {
+pub trait PersistentId: private::Sealed + Copy + fmt::Debug + Eq + Ord + std::hash::Hash {
     const KIND: &'static str;
 
     fn as_array(&self) -> &[u8; 32];
 }
 
-pub(crate) trait PersistentIdConstruction: PersistentIdV1 {
+pub(crate) trait PersistentIdConstruction: PersistentId {
     fn from_digest(digest: Digest256) -> Self;
 }
 
@@ -39,7 +39,7 @@ macro_rules! persistent_id {
 
         impl private::Sealed for $name {}
 
-        impl PersistentIdV1 for $name {
+        impl PersistentId for $name {
             const KIND: &'static str = $kind;
 
             fn as_array(&self) -> &[u8; 32] {
@@ -53,7 +53,7 @@ macro_rules! persistent_id {
             }
         }
 
-        impl WireEncodeV1 for $name {
+        impl WireEncode for $name {
             fn encode(
                 &self,
                 encoder: &mut Encoder,
@@ -128,12 +128,12 @@ persistent_id!(
 /// Validation must call [`Self::verify`] with an id recomputed from the
 /// canonical key before the concrete identity can escape.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct DecodedPersistentIdV1<I: PersistentIdV1> {
+pub struct DecodedPersistentId<I: PersistentId> {
     bytes: [u8; 32],
     marker: PhantomData<I>,
 }
 
-impl<I: PersistentIdV1> DecodedPersistentIdV1<I> {
+impl<I: PersistentId> DecodedPersistentId<I> {
     pub fn as_array(&self) -> &[u8; 32] {
         &self.bytes
     }
@@ -150,13 +150,13 @@ impl<I: PersistentIdV1> DecodedPersistentIdV1<I> {
     }
 }
 
-impl<I: PersistentIdV1> WireEncodeV1 for DecodedPersistentIdV1<I> {
+impl<I: PersistentId> WireEncode for DecodedPersistentId<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.bytes)
     }
 }
 
-impl<I: PersistentIdV1> WireDecodeV1 for DecodedPersistentIdV1<I> {
+impl<I: PersistentId> WireDecode for DecodedPersistentId<I> {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         let value = decoder.bytes()?;
         let bytes = <&[u8; 32]>::try_from(value).map_err(|_| {
@@ -177,12 +177,12 @@ impl<I: PersistentIdV1> WireDecodeV1 for DecodedPersistentIdV1<I> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct PersistentIdMismatch<I: PersistentIdV1> {
+pub struct PersistentIdMismatch<I: PersistentId> {
     expected: I,
     actual: [u8; 32],
 }
 
-impl<I: PersistentIdV1> PersistentIdMismatch<I> {
+impl<I: PersistentId> PersistentIdMismatch<I> {
     pub fn expected(&self) -> I {
         self.expected
     }
@@ -192,7 +192,7 @@ impl<I: PersistentIdV1> PersistentIdMismatch<I> {
     }
 }
 
-impl<I: PersistentIdV1> fmt::Display for PersistentIdMismatch<I> {
+impl<I: PersistentId> fmt::Display for PersistentIdMismatch<I> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} identity mismatch: expected ", I::KIND)?;
         write_hex(self.expected.as_array(), formatter)?;
@@ -201,11 +201,11 @@ impl<I: PersistentIdV1> fmt::Display for PersistentIdMismatch<I> {
     }
 }
 
-impl<I: PersistentIdV1> std::error::Error for PersistentIdMismatch<I> {}
+impl<I: PersistentId> std::error::Error for PersistentIdMismatch<I> {}
 
 pub(crate) fn derive_persistent_id<I: PersistentIdConstruction>(
     domain: &'static str,
-    key: &impl WireEncodeV1,
+    key: &impl WireEncode,
 ) -> Result<I, HashError> {
     domain_separated_cbor_hash(domain, key).map(I::from_digest)
 }
@@ -219,17 +219,17 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimitsV1, decode_canonical, encode};
+    use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
-    use super::{ConeIdentity, DecodedPersistentIdV1};
+    use super::{ConeIdentity, DecodedPersistentId};
 
     #[test]
     fn raw_id_decode_stays_typed_until_verified() {
         let expected = ConeIdentity::SINGLE_FILE;
         let encoded = encode(&expected).unwrap();
-        let decoded = decode_canonical::<DecodedPersistentIdV1<ConeIdentity>>(
+        let decoded = decode_canonical::<DecodedPersistentId<ConeIdentity>>(
             &encoded,
-            DecodeLimitsV1::default(),
+            DecodeLimits::default(),
         )
         .unwrap();
 
@@ -239,9 +239,9 @@ mod tests {
 
     #[test]
     fn id_decoder_rejects_the_wrong_width() {
-        let error = decode_canonical::<DecodedPersistentIdV1<ConeIdentity>>(
+        let error = decode_canonical::<DecodedPersistentId<ConeIdentity>>(
             b"\x42\0\0",
-            DecodeLimitsV1::default(),
+            DecodeLimits::default(),
         )
         .unwrap_err();
         assert_eq!(

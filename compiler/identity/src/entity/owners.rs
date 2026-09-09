@@ -1,4 +1,4 @@
-use scoop_wire::{Encoder, WireEncodeV1};
+use scoop_wire::{Encoder, WireEncode};
 
 use crate::{
     PersistentCallableApplicationId, PersistentConstructorId, PersistentFunctionId,
@@ -6,15 +6,15 @@ use crate::{
     PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId,
 };
 
-use super::{SourceDeclarationIdentityError, SourceDeclarationKeyV1};
+use super::{SourceDeclarationIdentityError, SourceDeclarationKey};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum PropertyOwnerV1 {
+pub enum PropertyOwner {
     Property(PersistentPropertyId),
     ExtensionProperty(crate::PersistentExtensionPropertyId),
 }
 
-impl WireEncodeV1 for PropertyOwnerV1 {
+impl WireEncode for PropertyOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Property(id) => encode_id_sum(encoder, 1, id),
@@ -24,14 +24,14 @@ impl WireEncodeV1 for PropertyOwnerV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum NominalDeclarationOwnerV1 {
+pub enum NominalDeclarationOwner {
     Concrete(PersistentTypeId),
     GenericTemplate(PersistentGenericTypeId),
 }
 
-impl NominalDeclarationOwnerV1 {
+impl NominalDeclarationOwner {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         if key.duplicate_signature().type_parameter_count() == 0 {
             PersistentTypeId::from_source_declaration(key).map(Self::Concrete)
@@ -41,7 +41,7 @@ impl NominalDeclarationOwnerV1 {
     }
 }
 
-impl WireEncodeV1 for NominalDeclarationOwnerV1 {
+impl WireEncode for NominalDeclarationOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Concrete(id) => encode_id_sum(encoder, 1, id),
@@ -51,12 +51,12 @@ impl WireEncodeV1 for NominalDeclarationOwnerV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum NominalOwnerV1 {
-    Declaration(NominalDeclarationOwnerV1),
+pub enum NominalOwner {
+    Declaration(NominalDeclarationOwner),
     ExactApplication(crate::PersistentExactTypeId),
 }
 
-impl WireEncodeV1 for NominalOwnerV1 {
+impl WireEncode for NominalOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Declaration(owner) => encode_id_sum(encoder, 1, owner),
@@ -66,7 +66,7 @@ impl WireEncodeV1 for NominalOwnerV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableOwnerV1 {
+pub enum CallableOwner {
     Function(PersistentFunctionId),
     GenericTemplate(PersistentGenericFunctionId),
     Application(PersistentCallableApplicationId),
@@ -75,7 +75,7 @@ pub enum CallableOwnerV1 {
     Generated(PersistentGeneratedCallableId),
 }
 
-impl WireEncodeV1 for CallableOwnerV1 {
+impl WireEncode for CallableOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Function(id) => encode_id_sum(encoder, 1, id),
@@ -89,12 +89,12 @@ impl WireEncodeV1 for CallableOwnerV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DispatchDeclarationOwnerV1 {
+pub enum DispatchDeclarationOwner {
     Function(PersistentFunctionId),
     Accessor(PersistentPropertyAccessorId),
 }
 
-impl WireEncodeV1 for DispatchDeclarationOwnerV1 {
+impl WireEncode for DispatchDeclarationOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Function(id) => encode_id_sum(encoder, 1, id),
@@ -106,7 +106,7 @@ impl WireEncodeV1 for DispatchDeclarationOwnerV1 {
 fn encode_id_sum(
     encoder: &mut Encoder,
     tag: u64,
-    id: &impl WireEncodeV1,
+    id: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encoder.field(0)?;
@@ -119,14 +119,14 @@ fn encode_id_sum(
 mod tests {
     use scoop_wire::encode;
 
-    use super::PropertyOwnerV1;
+    use super::PropertyOwner;
     use crate::{ConeIdentity, PersistentPropertyId};
 
     #[test]
     fn typed_owner_sum_keeps_its_kind_tag() {
         let property = PersistentPropertyId(ConeIdentity::CORE.0);
         assert_eq!(
-            encode(&PropertyOwnerV1::Property(property)).unwrap(),
+            encode(&PropertyOwner::Property(property)).unwrap(),
             [b"\xa2\x00\x01\x01\x58\x20".as_slice(), property.as_array()].concat()
         );
     }

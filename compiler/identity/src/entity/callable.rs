@@ -1,6 +1,6 @@
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{NonEmptyVec, PropertyOwnerV1};
+use super::{NonEmptyVec, PropertyOwner};
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentCallableApplicationId, PersistentConstructorId, PersistentExactTypeId,
@@ -9,12 +9,12 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum AccessorRoleV1 {
+pub enum AccessorRole {
     Getter,
     Setter,
 }
 
-impl WireEncodeV1 for AccessorRoleV1 {
+impl WireEncode for AccessorRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Getter => 1,
@@ -24,26 +24,26 @@ impl WireEncodeV1 for AccessorRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct PropertyAccessorKeyV1 {
-    owner: PropertyOwnerV1,
-    role: AccessorRoleV1,
+pub struct PropertyAccessorKey {
+    owner: PropertyOwner,
+    role: AccessorRole,
 }
 
-impl PropertyAccessorKeyV1 {
-    pub const fn new(owner: PropertyOwnerV1, role: AccessorRoleV1) -> Self {
+impl PropertyAccessorKey {
+    pub const fn new(owner: PropertyOwner, role: AccessorRole) -> Self {
         Self { owner, role }
     }
 
-    pub const fn owner(&self) -> PropertyOwnerV1 {
+    pub const fn owner(&self) -> PropertyOwner {
         self.owner
     }
 
-    pub const fn role(&self) -> AccessorRoleV1 {
+    pub const fn role(&self) -> AccessorRole {
         self.role
     }
 }
 
-impl WireEncodeV1 for PropertyAccessorKeyV1 {
+impl WireEncode for PropertyAccessorKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -54,20 +54,20 @@ impl WireEncodeV1 for PropertyAccessorKeyV1 {
 }
 
 impl PersistentPropertyAccessorId {
-    pub fn from_key(key: &PropertyAccessorKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &PropertyAccessorKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-property-accessor-id-v1", key)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableTemplateOriginV1 {
+pub enum CallableTemplateOrigin {
     Function(PersistentFunctionId),
     GenericFunction(PersistentGenericFunctionId),
     Constructor(PersistentConstructorId),
     Accessor(PersistentPropertyAccessorId),
 }
 
-impl WireEncodeV1 for CallableTemplateOriginV1 {
+impl WireEncode for CallableTemplateOrigin {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Function(id) => encode_id_sum(encoder, 1, id),
@@ -79,14 +79,14 @@ impl WireEncodeV1 for CallableTemplateOriginV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableInstantiationOwnerV1 {
+pub enum CallableInstantiationOwner {
     NoOwner,
     ExactNominalOwner(PersistentExactTypeId),
     EnclosingCallableApplication(PersistentCallableApplicationId),
     EnclosingInitializationApplication(PersistentInitializationUnitId),
 }
 
-impl WireEncodeV1 for CallableInstantiationOwnerV1 {
+impl WireEncode for CallableInstantiationOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::NoOwner => encode_empty_sum(encoder, 1),
@@ -98,18 +98,18 @@ impl WireEncodeV1 for CallableInstantiationOwnerV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableArgumentsV1 {
+pub enum CallableArguments {
     NoCallableArguments,
     Arguments(NonEmptyVec<PersistentExactTypeId>),
 }
 
-impl CallableArgumentsV1 {
+impl CallableArguments {
     pub fn has_arguments(&self) -> bool {
         matches!(self, Self::Arguments(_))
     }
 }
 
-impl WireEncodeV1 for CallableArgumentsV1 {
+impl WireEncode for CallableArguments {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::NoCallableArguments => encode_empty_sum(encoder, 1),
@@ -128,84 +128,84 @@ impl WireEncodeV1 for CallableArgumentsV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CallableApplicationKeyV1 {
-    origin: CallableTemplateOriginV1,
-    instantiation_owner: CallableInstantiationOwnerV1,
-    callable_arguments: CallableArgumentsV1,
+pub struct CallableApplicationKey {
+    origin: CallableTemplateOrigin,
+    instantiation_owner: CallableInstantiationOwner,
+    callable_arguments: CallableArguments,
 }
 
-impl CallableApplicationKeyV1 {
+impl CallableApplicationKey {
     pub const fn for_function(
         origin: PersistentFunctionId,
-        instantiation_owner: CallableInstantiationOwnerV1,
+        instantiation_owner: CallableInstantiationOwner,
     ) -> Self {
         Self {
-            origin: CallableTemplateOriginV1::Function(origin),
+            origin: CallableTemplateOrigin::Function(origin),
             instantiation_owner,
-            callable_arguments: CallableArgumentsV1::NoCallableArguments,
+            callable_arguments: CallableArguments::NoCallableArguments,
         }
     }
 
     pub fn for_generic_function(
         origin: PersistentGenericFunctionId,
-        instantiation_owner: CallableInstantiationOwnerV1,
+        instantiation_owner: CallableInstantiationOwner,
         callable_arguments: NonEmptyVec<PersistentExactTypeId>,
     ) -> Self {
         Self {
-            origin: CallableTemplateOriginV1::GenericFunction(origin),
+            origin: CallableTemplateOrigin::GenericFunction(origin),
             instantiation_owner,
-            callable_arguments: CallableArgumentsV1::Arguments(callable_arguments),
+            callable_arguments: CallableArguments::Arguments(callable_arguments),
         }
     }
 
     pub const fn for_constructor(
         origin: PersistentConstructorId,
-        instantiation_owner: CallableInstantiationOwnerV1,
+        instantiation_owner: CallableInstantiationOwner,
     ) -> Self {
         Self {
-            origin: CallableTemplateOriginV1::Constructor(origin),
+            origin: CallableTemplateOrigin::Constructor(origin),
             instantiation_owner,
-            callable_arguments: CallableArgumentsV1::NoCallableArguments,
+            callable_arguments: CallableArguments::NoCallableArguments,
         }
     }
 
     pub const fn for_accessor(
         origin: PersistentPropertyAccessorId,
-        instantiation_owner: CallableInstantiationOwnerV1,
+        instantiation_owner: CallableInstantiationOwner,
     ) -> Self {
         Self {
-            origin: CallableTemplateOriginV1::Accessor(origin),
+            origin: CallableTemplateOrigin::Accessor(origin),
             instantiation_owner,
-            callable_arguments: CallableArgumentsV1::NoCallableArguments,
+            callable_arguments: CallableArguments::NoCallableArguments,
         }
     }
 
     pub fn for_generic_extension_accessor(
         origin: PersistentPropertyAccessorId,
-        instantiation_owner: CallableInstantiationOwnerV1,
+        instantiation_owner: CallableInstantiationOwner,
         callable_arguments: NonEmptyVec<PersistentExactTypeId>,
     ) -> Self {
         Self {
-            origin: CallableTemplateOriginV1::Accessor(origin),
+            origin: CallableTemplateOrigin::Accessor(origin),
             instantiation_owner,
-            callable_arguments: CallableArgumentsV1::Arguments(callable_arguments),
+            callable_arguments: CallableArguments::Arguments(callable_arguments),
         }
     }
 
-    pub const fn origin(&self) -> CallableTemplateOriginV1 {
+    pub const fn origin(&self) -> CallableTemplateOrigin {
         self.origin
     }
 
-    pub const fn instantiation_owner(&self) -> CallableInstantiationOwnerV1 {
+    pub const fn instantiation_owner(&self) -> CallableInstantiationOwner {
         self.instantiation_owner
     }
 
-    pub fn callable_arguments(&self) -> &CallableArgumentsV1 {
+    pub fn callable_arguments(&self) -> &CallableArguments {
         &self.callable_arguments
     }
 }
 
-impl WireEncodeV1 for CallableApplicationKeyV1 {
+impl WireEncode for CallableApplicationKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -218,13 +218,13 @@ impl WireEncodeV1 for CallableApplicationKeyV1 {
 }
 
 impl PersistentCallableApplicationId {
-    pub fn from_key(key: &CallableApplicationKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &CallableApplicationKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-callable-application-id-v1", key)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableTemplateOwnerV1 {
+pub enum CallableTemplateOwner {
     Function(PersistentFunctionId),
     GenericFunction(PersistentGenericFunctionId),
     Constructor(PersistentConstructorId),
@@ -232,7 +232,7 @@ pub enum CallableTemplateOwnerV1 {
     Generated(PersistentGeneratedCallableId),
 }
 
-impl WireEncodeV1 for CallableTemplateOwnerV1 {
+impl WireEncode for CallableTemplateOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Function(id) => encode_id_sum(encoder, 1, id),
@@ -245,13 +245,13 @@ impl WireEncodeV1 for CallableTemplateOwnerV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableMaterializationContextV1 {
+pub enum CallableMaterializationContext {
     NoSubstitution,
     Application(PersistentCallableApplicationId),
     InitializationApplication(PersistentInitializationUnitId),
 }
 
-impl WireEncodeV1 for CallableMaterializationContextV1 {
+impl WireEncode for CallableMaterializationContext {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::NoSubstitution => encode_empty_sum(encoder, 1),
@@ -262,29 +262,29 @@ impl WireEncodeV1 for CallableMaterializationContextV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CallableMaterializationV1 {
-    template: CallableTemplateOwnerV1,
-    context: CallableMaterializationContextV1,
+pub struct CallableMaterialization {
+    template: CallableTemplateOwner,
+    context: CallableMaterializationContext,
 }
 
-impl CallableMaterializationV1 {
+impl CallableMaterialization {
     pub const fn new(
-        template: CallableTemplateOwnerV1,
-        context: CallableMaterializationContextV1,
+        template: CallableTemplateOwner,
+        context: CallableMaterializationContext,
     ) -> Self {
         Self { template, context }
     }
 
-    pub const fn template(&self) -> CallableTemplateOwnerV1 {
+    pub const fn template(&self) -> CallableTemplateOwner {
         self.template
     }
 
-    pub const fn context(&self) -> CallableMaterializationContextV1 {
+    pub const fn context(&self) -> CallableMaterializationContext {
         self.context
     }
 }
 
-impl WireEncodeV1 for CallableMaterializationV1 {
+impl WireEncode for CallableMaterialization {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -307,7 +307,7 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 fn encode_id_sum(
     encoder: &mut Encoder,
     tag: u64,
-    id: &impl WireEncodeV1,
+    id: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -320,23 +320,22 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        AccessorRoleV1, CallableApplicationKeyV1, CallableInstantiationOwnerV1,
-        CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOwnerV1,
-        PropertyAccessorKeyV1,
+        AccessorRole, CallableApplicationKey, CallableInstantiationOwner, CallableMaterialization,
+        CallableMaterializationContext, CallableTemplateOwner, PropertyAccessorKey,
     };
     use crate::{
         ConeIdentity, NonEmptyVec, PersistentCallableApplicationId, PersistentExactTypeId,
         PersistentFunctionId, PersistentGenericFunctionId, PersistentPropertyAccessorId,
-        PersistentPropertyId, PropertyOwnerV1,
+        PersistentPropertyId, PropertyOwner,
     };
 
     #[test]
     fn property_accessor_role_is_part_of_the_identity() {
         let property = PersistentPropertyId(ConeIdentity::CORE.0);
         let getter_key =
-            PropertyAccessorKeyV1::new(PropertyOwnerV1::Property(property), AccessorRoleV1::Getter);
+            PropertyAccessorKey::new(PropertyOwner::Property(property), AccessorRole::Getter);
         let setter_key =
-            PropertyAccessorKeyV1::new(PropertyOwnerV1::Property(property), AccessorRoleV1::Setter);
+            PropertyAccessorKey::new(PropertyOwner::Property(property), AccessorRole::Setter);
         let getter = PersistentPropertyAccessorId::from_key(&getter_key).unwrap();
         let setter = PersistentPropertyAccessorId::from_key(&setter_key).unwrap();
         assert_ne!(getter, setter);
@@ -352,10 +351,10 @@ mod tests {
         let generic = PersistentGenericFunctionId(ConeIdentity::CORE.0);
         let exact = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);
         let ordinary =
-            CallableApplicationKeyV1::for_function(function, CallableInstantiationOwnerV1::NoOwner);
-        let generic = CallableApplicationKeyV1::for_generic_function(
+            CallableApplicationKey::for_function(function, CallableInstantiationOwner::NoOwner);
+        let generic = CallableApplicationKey::for_generic_function(
             generic,
-            CallableInstantiationOwnerV1::NoOwner,
+            CallableInstantiationOwner::NoOwner,
             NonEmptyVec::from_first(exact, []),
         );
         assert!(!ordinary.callable_arguments().has_arguments());
@@ -366,9 +365,9 @@ mod tests {
     fn callable_application_has_fixed_wire_and_hash() {
         let generic = PersistentGenericFunctionId(ConeIdentity::CORE.0);
         let exact = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);
-        let key = CallableApplicationKeyV1::for_generic_function(
+        let key = CallableApplicationKey::for_generic_function(
             generic,
-            CallableInstantiationOwnerV1::NoOwner,
+            CallableInstantiationOwner::NoOwner,
             NonEmptyVec::from_first(exact, []),
         );
         assert_eq!(
@@ -387,9 +386,9 @@ mod tests {
     fn materialization_keeps_template_and_context_separate() {
         let template = PersistentFunctionId(ConeIdentity::CORE.0);
         let application = PersistentCallableApplicationId(ConeIdentity::SINGLE_FILE.0);
-        let materialization = CallableMaterializationV1::new(
-            CallableTemplateOwnerV1::Function(template),
-            CallableMaterializationContextV1::Application(application),
+        let materialization = CallableMaterialization::new(
+            CallableTemplateOwner::Function(template),
+            CallableMaterializationContext::Application(application),
         );
         assert_eq!(
             hex(&encode(&materialization).unwrap()),

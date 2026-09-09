@@ -1,6 +1,6 @@
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{CallableMaterializationV1, NonEmptyVec, StructuralDefinitionPathV1};
+use super::{CallableMaterialization, NonEmptyVec, StructuralDefinitionPath};
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentExactTypeId, PersistentExtensionPropertyId, PersistentInitializationUnitId,
@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum InitializationUnitKeyV1 {
+pub enum InitializationUnitKey {
     TopLevelProperty(PersistentPropertyId),
     ExtensionProperty(PersistentExtensionPropertyId),
     Object(PersistentTypeId),
@@ -19,7 +19,7 @@ pub enum InitializationUnitKeyV1 {
     },
 }
 
-impl WireEncodeV1 for InitializationUnitKeyV1 {
+impl WireEncode for InitializationUnitKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::TopLevelProperty(id) => encode_id_sum(encoder, 1, id),
@@ -46,13 +46,13 @@ impl WireEncodeV1 for InitializationUnitKeyV1 {
 }
 
 impl PersistentInitializationUnitId {
-    pub fn from_key(key: &InitializationUnitKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &InitializationUnitKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-initialization-unit-id-v1", key)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SyntheticLocalRoleV1 {
+pub enum SyntheticLocalRole {
     Temporary,
     DefaultValue,
     DesugaredIterator,
@@ -60,7 +60,7 @@ pub enum SyntheticLocalRoleV1 {
     CallbackContext,
 }
 
-impl WireEncodeV1 for SyntheticLocalRoleV1 {
+impl WireEncode for SyntheticLocalRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Temporary => 1,
@@ -73,27 +73,27 @@ impl WireEncodeV1 for SyntheticLocalRoleV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum LocalValueSelectorV1 {
+pub enum LocalValueSelector {
     This,
     Parameter {
         declaration_index: u32,
     },
     LocalDeclaration {
-        path: StructuralDefinitionPathV1,
+        path: StructuralDefinitionPath,
     },
     BoundReceiver {
-        path: StructuralDefinitionPathV1,
+        path: StructuralDefinitionPath,
     },
     SuspensionResult {
-        site: StructuralDefinitionPathV1,
+        site: StructuralDefinitionPath,
     },
     Synthetic {
-        path: StructuralDefinitionPathV1,
-        role: SyntheticLocalRoleV1,
+        path: StructuralDefinitionPath,
+        role: SyntheticLocalRole,
     },
 }
 
-impl WireEncodeV1 for LocalValueSelectorV1 {
+impl WireEncode for LocalValueSelector {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::This => encode_empty_sum(encoder, 1),
@@ -119,26 +119,26 @@ impl WireEncodeV1 for LocalValueSelectorV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct LocalValueKeyV1 {
-    owner: CallableMaterializationV1,
-    selector: LocalValueSelectorV1,
+pub struct LocalValueKey {
+    owner: CallableMaterialization,
+    selector: LocalValueSelector,
 }
 
-impl LocalValueKeyV1 {
-    pub const fn new(owner: CallableMaterializationV1, selector: LocalValueSelectorV1) -> Self {
+impl LocalValueKey {
+    pub const fn new(owner: CallableMaterialization, selector: LocalValueSelector) -> Self {
         Self { owner, selector }
     }
 
-    pub const fn owner(&self) -> CallableMaterializationV1 {
+    pub const fn owner(&self) -> CallableMaterialization {
         self.owner
     }
 
-    pub fn selector(&self) -> &LocalValueSelectorV1 {
+    pub fn selector(&self) -> &LocalValueSelector {
         &self.selector
     }
 }
 
-impl WireEncodeV1 for LocalValueKeyV1 {
+impl WireEncode for LocalValueKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -149,7 +149,7 @@ impl WireEncodeV1 for LocalValueKeyV1 {
 }
 
 impl PersistentLocalValueId {
-    pub fn from_key(key: &LocalValueKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &LocalValueKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-local-value-id-v1", key)
     }
 }
@@ -167,7 +167,7 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 fn encode_id_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -179,9 +179,9 @@ fn encode_id_sum(
 mod tests {
     use scoop_wire::encode;
 
-    use super::{InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1};
+    use super::{InitializationUnitKey, LocalValueKey, LocalValueSelector};
     use crate::{
-        CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOwnerV1,
+        CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
         ConeIdentity, NonEmptyVec, PersistentExactTypeId, PersistentExtensionPropertyId,
         PersistentFunctionId, PersistentInitializationUnitId, PersistentLocalValueId,
     };
@@ -190,7 +190,7 @@ mod tests {
     fn delegated_initialization_arguments_are_non_empty_and_have_fixed_identity() {
         let property = PersistentExtensionPropertyId(ConeIdentity::CORE.0);
         let exact = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);
-        let key = InitializationUnitKeyV1::GenericDelegatedExtensionApplication {
+        let key = InitializationUnitKey::GenericDelegatedExtensionApplication {
             property,
             receiver_arguments: NonEmptyVec::from_first(exact, []),
         };
@@ -209,13 +209,13 @@ mod tests {
     #[test]
     fn local_value_identity_keeps_materialization_and_selector() {
         let template = PersistentFunctionId(ConeIdentity::CORE.0);
-        let owner = CallableMaterializationV1::new(
-            CallableTemplateOwnerV1::Function(template),
-            CallableMaterializationContextV1::NoSubstitution,
+        let owner = CallableMaterialization::new(
+            CallableTemplateOwner::Function(template),
+            CallableMaterializationContext::NoSubstitution,
         );
-        let key = LocalValueKeyV1::new(
+        let key = LocalValueKey::new(
             owner,
-            LocalValueSelectorV1::Parameter {
+            LocalValueSelector::Parameter {
                 declaration_index: 3,
             },
         );

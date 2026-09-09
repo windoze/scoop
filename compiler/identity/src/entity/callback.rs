@@ -1,11 +1,11 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{
-    CallableMaterializationContextV1, CallbackModeV1, EffectV1, LexicalCallableParentV1,
-    OptionalSignatureTypeV1, SignatureTypeKeyV1, SourceCAbiFunctionSignatureV1, SourceCAbiReturnV1,
-    StructuralDefinitionPathV1,
+    CallableMaterializationContext, CallbackMode, Effect, LexicalCallableParent,
+    OptionalSignatureType, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
+    StructuralDefinitionPath,
 };
 use crate::ids::derive_persistent_id;
 use crate::{PersistentCallbackApplicationId, PersistentCallbackRegistrationId};
@@ -23,48 +23,48 @@ impl CallbackParameterIndex {
     }
 }
 
-impl WireEncodeV1 for CallbackParameterIndex {
+impl WireEncode for CallbackParameterIndex {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(u64::from(self.0))
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SignatureCallableShapeV1 {
-    effect: EffectV1,
-    receiver: OptionalSignatureTypeV1,
-    parameters: Vec<SignatureTypeKeyV1>,
-    result: SignatureTypeKeyV1,
+pub struct SignatureCallableShape {
+    effect: Effect,
+    receiver: OptionalSignatureType,
+    parameters: Vec<SignatureTypeKey>,
+    result: SignatureTypeKey,
 }
 
-impl SignatureCallableShapeV1 {
+impl SignatureCallableShape {
     pub fn new(
-        effect: EffectV1,
-        receiver: Option<SignatureTypeKeyV1>,
-        parameters: Vec<SignatureTypeKeyV1>,
-        result: SignatureTypeKeyV1,
+        effect: Effect,
+        receiver: Option<SignatureTypeKey>,
+        parameters: Vec<SignatureTypeKey>,
+        result: SignatureTypeKey,
     ) -> Self {
         Self {
             effect,
-            receiver: OptionalSignatureTypeV1::from_option(receiver),
+            receiver: OptionalSignatureType::from_option(receiver),
             parameters,
             result,
         }
     }
 
-    pub const fn effect(&self) -> EffectV1 {
+    pub const fn effect(&self) -> Effect {
         self.effect
     }
 
-    pub fn receiver(&self) -> &OptionalSignatureTypeV1 {
+    pub fn receiver(&self) -> &OptionalSignatureType {
         &self.receiver
     }
 
-    pub fn parameters(&self) -> &[SignatureTypeKeyV1] {
+    pub fn parameters(&self) -> &[SignatureTypeKey] {
         &self.parameters
     }
 
-    pub fn result(&self) -> &SignatureTypeKeyV1 {
+    pub fn result(&self) -> &SignatureTypeKey {
         &self.result
     }
 
@@ -73,12 +73,12 @@ impl SignatureCallableShapeV1 {
             || self
                 .parameters
                 .iter()
-                .any(SignatureTypeKeyV1::contains_binder)
+                .any(SignatureTypeKey::contains_binder)
             || self.result.contains_binder()
     }
 }
 
-impl WireEncodeV1 for SignatureCallableShapeV1 {
+impl WireEncode for SignatureCallableShape {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
@@ -93,23 +93,23 @@ impl WireEncodeV1 for SignatureCallableShapeV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CallbackRegistrationKeyV1 {
-    parent: LexicalCallableParentV1,
-    path: StructuralDefinitionPathV1,
-    source_signature: SourceCAbiFunctionSignatureV1,
+pub struct CallbackRegistrationKey {
+    parent: LexicalCallableParent,
+    path: StructuralDefinitionPath,
+    source_signature: SourceCAbiFunctionSignature,
     context_index: CallbackParameterIndex,
-    managed_signature: SignatureCallableShapeV1,
-    mode: CallbackModeV1,
+    managed_signature: SignatureCallableShape,
+    mode: CallbackMode,
 }
 
-impl CallbackRegistrationKeyV1 {
+impl CallbackRegistrationKey {
     pub fn new(
-        parent: LexicalCallableParentV1,
-        path: StructuralDefinitionPathV1,
-        source_signature: SourceCAbiFunctionSignatureV1,
+        parent: LexicalCallableParent,
+        path: StructuralDefinitionPath,
+        source_signature: SourceCAbiFunctionSignature,
         context_index: CallbackParameterIndex,
-        managed_signature: SignatureCallableShapeV1,
-        mode: CallbackModeV1,
+        managed_signature: SignatureCallableShape,
+        mode: CallbackMode,
     ) -> Self {
         Self {
             parent,
@@ -121,15 +121,15 @@ impl CallbackRegistrationKeyV1 {
         }
     }
 
-    pub const fn parent(&self) -> LexicalCallableParentV1 {
+    pub const fn parent(&self) -> LexicalCallableParent {
         self.parent
     }
 
-    pub fn path(&self) -> &StructuralDefinitionPathV1 {
+    pub fn path(&self) -> &StructuralDefinitionPath {
         &self.path
     }
 
-    pub fn source_signature(&self) -> &SourceCAbiFunctionSignatureV1 {
+    pub fn source_signature(&self) -> &SourceCAbiFunctionSignature {
         &self.source_signature
     }
 
@@ -137,11 +137,11 @@ impl CallbackRegistrationKeyV1 {
         self.context_index
     }
 
-    pub fn managed_signature(&self) -> &SignatureCallableShapeV1 {
+    pub fn managed_signature(&self) -> &SignatureCallableShape {
         &self.managed_signature
     }
 
-    pub const fn mode(&self) -> CallbackModeV1 {
+    pub const fn mode(&self) -> CallbackMode {
         self.mode
     }
 
@@ -149,16 +149,16 @@ impl CallbackRegistrationKeyV1 {
         self.source_signature
             .parameters()
             .iter()
-            .any(SignatureTypeKeyV1::contains_binder)
+            .any(SignatureTypeKey::contains_binder)
             || matches!(
                 self.source_signature.result(),
-                SourceCAbiReturnV1::Value(result) if result.contains_binder()
+                SourceCAbiReturn::Value(result) if result.contains_binder()
             )
             || self.managed_signature.contains_binder()
     }
 }
 
-impl WireEncodeV1 for CallbackRegistrationKeyV1 {
+impl WireEncode for CallbackRegistrationKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         encoder.field(1)?;
@@ -177,23 +177,23 @@ impl WireEncodeV1 for CallbackRegistrationKeyV1 {
 }
 
 impl PersistentCallbackRegistrationId {
-    pub fn from_key(key: &CallbackRegistrationKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &CallbackRegistrationKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-callback-registration-id-v1", key)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CallbackApplicationKeyV1 {
+pub struct CallbackApplicationKey {
     registration: PersistentCallbackRegistrationId,
-    context: CallableMaterializationContextV1,
+    context: CallableMaterializationContext,
 }
 
-impl CallbackApplicationKeyV1 {
+impl CallbackApplicationKey {
     pub fn new(
-        registration: &CallbackRegistrationKeyV1,
-        context: CallableMaterializationContextV1,
+        registration: &CallbackRegistrationKey,
+        context: CallableMaterializationContext,
     ) -> Result<Self, CallbackApplicationIdentityError> {
-        if context == CallableMaterializationContextV1::NoSubstitution
+        if context == CallableMaterializationContext::NoSubstitution
             && registration.contains_binder()
         {
             return Err(CallbackApplicationIdentityError::BinderRequiresSubstitution);
@@ -210,12 +210,12 @@ impl CallbackApplicationKeyV1 {
         self.registration
     }
 
-    pub const fn context(&self) -> CallableMaterializationContextV1 {
+    pub const fn context(&self) -> CallableMaterializationContext {
         self.context
     }
 }
 
-impl WireEncodeV1 for CallbackApplicationKeyV1 {
+impl WireEncode for CallbackApplicationKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -226,7 +226,7 @@ impl WireEncodeV1 for CallbackApplicationKeyV1 {
 }
 
 impl PersistentCallbackApplicationId {
-    pub fn from_key(key: &CallbackApplicationKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &CallbackApplicationKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-callback-application-id-v1", key)
     }
 }
@@ -250,13 +250,13 @@ impl fmt::Display for CallbackApplicationIdentityError {
 
 impl std::error::Error for CallbackApplicationIdentityError {}
 
-fn optional_contains_binder(value: &OptionalSignatureTypeV1) -> bool {
-    matches!(value, OptionalSignatureTypeV1::Present(value) if value.contains_binder())
+fn optional_contains_binder(value: &OptionalSignatureType) -> bool {
+    matches!(value, OptionalSignatureType::Present(value) if value.contains_binder())
 }
 
 fn encode_signature_types(
     encoder: &mut Encoder,
-    values: &[SignatureTypeKeyV1],
+    values: &[SignatureTypeKey],
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.array(values.len() as u64)?;
     for value in values {
@@ -270,20 +270,19 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        CallbackApplicationIdentityError, CallbackApplicationKeyV1, CallbackParameterIndex,
-        CallbackRegistrationKeyV1, SignatureCallableShapeV1,
+        CallbackApplicationIdentityError, CallbackApplicationKey, CallbackParameterIndex,
+        CallbackRegistrationKey, SignatureCallableShape,
     };
     use crate::{
-        CallableMaterializationContextV1, CallbackModeV1, ConeIdentity, EffectV1,
-        LexicalCallableParentV1, PersistentCallbackApplicationId, PersistentCallbackRegistrationId,
-        PersistentFunctionId, PersistentTypeId, SignatureTypeKeyV1, SourceCAbiFunctionSignatureV1,
-        SourceCAbiReturnV1, StructuralDefinitionPathV1, StructuralDefinitionSiteRoleV1,
-        StructuralPathSegmentV1,
+        CallableMaterializationContext, CallbackMode, ConeIdentity, Effect, LexicalCallableParent,
+        PersistentCallbackApplicationId, PersistentCallbackRegistrationId, PersistentFunctionId,
+        PersistentTypeId, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
+        StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     };
 
     #[test]
     fn registration_and_application_have_fixed_identity() {
-        let key = registration(SignatureTypeKeyV1::Nominal(PersistentTypeId(
+        let key = registration(SignatureTypeKey::Nominal(PersistentTypeId(
             ConeIdentity::CORE.0,
         )));
         assert_eq!(
@@ -297,7 +296,7 @@ mod tests {
             "9d03e2a9e1d68de24365c10dfae233afc3cd55554220602c46d805d55deaa33a"
         );
         let application =
-            CallbackApplicationKeyV1::new(&key, CallableMaterializationContextV1::NoSubstitution)
+            CallbackApplicationKey::new(&key, CallableMaterializationContext::NoSubstitution)
                 .unwrap();
         assert_eq!(
             PersistentCallbackApplicationId::from_key(&application)
@@ -309,9 +308,9 @@ mod tests {
 
     #[test]
     fn binder_requires_materialization_context() {
-        let key = registration(SignatureTypeKeyV1::Binder { depth: 0, index: 0 });
+        let key = registration(SignatureTypeKey::Binder { depth: 0, index: 0 });
         assert_eq!(
-            CallbackApplicationKeyV1::new(&key, CallableMaterializationContextV1::NoSubstitution,),
+            CallbackApplicationKey::new(&key, CallableMaterializationContext::NoSubstitution,),
             Err(CallbackApplicationIdentityError::BinderRequiresSubstitution)
         );
     }
@@ -322,17 +321,17 @@ mod tests {
         assert_eq!(encode(&CallbackParameterIndex::new(3)).unwrap(), b"\x03");
     }
 
-    fn registration(result: SignatureTypeKeyV1) -> CallbackRegistrationKeyV1 {
-        CallbackRegistrationKeyV1::new(
-            LexicalCallableParentV1::function(PersistentFunctionId(ConeIdentity::CORE.0)),
-            StructuralDefinitionPathV1::from_first(
-                StructuralPathSegmentV1::new(StructuralDefinitionSiteRoleV1::CallbackConversion, 0),
+    fn registration(result: SignatureTypeKey) -> CallbackRegistrationKey {
+        CallbackRegistrationKey::new(
+            LexicalCallableParent::function(PersistentFunctionId(ConeIdentity::CORE.0)),
+            StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::CallbackConversion, 0),
                 [],
             ),
-            SourceCAbiFunctionSignatureV1::new(Vec::new(), SourceCAbiReturnV1::Void),
+            SourceCAbiFunctionSignature::new(Vec::new(), SourceCAbiReturn::Void),
             CallbackParameterIndex::new(0),
-            SignatureCallableShapeV1::new(EffectV1::Ordinary, None, Vec::new(), result),
-            CallbackModeV1::Reusable,
+            SignatureCallableShape::new(Effect::Ordinary, None, Vec::new(), result),
+            CallbackMode::Reusable,
         )
     }
 

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::num::NonZeroU64;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use crate::ids::derive_persistent_id;
 use crate::{
@@ -10,12 +10,12 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SignednessV1 {
+pub enum Signedness {
     Signed,
     Unsigned,
 }
 
-impl WireEncodeV1 for SignednessV1 {
+impl WireEncode for Signedness {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Signed => 1,
@@ -25,14 +25,14 @@ impl WireEncodeV1 for SignednessV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum IntegerBitWidthV1 {
+pub enum IntegerBitWidth {
     Bits8,
     Bits16,
     Bits32,
     Bits64,
 }
 
-impl IntegerBitWidthV1 {
+impl IntegerBitWidth {
     pub const fn get(self) -> u8 {
         match self {
             Self::Bits8 => 8,
@@ -43,19 +43,19 @@ impl IntegerBitWidthV1 {
     }
 }
 
-impl WireEncodeV1 for IntegerBitWidthV1 {
+impl WireEncode for IntegerBitWidth {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(u64::from(self.get()))
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CDataPointeeV1 {
+pub enum CDataPointee {
     OpaqueUnit,
     ExactObject(PersistentExactTypeId),
 }
 
-impl WireEncodeV1 for CDataPointeeV1 {
+impl WireEncode for CDataPointee {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::OpaqueUnit => encode_empty_sum(encoder, 1),
@@ -65,12 +65,12 @@ impl WireEncodeV1 for CDataPointeeV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CPointerStorageV1 {
+pub enum CPointerStorage {
     Direct,
     NullableWrapper(PersistentExactTypeId),
 }
 
-impl WireEncodeV1 for CPointerStorageV1 {
+impl WireEncode for CPointerStorage {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Direct => encode_empty_sum(encoder, 1),
@@ -80,24 +80,24 @@ impl WireEncodeV1 for CPointerStorageV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CanonicalCStorageTypeV1 {
+pub enum CanonicalCStorageType {
     Integer {
         exact_type: PersistentExactTypeId,
-        signedness: SignednessV1,
-        bit_width: IntegerBitWidthV1,
+        signedness: Signedness,
+        bit_width: IntegerBitWidth,
     },
     Boolean {
         exact_type: PersistentExactTypeId,
     },
     DataPointer {
         exact_type: PersistentExactTypeId,
-        pointee: CDataPointeeV1,
-        storage: CPointerStorageV1,
+        pointee: CDataPointee,
+        storage: CPointerStorage,
     },
     CodePointer {
         exact_type: PersistentExactTypeId,
         signature: CanonicalCAbiSignatureFingerprint,
-        storage: CPointerStorageV1,
+        storage: CPointerStorage,
     },
     Struct {
         exact_type: PersistentExactTypeId,
@@ -105,7 +105,7 @@ pub enum CanonicalCStorageTypeV1 {
     },
 }
 
-impl CanonicalCStorageTypeV1 {
+impl CanonicalCStorageType {
     pub const fn exact_type(self) -> PersistentExactTypeId {
         match self {
             Self::Integer { exact_type, .. }
@@ -117,7 +117,7 @@ impl CanonicalCStorageTypeV1 {
     }
 }
 
-impl WireEncodeV1 for CanonicalCStorageTypeV1 {
+impl WireEncode for CanonicalCStorageType {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Integer {
@@ -144,15 +144,15 @@ impl WireEncodeV1 for CanonicalCStorageTypeV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CanonicalCAbiParameterV1 {
+pub struct CanonicalCAbiParameter {
     source_exact_type: PersistentExactTypeId,
-    storage: CanonicalCStorageTypeV1,
+    storage: CanonicalCStorageType,
 }
 
-impl CanonicalCAbiParameterV1 {
+impl CanonicalCAbiParameter {
     pub fn new(
         source_exact_type: PersistentExactTypeId,
-        storage: CanonicalCStorageTypeV1,
+        storage: CanonicalCStorageType,
     ) -> Result<Self, CanonicalCAbiError> {
         require_matching_exact_type(source_exact_type, storage)?;
         Ok(Self {
@@ -166,7 +166,7 @@ impl CanonicalCAbiParameterV1 {
     }
 }
 
-impl WireEncodeV1 for CanonicalCAbiParameterV1 {
+impl WireEncode for CanonicalCAbiParameter {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -177,18 +177,18 @@ impl WireEncodeV1 for CanonicalCAbiParameterV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CanonicalCAbiReturnV1 {
+pub enum CanonicalCAbiReturn {
     Void,
     Value {
         source_exact_type: PersistentExactTypeId,
-        storage: CanonicalCStorageTypeV1,
+        storage: CanonicalCStorageType,
     },
 }
 
-impl CanonicalCAbiReturnV1 {
+impl CanonicalCAbiReturn {
     pub fn value(
         source_exact_type: PersistentExactTypeId,
-        storage: CanonicalCStorageTypeV1,
+        storage: CanonicalCStorageType,
     ) -> Result<Self, CanonicalCAbiError> {
         require_matching_exact_type(source_exact_type, storage)?;
         Ok(Self::Value {
@@ -198,7 +198,7 @@ impl CanonicalCAbiReturnV1 {
     }
 }
 
-impl WireEncodeV1 for CanonicalCAbiReturnV1 {
+impl WireEncode for CanonicalCAbiReturn {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Void => encode_empty_sum(encoder, 1),
@@ -211,38 +211,38 @@ impl WireEncodeV1 for CanonicalCAbiReturnV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum TargetCallingConventionV1 {
+pub enum TargetCallingConvention {
     Cdecl,
 }
 
-impl WireEncodeV1 for TargetCallingConventionV1 {
+impl WireEncode for TargetCallingConvention {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(1)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CanonicalCAbiFunctionSignatureV1 {
-    calling_convention: TargetCallingConventionV1,
-    parameters: Vec<CanonicalCAbiParameterV1>,
-    result: CanonicalCAbiReturnV1,
+pub struct CanonicalCAbiFunctionSignature {
+    calling_convention: TargetCallingConvention,
+    parameters: Vec<CanonicalCAbiParameter>,
+    result: CanonicalCAbiReturn,
 }
 
-impl CanonicalCAbiFunctionSignatureV1 {
-    pub fn cdecl(parameters: Vec<CanonicalCAbiParameterV1>, result: CanonicalCAbiReturnV1) -> Self {
+impl CanonicalCAbiFunctionSignature {
+    pub fn cdecl(parameters: Vec<CanonicalCAbiParameter>, result: CanonicalCAbiReturn) -> Self {
         Self {
-            calling_convention: TargetCallingConventionV1::Cdecl,
+            calling_convention: TargetCallingConvention::Cdecl,
             parameters,
             result,
         }
     }
 
-    pub const fn calling_convention(&self) -> TargetCallingConventionV1 {
+    pub const fn calling_convention(&self) -> TargetCallingConvention {
         self.calling_convention
     }
 }
 
-impl WireEncodeV1 for CanonicalCAbiFunctionSignatureV1 {
+impl WireEncode for CanonicalCAbiFunctionSignature {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -258,19 +258,19 @@ impl WireEncodeV1 for CanonicalCAbiFunctionSignatureV1 {
 }
 
 impl CanonicalCAbiSignatureFingerprint {
-    pub fn from_signature(signature: &CanonicalCAbiFunctionSignatureV1) -> Result<Self, HashError> {
+    pub fn from_signature(signature: &CanonicalCAbiFunctionSignature) -> Result<Self, HashError> {
         derive_persistent_id("scoop-c-abi-signature-v1", signature)
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CanonicalCAbiSignatureFingerprintRecordV1 {
+pub struct CanonicalCAbiSignatureFingerprintRecord {
     fingerprint: CanonicalCAbiSignatureFingerprint,
-    signature: CanonicalCAbiFunctionSignatureV1,
+    signature: CanonicalCAbiFunctionSignature,
 }
 
-impl CanonicalCAbiSignatureFingerprintRecordV1 {
-    pub fn new(signature: CanonicalCAbiFunctionSignatureV1) -> Result<Self, HashError> {
+impl CanonicalCAbiSignatureFingerprintRecord {
+    pub fn new(signature: CanonicalCAbiFunctionSignature) -> Result<Self, HashError> {
         let fingerprint = CanonicalCAbiSignatureFingerprint::from_signature(&signature)?;
         Ok(Self {
             fingerprint,
@@ -279,7 +279,7 @@ impl CanonicalCAbiSignatureFingerprintRecordV1 {
     }
 }
 
-impl WireEncodeV1 for CanonicalCAbiSignatureFingerprintRecordV1 {
+impl WireEncode for CanonicalCAbiSignatureFingerprintRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -290,7 +290,7 @@ impl WireEncodeV1 for CanonicalCAbiSignatureFingerprintRecordV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CLayoutByteAlignmentV1 {
+pub enum CLayoutByteAlignment {
     Bytes1,
     Bytes2,
     Bytes4,
@@ -298,7 +298,7 @@ pub enum CLayoutByteAlignmentV1 {
     Bytes16,
 }
 
-impl CLayoutByteAlignmentV1 {
+impl CLayoutByteAlignment {
     pub const fn get(self) -> u8 {
         match self {
             Self::Bytes1 => 1,
@@ -310,19 +310,19 @@ impl CLayoutByteAlignmentV1 {
     }
 }
 
-impl WireEncodeV1 for CLayoutByteAlignmentV1 {
+impl WireEncode for CLayoutByteAlignment {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(u64::from(self.get()))
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CLayoutOverrideV1 {
+pub enum CLayoutOverride {
     Natural,
-    Bytes(CLayoutByteAlignmentV1),
+    Bytes(CLayoutByteAlignment),
 }
 
-impl WireEncodeV1 for CLayoutOverrideV1 {
+impl WireEncode for CLayoutOverride {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Natural => encode_empty_sum(encoder, 1),
@@ -332,17 +332,17 @@ impl WireEncodeV1 for CLayoutOverrideV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CanonicalCAbiLayoutFieldV1 {
+pub struct CanonicalCAbiLayoutField {
     field: PersistentFieldId,
     offset: u64,
-    storage: CanonicalCStorageTypeV1,
+    storage: CanonicalCStorageType,
 }
 
-impl CanonicalCAbiLayoutFieldV1 {
+impl CanonicalCAbiLayoutField {
     pub const fn new(
         field: PersistentFieldId,
         offset: u64,
-        storage: CanonicalCStorageTypeV1,
+        storage: CanonicalCStorageType,
     ) -> Self {
         Self {
             field,
@@ -352,7 +352,7 @@ impl CanonicalCAbiLayoutFieldV1 {
     }
 }
 
-impl WireEncodeV1 for CanonicalCAbiLayoutFieldV1 {
+impl WireEncode for CanonicalCAbiLayoutField {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -365,23 +365,23 @@ impl WireEncodeV1 for CanonicalCAbiLayoutFieldV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CanonicalCAbiLayoutV1 {
+pub struct CanonicalCAbiLayout {
     exact_type: PersistentExactTypeId,
     byte_size: u64,
     alignment: NonZeroU64,
-    aligned: CLayoutOverrideV1,
-    packed: CLayoutOverrideV1,
-    fields: Vec<CanonicalCAbiLayoutFieldV1>,
+    aligned: CLayoutOverride,
+    packed: CLayoutOverride,
+    fields: Vec<CanonicalCAbiLayoutField>,
 }
 
-impl CanonicalCAbiLayoutV1 {
+impl CanonicalCAbiLayout {
     pub fn new(
         exact_type: PersistentExactTypeId,
         byte_size: u64,
         alignment: NonZeroU64,
-        aligned: CLayoutOverrideV1,
-        packed: CLayoutOverrideV1,
-        fields: Vec<CanonicalCAbiLayoutFieldV1>,
+        aligned: CLayoutOverride,
+        packed: CLayoutOverride,
+        fields: Vec<CanonicalCAbiLayoutField>,
     ) -> Self {
         Self {
             exact_type,
@@ -394,7 +394,7 @@ impl CanonicalCAbiLayoutV1 {
     }
 }
 
-impl WireEncodeV1 for CanonicalCAbiLayoutV1 {
+impl WireEncode for CanonicalCAbiLayout {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         encoder.field(1)?;
@@ -417,19 +417,19 @@ impl WireEncodeV1 for CanonicalCAbiLayoutV1 {
 }
 
 impl CanonicalCAbiLayoutFingerprint {
-    pub fn from_layout(layout: &CanonicalCAbiLayoutV1) -> Result<Self, HashError> {
+    pub fn from_layout(layout: &CanonicalCAbiLayout) -> Result<Self, HashError> {
         derive_persistent_id("scoop-c-abi-layout-v1", layout)
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CanonicalCAbiLayoutFingerprintRecordV1 {
+pub struct CanonicalCAbiLayoutFingerprintRecord {
     fingerprint: CanonicalCAbiLayoutFingerprint,
-    layout: CanonicalCAbiLayoutV1,
+    layout: CanonicalCAbiLayout,
 }
 
-impl CanonicalCAbiLayoutFingerprintRecordV1 {
-    pub fn new(layout: CanonicalCAbiLayoutV1) -> Result<Self, HashError> {
+impl CanonicalCAbiLayoutFingerprintRecord {
+    pub fn new(layout: CanonicalCAbiLayout) -> Result<Self, HashError> {
         let fingerprint = CanonicalCAbiLayoutFingerprint::from_layout(&layout)?;
         Ok(Self {
             fingerprint,
@@ -438,7 +438,7 @@ impl CanonicalCAbiLayoutFingerprintRecordV1 {
     }
 }
 
-impl WireEncodeV1 for CanonicalCAbiLayoutFingerprintRecordV1 {
+impl WireEncode for CanonicalCAbiLayoutFingerprintRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -463,7 +463,7 @@ impl std::error::Error for CanonicalCAbiError {}
 
 fn require_matching_exact_type(
     source_exact_type: PersistentExactTypeId,
-    storage: CanonicalCStorageTypeV1,
+    storage: CanonicalCStorageType,
 ) -> Result<(), CanonicalCAbiError> {
     if storage.exact_type() == source_exact_type {
         Ok(())
@@ -485,7 +485,7 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -496,8 +496,8 @@ fn encode_value_sum(
 fn encode_two_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    first: &impl WireEncodeV1,
-    second: &impl WireEncodeV1,
+    first: &impl WireEncode,
+    second: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(3)?;
     encode_tag(encoder, tag)?;
@@ -510,9 +510,9 @@ fn encode_two_value_sum(
 fn encode_three_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    first: &impl WireEncodeV1,
-    second: &impl WireEncodeV1,
-    third: &impl WireEncodeV1,
+    first: &impl WireEncode,
+    second: &impl WireEncode,
+    third: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(4)?;
     encode_tag(encoder, tag)?;
@@ -531,9 +531,8 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        CLayoutOverrideV1, CanonicalCAbiError, CanonicalCAbiFunctionSignatureV1,
-        CanonicalCAbiLayoutV1, CanonicalCAbiParameterV1, CanonicalCAbiReturnV1,
-        CanonicalCStorageTypeV1,
+        CLayoutOverride, CanonicalCAbiError, CanonicalCAbiFunctionSignature, CanonicalCAbiLayout,
+        CanonicalCAbiParameter, CanonicalCAbiReturn, CanonicalCStorageType,
     };
     use crate::{
         CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, ConeIdentity,
@@ -545,9 +544,9 @@ mod tests {
         let source = PersistentExactTypeId(ConeIdentity::CORE.0);
         let other = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);
         assert_eq!(
-            CanonicalCAbiParameterV1::new(
+            CanonicalCAbiParameter::new(
                 source,
-                CanonicalCStorageTypeV1::Boolean { exact_type: other },
+                CanonicalCStorageType::Boolean { exact_type: other },
             ),
             Err(CanonicalCAbiError::StorageExactTypeMismatch)
         );
@@ -556,13 +555,13 @@ mod tests {
     #[test]
     fn canonical_c_signature_has_fixed_fingerprint() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let parameter = CanonicalCAbiParameterV1::new(
+        let parameter = CanonicalCAbiParameter::new(
             exact,
-            CanonicalCStorageTypeV1::Boolean { exact_type: exact },
+            CanonicalCStorageType::Boolean { exact_type: exact },
         )
         .unwrap();
         let signature =
-            CanonicalCAbiFunctionSignatureV1::cdecl(vec![parameter], CanonicalCAbiReturnV1::Void);
+            CanonicalCAbiFunctionSignature::cdecl(vec![parameter], CanonicalCAbiReturn::Void);
         assert_eq!(
             hex(&encode(&signature).unwrap()),
             "a301010281a20158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02a200020158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d03a10001"
@@ -578,12 +577,12 @@ mod tests {
     #[test]
     fn canonical_c_layout_has_fixed_fingerprint() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let layout = CanonicalCAbiLayoutV1::new(
+        let layout = CanonicalCAbiLayout::new(
             exact,
             0,
             NonZeroU64::new(1).unwrap(),
-            CLayoutOverrideV1::Natural,
-            CLayoutOverrideV1::Natural,
+            CLayoutOverride::Natural,
+            CLayoutOverride::Natural,
             Vec::new(),
         );
         assert_eq!(

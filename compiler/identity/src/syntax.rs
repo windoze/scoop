@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Decoder, Encoder, WireDecodeV1, WireEncodeV1, WireError};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CanonicalIdentifier(String);
@@ -16,7 +16,7 @@ impl CanonicalIdentifier {
     }
 }
 
-impl WireEncodeV1 for CanonicalIdentifier {
+impl WireEncode for CanonicalIdentifier {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.text(&self.0)
     }
@@ -29,21 +29,21 @@ impl fmt::Display for CanonicalIdentifier {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedCanonicalIdentifierV1(String);
+pub struct DecodedCanonicalIdentifier(String);
 
-impl DecodedCanonicalIdentifierV1 {
+impl DecodedCanonicalIdentifier {
     pub fn validate(self) -> Result<CanonicalIdentifier, CanonicalIdentifierError> {
         CanonicalIdentifier::new(&self.0)
     }
 }
 
-impl WireEncodeV1 for DecodedCanonicalIdentifierV1 {
+impl WireEncode for DecodedCanonicalIdentifier {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.text(&self.0)
     }
 }
 
-impl WireDecodeV1 for DecodedCanonicalIdentifierV1 {
+impl WireDecode for DecodedCanonicalIdentifier {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.owned_text().map(Self)
     }
@@ -115,7 +115,7 @@ impl PackagePath {
     }
 }
 
-impl WireEncodeV1 for PackagePath {
+impl WireEncode for PackagePath {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(self.0.len() as u64)?;
         for segment in &self.0 {
@@ -126,9 +126,9 @@ impl WireEncodeV1 for PackagePath {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedPackagePathV1(Vec<String>);
+pub struct DecodedPackagePath(Vec<String>);
 
-impl DecodedPackagePathV1 {
+impl DecodedPackagePath {
     pub fn validate(self) -> Result<PackagePath, CanonicalIdentifierError> {
         let segments = self
             .0
@@ -139,7 +139,7 @@ impl DecodedPackagePathV1 {
     }
 }
 
-impl WireEncodeV1 for DecodedPackagePathV1 {
+impl WireEncode for DecodedPackagePath {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(self.0.len() as u64)?;
         for segment in &self.0 {
@@ -149,7 +149,7 @@ impl WireEncodeV1 for DecodedPackagePathV1 {
     }
 }
 
-impl WireDecodeV1 for DecodedPackagePathV1 {
+impl WireDecode for DecodedPackagePath {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| decoder.owned_text())
@@ -159,9 +159,9 @@ impl WireDecodeV1 for DecodedPackagePathV1 {
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimitsV1, decode_canonical, encode};
+    use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
-    use super::{CanonicalIdentifier, CanonicalIdentifierError, DecodedPackagePathV1, PackagePath};
+    use super::{CanonicalIdentifier, CanonicalIdentifierError, DecodedPackagePath, PackagePath};
 
     #[test]
     fn identifier_matches_the_language_lexer_grammar() {
@@ -187,7 +187,7 @@ mod tests {
         let bytes = encode(&path).unwrap();
         assert_eq!(bytes, b"\x82\x63org\x67example");
         assert_eq!(
-            decode_canonical::<DecodedPackagePathV1>(&bytes, DecodeLimitsV1::default())
+            decode_canonical::<DecodedPackagePath>(&bytes, DecodeLimits::default())
                 .unwrap()
                 .validate()
                 .unwrap(),
@@ -197,11 +197,9 @@ mod tests {
 
     #[test]
     fn decoded_package_path_rejects_invalid_segments() {
-        let decoded = decode_canonical::<DecodedPackagePathV1>(
-            b"\x81\x69not-valid",
-            DecodeLimitsV1::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedPackagePath>(b"\x81\x69not-valid", DecodeLimits::default())
+                .unwrap();
         assert_eq!(
             decoded.validate(),
             Err(CanonicalIdentifierError::InvalidContinuation)

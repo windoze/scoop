@@ -312,65 +312,65 @@ OdrMemberId
 generic/owner-dependent callable的declaration、concrete application与machine body是三个不同实体：
 
 ```text
-CallableTemplateOriginV1 =
+CallableTemplateOrigin =
     Function(PersistentFunctionId)                 // tag 1
   | GenericFunction(PersistentGenericFunctionId)   // tag 2
   | Constructor(PersistentConstructorId)           // tag 3
   | Accessor(PersistentPropertyAccessorId)          // tag 4
 
-CallableInstantiationOwnerV1 =
+CallableInstantiationOwner =
     NoOwner                                          // tag 1
   | ExactNominalOwner(PersistentExactTypeId)         // tag 2
   | EnclosingCallableApplication(PersistentCallableApplicationId) // tag 3
   | EnclosingInitializationApplication(PersistentInitializationUnitId) // tag 4
 
-CallableArgumentsV1 = NoCallableArguments            // tag 1
+CallableArguments = NoCallableArguments            // tag 1
                     | Arguments(NonEmpty<PersistentExactTypeId>) // tag 2
 
-CallableApplicationKeyV1 = {
-    origin: CallableTemplateOriginV1,
-    instantiation_owner: CallableInstantiationOwnerV1,
-    callable_arguments: CallableArgumentsV1,
+CallableApplicationKey = {
+    origin: CallableTemplateOrigin,
+    instantiation_owner: CallableInstantiationOwner,
+    callable_arguments: CallableArguments,
 }
 
 PersistentCallableApplicationId =
     DomainSeparatedCborHash("scoop-callable-application-id-v1",
-                            CallableApplicationKeyV1)
+                            CallableApplicationKey)
 ```
 
 ordinary method/constructor/accessor处于generic nominal时使用其声明宿主的`ExactNominalOwner + NoCallableArguments`；generic method再带自身Arguments；top-level generic function使用NoOwner+Arguments；generic extension-property accessor以receiver binder arguments填Arguments。local callable从普通callable lexical parent继承substitution时使用`EnclosingCallableApplication`；若其nearest enclosing materialization是generic delegated initializer/ensure（包括其中lambda/anonymous callable），则使用`EnclosingInitializationApplication`，且unit必须是同一extension property与完整receiver arguments的`GenericDelegatedExtensionApplication`。local callable若自身generic还要同时带自身Arguments，不能让outer owner吞掉phantom binder。两项都不存在时不构造application，直接使用declaration id。validator沿source/generated lexical parent逐边证明tag 3/4恰好是nearest enclosing materialization；owner不是调用点receiver或动态派生类型。所有arity包含phantom binder且argument必须是concrete exact type；application id与declaration/body/unit id之间没有cast。
 
-initializer/ensure的generated **template** identity始终由声明级unit固定：只接受`TopLevelProperty`、`ExtensionProperty`、`Object`或`Companion`；generic delegated template仍使用声明级`ExtensionProperty` unit取得唯一template id。具体`GenericDelegatedExtensionApplication` unit只进入`CallableMaterializationContextV1::InitializationApplication`，实际initializer/ensure implementation以该context的`MaterializationRoot`求Cone/ODR root。不得为每个receiver application重造一份generated template，也不得只读template key中的声明级unit决定具体body归组。
+initializer/ensure的generated **template** identity始终由声明级unit固定：只接受`TopLevelProperty`、`ExtensionProperty`、`Object`或`Companion`；generic delegated template仍使用声明级`ExtensionProperty` unit取得唯一template id。具体`GenericDelegatedExtensionApplication` unit只进入`CallableMaterializationContext::InitializationApplication`，实际initializer/ensure implementation以该context的`MaterializationRoot`求Cone/ODR root。不得为每个receiver application重造一份generated template，也不得只读template key中的声明级unit决定具体body归组。
 
 foreign callback同样把source conversion site与concrete materialization分成两个identity：
 
 ```text
-CallbackRegistrationKeyV1 = {
-    parent: LexicalCallableParentV1,                // field 1
-    path: StructuralDefinitionPathV1,               // field 2
-    source_c_signature: SourceCAbiFunctionSignatureV1, // field 3
+CallbackRegistrationKey = {
+    parent: LexicalCallableParent,                // field 1
+    path: StructuralDefinitionPath,               // field 2
+    source_c_signature: SourceCAbiFunctionSignature, // field 3
     context_index: CallbackParameterIndex,          // field 4
-    managed_shape: SignatureCallableShapeV1,        // field 5
-    mode: CallbackModeV1,                           // field 6
+    managed_shape: SignatureCallableShape,        // field 5
+    mode: CallbackMode,                           // field 6
 }
 
 PersistentCallbackRegistrationId =
     DomainSeparatedCborHash("scoop-callback-registration-id-v1",
-                            CallbackRegistrationKeyV1)
+                            CallbackRegistrationKey)
 
-CallableMaterializationContextV1 =
+CallableMaterializationContext =
     NoSubstitution                                      // tag 1
   | Application(PersistentCallableApplicationId)       // tag 2
   | InitializationApplication(PersistentInitializationUnitId) // tag 3
 
-CallbackApplicationKeyV1 = {
+CallbackApplicationKey = {
     registration: PersistentCallbackRegistrationId,    // field 1
-    context: CallableMaterializationContextV1,          // field 2
+    context: CallableMaterializationContext,          // field 2
 }
 
 PersistentCallbackApplicationId =
     DomainSeparatedCborHash("scoop-callback-application-id-v1",
-                            CallbackApplicationKeyV1)
+                            CallbackApplicationKey)
 ```
 
 HIR registration的signature/managed shape允许合法binder，只标识一次source conversion site；MIR application必须按context完成全部替换。`NoSubstitution`只接binder-free site，普通generic callable使用能回溯registration parent的`Application`，generic delegated initializer/ensure使用同property与完整receiver arguments的`InitializationApplication`。MIR以application为主键保存exact managed signature、mode及固定`{closure, result storage, roots, throwable} -> u32 status` storage ABI；LIR再把该application的source C signature按`ValidatedLirTargetSelectionV1`正规化，并保存`{application, CanonicalCAbiSignatureFingerprint, GeneratedBridgeUnitId}`。不同application可以复用同一个`CallbackTrampoline(signature,index)` unit，不得复制unit identity或把registration误作concrete application。
@@ -497,7 +497,7 @@ program-wide specialization key以封闭sum区分被实例化的语义实体：
 
 ```text
 SpecializationKey = Nominal { origin: PersistentGenericTypeId, exact arguments }
-                  | Callable { application: CallableApplicationKeyV1 }
+                  | Callable { application: CallableApplicationKey }
                   | DelegatedProperty { origin: PersistentExtensionPropertyId,
                                         exact receiver arguments }
                   | StructuralType { exact_type: PersistentExactTypeId }
@@ -591,7 +591,7 @@ DefinitionAtomSubkeyV1 =
   | InitializationUnit(PersistentInitializationUnitId)  // tag 5
   | ExactType(PersistentExactTypeId)                    // tag 6
   | SafepointSite(PersistentSafepointSiteId)            // tag 7
-  | StructuralPath(StructuralDefinitionPathV1)          // tag 8
+  | StructuralPath(StructuralDefinitionPath)          // tag 8
 
 ObjectDefinitionAtomId =
     DomainSeparatedCborHash("scoop-object-definition-atom-v1",
@@ -706,36 +706,36 @@ NativeExternalContractFingerprint =
 
 `native_link_symbol`是target profile规范化后真正进入object symbol table的bytes；当前Darwin object中的undefined reference不携带声明的`lib`，所以只按该symbol id分组，`library`是必须相等的contract内容。`NativeLinkRequirementId`引用4.2中不含host绝对路径的target-tagged逻辑requirement；空`lib`只能编码为`DefaultNativeNamespace`。M12 v1的function calling convention只有规范化后的`Cdecl`，省略与显式`cdecl`得到同一值；data variant不携带calling convention且ABI固定为C。
 
-source层先保存`SourceExternFunctionAbiV1 = C { SourceCAbiFunctionSignatureV1 } | Scoop { SourceScoopAbiFunctionSignatureV1, GcEffectV1 }`，其中`GcEffectV1`严格为`Managed=1 | NoGc=2`；它与ordinary/suspend callable effect是正交轴。C source `Unit` result唯一正规化为Void，parameter不能是Unit；Scoop ABI result不使用该特例。alias在进入signature前透明展开，binder-free source extern必须拒绝残余binder；callback registration则复用允许binder的source C signature，到concrete application才替换。
+source层先保存`SourceExternFunctionAbi = C { SourceCAbiFunctionSignature } | Scoop { SourceScoopAbiFunctionSignature, GcEffect }`，其中`GcEffect`严格为`Managed=1 | NoGc=2`；它与ordinary/suspend callable effect是正交轴。C source `Unit` result唯一正规化为Void，parameter不能是Unit；Scoop ABI result不使用该特例。alias在进入signature前透明展开，binder-free source extern必须拒绝残余binder；callback registration则复用允许binder的source C signature，到concrete application才替换。
 
-target层的`CanonicalCAbiFunctionSignatureV1`精确为map `1=TargetCallingConventionV1, 2=array<CanonicalCAbiParameterV1>, 3=CanonicalCAbiReturnV1`；parameter为`{1=source_exact_type, 2=CanonicalCStorageTypeV1}`，return为`Void=1 | Value=2 {1=source_exact_type, 2=storage}`。`CanonicalCStorageTypeV1`封闭区分integer的signedness/width、Boolean、带data-pointee与nullable-wrapper provenance的data pointer、带signature fingerprint的code pointer，以及引用`CanonicalCAbiLayoutFingerprint`的`@CLayout` struct。它描述canonical generated-C源码的storage contract，**不**持久化平台register class、integer extension、`byval`/`sret`等手写C ABI分类；所有C function/global/callback都必须经profile指定的canonical generated-C bridge与system C compiler产生C侧lowering。Scoop侧桥接入口只消费已经类型化的storage ABI，object capability再验证canonical C source/object闭包；不能从host ABI默认值补pass mode。
+target层的`CanonicalCAbiFunctionSignature`精确为map `1=TargetCallingConvention, 2=array<CanonicalCAbiParameter>, 3=CanonicalCAbiReturn`；parameter为`{1=source_exact_type, 2=CanonicalCStorageType}`，return为`Void=1 | Value=2 {1=source_exact_type, 2=storage}`。`CanonicalCStorageType`封闭区分integer的signedness/width、Boolean、带data-pointee与nullable-wrapper provenance的data pointer、带signature fingerprint的code pointer，以及引用`CanonicalCAbiLayoutFingerprint`的`@CLayout` struct。它描述canonical generated-C源码的storage contract，**不**持久化平台register class、integer extension、`byval`/`sret`等手写C ABI分类；所有C function/global/callback都必须经profile指定的canonical generated-C bridge与system C compiler产生C侧lowering。Scoop侧桥接入口只消费已经类型化的storage ABI，object capability再验证canonical C source/object闭包；不能从host ABI默认值补pass mode。
 
 ```text
-CanonicalCAbiParameterV1 = {
+CanonicalCAbiParameter = {
     source_exact_type: PersistentExactTypeId,     // field 1
-    storage: CanonicalCStorageTypeV1,              // field 2
+    storage: CanonicalCStorageType,              // field 2
 }
 
-CanonicalCAbiReturnV1 =
+CanonicalCAbiReturn =
     Void                                           // tag 1
   | Value { source_exact_type: PersistentExactTypeId,
-            storage: CanonicalCStorageTypeV1 }     // tag 2, fields 1..2
+            storage: CanonicalCStorageType }     // tag 2, fields 1..2
 
-CanonicalCAbiFunctionSignatureV1 = {
-    calling_convention: TargetCallingConventionV1,// field 1
-    parameters: array<CanonicalCAbiParameterV1>,  // field 2
-    result: CanonicalCAbiReturnV1,                 // field 3
+CanonicalCAbiFunctionSignature = {
+    calling_convention: TargetCallingConvention,// field 1
+    parameters: array<CanonicalCAbiParameter>,  // field 2
+    result: CanonicalCAbiReturn,                 // field 3
 }
 
-CanonicalScoopAbiFunctionSignatureV1 = {
-    exact_signature: ExactCallableSignatureV1,    // field 1
-    arguments: array<ScoopAbiArgumentV1>,         // field 2
-    result: ScoopAbiReturnV1,                      // field 3
-    gc_effect: GcEffectV1,                        // field 4
+CanonicalScoopAbiFunctionSignature = {
+    exact_signature: ExactCallableSignature,    // field 1
+    arguments: array<ScoopAbiArgument>,         // field 2
+    result: ScoopAbiReturn,                      // field 3
+    gc_effect: GcEffect,                        // field 4
 }
 ```
 
-`CanonicalCAbiSignatureFingerprint`与`CanonicalCAbiLayoutFingerprint`分别对完整signature/layout preimage使用`scoop-c-abi-signature-v1`与`scoop-c-abi-layout-v1`的`DomainSeparatedCborHash`。Scoop variant则使用每个`PersistentExactTypeId`及完备`AbiArgument::{ElidedZst, Direct, Indirect}`/`AbiReturn::{UnitVoid, ElidedZst, Direct, Indirect}`，并把source `GcEffectV1`原样放入`CanonicalScoopAbiFunctionSignatureV1` field 4；Managed与NoGc即使物理shape相同仍是不同contract，且两者都保持M15 `NativeBorrowed` transition与caller-root publication，`NoGc`不能偷降为ordinary NoGC callsite。因此相同size或LLVM function type不构成相同contract；只有canonical native signature逐字段相同才相等。
+`CanonicalCAbiSignatureFingerprint`与`CanonicalCAbiLayoutFingerprint`分别对完整signature/layout preimage使用`scoop-c-abi-signature-v1`与`scoop-c-abi-layout-v1`的`DomainSeparatedCborHash`。Scoop variant则使用每个`PersistentExactTypeId`及完备`AbiArgument::{ElidedZst, Direct, Indirect}`/`AbiReturn::{UnitVoid, ElidedZst, Direct, Indirect}`，并把source `GcEffect`原样放入`CanonicalScoopAbiFunctionSignature` field 4；Managed与NoGc即使物理shape相同仍是不同contract，且两者都保持M15 `NativeBorrowed` transition与caller-root publication，`NoGc`不能偷降为ordinary NoGC callsite。因此相同size或LLVM function type不构成相同contract；只有canonical native signature逐字段相同才相等。
 
 每个Cone的HIR/MIR/LIR section保留相应typed relation，manifest保存按`(PersistentNativeExternalSymbolId, contract fingerprint)`排序的完整record与local declaration origin集合。public import/re-export保留origin contract；下游extern call/global use及任一`LinkObject`中由这些extern目标产生的undefined relocation只能引用已有contract id。object verifier把每个`SourceExtern` undefined symbol连同其`SlibMemberId`反向关联到一个record；漏record、一个relocation匹配多个contract或record的symbol/library requirement与真实relocation/link input不一致都拒绝。合法`FunPtr`取址只指向非extern Scoop-owned `@NoGC` body，继续使用callable/object identity；`FunPtr`仅在它作为extern参数/结果的C code-pointer type时进入该contract signature。
 
@@ -1417,10 +1417,10 @@ HIR/MIR/LIR magic分别为`SCOOPHIR`、`SCOOPMIR`、`SCOOPLIR`，M23全部`outer
 | 23 | `PersistentLocalBindingId` |
 | 24 | HIR `PersistentLocalValueId` |
 | 25 | `PersistentCallbackRegistrationId` |
-| 26 | `SourceNativeExternalContractRecordV1` |
+| 26 | `SourceNativeExternalContractRecord` |
 | 27 | HIR `OdrGroupId` |
 | 28 | HIR `OdrMemberId` |
-| 29 | `DefinitionOriginRecordV1` |
+| 29 | `DefinitionOriginRecord` |
 | 30 | `NativeBoundaryTypeDefinitionRecordV1` |
 
 MIR foundation的field 1…12精确为：
@@ -1440,7 +1440,7 @@ MIR foundation的field 1…12精确为：
 | 11 | MIR `OdrGroupId` |
 | 12 | MIR `OdrMemberId` |
 
-`MirCallbackApplicationRecordV1`恰为map `1=application, 2=managed_adapter: CallableSignatureSubjectV1, 3=managed_signature: ExactCallableSignatureV1, 4=ForeignCallbackStorageAbiV1, 5=CallbackModeV1`；v1 storage ABI唯一tag为`ClosureResultRootsThrowableToU32=1`。它按application id排序并从registration/context重放替换，不得命名为Registration record或提前混入target-specific C bridge。
+`MirCallbackApplicationRecordV1`恰为map `1=application, 2=managed_adapter: CallableSignatureSubjectV1, 3=managed_signature: ExactCallableSignature, 4=ForeignCallbackStorageAbiV1, 5=CallbackMode`；v1 storage ABI唯一tag为`ClosureResultRootsThrowableToU32=1`。它按application id排序并从registration/context重放替换，不得命名为Registration record或提前混入target-specific C bridge。
 
 LIR foundation的field 1…22精确为：
 
@@ -1460,8 +1460,8 @@ LIR foundation的field 1…22精确为：
 | 12 | `SafepointMappingRecordV1` |
 | 13 | `PersistentSymbolRequestV1` |
 | 14 | `NativeExternalContractRecordV1` |
-| 15 | `CanonicalCAbiSignatureFingerprintRecordV1` |
-| 16 | `CanonicalCAbiLayoutFingerprintRecordV1` |
+| 15 | `CanonicalCAbiSignatureFingerprintRecord` |
+| 16 | `CanonicalCAbiLayoutFingerprintRecord` |
 | 17 | `GeneratedBridgeUnitId` |
 | 18 | `GeneratedBridgeAtomId` |
 | 19 | `LirCallbackBridgeRecordV1` |

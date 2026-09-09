@@ -1,8 +1,8 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{CallableOwnerV1, NominalDeclarationOwnerV1, PropertyOwnerV1};
+use super::{CallableOwner, NominalDeclarationOwner, PropertyOwner};
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentCallbackRegistrationId, PersistentConstructorId, PersistentEnumVariantFieldId,
@@ -15,12 +15,12 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceSpanV1 {
+pub struct SourceSpan {
     start_byte: u64,
     end_byte: u64,
 }
 
-impl SourceSpanV1 {
+impl SourceSpan {
     pub fn new(start_byte: u64, end_byte: u64) -> Result<Self, SourceSpanError> {
         if start_byte <= end_byte {
             Ok(Self {
@@ -41,7 +41,7 @@ impl SourceSpanV1 {
     }
 }
 
-impl WireEncodeV1 for SourceSpanV1 {
+impl WireEncode for SourceSpan {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -63,21 +63,21 @@ impl fmt::Display for SourceSpanError {
 impl std::error::Error for SourceSpanError {}
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceContextKeyV1 {
+pub enum SourceContextKey {
     File {
         source: SourceIdentity,
     },
     Nominal {
         source: SourceIdentity,
-        owner: NominalDeclarationOwnerV1,
+        owner: NominalDeclarationOwner,
     },
     Callable {
         source: SourceIdentity,
-        owner: CallableOwnerV1,
+        owner: CallableOwner,
     },
     Property {
         source: SourceIdentity,
-        owner: PropertyOwnerV1,
+        owner: PropertyOwner,
     },
     Initialization {
         source: SourceIdentity,
@@ -85,7 +85,7 @@ pub enum SourceContextKeyV1 {
     },
 }
 
-impl SourceContextKeyV1 {
+impl SourceContextKey {
     pub fn source(&self) -> &SourceIdentity {
         match self {
             Self::File { source }
@@ -97,7 +97,7 @@ impl SourceContextKeyV1 {
     }
 }
 
-impl WireEncodeV1 for SourceContextKeyV1 {
+impl WireEncode for SourceContextKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::File { source } => encode_context(encoder, 1, source, None),
@@ -110,7 +110,7 @@ impl WireEncodeV1 for SourceContextKeyV1 {
 }
 
 impl PersistentSourceContextId {
-    pub fn from_key(key: &SourceContextKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &SourceContextKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-source-context-id-v1", key)
     }
 }
@@ -119,7 +119,7 @@ fn encode_context(
     encoder: &mut Encoder,
     tag: u64,
     source: &SourceIdentity,
-    owner: Option<&dyn WireEncodeV1>,
+    owner: Option<&dyn WireEncode>,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(if owner.is_some() { 3 } else { 2 })?;
     encoder.field(0)?;
@@ -134,17 +134,17 @@ fn encode_context(
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefinitionOriginV1 {
+pub struct DefinitionOrigin {
     source: SourceIdentity,
-    span: SourceSpanV1,
+    span: SourceSpan,
     context: PersistentSourceContextId,
 }
 
-impl DefinitionOriginV1 {
+impl DefinitionOrigin {
     pub fn new(
         source: SourceIdentity,
-        span: SourceSpanV1,
-        context_key: &SourceContextKeyV1,
+        span: SourceSpan,
+        context_key: &SourceContextKey,
     ) -> Result<Self, SourceOriginError> {
         origin_from_key(source, span, context_key).map(|fields| Self {
             source: fields.source,
@@ -157,7 +157,7 @@ impl DefinitionOriginV1 {
         &self.source
     }
 
-    pub const fn span(&self) -> SourceSpanV1 {
+    pub const fn span(&self) -> SourceSpan {
         self.span
     }
 
@@ -166,24 +166,24 @@ impl DefinitionOriginV1 {
     }
 }
 
-impl WireEncodeV1 for DefinitionOriginV1 {
+impl WireEncode for DefinitionOrigin {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_origin(encoder, &self.source, self.span, self.context)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EvaluationOriginV1 {
+pub struct EvaluationOrigin {
     source: SourceIdentity,
-    span: SourceSpanV1,
+    span: SourceSpan,
     context: PersistentSourceContextId,
 }
 
-impl EvaluationOriginV1 {
+impl EvaluationOrigin {
     pub fn new(
         source: SourceIdentity,
-        span: SourceSpanV1,
-        context_key: &SourceContextKeyV1,
+        span: SourceSpan,
+        context_key: &SourceContextKey,
     ) -> Result<Self, SourceOriginError> {
         origin_from_key(source, span, context_key).map(|fields| Self {
             source: fields.source,
@@ -192,7 +192,7 @@ impl EvaluationOriginV1 {
         })
     }
 
-    pub fn at_definition(definition: &DefinitionOriginV1) -> Self {
+    pub fn at_definition(definition: &DefinitionOrigin) -> Self {
         Self {
             source: definition.source.clone(),
             span: definition.span,
@@ -204,7 +204,7 @@ impl EvaluationOriginV1 {
         &self.source
     }
 
-    pub const fn span(&self) -> SourceSpanV1 {
+    pub const fn span(&self) -> SourceSpan {
         self.span
     }
 
@@ -213,7 +213,7 @@ impl EvaluationOriginV1 {
     }
 }
 
-impl WireEncodeV1 for EvaluationOriginV1 {
+impl WireEncode for EvaluationOrigin {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_origin(encoder, &self.source, self.span, self.context)
     }
@@ -221,14 +221,14 @@ impl WireEncodeV1 for EvaluationOriginV1 {
 
 struct OriginFields {
     source: SourceIdentity,
-    span: SourceSpanV1,
+    span: SourceSpan,
     context: PersistentSourceContextId,
 }
 
 fn origin_from_key(
     source: SourceIdentity,
-    span: SourceSpanV1,
-    context_key: &SourceContextKeyV1,
+    span: SourceSpan,
+    context_key: &SourceContextKey,
 ) -> Result<OriginFields, SourceOriginError> {
     if context_key.source() != &source {
         return Err(SourceOriginError::ContextSourceMismatch);
@@ -245,7 +245,7 @@ fn origin_from_key(
 fn encode_origin(
     encoder: &mut Encoder,
     source: &SourceIdentity,
-    span: SourceSpanV1,
+    span: SourceSpan,
     context: PersistentSourceContextId,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(3)?;
@@ -258,29 +258,29 @@ fn encode_origin(
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ConcreteExpressionOriginV1 {
-    definition: DefinitionOriginV1,
-    evaluation: EvaluationOriginV1,
+pub struct ConcreteExpressionOrigin {
+    definition: DefinitionOrigin,
+    evaluation: EvaluationOrigin,
 }
 
-impl ConcreteExpressionOriginV1 {
-    pub fn new(definition: DefinitionOriginV1, evaluation: EvaluationOriginV1) -> Self {
+impl ConcreteExpressionOrigin {
+    pub fn new(definition: DefinitionOrigin, evaluation: EvaluationOrigin) -> Self {
         Self {
             definition,
             evaluation,
         }
     }
 
-    pub fn definition(&self) -> &DefinitionOriginV1 {
+    pub fn definition(&self) -> &DefinitionOrigin {
         &self.definition
     }
 
-    pub fn evaluation(&self) -> &EvaluationOriginV1 {
+    pub fn evaluation(&self) -> &EvaluationOrigin {
         &self.evaluation
     }
 }
 
-impl WireEncodeV1 for ConcreteExpressionOriginV1 {
+impl WireEncode for ConcreteExpressionOrigin {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -291,12 +291,12 @@ impl WireEncodeV1 for ConcreteExpressionOriginV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ExpressionOriginV1 {
-    Definition(DefinitionOriginV1),
-    Concrete(ConcreteExpressionOriginV1),
+pub enum ExpressionOrigin {
+    Definition(DefinitionOrigin),
+    Concrete(ConcreteExpressionOrigin),
 }
 
-impl WireEncodeV1 for ExpressionOriginV1 {
+impl WireEncode for ExpressionOrigin {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(0)?;
@@ -313,7 +313,7 @@ impl WireEncodeV1 for ExpressionOriginV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DefinitionOriginSubjectV1 {
+pub enum DefinitionOriginSubject {
     Type(PersistentTypeId),
     GenericType(PersistentGenericTypeId),
     Function(PersistentFunctionId),
@@ -334,9 +334,9 @@ pub enum DefinitionOriginSubjectV1 {
     SourceNativeContract(PersistentSourceNativeExternalContractId),
 }
 
-impl WireEncodeV1 for DefinitionOriginSubjectV1 {
+impl WireEncode for DefinitionOriginSubject {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        let (tag, id): (u64, &dyn WireEncodeV1) = match self {
+        let (tag, id): (u64, &dyn WireEncode) = match self {
             Self::Type(id) => (1, id),
             Self::GenericType(id) => (2, id),
             Self::Function(id) => (3, id),
@@ -365,26 +365,26 @@ impl WireEncodeV1 for DefinitionOriginSubjectV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefinitionOriginRecordV1 {
-    subject: DefinitionOriginSubjectV1,
-    origin: DefinitionOriginV1,
+pub struct DefinitionOriginRecord {
+    subject: DefinitionOriginSubject,
+    origin: DefinitionOrigin,
 }
 
-impl DefinitionOriginRecordV1 {
-    pub fn new(subject: DefinitionOriginSubjectV1, origin: DefinitionOriginV1) -> Self {
+impl DefinitionOriginRecord {
+    pub fn new(subject: DefinitionOriginSubject, origin: DefinitionOrigin) -> Self {
         Self { subject, origin }
     }
 
-    pub const fn subject(&self) -> DefinitionOriginSubjectV1 {
+    pub const fn subject(&self) -> DefinitionOriginSubject {
         self.subject
     }
 
-    pub fn origin(&self) -> &DefinitionOriginV1 {
+    pub fn origin(&self) -> &DefinitionOrigin {
         &self.origin
     }
 }
 
-impl WireEncodeV1 for DefinitionOriginRecordV1 {
+impl WireEncode for DefinitionOriginRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -417,7 +417,7 @@ impl std::error::Error for SourceOriginError {}
 mod tests {
     use scoop_wire::encode;
 
-    use super::{DefinitionOriginV1, EvaluationOriginV1, SourceContextKeyV1, SourceSpanV1};
+    use super::{DefinitionOrigin, EvaluationOrigin, SourceContextKey, SourceSpan};
     use crate::{ConeIdentity, NormalizedSourcePath, PersistentSourceContextId, SourceIdentity};
 
     fn core_source() -> SourceIdentity {
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn file_context_has_fixed_wire_and_hash() {
-        let key = SourceContextKeyV1::File {
+        let key = SourceContextKey::File {
             source: core_source(),
         };
         assert_eq!(
@@ -448,23 +448,21 @@ mod tests {
     #[test]
     fn origin_requires_the_contexts_exact_source() {
         let source = core_source();
-        let wrong_key = SourceContextKeyV1::File {
+        let wrong_key = SourceContextKey::File {
             source: SourceIdentity::single_file(),
         };
-        assert!(
-            DefinitionOriginV1::new(source, SourceSpanV1::new(1, 2).unwrap(), &wrong_key).is_err()
-        );
+        assert!(DefinitionOrigin::new(source, SourceSpan::new(1, 2).unwrap(), &wrong_key).is_err());
     }
 
     #[test]
     fn definition_and_evaluation_origins_remain_distinct_types() {
         let source = core_source();
-        let key = SourceContextKeyV1::File {
+        let key = SourceContextKey::File {
             source: source.clone(),
         };
         let definition =
-            DefinitionOriginV1::new(source, SourceSpanV1::new(3, 7).unwrap(), &key).unwrap();
-        let evaluation = EvaluationOriginV1::at_definition(&definition);
+            DefinitionOrigin::new(source, SourceSpan::new(3, 7).unwrap(), &key).unwrap();
+        let evaluation = EvaluationOrigin::at_definition(&definition);
         assert_eq!(encode(&definition).unwrap(), encode(&evaluation).unwrap());
     }
 

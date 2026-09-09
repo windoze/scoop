@@ -1,10 +1,10 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{
-    DeclarationNameV1, DeclarationScopeV1, DefinitionOwnerChainV1, DuplicateSignatureKeyV1,
-    OptionalSignatureTypeV1, SignatureTypeKeyV1,
+    DeclarationName, DeclarationScope, DefinitionOwnerChain, DuplicateSignatureKey,
+    OptionalSignatureType, SignatureTypeKey,
 };
 use crate::ids::derive_persistent_id;
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceNominalKindV1 {
+pub enum SourceNominalKind {
     Class,
     Interface,
     Struct,
@@ -23,21 +23,21 @@ pub enum SourceNominalKindV1 {
     AnnotationClass,
 }
 
-impl SourceNominalKindV1 {
-    const fn declaration_kind(self) -> SourceDeclarationKindV1 {
+impl SourceNominalKind {
+    const fn declaration_kind(self) -> SourceDeclarationKind {
         match self {
-            Self::Class => SourceDeclarationKindV1::Class,
-            Self::Interface => SourceDeclarationKindV1::Interface,
-            Self::Struct => SourceDeclarationKindV1::Struct,
-            Self::Enum => SourceDeclarationKindV1::Enum,
-            Self::Object => SourceDeclarationKindV1::Object,
-            Self::AnnotationClass => SourceDeclarationKindV1::AnnotationClass,
+            Self::Class => SourceDeclarationKind::Class,
+            Self::Interface => SourceDeclarationKind::Interface,
+            Self::Struct => SourceDeclarationKind::Struct,
+            Self::Enum => SourceDeclarationKind::Enum,
+            Self::Object => SourceDeclarationKind::Object,
+            Self::AnnotationClass => SourceDeclarationKind::AnnotationClass,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceDeclarationKindV1 {
+pub enum SourceDeclarationKind {
     Class,
     Interface,
     Struct,
@@ -51,7 +51,7 @@ pub enum SourceDeclarationKindV1 {
     TypeAlias,
 }
 
-impl SourceDeclarationKindV1 {
+impl SourceDeclarationKind {
     const fn tag(self) -> u64 {
         match self {
             Self::Class => 1,
@@ -81,26 +81,26 @@ impl SourceDeclarationKindV1 {
     }
 }
 
-impl WireEncodeV1 for SourceDeclarationKindV1 {
+impl WireEncode for SourceDeclarationKind {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(self.tag())
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceDeclarationSiteV1 {
+pub struct SourceDeclarationSite {
     origin: ConeIdentity,
     package: PackagePath,
-    owners: DefinitionOwnerChainV1,
-    scope: DeclarationScopeV1,
+    owners: DefinitionOwnerChain,
+    scope: DeclarationScope,
 }
 
-impl SourceDeclarationSiteV1 {
+impl SourceDeclarationSite {
     pub fn new(
         origin: ConeIdentity,
         package: PackagePath,
-        owners: DefinitionOwnerChainV1,
-        scope: DeclarationScopeV1,
+        owners: DefinitionOwnerChain,
+        scope: DeclarationScope,
     ) -> Result<Self, SourceDeclarationKeyError> {
         if scope.source().is_some_and(|source| source.cone() != origin) {
             return Err(SourceDeclarationKeyError::ScopeConeMismatch);
@@ -115,104 +115,104 @@ impl SourceDeclarationSiteV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceDeclarationKeyV1 {
+pub struct SourceDeclarationKey {
     origin: ConeIdentity,
     package: PackagePath,
-    owners: DefinitionOwnerChainV1,
-    name: DeclarationNameV1,
-    declaration_kind: SourceDeclarationKindV1,
-    duplicate_signature: DuplicateSignatureKeyV1,
-    scope: DeclarationScopeV1,
+    owners: DefinitionOwnerChain,
+    name: DeclarationName,
+    declaration_kind: SourceDeclarationKind,
+    duplicate_signature: DuplicateSignatureKey,
+    scope: DeclarationScope,
 }
 
-impl SourceDeclarationKeyV1 {
+impl SourceDeclarationKey {
     pub fn nominal(
-        site: SourceDeclarationSiteV1,
+        site: SourceDeclarationSite,
         name: CanonicalIdentifier,
-        kind: SourceNominalKindV1,
+        kind: SourceNominalKind,
         type_parameter_count: u32,
     ) -> Self {
         Self::build(
             site,
-            DeclarationNameV1::Named(name),
+            DeclarationName::Named(name),
             kind.declaration_kind(),
-            DuplicateSignatureKeyV1::Nominal {
+            DuplicateSignatureKey::Nominal {
                 type_parameter_count,
             },
         )
     }
 
     pub fn function(
-        site: SourceDeclarationSiteV1,
+        site: SourceDeclarationSite,
         name: CanonicalIdentifier,
         type_parameter_count: u32,
-        receiver: Option<SignatureTypeKeyV1>,
-        parameters: Vec<SignatureTypeKeyV1>,
+        receiver: Option<SignatureTypeKey>,
+        parameters: Vec<SignatureTypeKey>,
     ) -> Self {
         Self::build(
             site,
-            DeclarationNameV1::Named(name),
-            SourceDeclarationKindV1::Function,
-            DuplicateSignatureKeyV1::Function {
+            DeclarationName::Named(name),
+            SourceDeclarationKind::Function,
+            DuplicateSignatureKey::Function {
                 type_parameter_count,
-                receiver: OptionalSignatureTypeV1::from_option(receiver),
+                receiver: OptionalSignatureType::from_option(receiver),
                 parameters,
             },
         )
     }
 
-    pub fn constructor(site: SourceDeclarationSiteV1, parameters: Vec<SignatureTypeKeyV1>) -> Self {
+    pub fn constructor(site: SourceDeclarationSite, parameters: Vec<SignatureTypeKey>) -> Self {
         Self::build(
             site,
-            DeclarationNameV1::Constructor,
-            SourceDeclarationKindV1::Constructor,
-            DuplicateSignatureKeyV1::Constructor { parameters },
+            DeclarationName::Constructor,
+            SourceDeclarationKind::Constructor,
+            DuplicateSignatureKey::Constructor { parameters },
         )
     }
 
-    pub fn property(site: SourceDeclarationSiteV1, name: CanonicalIdentifier) -> Self {
+    pub fn property(site: SourceDeclarationSite, name: CanonicalIdentifier) -> Self {
         Self::build(
             site,
-            DeclarationNameV1::Named(name),
-            SourceDeclarationKindV1::Property,
-            DuplicateSignatureKeyV1::Property {
+            DeclarationName::Named(name),
+            SourceDeclarationKind::Property,
+            DuplicateSignatureKey::Property {
                 type_parameter_count: 0,
-                receiver: OptionalSignatureTypeV1::Absent,
+                receiver: OptionalSignatureType::Absent,
             },
         )
     }
 
     pub fn extension_property(
-        site: SourceDeclarationSiteV1,
+        site: SourceDeclarationSite,
         name: CanonicalIdentifier,
         type_parameter_count: u32,
-        receiver: SignatureTypeKeyV1,
+        receiver: SignatureTypeKey,
     ) -> Self {
         Self::build(
             site,
-            DeclarationNameV1::Named(name),
-            SourceDeclarationKindV1::ExtensionProperty,
-            DuplicateSignatureKeyV1::Property {
+            DeclarationName::Named(name),
+            SourceDeclarationKind::ExtensionProperty,
+            DuplicateSignatureKey::Property {
                 type_parameter_count,
-                receiver: OptionalSignatureTypeV1::Present(Box::new(receiver)),
+                receiver: OptionalSignatureType::Present(Box::new(receiver)),
             },
         )
     }
 
-    pub fn type_alias(site: SourceDeclarationSiteV1, name: CanonicalIdentifier) -> Self {
+    pub fn type_alias(site: SourceDeclarationSite, name: CanonicalIdentifier) -> Self {
         Self::build(
             site,
-            DeclarationNameV1::Named(name),
-            SourceDeclarationKindV1::TypeAlias,
-            DuplicateSignatureKeyV1::TypeAlias,
+            DeclarationName::Named(name),
+            SourceDeclarationKind::TypeAlias,
+            DuplicateSignatureKey::TypeAlias,
         )
     }
 
     fn build(
-        site: SourceDeclarationSiteV1,
-        name: DeclarationNameV1,
-        declaration_kind: SourceDeclarationKindV1,
-        duplicate_signature: DuplicateSignatureKeyV1,
+        site: SourceDeclarationSite,
+        name: DeclarationName,
+        declaration_kind: SourceDeclarationKind,
+        duplicate_signature: DuplicateSignatureKey,
     ) -> Self {
         Self {
             origin: site.origin,
@@ -233,28 +233,28 @@ impl SourceDeclarationKeyV1 {
         &self.package
     }
 
-    pub fn owners(&self) -> &DefinitionOwnerChainV1 {
+    pub fn owners(&self) -> &DefinitionOwnerChain {
         &self.owners
     }
 
-    pub fn name(&self) -> &DeclarationNameV1 {
+    pub fn name(&self) -> &DeclarationName {
         &self.name
     }
 
-    pub fn declaration_kind(&self) -> SourceDeclarationKindV1 {
+    pub fn declaration_kind(&self) -> SourceDeclarationKind {
         self.declaration_kind
     }
 
-    pub fn duplicate_signature(&self) -> &DuplicateSignatureKeyV1 {
+    pub fn duplicate_signature(&self) -> &DuplicateSignatureKey {
         &self.duplicate_signature
     }
 
-    pub fn scope(&self) -> &DeclarationScopeV1 {
+    pub fn scope(&self) -> &DeclarationScope {
         &self.scope
     }
 }
 
-impl WireEncodeV1 for SourceDeclarationKeyV1 {
+impl WireEncode for SourceDeclarationKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(7)?;
         encoder.field(1)?;
@@ -332,17 +332,17 @@ impl From<HashError> for SourceDeclarationIdentityError {
 
 impl PersistentTypeId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_nominal(key)?;
         require_non_generic(key)?;
-        derive_persistent_id("scoop-type-id-v1", &SourceTypeIdentityKeyV1(key)).map_err(Into::into)
+        derive_persistent_id("scoop-type-id-v1", &SourceTypeIdentityKey(key)).map_err(Into::into)
     }
 }
 
 impl PersistentGenericTypeId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_nominal(key)?;
         require_generic(key)?;
@@ -352,11 +352,11 @@ impl PersistentGenericTypeId {
 
 impl PersistentFunctionId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_kind(
             key,
-            SourceDeclarationKindV1::Function,
+            SourceDeclarationKind::Function,
             SourceDeclarationIdentityError::ExpectedFunction,
         )?;
         require_non_generic(key)?;
@@ -366,11 +366,11 @@ impl PersistentFunctionId {
 
 impl PersistentGenericFunctionId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_kind(
             key,
-            SourceDeclarationKindV1::Function,
+            SourceDeclarationKind::Function,
             SourceDeclarationIdentityError::ExpectedFunction,
         )?;
         require_generic(key)?;
@@ -380,11 +380,11 @@ impl PersistentGenericFunctionId {
 
 impl PersistentConstructorId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_kind(
             key,
-            SourceDeclarationKindV1::Constructor,
+            SourceDeclarationKind::Constructor,
             SourceDeclarationIdentityError::ExpectedConstructor,
         )?;
         derive_persistent_id("scoop-constructor-id-v1", key).map_err(Into::into)
@@ -393,11 +393,11 @@ impl PersistentConstructorId {
 
 impl PersistentPropertyId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_kind(
             key,
-            SourceDeclarationKindV1::Property,
+            SourceDeclarationKind::Property,
             SourceDeclarationIdentityError::ExpectedProperty,
         )?;
         derive_persistent_id("scoop-property-id-v1", key).map_err(Into::into)
@@ -406,11 +406,11 @@ impl PersistentPropertyId {
 
 impl crate::PersistentExtensionPropertyId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_kind(
             key,
-            SourceDeclarationKindV1::ExtensionProperty,
+            SourceDeclarationKind::ExtensionProperty,
             SourceDeclarationIdentityError::ExpectedExtensionProperty,
         )?;
         derive_persistent_id("scoop-extension-property-id-v1", key).map_err(Into::into)
@@ -419,11 +419,11 @@ impl crate::PersistentExtensionPropertyId {
 
 impl PersistentTypeAliasId {
     pub fn from_source_declaration(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
         require_kind(
             key,
-            SourceDeclarationKindV1::TypeAlias,
+            SourceDeclarationKind::TypeAlias,
             SourceDeclarationIdentityError::ExpectedTypeAlias,
         )?;
         derive_persistent_id("scoop-type-alias-id-v1", key).map_err(Into::into)
@@ -432,21 +432,21 @@ impl PersistentTypeAliasId {
 
 impl PersistentObjectValueId {
     pub fn from_source_object(
-        key: &SourceDeclarationKeyV1,
+        key: &SourceDeclarationKey,
     ) -> Result<Self, SourceDeclarationIdentityError> {
-        if key.declaration_kind != SourceDeclarationKindV1::Object {
+        if key.declaration_kind != SourceDeclarationKind::Object {
             return Err(SourceDeclarationIdentityError::ExpectedObject);
         }
         require_non_generic(key).map_err(|_| SourceDeclarationIdentityError::ExpectedObject)?;
         let type_id = PersistentTypeId::from_source_declaration(key)?;
-        derive_persistent_id("scoop-object-value-id-v1", &ObjectValueKeyV1(type_id))
+        derive_persistent_id("scoop-object-value-id-v1", &ObjectValueKey(type_id))
             .map_err(Into::into)
     }
 }
 
-struct SourceTypeIdentityKeyV1<'key>(&'key SourceDeclarationKeyV1);
+struct SourceTypeIdentityKey<'key>(&'key SourceDeclarationKey);
 
-impl WireEncodeV1 for SourceTypeIdentityKeyV1<'_> {
+impl WireEncode for SourceTypeIdentityKey<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(0)?;
@@ -456,9 +456,9 @@ impl WireEncodeV1 for SourceTypeIdentityKeyV1<'_> {
     }
 }
 
-struct ObjectValueKeyV1(PersistentTypeId);
+struct ObjectValueKey(PersistentTypeId);
 
-impl WireEncodeV1 for ObjectValueKeyV1 {
+impl WireEncode for ObjectValueKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(1)?;
         encoder.field(1)?;
@@ -466,7 +466,7 @@ impl WireEncodeV1 for ObjectValueKeyV1 {
     }
 }
 
-fn require_nominal(key: &SourceDeclarationKeyV1) -> Result<(), SourceDeclarationIdentityError> {
+fn require_nominal(key: &SourceDeclarationKey) -> Result<(), SourceDeclarationIdentityError> {
     if key.declaration_kind.is_nominal() {
         Ok(())
     } else {
@@ -474,7 +474,7 @@ fn require_nominal(key: &SourceDeclarationKeyV1) -> Result<(), SourceDeclaration
     }
 }
 
-fn require_non_generic(key: &SourceDeclarationKeyV1) -> Result<(), SourceDeclarationIdentityError> {
+fn require_non_generic(key: &SourceDeclarationKey) -> Result<(), SourceDeclarationIdentityError> {
     if key.duplicate_signature.type_parameter_count() == 0 {
         Ok(())
     } else {
@@ -482,7 +482,7 @@ fn require_non_generic(key: &SourceDeclarationKeyV1) -> Result<(), SourceDeclara
     }
 }
 
-fn require_generic(key: &SourceDeclarationKeyV1) -> Result<(), SourceDeclarationIdentityError> {
+fn require_generic(key: &SourceDeclarationKey) -> Result<(), SourceDeclarationIdentityError> {
     if key.duplicate_signature.type_parameter_count() > 0 {
         Ok(())
     } else {
@@ -491,8 +491,8 @@ fn require_generic(key: &SourceDeclarationKeyV1) -> Result<(), SourceDeclaration
 }
 
 fn require_kind(
-    key: &SourceDeclarationKeyV1,
-    expected: SourceDeclarationKindV1,
+    key: &SourceDeclarationKey,
+    expected: SourceDeclarationKind,
     error: SourceDeclarationIdentityError,
 ) -> Result<(), SourceDeclarationIdentityError> {
     if key.declaration_kind == expected {
@@ -507,31 +507,31 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        SourceDeclarationIdentityError, SourceDeclarationKeyV1, SourceDeclarationSiteV1,
-        SourceNominalKindV1,
+        SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationSite,
+        SourceNominalKind,
     };
     use crate::{
-        CanonicalIdentifier, ConeCoordinate, ConeIdentity, DeclarationScopeV1,
-        DefinitionOwnerChainV1, NormalizedSourcePath, PackagePath, PersistentConstructorId,
-        PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId,
-        PersistentObjectValueId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
-        SignatureTypeKeyV1, SourceIdentity,
+        CanonicalIdentifier, ConeCoordinate, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
+        NormalizedSourcePath, PackagePath, PersistentConstructorId, PersistentFunctionId,
+        PersistentGenericFunctionId, PersistentGenericTypeId, PersistentObjectValueId,
+        PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, SignatureTypeKey,
+        SourceIdentity,
     };
 
-    fn class_key(type_parameter_count: u32) -> SourceDeclarationKeyV1 {
-        SourceDeclarationKeyV1::nominal(
-            SourceDeclarationSiteV1::new(
+    fn class_key(type_parameter_count: u32) -> SourceDeclarationKey {
+        SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
                 ConeCoordinate::new("org.example", "demo", "1.2.3")
                     .unwrap()
                     .identity()
                     .unwrap(),
                 PackagePath::from_segments(vec![CanonicalIdentifier::new("app").unwrap()]),
-                DefinitionOwnerChainV1::top_level(),
-                DeclarationScopeV1::ConeWide,
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
             )
             .unwrap(),
             CanonicalIdentifier::new("User").unwrap(),
-            SourceNominalKindV1::Class,
+            SourceNominalKind::Class,
             type_parameter_count,
         )
     }
@@ -563,19 +563,19 @@ mod tests {
 
     #[test]
     fn source_nominal_and_object_value_have_fixed_distinct_hashes() {
-        let object = SourceDeclarationKeyV1::nominal(
-            SourceDeclarationSiteV1::new(
+        let object = SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
                 ConeCoordinate::new("org.example", "demo", "1.2.3")
                     .unwrap()
                     .identity()
                     .unwrap(),
                 PackagePath::from_segments(vec![CanonicalIdentifier::new("app").unwrap()]),
-                DefinitionOwnerChainV1::top_level(),
-                DeclarationScopeV1::ConeWide,
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
             )
             .unwrap(),
             CanonicalIdentifier::new("Global").unwrap(),
-            SourceNominalKindV1::Object,
+            SourceNominalKind::Object,
             0,
         );
         let type_id = PersistentTypeId::from_source_declaration(&object).unwrap();
@@ -595,15 +595,15 @@ mod tests {
     fn each_source_declaration_family_accepts_only_its_canonical_key() {
         let origin = ConeCoordinate::reserved_core().identity().unwrap();
         let common = || {
-            SourceDeclarationSiteV1::new(
+            SourceDeclarationSite::new(
                 origin,
                 PackagePath::root(),
-                DefinitionOwnerChainV1::top_level(),
-                DeclarationScopeV1::ConeWide,
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
             )
             .unwrap()
         };
-        let function = SourceDeclarationKeyV1::function(
+        let function = SourceDeclarationKey::function(
             common(),
             CanonicalIdentifier::new("run").unwrap(),
             0,
@@ -616,26 +616,24 @@ mod tests {
             Err(SourceDeclarationIdentityError::ExpectedGeneric)
         );
 
-        let generic_function = SourceDeclarationKeyV1::function(
+        let generic_function = SourceDeclarationKey::function(
             common(),
             CanonicalIdentifier::new("map").unwrap(),
             1,
-            Some(SignatureTypeKeyV1::Binder { depth: 0, index: 0 }),
+            Some(SignatureTypeKey::Binder { depth: 0, index: 0 }),
             Vec::new(),
         );
         assert!(PersistentGenericFunctionId::from_source_declaration(&generic_function).is_ok());
 
-        let constructor = SourceDeclarationKeyV1::constructor(common(), Vec::new());
+        let constructor = SourceDeclarationKey::constructor(common(), Vec::new());
         assert!(PersistentConstructorId::from_source_declaration(&constructor).is_ok());
 
         let property =
-            SourceDeclarationKeyV1::property(common(), CanonicalIdentifier::new("value").unwrap());
+            SourceDeclarationKey::property(common(), CanonicalIdentifier::new("value").unwrap());
         assert!(PersistentPropertyId::from_source_declaration(&property).is_ok());
 
-        let alias = SourceDeclarationKeyV1::type_alias(
-            common(),
-            CanonicalIdentifier::new("Alias").unwrap(),
-        );
+        let alias =
+            SourceDeclarationKey::type_alias(common(), CanonicalIdentifier::new("Alias").unwrap());
         assert!(PersistentTypeAliasId::from_source_declaration(&alias).is_ok());
         assert_eq!(
             PersistentFunctionId::from_source_declaration(&alias),
@@ -650,11 +648,11 @@ mod tests {
             NormalizedSourcePath::new("src/core.scoop").unwrap(),
         )
         .unwrap();
-        let result = SourceDeclarationSiteV1::new(
+        let result = SourceDeclarationSite::new(
             ConeIdentity::SINGLE_FILE,
             PackagePath::root(),
-            DefinitionOwnerChainV1::top_level(),
-            DeclarationScopeV1::SourceScoped(source),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::SourceScoped(source),
         );
         assert_eq!(
             result,

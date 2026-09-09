@@ -1,10 +1,10 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{
-    GeneratedNominalIdentityError, GeneratedNominalKeyV1, NominalDeclarationOwnerV1,
-    SourceDeclarationIdentityError, SourceDeclarationKeyV1, SourceDeclarationKindV1,
+    GeneratedNominalIdentityError, GeneratedNominalKey, NominalDeclarationOwner,
+    SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationKind,
 };
 use crate::ids::derive_persistent_id;
 use crate::{
@@ -12,14 +12,14 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum GeneratedEnumVariantRoleV1 {
+pub enum GeneratedEnumVariantRole {
     CoroutineStepCompleted,
     CoroutineStepSuspended,
     CoroutineSlotEmpty,
     CoroutineSlotValue,
 }
 
-impl WireEncodeV1 for GeneratedEnumVariantRoleV1 {
+impl WireEncode for GeneratedEnumVariantRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::CoroutineStepCompleted => 1,
@@ -31,55 +31,52 @@ impl WireEncodeV1 for GeneratedEnumVariantRoleV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EnumVariantIdentityKeyV1(EnumVariantIdentityKeyKindV1);
+pub struct EnumVariantIdentityKey(EnumVariantIdentityKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum EnumVariantIdentityKeyKindV1 {
+enum EnumVariantIdentityKeyKind {
     Source {
-        owner: NominalDeclarationOwnerV1,
+        owner: NominalDeclarationOwner,
         name: CanonicalIdentifier,
     },
     Generated {
         owner: PersistentTypeId,
-        role: GeneratedEnumVariantRoleV1,
+        role: GeneratedEnumVariantRole,
     },
 }
 
-impl EnumVariantIdentityKeyV1 {
+impl EnumVariantIdentityKey {
     pub fn source(
-        owner: &SourceDeclarationKeyV1,
+        owner: &SourceDeclarationKey,
         name: CanonicalIdentifier,
     ) -> Result<Self, EnumVariantIdentityError> {
-        if owner.declaration_kind() != SourceDeclarationKindV1::Enum {
+        if owner.declaration_kind() != SourceDeclarationKind::Enum {
             return Err(EnumVariantIdentityError::ExpectedSourceEnum);
         }
         let owner = source_nominal_owner(owner)?;
-        Ok(Self(EnumVariantIdentityKeyKindV1::Source { owner, name }))
+        Ok(Self(EnumVariantIdentityKeyKind::Source { owner, name }))
     }
 
     pub fn generated(
-        owner: &GeneratedNominalKeyV1,
-        role: GeneratedEnumVariantRoleV1,
+        owner: &GeneratedNominalKey,
+        role: GeneratedEnumVariantRole,
     ) -> Result<Self, EnumVariantIdentityError> {
         if !generated_role_matches(owner, role) {
             return Err(EnumVariantIdentityError::GeneratedRoleMismatch);
         }
         let owner = PersistentTypeId::from_generated_key(owner)
             .map_err(EnumVariantIdentityError::GeneratedNominal)?;
-        Ok(Self(EnumVariantIdentityKeyKindV1::Generated {
-            owner,
-            role,
-        }))
+        Ok(Self(EnumVariantIdentityKeyKind::Generated { owner, role }))
     }
 }
 
-impl WireEncodeV1 for EnumVariantIdentityKeyV1 {
+impl WireEncode for EnumVariantIdentityKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match &self.0 {
-            EnumVariantIdentityKeyKindV1::Source { owner, name } => {
+            EnumVariantIdentityKeyKind::Source { owner, name } => {
                 encode_two_value_sum(encoder, 1, owner, name)
             }
-            EnumVariantIdentityKeyKindV1::Generated { owner, role } => {
+            EnumVariantIdentityKeyKind::Generated { owner, role } => {
                 encode_two_value_sum(encoder, 2, owner, role)
             }
         }
@@ -87,12 +84,12 @@ impl WireEncodeV1 for EnumVariantIdentityKeyV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum EnumVariantFieldSelectorV1 {
+pub enum EnumVariantFieldSelector {
     Named(CanonicalIdentifier),
     Positional { declaration_index: u32 },
 }
 
-impl WireEncodeV1 for EnumVariantFieldSelectorV1 {
+impl WireEncode for EnumVariantFieldSelector {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Named(name) => encode_value_sum(encoder, 1, name),
@@ -107,16 +104,13 @@ impl WireEncodeV1 for EnumVariantFieldSelectorV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EnumVariantFieldKeyV1 {
+pub struct EnumVariantFieldKey {
     variant: PersistentEnumVariantId,
-    selector: EnumVariantFieldSelectorV1,
+    selector: EnumVariantFieldSelector,
 }
 
-impl EnumVariantFieldKeyV1 {
-    pub const fn new(
-        variant: PersistentEnumVariantId,
-        selector: EnumVariantFieldSelectorV1,
-    ) -> Self {
+impl EnumVariantFieldKey {
+    pub const fn new(variant: PersistentEnumVariantId, selector: EnumVariantFieldSelector) -> Self {
         Self { variant, selector }
     }
 
@@ -124,12 +118,12 @@ impl EnumVariantFieldKeyV1 {
         self.variant
     }
 
-    pub fn selector(&self) -> &EnumVariantFieldSelectorV1 {
+    pub fn selector(&self) -> &EnumVariantFieldSelector {
         &self.selector
     }
 }
 
-impl WireEncodeV1 for EnumVariantFieldKeyV1 {
+impl WireEncode for EnumVariantFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -167,36 +161,36 @@ impl fmt::Display for EnumVariantIdentityError {
 impl std::error::Error for EnumVariantIdentityError {}
 
 impl PersistentEnumVariantId {
-    pub fn from_key(key: &EnumVariantIdentityKeyV1) -> Result<Self, EnumVariantIdentityError> {
+    pub fn from_key(key: &EnumVariantIdentityKey) -> Result<Self, EnumVariantIdentityError> {
         derive_persistent_id("scoop-enum-variant-id-v1", key)
             .map_err(EnumVariantIdentityError::Hash)
     }
 }
 
 impl PersistentEnumVariantFieldId {
-    pub fn from_key(key: &EnumVariantFieldKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &EnumVariantFieldKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-enum-variant-field-id-v1", key)
     }
 }
 
 fn source_nominal_owner(
-    key: &SourceDeclarationKeyV1,
-) -> Result<NominalDeclarationOwnerV1, EnumVariantIdentityError> {
-    NominalDeclarationOwnerV1::from_source_declaration(key)
+    key: &SourceDeclarationKey,
+) -> Result<NominalDeclarationOwner, EnumVariantIdentityError> {
+    NominalDeclarationOwner::from_source_declaration(key)
         .map_err(EnumVariantIdentityError::SourceDeclaration)
 }
 
-fn generated_role_matches(owner: &GeneratedNominalKeyV1, role: GeneratedEnumVariantRoleV1) -> bool {
+fn generated_role_matches(owner: &GeneratedNominalKey, role: GeneratedEnumVariantRole) -> bool {
     matches!(
         (owner, role),
         (
-            GeneratedNominalKeyV1::CoroutineStep { .. },
-            GeneratedEnumVariantRoleV1::CoroutineStepCompleted
-                | GeneratedEnumVariantRoleV1::CoroutineStepSuspended
+            GeneratedNominalKey::CoroutineStep { .. },
+            GeneratedEnumVariantRole::CoroutineStepCompleted
+                | GeneratedEnumVariantRole::CoroutineStepSuspended
         ) | (
-            GeneratedNominalKeyV1::CoroutineSlot { .. },
-            GeneratedEnumVariantRoleV1::CoroutineSlotEmpty
-                | GeneratedEnumVariantRoleV1::CoroutineSlotValue
+            GeneratedNominalKey::CoroutineSlot { .. },
+            GeneratedEnumVariantRole::CoroutineSlotEmpty
+                | GeneratedEnumVariantRole::CoroutineSlotValue
         )
     )
 }
@@ -209,7 +203,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -220,8 +214,8 @@ fn encode_value_sum(
 fn encode_two_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    first: &impl WireEncodeV1,
-    second: &impl WireEncodeV1,
+    first: &impl WireEncode,
+    second: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(3)?;
     encode_tag(encoder, tag)?;
@@ -236,21 +230,21 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        EnumVariantFieldKeyV1, EnumVariantFieldSelectorV1, EnumVariantIdentityError,
-        EnumVariantIdentityKeyV1, GeneratedEnumVariantRoleV1,
+        EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityError,
+        EnumVariantIdentityKey, GeneratedEnumVariantRole,
     };
     use crate::{
-        ConeIdentity, GeneratedNominalKeyV1, PersistentEnumVariantFieldId, PersistentEnumVariantId,
+        ConeIdentity, GeneratedNominalKey, PersistentEnumVariantFieldId, PersistentEnumVariantId,
         PersistentExactTypeId,
     };
 
     #[test]
     fn generated_variant_and_positional_field_have_fixed_identity() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let owner = GeneratedNominalKeyV1::CoroutineStep { result: exact };
-        let variant_key = EnumVariantIdentityKeyV1::generated(
+        let owner = GeneratedNominalKey::CoroutineStep { result: exact };
+        let variant_key = EnumVariantIdentityKey::generated(
             &owner,
-            GeneratedEnumVariantRoleV1::CoroutineStepCompleted,
+            GeneratedEnumVariantRole::CoroutineStepCompleted,
         )
         .unwrap();
         assert_eq!(
@@ -263,9 +257,9 @@ mod tests {
             "76b87b4b32938bd3036ec1f44db738ca045b77d4bdd51f03d76453d7a3402633"
         );
 
-        let field_key = EnumVariantFieldKeyV1::new(
+        let field_key = EnumVariantFieldKey::new(
             variant,
-            EnumVariantFieldSelectorV1::Positional {
+            EnumVariantFieldSelector::Positional {
                 declaration_index: 0,
             },
         );
@@ -279,12 +273,12 @@ mod tests {
 
     #[test]
     fn source_variant_constructor_enforces_enum_owner() {
-        let enum_owner = source_nominal(crate::SourceNominalKindV1::Enum);
-        let class_owner = source_nominal(crate::SourceNominalKindV1::Class);
+        let enum_owner = source_nominal(crate::SourceNominalKind::Enum);
+        let class_owner = source_nominal(crate::SourceNominalKind::Class);
         let name = crate::CanonicalIdentifier::new("Value").unwrap();
-        assert!(EnumVariantIdentityKeyV1::source(&enum_owner, name.clone()).is_ok());
+        assert!(EnumVariantIdentityKey::source(&enum_owner, name.clone()).is_ok());
         assert_eq!(
-            EnumVariantIdentityKeyV1::source(&class_owner, name),
+            EnumVariantIdentityKey::source(&class_owner, name),
             Err(EnumVariantIdentityError::ExpectedSourceEnum)
         );
     }
@@ -292,25 +286,22 @@ mod tests {
     #[test]
     fn generated_variant_constructor_enforces_owner_matrix() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let owner = GeneratedNominalKeyV1::BoxedValue { payload: exact };
+        let owner = GeneratedNominalKey::BoxedValue { payload: exact };
         assert_eq!(
-            EnumVariantIdentityKeyV1::generated(
-                &owner,
-                GeneratedEnumVariantRoleV1::CoroutineSlotEmpty,
-            ),
+            EnumVariantIdentityKey::generated(&owner, GeneratedEnumVariantRole::CoroutineSlotEmpty,),
             Err(EnumVariantIdentityError::GeneratedRoleMismatch)
         );
     }
 
-    fn source_nominal(kind: crate::SourceNominalKindV1) -> crate::SourceDeclarationKeyV1 {
-        crate::SourceDeclarationKeyV1::nominal(
-            crate::SourceDeclarationSiteV1::new(
+    fn source_nominal(kind: crate::SourceNominalKind) -> crate::SourceDeclarationKey {
+        crate::SourceDeclarationKey::nominal(
+            crate::SourceDeclarationSite::new(
                 ConeIdentity::CORE,
                 crate::PackagePath::from_segments(vec![
                     crate::CanonicalIdentifier::new("test").unwrap(),
                 ]),
-                crate::DefinitionOwnerChainV1::top_level(),
-                crate::DeclarationScopeV1::ConeWide,
+                crate::DefinitionOwnerChain::top_level(),
+                crate::DeclarationScope::ConeWide,
             )
             .unwrap(),
             crate::CanonicalIdentifier::new("Owner").unwrap(),

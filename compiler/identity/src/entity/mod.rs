@@ -21,90 +21,86 @@ mod source_origin;
 mod structural;
 
 pub use binding::{
-    BindableEntityV1, BindingNamespaceV1, BindingRoleV1, BindingTargetError, BindingTargetV1,
-    ExportBindingKeyV1, LocalBindingKeyV1, LocalBindingRoleV1,
+    BindableEntity, BindingNamespace, BindingRole, BindingTarget, BindingTargetError,
+    ExportBindingKey, LocalBindingKey, LocalBindingRole,
 };
 pub use c_abi::{
-    CDataPointeeV1, CLayoutByteAlignmentV1, CLayoutOverrideV1, CPointerStorageV1,
-    CanonicalCAbiError, CanonicalCAbiFunctionSignatureV1, CanonicalCAbiLayoutFieldV1,
-    CanonicalCAbiLayoutFingerprintRecordV1, CanonicalCAbiLayoutV1, CanonicalCAbiParameterV1,
-    CanonicalCAbiReturnV1, CanonicalCAbiSignatureFingerprintRecordV1, CanonicalCStorageTypeV1,
-    IntegerBitWidthV1, SignednessV1, TargetCallingConventionV1,
+    CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,
+    CanonicalCAbiFunctionSignature, CanonicalCAbiLayout, CanonicalCAbiLayoutField,
+    CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiParameter, CanonicalCAbiReturn,
+    CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType, IntegerBitWidth, Signedness,
+    TargetCallingConvention,
 };
 pub use callable::{
-    AccessorRoleV1, CallableApplicationKeyV1, CallableArgumentsV1, CallableInstantiationOwnerV1,
-    CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
-    CallableTemplateOwnerV1, PropertyAccessorKeyV1,
+    AccessorRole, CallableApplicationKey, CallableArguments, CallableInstantiationOwner,
+    CallableMaterialization, CallableMaterializationContext, CallableTemplateOrigin,
+    CallableTemplateOwner, PropertyAccessorKey,
 };
 pub use callback::{
-    CallbackApplicationIdentityError, CallbackApplicationKeyV1, CallbackParameterIndex,
-    CallbackRegistrationKeyV1, SignatureCallableShapeV1,
+    CallbackApplicationIdentityError, CallbackApplicationKey, CallbackParameterIndex,
+    CallbackRegistrationKey, SignatureCallableShape,
 };
 pub use dispatch::{
-    DispatchRoleV1, DispatchSlotKeyV1, DispatchTableKeyV1, DispatchTableRoleV1,
-    OptionalExactInterfaceV1,
+    DispatchRole, DispatchSlotKey, DispatchTableKey, DispatchTableRole, OptionalExactInterface,
 };
 pub use enum_variant::{
-    EnumVariantFieldKeyV1, EnumVariantFieldSelectorV1, EnumVariantIdentityError,
-    EnumVariantIdentityKeyV1, GeneratedEnumVariantRoleV1,
+    EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityError,
+    EnumVariantIdentityKey, GeneratedEnumVariantRole,
 };
-pub use exact_signature::{ExactCallableSignatureV1, OptionalExactOwnerV1};
-pub use field::{FieldIdentityError, FieldIdentityKeyV1, GeneratedFieldKeyV1, SourceFieldKeyV1};
+pub use exact_signature::{ExactCallableSignature, OptionalExactOwner};
+pub use field::{FieldIdentityError, FieldIdentityKey, GeneratedFieldKey, SourceFieldKey};
 pub use owners::{
-    CallableOwnerV1, DispatchDeclarationOwnerV1, NominalDeclarationOwnerV1, NominalOwnerV1,
-    PropertyOwnerV1,
+    CallableOwner, DispatchDeclarationOwner, NominalDeclarationOwner, NominalOwner, PropertyOwner,
 };
 
 pub use exact_type::{
-    CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticError, ExactTypeDiagnosticGraphV1,
-    ExactTypeKeyV1,
+    CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticError, ExactTypeDiagnosticGraph,
+    ExactTypeKey,
 };
 pub use generated_callable::{
-    ContinuationShellRoleV1, CoroutineAdapterRoleV1, GeneratedCallableIdentityError,
-    GeneratedCallableKeyV1, InitializationCallableRoleV1, LexicalCallableParentV1,
-    LexicalCallableRoleV1, LexicalParentError,
+    ContinuationShellRole, CoroutineAdapterRole, GeneratedCallableIdentityError,
+    GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent, LexicalCallableRole,
+    LexicalParentError,
 };
 pub use generated_nominal::{
-    CallableAdapterEnvironmentKeyV1, ClosureEnvironmentRoleV1, GeneratedNominalIdentityError,
-    GeneratedNominalKeyV1,
+    CallableAdapterEnvironmentKey, ClosureEnvironmentRole, GeneratedNominalIdentityError,
+    GeneratedNominalKey,
 };
 pub use materialization::{
-    InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
+    InitializationUnitKey, LocalValueKey, LocalValueSelector, SyntheticLocalRole,
 };
 pub use native_link::{
-    CanonicalNativeGroupName, NativeExternalSymbolKeyV1, NativeLibraryBindingV1,
-    NativeLibraryGroupingV1, NativeLibraryKindV1, NativeLinkRequirementKeyV1,
-    NativeLinkSymbolError, NativeLinkSymbolV1,
+    CanonicalNativeGroupName, NativeExternalSymbolKey, NativeLibraryBinding, NativeLibraryGrouping,
+    NativeLibraryKind, NativeLinkRequirementKey, NativeLinkSymbol, NativeLinkSymbolError,
 };
 pub use native_name::{
-    CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbolError,
-    SourceNativeSymbolV1,
+    CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbol,
+    SourceNativeSymbolError,
 };
 pub use scoop_abi::{
-    CanonicalScoopAbiFunctionSignatureV1, CanonicalScoopStorageV1, ScoopAbiArgumentV1,
-    ScoopAbiError, ScoopAbiReturnV1, ScoopAbiValueShapeV1,
+    CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,
+    ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use signature::{
-    CallingConventionV1, DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, NonEmptyVecError,
-    OptionalSignatureTypeV1, SignatureTypeKeyV1,
+    CallingConvention, DuplicateSignatureKey, Effect, NonEmptyVec, NonEmptyVecError,
+    OptionalSignatureType, SignatureTypeKey,
 };
 pub use source_abi::{
-    CallbackModeV1, GcEffectV1, SourceCAbiFunctionSignatureV1, SourceCAbiReturnV1,
-    SourceCallingConventionV1, SourceExternFunctionAbiV1, SourceNativeContractError,
-    SourceNativeExternalContractKeyV1, SourceNativeExternalContractRecordV1,
-    SourceNativeExternalContractV1, SourceNativeExternalOwnerV1, SourceNativeLibraryBindingV1,
-    SourceScoopAbiFunctionSignatureV1,
+    CallbackMode, GcEffect, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention,
+    SourceExternFunctionAbi, SourceNativeContractError, SourceNativeExternalContract,
+    SourceNativeExternalContractKey, SourceNativeExternalContractRecord, SourceNativeExternalOwner,
+    SourceNativeLibraryBinding, SourceScoopAbiFunctionSignature,
 };
 pub use source_declaration::{
-    SourceDeclarationIdentityError, SourceDeclarationKeyError, SourceDeclarationKeyV1,
-    SourceDeclarationKindV1, SourceDeclarationSiteV1, SourceNominalKindV1,
+    SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationKeyError,
+    SourceDeclarationKind, SourceDeclarationSite, SourceNominalKind,
 };
 pub use source_origin::{
-    ConcreteExpressionOriginV1, DefinitionOriginRecordV1, DefinitionOriginSubjectV1,
-    DefinitionOriginV1, EvaluationOriginV1, ExpressionOriginV1, SourceContextKeyV1,
-    SourceOriginError, SourceSpanError, SourceSpanV1,
+    ConcreteExpressionOrigin, DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject,
+    EvaluationOrigin, ExpressionOrigin, SourceContextKey, SourceOriginError, SourceSpan,
+    SourceSpanError,
 };
 pub use structural::{
-    DeclarationNameV1, DeclarationScopeV1, DefinitionOwnerAtomV1, DefinitionOwnerChainV1,
-    StructuralDefinitionPathV1, StructuralDefinitionSiteRoleV1, StructuralPathSegmentV1,
+    DeclarationName, DeclarationScope, DefinitionOwnerAtom, DefinitionOwnerChain,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };

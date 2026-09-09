@@ -1,10 +1,10 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{
-    GeneratedNominalIdentityError, GeneratedNominalKeyV1, NominalDeclarationOwnerV1,
-    SourceDeclarationIdentityError, SourceDeclarationKeyV1, SourceDeclarationKindV1,
+    GeneratedNominalIdentityError, GeneratedNominalKey, NominalDeclarationOwner,
+    SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationKind,
 };
 use crate::ids::derive_persistent_id;
 use crate::{
@@ -13,34 +13,34 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceFieldKeyV1(SourceFieldKeyKindV1);
+pub struct SourceFieldKey(SourceFieldKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum SourceFieldKeyKindV1 {
+enum SourceFieldKeyKind {
     Declared {
-        owner: NominalDeclarationOwnerV1,
+        owner: NominalDeclarationOwner,
         name: CanonicalIdentifier,
     },
     PropertyBacking {
-        owner: NominalDeclarationOwnerV1,
+        owner: NominalDeclarationOwner,
         property: PersistentPropertyId,
     },
     PropertyDelegate {
-        owner: NominalDeclarationOwnerV1,
+        owner: NominalDeclarationOwner,
         property: PersistentPropertyId,
     },
 }
 
-impl WireEncodeV1 for SourceFieldKeyV1 {
+impl WireEncode for SourceFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match &self.0 {
-            SourceFieldKeyKindV1::Declared { owner, name } => {
+            SourceFieldKeyKind::Declared { owner, name } => {
                 encode_two_value_sum(encoder, 1, owner, name)
             }
-            SourceFieldKeyKindV1::PropertyBacking { owner, property } => {
+            SourceFieldKeyKind::PropertyBacking { owner, property } => {
                 encode_two_value_sum(encoder, 2, owner, property)
             }
-            SourceFieldKeyKindV1::PropertyDelegate { owner, property } => {
+            SourceFieldKeyKind::PropertyDelegate { owner, property } => {
                 encode_two_value_sum(encoder, 3, owner, property)
             }
         }
@@ -48,10 +48,10 @@ impl WireEncodeV1 for SourceFieldKeyV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct GeneratedFieldKeyV1(GeneratedFieldKeyKindV1);
+pub struct GeneratedFieldKey(GeneratedFieldKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum GeneratedFieldKeyKindV1 {
+enum GeneratedFieldKeyKind {
     BoxPayload,
     ClosureCapture(PersistentLocalValueId),
     CallableReferenceReceiver(PersistentLocalValueId),
@@ -67,26 +67,26 @@ enum GeneratedFieldKeyKindV1 {
     ObjectBackingProperty(PersistentPropertyId),
 }
 
-impl WireEncodeV1 for GeneratedFieldKeyV1 {
+impl WireEncode for GeneratedFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self.0 {
-            GeneratedFieldKeyKindV1::BoxPayload => encode_empty_sum(encoder, 1),
-            GeneratedFieldKeyKindV1::ClosureCapture(value) => encode_value_sum(encoder, 2, &value),
-            GeneratedFieldKeyKindV1::CallableReferenceReceiver(value) => {
+            GeneratedFieldKeyKind::BoxPayload => encode_empty_sum(encoder, 1),
+            GeneratedFieldKeyKind::ClosureCapture(value) => encode_value_sum(encoder, 2, &value),
+            GeneratedFieldKeyKind::CallableReferenceReceiver(value) => {
                 encode_value_sum(encoder, 3, &value)
             }
-            GeneratedFieldKeyKindV1::CoroutineFrameState => encode_empty_sum(encoder, 4),
-            GeneratedFieldKeyKindV1::CoroutineFrameCompletion => encode_empty_sum(encoder, 5),
-            GeneratedFieldKeyKindV1::CoroutineFrameSaved(value) => {
+            GeneratedFieldKeyKind::CoroutineFrameState => encode_empty_sum(encoder, 4),
+            GeneratedFieldKeyKind::CoroutineFrameCompletion => encode_empty_sum(encoder, 5),
+            GeneratedFieldKeyKind::CoroutineFrameSaved(value) => {
                 encode_value_sum(encoder, 6, &value)
             }
-            GeneratedFieldKeyKindV1::CoroutineFrameFailure => encode_empty_sum(encoder, 7),
-            GeneratedFieldKeyKindV1::CoroutineAdapterFrame => encode_empty_sum(encoder, 8),
-            GeneratedFieldKeyKindV1::CoroutineAdapterState => encode_empty_sum(encoder, 9),
-            GeneratedFieldKeyKindV1::CoroutineAdapterResult => encode_empty_sum(encoder, 10),
-            GeneratedFieldKeyKindV1::CoroutineAdapterFailure => encode_empty_sum(encoder, 11),
-            GeneratedFieldKeyKindV1::FunctionAdapterSource => encode_empty_sum(encoder, 12),
-            GeneratedFieldKeyKindV1::ObjectBackingProperty(property) => {
+            GeneratedFieldKeyKind::CoroutineFrameFailure => encode_empty_sum(encoder, 7),
+            GeneratedFieldKeyKind::CoroutineAdapterFrame => encode_empty_sum(encoder, 8),
+            GeneratedFieldKeyKind::CoroutineAdapterState => encode_empty_sum(encoder, 9),
+            GeneratedFieldKeyKind::CoroutineAdapterResult => encode_empty_sum(encoder, 10),
+            GeneratedFieldKeyKind::CoroutineAdapterFailure => encode_empty_sum(encoder, 11),
+            GeneratedFieldKeyKind::FunctionAdapterSource => encode_empty_sum(encoder, 12),
+            GeneratedFieldKeyKind::ObjectBackingProperty(property) => {
                 encode_value_sum(encoder, 13, &property)
             }
         }
@@ -94,25 +94,25 @@ impl WireEncodeV1 for GeneratedFieldKeyV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct FieldIdentityKeyV1(FieldIdentityKeyKindV1);
+pub struct FieldIdentityKey(FieldIdentityKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum FieldIdentityKeyKindV1 {
-    Source(SourceFieldKeyV1),
+enum FieldIdentityKeyKind {
+    Source(SourceFieldKey),
     Generated {
         owner: PersistentTypeId,
-        key: GeneratedFieldKeyV1,
+        key: GeneratedFieldKey,
     },
 }
 
-impl FieldIdentityKeyV1 {
+impl FieldIdentityKey {
     pub fn source_declared(
-        owner: &SourceDeclarationKeyV1,
+        owner: &SourceDeclarationKey,
         name: CanonicalIdentifier,
     ) -> Result<Self, FieldIdentityError> {
-        require_source_kind(owner, SourceDeclarationKindV1::Struct)?;
-        Ok(Self(FieldIdentityKeyKindV1::Source(SourceFieldKeyV1(
-            SourceFieldKeyKindV1::Declared {
+        require_source_kind(owner, SourceDeclarationKind::Struct)?;
+        Ok(Self(FieldIdentityKeyKind::Source(SourceFieldKey(
+            SourceFieldKeyKind::Declared {
                 owner: source_nominal_owner(owner)?,
                 name,
             },
@@ -120,125 +120,123 @@ impl FieldIdentityKeyV1 {
     }
 
     pub fn source_property_backing(
-        owner: &SourceDeclarationKeyV1,
+        owner: &SourceDeclarationKey,
         property: PersistentPropertyId,
     ) -> Result<Self, FieldIdentityError> {
         source_property_field(owner, property, false)
     }
 
     pub fn source_property_delegate(
-        owner: &SourceDeclarationKeyV1,
+        owner: &SourceDeclarationKey,
         property: PersistentPropertyId,
     ) -> Result<Self, FieldIdentityError> {
         source_property_field(owner, property, true)
     }
 
-    pub fn box_payload(owner: &GeneratedNominalKeyV1) -> Result<Self, FieldIdentityError> {
+    pub fn box_payload(owner: &GeneratedNominalKey) -> Result<Self, FieldIdentityError> {
         generated_field(
             owner,
-            GeneratedOwnerKindV1::BoxedValue,
-            GeneratedFieldKeyKindV1::BoxPayload,
+            GeneratedOwnerKind::BoxedValue,
+            GeneratedFieldKeyKind::BoxPayload,
         )
     }
 
     pub fn closure_capture(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
         value: PersistentLocalValueId,
     ) -> Result<Self, FieldIdentityError> {
         generated_field(
             owner,
-            GeneratedOwnerKindV1::ClosureEnvironment,
-            GeneratedFieldKeyKindV1::ClosureCapture(value),
+            GeneratedOwnerKind::ClosureEnvironment,
+            GeneratedFieldKeyKind::ClosureCapture(value),
         )
     }
 
     pub fn callable_reference_receiver(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
         value: PersistentLocalValueId,
     ) -> Result<Self, FieldIdentityError> {
         generated_field(
             owner,
-            GeneratedOwnerKindV1::ClosureEnvironment,
-            GeneratedFieldKeyKindV1::CallableReferenceReceiver(value),
+            GeneratedOwnerKind::ClosureEnvironment,
+            GeneratedFieldKeyKind::CallableReferenceReceiver(value),
         )
     }
 
-    pub fn coroutine_frame_state(
-        owner: &GeneratedNominalKeyV1,
-    ) -> Result<Self, FieldIdentityError> {
-        coroutine_frame_field(owner, GeneratedFieldKeyKindV1::CoroutineFrameState)
+    pub fn coroutine_frame_state(owner: &GeneratedNominalKey) -> Result<Self, FieldIdentityError> {
+        coroutine_frame_field(owner, GeneratedFieldKeyKind::CoroutineFrameState)
     }
 
     pub fn coroutine_frame_completion(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
-        coroutine_frame_field(owner, GeneratedFieldKeyKindV1::CoroutineFrameCompletion)
+        coroutine_frame_field(owner, GeneratedFieldKeyKind::CoroutineFrameCompletion)
     }
 
     pub fn coroutine_frame_saved(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
         value: PersistentLocalValueId,
     ) -> Result<Self, FieldIdentityError> {
-        coroutine_frame_field(owner, GeneratedFieldKeyKindV1::CoroutineFrameSaved(value))
+        coroutine_frame_field(owner, GeneratedFieldKeyKind::CoroutineFrameSaved(value))
     }
 
     pub fn coroutine_frame_failure(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
-        coroutine_frame_field(owner, GeneratedFieldKeyKindV1::CoroutineFrameFailure)
+        coroutine_frame_field(owner, GeneratedFieldKeyKind::CoroutineFrameFailure)
     }
 
     pub fn coroutine_adapter_frame(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
-        coroutine_adapter_field(owner, GeneratedFieldKeyKindV1::CoroutineAdapterFrame)
+        coroutine_adapter_field(owner, GeneratedFieldKeyKind::CoroutineAdapterFrame)
     }
 
     pub fn coroutine_adapter_state(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
-        coroutine_adapter_field(owner, GeneratedFieldKeyKindV1::CoroutineAdapterState)
+        coroutine_adapter_field(owner, GeneratedFieldKeyKind::CoroutineAdapterState)
     }
 
     pub fn coroutine_adapter_result(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
-        coroutine_adapter_field(owner, GeneratedFieldKeyKindV1::CoroutineAdapterResult)
+        coroutine_adapter_field(owner, GeneratedFieldKeyKind::CoroutineAdapterResult)
     }
 
     pub fn coroutine_adapter_failure(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
-        coroutine_adapter_field(owner, GeneratedFieldKeyKindV1::CoroutineAdapterFailure)
+        coroutine_adapter_field(owner, GeneratedFieldKeyKind::CoroutineAdapterFailure)
     }
 
     pub fn function_adapter_source(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
         generated_field(
             owner,
-            GeneratedOwnerKindV1::CallableAdapterEnvironment,
-            GeneratedFieldKeyKindV1::FunctionAdapterSource,
+            GeneratedOwnerKind::CallableAdapterEnvironment,
+            GeneratedFieldKeyKind::FunctionAdapterSource,
         )
     }
 
     pub fn object_backing_property(
-        owner: &GeneratedNominalKeyV1,
+        owner: &GeneratedNominalKey,
         property: PersistentPropertyId,
     ) -> Result<Self, FieldIdentityError> {
         generated_field(
             owner,
-            GeneratedOwnerKindV1::ObjectBackingClass,
-            GeneratedFieldKeyKindV1::ObjectBackingProperty(property),
+            GeneratedOwnerKind::ObjectBackingClass,
+            GeneratedFieldKeyKind::ObjectBackingProperty(property),
         )
     }
 }
 
-impl WireEncodeV1 for FieldIdentityKeyV1 {
+impl WireEncode for FieldIdentityKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match &self.0 {
-            FieldIdentityKeyKindV1::Source(key) => encode_value_sum(encoder, 1, key),
-            FieldIdentityKeyKindV1::Generated { owner, key } => {
+            FieldIdentityKeyKind::Source(key) => encode_value_sum(encoder, 1, key),
+            FieldIdentityKeyKind::Generated { owner, key } => {
                 encode_two_value_sum(encoder, 2, owner, key)
             }
         }
@@ -277,13 +275,13 @@ impl fmt::Display for FieldIdentityError {
 impl std::error::Error for FieldIdentityError {}
 
 impl PersistentFieldId {
-    pub fn from_key(key: &FieldIdentityKeyV1) -> Result<Self, FieldIdentityError> {
+    pub fn from_key(key: &FieldIdentityKey) -> Result<Self, FieldIdentityError> {
         derive_persistent_id("scoop-field-id-v1", key).map_err(FieldIdentityError::Hash)
     }
 }
 
 #[derive(Clone, Copy)]
-enum GeneratedOwnerKindV1 {
+enum GeneratedOwnerKind {
     BoxedValue,
     ClosureEnvironment,
     CoroutineFrame,
@@ -293,12 +291,12 @@ enum GeneratedOwnerKindV1 {
 }
 
 fn require_source_kind(
-    owner: &SourceDeclarationKeyV1,
-    expected: SourceDeclarationKindV1,
+    owner: &SourceDeclarationKey,
+    expected: SourceDeclarationKind,
 ) -> Result<(), FieldIdentityError> {
     if owner.declaration_kind() == expected {
         Ok(())
-    } else if expected == SourceDeclarationKindV1::Struct {
+    } else if expected == SourceDeclarationKind::Struct {
         Err(FieldIdentityError::ExpectedSourceStruct)
     } else {
         Err(FieldIdentityError::ExpectedSourceClass)
@@ -306,84 +304,84 @@ fn require_source_kind(
 }
 
 fn source_nominal_owner(
-    key: &SourceDeclarationKeyV1,
-) -> Result<NominalDeclarationOwnerV1, FieldIdentityError> {
-    NominalDeclarationOwnerV1::from_source_declaration(key)
+    key: &SourceDeclarationKey,
+) -> Result<NominalDeclarationOwner, FieldIdentityError> {
+    NominalDeclarationOwner::from_source_declaration(key)
         .map_err(FieldIdentityError::SourceDeclaration)
 }
 
 fn source_property_field(
-    owner: &SourceDeclarationKeyV1,
+    owner: &SourceDeclarationKey,
     property: PersistentPropertyId,
     delegated: bool,
-) -> Result<FieldIdentityKeyV1, FieldIdentityError> {
-    require_source_kind(owner, SourceDeclarationKindV1::Class)?;
+) -> Result<FieldIdentityKey, FieldIdentityError> {
+    require_source_kind(owner, SourceDeclarationKind::Class)?;
     let owner = source_nominal_owner(owner)?;
     let key = if delegated {
-        SourceFieldKeyKindV1::PropertyDelegate { owner, property }
+        SourceFieldKeyKind::PropertyDelegate { owner, property }
     } else {
-        SourceFieldKeyKindV1::PropertyBacking { owner, property }
+        SourceFieldKeyKind::PropertyBacking { owner, property }
     };
-    Ok(FieldIdentityKeyV1(FieldIdentityKeyKindV1::Source(
-        SourceFieldKeyV1(key),
+    Ok(FieldIdentityKey(FieldIdentityKeyKind::Source(
+        SourceFieldKey(key),
     )))
 }
 
 fn coroutine_frame_field(
-    owner: &GeneratedNominalKeyV1,
-    key: GeneratedFieldKeyKindV1,
-) -> Result<FieldIdentityKeyV1, FieldIdentityError> {
-    generated_field(owner, GeneratedOwnerKindV1::CoroutineFrame, key)
+    owner: &GeneratedNominalKey,
+    key: GeneratedFieldKeyKind,
+) -> Result<FieldIdentityKey, FieldIdentityError> {
+    generated_field(owner, GeneratedOwnerKind::CoroutineFrame, key)
 }
 
 fn coroutine_adapter_field(
-    owner: &GeneratedNominalKeyV1,
-    key: GeneratedFieldKeyKindV1,
-) -> Result<FieldIdentityKeyV1, FieldIdentityError> {
+    owner: &GeneratedNominalKey,
+    key: GeneratedFieldKeyKind,
+) -> Result<FieldIdentityKey, FieldIdentityError> {
     generated_field(
         owner,
-        GeneratedOwnerKindV1::ContinuationAdapterEnvironment,
+        GeneratedOwnerKind::ContinuationAdapterEnvironment,
         key,
     )
 }
 
 fn generated_field(
-    owner: &GeneratedNominalKeyV1,
-    expected: GeneratedOwnerKindV1,
-    key: GeneratedFieldKeyKindV1,
-) -> Result<FieldIdentityKeyV1, FieldIdentityError> {
+    owner: &GeneratedNominalKey,
+    expected: GeneratedOwnerKind,
+    key: GeneratedFieldKeyKind,
+) -> Result<FieldIdentityKey, FieldIdentityError> {
     if !generated_owner_matches(owner, expected) {
         return Err(FieldIdentityError::GeneratedOwnerMismatch);
     }
     let owner = PersistentTypeId::from_generated_key(owner)
         .map_err(FieldIdentityError::GeneratedNominal)?;
-    Ok(FieldIdentityKeyV1(FieldIdentityKeyKindV1::Generated {
+    Ok(FieldIdentityKey(FieldIdentityKeyKind::Generated {
         owner,
-        key: GeneratedFieldKeyV1(key),
+        key: GeneratedFieldKey(key),
     }))
 }
 
-fn generated_owner_matches(owner: &GeneratedNominalKeyV1, expected: GeneratedOwnerKindV1) -> bool {
+fn generated_owner_matches(owner: &GeneratedNominalKey, expected: GeneratedOwnerKind) -> bool {
     matches!(
         (owner, expected),
         (
-            GeneratedNominalKeyV1::BoxedValue { .. },
-            GeneratedOwnerKindV1::BoxedValue
+            GeneratedNominalKey::BoxedValue { .. },
+            GeneratedOwnerKind::BoxedValue
         ) | (
-            GeneratedNominalKeyV1::ClosureEnvironment { .. },
-            GeneratedOwnerKindV1::ClosureEnvironment
+            GeneratedNominalKey::ClosureEnvironment { .. },
+            GeneratedOwnerKind::ClosureEnvironment
         ) | (
-            GeneratedNominalKeyV1::CoroutineFrame { .. },
-            GeneratedOwnerKindV1::CoroutineFrame
+            GeneratedNominalKey::CoroutineFrame { .. },
+            GeneratedOwnerKind::CoroutineFrame
         ) | (
-            GeneratedNominalKeyV1::ContinuationAdapterEnvironment { .. },
-            GeneratedOwnerKindV1::ContinuationAdapterEnvironment
+            GeneratedNominalKey::ContinuationAdapterEnvironment { .. },
+            GeneratedOwnerKind::ContinuationAdapterEnvironment
         ) | (
-            GeneratedNominalKeyV1::CallableAdapterEnvironment { .. },
-            GeneratedOwnerKindV1::CallableAdapterEnvironment
+            GeneratedNominalKey::CallableAdapterEnvironment { .. },
+            GeneratedOwnerKind::CallableAdapterEnvironment
         ) | (
-            GeneratedNominalKeyV1::ObjectBackingClass { .. },
-            GeneratedOwnerKindV1::ObjectBackingClass
+            GeneratedNominalKey::ObjectBackingClass { .. },
+            GeneratedOwnerKind::ObjectBackingClass
         )
     )
 }
@@ -401,7 +399,7 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -412,8 +410,8 @@ fn encode_value_sum(
 fn encode_two_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    first: &impl WireEncodeV1,
-    second: &impl WireEncodeV1,
+    first: &impl WireEncode,
+    second: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(3)?;
     encode_tag(encoder, tag)?;
@@ -427,17 +425,17 @@ fn encode_two_value_sum(
 mod tests {
     use scoop_wire::encode;
 
-    use super::{FieldIdentityError, FieldIdentityKeyV1};
+    use super::{FieldIdentityError, FieldIdentityKey};
     use crate::{
-        CanonicalIdentifier, ConeIdentity, GeneratedNominalKeyV1, PersistentExactTypeId,
+        CanonicalIdentifier, ConeIdentity, GeneratedNominalKey, PersistentExactTypeId,
         PersistentFieldId,
     };
 
     #[test]
     fn box_payload_field_has_fixed_identity() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let owner = GeneratedNominalKeyV1::BoxedValue { payload: exact };
-        let key = FieldIdentityKeyV1::box_payload(&owner).unwrap();
+        let owner = GeneratedNominalKey::BoxedValue { payload: exact };
+        let key = FieldIdentityKey::box_payload(&owner).unwrap();
         assert_eq!(
             hex(&encode(&key).unwrap()),
             "a30002015820b50d260f83c9bf2d7b8b678a332f1092aa8424a5c1bfd24f047f5e93e4ee8f0302a10001"
@@ -451,38 +449,38 @@ mod tests {
     #[test]
     fn generated_field_constructor_enforces_owner_matrix() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let owner = GeneratedNominalKeyV1::CoroutineStep { result: exact };
+        let owner = GeneratedNominalKey::CoroutineStep { result: exact };
         assert_eq!(
-            FieldIdentityKeyV1::box_payload(&owner),
+            FieldIdentityKey::box_payload(&owner),
             Err(FieldIdentityError::GeneratedOwnerMismatch)
         );
     }
 
     #[test]
     fn source_field_constructor_enforces_owner_matrix() {
-        let struct_owner = source_nominal(crate::SourceNominalKindV1::Struct);
-        let class_owner = source_nominal(crate::SourceNominalKindV1::Class);
+        let struct_owner = source_nominal(crate::SourceNominalKind::Struct);
+        let class_owner = source_nominal(crate::SourceNominalKind::Class);
         let name = CanonicalIdentifier::new("payload").unwrap();
-        assert!(FieldIdentityKeyV1::source_declared(&struct_owner, name.clone()).is_ok());
+        assert!(FieldIdentityKey::source_declared(&struct_owner, name.clone()).is_ok());
         assert_eq!(
-            FieldIdentityKeyV1::source_declared(&class_owner, name),
+            FieldIdentityKey::source_declared(&class_owner, name),
             Err(FieldIdentityError::ExpectedSourceStruct)
         );
         let property = crate::PersistentPropertyId(ConeIdentity::CORE.0);
-        assert!(FieldIdentityKeyV1::source_property_backing(&class_owner, property).is_ok());
+        assert!(FieldIdentityKey::source_property_backing(&class_owner, property).is_ok());
         assert_eq!(
-            FieldIdentityKeyV1::source_property_backing(&struct_owner, property),
+            FieldIdentityKey::source_property_backing(&struct_owner, property),
             Err(FieldIdentityError::ExpectedSourceClass)
         );
     }
 
-    fn source_nominal(kind: crate::SourceNominalKindV1) -> crate::SourceDeclarationKeyV1 {
-        crate::SourceDeclarationKeyV1::nominal(
-            crate::SourceDeclarationSiteV1::new(
+    fn source_nominal(kind: crate::SourceNominalKind) -> crate::SourceDeclarationKey {
+        crate::SourceDeclarationKey::nominal(
+            crate::SourceDeclarationSite::new(
                 ConeIdentity::CORE,
                 crate::PackagePath::from_segments(vec![CanonicalIdentifier::new("test").unwrap()]),
-                crate::DefinitionOwnerChainV1::top_level(),
-                crate::DeclarationScopeV1::ConeWide,
+                crate::DefinitionOwnerChain::top_level(),
+                crate::DeclarationScope::ConeWide,
             )
             .unwrap(),
             CanonicalIdentifier::new("Owner").unwrap(),

@@ -354,42 +354,42 @@ source table按`(ConeIdentity raw bytes, logical_path UTF-8 bytes)`严格排序�
 request-local `provider + file:u32 + SourceContextId`不能进入stable HIR。source context本身使用可重算identity：
 
 ```text
-SourceContextKeyV1 =
+SourceContextKey =
     File { source: SourceIdentity }                                  // tag 1
   | Nominal { source: SourceIdentity,
-              owner: NominalDeclarationOwnerV1 }                    // tag 2
-  | Callable { source: SourceIdentity, owner: CallableOwnerV1 }      // tag 3
-  | Property { source: SourceIdentity, owner: PropertyOwnerV1 }      // tag 4
+              owner: NominalDeclarationOwner }                    // tag 2
+  | Callable { source: SourceIdentity, owner: CallableOwner }      // tag 3
+  | Property { source: SourceIdentity, owner: PropertyOwner }      // tag 4
   | Initialization { source: SourceIdentity,
                      unit: PersistentInitializationUnitId }          // tag 5
 
 PersistentSourceContextId =
     DomainSeparatedCborHash("scoop-source-context-id-v1", key)
 
-SourceSpanV1 { start_byte: u64, end_byte: u64 } // fields 1/2
+SourceSpan { start_byte: u64, end_byte: u64 } // fields 1/2
 
-DefinitionOriginV1 {
+DefinitionOrigin {
     source: SourceIdentity,                 // field 1
-    span: SourceSpanV1,                     // field 2
+    span: SourceSpan,                     // field 2
     context: PersistentSourceContextId,     // field 3
 }
 
-EvaluationOriginV1 {
+EvaluationOrigin {
     source: SourceIdentity,                 // field 1
-    span: SourceSpanV1,                     // field 2
+    span: SourceSpan,                     // field 2
     context: PersistentSourceContextId,     // field 3
 }
 
-ConcreteExpressionOriginV1 {
-    definition: DefinitionOriginV1,         // field 1
-    evaluation: EvaluationOriginV1,         // field 2
+ConcreteExpressionOrigin {
+    definition: DefinitionOrigin,         // field 1
+    evaluation: EvaluationOrigin,         // field 2
 }
 
-ExpressionOriginV1 =
-    Definition { origin: DefinitionOriginV1 }                  // tag 1, field 1
-  | Concrete { origin: ConcreteExpressionOriginV1 }            // tag 2, field 1
+ExpressionOrigin =
+    Definition { origin: DefinitionOrigin }                  // tag 1, field 1
+  | Concrete { origin: ConcreteExpressionOrigin }            // tag 2, field 1
 
-DefinitionOriginSubjectV1 =
+DefinitionOriginSubject =
     Type { id: PersistentTypeId }                           // tag 1
   | GenericType { id: PersistentGenericTypeId }             // tag 2
   | Function { id: PersistentFunctionId }                   // tag 3
@@ -409,15 +409,15 @@ DefinitionOriginSubjectV1 =
   | CallbackRegistration { id: PersistentCallbackRegistrationId } // tag 17
   | SourceNativeContract { id: PersistentSourceNativeExternalContractId } // tag 18
 
-DefinitionOriginRecordV1 {
-    subject: DefinitionOriginSubjectV1,     // field 1
-    origin: DefinitionOriginV1,             // field 2
+DefinitionOriginRecord {
+    subject: DefinitionOriginSubject,     // field 1
+    origin: DefinitionOrigin,             // field 2
 }
 ```
 
-两种origin即使wire shape相同也没有public转换；只有“普通表达式以自身定义点求值”的checked constructor可复制字段。`ExpressionOriginV1`使用本章统一的closed-sum map：field 0是tag，field 1非可选地携带对应origin；`Definition`不能省略field 1，也不能把`DefinitionOriginV1`三字段直接摊平到sum外层。template expression使用`ExpressionOriginV1::Definition`，进入LocalConcrete HIR的表达式必须使用`Concrete`，definition/evaluation都不可缺失。context的source必须等于origin source，span端点必须出现在第4.4节point table。source-backed subject key中的origin Cone必须等于该source的Cone；若key含`SourceScoped`/`LexicalScoped` source，也必须逐字段等于definition source。context display name从已验证owner record生成，不保存`function_name/type_name`第二真相；core authority仍从compile-session side table取得。
+两种origin即使wire shape相同也没有public转换；只有“普通表达式以自身定义点求值”的checked constructor可复制字段。`ExpressionOrigin`使用本章统一的closed-sum map：field 0是tag，field 1非可选地携带对应origin；`Definition`不能省略field 1，也不能把`DefinitionOrigin`三字段直接摊平到sum外层。template expression使用`ExpressionOrigin::Definition`，进入LocalConcrete HIR的表达式必须使用`Concrete`，definition/evaluation都不可缺失。context的source必须等于origin source，span端点必须出现在第4.4节point table。source-backed subject key中的origin Cone必须等于该source的Cone；若key含`SourceScoped`/`LexicalScoped` source，也必须逐字段等于definition source。context display name从已验证owner record生成，不保存`function_name/type_name`第二真相；core authority仍从compile-session side table取得。
 
-foundation wire只承载identity/source projection，不承载expression body，因此本阶段在HIR table中序列化`DefinitionOriginRecordV1`，而不制造没有expression subject的游离Evaluation/Concrete record。source declaration、accessor、source field/variant及其field、initialization unit、HIR首次创建且有source definition site的local value、callback registration与source native contract各恰有一条definition record。一个`PersistentLocalBindingId`可能合并同source内多条语义相同的import/binding来源；其foundation definition origin固定取按`(source identity, span start, span end, context id)`最小的canonical representative，M23-5完整origin set必须包含该项且保存全部来源，不能让插入/worker顺序选择representative。MIR首次创建的SuspensionResult/Synthetic local value没有HIR definition record；承载它的后续MIR operation/transform capability以内联`ExpressionOriginV1`给出其语义来源。只有key能沿typed owner/path唯一回溯到source site的generated nominal或generated callable才可有record；这类record出现时必须逐边重算到该唯一site，但它不属于所有generated entity都必须存在的覆盖集合。全局按exact shape复用且没有唯一source site的helper不得伪造一个first-use origin。record按`(subject tag, subject raw id)`严格递增。M23-5的Export/template body section与后续LocalConcrete payload把`ExpressionOriginV1`直接放在其expression record中；MIR/LIR后续required payload同样以内联typed source location承载自己的operation origin。它们都复用此处schema与source/context表，但不把body origin倒灌成foundation空表。
+foundation wire只承载identity/source projection，不承载expression body，因此本阶段在HIR table中序列化`DefinitionOriginRecord`，而不制造没有expression subject的游离Evaluation/Concrete record。source declaration、accessor、source field/variant及其field、initialization unit、HIR首次创建且有source definition site的local value、callback registration与source native contract各恰有一条definition record。一个`PersistentLocalBindingId`可能合并同source内多条语义相同的import/binding来源；其foundation definition origin固定取按`(source identity, span start, span end, context id)`最小的canonical representative，M23-5完整origin set必须包含该项且保存全部来源，不能让插入/worker顺序选择representative。MIR首次创建的SuspensionResult/Synthetic local value没有HIR definition record；承载它的后续MIR operation/transform capability以内联`ExpressionOrigin`给出其语义来源。只有key能沿typed owner/path唯一回溯到source site的generated nominal或generated callable才可有record；这类record出现时必须逐边重算到该唯一site，但它不属于所有generated entity都必须存在的覆盖集合。全局按exact shape复用且没有唯一source site的helper不得伪造一个first-use origin。record按`(subject tag, subject raw id)`严格递增。M23-5的Export/template body section与后续LocalConcrete payload把`ExpressionOrigin`直接放在其expression record中；MIR/LIR后续required payload同样以内联typed source location承载自己的operation origin。它们都复用此处schema与source/context表，但不把body origin倒灌成foundation空表。
 
 ## 5. persistent entity identity v1
 
@@ -426,45 +426,45 @@ foundation wire只承载identity/source projection，不承载expression body，
 源声明不共用一个可擦除kind的key。为避免每个key重复语法，wire先定义以下只能被kind-specific constructor消费的product：
 
 ```text
-SourceDeclarationKeyV1 {
+SourceDeclarationKey {
     origin: ConeIdentity,                    // field 1
     package: PackagePath,                   // field 2
     owners: DefinitionOwnerChain,           // field 3
-    name: DeclarationNameV1,                // field 4
-    declaration_kind: SourceDeclarationKindV1, // field 5
-    duplicate_signature: DuplicateSignatureKeyV1, // field 6
-    scope: DeclarationScopeV1,               // field 7
+    name: DeclarationName,                // field 4
+    declaration_kind: SourceDeclarationKind, // field 5
+    duplicate_signature: DuplicateSignatureKey, // field 6
+    scope: DeclarationScope,               // field 7
 }
 ```
 
-`PackagePath`编码为segment array，root package是空array；每个segment必须是已通过语言identifier检查的原始UTF-8 text。`CanonicalIdentifier`同样保留源码UTF-8 bytes，不做Unicode normalization。`DeclarationNameV1`是`Named=1 {1=CanonicalIdentifier}`或无payload的`Constructor=2`；只有constructor declaration使用后者，不能伪造`<init>`等字符串。`DefinitionOwnerChain`从外到内编码typed owner atom，atom的v1 tag为`Type=1, GenericType=2, Function=3, GenericFunction=4, Constructor=5, Property=6, ExtensionProperty=7, GeneratedCallable=8, PropertyAccessor=9`，payload只能是对应typed persistent id。空chain表示top-level；owner必须已在dependency-first declaration table中出现。getter/setter body中的named local declaration必须含tag 9的具体accessor owner，不能退回property owner；因此同一property的getter与setter即使出现相同name/path也不会碰撞。
+`PackagePath`编码为segment array，root package是空array；每个segment必须是已通过语言identifier检查的原始UTF-8 text。`CanonicalIdentifier`同样保留源码UTF-8 bytes，不做Unicode normalization。`DeclarationName`是`Named=1 {1=CanonicalIdentifier}`或无payload的`Constructor=2`；只有constructor declaration使用后者，不能伪造`<init>`等字符串。`DefinitionOwnerChain`从外到内编码typed owner atom，atom的v1 tag为`Type=1, GenericType=2, Function=3, GenericFunction=4, Constructor=5, Property=6, ExtensionProperty=7, GeneratedCallable=8, PropertyAccessor=9`，payload只能是对应typed persistent id。空chain表示top-level；owner必须已在dependency-first declaration table中出现。getter/setter body中的named local declaration必须含tag 9的具体accessor owner，不能退回property owner；因此同一property的getter与setter即使出现相同name/path也不会碰撞。
 
-`SourceDeclarationKindV1`的tag为`Class=1, Interface=2, Struct=3, Enum=4, Object=5, AnnotationClass=6, Function=7, Constructor=8, Property=9, ExtensionProperty=10, TypeAlias=11`。kind-specific constructor必须检查kind、`DuplicateSignatureKeyV1` variant与hash domain三者匹配；例如extension property不能以`Property=9`生成相同key后仅靠Rust调用点解释。
+`SourceDeclarationKind`的tag为`Class=1, Interface=2, Struct=3, Enum=4, Object=5, AnnotationClass=6, Function=7, Constructor=8, Property=9, ExtensionProperty=10, TypeAlias=11`。kind-specific constructor必须检查kind、`DuplicateSignatureKey` variant与hash domain三者匹配；例如extension property不能以`Property=9`生成相同key后仅靠Rust调用点解释。
 
-`DeclarationScopeV1`为封闭sum：`ConeWide=1`无payload，`SourceScoped=2 {1=SourceIdentity}`，`LexicalScoped=3 {1=SourceIdentity, 2=StructuralDefinitionPathV1}`。只有语言duplicate-declaration规则允许两个不同source拥有同key的file-private/top-level hidden声明才能使用`SourceScoped`；named local function（包括local generic template）使用LexicalScoped，path来自parent callable的stable lexical traversal。其他visibility或member私有性不影响identity。由此local generic同样取得`PersistentGenericFunctionId`并可作为callable application origin，不能因其local而退化为generated display identity。
+`DeclarationScope`为封闭sum：`ConeWide=1`无payload，`SourceScoped=2 {1=SourceIdentity}`，`LexicalScoped=3 {1=SourceIdentity, 2=StructuralDefinitionPath}`。只有语言duplicate-declaration规则允许两个不同source拥有同key的file-private/top-level hidden声明才能使用`SourceScoped`；named local function（包括local generic template）使用LexicalScoped，path来自parent callable的stable lexical traversal。其他visibility或member私有性不影响identity。由此local generic同样取得`PersistentGenericFunctionId`并可作为callable application origin，不能因其local而退化为generated display identity。
 
-`DuplicateSignatureKeyV1`只编码语言判定重复/重载所需部分，tag和payload为：
+`DuplicateSignatureKey`只编码语言判定重复/重载所需部分，tag和payload为：
 
 | tag | variant | payload field |
 | ---: | --- | --- |
 | 1 | `Nominal` | `1=type_parameter_count: u32` |
-| 2 | `Function` | `1=type_parameter_count, 2=receiver: OptionalSignatureType, 3=parameters: array<SignatureTypeKeyV1>` |
-| 3 | `Constructor` | `1=parameters: array<SignatureTypeKeyV1>` |
+| 2 | `Function` | `1=type_parameter_count, 2=receiver: OptionalSignatureType, 3=parameters: array<SignatureTypeKey>` |
+| 3 | `Constructor` | `1=parameters: array<SignatureTypeKey>` |
 | 4 | `Property` | `1=type_parameter_count, 2=receiver: OptionalSignatureType` |
 | 5 | `TypeAlias` | 无payload |
 
 `OptionalSignatureType`是`Absent=1`/`Present=2 { 1=type }`的显式sum，不使用CBOR null。function return type、parameter name/default、property `val/var`、body、annotation和visibility不参与duplicate signature；其中任一项改变会通过semantic fingerprint失效，不会偷换声明identity。
 
-`SignatureTypeKeyV1`的tag固定为：
+`SignatureTypeKey`的tag固定为：
 
 | tag | variant | payload field |
 | ---: | --- | --- |
 | 1 | `Nominal` | `1=PersistentTypeId` |
-| 2 | `NominalApplication` | `1=PersistentGenericTypeId, 2=non-empty array<SignatureTypeKeyV1>` |
-| 3 | `Tuple` | `1=non-empty array<SignatureTypeKeyV1>` |
-| 4 | `Function` | `1=effect, 2=array<SignatureTypeKeyV1>, 3=result` |
+| 2 | `NominalApplication` | `1=PersistentGenericTypeId, 2=non-empty array<SignatureTypeKey>` |
+| 3 | `Tuple` | `1=non-empty array<SignatureTypeKey>` |
+| 4 | `Function` | `1=effect, 2=array<SignatureTypeKey>, 3=result` |
 | 5 | `RawPointer` | `1=pointee` |
-| 6 | `NativeFunctionPointer` | `1=calling_convention, 2=array<SignatureTypeKeyV1>, 3=result` |
+| 6 | `NativeFunctionPointer` | `1=calling_convention, 2=array<SignatureTypeKey>, 3=result` |
 | 7 | `Binder` | `1=de-Bruijn depth: u32, 2=index: u32` |
 
 `effect` tag为`Ordinary=1, Suspend=2`，`calling_convention`的v1唯一值为`C=1`。typealias在生成signature key前透明展开；nullable语法先脱糖为core `Option`。binder是签名中唯一允许的非concrete type ref，其depth/index必须落在对应declaration binder stack中。
@@ -478,31 +478,31 @@ non-generic type/function constructor要求`type_parameter_count=0`，generic ty
 | typed id | hash domain | canonical key |
 | --- | --- | --- |
 | `PersistentTypeId` | `scoop-type-id-v1` | `TypeIdentityKeyV1` |
-| `PersistentSourceContextId` | `scoop-source-context-id-v1` | `SourceContextKeyV1` |
-| `PersistentGenericTypeId` | `scoop-generic-type-id-v1` | `SourceDeclarationKeyV1(Nominal)` |
-| `PersistentFunctionId` | `scoop-function-id-v1` | `SourceDeclarationKeyV1(Function)` |
-| `PersistentGenericFunctionId` | `scoop-generic-function-id-v1` | `SourceDeclarationKeyV1(Function)` |
-| `PersistentCallableApplicationId` | `scoop-callable-application-id-v1` | `CallableApplicationKeyV1` |
-| `PersistentConstructorId` | `scoop-constructor-id-v1` | `SourceDeclarationKeyV1(Constructor)` |
-| `PersistentPropertyId` | `scoop-property-id-v1` | `SourceDeclarationKeyV1(Property)` |
-| `PersistentExtensionPropertyId` | `scoop-extension-property-id-v1` | `SourceDeclarationKeyV1(Property)` |
+| `PersistentSourceContextId` | `scoop-source-context-id-v1` | `SourceContextKey` |
+| `PersistentGenericTypeId` | `scoop-generic-type-id-v1` | `SourceDeclarationKey(Nominal)` |
+| `PersistentFunctionId` | `scoop-function-id-v1` | `SourceDeclarationKey(Function)` |
+| `PersistentGenericFunctionId` | `scoop-generic-function-id-v1` | `SourceDeclarationKey(Function)` |
+| `PersistentCallableApplicationId` | `scoop-callable-application-id-v1` | `CallableApplicationKey` |
+| `PersistentConstructorId` | `scoop-constructor-id-v1` | `SourceDeclarationKey(Constructor)` |
+| `PersistentPropertyId` | `scoop-property-id-v1` | `SourceDeclarationKey(Property)` |
+| `PersistentExtensionPropertyId` | `scoop-extension-property-id-v1` | `SourceDeclarationKey(Property)` |
 | `PersistentObjectValueId` | `scoop-object-value-id-v1` | `{1=PersistentTypeId source object declaration}` |
-| `PersistentTypeAliasId` | `scoop-type-alias-id-v1` | `SourceDeclarationKeyV1(TypeAlias)` |
+| `PersistentTypeAliasId` | `scoop-type-alias-id-v1` | `SourceDeclarationKey(TypeAlias)` |
 | `PersistentPropertyAccessorId` | `scoop-property-accessor-id-v1` | `{1=property owner sum, 2=Getter(1)/Setter(2)}` |
-| `PersistentFieldId` | `scoop-field-id-v1` | `FieldIdentityKeyV1` |
-| `PersistentEnumVariantId` | `scoop-enum-variant-id-v1` | `EnumVariantIdentityKeyV1` |
-| `PersistentEnumVariantFieldId` | `scoop-enum-variant-field-id-v1` | `{1=variant, 2=EnumVariantFieldSelectorV1}` |
-| `PersistentGeneratedCallableId` | `scoop-generated-callable-id-v1` | `GeneratedCallableKeyV1` |
+| `PersistentFieldId` | `scoop-field-id-v1` | `FieldIdentityKey` |
+| `PersistentEnumVariantId` | `scoop-enum-variant-id-v1` | `EnumVariantIdentityKey` |
+| `PersistentEnumVariantFieldId` | `scoop-enum-variant-field-id-v1` | `{1=variant, 2=EnumVariantFieldSelector}` |
+| `PersistentGeneratedCallableId` | `scoop-generated-callable-id-v1` | `GeneratedCallableKey` |
 | `PersistentDispatchSlotId` | `scoop-dispatch-slot-id-v1` | `{1=dispatch declaration owner, 2=dispatch role}` |
-| `PersistentLocalBindingId` | `scoop-local-binding-id-v1` | `LocalBindingKeyV1` |
-| `PersistentLocalValueId` | `scoop-local-value-id-v1` | `LocalValueKeyV1` |
-| `PersistentCallbackRegistrationId` | `scoop-callback-registration-id-v1` | `CallbackRegistrationKeyV1` |
-| `PersistentCallbackApplicationId` | `scoop-callback-application-id-v1` | `CallbackApplicationKeyV1` |
-| `PersistentSourceNativeExternalContractId` | `scoop-source-native-contract-id-v1` | `SourceNativeExternalContractKeyV1` |
-| `PersistentNativeExternalSymbolId` | `scoop-native-link-symbol-v1` | `NativeExternalSymbolKeyV1` |
-| `NativeLinkRequirementId` | `scoop-native-link-requirement-v1` | `NativeLinkRequirementKeyV1` |
-| `PersistentExportBindingId` | `scoop-export-binding-id-v1` | `ExportBindingKeyV1` |
-| `PersistentInitializationUnitId` | `scoop-initialization-unit-id-v1` | `InitializationUnitKeyV1` |
+| `PersistentLocalBindingId` | `scoop-local-binding-id-v1` | `LocalBindingKey` |
+| `PersistentLocalValueId` | `scoop-local-value-id-v1` | `LocalValueKey` |
+| `PersistentCallbackRegistrationId` | `scoop-callback-registration-id-v1` | `CallbackRegistrationKey` |
+| `PersistentCallbackApplicationId` | `scoop-callback-application-id-v1` | `CallbackApplicationKey` |
+| `PersistentSourceNativeExternalContractId` | `scoop-source-native-contract-id-v1` | `SourceNativeExternalContractKey` |
+| `PersistentNativeExternalSymbolId` | `scoop-native-link-symbol-v1` | `NativeExternalSymbolKey` |
+| `NativeLinkRequirementId` | `scoop-native-link-requirement-v1` | `NativeLinkRequirementKey` |
+| `PersistentExportBindingId` | `scoop-export-binding-id-v1` | `ExportBindingKey` |
+| `PersistentInitializationUnitId` | `scoop-initialization-unit-id-v1` | `InitializationUnitKey` |
 | `PersistentLayoutId` | `scoop-layout-id-v1` | `{1=exact type, 2=target profile id, 3=representation role}` |
 | `PersistentScanId` | `scoop-scan-id-v1` | `{1=layout id, 2=scan role}` |
 | `PersistentDispatchTableId` | `scoop-dispatch-table-id-v1` | `{1=exact type, 2=table role, 3=optional interface exact type}` |
@@ -518,123 +518,123 @@ non-generic type/function constructor要求`type_parameter_count=0`，generic ty
 `PersistentCallableApplicationId`不是“generic function id”的别名；它统一表示因generic nominal owner、callable自身binder或两者而需要具体化的callable：
 
 ```text
-CallableTemplateOriginV1 =
+CallableTemplateOrigin =
     Function { id: PersistentFunctionId }                 // tag 1
   | GenericFunction { id: PersistentGenericFunctionId }   // tag 2
   | Constructor { id: PersistentConstructorId }           // tag 3
   | Accessor { id: PersistentPropertyAccessorId }          // tag 4
 
-CallableArgumentsV1 =
+CallableArguments =
     NoCallableArguments                                    // tag 1
   | Arguments { values: NonEmpty<PersistentExactTypeId> }  // tag 2, field 1
 
-CallableApplicationKeyV1 {
-    origin: CallableTemplateOriginV1,      // field 1
-    instantiation_owner: CallableInstantiationOwnerV1, // field 2
-    callable_arguments: CallableArgumentsV1, // field 3
+CallableApplicationKey {
+    origin: CallableTemplateOrigin,      // field 1
+    instantiation_owner: CallableInstantiationOwner, // field 2
+    callable_arguments: CallableArguments, // field 3
 }
 ```
 
-`CallableInstantiationOwnerV1`是`NoOwner=1`、`ExactNominalOwner=2 {1=PersistentExactTypeId}`、`EnclosingCallableApplication=3 {1=PersistentCallableApplicationId}`或`EnclosingInitializationApplication=4 {1=PersistentInitializationUnitId}`。普通method、constructor或普通property accessor若声明于generic nominal中，使用ExactNominalOwner和`NoCallableArguments`；这里的exact owner必须是声明宿主的exact application，不是调用点receiver或其动态派生类型。generic method同时保存nominal owner与callable arguments；top-level generic function只有callable arguments；generic extension-property accessor使用NoOwner与该property receiver binder对应的arguments。local callable若外层generic环境来自普通callable application，则使用EnclosingCallableApplication；该parent application已经封装其nominal owner和外层callable arguments，不能再压平复制。若local callable的lexical parent链穿过generic delegated initializer/ensure（包括其中lambda或anonymous callable），则使用EnclosingInitializationApplication；unit必须是同一source extension property与receiver arguments的`GenericDelegatedExtensionApplication`，并完整提供receiver substitution。它不得用于普通initializer、别的property或从调用点动态receiver合成。两项都不存在时不构造application id而直接使用declaration id。owner/argument数量必须分别精确等于nominal/callable、extension-property或lexical binder数且全部concrete；`Function`和`Constructor`禁止携带自身callable arguments，`GenericFunction`必须携带非空且arity匹配的自身arguments，`Accessor`是否允许arguments由其property owner kind决定。local generic的自身arguments即使不出现在exact signature（phantom parameter）也必须进入key；其enclosing initialization owner只提供外层receiver substitution，不得吞并或复制这些arguments。validator必须沿source lexical parent与generated-parent relation逐边证明tag 3或tag 4恰好对应nearest enclosing materialization root；没有这条证明的application id非法。它与declaration id、session-local substitution/ref是不同type，不可通过u32、FQN或空array互换。
+`CallableInstantiationOwner`是`NoOwner=1`、`ExactNominalOwner=2 {1=PersistentExactTypeId}`、`EnclosingCallableApplication=3 {1=PersistentCallableApplicationId}`或`EnclosingInitializationApplication=4 {1=PersistentInitializationUnitId}`。普通method、constructor或普通property accessor若声明于generic nominal中，使用ExactNominalOwner和`NoCallableArguments`；这里的exact owner必须是声明宿主的exact application，不是调用点receiver或其动态派生类型。generic method同时保存nominal owner与callable arguments；top-level generic function只有callable arguments；generic extension-property accessor使用NoOwner与该property receiver binder对应的arguments。local callable若外层generic环境来自普通callable application，则使用EnclosingCallableApplication；该parent application已经封装其nominal owner和外层callable arguments，不能再压平复制。若local callable的lexical parent链穿过generic delegated initializer/ensure（包括其中lambda或anonymous callable），则使用EnclosingInitializationApplication；unit必须是同一source extension property与receiver arguments的`GenericDelegatedExtensionApplication`，并完整提供receiver substitution。它不得用于普通initializer、别的property或从调用点动态receiver合成。两项都不存在时不构造application id而直接使用declaration id。owner/argument数量必须分别精确等于nominal/callable、extension-property或lexical binder数且全部concrete；`Function`和`Constructor`禁止携带自身callable arguments，`GenericFunction`必须携带非空且arity匹配的自身arguments，`Accessor`是否允许arguments由其property owner kind决定。local generic的自身arguments即使不出现在exact signature（phantom parameter）也必须进入key；其enclosing initialization owner只提供外层receiver substitution，不得吞并或复制这些arguments。validator必须沿source lexical parent与generated-parent relation逐边证明tag 3或tag 4恰好对应nearest enclosing materialization root；没有这条证明的application id非法。它与declaration id、session-local substitution/ref是不同type，不可通过u32、FQN或空array互换。
 
 为了区分模板级generated declaration与某次concrete materialization，另有以下closed products：
 
 ```text
-CallableTemplateOwnerV1 =
+CallableTemplateOwner =
     Function { id: PersistentFunctionId }                  // tag 1
   | GenericFunction { id: PersistentGenericFunctionId }    // tag 2
   | Constructor { id: PersistentConstructorId }            // tag 3
   | Accessor { id: PersistentPropertyAccessorId }           // tag 4
   | Generated { id: PersistentGeneratedCallableId }         // tag 5
 
-CallableMaterializationContextV1 =
+CallableMaterializationContext =
     NoSubstitution                                           // tag 1
   | Application { id: PersistentCallableApplicationId }      // tag 2, field 1
   | InitializationApplication {
         unit: PersistentInitializationUnitId }                // tag 3, field 1
 
-CallableMaterializationV1 {
-    template: CallableTemplateOwnerV1,                       // field 1
-    context: CallableMaterializationContextV1,               // field 2
+CallableMaterialization {
+    template: CallableTemplateOwner,                       // field 1
+    context: CallableMaterializationContext,               // field 2
 }
 ```
 
-`NoSubstitution`只允许template及其nominal/lexical/initialization owner binder总数为0；否则普通callable上下文必须引用恰好替换该owner链的`Application`，generic delegated initializer/ensure上下文必须引用`InitializationApplication`且unit为同一source extension property的`GenericDelegatedExtensionApplication`。Application record的origin/parent链必须能回溯到template；若application使用`EnclosingInitializationApplication`，该链必须终止于相同unit。InitializationApplication的property/receiver arguments必须逐项替换Initialization template声明级unit所属property的binder，并回溯到该template；不能使用调用点receiver的动态类型或另一个generic实例。Initialization template禁止使用`Application` context，非Initialization template也禁止凭空使用`InitializationApplication`，除非其lexical parent链最终到达该Initialization template。`LexicalCallableParentV1`是`CallableTemplateOwnerV1`的refinement，其中Generated只接受下述Lexical、CallableReferenceInvoke或Initialization角色；它永不直接接受application id。generated owner递归必须无环，Initialization以声明级unit作为template owner终点，以materialization context中的application unit作为concrete emission root。
+`NoSubstitution`只允许template及其nominal/lexical/initialization owner binder总数为0；否则普通callable上下文必须引用恰好替换该owner链的`Application`，generic delegated initializer/ensure上下文必须引用`InitializationApplication`且unit为同一source extension property的`GenericDelegatedExtensionApplication`。Application record的origin/parent链必须能回溯到template；若application使用`EnclosingInitializationApplication`，该链必须终止于相同unit。InitializationApplication的property/receiver arguments必须逐项替换Initialization template声明级unit所属property的binder，并回溯到该template；不能使用调用点receiver的动态类型或另一个generic实例。Initialization template禁止使用`Application` context，非Initialization template也禁止凭空使用`InitializationApplication`，除非其lexical parent链最终到达该Initialization template。`LexicalCallableParent`是`CallableTemplateOwner`的refinement，其中Generated只接受下述Lexical、CallableReferenceInvoke或Initialization角色；它永不直接接受application id。generated owner递归必须无环，Initialization以声明级unit作为template owner终点，以materialization context中的application unit作为concrete emission root。
 
-`TypeIdentityKeyV1`是`Source=1 {1=SourceDeclarationKeyV1(Nominal)}`或`Generated=2 {1=GeneratedNominalKeyV1}`。source generic nominal必须生成`PersistentGenericTypeId`，不能伪装成`PersistentTypeId`；generated nominal一定是concrete，使用`PersistentTypeId`的`Generated`分支。生成type使用角色特定的语义key，而不是把所有角色强行绑定到“第一次使用”的source ordinal：
+`TypeIdentityKeyV1`是`Source=1 {1=SourceDeclarationKey(Nominal)}`或`Generated=2 {1=GeneratedNominalKey}`。source generic nominal必须生成`PersistentGenericTypeId`，不能伪装成`PersistentTypeId`；generated nominal一定是concrete，使用`PersistentTypeId`的`Generated`分支。生成type使用角色特定的语义key，而不是把所有角色强行绑定到“第一次使用”的source ordinal：
 
 ```text
-GeneratedNominalKeyV1 =
-    ClosureEnvironment { callable: CallableMaterializationV1,
-                         role: ClosureEnvironmentRoleV1 }                   // tag 1
-  | CallableAdapterEnvironment { key: CallableAdapterEnvironmentKeyV1 }     // tag 2
-  | CoroutineFrame { source_callable: CallableMaterializationV1 }           // tag 3
-  | ContinuationAdapterEnvironment { source_callable: CallableMaterializationV1,
-                                     suspension_site: StructuralDefinitionPathV1 } // tag 4
+GeneratedNominalKey =
+    ClosureEnvironment { callable: CallableMaterialization,
+                         role: ClosureEnvironmentRole }                   // tag 1
+  | CallableAdapterEnvironment { key: CallableAdapterEnvironmentKey }     // tag 2
+  | CoroutineFrame { source_callable: CallableMaterialization }           // tag 3
+  | ContinuationAdapterEnvironment { source_callable: CallableMaterialization,
+                                     suspension_site: StructuralDefinitionPath } // tag 4
   | CoroutineStep { result: PersistentExactTypeId }                         // tag 5
   | BoxedValue { payload: PersistentExactTypeId }                           // tag 6
   | CoroutineSlot { value: PersistentExactTypeId }                          // tag 7
   | ObjectBackingClass { object: PersistentTypeId }                         // tag 8
 ```
 
-`ClosureEnvironmentRoleV1`为`Lambda=1, AnonymousFunction=2, CallableReference=3`，必须与materialization.template的source/generated kind匹配；lexical path已经包含在template callable id中，不重复写入environment key。`CallableAdapterEnvironmentKeyV1`是`Static=1 {1=source signature, 2=target signature}`或`Dynamic=2 {1=target signature}`。closure/frame/continuation environment在generic callable上下文中按Application分开，在generic delegated initializer上下文中按InitializationApplication分开，在param-free上下文中使用NoSubstitution；adapter、box、coroutine step/slot分别按exact source/target、payload、result/value形状全局复用；source object的backing class由object declaration唯一确定。任何role都不读取first-use source、arena ordinal、临时type name或worker完成顺序。
+`ClosureEnvironmentRole`为`Lambda=1, AnonymousFunction=2, CallableReference=3`，必须与materialization.template的source/generated kind匹配；lexical path已经包含在template callable id中，不重复写入environment key。`CallableAdapterEnvironmentKey`是`Static=1 {1=source signature, 2=target signature}`或`Dynamic=2 {1=target signature}`。closure/frame/continuation environment在generic callable上下文中按Application分开，在generic delegated initializer上下文中按InitializationApplication分开，在param-free上下文中使用NoSubstitution；adapter、box、coroutine step/slot分别按exact source/target、payload、result/value形状全局复用；source object的backing class由object declaration唯一确定。任何role都不读取first-use source、arena ordinal、临时type name或worker完成顺序。
 
-`GeneratedCallableKeyV1`同样是角色特定的封闭sum：
+`GeneratedCallableKey`同样是角色特定的封闭sum：
 
 ```text
-GeneratedCallableKeyV1 =
-    Lexical { parent: LexicalCallableParentV1,
-              role: LexicalCallableRoleV1,
-              path: StructuralDefinitionPathV1 }                            // tag 1
+GeneratedCallableKey =
+    Lexical { parent: LexicalCallableParent,
+              role: LexicalCallableRole,
+              path: StructuralDefinitionPath }                            // tag 1
   | Initialization { unit: PersistentInitializationUnitId,
-                     role: InitializationCallableRoleV1 }                    // tag 2
+                     role: InitializationCallableRole }                    // tag 2
   | DerivedEquality { exact_owner: PersistentExactTypeId }                  // tag 3
-  | FunctionAdapter { source: ExactCallableSignatureV1,
-                      target: ExactCallableSignatureV1 }                     // tag 4
-  | DynamicFunctionAdapter { target: ExactCallableSignatureV1 }             // tag 5
-  | CallableReferenceInvoke { parent: LexicalCallableParentV1,
-                              path: StructuralDefinitionPathV1 }            // tag 6
-  | StaticNoGcCallbackStorageBridge { source: CallableMaterializationV1,
-                                      signature: ExactCallableSignatureV1 } // tag 7
+  | FunctionAdapter { source: ExactCallableSignature,
+                      target: ExactCallableSignature }                     // tag 4
+  | DynamicFunctionAdapter { target: ExactCallableSignature }             // tag 5
+  | CallableReferenceInvoke { parent: LexicalCallableParent,
+                              path: StructuralDefinitionPath }            // tag 6
+  | StaticNoGcCallbackStorageBridge { source: CallableMaterialization,
+                                      signature: ExactCallableSignature } // tag 7
   | ForeignCallbackManagedAdapter { application: PersistentCallbackApplicationId } // tag 8
-  | CoroutineDriver { source_callable: CallableMaterializationV1 }          // tag 9
+  | CoroutineDriver { source_callable: CallableMaterialization }          // tag 9
   | ContinuationShell { result: PersistentExactTypeId,
-                        role: ContinuationShellRoleV1 }                       // tag 10
+                        role: ContinuationShellRole }                       // tag 10
   | CoroutineStart { result: PersistentExactTypeId }                         // tag 11
-  | CoroutineAdapter { source_callable: CallableMaterializationV1,
-                       suspension_site: StructuralDefinitionPathV1,
-                       role: CoroutineAdapterRoleV1 }                        // tag 12
+  | CoroutineAdapter { source_callable: CallableMaterialization,
+                       suspension_site: StructuralDefinitionPath,
+                       role: CoroutineAdapterRole }                        // tag 12
   | FunctionBridge { environment: PersistentTypeId,
-                     target: ExactCallableSignatureV1 }                      // tag 13
+                     target: ExactCallableSignature }                      // tag 13
   | DispatchAdjust { slot: PersistentDispatchSlotId,
                      implementor: PersistentExactTypeId,
-                     target: CallableMaterializationV1 }                     // tag 14
+                     target: CallableMaterialization }                     // tag 14
   | BoxingAdjust { slot: PersistentDispatchSlotId,
                    payload: PersistentExactTypeId,
                    interface: PersistentExactTypeId }                        // tag 15
 ```
 
-`GeneratedCallableKeyV1::Initialization.unit`只接受声明级`TopLevelProperty`、`ExtensionProperty`、`Object`或`Companion` unit；它是initializer/ensure模板的source owner。`GenericDelegatedExtensionApplication`是concrete materialization unit，禁止直接写进该template key：generic delegated extension property仍以其声明级`ExtensionProperty` unit产生唯一Initialization template，再以`CallableMaterializationContextV1::InitializationApplication`携带每组exact receiver arguments。否则同一source initializer会被错误复制成多个“模板”，其中的binder callback/local declaration也无法先于concretization取得identity。
+`GeneratedCallableKey::Initialization.unit`只接受声明级`TopLevelProperty`、`ExtensionProperty`、`Object`或`Companion` unit；它是initializer/ensure模板的source owner。`GenericDelegatedExtensionApplication`是concrete materialization unit，禁止直接写进该template key：generic delegated extension property仍以其声明级`ExtensionProperty` unit产生唯一Initialization template，再以`CallableMaterializationContext::InitializationApplication`携带每组exact receiver arguments。否则同一source initializer会被错误复制成多个“模板”，其中的binder callback/local declaration也无法先于concretization取得identity。
 
-`LexicalCallableParentV1`使用`CallableTemplateOwnerV1`相同的1…5 wire tag，但parent tag 5进一步只接受`GeneratedCallableKeyV1` tag 1/2/6产生的`PersistentGeneratedCallableId`；其中tag 2的Initialization callable以声明级unit终止，而不是继续寻找source function。它不含任何application id，因而同一个generic模板/initializer内的lambda、anonymous function或callable-reference wrapper只取得一个declaration identity；不同concrete callable application或generic delegated initialization unit由materialization relation区分。嵌套lexical callable递归引用模板级parent，cycle拒绝。
+`LexicalCallableParent`使用`CallableTemplateOwner`相同的1…5 wire tag，但parent tag 5进一步只接受`GeneratedCallableKey` tag 1/2/6产生的`PersistentGeneratedCallableId`；其中tag 2的Initialization callable以声明级unit终止，而不是继续寻找source function。它不含任何application id，因而同一个generic模板/initializer内的lambda、anonymous function或callable-reference wrapper只取得一个declaration identity；不同concrete callable application或generic delegated initialization unit由materialization relation区分。嵌套lexical callable递归引用模板级parent，cycle拒绝。
 
-`LexicalCallableRoleV1`为`LambdaBody=1, AnonymousFunctionBody=2`；named local function无论是否generic都走带LexicalScoped的source function declaration identity，不进入此sum。tag 1/6都不把exact signature写入identity，因为Export HIR中的合法signature仍可能含binder；每个param-free实现或concrete application的完整signature改由第9.2节以Strong/ODR subject记录。callable-reference的resolved target也不进入identity：它继续保存在当前typed HIR body，未来实际承载body/default的required HIR capability必须以封闭target sum覆盖named/local/bound/derived-equality/dispatch形态并将target/source/target signature纳入HIR semantic projection。identity-foundation本身不宣称序列化body。这样同一lexical site不会因alias/dispatch refinement换identity，也不要求`CallableOwnerV1`假装覆盖全部call target。
+`LexicalCallableRole`为`LambdaBody=1, AnonymousFunctionBody=2`；named local function无论是否generic都走带LexicalScoped的source function declaration identity，不进入此sum。tag 1/6都不把exact signature写入identity，因为Export HIR中的合法signature仍可能含binder；每个param-free实现或concrete application的完整signature改由第9.2节以Strong/ODR subject记录。callable-reference的resolved target也不进入identity：它继续保存在当前typed HIR body，未来实际承载body/default的required HIR capability必须以封闭target sum覆盖named/local/bound/derived-equality/dispatch形态并将target/source/target signature纳入HIR semantic projection。identity-foundation本身不宣称序列化body。这样同一lexical site不会因alias/dispatch refinement换identity，也不要求`CallableOwner`假装覆盖全部call target。
 
-`InitializationCallableRoleV1`为`Initializer=1, Ensure=2`；`ContinuationShellRoleV1`与`CoroutineAdapterRoleV1`均为`Success=1, Failure=2`。`CallbackRegistrationKeyV1`是map `1=parent: LexicalCallableParentV1, 2=StructuralDefinitionPathV1, 3=SourceCAbiFunctionSignatureV1, 4=context_index: CallbackParameterIndex, 5=managed SignatureCallableShapeV1, 6=CallbackModeV1`。`SignatureCallableShapeV1`精确为map `1=effect, 2=OptionalSignatureType receiver, 3=array<SignatureTypeKeyV1> parameters, 4=SignatureTypeKeyV1 result`，复用第5.1节允许binder的type tree，不能在Export HIR阶段伪造exact type。这是HIR可验证的target-independent callback declaration，不引用到LIR才产生的`GeneratedBridgeUnitId`。
+`InitializationCallableRole`为`Initializer=1, Ensure=2`；`ContinuationShellRole`与`CoroutineAdapterRole`均为`Success=1, Failure=2`。`CallbackRegistrationKey`是map `1=parent: LexicalCallableParent, 2=StructuralDefinitionPath, 3=SourceCAbiFunctionSignature, 4=context_index: CallbackParameterIndex, 5=managed SignatureCallableShape, 6=CallbackMode`。`SignatureCallableShape`精确为map `1=effect, 2=OptionalSignatureType receiver, 3=array<SignatureTypeKey> parameters, 4=SignatureTypeKey result`，复用第5.1节允许binder的type tree，不能在Export HIR阶段伪造exact type。这是HIR可验证的target-independent callback declaration，不引用到LIR才产生的`GeneratedBridgeUnitId`。
 
-concrete callback application另有`CallbackApplicationKeyV1 {1=PersistentCallbackRegistrationId, 2=CallableMaterializationContextV1}`及`PersistentCallbackApplicationId = DomainSeparatedCborHash("scoop-callback-application-id-v1", key)`。NoSubstitution只允许两份source signature都无binder；否则普通callable site使用恰好覆盖registration parent binder stack的Application，generic delegated initializer/ensure site使用同property、完整receiver arguments的InitializationApplication；替换后每个type都必须exact且C-safe。MIR relation以该application为主键加入exact managed signature与固定storage/status ABI；target-specific canonical C signature到LIR才产生。由此同一generic source site可有多个concrete callback application，同一canonical C signature/index仍可复用一个trampoline unit。
+concrete callback application另有`CallbackApplicationKey {1=PersistentCallbackRegistrationId, 2=CallableMaterializationContext}`及`PersistentCallbackApplicationId = DomainSeparatedCborHash("scoop-callback-application-id-v1", key)`。NoSubstitution只允许两份source signature都无binder；否则普通callable site使用恰好覆盖registration parent binder stack的Application，generic delegated initializer/ensure site使用同property、完整receiver arguments的InitializationApplication；替换后每个type都必须exact且C-safe。MIR relation以该application为主键加入exact managed signature与固定storage/status ABI；target-specific canonical C signature到LIR才产生。由此同一generic source site可有多个concrete callback application，同一canonical C signature/index仍可复用一个trampoline unit。
 
 ```text
 PersistentCallbackRegistrationId =
     DomainSeparatedCborHash("scoop-callback-registration-id-v1",
-                            CallbackRegistrationKeyV1)
+                            CallbackRegistrationKey)
 ```
 
 静态`@NoGC` callback storage bridge按`(source, signature)`复用；每个foreign callback application只生成一个GC-aware、machine-status managed adapter，C trampoline由LIR的GeneratedBridgeUnit/Atom表示而不是第二个generated callable。LIR把concrete source C signature正规化成target-specific canonical C signature并记录`{PersistentCallbackApplicationId, GeneratedBridgeUnitId}` bridge relation。source/target完全相同的function adapter只有一个identity；derived equality、continuation shell/start和coroutine step/slot都按exact type全局复用。foreign callback adapter的固定machine-status result由tag 8和target profile机械决定，不伪装成`PersistentExactTypeId`；第9章的callable signature bridge使用显式machine variant验证它。generated identity只依赖M24仍稳定且在本stage可用的declaration/application/source-contract owner，绝不依赖会从body-v1整体换成body-v2的`PersistentCallableBodyId`或未来stage identity。需要改变上述判等规则或增加角色时提升identity schema，不能把显示name塞进现有tag。
 
-`StructuralDefinitionPathV1`是non-empty array的`{1=site_role, 2=ordinal: u32}`。compiler对每个owner的直接identity-bearing child按语言评估/声明源顺序遍历，对每个`site_role`分别从0计数，然后递归拼接路径。site role固定为`LocalDeclaration=1, Lambda=2, DefaultValue=3, AnonymousObject=4, CoroutineTransform=5, CallbackConversion=6, CallableConversion=7, DispatchAdapter=8, Initializer=9, SynthesizedBridge=10, SyntheticValue=11, StringConstant=12`。source string literal按表达式语言求值顺序取得当前owner下的StringConstant ordinal；desugar/transform新增的string constant在其已冻结的transform emit顺序中取得ordinal。content bytes只进入definition fingerprint，不参与ordinal或identity；多个内容相同的literal仍有不同path。MIR在同一source/transform site产生多个相同role temporary时，必须按该transform规范的emit顺序追加不同`SyntheticValue` ordinal，不能让多个temporary共享path。该算法可因owner body结构改变而改变generated identity，但空白、comment、arena id、并行完成顺序与其他source排序不影响它。
+`StructuralDefinitionPath`是non-empty array的`{1=site_role, 2=ordinal: u32}`。compiler对每个owner的直接identity-bearing child按语言评估/声明源顺序遍历，对每个`site_role`分别从0计数，然后递归拼接路径。site role固定为`LocalDeclaration=1, Lambda=2, DefaultValue=3, AnonymousObject=4, CoroutineTransform=5, CallbackConversion=6, CallableConversion=7, DispatchAdapter=8, Initializer=9, SynthesizedBridge=10, SyntheticValue=11, StringConstant=12`。source string literal按表达式语言求值顺序取得当前owner下的StringConstant ordinal；desugar/transform新增的string constant在其已冻结的transform emit顺序中取得ordinal。content bytes只进入definition fingerprint，不参与ordinal或identity；多个内容相同的literal仍有不同path。MIR在同一source/transform site产生多个相同role temporary时，必须按该transform规范的emit顺序追加不同`SyntheticValue` ordinal，不能让多个temporary共享path。该算法可因owner body结构改变而改变generated identity，但空白、comment、arena id、并行完成顺序与其他source排序不影响它。
 
-`InitializationUnitKeyV1`是封闭sum：`TopLevelProperty=1 {1=PersistentPropertyId}`、`ExtensionProperty=2 {1=PersistentExtensionPropertyId}`、`Object=3 {1=PersistentTypeId}`、`Companion=4 {1=PersistentTypeId}`、`GenericDelegatedExtensionApplication=5 {1=PersistentExtensionPropertyId, 2=non-empty array<PersistentExactTypeId> receiver_arguments}`。tag 5的argument数量必须精确等于property receiver binder数，其key同时作为M23-7 delegated-property specialization的unit origin，不能让两个exact receiver application共用unit。初始化策略、body bytes和物理存储不进unit identity；它们进semantic/code fingerprint。
+`InitializationUnitKey`是封闭sum：`TopLevelProperty=1 {1=PersistentPropertyId}`、`ExtensionProperty=2 {1=PersistentExtensionPropertyId}`、`Object=3 {1=PersistentTypeId}`、`Companion=4 {1=PersistentTypeId}`、`GenericDelegatedExtensionApplication=5 {1=PersistentExtensionPropertyId, 2=non-empty array<PersistentExactTypeId> receiver_arguments}`。tag 5的argument数量必须精确等于property receiver binder数，其key同时作为M23-7 delegated-property specialization的unit origin，不能让两个exact receiver application共用unit。初始化策略、body bytes和物理存储不进unit identity；它们进semantic/code fingerprint。
 
 其他role tag也在identity schema v1中封闭：`DispatchRole { VirtualMethod=1, InterfaceMethod=2, PropertyGetter=3, PropertySetter=4 }`；`RepresentationRole { ManagedValue=1, ManagedObject=2, CValue=3, NativeFunctionPointer=4 }`；`ScanRole { InlineValue=1, ManagedObject=2, ArrayElement=3 }`；`DispatchTableRole { VTable=1, ITable=2 }`；`StorageRole { PropertyBacking=1, PropertyDelegate=2, SingletonPublishedRoot=3, InitializationFailureRoot=4, RootEntryFailureRoot=5, StaticPlaceToken=6 }`；M23-2的`ImmortalObjectRole`唯一值为`StringConstant=1`。init cell直接以`PersistentInitializationUnitId`的`ic` symbol表示，不再制造第二个storage identity；singleton instance与box是普通movable heap object，static place token是writable storage，三者都不能冒充只读immortal object。optional interface exact type使用`Absent=1`/`Present=2`，不用null；每个key constructor对owner kind/role组合做封闭校验，不对外暴露raw integer constructor。
 
@@ -654,19 +654,19 @@ static storage的owner/role矩阵精确为：
 上表中所有“typed owner”在wire上都不是裸32-byte bytes，而是以下可审查的sum：
 
 ```text
-PropertyOwnerV1 =
+PropertyOwner =
     Property { id: PersistentPropertyId }                 // tag 1, field 1
   | ExtensionProperty { id: PersistentExtensionPropertyId } // tag 2, field 1
 
-NominalDeclarationOwnerV1 =
+NominalDeclarationOwner =
     Concrete { id: PersistentTypeId }                     // tag 1
   | GenericTemplate { id: PersistentGenericTypeId }       // tag 2
 
-NominalOwnerV1 =
-    Declaration { owner: NominalDeclarationOwnerV1 }      // tag 1
+NominalOwner =
+    Declaration { owner: NominalDeclarationOwner }      // tag 1
   | ExactApplication { id: PersistentExactTypeId }        // tag 2
 
-CallableOwnerV1 =
+CallableOwner =
     Function { id: PersistentFunctionId }                 // tag 1
   | GenericTemplate { id: PersistentGenericFunctionId }   // tag 2
   | Application { id: PersistentCallableApplicationId }   // tag 3
@@ -674,14 +674,14 @@ CallableOwnerV1 =
   | Accessor { id: PersistentPropertyAccessorId }         // tag 5
   | Generated { id: PersistentGeneratedCallableId }       // tag 6
 
-DispatchDeclarationOwnerV1 =
+DispatchDeclarationOwner =
     Function { id: PersistentFunctionId }                 // tag 1
   | Accessor { id: PersistentPropertyAccessorId }         // tag 2
 
 DefinitionOwnerV1 =
-    Nominal { owner: NominalOwnerV1 }                     // tag 1, field 1
-  | Callable { owner: CallableOwnerV1 }                   // tag 2, field 1
-  | Property { owner: PropertyOwnerV1 }                   // tag 3, field 1
+    Nominal { owner: NominalOwner }                     // tag 1, field 1
+  | Callable { owner: CallableOwner }                   // tag 2, field 1
+  | Property { owner: PropertyOwner }                   // tag 3, field 1
   | Field { id: PersistentFieldId }                       // tag 4, field 1
   | EnumVariant { id: PersistentEnumVariantId }           // tag 5, field 1
   | InitializationUnit { id: PersistentInitializationUnitId } // tag 6, field 1
@@ -689,48 +689,48 @@ DefinitionOwnerV1 =
                 main: MainCallableBodyId }                 // tag 7, fields 1/2
 
 ImmortalObjectOwnerV1 =
-    Callable { owner: CallableMaterializationV1 }           // tag 1, field 1
-  | Property { owner: PropertyOwnerV1 }                     // tag 2, field 1
+    Callable { owner: CallableMaterialization }           // tag 1, field 1
+  | Property { owner: PropertyOwner }                     // tag 2, field 1
   | InitializationUnit { id: PersistentInitializationUnitId } // tag 3, field 1
 ```
 
-sum仍使用`0=tag`，每个variant payload从field 1开始。`PersistentPropertyAccessorId`只接受property declaration owner；`FieldIdentityKeyV1::Source`只接受source nominal declaration，Generated分支只接受generated `PersistentTypeId`，exact application不能另造per-application field declaration id；`PersistentEnumVariantId`的Source分支只接受source enum的Concrete/GenericTemplate owner，Generated分支只接受匹配role的generated enum。`PersistentDispatchSlotId`只接受`DispatchDeclarationOwnerV1`，generic callable declaration、constructor、application和generated callable不能另造声明slot。trusted HIR constructor还检查：VirtualMethod owner是virtual family root、InterfaceMethod owner是direct interface member、getter/setter role匹配对应family-root accessor，所有override复用同一slot id。上述virtual/interface/family关系不在identity key中，M23-2 foundation wire只能验证owner typed kind与“generic callable不得成为slot”这类key内事实；`ValidatedCompileArtifact<IdentityFoundationProfile>`不暴露“dispatch合法”API。M23-5必须用新的required HIR dispatch-declaration provenance section重放其余检查，production profile取得该proof后才可导出slot/实现relation。现有LIR的closure/function-bridge call slot只是function-local ABI table index，不是persistent dispatch declaration；adjust/boxing/variance thunk是某个slot的implementation body，也不是新slot。application-specific field/variant/dispatch relation由“declaration id + exact owner/substitution”表达。storage/immortal key才可使用较宽的`DefinitionOwnerV1`。这些sum仅用于保留kind的product field，不提供跨variant cast或“任意entity lookup”API。
+sum仍使用`0=tag`，每个variant payload从field 1开始。`PersistentPropertyAccessorId`只接受property declaration owner；`FieldIdentityKey::Source`只接受source nominal declaration，Generated分支只接受generated `PersistentTypeId`，exact application不能另造per-application field declaration id；`PersistentEnumVariantId`的Source分支只接受source enum的Concrete/GenericTemplate owner，Generated分支只接受匹配role的generated enum。`PersistentDispatchSlotId`只接受`DispatchDeclarationOwner`，generic callable declaration、constructor、application和generated callable不能另造声明slot。trusted HIR constructor还检查：VirtualMethod owner是virtual family root、InterfaceMethod owner是direct interface member、getter/setter role匹配对应family-root accessor，所有override复用同一slot id。上述virtual/interface/family关系不在identity key中，M23-2 foundation wire只能验证owner typed kind与“generic callable不得成为slot”这类key内事实；`ValidatedCompileArtifact<IdentityFoundationProfile>`不暴露“dispatch合法”API。M23-5必须用新的required HIR dispatch-declaration provenance section重放其余检查，production profile取得该proof后才可导出slot/实现relation。现有LIR的closure/function-bridge call slot只是function-local ABI table index，不是persistent dispatch declaration；adjust/boxing/variance thunk是某个slot的implementation body，也不是新slot。application-specific field/variant/dispatch relation由“declaration id + exact owner/substitution”表达。storage/immortal key才可使用较宽的`DefinitionOwnerV1`。这些sum仅用于保留kind的product field，不提供跨variant cast或“任意entity lookup”API。
 
 第5.2节各个shorthand key的CBOR field也由此精确化：
 
 | key | exact field schema |
 | --- | --- |
-| callable application | `1=CallableTemplateOriginV1, 2=CallableInstantiationOwnerV1, 3=CallableArgumentsV1` |
-| property accessor | `1=PropertyOwnerV1, 2=AccessorRole(Getter=1/Setter=2)` |
-| field | `FieldIdentityKeyV1`，见下文 |
-| enum variant | `EnumVariantIdentityKeyV1`，见下文 |
-| enum variant field | `1=PersistentEnumVariantId, 2=EnumVariantFieldSelectorV1` |
-| dispatch slot | `1=DispatchDeclarationOwnerV1, 2=DispatchRole` |
+| callable application | `1=CallableTemplateOrigin, 2=CallableInstantiationOwner, 3=CallableArguments` |
+| property accessor | `1=PropertyOwner, 2=AccessorRole(Getter=1/Setter=2)` |
+| field | `FieldIdentityKey`，见下文 |
+| enum variant | `EnumVariantIdentityKey`，见下文 |
+| enum variant field | `1=PersistentEnumVariantId, 2=EnumVariantFieldSelector` |
+| dispatch slot | `1=DispatchDeclarationOwner, 2=DispatchRole` |
 | layout | `1=PersistentExactTypeId, 2=TargetProfileWireId, 3=RepresentationRole` |
 | scan | `1=PersistentLayoutId, 2=ScanRole` |
-| dispatch table | `1=PersistentExactTypeId, 2=DispatchTableRole, 3=OptionalExactInterfaceV1` |
+| dispatch table | `1=PersistentExactTypeId, 2=DispatchTableRole, 3=OptionalExactInterface` |
 | static storage | `1=DefinitionOwnerV1, 2=StorageRole` |
-| immortal object | `1=ImmortalObjectOwnerV1, 2=ImmortalObjectRole, 3=StructuralDefinitionPathV1` |
+| immortal object | `1=ImmortalObjectOwnerV1, 2=ImmortalObjectRole, 3=StructuralDefinitionPath` |
 
-M23的StringConstant owner矩阵同样封闭：ordinary function/method/accessor、lambda/anonymous/generated callable body中的literal必须使用完整`CallableMaterializationV1`；const/property declaration级literal使用`Property`；initializer/ensure及generic delegated initializer使用`InitializationUnit`。nested generic lambda因此同时保留generated template与外层application，不得退回裸`GeneratedCallableId`或只用outer application再猜一段跳层path。每个path都从该精确owner的直接StringConstant child开始；其他`DefinitionOwnerV1` variant不能构造immortal object。
+M23的StringConstant owner矩阵同样封闭：ordinary function/method/accessor、lambda/anonymous/generated callable body中的literal必须使用完整`CallableMaterialization`；const/property declaration级literal使用`Property`；initializer/ensure及generic delegated initializer使用`InitializationUnit`。nested generic lambda因此同时保留generated template与外层application，不得退回裸`GeneratedCallableId`或只用outer application再猜一段跳层path。每个path都从该精确owner的直接StringConstant child开始；其他`DefinitionOwnerV1` variant不能构造immortal object。
 
 source field与compiler-generated physical field不能共用display name判等：
 
 ```text
-FieldIdentityKeyV1 =
-    Source { key: SourceFieldKeyV1 }                       // tag 1
+FieldIdentityKey =
+    Source { key: SourceFieldKey }                       // tag 1
   | Generated { owner: PersistentTypeId,
-                key: GeneratedFieldKeyV1 }                // tag 2
+                key: GeneratedFieldKey }                // tag 2
 
-SourceFieldKeyV1 =
-    Declared { owner: NominalDeclarationOwnerV1,
+SourceFieldKey =
+    Declared { owner: NominalDeclarationOwner,
                name: CanonicalIdentifier }                // tag 1
-  | PropertyBacking { owner: NominalDeclarationOwnerV1,
+  | PropertyBacking { owner: NominalDeclarationOwner,
                       property: PersistentPropertyId }     // tag 2
-  | PropertyDelegate { owner: NominalDeclarationOwnerV1,
+  | PropertyDelegate { owner: NominalDeclarationOwner,
                        property: PersistentPropertyId }    // tag 3
 
-GeneratedFieldKeyV1 =
+GeneratedFieldKey =
     BoxPayload                                             // tag 1
   | ClosureCapture { value: PersistentLocalValueId }      // tag 2
   | CallableReferenceReceiver { value: PersistentLocalValueId } // tag 3
@@ -745,64 +745,64 @@ GeneratedFieldKeyV1 =
   | FunctionAdapterSource                                 // tag 12
   | ObjectBackingProperty { property: PersistentPropertyId } // tag 13
 
-EnumVariantIdentityKeyV1 =
-    Source { owner: NominalDeclarationOwnerV1,
+EnumVariantIdentityKey =
+    Source { owner: NominalDeclarationOwner,
              name: CanonicalIdentifier }                  // tag 1
   | Generated { owner: PersistentTypeId,
-                role: GeneratedEnumVariantRoleV1 }        // tag 2
+                role: GeneratedEnumVariantRole }        // tag 2
 ```
 
-field constructor的closed矩阵为：Source Declared只允许source struct的直接声明字段；PropertyBacking/PropertyDelegate只允许source class中的property physical field，且二者都携带该class的`PersistentPropertyId`。top-level property、extension property及其delegate是static/global storage，只走`PersistentStaticStorageId`，不能伪装成nominal field。BoxPayload→BoxedValue；ClosureCapture/CallableReferenceReceiver→ClosureEnvironment；FrameState/Completion/Saved/Failure→CoroutineFrame；AdapterFrame/State/Result/Failure→ContinuationAdapterEnvironment；FunctionAdapterSource→CallableAdapterEnvironment；ObjectBackingProperty→ObjectBackingClass。coroutine slot是generated enum，其payload只用variant的`PersistentEnumVariantFieldId(..., Positional(0))`，不生成class field。`GeneratedEnumVariantRoleV1`为`CoroutineStepCompleted=1, CoroutineStepSuspended=2, CoroutineSlotEmpty=3, CoroutineSlotValue=4`。capture/saved physical field按下述local-value raw id排序，因此parameter、bound receiver与compiler temporary不退回arena index或display name；closure创建时各capture source expression的求值顺序仍由独立semantic capture plan按语言顺序保存，不能因field排序而重排副作用。`EnumVariantFieldSelectorV1`是`Named=1 {1=CanonicalIdentifier}`或`Positional=2 {1=declaration_index:u32}`。named source payload使用声明名；`Circle(Int)`、`Rect(Int, Int)`及generated enum payload使用从0开始的声明index，不能制造空name或按type判等。applied field/variant ref分别是`{declaration id, exact owner}`typed relation，不产生新的persistent declaration id。
+field constructor的closed矩阵为：Source Declared只允许source struct的直接声明字段；PropertyBacking/PropertyDelegate只允许source class中的property physical field，且二者都携带该class的`PersistentPropertyId`。top-level property、extension property及其delegate是static/global storage，只走`PersistentStaticStorageId`，不能伪装成nominal field。BoxPayload→BoxedValue；ClosureCapture/CallableReferenceReceiver→ClosureEnvironment；FrameState/Completion/Saved/Failure→CoroutineFrame；AdapterFrame/State/Result/Failure→ContinuationAdapterEnvironment；FunctionAdapterSource→CallableAdapterEnvironment；ObjectBackingProperty→ObjectBackingClass。coroutine slot是generated enum，其payload只用variant的`PersistentEnumVariantFieldId(..., Positional(0))`，不生成class field。`GeneratedEnumVariantRole`为`CoroutineStepCompleted=1, CoroutineStepSuspended=2, CoroutineSlotEmpty=3, CoroutineSlotValue=4`。capture/saved physical field按下述local-value raw id排序，因此parameter、bound receiver与compiler temporary不退回arena index或display name；closure创建时各capture source expression的求值顺序仍由独立semantic capture plan按语言顺序保存，不能因field排序而重排副作用。`EnumVariantFieldSelector`是`Named=1 {1=CanonicalIdentifier}`或`Positional=2 {1=declaration_index:u32}`。named source payload使用声明名；`Circle(Int)`、`Rect(Int, Int)`及generated enum payload使用从0开始的声明index，不能制造空name或按type判等。applied field/variant ref分别是`{declaration id, exact owner}`typed relation，不产生新的persistent declaration id。
 
-`OptionalExactOwnerV1`、`OptionalExactInterfaceV1`均是`Absent=1`或`Present=2 {1=PersistentExactTypeId}`；后者present时exact type必须是interface nominal/application。`ExactCallableSignatureV1`是map `1=effect, 2=OptionalExactOwnerV1, 3=array<PersistentExactTypeId> parameters, 4=PersistentExactTypeId result`，是generated key与MIR bridge中Scoop signature的唯一schema。
+`OptionalExactOwner`、`OptionalExactInterface`均是`Absent=1`或`Present=2 {1=PersistentExactTypeId}`；后者present时exact type必须是interface nominal/application。`ExactCallableSignature`是map `1=effect, 2=OptionalExactOwner, 3=array<PersistentExactTypeId> parameters, 4=PersistentExactTypeId result`，是generated key与MIR bridge中Scoop signature的唯一schema。
 
 跨artifact name binding另有独立identity，而不是复用目标entity id：
 
 ```text
-ExportBindingKeyV1 {
+ExportBindingKey {
     exporter: ConeIdentity,               // field 1
     package: PackagePath,                 // field 2
-    namespace: BindingNamespaceV1,        // field 3: Type=1, Value=2
+    namespace: BindingNamespace,        // field 3: Type=1, Value=2
     name: CanonicalIdentifier,            // field 4
-    target: BindableEntityV1,             // field 5
-    role: BindingRoleV1,                  // field 6
+    target: BindableEntity,             // field 5
+    role: BindingRole,                  // field 6
 }
 ```
 
-`BindableEntityV1`的tag固定为`Type=1, GenericType=2, ObjectValue=3, Function=4, GenericFunction=5, Property=6, ExtensionProperty=7, TypeAlias=8, EnumVariant=9`，payload为对应typed id；constructor不是独立package binding。`BindingRoleV1`固定为`TypeName=1, ObjectValue=2, Function=3, ExtensionFunction=4, Property=5, ExtensionProperty=6, TypeAlias=7, EnumVariant=8`。closed matrix精确为：Type namespace只接受`TypeName×(Type|GenericType)`与`TypeAlias×TypeAlias`；Value namespace只接受`ObjectValue×ObjectValue`、`Function×(Function|GenericFunction)`、`ExtensionFunction×(Function|GenericFunction且source declaration receiver present)`、`Property×Property`、`ExtensionProperty×ExtensionProperty`及`EnumVariant×EnumVariant`。其他namespace/role/target组合全部拒绝。generic nominal/function只使用GenericType/GenericFunction target，不同时发普通Type/Function target；object恰有TypeName与ObjectValue两条binding。`PersistentObjectValueId`由`DomainSeparatedCborHash("scoop-object-value-id-v1", {1=PersistentTypeId})`生成且constructor要求目标是source object declaration，不能与它的type id互转。
+`BindableEntity`的tag固定为`Type=1, GenericType=2, ObjectValue=3, Function=4, GenericFunction=5, Property=6, ExtensionProperty=7, TypeAlias=8, EnumVariant=9`，payload为对应typed id；constructor不是独立package binding。`BindingRole`固定为`TypeName=1, ObjectValue=2, Function=3, ExtensionFunction=4, Property=5, ExtensionProperty=6, TypeAlias=7, EnumVariant=8`。closed matrix精确为：Type namespace只接受`TypeName×(Type|GenericType)`与`TypeAlias×TypeAlias`；Value namespace只接受`ObjectValue×ObjectValue`、`Function×(Function|GenericFunction)`、`ExtensionFunction×(Function|GenericFunction且source declaration receiver present)`、`Property×Property`、`ExtensionProperty×ExtensionProperty`及`EnumVariant×EnumVariant`。其他namespace/role/target组合全部拒绝。generic nominal/function只使用GenericType/GenericFunction target，不同时发普通Type/Function target；object恰有TypeName与ObjectValue两条binding。`PersistentObjectValueId`由`DomainSeparatedCborHash("scoop-object-value-id-v1", {1=PersistentTypeId})`生成且constructor要求目标是source object declaration，不能与它的type id互转。
 
 field 1始终是发布该destination binding的当前Cone，不是target declaration的Cone。Direct/ReExport、visibility、access provenance与逐跳route witness属于M23-5 surface payload和semantic fingerprint，不进入binding key；因此同一exporter/package/name/role/target由direct改为合法re-export或删掉一条diamond route不会改变binding id，但payload fingerprint会改变。M23-2已为当前Cone每个直接public package binding生成record；M23-5在同一table增加resolved re-export binding和完整surface payload，不回改identity或用FQN替代。
 
 当前Cone name-resolution witness与callable内部value也各有独立identity：
 
 ```text
-LocalBindingKeyV1 {
+LocalBindingKey {
     origin: ConeIdentity,              // field 1
     source: SourceIdentity,            // field 2
     package: PackagePath,              // field 3
-    namespace: BindingNamespaceV1,     // field 4
+    namespace: BindingNamespace,     // field 4
     local_name: CanonicalIdentifier,   // field 5
-    target: BindableEntityV1,          // field 6
-    binding_role: BindingRoleV1,       // field 7
-    source_role: LocalBindingRoleV1,   // field 8
+    target: BindableEntity,          // field 6
+    binding_role: BindingRole,       // field 7
+    source_role: LocalBindingRole,   // field 8
 }
 
-LocalValueKeyV1 {
-    owner: CallableMaterializationV1,  // field 1
-    selector: LocalValueSelectorV1,    // field 2
+LocalValueKey {
+    owner: CallableMaterialization,  // field 1
+    selector: LocalValueSelector,    // field 2
 }
 
-LocalValueSelectorV1 =
+LocalValueSelector =
     This                                                         // tag 1
   | Parameter { declaration_index: u32 }                         // tag 2
-  | LocalDeclaration { path: StructuralDefinitionPathV1 }        // tag 3
-  | BoundReceiver { path: StructuralDefinitionPathV1 }           // tag 4
-  | SuspensionResult { site: StructuralDefinitionPathV1 }        // tag 5
-  | Synthetic { path: StructuralDefinitionPathV1,
-                role: SyntheticLocalRoleV1 }                      // tag 6
+  | LocalDeclaration { path: StructuralDefinitionPath }        // tag 3
+  | BoundReceiver { path: StructuralDefinitionPath }           // tag 4
+  | SuspensionResult { site: StructuralDefinitionPath }        // tag 5
+  | Synthetic { path: StructuralDefinitionPath,
+                role: SyntheticLocalRole }                      // tag 6
 ```
 
-`LocalBindingRoleV1`为`Declaration=1, ExactImport=2, StarImport=3, AliasImport=4`；`origin`必须逐byte等于`source.cone`及artifact Cone，同一source中重复导入同target/local name/role合成同一binding，合法来源集合进入M23-5 payload而不进identity。其`DefinitionOriginRecordV1`的source必须就是key中的source，不能借另一个文件的同名import充当representative。`SyntheticLocalRoleV1`为`Temporary=1, DefaultValue=2, DesugaredIterator=3, CoroutineProtocol=4, CallbackContext=5`。parameter index按source signature声明序，`This`、callable-reference bound receiver与suspension result互不混用；synthetic path来自已冻结的表达式/变换遍历。`PersistentLocalBindingId`用于`CurrentCone` witness，`PersistentLocalValueId`用于capture/frame field，两者不能与HIR `BindingId`或local arena ordinal互换。
+`LocalBindingRole`为`Declaration=1, ExactImport=2, StarImport=3, AliasImport=4`；`origin`必须逐byte等于`source.cone`及artifact Cone，同一source中重复导入同target/local name/role合成同一binding，合法来源集合进入M23-5 payload而不进identity。其`DefinitionOriginRecord`的source必须就是key中的source，不能借另一个文件的同名import充当representative。`SyntheticLocalRole`为`Temporary=1, DefaultValue=2, DesugaredIterator=3, CoroutineProtocol=4, CallbackContext=5`。parameter index按source signature声明序，`This`、callable-reference bound receiver与suspension result互不混用；synthetic path来自已冻结的表达式/变换遍历。`PersistentLocalBindingId`用于`CurrentCone` witness，`PersistentLocalValueId`用于capture/frame field，两者不能与HIR `BindingId`或local arena ordinal互换。
 
 local value的owner必须同时保留模板与materialization context。param-free callable/initializer使用`NoSubstitution`；generic source callable使用自身Application；generic delegated initializer使用自身InitializationApplication；其中的lambda/anonymous/callable-reference wrapper以该generated template为`template`、以可回溯到其lexical parent或unit的同一context为`context`。因此两个callable application或两个receiver-specific initialization unit中的同一lambda local不会碰撞，也不会丢失它属于哪个lambda。未具体化的Export generic template只保存后续body capability定义的template-local typed selector，不提前构造`PersistentLocalValueId`；进入某个LocalConcrete application/unit后，HIR才为每个可能进入capture/frame的this、parameter、source local与bound receiver非可选地产生context-specific local-value id。MIR新建的eligible temporary使用Synthetic/SuspensionResult构造，并把coroutine saved set按raw id排序。capture/frame field的generated owner与local value必须具有同一个materialization context；只比较模板owner或结构path不足以通过validator。
 
@@ -895,7 +895,7 @@ DefinitionAtomSubkeyV1 =
   | InitializationUnit { id: PersistentInitializationUnitId }        // tag 5
   | ExactType { id: PersistentExactTypeId }                          // tag 6
   | SafepointSite { id: PersistentSafepointSiteId }                  // tag 7
-  | StructuralPath { path: StructuralDefinitionPathV1 }              // tag 8
+  | StructuralPath { path: StructuralDefinitionPath }              // tag 8
 ```
 
 `GeneratedBridgeSemanticTargetV1`是LIR canonical definition、ODR fingerprint与undefined requirement中唯一可引用的bridge target；它只有unit，不含producer/atom。每个实际producer Cone必须为所用unit恰好生成一个`PrimaryEntry { unit }` atom，codegen把semantic target映射成`GeneratedBridgeAtomKeyV1 { producer = current artifact Cone, atom = PrimaryEntry(unit) }`。object verifier核对真实`br` symbol后，把relocation规范化回`GeneratedBridgeUnit { id }` canonical target；defined owner仍是producer-specific atom。这样两个Cone生成同一ODR body时，其机器relocation可各指向本Cone强bridge，但canonical LIR/object definition都观察相同unit recipe，不把consumer-local atom id写进ODR fingerprint。缺失/多个primary、跨producer atom或LIR直接保存atom id全部拒绝。
@@ -910,7 +910,7 @@ DefinitionAtomSubkeyV1 =
 SpecializationKeyV1 =
     Nominal { origin: PersistentGenericTypeId,
               arguments: NonEmpty<PersistentExactTypeId> }                // tag 1
-  | Callable { application: CallableApplicationKeyV1 }                    // tag 2
+  | Callable { application: CallableApplicationKey }                    // tag 2
   | DelegatedProperty { origin: PersistentExtensionPropertyId,
                         receiver_arguments: NonEmpty<PersistentExactTypeId> } // tag 3
   | StructuralType { exact_type: PersistentExactTypeId }                  // tag 4
@@ -924,18 +924,18 @@ OdrMemberKeyV1 {
 
 `OdrMemberRoleV1`固定为`CallableBody=1, GeneratedNominal=2, Layout=3, ScanProgram=4, TypeDescriptor=5, DispatchTable=6, DispatchAdapter=7, StaticStorage=8, ImmortalObject=9, InitializationCell=10, InitializationDescriptor=11, RegistrationRecord=12, DiagnosticBytes=13, AddressTakenConstant=14, ObjectSupport=15, ReleaseHook=16`。tag 16在identity schema v1中为M24预留唯一语义，M23 HIR/MIR/LIR schema v1不得产生它；这不是unknown/reserved tag。`OdrMemberDiscriminatorV1`固定为`Singleton=1, CallableApplication=2, GeneratedCallable=3, GeneratedNominal=4, ExactType=5, Layout=6, Scan=7, DispatchTable=8, DispatchSlot=9, StaticStorage=10, ImmortalObject=11, InitializationUnit=12, StructuralPath=13, CallableBody=14, SafepointSite=15`，除Singleton外field 1携带名字所示typed id/path。
 
-role与discriminator允许矩阵也属于v1 schema：`CallableBody→CallableApplication|GeneratedCallable|InitializationUnit`；`GeneratedNominal→GeneratedNominal`；`Layout→Layout`；`ScanProgram→Scan`；`TypeDescriptor→ExactType`；`DispatchTable→DispatchTable`；`DispatchAdapter→DispatchSlot|GeneratedCallable`；`StaticStorage→StaticStorage`；`ImmortalObject→ImmortalObject`；`InitializationCell|InitializationDescriptor→InitializationUnit`；`RegistrationRecord→CallableBody|SafepointSite|ExactType|StaticStorage|ImmortalObject|InitializationUnit`；`DiagnosticBytes→ExactType|CallableApplication|GeneratedNominal|StructuralPath`；`AddressTakenConstant→ImmortalObject|StructuralPath`；`ObjectSupport→Singleton|StructuralPath`；`ReleaseHook→ExactType`。其他组合拒绝。`CallableOdrMemberId`只接受`CallableBody`/`DispatchAdapter`及`CallableApplication|GeneratedCallable|InitializationUnit` discriminator；其中`CallableBody/InitializationUnit`只允许generic delegated-property组的startup gateway，discriminator unit必须逐字段等于group root的property与receiver arguments。`ReleaseHookOdrMemberId`只接受`ReleaseHook/ExactType`，且只有M24 outer schema v2可把它作为semantic member使用。Callable group还必须逐字段比较内嵌`CallableApplicationKeyV1`与对应`PersistentCallableApplicationId` record，不能只相信一份32-byte摘要。
+role与discriminator允许矩阵也属于v1 schema：`CallableBody→CallableApplication|GeneratedCallable|InitializationUnit`；`GeneratedNominal→GeneratedNominal`；`Layout→Layout`；`ScanProgram→Scan`；`TypeDescriptor→ExactType`；`DispatchTable→DispatchTable`；`DispatchAdapter→DispatchSlot|GeneratedCallable`；`StaticStorage→StaticStorage`；`ImmortalObject→ImmortalObject`；`InitializationCell|InitializationDescriptor→InitializationUnit`；`RegistrationRecord→CallableBody|SafepointSite|ExactType|StaticStorage|ImmortalObject|InitializationUnit`；`DiagnosticBytes→ExactType|CallableApplication|GeneratedNominal|StructuralPath`；`AddressTakenConstant→ImmortalObject|StructuralPath`；`ObjectSupport→Singleton|StructuralPath`；`ReleaseHook→ExactType`。其他组合拒绝。`CallableOdrMemberId`只接受`CallableBody`/`DispatchAdapter`及`CallableApplication|GeneratedCallable|InitializationUnit` discriminator；其中`CallableBody/InitializationUnit`只允许generic delegated-property组的startup gateway，discriminator unit必须逐字段等于group root的property与receiver arguments。`ReleaseHookOdrMemberId`只接受`ReleaseHook/ExactType`，且只有M24 outer schema v2可把它作为semantic member使用。Callable group还必须逐字段比较内嵌`CallableApplicationKey`与对应`PersistentCallableApplicationId` record，不能只相信一份32-byte摘要。
 
 合法role/discriminator还不等于合法group成员；v1同时冻结`SpecializationKeyV1 variant × member provenance`门禁：
 
 - `Callable`组的`CallableApplication`必须逐字段等于group key；generated callable/nominal、body、site、storage与support必须沿模板级lexical owner加该application的materialization relation回溯到它，不能把另一个application或全局shape helper挂入；
-- `Nominal`组的root必须是与`origin + arguments`相同的`ExactTypeKeyV1::NominalApplication`；layout/scan/TD/table/field/adapter及其generated descendant都须沿exact owner链回溯到该root；
+- `Nominal`组的root必须是与`origin + arguments`相同的`ExactTypeKey::NominalApplication`；layout/scan/TD/table/field/adapter及其generated descendant都须沿exact owner链回溯到该root；
 - `DelegatedProperty`组的initialization unit必须逐字段等于同一property与receiver arguments，storage/cell/descriptor、initializer/ensure与`InitializationStartupGateway` callable body及support只能沿该unit回溯；
 - `StructuralType`组的layout/scan/TD必须直接以group exact type为root。
 
-为使generated key中的多个typed ref不会各自竞争owner，v1进一步冻结下列纯root函数。`MaterializationRoot(m)`按context取NoSubstitution source/unit Cone、Callable Application组或InitializationApplication unit root；`ExactOwnerRoot(t)`对source nominal取定义Cone、nominal application取Nominal组、结构exact取`StructuralType(t)`，对generated nominal递归使用第一张表；`StructuralRoot(t)`只接受经exact-type validator证明为非nominal的tuple/function/raw pointer/native function pointer，并取`StructuralType(t)`；`CallbackRoot(a)`按registration parent加NoSubstitution/Application/InitializationApplication求根。`FunctionShape(s)`要求adapter target signature无exact receiver，并以其effect/parameters/result构造已经存在的managed `ExactTypeKeyV1::Function`；有receiver的adapter必须先形成独立的bound-receiver environment，不能把receiver悄悄丢掉。
+为使generated key中的多个typed ref不会各自竞争owner，v1进一步冻结下列纯root函数。`MaterializationRoot(m)`按context取NoSubstitution source/unit Cone、Callable Application组或InitializationApplication unit root；`ExactOwnerRoot(t)`对source nominal取定义Cone、nominal application取Nominal组、结构exact取`StructuralType(t)`，对generated nominal递归使用第一张表；`StructuralRoot(t)`只接受经exact-type validator证明为非nominal的tuple/function/raw pointer/native function pointer，并取`StructuralType(t)`；`CallbackRoot(a)`按registration parent加NoSubstitution/Application/InitializationApplication求根。`FunctionShape(s)`要求adapter target signature无exact receiver，并以其effect/parameters/result构造已经存在的managed `ExactTypeKey::Function`；有receiver的adapter必须先形成独立的bound-receiver environment，不能把receiver悄悄丢掉。
 
-| `GeneratedNominalKeyV1` variant | 唯一root | 只作dependency、不得竞争root的字段 |
+| `GeneratedNominalKey` variant | 唯一root | 只作dependency、不得竞争root的字段 |
 | --- | --- | --- |
 | ClosureEnvironment | `MaterializationRoot(callable)` | role |
 | CallableAdapterEnvironment::Static | `StructuralRoot(FunctionShape(target))` | source signature |
@@ -947,7 +947,7 @@ role与discriminator允许矩阵也属于v1 schema：`CallableBody→CallableApp
 | CoroutineSlot | `ExactOwnerRoot(value)` | 无 |
 | ObjectBackingClass | source object declaration的Cone | 无 |
 
-| `GeneratedCallableKeyV1` variant | 唯一root | 只作dependency、不得竞争root的字段 |
+| `GeneratedCallableKey` variant | 唯一root | 只作dependency、不得竞争root的字段 |
 | --- | --- | --- |
 | Lexical / CallableReferenceInvoke | emission relation给出的nearest parent `MaterializationRoot` | role/path |
 | Initialization | 实现relation中的`MaterializationRoot({template=该generated id, context})` | template key中的声明级unit与role |
@@ -1001,37 +1001,37 @@ RuntimeIdentityRecordV1<K> {
 identity foundation不能让FFI继续靠symbol string串联三层。HIR先为每个合法`@Extern` function和extern global建立target-independent contract：
 
 ```text
-SourceNativeExternalOwnerV1 =
+SourceNativeExternalOwner =
     Function { id: PersistentFunctionId }                    // tag 1
   | Property { id: PersistentPropertyId }                    // tag 2
 
-SourceNativeExternalContractKeyV1 { owner }                  // field 1
+SourceNativeExternalContractKey { owner }                  // field 1
 
 PersistentSourceNativeExternalContractId =
     DomainSeparatedCborHash("scoop-source-native-contract-id-v1", key)
 
-SourceNativeExternalContractRecordV1 {
+SourceNativeExternalContractRecord {
     id: PersistentSourceNativeExternalContractId,            // field 1
-    key: SourceNativeExternalContractKeyV1,                   // field 2
-    contract: SourceNativeExternalContractV1,                 // field 3
+    key: SourceNativeExternalContractKey,                   // field 2
+    contract: SourceNativeExternalContract,                 // field 3
 }
 ```
 
-owner必须是同一条extern source declaration；其唯一source location由第4.5节`DefinitionOriginRecordV1::SourceNativeContract`承载，不在contract record复制第二份。contract内容变化进入HIR semantic fingerprint而不偷换declaration/contract identity。`SourceNativeLibraryBindingV1`为`DefaultNativeNamespace=1`或`LogicalLibrary=2 {1=CanonicalNativeLibraryName}`。`CanonicalNativeLibraryName`保存1…255 byte的有效UTF-8源码逻辑名：禁止NUL、`/`、`\`、ASCII control、首尾ASCII whitespace以及完整值`.`/`..`，不做Unicode normalization或大小写折叠；因此canonical bytes就是通过检查的原UTF-8 bytes，不含host搜索路径、扩展后的framework路径或locator。`SourceCAbiFunctionSignatureV1`是map `1=array<SignatureTypeKeyV1> parameters, 2=SourceCAbiReturnV1`，return为`Void=1`或`Value=2 {1=SignatureTypeKeyV1}`；只有source `Unit` result编码Void，parameter不能是Unit。该schema也供generic callback registration复用，所以类型树本身允许合法binder；但`SourceNativeExternalContractRecordV1`的owner只能是top-level non-generic extern function/property，其constructor必须额外证明整份signature/storage binder-free。每个type都先透明展开alias并通过source C-FFI-safe predicate，不能包含参数名/default。`SourceScoopAbiFunctionSignatureV1`使用相同map shape，但parameter/result保留完整Scoop signature type，result没有Void特例，extern constructor同样拒绝binder。
+owner必须是同一条extern source declaration；其唯一source location由第4.5节`DefinitionOriginRecord::SourceNativeContract`承载，不在contract record复制第二份。contract内容变化进入HIR semantic fingerprint而不偷换declaration/contract identity。`SourceNativeLibraryBinding`为`DefaultNativeNamespace=1`或`LogicalLibrary=2 {1=CanonicalNativeLibraryName}`。`CanonicalNativeLibraryName`保存1…255 byte的有效UTF-8源码逻辑名：禁止NUL、`/`、`\`、ASCII control、首尾ASCII whitespace以及完整值`.`/`..`，不做Unicode normalization或大小写折叠；因此canonical bytes就是通过检查的原UTF-8 bytes，不含host搜索路径、扩展后的framework路径或locator。`SourceCAbiFunctionSignature`是map `1=array<SignatureTypeKey> parameters, 2=SourceCAbiReturn`，return为`Void=1`或`Value=2 {1=SignatureTypeKey}`；只有source `Unit` result编码Void，parameter不能是Unit。该schema也供generic callback registration复用，所以类型树本身允许合法binder；但`SourceNativeExternalContractRecord`的owner只能是top-level non-generic extern function/property，其constructor必须额外证明整份signature/storage binder-free。每个type都先透明展开alias并通过source C-FFI-safe predicate，不能包含参数名/default。`SourceScoopAbiFunctionSignature`使用相同map shape，但parameter/result保留完整Scoop signature type，result没有Void特例，extern constructor同样拒绝binder。
 
-`SourceNativeExternalContractV1`的closed sum为：
+`SourceNativeExternalContract`的closed sum为：
 
 | tag | variant | fields |
 | ---: | --- | --- |
-| 1 | `Function` | `1=symbol bytes, 2=SourceNativeLibraryBindingV1, 3=SourceExternFunctionAbiV1, 4=SourceCallingConventionV1` |
-| 2 | `ReadOnlyData` | `1=symbol bytes, 2=library, 3=SignatureTypeKeyV1` |
+| 1 | `Function` | `1=symbol bytes, 2=SourceNativeLibraryBinding, 3=SourceExternFunctionAbi, 4=SourceCallingConvention` |
+| 2 | `ReadOnlyData` | `1=symbol bytes, 2=library, 3=SignatureTypeKey` |
 | 3 | `MutableData` | 同tag 2 |
 | 4 | `ReadOnlyTls` | 同tag 2 |
 | 5 | `MutableTls` | 同tag 2 |
 
-source symbol是1…4095 byte、无NUL的annotation UTF-8值；target规范化前不宣称它就是object symbol bytes。`SourceExternFunctionAbiV1`是`C=1 {1=SourceCAbiFunctionSignatureV1}`或`Scoop=2 {1=SourceScoopAbiFunctionSignatureV1, 2=GcEffectV1}`；`GcEffectV1`为`Managed=1, NoGc=2`，`SourceCallingConventionV1`的唯一值为`Cdecl=1`。data/TLS不携带calling convention且只接受C-safe storage type。`CallbackModeV1`固定为`Reusable=1, OneShot=2`；callback的`SourceCAbiFunctionSignatureV1`复用本段唯一schema。
+source symbol是1…4095 byte、无NUL的annotation UTF-8值；target规范化前不宣称它就是object symbol bytes。`SourceExternFunctionAbi`是`C=1 {1=SourceCAbiFunctionSignature}`或`Scoop=2 {1=SourceScoopAbiFunctionSignature, 2=GcEffect}`；`GcEffect`为`Managed=1, NoGc=2`，`SourceCallingConvention`的唯一值为`Cdecl=1`。data/TLS不携带calling convention且只接受C-safe storage type。`CallbackMode`固定为`Reusable=1, OneShot=2`；callback的`SourceCAbiFunctionSignature`复用本段唯一schema。
 
-仅有identity与field id不足以从不受信任artifact重算`@CLayout`或Scoop value ABI；因此foundation还携带一个**只服务native boundary闭包**、不公开为通用layout API的最小source witness。`CLayoutOverrideV1`是`Natural=1`或`Bytes=2 {1=1|2|4|8|16}`：
+仅有identity与field id不足以从不受信任artifact重算`@CLayout`或Scoop value ABI；因此foundation还携带一个**只服务native boundary闭包**、不公开为通用layout API的最小source witness。`CLayoutOverride`是`Natural=1`或`Bytes=2 {1=1|2|4|8|16}`：
 
 ```text
 NativeBoundaryNominalOwnerV1 =
@@ -1040,7 +1040,7 @@ NativeBoundaryNominalOwnerV1 =
 
 NativeBoundaryFieldDefinitionV1 {
     field: PersistentFieldId,            // field 1
-    type: SignatureTypeKeyV1,            // field 2
+    type: SignatureTypeKey,            // field 2
 }
 
 NativeBoundaryVariantDefinitionV1 {
@@ -1050,13 +1050,13 @@ NativeBoundaryVariantDefinitionV1 {
 
 NativeBoundaryVariantFieldDefinitionV1 {
     field: PersistentEnumVariantFieldId, // field 1
-    type: SignatureTypeKeyV1,            // field 2
+    type: SignatureTypeKey,            // field 2
 }
 
 NativeBoundaryCLayoutPolicyV1 =
     NotCLayout                                             // tag 1
-  | CLayout { aligned: CLayoutOverrideV1,
-              packed: CLayoutOverrideV1 }                 // tag 2, fields 1..2
+  | CLayout { aligned: CLayoutOverride,
+              packed: CLayoutOverride }                 // tag 2, fields 1..2
 
 NativeBoundaryNominalShapeV1 =
     Reference                                              // tag 1
@@ -1071,14 +1071,14 @@ NativeBoundaryTypeDefinitionRecordV1 {
 }
 ```
 
-数组顺序就是source declaration order；不能按field/variant id排序后伪造顺序。Concrete/GenericTemplate owner、parameter count、source kind、field/variant owner与完整集合必须逐项等于同artifact的identity records；field type允许合法binder，但depth/index必须落入owner binder stack。Reference只接受class/interface/object/annotation class且不携带field列表；Struct/Enum分别只接受对应source kind。`CLayout`只接受带该annotation的struct并保存已完成constant evaluation的规范override，其他struct必须用`NotCLayout`。trusted core registry以相同逻辑提供`Unit`、Boolean、定宽integer、`Option`、`Ptr`/`FunPtr`、`PinnedPtr`/`GcHandle`及其他可命名core nominal的sealed witness，普通artifact不能覆写；tuple、managed function、raw/native pointer的结构边直接来自`ExactTypeKeyV1`。
+数组顺序就是source declaration order；不能按field/variant id排序后伪造顺序。Concrete/GenericTemplate owner、parameter count、source kind、field/variant owner与完整集合必须逐项等于同artifact的identity records；field type允许合法binder，但depth/index必须落入owner binder stack。Reference只接受class/interface/object/annotation class且不携带field列表；Struct/Enum分别只接受对应source kind。`CLayout`只接受带该annotation的struct并保存已完成constant evaluation的规范override，其他struct必须用`NotCLayout`。trusted core registry以相同逻辑提供`Unit`、Boolean、定宽integer、`Option`、`Ptr`/`FunPtr`、`PinnedPtr`/`GcHandle`及其他可命名core nominal的sealed witness，普通artifact不能覆写；tuple、managed function、raw/native pointer的结构边直接来自`ExactTypeKey`。
 
 每个artifact的record集合精确覆盖其source extern、callback registration/application与target contract所引用exact/signature type的传递source-nominal闭包；无关额外record拒绝，避免改变fingerprint却没有用途。对generic application，validator从exact key的arguments按binder位置替换上述source shape，再按语言规范与`ValidatedLirTargetSelectionV1`重算：C-FFI-safe predicate、C storage/layout、Scoop value size/alignment/shape及Elided/Direct/Indirect选择。若闭包边指向direct dependency且当前profile没有相应closure proof，Graph仍可成功，但M23-2单artifactCompile以`SLIB_CAPABILITY_NATIVE_BOUNDARY_CLOSURE_REQUIRED`稳定失败，不返回“部分验证”的ABI对象；M23-6的`ValidatedArtifactClosure<Compile>`取得依赖witness与通用layout/scan section后完成它。M23-3的core-only profile只允许当前Cone加trusted core可闭合的boundary witness，不能跳过缺项。
 
 LIR在当前LIR target profile下完成native symbol/calling-convention与canonical C storage/bridge正规化后产生唯一target-specific leaf。以下所有product按列出的field编号编码，所有sum仍使用`0=非零tag`：
 
 ```text
-NativeExternalSymbolKeyV1 {
+NativeExternalSymbolKey {
     target_profile: TargetProfileWireId,     // field 1
     native_link_symbol: bytes,               // field 2, 1..4096 bytes, no NUL
 }
@@ -1086,59 +1086,59 @@ NativeExternalSymbolKeyV1 {
 PersistentNativeExternalSymbolId =
     DomainSeparatedCborHash("scoop-native-link-symbol-v1", key)
 
-NativeLibraryBindingV1 =
+NativeLibraryBinding =
     DefaultNativeNamespace                                  // tag 1
   | Requirement { id: NativeLinkRequirementId }             // tag 2, field 1
 ```
 
-`NativeLinkRequirementKeyV1`是map `1=TargetProfileWireId, 2=CanonicalNativeLibraryName, 3=NativeLibraryKindV1, 4=NativeLibraryGroupingV1`；kind为`TargetDefault=1, Dynamic=2, StaticArchive=3, Framework=4`，grouping为`Independent=1`或`OrderedGroup=2 {1=CanonicalNativeGroupName, 2=position:u32}`。`CanonicalNativeGroupName`使用与`CanonicalNativeLibraryName`完全相同的byte长度、UTF-8、禁止字符与“原bytes、不normalize”规则，但两者是不可转换的newtype；`position`从0开始、同group内必须严格连续且同一position唯一。`NativeLinkRequirementId = DomainSeparatedCborHash("scoop-native-link-requirement-v1", key)`。当前`lib`短式唯一映射到`TargetDefault/Independent`；M23-10 resolver只能为该typed requirement补provider evidence，不能把host路径写回key或在那时重新赋义group name。
+`NativeLinkRequirementKey`是map `1=TargetProfileWireId, 2=CanonicalNativeLibraryName, 3=NativeLibraryKind, 4=NativeLibraryGrouping`；kind为`TargetDefault=1, Dynamic=2, StaticArchive=3, Framework=4`，grouping为`Independent=1`或`OrderedGroup=2 {1=CanonicalNativeGroupName, 2=position:u32}`。`CanonicalNativeGroupName`使用与`CanonicalNativeLibraryName`完全相同的byte长度、UTF-8、禁止字符与“原bytes、不normalize”规则，但两者是不可转换的newtype；`position`从0开始、同group内必须严格连续且同一position唯一。`NativeLinkRequirementId = DomainSeparatedCborHash("scoop-native-link-requirement-v1", key)`。当前`lib`短式唯一映射到`TargetDefault/Independent`；M23-10 resolver只能为该typed requirement补provider evidence，不能把host路径写回key或在那时重新赋义group name。
 
-`CanonicalCStorageTypeV1`是closed sum：`Integer=1 {1=exact type, 2=SignednessV1, 3=bit_width}`、`Boolean=2 {1=exact type}`、`DataPointer=3 {1=exact type, 2=CDataPointeeV1, 3=CPointerStorageV1}`、`CodePointer=4 {1=exact type, 2=CanonicalCAbiSignatureFingerprint, 3=CPointerStorageV1}`、`Struct=5 {1=exact type, 2=CanonicalCAbiLayoutFingerprint}`。signedness为`Signed=1, Unsigned=2`，bit width只接受当前语言/target共同登记的8/16/32/64；pointee为`OpaqueUnit=1`或`ExactObject=2 {1=PersistentExactTypeId}`；pointer storage为`Direct=1`或`NullableWrapper=2 {1=PersistentExactTypeId}`。exact type与kind/provenance/layout必须逐项匹配，不能只凭相同size接受。
+`CanonicalCStorageType`是closed sum：`Integer=1 {1=exact type, 2=Signedness, 3=bit_width}`、`Boolean=2 {1=exact type}`、`DataPointer=3 {1=exact type, 2=CDataPointee, 3=CPointerStorage}`、`CodePointer=4 {1=exact type, 2=CanonicalCAbiSignatureFingerprint, 3=CPointerStorage}`、`Struct=5 {1=exact type, 2=CanonicalCAbiLayoutFingerprint}`。signedness为`Signed=1, Unsigned=2`，bit width只接受当前语言/target共同登记的8/16/32/64；pointee为`OpaqueUnit=1`或`ExactObject=2 {1=PersistentExactTypeId}`；pointer storage为`Direct=1`或`NullableWrapper=2 {1=PersistentExactTypeId}`。exact type与kind/provenance/layout必须逐项匹配，不能只凭相同size接受。
 
 `Integer`的合法source映射也封闭：八种定宽integer按自身signedness/width映射；core `PinnedPtr<T>`与`GcHandle<T>`则是仅有的transparent carrier例外，必须保留完整wrapper application的`source_exact_type`，同时固定映射为`Unsigned + 64`，并验证nominal origin分别是trusted core登记的`PinnedPtr`/`GcHandle`、恰有一个concrete type argument且其ABI与`ULong`一致。它们不能改写为裸`ULong` exact type，也不能仅凭任意8-byte value冒充carrier。`Boolean`、data/code pointer和`@CLayout` struct仍走各自variant；Float/Double按第8.1节在M23 profile中拒绝。
 
 ```text
-CanonicalCAbiParameterV1 {
+CanonicalCAbiParameter {
     source_exact_type: PersistentExactTypeId,               // field 1
-    storage: CanonicalCStorageTypeV1,                        // field 2
+    storage: CanonicalCStorageType,                        // field 2
 }
 
-CanonicalCAbiReturnV1 =
+CanonicalCAbiReturn =
     Void                                                     // tag 1
   | Value { source_exact_type: PersistentExactTypeId,
-            storage: CanonicalCStorageTypeV1 }               // tag 2, fields 1..2
+            storage: CanonicalCStorageType }               // tag 2, fields 1..2
 
-CanonicalCAbiFunctionSignatureV1 {
-    calling_convention: TargetCallingConventionV1,           // field 1
-    parameters: array<CanonicalCAbiParameterV1>,              // field 2
-    result: CanonicalCAbiReturnV1,                            // field 3
+CanonicalCAbiFunctionSignature {
+    calling_convention: TargetCallingConvention,           // field 1
+    parameters: array<CanonicalCAbiParameter>,              // field 2
+    result: CanonicalCAbiReturn,                            // field 3
 }
 ```
 
-当前Darwin/AArch64 profile只登记`TargetCallingConventionV1::Cdecl=1`。这份signature是canonical C**源码storage contract**，刻意不手写或持久化平台register class、integer extension、`byval`/`sret`等真实C ABI分类；所有C function/global/callback都由M12的canonical generated-C bridge交给`ValidatedCBridgeToolchainProfileV1`指定的system C compiler完成该侧lowering，Scoop侧桥接入口使用本设计已经类型化的storage ABI。decoder从exact type与C layout closure重算每项storage，并由后续generated-bridge capability验证bridge source/object及其compiler/toolchain evidence；不能从host ABI默认值补一个pass mode。`CanonicalCAbiSignatureFingerprint = DomainSeparatedCborHash("scoop-c-abi-signature-v1", CanonicalCAbiFunctionSignatureV1)`。
+当前Darwin/AArch64 profile只登记`TargetCallingConvention::Cdecl=1`。这份signature是canonical C**源码storage contract**，刻意不手写或持久化平台register class、integer extension、`byval`/`sret`等真实C ABI分类；所有C function/global/callback都由M12的canonical generated-C bridge交给`ValidatedCBridgeToolchainProfileV1`指定的system C compiler完成该侧lowering，Scoop侧桥接入口使用本设计已经类型化的storage ABI。decoder从exact type与C layout closure重算每项storage，并由后续generated-bridge capability验证bridge source/object及其compiler/toolchain evidence；不能从host ABI默认值补一个pass mode。`CanonicalCAbiSignatureFingerprint = DomainSeparatedCborHash("scoop-c-abi-signature-v1", CanonicalCAbiFunctionSignature)`。
 
 ```text
-CanonicalCAbiLayoutFieldV1 {
+CanonicalCAbiLayoutField {
     field: PersistentFieldId,                    // field 1
     offset: u64,                                 // field 2
-    storage: CanonicalCStorageTypeV1,            // field 3
+    storage: CanonicalCStorageType,            // field 3
 }
 
-CanonicalCAbiLayoutV1 {
+CanonicalCAbiLayout {
     exact_type: PersistentExactTypeId,            // field 1
     byte_size: u64,                               // field 2
     alignment: NonZeroU64,                        // field 3
-    aligned: CLayoutOverrideV1,                   // field 4
-    packed: CLayoutOverrideV1,                    // field 5
-    fields: array<CanonicalCAbiLayoutFieldV1>,    // field 6, declaration order
+    aligned: CLayoutOverride,                   // field 4
+    packed: CLayoutOverride,                    // field 5
+    fields: array<CanonicalCAbiLayoutField>,    // field 6, declaration order
 }
 ```
 
-field offset/alignment/size均checked，field identity/owner/order必须与source `@CLayout` struct一致；nested Struct storage引用其已验证layout fingerprint，layout graph必须无by-value cycle。`CanonicalCAbiLayoutFingerprint = DomainSeparatedCborHash("scoop-c-abi-layout-v1", CanonicalCAbiLayoutV1)`。
+field offset/alignment/size均checked，field identity/owner/order必须与source `@CLayout` struct一致；nested Struct storage引用其已验证layout fingerprint，layout graph必须无by-value cycle。`CanonicalCAbiLayoutFingerprint = DomainSeparatedCborHash("scoop-c-abi-layout-v1", CanonicalCAbiLayout)`。
 
-Scoop ABI contract不复用C pass mode。`CanonicalScoopStorageV1`是map `1=PersistentExactTypeId, 2=byte_size:u64, 3=alignment:NonZeroU64, 4=ScoopAbiValueShapeV1`，shape为`Scalar=1, Aggregate=2`；ZST必须`byte_size=0`，non-ZST必须大于0，shape、size和alignment都由当前target profile重算。`CanonicalScoopAbiFunctionSignatureV1`是map `1=ExactCallableSignatureV1, 2=array<ScoopAbiArgumentV1>, 3=ScoopAbiReturnV1, 4=GcEffectV1`；argument为`ElidedZst=1 {1=CanonicalScoopStorageV1}`、`Direct=2 {1=storage}`或`Indirect=3 {1=storage}`，return为`UnitVoid=1`、`ElidedZst=2 {1=storage}`、`Direct=3 {1=storage}`或`Indirect=4 {1=storage}`。Elided只接受size 0，Direct/Indirect只接受nonzero size并符合profile的scalar/aggregate passing规则；signature中的exact type必须逐位置等于storage exact type。field 4必须逐项等于source `SourceExternFunctionAbiV1::Scoop`的Managed/NoGc effect；它与`ExactCallableSignatureV1.effect`的Ordinary/Suspend轴正交，不能因两者都是“effect”而互相推导。这样同symbol与同物理value shape的Managed/NoGc extern仍产生不同contract fingerprint与typed callee-effect proof；两者都保持M15的`NativeBorrowed` transition与caller-root publication，`NoGc`不能偷降为普通`NoGc` callsite。M23-6会以新required ABI/layout section提供可跨Cone复用的完整layout/scan证明，但不改变这里已经冻结的extern physical signature bytes。
+Scoop ABI contract不复用C pass mode。`CanonicalScoopStorage`是map `1=PersistentExactTypeId, 2=byte_size:u64, 3=alignment:NonZeroU64, 4=ScoopAbiValueShape`，shape为`Scalar=1, Aggregate=2`；ZST必须`byte_size=0`，non-ZST必须大于0，shape、size和alignment都由当前target profile重算。`CanonicalScoopAbiFunctionSignature`是map `1=ExactCallableSignature, 2=array<ScoopAbiArgument>, 3=ScoopAbiReturn, 4=GcEffect`；argument为`ElidedZst=1 {1=CanonicalScoopStorage}`、`Direct=2 {1=storage}`或`Indirect=3 {1=storage}`，return为`UnitVoid=1`、`ElidedZst=2 {1=storage}`、`Direct=3 {1=storage}`或`Indirect=4 {1=storage}`。Elided只接受size 0，Direct/Indirect只接受nonzero size并符合profile的scalar/aggregate passing规则；signature中的exact type必须逐位置等于storage exact type。field 4必须逐项等于source `SourceExternFunctionAbi::Scoop`的Managed/NoGc effect；它与`ExactCallableSignature.effect`的Ordinary/Suspend轴正交，不能因两者都是“effect”而互相推导。这样同symbol与同物理value shape的Managed/NoGc extern仍产生不同contract fingerprint与typed callee-effect proof；两者都保持M15的`NativeBorrowed` transition与caller-root publication，`NoGc`不能偷降为普通`NoGc` callsite。M23-6会以新required ABI/layout section提供可跨Cone复用的完整layout/scan证明，但不改变这里已经冻结的extern physical signature bytes。
 
-`NativeExternalContractV1`的tag和field固定为：`Function=1 {1=NativeLibraryBindingV1, 2=NativeExternAbiV1, 3=TargetCallingConventionV1}`、`ReadOnlyData=2`、`MutableData=3`、`ReadOnlyTls=4`、`MutableTls=5`，后四者均为`{1=library, 2=CanonicalCStorageTypeV1}`。`NativeExternAbiV1`为`C=1 {1=CanonicalCAbiFunctionSignatureV1}`或`Scoop=2 {1=CanonicalScoopAbiFunctionSignatureV1}`。data/TLS只用C storage；C function的field 3必须逐tag等于其C signature field 1，Scoop function则只在外层field 3保存由source contract正规化出的calling convention，内层Scoop signature不复制第二份。当前二者唯一合法值均为`Cdecl=1`，但validator仍按上述分支检查，不能读取不存在的Scoop内层字段或默认补值。
+`NativeExternalContractV1`的tag和field固定为：`Function=1 {1=NativeLibraryBinding, 2=NativeExternAbiV1, 3=TargetCallingConvention}`、`ReadOnlyData=2`、`MutableData=3`、`ReadOnlyTls=4`、`MutableTls=5`，后四者均为`{1=library, 2=CanonicalCStorageType}`。`NativeExternAbiV1`为`C=1 {1=CanonicalCAbiFunctionSignature}`或`Scoop=2 {1=CanonicalScoopAbiFunctionSignature}`。data/TLS只用C storage；C function的field 3必须逐tag等于其C signature field 1，Scoop function则只在外层field 3保存由source contract正规化出的calling convention，内层Scoop signature不复制第二份。当前二者唯一合法值均为`Cdecl=1`，但validator仍按上述分支检查，不能读取不存在的Scoop内层字段或默认补值。
 
 ```text
 NativeExternalContractFingerprintInputV1 {
@@ -1152,7 +1152,7 @@ NativeExternalContractFingerprint =
 NativeExternalContractRecordV1 {
     source: PersistentSourceNativeExternalContractId, // field 1
     symbol_id: PersistentNativeExternalSymbolId,      // field 2
-    symbol_key: NativeExternalSymbolKeyV1,             // field 3
+    symbol_key: NativeExternalSymbolKey,             // field 3
     fingerprint: NativeExternalContractFingerprint,    // field 4
     contract: NativeExternalContractV1,                // field 5
 }
@@ -1162,9 +1162,9 @@ reader分别重算symbol id与contract fingerprint，再验证source contract经
 
 ## 6. exact type、callable body与runtime id
 
-### 6.1 `ExactTypeKeyV1`
+### 6.1 `ExactTypeKey`
 
-`ExactTypeKeyV1`沿用第5.1节结构type的1…6 tag，但不允许`Binder`，所有child都是`PersistentExactTypeId`：
+`ExactTypeKey`沿用第5.1节结构type的1…6 tag，但不允许`Binder`，所有child都是`PersistentExactTypeId`：
 
 | tag | variant | payload field |
 | ---: | --- | --- |
@@ -1175,7 +1175,7 @@ reader分别重算symbol id与contract fingerprint，再验证source contract经
 | 5 | `RawPointer` | `1=pointee` |
 | 6 | `NativeFunctionPointer` | `1=calling_convention, 2=array<PersistentExactTypeId>, 3=result` |
 
-`PersistentExactTypeId = DomainSeparatedCborHash("scoop-exact-type-v1", ExactTypeKeyV1)`。primitive/`Unit`都是core nominal，tuple和function是结构type，`RawPointer`与managed nominal、`NativeFunctionPointer`与managed function互不转换。nominal ref作为leaf，exact table对其他exact edge做cycle检查并以dependency-first顺序编码。
+`PersistentExactTypeId = DomainSeparatedCborHash("scoop-exact-type-v1", ExactTypeKey)`。primitive/`Unit`都是core nominal，tuple和function是结构type，`RawPointer`与managed nominal、`NativeFunctionPointer`与managed function互不转换。nominal ref作为leaf，exact table对其他exact edge做cycle检查并以dependency-first顺序编码。
 
 `CanonicalExactTypeDiagnosticName`完全沿用M23总设计3.1的ASCII grammar。M23-2实现只能从已验证identity graph生成它，并用memoized subtree cost在分配前实施16 MiB单字段上限；wire中若冗余保存diagnostic name，reader必须重算后逐byte相等。
 
@@ -1288,7 +1288,7 @@ validator不从linkage反猜owner，而是先从完整identity graph计算一个
 - source declaration、property、source object与其param-free、source-anchored generated descendant递归回溯到声明的origin Cone；body的`Strong` constructor只在owner恰好解析到一个Cone时合法；
 - callable application及其application-specific generated descendant回溯到`SpecializationKeyV1::Callable`；generic delegated unit回溯到`DelegatedProperty`；nominal application回溯到`Nominal`；tuple/function/raw pointer/native function pointer回溯到以自身exact type为root的`StructuralType`；
 - generated nominal/callable的闭包、frame、continuation、adapter、box、coroutine step/slot、derived equality、dispatch/boxing adjust等严格使用第5.2节已经冻结的owner/materialization/root函数：`NoSubstitution`的source-anchored实体回到唯一Cone，`Application`回到对应Callable组，`InitializationApplication`回到对应unit的Cone或DelegatedProperty组；shape helper按表选择`ExactOwnerRoot`或仅接受非nominal exact type的`StructuralRoot`，前者仍可能得到source Cone、Nominal组或StructuralType组；找不到root、找到两个root或跨root混合都拒绝；
-- `InitializationUnitKeyV1`的前四个variant回到声明Cone，`GenericDelegatedExtensionApplication`回到对应DelegatedProperty组；`RootGateway`回到`root_cone`，`InitializationStartupGateway`继承unit root；
+- `InitializationUnitKey`的前四个variant回到声明Cone，`GenericDelegatedExtensionApplication`回到对应DelegatedProperty组；`RootGateway`回到`root_cone`，`InitializationStartupGateway`继承unit root；
 - 每个`OdrOwned`结果还必须定位第5.2节中role/discriminator正确、root provenance完整的唯一member record。只有group id而没有member，或只有同role的别组member，都不能获得`OdrWeak`。
 
 21种symbol key到root/member的映射是穷尽表；`XRoot`表示按上段对X的canonical key递归求根：
@@ -1451,7 +1451,7 @@ QualifiedPointerLayoutV1 {
 
 `DarwinAarch64V1`的field 1…15精确取：`"aarch64-apple-darwin"`；`"e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"`；`org.scoop-lang.object-format/mach-o-relocatable/1`；`Little=1`；按kind严格递增的`I1=1:(1,1), I8=2:(1,1), I16=3:(2,2), I32=4:(4,4), I64=5:(8,8)`；`(8,8)`；`(8,8, AllZeroBits=1, BitPreservingU64=1)`；同前；`(8,8)`；`16`；`16`；`9,223,372,036,854,775,807`；`ElideZeroSizedDirectScalarIndirectAggregate=1`；`GeneratedBridgeSystemCCompiler=1`；`MachOExternalUnderscore=1`。array不得遗漏、重复或改变scalar顺序。Float/Double尚未进入当前编译器实现子集，也不是M23 C-FFI-safe storage，因此不得伪装成I32/I64；未来启用F32/F64必须扩展scalar/storage contract并提升target profile major。
 
-`NativeSymbolNormalizationV1::MachOExternalUnderscore`把1…4095 byte、无NUL且不以LLVM escape byte `0x01`开头的logical symbol逐byte映射为`0x5f || logical`，输出恰为2…4096 byte；不做Unicode、大小写或已有underscore折叠。固定向量是`foo → _foo`、`_foo → __foo`、`scoop$1$cb$<64hex> → _scoop$1$cb$<64hex>`。Scoop LLVM object与generated-C bridge object verifier都必须应用同一policy；`NativeExternalSymbolKeyV1.native_link_symbol`保存输出bytes，不能一个保存logical C name、另一个保存Mach-O `nlist` name。第7章的`MangledSymbolV1`语法描述logical Scoop symbol；codegen/object verifier以本field唯一映射到真实object symbol。
+`NativeSymbolNormalizationV1::MachOExternalUnderscore`把1…4095 byte、无NUL且不以LLVM escape byte `0x01`开头的logical symbol逐byte映射为`0x5f || logical`，输出恰为2…4096 byte；不做Unicode、大小写或已有underscore折叠。固定向量是`foo → _foo`、`_foo → __foo`、`scoop$1$cb$<64hex> → _scoop$1$cb$<64hex>`。Scoop LLVM object与generated-C bridge object verifier都必须应用同一policy；`NativeExternalSymbolKey.native_link_symbol`保存输出bytes，不能一个保存logical C name、另一个保存Mach-O `nlist` name。第7章的`MangledSymbolV1`语法描述logical Scoop symbol；codegen/object verifier以本field唯一映射到真实object symbol。
 
 该contract的Wire CBOR v1为：
 
@@ -1672,10 +1672,10 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 | 23 | `PersistentLocalBindingId` records |
 | 24 | HIR首次创建的`PersistentLocalValueId` records |
 | 25 | `PersistentCallbackRegistrationId` records |
-| 26 | `SourceNativeExternalContractRecordV1` records |
+| 26 | `SourceNativeExternalContractRecord` records |
 | 27 | HIR首次创建的`OdrGroupId` records |
 | 28 | HIR首次创建的`OdrMemberId` records |
-| 29 | `DefinitionOriginRecordV1` records |
+| 29 | `DefinitionOriginRecord` records |
 | 30 | `NativeBoundaryTypeDefinitionRecordV1` records |
 
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
@@ -1697,9 +1697,9 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 
 每个HIR中已形成的`PersistentCallableApplicationId`同时产生对应Callable group及以CallableApplication为discriminator的primary callable member；属于该application且在HIR已知的lexical generated callable也可产生以GeneratedCallable为discriminator的member。MIR transform新增的generated callable/member只写MIR delta并回指既有group。由此MIR signature subject绝不前向引用LIR；LIR只为layout/scan/site/registration等首次在LIR出现的member补delta。
 
-`MirCallableSignatureRecordV1`是map `1=CallableSignatureSubjectV1, 2=ExactCallableSignatureV1`。subject为`Strong=1 {1=CallableOwnerV1}`或`Odr=2 {1=CallableOdrMemberId}`；Strong只接受按第7.2节递归为唯一`ConeOwned`的source/source-anchored generated实现，origin-free shape helper即使param-free也必须使用其唯一ODR member。concrete generic/local-lambda实现同样使用Callable ODR member，所以同一模板级`PersistentGeneratedCallableId`可以在不同application中具有不同exact signature而不冲突。record按`(subject tag, subject raw id)`严格排序且一个subject恰有一条。record只证明persistent implementation subject与完整Scoop signature传播，不包含body implementation、dispatch implementation、generic predicate或external link symbol；这些内容由后续required section承载。
+`MirCallableSignatureRecordV1`是map `1=CallableSignatureSubjectV1, 2=ExactCallableSignature`。subject为`Strong=1 {1=CallableOwner}`或`Odr=2 {1=CallableOdrMemberId}`；Strong只接受按第7.2节递归为唯一`ConeOwned`的source/source-anchored generated实现，origin-free shape helper即使param-free也必须使用其唯一ODR member。concrete generic/local-lambda实现同样使用Callable ODR member，所以同一模板级`PersistentGeneratedCallableId`可以在不同application中具有不同exact signature而不冲突。record按`(subject tag, subject raw id)`严格排序且一个subject恰有一条。record只证明persistent implementation subject与完整Scoop signature传播，不包含body implementation、dispatch implementation、generic predicate或external link symbol；这些内容由后续required section承载。
 
-`MirCallbackApplicationRecordV1`是map `1=PersistentCallbackApplicationId, 2=CallableSignatureSubjectV1 managed_adapter, 3=ExactCallableSignatureV1 managed_signature, 4=ForeignCallbackStorageAbiV1, 5=CallbackModeV1`。名字刻意使用Application而不是Registration：HIR registration可含binder并标识source conversion site，这张MIR record只描述一次fully concrete materialization。`ForeignCallbackStorageAbiV1`在v1唯一为`ClosureResultRootsThrowableToU32=1`，精确表示现有adapter的`{closure, result storage pointer, root storage pointer, throwable storage pointer} -> u32 status`机器边界；它不是C callback的target-specific signature。record按callback application id排序，逐项重算其registration/context、验证替换后的source/managed exact signature以及adapter subject；target-specific canonical C storage/bridge正规化尚未参与MIR。
+`MirCallbackApplicationRecordV1`是map `1=PersistentCallbackApplicationId, 2=CallableSignatureSubjectV1 managed_adapter, 3=ExactCallableSignature managed_signature, 4=ForeignCallbackStorageAbiV1, 5=CallbackMode`。名字刻意使用Application而不是Registration：HIR registration可含binder并标识source conversion site，这张MIR record只描述一次fully concrete materialization。`ForeignCallbackStorageAbiV1`在v1唯一为`ClosureResultRootsThrowableToU32=1`，精确表示现有adapter的`{closure, result storage pointer, root storage pointer, throwable storage pointer} -> u32 status`机器边界；它不是C callback的target-specific signature。record按callback application id排序，逐项重算其registration/context、验证替换后的source/managed exact signature以及adapter subject；target-specific canonical C storage/bridge正规化尚未参与MIR。
 
 `LirIdentityFoundationV1`（capability `org.scoop-lang.lir/identity-foundation/1`）：
 
@@ -1719,8 +1719,8 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 | 12 | `SafepointMappingRecordV1` records |
 | 13 | `PersistentSymbolRequestV1` records |
 | 14 | `NativeExternalContractRecordV1` records |
-| 15 | `CanonicalCAbiSignatureFingerprintRecordV1` records |
-| 16 | `CanonicalCAbiLayoutFingerprintRecordV1` records |
+| 15 | `CanonicalCAbiSignatureFingerprintRecord` records |
+| 16 | `CanonicalCAbiLayoutFingerprintRecord` records |
 | 17 | `GeneratedBridgeUnitId` records |
 | 18 | `GeneratedBridgeAtomId` records |
 | 19 | `LirCallbackBridgeRecordV1` records |
@@ -1730,7 +1730,7 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 
 `RuntimeTypeMappingRecordV1`恰为`1=PersistentExactTypeId, 2=RuntimeTypeId(nonzero u64)`；`SafepointMappingRecordV1`恰为`1=PersistentSafepointSiteId, 2=SafepointId(nonzero u64)`，分别按field 1 raw id排序并全双射。symbol request按第7.1节唯一规则`(numeric key tag, owner raw id)`排序；linkage不进sort key，同key的不同linkage在排序前就是冲突。
 
-field 15/16的两个fingerprint record都是`{1=typed fingerprint, 2=canonical preimage}`，preimage分别为第5.4节的`CanonicalCAbiFunctionSignatureV1`与`CanonicalCAbiLayoutV1`；reader以`scoop-c-abi-signature-v1`、`scoop-c-abi-layout-v1` domain重算。field 14保存完整`NativeExternalContractRecordV1`并按该节同时重算symbol id与contract fingerprint。不能把bare digest当可信leaf；bridge unit/atom key引用的每个contract/signature/layout必须能在这些已验证表中定位。
+field 15/16的两个fingerprint record都是`{1=typed fingerprint, 2=canonical preimage}`，preimage分别为第5.4节的`CanonicalCAbiFunctionSignature`与`CanonicalCAbiLayout`；reader以`scoop-c-abi-signature-v1`、`scoop-c-abi-layout-v1` domain重算。field 14保存完整`NativeExternalContractRecordV1`并按该节同时重算symbol id与contract fingerprint。不能把bare digest当可信leaf；bridge unit/atom key引用的每个contract/signature/layout必须能在这些已验证表中定位。
 
 `LirCallbackBridgeRecordV1`是map `1=PersistentCallbackApplicationId, 2=CanonicalCAbiSignatureFingerprint, 3=GeneratedBridgeUnitId`，按callback application id排序。field 2的preimage必须是由该application替换后的source C signature经当前target profile唯一正规化得到的canonical C signature；field 3必须逐字段等于`CallbackTrampoline { field 2, context_parameter }`的unit key。MIR application、LIR signature与unit三方缺失或mode/context不一致使Compile proof失败；不同application得到相同signature/index时必须引用同一个unit，不得复制trampoline identity。
 
@@ -1819,7 +1819,7 @@ re-encode只读取persistent id/key并按canonical sort重建DTO，不读importe
 Compile proof至少检查：
 
 - MIR引用的source/generic/generated callable origin在HIR/MIR foundation中恰有一个；
-- foundation中每个`DefinitionOriginRecordV1`的source、context与point table一致；后续body capability出现时，再对其内联`ExpressionOriginV1`逐项验证definition/evaluation。local binding/value selector的owner存在，capture/frame field引用的local value来自HIR/MIR union且kind正确；
+- foundation中每个`DefinitionOriginRecord`的source、context与point table一致；后续body capability出现时，再对其内联`ExpressionOrigin`逐项验证definition/evaluation。local binding/value selector的owner存在，capture/frame field引用的local value来自HIR/MIR union且kind正确；
 - LIR callable body的Strong owner在HIR/MIR中存在且是callable kind；
 - 每个Callable ODR group/member满足第5.2节root provenance；M23-2 foundation允许验证这些identity，但profile/publication门禁仍禁止把它提升成Link input；
 - 每个safepoint site的owner body存在，同owner/role ordinal从0连续且不重复；
@@ -1953,7 +1953,7 @@ M23-2 foundation的code/runtime-image fingerprint是第8.1节的`Unavailable`；
 - HIR source table从`display_name + full source`改为`SourceRecordV1`所需的identity/digest/length/line-starts/point table；当前编译可在driver保留source bytes供诊断，但不把它带入semantic key。
 - file-private visibility/origin/import binding使用`SourceIdentity`，不再读request/local index。`stable_user_source_name`的cwd/canonical path结果只是display locator，不升级为persistent name。
 - HIR lowering一次性产生完整kind-specific declaration key/id和foundation；每个name-resolution witness生成`PersistentLocalBindingId`，每个可能进入capture/frame的this、parameter、source local与bound receiver生成`PersistentLocalValueId`，后续不从FQN、local name、link stem或diagnostic text反推。
-- AST仍保留enum variant payload field的named/positional style；AST→HIR时必须把`EnumVariantFieldSelectorV1::{Named, Positional}`及其persistent field id显式写入HIR。现有将positional field打印成`_1`的display name只能保留为诊断装饰，禁止由`_N`字符串反向恢复selector。
+- AST仍保留enum variant payload field的named/positional style；AST→HIR时必须把`EnumVariantFieldSelector::{Named, Positional}`及其persistent field id显式写入HIR。现有将positional field打印成`_1`的display name只能保留为诊断装饰，禁止由`_N`字符串反向恢复selector。
 - 每个source extern与foreign callback conversion分别生成第5.4节source contract及callback registration record；generic Export HIR只保存允许binder的source signature，不能提前构造exact/target ABI。进入LocalConcrete/MIR时为每个实际substitution生成typed callback application，再建立adapter/signature relation。
 
 ### 14.2 MIR、LIR与codegen
@@ -1997,7 +1997,7 @@ M23-2至少固定以下error code family：`SLIB_CONTAINER_*`、`SLIB_WIRE_*`、
 
 每个以下类别都保存人工可审查的input、canonical bytes、32-byte hex和（如适用）mangled/u64 output：
 
-- ConeCoordinate、SourceIdentity、每个source declaration kind、derived key、generated structural path与exact type 1…6 variant；`CallableInstantiationOwnerV1`四个tag都必须有向量，其中tag 4覆盖generic delegated initializer内lambda再声明named local function的application；
+- ConeCoordinate、SourceIdentity、每个source declaration kind、derived key、generated structural path与exact type 1…6 variant；`CallableInstantiationOwner`四个tag都必须有向量，其中tag 4覆盖generic delegated initializer内lambda再声明named local function的application；
 - callable body 1…4 tag的runtime encoder bytes，Strong owner每个variant，以及M24 body-v2在v1 reader中的拒绝用例；
 - safepoint 5个role、canonical CFG traversal、同role ordinal、runtime/safepoint little-endian截断；用可注入hash test double覆盖zero和u64 collision分支，production hash仍固定SHA-256；
 - PersistentV1每个kind tag、linkage非法组合、`@Extern`/runtime ABI绕过与legacy shim单向调用；

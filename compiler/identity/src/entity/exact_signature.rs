@@ -1,15 +1,15 @@
-use scoop_wire::{Encoder, WireEncodeV1};
+use scoop_wire::{Encoder, WireEncode};
 
-use super::EffectV1;
+use super::Effect;
 use crate::PersistentExactTypeId;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum OptionalExactOwnerV1 {
+pub enum OptionalExactOwner {
     Absent,
     Present(PersistentExactTypeId),
 }
 
-impl OptionalExactOwnerV1 {
+impl OptionalExactOwner {
     pub const fn from_option(owner: Option<PersistentExactTypeId>) -> Self {
         match owner {
             Some(owner) => Self::Present(owner),
@@ -22,7 +22,7 @@ impl OptionalExactOwnerV1 {
     }
 }
 
-impl WireEncodeV1 for OptionalExactOwnerV1 {
+impl WireEncode for OptionalExactOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Absent => {
@@ -42,33 +42,33 @@ impl WireEncodeV1 for OptionalExactOwnerV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ExactCallableSignatureV1 {
-    effect: EffectV1,
-    receiver: OptionalExactOwnerV1,
+pub struct ExactCallableSignature {
+    effect: Effect,
+    receiver: OptionalExactOwner,
     parameters: Vec<PersistentExactTypeId>,
     result: PersistentExactTypeId,
 }
 
-impl ExactCallableSignatureV1 {
+impl ExactCallableSignature {
     pub fn new(
-        effect: EffectV1,
+        effect: Effect,
         receiver: Option<PersistentExactTypeId>,
         parameters: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
     ) -> Self {
         Self {
             effect,
-            receiver: OptionalExactOwnerV1::from_option(receiver),
+            receiver: OptionalExactOwner::from_option(receiver),
             parameters,
             result,
         }
     }
 
-    pub const fn effect(&self) -> EffectV1 {
+    pub const fn effect(&self) -> Effect {
         self.effect
     }
 
-    pub const fn receiver(&self) -> OptionalExactOwnerV1 {
+    pub const fn receiver(&self) -> OptionalExactOwner {
         self.receiver
     }
 
@@ -81,7 +81,7 @@ impl ExactCallableSignatureV1 {
     }
 }
 
-impl WireEncodeV1 for ExactCallableSignatureV1 {
+impl WireEncode for ExactCallableSignature {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
@@ -102,13 +102,13 @@ impl WireEncodeV1 for ExactCallableSignatureV1 {
 mod tests {
     use scoop_wire::encode;
 
-    use super::ExactCallableSignatureV1;
-    use crate::{ConeIdentity, EffectV1, PersistentExactTypeId};
+    use super::ExactCallableSignature;
+    use crate::{ConeIdentity, Effect, PersistentExactTypeId};
 
     #[test]
     fn exact_signature_uses_explicit_absent_receiver() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let signature = ExactCallableSignatureV1::new(EffectV1::Ordinary, None, vec![exact], exact);
+        let signature = ExactCallableSignature::new(Effect::Ordinary, None, vec![exact], exact);
         assert_eq!(
             hex(&encode(&signature).unwrap()),
             format!("a4010102a1000103815820{exact}045820{exact}")

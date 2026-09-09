@@ -1,8 +1,8 @@
-use crate::budget::{BudgetMeter, COLLECTION_ELEMENT_BYTES_V1, DecodeLimitsV1};
+use crate::budget::{BudgetMeter, COLLECTION_ELEMENT_BYTES_V1, DecodeLimits};
 use crate::{PathSegment, WireError, WireErrorKind, WirePath, WireType};
 
 use super::encode::encode_with_limit;
-use super::{EncodeError, WireEncodeV1};
+use super::{EncodeError, WireEncode};
 
 /// Type-directed strict decoder for the Wire CBOR v1 subset.
 pub struct Decoder<'input, 'meter> {
@@ -298,14 +298,11 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
     }
 }
 
-pub trait WireDecodeV1: WireEncodeV1 + Sized {
+pub trait WireDecode: WireEncode + Sized {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError>;
 }
 
-pub fn decode_canonical<T: WireDecodeV1>(
-    input: &[u8],
-    limits: DecodeLimitsV1,
-) -> Result<T, WireError> {
+pub fn decode_canonical<T: WireDecode>(input: &[u8], limits: DecodeLimits) -> Result<T, WireError> {
     let mut meter = BudgetMeter::new(limits);
     let mut decoder = Decoder::new(input, &mut meter)?;
     let value = T::decode(&mut decoder)?;
@@ -371,9 +368,9 @@ fn encode_head(output: &mut [u8; 9], major: u8, argument: u64) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DecodeLimitsV1, Encoder, WireErrorKind, encode};
+    use crate::{DecodeLimits, Encoder, WireErrorKind, encode};
 
-    use super::{Decoder, EncodeError, WireDecodeV1, WireEncodeV1, decode_canonical};
+    use super::{Decoder, EncodeError, WireDecode, WireEncode, decode_canonical};
 
     #[derive(Debug, Eq, PartialEq)]
     struct Pair {
@@ -384,19 +381,19 @@ mod tests {
     #[derive(Debug, Eq, PartialEq)]
     struct UnsignedValue(u64);
 
-    impl WireEncodeV1 for UnsignedValue {
+    impl WireEncode for UnsignedValue {
         fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
             encoder.unsigned(self.0)
         }
     }
 
-    impl WireDecodeV1 for UnsignedValue {
+    impl WireDecode for UnsignedValue {
         fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
             Ok(Self(decoder.unsigned()?))
         }
     }
 
-    impl WireEncodeV1 for Pair {
+    impl WireEncode for Pair {
         fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
             encoder.map(2)?;
             encoder.field(1)?;
@@ -406,7 +403,7 @@ mod tests {
         }
     }
 
-    impl WireDecodeV1 for Pair {
+    impl WireDecode for Pair {
         fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
             decoder.expect_map(2)?;
             let first = decoder.field(1, Decoder::unsigned)?;
@@ -423,7 +420,7 @@ mod tests {
         };
         assert_eq!(encode(&pair).unwrap(), b"\xa2\x01\x17\x18\x18\x62\xc3\xa9");
         assert_eq!(
-            decode_canonical::<Pair>(&encode(&pair).unwrap(), DecodeLimitsV1::default()).unwrap(),
+            decode_canonical::<Pair>(&encode(&pair).unwrap(), DecodeLimits::default()).unwrap(),
             pair
         );
     }
@@ -449,7 +446,7 @@ mod tests {
             let encoded = encode(&UnsignedValue(*value)).unwrap();
             assert_eq!(&encoded, expected);
             assert_eq!(
-                decode_canonical::<UnsignedValue>(&encoded, DecodeLimitsV1::default()).unwrap(),
+                decode_canonical::<UnsignedValue>(&encoded, DecodeLimits::default()).unwrap(),
                 UnsignedValue(*value)
             );
         }
@@ -458,7 +455,7 @@ mod tests {
     #[test]
     fn non_minimal_integer_is_rejected() {
         let bytes = b"\xa2\x01\x18\x17\x18\x18\x61x";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimitsV1::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::NonCanonicalCbor);
         assert_eq!(error.path().to_string(), "$.1");
     }
@@ -466,7 +463,7 @@ mod tests {
     #[test]
     fn wrong_field_order_is_rejected_at_stable_path() {
         let bytes = b"\xa2\x18\x18\x61x\x01\x17";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimitsV1::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {
@@ -480,7 +477,7 @@ mod tests {
     #[test]
     fn indefinite_map_is_rejected() {
         let bytes = b"\xbf\x01\x17\x18\x18\x61x\xff";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimitsV1::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
         assert!(matches!(
             error.kind(),
             WireErrorKind::IndefiniteLength { .. }
@@ -495,7 +492,7 @@ mod tests {
             b"\xa2\x01\xf6\x18\x18\x61x".as_slice(),
             b"\xa2\x01\xc0\x00\x18\x18\x61x".as_slice(),
         ] {
-            let error = decode_canonical::<Pair>(bytes, DecodeLimitsV1::default()).unwrap_err();
+            let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
             assert!(matches!(error.kind(), WireErrorKind::WrongType { .. }));
         }
     }
@@ -503,7 +500,7 @@ mod tests {
     #[test]
     fn indefinite_text_is_reported_explicitly() {
         let bytes = b"\xa2\x01\x17\x18\x18\x7f\x61x\xff";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimitsV1::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
         assert!(matches!(
             error.kind(),
             WireErrorKind::IndefiniteLength {
@@ -516,16 +513,16 @@ mod tests {
     #[test]
     fn trailing_data_is_rejected() {
         let bytes = b"\xa2\x01\x17\x18\x18\x61x\x00";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimitsV1::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::TrailingData);
     }
 
     #[test]
     fn depth_limit_is_enforced_before_nested_value_decode() {
         let bytes = b"\xa2\x01\x17\x18\x18\x61x";
-        let limits = DecodeLimitsV1 {
+        let limits = DecodeLimits {
             cbor_nesting: 1,
-            ..DecodeLimitsV1::default()
+            ..DecodeLimits::default()
         };
         let error = decode_canonical::<Pair>(bytes, limits).unwrap_err();
         assert!(matches!(error.kind(), WireErrorKind::LimitExceeded { .. }));

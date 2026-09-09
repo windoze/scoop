@@ -1,8 +1,8 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{CallableMaterializationV1, ExactCallableSignatureV1, StructuralDefinitionPathV1};
+use super::{CallableMaterialization, ExactCallableSignature, StructuralDefinitionPath};
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentCallbackApplicationId, PersistentConstructorId, PersistentDispatchSlotId,
@@ -12,12 +12,12 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum LexicalCallableRoleV1 {
+pub enum LexicalCallableRole {
     LambdaBody,
     AnonymousFunctionBody,
 }
 
-impl WireEncodeV1 for LexicalCallableRoleV1 {
+impl WireEncode for LexicalCallableRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::LambdaBody => 1,
@@ -27,12 +27,12 @@ impl WireEncodeV1 for LexicalCallableRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum InitializationCallableRoleV1 {
+pub enum InitializationCallableRole {
     Initializer,
     Ensure,
 }
 
-impl WireEncodeV1 for InitializationCallableRoleV1 {
+impl WireEncode for InitializationCallableRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Initializer => 1,
@@ -42,12 +42,12 @@ impl WireEncodeV1 for InitializationCallableRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ContinuationShellRoleV1 {
+pub enum ContinuationShellRole {
     Success,
     Failure,
 }
 
-impl WireEncodeV1 for ContinuationShellRoleV1 {
+impl WireEncode for ContinuationShellRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Success => 1,
@@ -57,12 +57,12 @@ impl WireEncodeV1 for ContinuationShellRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CoroutineAdapterRoleV1 {
+pub enum CoroutineAdapterRole {
     Success,
     Failure,
 }
 
-impl WireEncodeV1 for CoroutineAdapterRoleV1 {
+impl WireEncode for CoroutineAdapterRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Success => 1,
@@ -72,10 +72,10 @@ impl WireEncodeV1 for CoroutineAdapterRoleV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct LexicalCallableParentV1(LexicalCallableParentKindV1);
+pub struct LexicalCallableParent(LexicalCallableParentKind);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum LexicalCallableParentKindV1 {
+enum LexicalCallableParentKind {
     Function(PersistentFunctionId),
     GenericFunction(PersistentGenericFunctionId),
     Constructor(PersistentConstructorId),
@@ -83,100 +83,100 @@ enum LexicalCallableParentKindV1 {
     Generated(PersistentGeneratedCallableId),
 }
 
-impl LexicalCallableParentV1 {
+impl LexicalCallableParent {
     pub const fn function(id: PersistentFunctionId) -> Self {
-        Self(LexicalCallableParentKindV1::Function(id))
+        Self(LexicalCallableParentKind::Function(id))
     }
 
     pub const fn generic_function(id: PersistentGenericFunctionId) -> Self {
-        Self(LexicalCallableParentKindV1::GenericFunction(id))
+        Self(LexicalCallableParentKind::GenericFunction(id))
     }
 
     pub const fn constructor(id: PersistentConstructorId) -> Self {
-        Self(LexicalCallableParentKindV1::Constructor(id))
+        Self(LexicalCallableParentKind::Constructor(id))
     }
 
     pub const fn accessor(id: PersistentPropertyAccessorId) -> Self {
-        Self(LexicalCallableParentKindV1::Accessor(id))
+        Self(LexicalCallableParentKind::Accessor(id))
     }
 
-    pub fn from_generated_key(key: &GeneratedCallableKeyV1) -> Result<Self, LexicalParentError> {
+    pub fn from_generated_key(key: &GeneratedCallableKey) -> Result<Self, LexicalParentError> {
         if !key.can_be_lexical_parent() {
             return Err(LexicalParentError::GeneratedRoleNotLexical);
         }
         PersistentGeneratedCallableId::from_key(key)
-            .map(|id| Self(LexicalCallableParentKindV1::Generated(id)))
+            .map(|id| Self(LexicalCallableParentKind::Generated(id)))
             .map_err(LexicalParentError::Identity)
     }
 }
 
-impl WireEncodeV1 for LexicalCallableParentV1 {
+impl WireEncode for LexicalCallableParent {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self.0 {
-            LexicalCallableParentKindV1::Function(id) => encode_value_sum(encoder, 1, &id),
-            LexicalCallableParentKindV1::GenericFunction(id) => encode_value_sum(encoder, 2, &id),
-            LexicalCallableParentKindV1::Constructor(id) => encode_value_sum(encoder, 3, &id),
-            LexicalCallableParentKindV1::Accessor(id) => encode_value_sum(encoder, 4, &id),
-            LexicalCallableParentKindV1::Generated(id) => encode_value_sum(encoder, 5, &id),
+            LexicalCallableParentKind::Function(id) => encode_value_sum(encoder, 1, &id),
+            LexicalCallableParentKind::GenericFunction(id) => encode_value_sum(encoder, 2, &id),
+            LexicalCallableParentKind::Constructor(id) => encode_value_sum(encoder, 3, &id),
+            LexicalCallableParentKind::Accessor(id) => encode_value_sum(encoder, 4, &id),
+            LexicalCallableParentKind::Generated(id) => encode_value_sum(encoder, 5, &id),
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum GeneratedCallableKeyV1 {
+pub enum GeneratedCallableKey {
     Lexical {
-        parent: LexicalCallableParentV1,
-        role: LexicalCallableRoleV1,
-        path: StructuralDefinitionPathV1,
+        parent: LexicalCallableParent,
+        role: LexicalCallableRole,
+        path: StructuralDefinitionPath,
     },
     Initialization {
         unit: PersistentInitializationUnitId,
-        role: InitializationCallableRoleV1,
+        role: InitializationCallableRole,
     },
     DerivedEquality {
         exact_owner: PersistentExactTypeId,
     },
     FunctionAdapter {
-        source: ExactCallableSignatureV1,
-        target: ExactCallableSignatureV1,
+        source: ExactCallableSignature,
+        target: ExactCallableSignature,
     },
     DynamicFunctionAdapter {
-        target: ExactCallableSignatureV1,
+        target: ExactCallableSignature,
     },
     CallableReferenceInvoke {
-        parent: LexicalCallableParentV1,
-        path: StructuralDefinitionPathV1,
+        parent: LexicalCallableParent,
+        path: StructuralDefinitionPath,
     },
     StaticNoGcCallbackStorageBridge {
-        source: CallableMaterializationV1,
-        signature: ExactCallableSignatureV1,
+        source: CallableMaterialization,
+        signature: ExactCallableSignature,
     },
     ForeignCallbackManagedAdapter {
         application: PersistentCallbackApplicationId,
     },
     CoroutineDriver {
-        source_callable: CallableMaterializationV1,
+        source_callable: CallableMaterialization,
     },
     ContinuationShell {
         result: PersistentExactTypeId,
-        role: ContinuationShellRoleV1,
+        role: ContinuationShellRole,
     },
     CoroutineStart {
         result: PersistentExactTypeId,
     },
     CoroutineAdapter {
-        source_callable: CallableMaterializationV1,
-        suspension_site: StructuralDefinitionPathV1,
-        role: CoroutineAdapterRoleV1,
+        source_callable: CallableMaterialization,
+        suspension_site: StructuralDefinitionPath,
+        role: CoroutineAdapterRole,
     },
     FunctionBridge {
         environment: PersistentTypeId,
-        target: ExactCallableSignatureV1,
+        target: ExactCallableSignature,
     },
     DispatchAdjust {
         slot: PersistentDispatchSlotId,
         implementor: PersistentExactTypeId,
-        target: CallableMaterializationV1,
+        target: CallableMaterialization,
     },
     BoxingAdjust {
         slot: PersistentDispatchSlotId,
@@ -185,7 +185,7 @@ pub enum GeneratedCallableKeyV1 {
     },
 }
 
-impl GeneratedCallableKeyV1 {
+impl GeneratedCallableKey {
     fn can_be_lexical_parent(&self) -> bool {
         matches!(
             self,
@@ -209,7 +209,7 @@ impl GeneratedCallableKeyV1 {
     }
 }
 
-impl WireEncodeV1 for GeneratedCallableKeyV1 {
+impl WireEncode for GeneratedCallableKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Lexical { parent, role, path } => {
@@ -373,7 +373,7 @@ impl fmt::Display for LexicalParentError {
 impl std::error::Error for LexicalParentError {}
 
 impl PersistentGeneratedCallableId {
-    pub fn from_key(key: &GeneratedCallableKeyV1) -> Result<Self, GeneratedCallableIdentityError> {
+    pub fn from_key(key: &GeneratedCallableKey) -> Result<Self, GeneratedCallableIdentityError> {
         key.validate()?;
         derive_persistent_id("scoop-generated-callable-id-v1", key).map_err(Into::into)
     }
@@ -387,7 +387,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -400,23 +400,23 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        ContinuationShellRoleV1, CoroutineAdapterRoleV1, GeneratedCallableIdentityError,
-        GeneratedCallableKeyV1, InitializationCallableRoleV1, LexicalCallableParentV1,
-        LexicalCallableRoleV1, LexicalParentError,
+        ContinuationShellRole, CoroutineAdapterRole, GeneratedCallableIdentityError,
+        GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent,
+        LexicalCallableRole, LexicalParentError,
     };
     use crate::{
-        CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOwnerV1,
-        ConeIdentity, EffectV1, ExactCallableSignatureV1, PersistentCallbackApplicationId,
+        CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
+        ConeIdentity, Effect, ExactCallableSignature, PersistentCallbackApplicationId,
         PersistentDispatchSlotId, PersistentExactTypeId, PersistentFunctionId,
         PersistentGeneratedCallableId, PersistentInitializationUnitId, PersistentTypeId,
-        StructuralDefinitionPathV1, StructuralDefinitionSiteRoleV1, StructuralPathSegmentV1,
+        StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     };
 
     #[test]
     fn generated_callable_has_fixed_identity() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let target = ExactCallableSignatureV1::new(EffectV1::Ordinary, None, Vec::new(), exact);
-        let key = GeneratedCallableKeyV1::DynamicFunctionAdapter { target };
+        let target = ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact);
+        let key = GeneratedCallableKey::DynamicFunctionAdapter { target };
         assert_eq!(
             hex(&encode(&key).unwrap()),
             format!("a2000501a4010102a100010380045820{exact}")
@@ -432,11 +432,10 @@ mod tests {
     #[test]
     fn function_shape_target_rejects_receiver() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let target =
-            ExactCallableSignatureV1::new(EffectV1::Ordinary, Some(exact), Vec::new(), exact);
+        let target = ExactCallableSignature::new(Effect::Ordinary, Some(exact), Vec::new(), exact);
         assert_eq!(
             PersistentGeneratedCallableId::from_key(
-                &GeneratedCallableKeyV1::DynamicFunctionAdapter { target }
+                &GeneratedCallableKey::DynamicFunctionAdapter { target }
             ),
             Err(GeneratedCallableIdentityError::TargetReceiverMustBeAbsent)
         );
@@ -445,9 +444,9 @@ mod tests {
     #[test]
     fn only_template_roles_can_be_generated_lexical_parents() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let key = GeneratedCallableKeyV1::DerivedEquality { exact_owner: exact };
+        let key = GeneratedCallableKey::DerivedEquality { exact_owner: exact };
         assert_eq!(
-            LexicalCallableParentV1::from_generated_key(&key),
+            LexicalCallableParent::from_generated_key(&key),
             Err(LexicalParentError::GeneratedRoleNotLexical)
         );
     }
@@ -456,41 +455,41 @@ mod tests {
     fn every_variant_starts_with_its_frozen_tag() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
         let function = PersistentFunctionId(ConeIdentity::SINGLE_FILE.0);
-        let parent = LexicalCallableParentV1::function(function);
-        let path = StructuralDefinitionPathV1::from_first(
-            StructuralPathSegmentV1::new(StructuralDefinitionSiteRoleV1::Lambda, 0),
+        let parent = LexicalCallableParent::function(function);
+        let path = StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, 0),
             [],
         );
-        let target = ExactCallableSignatureV1::new(EffectV1::Ordinary, None, Vec::new(), exact);
-        let source_callable = CallableMaterializationV1::new(
-            CallableTemplateOwnerV1::Function(function),
-            CallableMaterializationContextV1::NoSubstitution,
+        let target = ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact);
+        let source_callable = CallableMaterialization::new(
+            CallableTemplateOwner::Function(function),
+            CallableMaterializationContext::NoSubstitution,
         );
-        let cases: Vec<(GeneratedCallableKeyV1, u8, u8)> = vec![
+        let cases: Vec<(GeneratedCallableKey, u8, u8)> = vec![
             (
-                GeneratedCallableKeyV1::Lexical {
+                GeneratedCallableKey::Lexical {
                     parent,
-                    role: LexicalCallableRoleV1::LambdaBody,
+                    role: LexicalCallableRole::LambdaBody,
                     path: path.clone(),
                 },
                 1,
                 0xa4,
             ),
             (
-                GeneratedCallableKeyV1::Initialization {
+                GeneratedCallableKey::Initialization {
                     unit: PersistentInitializationUnitId(ConeIdentity::CORE.0),
-                    role: InitializationCallableRoleV1::Initializer,
+                    role: InitializationCallableRole::Initializer,
                 },
                 2,
                 0xa3,
             ),
             (
-                GeneratedCallableKeyV1::DerivedEquality { exact_owner: exact },
+                GeneratedCallableKey::DerivedEquality { exact_owner: exact },
                 3,
                 0xa2,
             ),
             (
-                GeneratedCallableKeyV1::FunctionAdapter {
+                GeneratedCallableKey::FunctionAdapter {
                     source: target.clone(),
                     target: target.clone(),
                 },
@@ -498,14 +497,14 @@ mod tests {
                 0xa3,
             ),
             (
-                GeneratedCallableKeyV1::DynamicFunctionAdapter {
+                GeneratedCallableKey::DynamicFunctionAdapter {
                     target: target.clone(),
                 },
                 5,
                 0xa2,
             ),
             (
-                GeneratedCallableKeyV1::CallableReferenceInvoke {
+                GeneratedCallableKey::CallableReferenceInvoke {
                     parent,
                     path: path.clone(),
                 },
@@ -513,7 +512,7 @@ mod tests {
                 0xa3,
             ),
             (
-                GeneratedCallableKeyV1::StaticNoGcCallbackStorageBridge {
+                GeneratedCallableKey::StaticNoGcCallbackStorageBridge {
                     source: source_callable,
                     signature: target.clone(),
                 },
@@ -521,41 +520,41 @@ mod tests {
                 0xa3,
             ),
             (
-                GeneratedCallableKeyV1::ForeignCallbackManagedAdapter {
+                GeneratedCallableKey::ForeignCallbackManagedAdapter {
                     application: PersistentCallbackApplicationId(ConeIdentity::CORE.0),
                 },
                 8,
                 0xa2,
             ),
             (
-                GeneratedCallableKeyV1::CoroutineDriver { source_callable },
+                GeneratedCallableKey::CoroutineDriver { source_callable },
                 9,
                 0xa2,
             ),
             (
-                GeneratedCallableKeyV1::ContinuationShell {
+                GeneratedCallableKey::ContinuationShell {
                     result: exact,
-                    role: ContinuationShellRoleV1::Success,
+                    role: ContinuationShellRole::Success,
                 },
                 10,
                 0xa3,
             ),
             (
-                GeneratedCallableKeyV1::CoroutineStart { result: exact },
+                GeneratedCallableKey::CoroutineStart { result: exact },
                 11,
                 0xa2,
             ),
             (
-                GeneratedCallableKeyV1::CoroutineAdapter {
+                GeneratedCallableKey::CoroutineAdapter {
                     source_callable,
                     suspension_site: path,
-                    role: CoroutineAdapterRoleV1::Failure,
+                    role: CoroutineAdapterRole::Failure,
                 },
                 12,
                 0xa4,
             ),
             (
-                GeneratedCallableKeyV1::FunctionBridge {
+                GeneratedCallableKey::FunctionBridge {
                     environment: PersistentTypeId(ConeIdentity::CORE.0),
                     target: target.clone(),
                 },
@@ -563,7 +562,7 @@ mod tests {
                 0xa3,
             ),
             (
-                GeneratedCallableKeyV1::DispatchAdjust {
+                GeneratedCallableKey::DispatchAdjust {
                     slot: PersistentDispatchSlotId(ConeIdentity::CORE.0),
                     implementor: exact,
                     target: source_callable,
@@ -572,7 +571,7 @@ mod tests {
                 0xa4,
             ),
             (
-                GeneratedCallableKeyV1::BoxingAdjust {
+                GeneratedCallableKey::BoxingAdjust {
                     slot: PersistentDispatchSlotId(ConeIdentity::CORE.0),
                     payload: exact,
                     interface: exact,
@@ -591,16 +590,16 @@ mod tests {
     #[test]
     fn lexical_parent_accepts_only_generated_template_roles() {
         let function = PersistentFunctionId(ConeIdentity::CORE.0);
-        let path = StructuralDefinitionPathV1::from_first(
-            StructuralPathSegmentV1::new(StructuralDefinitionSiteRoleV1::Lambda, 0),
+        let path = StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, 0),
             [],
         );
-        let key = GeneratedCallableKeyV1::Lexical {
-            parent: LexicalCallableParentV1::function(function),
-            role: LexicalCallableRoleV1::AnonymousFunctionBody,
+        let key = GeneratedCallableKey::Lexical {
+            parent: LexicalCallableParent::function(function),
+            role: LexicalCallableRole::AnonymousFunctionBody,
             path,
         };
-        assert!(LexicalCallableParentV1::from_generated_key(&key).is_ok());
+        assert!(LexicalCallableParent::from_generated_key(&key).is_ok());
     }
 
     fn hex(bytes: &[u8]) -> String {

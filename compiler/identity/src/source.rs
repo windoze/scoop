@@ -1,9 +1,9 @@
 use std::fmt;
 use std::path::{Component, Path};
 
-use scoop_wire::{Decoder, Encoder, HashError, WireDecodeV1, WireEncodeV1, WireError};
+use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
-use crate::{ConeCoordinate, ConeIdentity, DecodedPersistentIdV1, PersistentIdMismatch};
+use crate::{ConeCoordinate, ConeIdentity, DecodedPersistentId, PersistentIdMismatch};
 
 const SINGLE_FILE_LOGICAL_PATH: &str = "main.scoop";
 
@@ -54,7 +54,7 @@ impl NormalizedSourcePath {
     }
 }
 
-impl WireEncodeV1 for NormalizedSourcePath {
+impl WireEncode for NormalizedSourcePath {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.text(&self.0)
     }
@@ -67,21 +67,21 @@ impl fmt::Display for NormalizedSourcePath {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedNormalizedSourcePathV1(String);
+pub struct DecodedNormalizedSourcePath(String);
 
-impl DecodedNormalizedSourcePathV1 {
+impl DecodedNormalizedSourcePath {
     pub fn validate(self) -> Result<NormalizedSourcePath, NormalizedSourcePathError> {
         NormalizedSourcePath::new(&self.0)
     }
 }
 
-impl WireEncodeV1 for DecodedNormalizedSourcePathV1 {
+impl WireEncode for DecodedNormalizedSourcePath {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.text(&self.0)
     }
 }
 
-impl WireDecodeV1 for DecodedNormalizedSourcePathV1 {
+impl WireDecode for DecodedNormalizedSourcePath {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.owned_text().map(Self)
     }
@@ -206,7 +206,7 @@ impl SourceIdentity {
     }
 }
 
-impl WireEncodeV1 for SourceIdentity {
+impl WireEncode for SourceIdentity {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -217,12 +217,12 @@ impl WireEncodeV1 for SourceIdentity {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedSourceIdentityV1 {
-    cone: DecodedPersistentIdV1<ConeIdentity>,
-    logical_path: DecodedNormalizedSourcePathV1,
+pub struct DecodedSourceIdentity {
+    cone: DecodedPersistentId<ConeIdentity>,
+    logical_path: DecodedNormalizedSourcePath,
 }
 
-impl DecodedSourceIdentityV1 {
+impl DecodedSourceIdentity {
     pub fn validate(
         self,
         coordinate: &ConeCoordinate,
@@ -242,7 +242,7 @@ impl DecodedSourceIdentityV1 {
     }
 }
 
-impl WireEncodeV1 for DecodedSourceIdentityV1 {
+impl WireEncode for DecodedSourceIdentity {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -252,11 +252,11 @@ impl WireEncodeV1 for DecodedSourceIdentityV1 {
     }
 }
 
-impl WireDecodeV1 for DecodedSourceIdentityV1 {
+impl WireDecode for DecodedSourceIdentity {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
-        let cone = decoder.field(1, DecodedPersistentIdV1::decode)?;
-        let logical_path = decoder.field(2, DecodedNormalizedSourcePathV1::decode)?;
+        let cone = decoder.field(1, DecodedPersistentId::decode)?;
+        let logical_path = decoder.field(2, DecodedNormalizedSourcePath::decode)?;
         Ok(Self { cone, logical_path })
     }
 }
@@ -320,12 +320,12 @@ impl std::error::Error for SourceIdentityDecodeError {}
 mod tests {
     use std::path::Path;
 
-    use scoop_wire::{DecodeLimitsV1, decode_canonical, encode};
+    use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
     use super::{
         NormalizedSourcePath, NormalizedSourcePathError, SourceIdentity, SourceIdentityError,
     };
-    use crate::{ConeCoordinate, ConeIdentity, DecodedSourceIdentityV1};
+    use crate::{ConeCoordinate, ConeIdentity, DecodedSourceIdentity};
 
     #[test]
     fn source_paths_accept_only_canonical_relative_form() {
@@ -408,9 +408,9 @@ mod tests {
     #[test]
     fn source_decode_verifies_the_coordinate_and_path() {
         let source = SourceIdentity::single_file();
-        let decoded = decode_canonical::<DecodedSourceIdentityV1>(
+        let decoded = decode_canonical::<DecodedSourceIdentity>(
             &encode(&source).unwrap(),
-            DecodeLimitsV1::default(),
+            DecodeLimits::default(),
         )
         .unwrap();
         assert_eq!(

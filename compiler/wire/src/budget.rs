@@ -40,7 +40,7 @@ impl fmt::Display for ResourceKind {
 
 /// The shared M23-2 limits that apply inside known wire payloads.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct DecodeLimitsV1 {
+pub struct DecodeLimits {
     pub cbor_nesting: u64,
     pub semantic_table_entries: u64,
     pub semantic_leaf_bytes: u64,
@@ -52,7 +52,7 @@ pub struct DecodeLimitsV1 {
     pub validation_work_units: u64,
 }
 
-impl Default for DecodeLimitsV1 {
+impl Default for DecodeLimits {
     fn default() -> Self {
         Self {
             cbor_nesting: 128,
@@ -81,19 +81,19 @@ pub struct DecodeUsage {
 /// A deterministic, injectable meter shared by all decoders for an artifact.
 #[derive(Debug)]
 pub struct BudgetMeter {
-    limits: DecodeLimitsV1,
+    limits: DecodeLimits,
     usage: DecodeUsage,
 }
 
 impl BudgetMeter {
-    pub fn new(limits: DecodeLimitsV1) -> Self {
+    pub fn new(limits: DecodeLimits) -> Self {
         Self {
             limits,
             usage: DecodeUsage::default(),
         }
     }
 
-    pub fn limits(&self) -> DecodeLimitsV1 {
+    pub fn limits(&self) -> DecodeLimits {
         self.limits
     }
 
@@ -308,15 +308,15 @@ fn limit_error(resource: ResourceKind, limit: u64, observed: u64, path: &WirePat
 
 #[cfg(test)]
 mod tests {
-    use super::{BudgetMeter, DecodeLimitsV1, DecodeUsage, ResourceKind};
+    use super::{BudgetMeter, DecodeLimits, DecodeUsage, ResourceKind};
     use crate::{WireErrorKind, WirePath};
 
-    fn tiny_limits(limit: u64) -> DecodeLimitsV1 {
-        DecodeLimitsV1 {
+    fn tiny_limits(limit: u64) -> DecodeLimits {
+        DecodeLimits {
             decoded_nodes: limit,
             logical_heap_bytes: limit * 64,
             validation_work_units: limit,
-            ..DecodeLimitsV1::default()
+            ..DecodeLimits::default()
         }
     }
 
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn sha256_and_kahn_work_use_fixed_formulas() {
-        let mut meter = BudgetMeter::new(DecodeLimitsV1::default());
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
         let path = WirePath::default();
         meter.charge_sha256(56, &path).unwrap();
         meter.charge_canonical_sequence(5, &path).unwrap();

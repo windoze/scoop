@@ -1,21 +1,21 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{
-    CanonicalNativeLibraryName, SignatureTypeKeyV1, SourceDeclarationIdentityError,
-    SourceDeclarationKeyV1, SourceDeclarationKindV1, SourceNativeSymbolV1,
+    CanonicalNativeLibraryName, SignatureTypeKey, SourceDeclarationIdentityError,
+    SourceDeclarationKey, SourceDeclarationKind, SourceNativeSymbol,
 };
 use crate::ids::derive_persistent_id;
 use crate::{PersistentFunctionId, PersistentPropertyId, PersistentSourceNativeExternalContractId};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceNativeExternalOwnerV1 {
+pub enum SourceNativeExternalOwner {
     Function(PersistentFunctionId),
     Property(PersistentPropertyId),
 }
 
-impl WireEncodeV1 for SourceNativeExternalOwnerV1 {
+impl WireEncode for SourceNativeExternalOwner {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Function(id) => encode_value_sum(encoder, 1, id),
@@ -25,38 +25,38 @@ impl WireEncodeV1 for SourceNativeExternalOwnerV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceNativeExternalContractKeyV1 {
-    owner: SourceNativeExternalOwnerV1,
+pub struct SourceNativeExternalContractKey {
+    owner: SourceNativeExternalOwner,
 }
 
-impl SourceNativeExternalContractKeyV1 {
-    pub fn function(key: &SourceDeclarationKeyV1) -> Result<Self, SourceNativeContractError> {
-        require_top_level_non_generic(key, SourceDeclarationKindV1::Function)?;
+impl SourceNativeExternalContractKey {
+    pub fn function(key: &SourceDeclarationKey) -> Result<Self, SourceNativeContractError> {
+        require_top_level_non_generic(key, SourceDeclarationKind::Function)?;
         if key.duplicate_signature().receiver_is_present() {
             return Err(SourceNativeContractError::ExpectedTopLevelFunction);
         }
         let owner = PersistentFunctionId::from_source_declaration(key)
             .map_err(SourceNativeContractError::SourceDeclaration)?;
         Ok(Self {
-            owner: SourceNativeExternalOwnerV1::Function(owner),
+            owner: SourceNativeExternalOwner::Function(owner),
         })
     }
 
-    pub fn property(key: &SourceDeclarationKeyV1) -> Result<Self, SourceNativeContractError> {
-        require_top_level_non_generic(key, SourceDeclarationKindV1::Property)?;
+    pub fn property(key: &SourceDeclarationKey) -> Result<Self, SourceNativeContractError> {
+        require_top_level_non_generic(key, SourceDeclarationKind::Property)?;
         let owner = PersistentPropertyId::from_source_declaration(key)
             .map_err(SourceNativeContractError::SourceDeclaration)?;
         Ok(Self {
-            owner: SourceNativeExternalOwnerV1::Property(owner),
+            owner: SourceNativeExternalOwner::Property(owner),
         })
     }
 
-    pub const fn owner(&self) -> SourceNativeExternalOwnerV1 {
+    pub const fn owner(&self) -> SourceNativeExternalOwner {
         self.owner
     }
 }
 
-impl WireEncodeV1 for SourceNativeExternalContractKeyV1 {
+impl WireEncode for SourceNativeExternalContractKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(1)?;
         encoder.field(1)?;
@@ -65,18 +65,18 @@ impl WireEncodeV1 for SourceNativeExternalContractKeyV1 {
 }
 
 impl PersistentSourceNativeExternalContractId {
-    pub fn from_key(key: &SourceNativeExternalContractKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &SourceNativeExternalContractKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-source-native-contract-id-v1", key)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceNativeLibraryBindingV1 {
+pub enum SourceNativeLibraryBinding {
     DefaultNativeNamespace,
     LogicalLibrary(CanonicalNativeLibraryName),
 }
 
-impl WireEncodeV1 for SourceNativeLibraryBindingV1 {
+impl WireEncode for SourceNativeLibraryBinding {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::DefaultNativeNamespace => encode_empty_sum(encoder, 1),
@@ -86,12 +86,12 @@ impl WireEncodeV1 for SourceNativeLibraryBindingV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceCAbiReturnV1 {
+pub enum SourceCAbiReturn {
     Void,
-    Value(SignatureTypeKeyV1),
+    Value(SignatureTypeKey),
 }
 
-impl SourceCAbiReturnV1 {
+impl SourceCAbiReturn {
     fn contains_binder(&self) -> bool {
         match self {
             Self::Void => false,
@@ -100,7 +100,7 @@ impl SourceCAbiReturnV1 {
     }
 }
 
-impl WireEncodeV1 for SourceCAbiReturnV1 {
+impl WireEncode for SourceCAbiReturn {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Void => encode_empty_sum(encoder, 1),
@@ -110,33 +110,33 @@ impl WireEncodeV1 for SourceCAbiReturnV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceCAbiFunctionSignatureV1 {
-    parameters: Vec<SignatureTypeKeyV1>,
-    result: SourceCAbiReturnV1,
+pub struct SourceCAbiFunctionSignature {
+    parameters: Vec<SignatureTypeKey>,
+    result: SourceCAbiReturn,
 }
 
-impl SourceCAbiFunctionSignatureV1 {
-    pub fn new(parameters: Vec<SignatureTypeKeyV1>, result: SourceCAbiReturnV1) -> Self {
+impl SourceCAbiFunctionSignature {
+    pub fn new(parameters: Vec<SignatureTypeKey>, result: SourceCAbiReturn) -> Self {
         Self { parameters, result }
     }
 
-    pub fn parameters(&self) -> &[SignatureTypeKeyV1] {
+    pub fn parameters(&self) -> &[SignatureTypeKey] {
         &self.parameters
     }
 
-    pub fn result(&self) -> &SourceCAbiReturnV1 {
+    pub fn result(&self) -> &SourceCAbiReturn {
         &self.result
     }
 
     fn contains_binder(&self) -> bool {
         self.parameters
             .iter()
-            .any(SignatureTypeKeyV1::contains_binder)
+            .any(SignatureTypeKey::contains_binder)
             || self.result.contains_binder()
     }
 }
 
-impl WireEncodeV1 for SourceCAbiFunctionSignatureV1 {
+impl WireEncode for SourceCAbiFunctionSignature {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -147,33 +147,33 @@ impl WireEncodeV1 for SourceCAbiFunctionSignatureV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceScoopAbiFunctionSignatureV1 {
-    parameters: Vec<SignatureTypeKeyV1>,
-    result: SignatureTypeKeyV1,
+pub struct SourceScoopAbiFunctionSignature {
+    parameters: Vec<SignatureTypeKey>,
+    result: SignatureTypeKey,
 }
 
-impl SourceScoopAbiFunctionSignatureV1 {
-    pub fn new(parameters: Vec<SignatureTypeKeyV1>, result: SignatureTypeKeyV1) -> Self {
+impl SourceScoopAbiFunctionSignature {
+    pub fn new(parameters: Vec<SignatureTypeKey>, result: SignatureTypeKey) -> Self {
         Self { parameters, result }
     }
 
-    pub fn parameters(&self) -> &[SignatureTypeKeyV1] {
+    pub fn parameters(&self) -> &[SignatureTypeKey] {
         &self.parameters
     }
 
-    pub fn result(&self) -> &SignatureTypeKeyV1 {
+    pub fn result(&self) -> &SignatureTypeKey {
         &self.result
     }
 
     fn contains_binder(&self) -> bool {
         self.parameters
             .iter()
-            .any(SignatureTypeKeyV1::contains_binder)
+            .any(SignatureTypeKey::contains_binder)
             || self.result.contains_binder()
     }
 }
 
-impl WireEncodeV1 for SourceScoopAbiFunctionSignatureV1 {
+impl WireEncode for SourceScoopAbiFunctionSignature {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -184,12 +184,12 @@ impl WireEncodeV1 for SourceScoopAbiFunctionSignatureV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum GcEffectV1 {
+pub enum GcEffect {
     Managed,
     NoGc,
 }
 
-impl WireEncodeV1 for GcEffectV1 {
+impl WireEncode for GcEffect {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Managed => 1,
@@ -199,26 +199,26 @@ impl WireEncodeV1 for GcEffectV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceCallingConventionV1 {
+pub enum SourceCallingConvention {
     Cdecl,
 }
 
-impl WireEncodeV1 for SourceCallingConventionV1 {
+impl WireEncode for SourceCallingConvention {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(1)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceExternFunctionAbiV1 {
-    C(SourceCAbiFunctionSignatureV1),
+pub enum SourceExternFunctionAbi {
+    C(SourceCAbiFunctionSignature),
     Scoop {
-        signature: SourceScoopAbiFunctionSignatureV1,
-        gc_effect: GcEffectV1,
+        signature: SourceScoopAbiFunctionSignature,
+        gc_effect: GcEffect,
     },
 }
 
-impl SourceExternFunctionAbiV1 {
+impl SourceExternFunctionAbi {
     fn contains_binder(&self) -> bool {
         match self {
             Self::C(signature) => signature.contains_binder(),
@@ -227,7 +227,7 @@ impl SourceExternFunctionAbiV1 {
     }
 }
 
-impl WireEncodeV1 for SourceExternFunctionAbiV1 {
+impl WireEncode for SourceExternFunctionAbi {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::C(signature) => encode_value_sum(encoder, 1, signature),
@@ -240,12 +240,12 @@ impl WireEncodeV1 for SourceExternFunctionAbiV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallbackModeV1 {
+pub enum CallbackMode {
     Reusable,
     OneShot,
 }
 
-impl WireEncodeV1 for CallbackModeV1 {
+impl WireEncode for CallbackMode {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Reusable => 1,
@@ -255,36 +255,36 @@ impl WireEncodeV1 for CallbackModeV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SourceNativeExternalContractV1 {
+pub enum SourceNativeExternalContract {
     Function {
-        symbol: SourceNativeSymbolV1,
-        library: SourceNativeLibraryBindingV1,
-        abi: SourceExternFunctionAbiV1,
-        calling_convention: SourceCallingConventionV1,
+        symbol: SourceNativeSymbol,
+        library: SourceNativeLibraryBinding,
+        abi: SourceExternFunctionAbi,
+        calling_convention: SourceCallingConvention,
     },
     ReadOnlyData {
-        symbol: SourceNativeSymbolV1,
-        library: SourceNativeLibraryBindingV1,
-        storage: SignatureTypeKeyV1,
+        symbol: SourceNativeSymbol,
+        library: SourceNativeLibraryBinding,
+        storage: SignatureTypeKey,
     },
     MutableData {
-        symbol: SourceNativeSymbolV1,
-        library: SourceNativeLibraryBindingV1,
-        storage: SignatureTypeKeyV1,
+        symbol: SourceNativeSymbol,
+        library: SourceNativeLibraryBinding,
+        storage: SignatureTypeKey,
     },
     ReadOnlyTls {
-        symbol: SourceNativeSymbolV1,
-        library: SourceNativeLibraryBindingV1,
-        storage: SignatureTypeKeyV1,
+        symbol: SourceNativeSymbol,
+        library: SourceNativeLibraryBinding,
+        storage: SignatureTypeKey,
     },
     MutableTls {
-        symbol: SourceNativeSymbolV1,
-        library: SourceNativeLibraryBindingV1,
-        storage: SignatureTypeKeyV1,
+        symbol: SourceNativeSymbol,
+        library: SourceNativeLibraryBinding,
+        storage: SignatureTypeKey,
     },
 }
 
-impl SourceNativeExternalContractV1 {
+impl SourceNativeExternalContract {
     fn contains_binder(&self) -> bool {
         match self {
             Self::Function { abi, .. } => abi.contains_binder(),
@@ -300,7 +300,7 @@ impl SourceNativeExternalContractV1 {
     }
 }
 
-impl WireEncodeV1 for SourceNativeExternalContractV1 {
+impl WireEncode for SourceNativeExternalContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Function {
@@ -345,18 +345,18 @@ impl WireEncodeV1 for SourceNativeExternalContractV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SourceNativeExternalContractRecordV1 {
+pub struct SourceNativeExternalContractRecord {
     id: PersistentSourceNativeExternalContractId,
-    key: SourceNativeExternalContractKeyV1,
-    contract: SourceNativeExternalContractV1,
+    key: SourceNativeExternalContractKey,
+    contract: SourceNativeExternalContract,
 }
 
-impl SourceNativeExternalContractRecordV1 {
+impl SourceNativeExternalContractRecord {
     pub fn new(
-        key: SourceNativeExternalContractKeyV1,
-        contract: SourceNativeExternalContractV1,
+        key: SourceNativeExternalContractKey,
+        contract: SourceNativeExternalContract,
     ) -> Result<Self, SourceNativeContractError> {
-        let owner_is_function = matches!(key.owner, SourceNativeExternalOwnerV1::Function(_));
+        let owner_is_function = matches!(key.owner, SourceNativeExternalOwner::Function(_));
         if owner_is_function != contract.is_function() {
             return Err(SourceNativeContractError::OwnerContractMismatch);
         }
@@ -372,16 +372,16 @@ impl SourceNativeExternalContractRecordV1 {
         self.id
     }
 
-    pub const fn key(&self) -> SourceNativeExternalContractKeyV1 {
+    pub const fn key(&self) -> SourceNativeExternalContractKey {
         self.key
     }
 
-    pub fn contract(&self) -> &SourceNativeExternalContractV1 {
+    pub fn contract(&self) -> &SourceNativeExternalContract {
         &self.contract
     }
 }
 
-impl WireEncodeV1 for SourceNativeExternalContractRecordV1 {
+impl WireEncode for SourceNativeExternalContractRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -431,11 +431,11 @@ impl fmt::Display for SourceNativeContractError {
 impl std::error::Error for SourceNativeContractError {}
 
 fn require_top_level_non_generic(
-    key: &SourceDeclarationKeyV1,
-    expected: SourceDeclarationKindV1,
+    key: &SourceDeclarationKey,
+    expected: SourceDeclarationKind,
 ) -> Result<(), SourceNativeContractError> {
     if key.declaration_kind() != expected || !key.owners().owners().is_empty() {
-        return Err(if expected == SourceDeclarationKindV1::Function {
+        return Err(if expected == SourceDeclarationKind::Function {
             SourceNativeContractError::ExpectedTopLevelFunction
         } else {
             SourceNativeContractError::ExpectedTopLevelProperty
@@ -449,7 +449,7 @@ fn require_top_level_non_generic(
 
 fn encode_signature_types(
     encoder: &mut Encoder,
-    values: &[SignatureTypeKeyV1],
+    values: &[SignatureTypeKey],
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.array(values.len() as u64)?;
     for value in values {
@@ -471,7 +471,7 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -482,8 +482,8 @@ fn encode_value_sum(
 fn encode_two_value_sum(
     encoder: &mut Encoder,
     tag: u64,
-    first: &impl WireEncodeV1,
-    second: &impl WireEncodeV1,
+    first: &impl WireEncode,
+    second: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(3)?;
     encode_tag(encoder, tag)?;
@@ -496,9 +496,9 @@ fn encode_two_value_sum(
 fn encode_data_contract(
     encoder: &mut Encoder,
     tag: u64,
-    symbol: &SourceNativeSymbolV1,
-    library: &SourceNativeLibraryBindingV1,
-    storage: &SignatureTypeKeyV1,
+    symbol: &SourceNativeSymbol,
+    library: &SourceNativeLibraryBinding,
+    storage: &SignatureTypeKey,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(4)?;
     encode_tag(encoder, tag)?;
@@ -515,21 +515,21 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        SourceCAbiFunctionSignatureV1, SourceCAbiReturnV1, SourceCallingConventionV1,
-        SourceExternFunctionAbiV1, SourceNativeContractError, SourceNativeExternalContractKeyV1,
-        SourceNativeExternalContractRecordV1, SourceNativeExternalContractV1,
-        SourceNativeLibraryBindingV1,
+        SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention,
+        SourceExternFunctionAbi, SourceNativeContractError, SourceNativeExternalContract,
+        SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
+        SourceNativeLibraryBinding,
     };
     use crate::{
-        CanonicalIdentifier, ConeIdentity, DeclarationScopeV1, DefinitionOwnerChainV1, PackagePath,
-        PersistentSourceNativeExternalContractId, SignatureTypeKeyV1, SourceDeclarationKeyV1,
-        SourceDeclarationSiteV1, SourceNativeSymbolV1,
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, PackagePath,
+        PersistentSourceNativeExternalContractId, SignatureTypeKey, SourceDeclarationKey,
+        SourceDeclarationSite, SourceNativeSymbol,
     };
 
     #[test]
     fn source_contract_key_has_fixed_identity() {
         let declaration = function_declaration(0, None);
-        let key = SourceNativeExternalContractKeyV1::function(&declaration).unwrap();
+        let key = SourceNativeExternalContractKey::function(&declaration).unwrap();
         assert_eq!(
             hex(&encode(&key).unwrap()),
             "a101a20001015820ae31f339e136552be928619d00e3aa3b00056c8c4cbec480b343ad1350517e89"
@@ -545,27 +545,27 @@ mod tests {
     #[test]
     fn source_external_record_rejects_binder() {
         let declaration = function_declaration(0, None);
-        let key = SourceNativeExternalContractKeyV1::function(&declaration).unwrap();
-        let contract = SourceNativeExternalContractV1::Function {
-            symbol: SourceNativeSymbolV1::new("native_run").unwrap(),
-            library: SourceNativeLibraryBindingV1::DefaultNativeNamespace,
-            abi: SourceExternFunctionAbiV1::C(SourceCAbiFunctionSignatureV1::new(
-                vec![SignatureTypeKeyV1::Binder { depth: 0, index: 0 }],
-                SourceCAbiReturnV1::Void,
+        let key = SourceNativeExternalContractKey::function(&declaration).unwrap();
+        let contract = SourceNativeExternalContract::Function {
+            symbol: SourceNativeSymbol::new("native_run").unwrap(),
+            library: SourceNativeLibraryBinding::DefaultNativeNamespace,
+            abi: SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
+                vec![SignatureTypeKey::Binder { depth: 0, index: 0 }],
+                SourceCAbiReturn::Void,
             )),
-            calling_convention: SourceCallingConventionV1::Cdecl,
+            calling_convention: SourceCallingConvention::Cdecl,
         };
         assert_eq!(
-            SourceNativeExternalContractRecordV1::new(key, contract),
+            SourceNativeExternalContractRecord::new(key, contract),
             Err(SourceNativeContractError::ContainsBinder)
         );
     }
 
     #[test]
     fn callback_source_signature_can_retain_binder() {
-        let signature = SourceCAbiFunctionSignatureV1::new(
-            vec![SignatureTypeKeyV1::Binder { depth: 0, index: 0 }],
-            SourceCAbiReturnV1::Void,
+        let signature = SourceCAbiFunctionSignature::new(
+            vec![SignatureTypeKey::Binder { depth: 0, index: 0 }],
+            SourceCAbiReturn::Void,
         );
         assert!(encode(&signature).is_ok());
     }
@@ -573,13 +573,13 @@ mod tests {
     #[test]
     fn source_contract_owner_rejects_generic_and_receiver() {
         assert_eq!(
-            SourceNativeExternalContractKeyV1::function(&function_declaration(1, None)),
+            SourceNativeExternalContractKey::function(&function_declaration(1, None)),
             Err(SourceNativeContractError::ExpectedNonGeneric)
         );
         assert_eq!(
-            SourceNativeExternalContractKeyV1::function(&function_declaration(
+            SourceNativeExternalContractKey::function(&function_declaration(
                 0,
-                Some(SignatureTypeKeyV1::Nominal(crate::PersistentTypeId(
+                Some(SignatureTypeKey::Nominal(crate::PersistentTypeId(
                     ConeIdentity::CORE.0,
                 ))),
             )),
@@ -589,14 +589,14 @@ mod tests {
 
     fn function_declaration(
         type_parameters: u32,
-        receiver: Option<SignatureTypeKeyV1>,
-    ) -> SourceDeclarationKeyV1 {
-        SourceDeclarationKeyV1::function(
-            SourceDeclarationSiteV1::new(
+        receiver: Option<SignatureTypeKey>,
+    ) -> SourceDeclarationKey {
+        SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
                 ConeIdentity::CORE,
                 PackagePath::root(),
-                DefinitionOwnerChainV1::top_level(),
-                DeclarationScopeV1::ConeWide,
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
             )
             .unwrap(),
             CanonicalIdentifier::new("run").unwrap(),

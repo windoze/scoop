@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, WireEncodeV1};
+use scoop_wire::{Encoder, WireEncode};
 
 use crate::{PersistentGenericTypeId, PersistentTypeId};
 
@@ -39,12 +39,12 @@ impl<T> NonEmptyVec<T> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum EffectV1 {
+pub enum Effect {
     Ordinary,
     Suspend,
 }
 
-impl WireEncodeV1 for EffectV1 {
+impl WireEncode for Effect {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Ordinary => 1,
@@ -54,34 +54,34 @@ impl WireEncodeV1 for EffectV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallingConventionV1 {
+pub enum CallingConvention {
     C,
 }
 
-impl WireEncodeV1 for CallingConventionV1 {
+impl WireEncode for CallingConvention {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(1)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum SignatureTypeKeyV1 {
+pub enum SignatureTypeKey {
     Nominal(PersistentTypeId),
     NominalApplication {
         origin: PersistentGenericTypeId,
-        arguments: NonEmptyVec<SignatureTypeKeyV1>,
+        arguments: NonEmptyVec<SignatureTypeKey>,
     },
-    Tuple(NonEmptyVec<SignatureTypeKeyV1>),
+    Tuple(NonEmptyVec<SignatureTypeKey>),
     Function {
-        effect: EffectV1,
-        parameters: Vec<SignatureTypeKeyV1>,
-        result: Box<SignatureTypeKeyV1>,
+        effect: Effect,
+        parameters: Vec<SignatureTypeKey>,
+        result: Box<SignatureTypeKey>,
     },
-    RawPointer(Box<SignatureTypeKeyV1>),
+    RawPointer(Box<SignatureTypeKey>),
     NativeFunctionPointer {
-        calling_convention: CallingConventionV1,
-        parameters: Vec<SignatureTypeKeyV1>,
-        result: Box<SignatureTypeKeyV1>,
+        calling_convention: CallingConvention,
+        parameters: Vec<SignatureTypeKey>,
+        result: Box<SignatureTypeKey>,
     },
     Binder {
         depth: u32,
@@ -89,7 +89,7 @@ pub enum SignatureTypeKeyV1 {
     },
 }
 
-impl WireEncodeV1 for SignatureTypeKeyV1 {
+impl WireEncode for SignatureTypeKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Nominal(id) => encode_single_payload(encoder, 1, id),
@@ -148,7 +148,7 @@ impl WireEncodeV1 for SignatureTypeKeyV1 {
     }
 }
 
-impl SignatureTypeKeyV1 {
+impl SignatureTypeKey {
     pub fn contains_binder(&self) -> bool {
         match self {
             Self::Nominal(_) => false,
@@ -168,13 +168,13 @@ impl SignatureTypeKeyV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum OptionalSignatureTypeV1 {
+pub enum OptionalSignatureType {
     Absent,
-    Present(Box<SignatureTypeKeyV1>),
+    Present(Box<SignatureTypeKey>),
 }
 
-impl OptionalSignatureTypeV1 {
-    pub fn from_option(value: Option<SignatureTypeKeyV1>) -> Self {
+impl OptionalSignatureType {
+    pub fn from_option(value: Option<SignatureTypeKey>) -> Self {
         match value {
             Some(value) => Self::Present(Box::new(value)),
             None => Self::Absent,
@@ -186,7 +186,7 @@ impl OptionalSignatureTypeV1 {
     }
 }
 
-impl WireEncodeV1 for OptionalSignatureTypeV1 {
+impl WireEncode for OptionalSignatureType {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Absent => {
@@ -199,26 +199,26 @@ impl WireEncodeV1 for OptionalSignatureTypeV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DuplicateSignatureKeyV1 {
+pub enum DuplicateSignatureKey {
     Nominal {
         type_parameter_count: u32,
     },
     Function {
         type_parameter_count: u32,
-        receiver: OptionalSignatureTypeV1,
-        parameters: Vec<SignatureTypeKeyV1>,
+        receiver: OptionalSignatureType,
+        parameters: Vec<SignatureTypeKey>,
     },
     Constructor {
-        parameters: Vec<SignatureTypeKeyV1>,
+        parameters: Vec<SignatureTypeKey>,
     },
     Property {
         type_parameter_count: u32,
-        receiver: OptionalSignatureTypeV1,
+        receiver: OptionalSignatureType,
     },
     TypeAlias,
 }
 
-impl DuplicateSignatureKeyV1 {
+impl DuplicateSignatureKey {
     pub fn type_parameter_count(&self) -> u32 {
         match self {
             Self::Nominal {
@@ -246,7 +246,7 @@ impl DuplicateSignatureKeyV1 {
     }
 }
 
-impl WireEncodeV1 for DuplicateSignatureKeyV1 {
+impl WireEncode for DuplicateSignatureKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Nominal {
@@ -304,7 +304,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 fn encode_single_payload(
     encoder: &mut Encoder,
     tag: u64,
-    value: &impl WireEncodeV1,
+    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -312,7 +312,7 @@ fn encode_single_payload(
     value.encode(encoder)
 }
 
-fn encode_sequence<T: WireEncodeV1>(
+fn encode_sequence<T: WireEncode>(
     encoder: &mut Encoder,
     values: &[T],
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -328,20 +328,20 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, OptionalSignatureTypeV1, SignatureTypeKeyV1,
+        DuplicateSignatureKey, Effect, NonEmptyVec, OptionalSignatureType, SignatureTypeKey,
     };
 
     #[test]
     fn non_empty_signature_collections_are_structural() {
-        assert!(NonEmptyVec::<SignatureTypeKeyV1>::new(Vec::new()).is_err());
+        assert!(NonEmptyVec::<SignatureTypeKey>::new(Vec::new()).is_err());
     }
 
     #[test]
     fn signature_binder_and_function_have_fixed_wire() {
-        let binder = SignatureTypeKeyV1::Binder { depth: 1, index: 2 };
+        let binder = SignatureTypeKey::Binder { depth: 1, index: 2 };
         assert_eq!(encode(&binder).unwrap(), b"\xa3\x00\x07\x01\x01\x02\x02");
-        let function = SignatureTypeKeyV1::Function {
-            effect: EffectV1::Suspend,
+        let function = SignatureTypeKey::Function {
+            effect: Effect::Suspend,
             parameters: vec![binder.clone()],
             result: Box::new(binder),
         };
@@ -353,9 +353,9 @@ mod tests {
 
     #[test]
     fn absent_receiver_is_an_explicit_sum() {
-        let signature = DuplicateSignatureKeyV1::Property {
+        let signature = DuplicateSignatureKey::Property {
             type_parameter_count: 0,
-            receiver: OptionalSignatureTypeV1::Absent,
+            receiver: OptionalSignatureType::Absent,
         };
         assert_eq!(
             encode(&signature).unwrap(),

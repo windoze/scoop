@@ -1,4 +1,4 @@
-use scoop_wire::{Encoder, WireEncodeV1};
+use scoop_wire::{Encoder, WireEncode};
 
 use crate::{
     CanonicalIdentifier, PersistentConstructorId, PersistentFunctionId,
@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum StructuralDefinitionSiteRoleV1 {
+pub enum StructuralDefinitionSiteRole {
     LocalDeclaration,
     Lambda,
     DefaultValue,
@@ -22,7 +22,7 @@ pub enum StructuralDefinitionSiteRoleV1 {
     StringConstant,
 }
 
-impl StructuralDefinitionSiteRoleV1 {
+impl StructuralDefinitionSiteRole {
     const fn tag(self) -> u64 {
         match self {
             Self::LocalDeclaration => 1,
@@ -41,24 +41,24 @@ impl StructuralDefinitionSiteRoleV1 {
     }
 }
 
-impl WireEncodeV1 for StructuralDefinitionSiteRoleV1 {
+impl WireEncode for StructuralDefinitionSiteRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(self.tag())
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct StructuralPathSegmentV1 {
-    site_role: StructuralDefinitionSiteRoleV1,
+pub struct StructuralPathSegment {
+    site_role: StructuralDefinitionSiteRole,
     ordinal: u32,
 }
 
-impl StructuralPathSegmentV1 {
-    pub const fn new(site_role: StructuralDefinitionSiteRoleV1, ordinal: u32) -> Self {
+impl StructuralPathSegment {
+    pub const fn new(site_role: StructuralDefinitionSiteRole, ordinal: u32) -> Self {
         Self { site_role, ordinal }
     }
 
-    pub const fn site_role(&self) -> StructuralDefinitionSiteRoleV1 {
+    pub const fn site_role(&self) -> StructuralDefinitionSiteRole {
         self.site_role
     }
 
@@ -67,7 +67,7 @@ impl StructuralPathSegmentV1 {
     }
 }
 
-impl WireEncodeV1 for StructuralPathSegmentV1 {
+impl WireEncode for StructuralPathSegment {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -78,10 +78,10 @@ impl WireEncodeV1 for StructuralPathSegmentV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct StructuralDefinitionPathV1(Vec<StructuralPathSegmentV1>);
+pub struct StructuralDefinitionPath(Vec<StructuralPathSegment>);
 
-impl StructuralDefinitionPathV1 {
-    pub fn new(segments: Vec<StructuralPathSegmentV1>) -> Result<Self, crate::NonEmptyVecError> {
+impl StructuralDefinitionPath {
+    pub fn new(segments: Vec<StructuralPathSegment>) -> Result<Self, crate::NonEmptyVecError> {
         if segments.is_empty() {
             Err(crate::NonEmptyVecError)
         } else {
@@ -90,20 +90,20 @@ impl StructuralDefinitionPathV1 {
     }
 
     pub fn from_first(
-        first: StructuralPathSegmentV1,
-        rest: impl IntoIterator<Item = StructuralPathSegmentV1>,
+        first: StructuralPathSegment,
+        rest: impl IntoIterator<Item = StructuralPathSegment>,
     ) -> Self {
         let mut segments = vec![first];
         segments.extend(rest);
         Self(segments)
     }
 
-    pub fn segments(&self) -> &[StructuralPathSegmentV1] {
+    pub fn segments(&self) -> &[StructuralPathSegment] {
         &self.0
     }
 }
 
-impl WireEncodeV1 for StructuralDefinitionPathV1 {
+impl WireEncode for StructuralDefinitionPath {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(self.0.len() as u64)?;
         for segment in &self.0 {
@@ -114,12 +114,12 @@ impl WireEncodeV1 for StructuralDefinitionPathV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DeclarationNameV1 {
+pub enum DeclarationName {
     Named(CanonicalIdentifier),
     Constructor,
 }
 
-impl WireEncodeV1 for DeclarationNameV1 {
+impl WireEncode for DeclarationName {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Named(name) => {
@@ -139,7 +139,7 @@ impl WireEncodeV1 for DeclarationNameV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DefinitionOwnerAtomV1 {
+pub enum DefinitionOwnerAtom {
     Type(PersistentTypeId),
     GenericType(PersistentGenericTypeId),
     Function(PersistentFunctionId),
@@ -151,9 +151,9 @@ pub enum DefinitionOwnerAtomV1 {
     PropertyAccessor(PersistentPropertyAccessorId),
 }
 
-impl WireEncodeV1 for DefinitionOwnerAtomV1 {
+impl WireEncode for DefinitionOwnerAtom {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        let (tag, id): (u64, &dyn WireEncodeV1) = match self {
+        let (tag, id): (u64, &dyn WireEncode) = match self {
             Self::Type(id) => (1, id),
             Self::GenericType(id) => (2, id),
             Self::Function(id) => (3, id),
@@ -173,23 +173,23 @@ impl WireEncodeV1 for DefinitionOwnerAtomV1 {
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefinitionOwnerChainV1(Vec<DefinitionOwnerAtomV1>);
+pub struct DefinitionOwnerChain(Vec<DefinitionOwnerAtom>);
 
-impl DefinitionOwnerChainV1 {
+impl DefinitionOwnerChain {
     pub fn top_level() -> Self {
         Self(Vec::new())
     }
 
-    pub fn from_outer_to_inner(owners: Vec<DefinitionOwnerAtomV1>) -> Self {
+    pub fn from_outer_to_inner(owners: Vec<DefinitionOwnerAtom>) -> Self {
         Self(owners)
     }
 
-    pub fn owners(&self) -> &[DefinitionOwnerAtomV1] {
+    pub fn owners(&self) -> &[DefinitionOwnerAtom] {
         &self.0
     }
 }
 
-impl WireEncodeV1 for DefinitionOwnerChainV1 {
+impl WireEncode for DefinitionOwnerChain {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(self.0.len() as u64)?;
         for owner in &self.0 {
@@ -200,16 +200,16 @@ impl WireEncodeV1 for DefinitionOwnerChainV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DeclarationScopeV1 {
+pub enum DeclarationScope {
     ConeWide,
     SourceScoped(SourceIdentity),
     LexicalScoped {
         source: SourceIdentity,
-        path: StructuralDefinitionPathV1,
+        path: StructuralDefinitionPath,
     },
 }
 
-impl DeclarationScopeV1 {
+impl DeclarationScope {
     pub fn source(&self) -> Option<&SourceIdentity> {
         match self {
             Self::ConeWide => None,
@@ -218,7 +218,7 @@ impl DeclarationScopeV1 {
     }
 }
 
-impl WireEncodeV1 for DeclarationScopeV1 {
+impl WireEncode for DeclarationScope {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::ConeWide => {
@@ -251,18 +251,18 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        DeclarationNameV1, StructuralDefinitionPathV1, StructuralDefinitionSiteRoleV1,
-        StructuralPathSegmentV1,
+        DeclarationName, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+        StructuralPathSegment,
     };
     use crate::CanonicalIdentifier;
 
     #[test]
     fn structural_path_is_non_empty_and_has_fixed_wire() {
-        assert!(StructuralDefinitionPathV1::new(Vec::new()).is_err());
-        let path = StructuralDefinitionPathV1::from_first(
-            StructuralPathSegmentV1::new(StructuralDefinitionSiteRoleV1::Lambda, 0),
-            [StructuralPathSegmentV1::new(
-                StructuralDefinitionSiteRoleV1::LocalDeclaration,
+        assert!(StructuralDefinitionPath::new(Vec::new()).is_err());
+        let path = StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, 0),
+            [StructuralPathSegment::new(
+                StructuralDefinitionSiteRole::LocalDeclaration,
                 3,
             )],
         );
@@ -275,11 +275,11 @@ mod tests {
     #[test]
     fn constructor_name_is_not_a_magic_identifier() {
         assert_eq!(
-            encode(&DeclarationNameV1::Constructor).unwrap(),
+            encode(&DeclarationName::Constructor).unwrap(),
             b"\xa1\x00\x02"
         );
         assert_eq!(
-            encode(&DeclarationNameV1::Named(
+            encode(&DeclarationName::Named(
                 CanonicalIdentifier::new("init").unwrap()
             ))
             .unwrap(),

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Decoder, Encoder, HashError, WireDecodeV1, WireEncodeV1, WireError};
+use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
 pub use crate::ids::ConeIdentity;
 use crate::ids::derive_persistent_id;
@@ -81,7 +81,7 @@ impl ConeCoordinate {
     }
 }
 
-impl WireEncodeV1 for ConeCoordinate {
+impl WireEncode for ConeCoordinate {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -101,19 +101,19 @@ impl fmt::Display for ConeCoordinate {
 
 /// Syntactically decoded coordinate that has not passed semantic validation.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedConeCoordinateV1 {
+pub struct DecodedConeCoordinate {
     group: String,
     name: String,
     version: String,
 }
 
-impl DecodedConeCoordinateV1 {
+impl DecodedConeCoordinate {
     pub fn validate(self) -> Result<ConeCoordinate, ConeCoordinateError> {
         ConeCoordinate::new(&self.group, &self.name, &self.version)
     }
 }
 
-impl WireEncodeV1 for DecodedConeCoordinateV1 {
+impl WireEncode for DecodedConeCoordinate {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -125,7 +125,7 @@ impl WireEncodeV1 for DecodedConeCoordinateV1 {
     }
 }
 
-impl WireDecodeV1 for DecodedConeCoordinateV1 {
+impl WireDecode for DecodedConeCoordinate {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         let group = decoder.field(1, Decoder::owned_text)?;
@@ -233,9 +233,9 @@ fn validate_coordinate_text(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimitsV1, decode_canonical, encode};
+    use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
-    use super::{ConeCoordinate, ConeCoordinateError, ConeIdentity, DecodedConeCoordinateV1};
+    use super::{ConeCoordinate, ConeCoordinateError, ConeIdentity, DecodedConeCoordinate};
 
     #[test]
     fn reserved_coordinates_have_fixed_wire_and_hash_vectors() {
@@ -266,7 +266,7 @@ mod tests {
     fn coordinate_decode_requires_a_separate_validation_step() {
         let bytes = encode(&ConeCoordinate::reserved_core()).unwrap();
         let decoded =
-            decode_canonical::<DecodedConeCoordinateV1>(&bytes, DecodeLimitsV1::default()).unwrap();
+            decode_canonical::<DecodedConeCoordinate>(&bytes, DecodeLimits::default()).unwrap();
         assert_eq!(decoded.validate().unwrap(), ConeCoordinate::reserved_core());
     }
 

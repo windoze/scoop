@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncodeV1};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{
-    CallingConventionV1, DeclarationNameV1, DefinitionOwnerAtomV1, EffectV1, NonEmptyVec,
-    SourceDeclarationKeyV1, SourceDeclarationKindV1,
+    CallingConvention, DeclarationName, DefinitionOwnerAtom, Effect, NonEmptyVec,
+    SourceDeclarationKey, SourceDeclarationKind,
 };
 use crate::ids::derive_persistent_id;
 use crate::{
@@ -16,7 +16,7 @@ const MAX_DIAGNOSTIC_NAME_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DIAGNOSTIC_RECURSION: usize = 1_024;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ExactTypeKeyV1 {
+pub enum ExactTypeKey {
     Nominal(PersistentTypeId),
     NominalApplication {
         origin: PersistentGenericTypeId,
@@ -24,19 +24,19 @@ pub enum ExactTypeKeyV1 {
     },
     Tuple(NonEmptyVec<PersistentExactTypeId>),
     Function {
-        effect: EffectV1,
+        effect: Effect,
         parameters: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
     },
     RawPointer(PersistentExactTypeId),
     NativeFunctionPointer {
-        calling_convention: CallingConventionV1,
+        calling_convention: CallingConvention,
         parameters: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
     },
 }
 
-impl WireEncodeV1 for ExactTypeKeyV1 {
+impl WireEncode for ExactTypeKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Nominal(id) => encode_single_payload(encoder, 1, id),
@@ -88,7 +88,7 @@ impl WireEncodeV1 for ExactTypeKeyV1 {
 }
 
 impl PersistentExactTypeId {
-    pub fn from_key(key: &ExactTypeKeyV1) -> Result<Self, HashError> {
+    pub fn from_key(key: &ExactTypeKey) -> Result<Self, HashError> {
         derive_persistent_id("scoop-exact-type-v1", key)
     }
 }
@@ -101,7 +101,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
 fn encode_single_payload(
     encoder: &mut Encoder,
     tag: u64,
-    id: &impl WireEncodeV1,
+    id: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
     encode_tag(encoder, tag)?;
@@ -121,15 +121,15 @@ fn encode_ids(
 }
 
 /// Read-only access to an already validated exact-type identity graph.
-pub trait ExactTypeDiagnosticGraphV1 {
-    fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKeyV1>;
+pub trait ExactTypeDiagnosticGraph {
+    fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKey>;
 
-    fn source_type_declaration(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKeyV1>;
+    fn source_type_declaration(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKey>;
 
     fn source_generic_type_declaration(
         &self,
         id: PersistentGenericTypeId,
-    ) -> Option<&SourceDeclarationKeyV1>;
+    ) -> Option<&SourceDeclarationKey>;
 
     fn cone_coordinate(&self, id: ConeIdentity) -> Option<&ConeCoordinate>;
 }
@@ -140,7 +140,7 @@ pub struct CanonicalExactTypeDiagnosticName(String);
 impl CanonicalExactTypeDiagnosticName {
     pub fn from_validated_graph(
         root: PersistentExactTypeId,
-        graph: &impl ExactTypeDiagnosticGraphV1,
+        graph: &impl ExactTypeDiagnosticGraph,
     ) -> Result<Self, ExactTypeDiagnosticError> {
         let mut costs = BTreeMap::new();
         let mut active = BTreeSet::new();
@@ -233,7 +233,7 @@ impl std::error::Error for ExactTypeDiagnosticError {}
 
 fn exact_type_cost(
     id: PersistentExactTypeId,
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    graph: &impl ExactTypeDiagnosticGraph,
     costs: &mut BTreeMap<PersistentExactTypeId, usize>,
     active: &mut BTreeSet<PersistentExactTypeId>,
     depth: usize,
@@ -251,13 +251,13 @@ fn exact_type_cost(
         .exact_type_key(id)
         .ok_or(ExactTypeDiagnosticError::MissingExactType(id))?;
     let cost = match key {
-        ExactTypeKeyV1::Nominal(declaration) => {
+        ExactTypeKey::Nominal(declaration) => {
             let declaration = graph
                 .source_type_declaration(*declaration)
                 .ok_or(ExactTypeDiagnosticError::MissingSourceType(*declaration))?;
             nominal_atom_cost(declaration, graph)?
         }
-        ExactTypeKeyV1::NominalApplication { origin, arguments } => {
+        ExactTypeKey::NominalApplication { origin, arguments } => {
             let declaration = graph
                 .source_generic_type_declaration(*origin)
                 .ok_or(ExactTypeDiagnosticError::MissingSourceGenericType(*origin))?;
@@ -268,14 +268,14 @@ fn exact_type_cost(
             )?;
             checked_add(cost, 2)?
         }
-        ExactTypeKeyV1::Tuple(elements) => checked_add(
+        ExactTypeKey::Tuple(elements) => checked_add(
             5,
             sequence_cost(elements.as_slice(), graph, costs, active, depth)?,
         )?,
-        ExactTypeKeyV1::Function {
+        ExactTypeKey::Function {
             parameters, result, ..
         }
-        | ExactTypeKeyV1::NativeFunctionPointer {
+        | ExactTypeKey::NativeFunctionPointer {
             parameters, result, ..
         } => {
             let mut cost = checked_add(5, sequence_cost(parameters, graph, costs, active, depth)?)?;
@@ -285,7 +285,7 @@ fn exact_type_cost(
             )?;
             checked_add(cost, 4)?
         }
-        ExactTypeKeyV1::RawPointer(pointee) => checked_add(
+        ExactTypeKey::RawPointer(pointee) => checked_add(
             3,
             exact_type_cost(*pointee, graph, costs, active, depth + 1)?,
         )?,
@@ -297,7 +297,7 @@ fn exact_type_cost(
 
 fn sequence_cost(
     ids: &[PersistentExactTypeId],
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    graph: &impl ExactTypeDiagnosticGraph,
     costs: &mut BTreeMap<PersistentExactTypeId, usize>,
     active: &mut BTreeSet<PersistentExactTypeId>,
     depth: usize,
@@ -313,8 +313,8 @@ fn sequence_cost(
 }
 
 fn nominal_atom_cost(
-    declaration: &SourceDeclarationKeyV1,
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    declaration: &SourceDeclarationKey,
+    graph: &impl ExactTypeDiagnosticGraph,
 ) -> Result<usize, ExactTypeDiagnosticError> {
     let kind = nominal_kind_tag(declaration.declaration_kind())?;
     let name = nominal_name(declaration)?;
@@ -343,7 +343,7 @@ fn coordinate_escaped_cost(coordinate: &ConeCoordinate) -> Result<usize, ExactTy
 }
 
 fn package_escaped_cost(
-    declaration: &SourceDeclarationKeyV1,
+    declaration: &SourceDeclarationKey,
 ) -> Result<usize, ExactTypeDiagnosticError> {
     let mut cost = 0usize;
     for (index, segment) in declaration.package().segments().iter().enumerate() {
@@ -356,8 +356,8 @@ fn package_escaped_cost(
 }
 
 fn owner_chain_cost(
-    declaration: &SourceDeclarationKeyV1,
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    declaration: &SourceDeclarationKey,
+    graph: &impl ExactTypeDiagnosticGraph,
 ) -> Result<usize, ExactTypeDiagnosticError> {
     if declaration.owners().owners().is_empty() {
         return Ok(1);
@@ -368,10 +368,10 @@ fn owner_chain_cost(
             cost = checked_add(cost, 1)?;
         }
         let owner = match owner {
-            DefinitionOwnerAtomV1::Type(id) => graph
+            DefinitionOwnerAtom::Type(id) => graph
                 .source_type_declaration(*id)
                 .ok_or(ExactTypeDiagnosticError::MissingSourceType(*id))?,
-            DefinitionOwnerAtomV1::GenericType(id) => graph
+            DefinitionOwnerAtom::GenericType(id) => graph
                 .source_generic_type_declaration(*id)
                 .ok_or(ExactTypeDiagnosticError::MissingSourceGenericType(*id))?,
             _ => return Err(ExactTypeDiagnosticError::NonNominalOwner),
@@ -406,32 +406,30 @@ fn checked_add(left: usize, right: usize) -> Result<usize, ExactTypeDiagnosticEr
     }
 }
 
-fn nominal_kind_tag(kind: SourceDeclarationKindV1) -> Result<char, ExactTypeDiagnosticError> {
+fn nominal_kind_tag(kind: SourceDeclarationKind) -> Result<char, ExactTypeDiagnosticError> {
     match kind {
-        SourceDeclarationKindV1::Class => Ok('C'),
-        SourceDeclarationKindV1::Interface => Ok('I'),
-        SourceDeclarationKindV1::Struct => Ok('S'),
-        SourceDeclarationKindV1::Enum => Ok('E'),
-        SourceDeclarationKindV1::Object => Ok('O'),
-        SourceDeclarationKindV1::AnnotationClass => Ok('A'),
+        SourceDeclarationKind::Class => Ok('C'),
+        SourceDeclarationKind::Interface => Ok('I'),
+        SourceDeclarationKind::Struct => Ok('S'),
+        SourceDeclarationKind::Enum => Ok('E'),
+        SourceDeclarationKind::Object => Ok('O'),
+        SourceDeclarationKind::AnnotationClass => Ok('A'),
         _ => Err(ExactTypeDiagnosticError::NonNominalDeclaration),
     }
 }
 
 fn nominal_name(
-    declaration: &SourceDeclarationKeyV1,
+    declaration: &SourceDeclarationKey,
 ) -> Result<&crate::CanonicalIdentifier, ExactTypeDiagnosticError> {
     match declaration.name() {
-        DeclarationNameV1::Named(name) => Ok(name),
-        DeclarationNameV1::Constructor => {
-            Err(ExactTypeDiagnosticError::ConstructorUsedAsNominalName)
-        }
+        DeclarationName::Named(name) => Ok(name),
+        DeclarationName::Constructor => Err(ExactTypeDiagnosticError::ConstructorUsedAsNominalName),
     }
 }
 
 fn write_exact_type(
     id: PersistentExactTypeId,
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    graph: &impl ExactTypeDiagnosticGraph,
     output: &mut String,
     depth: usize,
 ) -> Result<(), ExactTypeDiagnosticError> {
@@ -442,13 +440,13 @@ fn write_exact_type(
         .exact_type_key(id)
         .ok_or(ExactTypeDiagnosticError::MissingExactType(id))?;
     match key {
-        ExactTypeKeyV1::Nominal(declaration) => {
+        ExactTypeKey::Nominal(declaration) => {
             let declaration = graph
                 .source_type_declaration(*declaration)
                 .ok_or(ExactTypeDiagnosticError::MissingSourceType(*declaration))?;
             write_nominal_atom(declaration, graph, output)
         }
-        ExactTypeKeyV1::NominalApplication { origin, arguments } => {
+        ExactTypeKey::NominalApplication { origin, arguments } => {
             let declaration = graph
                 .source_generic_type_declaration(*origin)
                 .ok_or(ExactTypeDiagnosticError::MissingSourceGenericType(*origin))?;
@@ -459,20 +457,20 @@ fn write_exact_type(
             output.push_str("])");
             Ok(())
         }
-        ExactTypeKeyV1::Tuple(elements) => {
+        ExactTypeKey::Tuple(elements) => {
             output.push_str("t([");
             write_sequence(elements.as_slice(), graph, output, depth)?;
             output.push_str("])");
             Ok(())
         }
-        ExactTypeKeyV1::Function {
+        ExactTypeKey::Function {
             effect,
             parameters,
             result,
         } => write_function(
             match effect {
-                EffectV1::Ordinary => 'o',
-                EffectV1::Suspend => 's',
+                Effect::Ordinary => 'o',
+                Effect::Suspend => 's',
             },
             parameters,
             *result,
@@ -481,14 +479,14 @@ fn write_exact_type(
             depth,
             'f',
         ),
-        ExactTypeKeyV1::RawPointer(pointee) => {
+        ExactTypeKey::RawPointer(pointee) => {
             output.push_str("r(");
             write_exact_type(*pointee, graph, output, depth + 1)?;
             output.push(')');
             Ok(())
         }
-        ExactTypeKeyV1::NativeFunctionPointer {
-            calling_convention: CallingConventionV1::C,
+        ExactTypeKey::NativeFunctionPointer {
+            calling_convention: CallingConvention::C,
             parameters,
             result,
         } => write_function('c', parameters, *result, graph, output, depth, 'x'),
@@ -499,7 +497,7 @@ fn write_function(
     flavor: char,
     parameters: &[PersistentExactTypeId],
     result: PersistentExactTypeId,
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    graph: &impl ExactTypeDiagnosticGraph,
     output: &mut String,
     depth: usize,
     prefix: char,
@@ -517,7 +515,7 @@ fn write_function(
 
 fn write_sequence(
     ids: &[PersistentExactTypeId],
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    graph: &impl ExactTypeDiagnosticGraph,
     output: &mut String,
     depth: usize,
 ) -> Result<(), ExactTypeDiagnosticError> {
@@ -531,8 +529,8 @@ fn write_sequence(
 }
 
 fn write_nominal_atom(
-    declaration: &SourceDeclarationKeyV1,
-    graph: &impl ExactTypeDiagnosticGraphV1,
+    declaration: &SourceDeclarationKey,
+    graph: &impl ExactTypeDiagnosticGraph,
     output: &mut String,
 ) -> Result<(), ExactTypeDiagnosticError> {
     let coordinate = graph
@@ -562,10 +560,10 @@ fn write_nominal_atom(
                 output.push('/');
             }
             let owner = match owner {
-                DefinitionOwnerAtomV1::Type(id) => graph
+                DefinitionOwnerAtom::Type(id) => graph
                     .source_type_declaration(*id)
                     .ok_or(ExactTypeDiagnosticError::MissingSourceType(*id))?,
-                DefinitionOwnerAtomV1::GenericType(id) => graph
+                DefinitionOwnerAtom::GenericType(id) => graph
                     .source_generic_type_declaration(*id)
                     .ok_or(ExactTypeDiagnosticError::MissingSourceGenericType(*id))?,
                 _ => return Err(ExactTypeDiagnosticError::NonNominalOwner),
@@ -606,35 +604,34 @@ mod tests {
 
     use scoop_wire::encode;
 
-    use super::{CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraphV1, ExactTypeKeyV1};
+    use super::{CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph, ExactTypeKey};
     use crate::{
-        CanonicalIdentifier, ConeCoordinate, ConeIdentity, DeclarationScopeV1,
-        DefinitionOwnerChainV1, EffectV1, NonEmptyVec, PackagePath, PersistentExactTypeId,
-        PersistentGenericTypeId, PersistentTypeId, SourceDeclarationKeyV1, SourceDeclarationSiteV1,
-        SourceNominalKindV1,
+        CanonicalIdentifier, ConeCoordinate, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
+        Effect, NonEmptyVec, PackagePath, PersistentExactTypeId, PersistentGenericTypeId,
+        PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
     };
 
     #[derive(Default)]
     struct Graph {
-        exact: BTreeMap<PersistentExactTypeId, ExactTypeKeyV1>,
-        types: BTreeMap<PersistentTypeId, SourceDeclarationKeyV1>,
-        generic_types: BTreeMap<PersistentGenericTypeId, SourceDeclarationKeyV1>,
+        exact: BTreeMap<PersistentExactTypeId, ExactTypeKey>,
+        types: BTreeMap<PersistentTypeId, SourceDeclarationKey>,
+        generic_types: BTreeMap<PersistentGenericTypeId, SourceDeclarationKey>,
         cones: BTreeMap<ConeIdentity, ConeCoordinate>,
     }
 
-    impl ExactTypeDiagnosticGraphV1 for Graph {
-        fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKeyV1> {
+    impl ExactTypeDiagnosticGraph for Graph {
+        fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKey> {
             self.exact.get(&id)
         }
 
-        fn source_type_declaration(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKeyV1> {
+        fn source_type_declaration(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKey> {
             self.types.get(&id)
         }
 
         fn source_generic_type_declaration(
             &self,
             id: PersistentGenericTypeId,
-        ) -> Option<&SourceDeclarationKeyV1> {
+        ) -> Option<&SourceDeclarationKey> {
             self.generic_types.get(&id)
         }
 
@@ -646,20 +643,20 @@ mod tests {
     fn nominal_graph() -> (Graph, PersistentExactTypeId) {
         let coordinate = ConeCoordinate::new("org.example", "demo", "1.2.3").unwrap();
         let cone = coordinate.identity().unwrap();
-        let declaration = SourceDeclarationKeyV1::nominal(
-            SourceDeclarationSiteV1::new(
+        let declaration = SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
                 cone,
                 PackagePath::from_segments(vec![CanonicalIdentifier::new("app").unwrap()]),
-                DefinitionOwnerChainV1::top_level(),
-                DeclarationScopeV1::ConeWide,
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
             )
             .unwrap(),
             CanonicalIdentifier::new("User").unwrap(),
-            SourceNominalKindV1::Class,
+            SourceNominalKind::Class,
             0,
         );
         let type_id = PersistentTypeId::from_source_declaration(&declaration).unwrap();
-        let exact_key = ExactTypeKeyV1::Nominal(type_id);
+        let exact_key = ExactTypeKey::Nominal(type_id);
         let exact_id = PersistentExactTypeId::from_key(&exact_key).unwrap();
         let mut graph = Graph::default();
         graph.cones.insert(cone, coordinate);
@@ -671,11 +668,11 @@ mod tests {
     #[test]
     fn exact_type_variants_have_distinct_fixed_wire_and_hash() {
         let (mut graph, nominal) = nominal_graph();
-        let tuple_key = ExactTypeKeyV1::Tuple(NonEmptyVec::from_first(nominal, [nominal]));
+        let tuple_key = ExactTypeKey::Tuple(NonEmptyVec::from_first(nominal, [nominal]));
         let tuple = PersistentExactTypeId::from_key(&tuple_key).unwrap();
         graph.exact.insert(tuple, tuple_key.clone());
-        let function_key = ExactTypeKeyV1::Function {
-            effect: EffectV1::Suspend,
+        let function_key = ExactTypeKey::Function {
+            effect: Effect::Suspend,
             parameters: vec![nominal],
             result: tuple,
         };
@@ -700,35 +697,35 @@ mod tests {
         let child = PersistentExactTypeId(ConeIdentity::CORE.0);
         let vectors = [
             (
-                ExactTypeKeyV1::Nominal(type_id),
+                ExactTypeKey::Nominal(type_id),
                 format!("a20001015820{type_id}"),
             ),
             (
-                ExactTypeKeyV1::NominalApplication {
+                ExactTypeKey::NominalApplication {
                     origin: generic_id,
                     arguments: NonEmptyVec::from_first(child, []),
                 },
                 format!("a30002015820{generic_id}02815820{child}"),
             ),
             (
-                ExactTypeKeyV1::Tuple(NonEmptyVec::from_first(child, [])),
+                ExactTypeKey::Tuple(NonEmptyVec::from_first(child, [])),
                 format!("a2000301815820{child}"),
             ),
             (
-                ExactTypeKeyV1::Function {
-                    effect: EffectV1::Ordinary,
+                ExactTypeKey::Function {
+                    effect: Effect::Ordinary,
                     parameters: vec![child],
                     result: child,
                 },
                 format!("a40004010102815820{child}035820{child}"),
             ),
             (
-                ExactTypeKeyV1::RawPointer(child),
+                ExactTypeKey::RawPointer(child),
                 format!("a20005015820{child}"),
             ),
             (
-                ExactTypeKeyV1::NativeFunctionPointer {
-                    calling_convention: crate::CallingConventionV1::C,
+                ExactTypeKey::NativeFunctionPointer {
+                    calling_convention: crate::CallingConvention::C,
                     parameters: vec![child],
                     result: child,
                 },
@@ -743,11 +740,11 @@ mod tests {
     #[test]
     fn canonical_diagnostic_name_uses_only_identity_graph_spelling() {
         let (mut graph, nominal) = nominal_graph();
-        let tuple_key = ExactTypeKeyV1::Tuple(NonEmptyVec::from_first(nominal, [nominal]));
+        let tuple_key = ExactTypeKey::Tuple(NonEmptyVec::from_first(nominal, [nominal]));
         let tuple = PersistentExactTypeId::from_key(&tuple_key).unwrap();
         graph.exact.insert(tuple, tuple_key);
-        let function_key = ExactTypeKeyV1::Function {
-            effect: EffectV1::Suspend,
+        let function_key = ExactTypeKey::Function {
+            effect: Effect::Suspend,
             parameters: vec![nominal],
             result: tuple,
         };
@@ -766,7 +763,7 @@ mod tests {
     #[test]
     fn missing_child_is_a_typed_error_instead_of_a_panic() {
         let (mut graph, nominal) = nominal_graph();
-        let pointer_key = ExactTypeKeyV1::RawPointer(nominal);
+        let pointer_key = ExactTypeKey::RawPointer(nominal);
         let pointer = PersistentExactTypeId::from_key(&pointer_key).unwrap();
         graph.exact.remove(&nominal);
         graph.exact.insert(pointer, pointer_key);
@@ -777,7 +774,7 @@ mod tests {
     fn shared_dag_cost_is_recounted_before_any_large_allocation() {
         let (mut graph, mut root) = nominal_graph();
         for _ in 0..20 {
-            let key = ExactTypeKeyV1::Tuple(NonEmptyVec::from_first(root, [root]));
+            let key = ExactTypeKey::Tuple(NonEmptyVec::from_first(root, [root]));
             let id = PersistentExactTypeId::from_key(&key).unwrap();
             graph.exact.insert(id, key);
             root = id;

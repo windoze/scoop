@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, WireEncodeV1};
+use scoop_wire::{Encoder, WireEncode};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CanonicalNativeLibraryName(String);
@@ -16,16 +16,16 @@ impl CanonicalNativeLibraryName {
     }
 }
 
-impl WireEncodeV1 for CanonicalNativeLibraryName {
+impl WireEncode for CanonicalNativeLibraryName {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.text(&self.0)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SourceNativeSymbolV1(Vec<u8>);
+pub struct SourceNativeSymbol(Vec<u8>);
 
-impl SourceNativeSymbolV1 {
+impl SourceNativeSymbol {
     pub fn new(value: &str) -> Result<Self, SourceNativeSymbolError> {
         if value.is_empty() {
             return Err(SourceNativeSymbolError::Empty);
@@ -44,7 +44,7 @@ impl SourceNativeSymbolV1 {
     }
 }
 
-impl WireEncodeV1 for SourceNativeSymbolV1 {
+impl WireEncode for SourceNativeSymbol {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.0)
     }
@@ -128,7 +128,7 @@ pub(crate) fn validate_native_name(value: &str) -> Result<(), CanonicalNativeNam
 mod tests {
     use scoop_wire::encode;
 
-    use super::{CanonicalNativeLibraryName, SourceNativeSymbolV1};
+    use super::{CanonicalNativeLibraryName, SourceNativeSymbol};
 
     #[test]
     fn native_library_name_preserves_validated_utf8() {
@@ -150,11 +150,11 @@ mod tests {
 
     #[test]
     fn source_symbol_is_bytes_and_rejects_nul() {
-        let symbol = SourceNativeSymbolV1::new("_入口").unwrap();
+        let symbol = SourceNativeSymbol::new("_入口").unwrap();
         let encoded = encode(&symbol).unwrap();
         assert_eq!(encoded[0], 0x40 + symbol.as_bytes().len() as u8);
         assert_eq!(&encoded[1..], symbol.as_bytes());
-        assert!(SourceNativeSymbolV1::new("a\0b").is_err());
+        assert!(SourceNativeSymbol::new("a\0b").is_err());
     }
 
     trait CborText {
