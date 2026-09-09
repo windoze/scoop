@@ -1092,7 +1092,7 @@ Module
   instance println<Int>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$local$u0:p0:r6:globaln12:scoopCounter $local$u0:p0:r6:globaln12:scoopCounter: Int global initial=encoded(Int:0x1)
   global1 @scoop.global.$local$u0:p0:r6:globaln15:scoopTlsCounter $local$u0:p0:r6:globaln15:scoopTlsCounter: Int thread_local initial=encoded(Int:0x2)
   global2 @scoop.global.$local$u0:p0:r6:globaln4:pair $local$u0:p0:r6:globaln4:pair: NativePair global initial=encoded(NativePair{Int:0x3,Int:0x4})

@@ -1207,7 +1207,7 @@ Module
   method instance Mapper.invoke<owner=[], method=[Int]>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$local$u0:p0:r6:globaln13:globalHandler $local$u0:p0:r6:globaln13:globalHandler: GlobalHandler global initial=encoded(GlobalHandler{Int:0x28})
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>

@@ -909,7 +909,7 @@ Module
   instance println<Int>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$local$u0:p0:r6:globaln19:STATIC_MAX_UNSIGNED $local$u0:p0:r6:globaln19:STATIC_MAX_UNSIGNED: ULong managed initial=encoded(ULong:0xffffffffffffffff)
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>

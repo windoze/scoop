@@ -2537,7 +2537,7 @@ Module
   instance println<Int>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$local$u0:p0:r6:globaln12:globalOpaque $local$u0:p0:r6:globaln12:globalOpaque: Ptr<Unit> extern m22_global_opaque
   global1 @scoop.global.$local$u0:p0:r6:globaln10:globalCell $local$u0:p0:r6:globaln10:globalCell: Ptr<NativeCell> extern m22_global_cell
   global2 @scoop.global.$local$u0:p0:r6:globaln20:globalOptionalOpaque $local$u0:p0:r6:globaln20:globalOptionalOpaque: Option$PUX<Ptr<Unit>> extern m22_global_optional_opaque

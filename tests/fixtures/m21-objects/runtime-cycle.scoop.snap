@@ -854,7 +854,7 @@ Module
   instance println<Int>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.singleton.$local$u0:p0:O7:n4:Leftr9:singletonn0: $singleton$$local$u0:p0:O7:n4:Leftr9:singletonn0:: Left managed initial=zeroed-for-runtime-unit
   global1 @scoop.singleton.$local$u0:p0:O8:n5:Rightr9:singletonn0: $singleton$$local$u0:p0:O8:n5:Rightr9:singletonn0:: Right managed initial=zeroed-for-runtime-unit
   global2 @scoop.init.failure.0 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit

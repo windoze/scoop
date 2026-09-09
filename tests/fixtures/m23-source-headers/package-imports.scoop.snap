@@ -858,7 +858,7 @@ Module
   instance println<Int>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.singleton.$local$u0:p13:s4:demos3:appO8:n5:Toolsr9:singletonn0: $singleton$$local$u0:p13:s4:demos3:appO8:n5:Toolsr9:singletonn0:: Tools managed initial=zeroed-for-runtime-unit
   global1 @scoop.init.failure.0 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit
   init0 $local$u0:p13:s4:demos3:appO8:n5:Toolsr9:singletonn0: singleton lazy global0 initializer=scoop.$local$u0:p13:s4:demos3:appc64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=scoop.$local$u0:p13:s4:demos3:appc64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 failure=1 deps=[]

@@ -1070,7 +1070,7 @@ Module
   instance println<Boolean>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.singleton.$local$u0:p0:O11:n8:Registryr9:singletonn0: $singleton$$local$u0:p0:O11:n8:Registryr9:singletonn0:: Registry managed initial=zeroed-for-runtime-unit
   global1 @scoop.singleton.$local$u0:p0:O11:n8:RegistryO9:n6:Nestedr9:singletonn0: $singleton$$local$u0:p0:O11:n8:RegistryO9:n6:Nestedr9:singletonn0:: Registry.Nested managed initial=zeroed-for-runtime-unit
   global2 @scoop.init.failure.0 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit

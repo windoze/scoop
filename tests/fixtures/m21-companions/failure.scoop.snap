@@ -900,7 +900,7 @@ Module
   instance println<Boolean>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$local$u0:p0:r6:globaln8:attempts $local$u0:p0:r6:globaln8:attempts: Int managed initial=encoded(Int:0x0)
   global1 @scoop.singleton.$local$u0:p0:C9:n6:BrokenO12:n9:Companionr9:singletonn0: $singleton$$local$u0:p0:C9:n6:BrokenO12:n9:Companionr9:singletonn0:: Broken.Companion managed initial=zeroed-for-runtime-unit
   global2 @scoop.init.failure.0 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit

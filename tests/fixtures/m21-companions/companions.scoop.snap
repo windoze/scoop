@@ -1317,7 +1317,7 @@ Module
   method instance Box.Factory.identity<owner=[], method=[Int]>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.singleton.$local$u0:p0:O14:n10:ObjectHostr9:singletonn0: $singleton$$local$u0:p0:O14:n10:ObjectHostr9:singletonn0:: ObjectHost managed initial=zeroed-for-runtime-unit
   global1 @scoop.singleton.$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0: $singleton$$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:: StructHost.Maker managed initial=zeroed-for-runtime-unit
   global2 @scoop.singleton.$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0: $singleton$$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:: EnumHost.Values managed initial=zeroed-for-runtime-unit

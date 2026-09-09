@@ -964,7 +964,7 @@ Module
   instance println<Boolean>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$local$u0:p0:r6:globaln6:answer $local$u0:p0:r6:globaln6:answer: Int managed initial=encoded(Int:0x2a)
   global1 @scoop.global.$local$u0:p0:r6:globaln10:staticText $local$u0:p0:r6:globaln10:staticText: String managed initial=encoded(@scoop.str.0)
   global2 @scoop.global.$local$u0:p0:r6:globaln5:label $local$u0:p0:r6:globaln5:label: String managed initial=encoded(@scoop.str.1)

@@ -1614,7 +1614,7 @@ Module
   instance println<ULong>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$local$u0:p0:r6:globaln13:nativeSigned8 $local$u0:p0:r6:globaln13:nativeSigned8: Int8 extern native_signed8
   global1 @scoop.global.$local$u0:p0:r6:globaln14:nativeSigned16 $local$u0:p0:r6:globaln14:nativeSigned16: Int16 extern native_signed16
   global2 @scoop.global.$local$u0:p0:r6:globaln14:nativeSigned32 $local$u0:p0:r6:globaln14:nativeSigned32: Int extern native_signed32

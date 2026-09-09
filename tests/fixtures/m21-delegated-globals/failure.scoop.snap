@@ -834,7 +834,7 @@ Module
   instance println<String>
 
 == mir ==
-Module mangling=compact-v2
+Module
   global0 @scoop.global.$delegate$$local$u0:p0:r9:top-leveln6:failed $delegate$$local$u0:p0:r9:top-leveln6:failed: ExplodingDelegate managed initial=zeroed-for-runtime-unit
   global1 @scoop.init.failure.0 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit
   init0 $local$u0:p0:r9:top-leveln6:failed eager global0 initializer=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 failure=1 deps=[]
