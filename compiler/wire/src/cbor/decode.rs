@@ -328,7 +328,14 @@ pub trait WireDecode: WireEncode + Sized {
 
 pub fn decode_canonical<T: WireDecode>(input: &[u8], limits: DecodeLimits) -> Result<T, WireError> {
     let mut meter = BudgetMeter::new(limits);
-    let mut decoder = Decoder::new(input, &mut meter)?;
+    decode_canonical_with_meter(input, &mut meter)
+}
+
+pub fn decode_canonical_with_meter<T: WireDecode>(
+    input: &[u8],
+    meter: &mut BudgetMeter,
+) -> Result<T, WireError> {
+    let mut decoder = Decoder::new(input, &mut *meter)?;
     let value = T::decode(&mut decoder)?;
     decoder.finish()?;
     drop(decoder);
@@ -394,7 +401,9 @@ fn encode_head(output: &mut [u8; 9], major: u8, argument: u64) -> usize {
 mod tests {
     use crate::{DecodeLimits, Encoder, WireErrorKind, encode};
 
-    use super::{Decoder, EncodeError, WireDecode, WireEncode, decode_canonical};
+    use super::{
+        Decoder, EncodeError, WireDecode, WireEncode, decode_canonical, decode_canonical_with_meter,
+    };
 
     #[derive(Debug, Eq, PartialEq)]
     struct Pair {
@@ -587,6 +596,31 @@ mod tests {
                 resource: crate::ResourceKind::SemanticLeafBytes,
                 limit: 3,
                 observed: 4,
+            }
+        ));
+    }
+
+    #[test]
+    fn shared_meter_accumulates_across_documents() {
+        let encoded = encode(&UnsignedValue(1)).unwrap();
+        let limits = DecodeLimits {
+            decoded_nodes: 1,
+            ..DecodeLimits::default()
+        };
+        let mut meter = crate::BudgetMeter::new(limits);
+
+        assert_eq!(
+            decode_canonical_with_meter::<UnsignedValue>(&encoded, &mut meter),
+            Ok(UnsignedValue(1))
+        );
+        assert!(matches!(
+            decode_canonical_with_meter::<UnsignedValue>(&encoded, &mut meter)
+                .unwrap_err()
+                .kind(),
+            WireErrorKind::LimitExceeded {
+                resource: crate::ResourceKind::DecodedNodes,
+                limit: 1,
+                observed: 2,
             }
         ));
     }
