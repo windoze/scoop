@@ -29,10 +29,12 @@ pub use entity::{
 };
 pub use entity::{
     CallableAdapterEnvironmentKeyV1, ClosureEnvironmentRoleV1, ContinuationShellRoleV1,
-    CoroutineAdapterRoleV1, ExactCallableSignatureV1, GeneratedCallableIdentityError,
-    GeneratedCallableKeyV1, GeneratedNominalIdentityError, GeneratedNominalKeyV1,
-    InitializationCallableRoleV1, LexicalCallableParentV1, LexicalCallableRoleV1,
-    LexicalParentError, OptionalExactOwnerV1,
+    CoroutineAdapterRoleV1, EnumVariantFieldKeyV1, EnumVariantFieldSelectorV1,
+    EnumVariantIdentityError, EnumVariantIdentityKeyV1, ExactCallableSignatureV1,
+    FieldIdentityError, FieldIdentityKeyV1, GeneratedCallableIdentityError, GeneratedCallableKeyV1,
+    GeneratedEnumVariantRoleV1, GeneratedFieldKeyV1, GeneratedNominalIdentityError,
+    GeneratedNominalKeyV1, InitializationCallableRoleV1, LexicalCallableParentV1,
+    LexicalCallableRoleV1, LexicalParentError, OptionalExactOwnerV1, SourceFieldKeyV1,
 };
 pub use entity::{
     CallableOwnerV1, CallingConventionV1, CanonicalExactTypeDiagnosticName,

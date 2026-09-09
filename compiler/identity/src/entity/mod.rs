@@ -1,6 +1,8 @@
 mod callable;
+mod enum_variant;
 mod exact_signature;
 mod exact_type;
+mod field;
 mod generated_callable;
 mod generated_nominal;
 mod materialization;
@@ -15,7 +17,12 @@ pub use callable::{
     CallableMaterializationContextV1, CallableMaterializationV1, CallableTemplateOriginV1,
     CallableTemplateOwnerV1, PropertyAccessorKeyV1,
 };
+pub use enum_variant::{
+    EnumVariantFieldKeyV1, EnumVariantFieldSelectorV1, EnumVariantIdentityError,
+    EnumVariantIdentityKeyV1, GeneratedEnumVariantRoleV1,
+};
 pub use exact_signature::{ExactCallableSignatureV1, OptionalExactOwnerV1};
+pub use field::{FieldIdentityError, FieldIdentityKeyV1, GeneratedFieldKeyV1, SourceFieldKeyV1};
 pub use owners::{
     CallableOwnerV1, DispatchDeclarationOwnerV1, NominalDeclarationOwnerV1, NominalOwnerV1,
     PropertyOwnerV1,

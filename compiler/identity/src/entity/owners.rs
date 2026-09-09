@@ -6,6 +6,8 @@ use crate::{
     PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId,
 };
 
+use super::{SourceDeclarationIdentityError, SourceDeclarationKeyV1};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PropertyOwnerV1 {
     Property(PersistentPropertyId),
@@ -25,6 +27,18 @@ impl WireEncodeV1 for PropertyOwnerV1 {
 pub enum NominalDeclarationOwnerV1 {
     Concrete(PersistentTypeId),
     GenericTemplate(PersistentGenericTypeId),
+}
+
+impl NominalDeclarationOwnerV1 {
+    pub fn from_source_declaration(
+        key: &SourceDeclarationKeyV1,
+    ) -> Result<Self, SourceDeclarationIdentityError> {
+        if key.duplicate_signature().type_parameter_count() == 0 {
+            PersistentTypeId::from_source_declaration(key).map(Self::Concrete)
+        } else {
+            PersistentGenericTypeId::from_source_declaration(key).map(Self::GenericTemplate)
+        }
+    }
 }
 
 impl WireEncodeV1 for NominalDeclarationOwnerV1 {
