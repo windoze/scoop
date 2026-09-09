@@ -183,7 +183,7 @@ M22的普通range core源码surface包含四个独立nominal identity：`IntRang
 - source `for`、struct copy update、bare variant、alias和literal constraint在进入MIR前已经消失；MIR只接收typed loop/control transfer、表示无关的variant/literal test与payload projection、普通aggregate构造/投影、exact integer constant/operation与唯一call/variant target；
 - 输出 MIR type/function list，其中不再包含任何 generic 和 suspend（诊断信息除外）。
 
-`docs/milestone23/DESIGN.md`第3.3节定义的persistent-identity mangler（本文及artifact compatibility record称为`persistent-v1`）落地前，M22使用的过渡compact mangler固定为独立的`compact-v2` schema。两者分别对应封闭`ManglingSchemaIdentity::CompactV2`与`ManglingSchemaIdentity::PersistentV1`，不是同一family中的数字版本。`compact-v2`的integer type code直接消费`IntegerKind`，不从source短名、alias拼写或物理LLVM type反推：
+`docs/milestone23/DESIGN.md`第3.3节定义的persistent-identity mangler在artifact compatibility record中称为`persistent-v1`，也是当前唯一合法的`ManglingSchemaIdentity`。M23-2以前的compact mangler只属于未发布编译器的迁移前实现；M23-2必须直接删除其producer、parser和兼容分支，不把它写入或读入artifact。迁移前实现中的integer type code直接消费`IntegerKind`，不从source短名、alias拼写或物理LLVM type反推：
 
 | `IntegerKind` | canonical owner | compact-v2 code |
 | --- | --- | --- |
@@ -196,7 +196,7 @@ M22的普通range core源码surface包含四个独立nominal identity：`IntRang
 | `Unsigned, W32` | `UInt` | `V32` |
 | `Unsigned, W64` | `ULong` | `V64` |
 
-`compact-v1`的裸`I` / `V` code废止且不能当作任一宽度的fallback；transparent alias在进入mangler前已展开，因此`Int32` / `Int64` / `UInt32` / `UInt64`等拼写不另造code。compiler/runtime internal machine scalar不是source signature type，没有compact source type code；compiler-generated实体使用自身的typed role/identity symbol。`compact-v1`与`compact-v2` object、cache或artifact不兼容；`scoop`、`scoopc` reader与program-link必须读取manifest/cache key中的完整`ManglingSchemaIdentity`并在不相等时分别拒绝复用、消费或链接，不能靠native linker选择，也不能只比较末尾版本数字。M23的`persistent-v1`整体取代compact family；其symbol形态与linkage合同以`docs/milestone23/DESIGN.md`第3.3节为准。
+这些compact code不构成任何已发布格式，也不得作为persistent mangler的fallback。transparent alias在进入旧mangler前已展开，compiler/runtime internal machine scalar也从来不是source signature type。M23-2迁移后，compiler-generated实体只使用自身的typed role/identity symbol；`scoop`、`scoopc` reader与program-link只接受manifest/cache key中的`ManglingSchemaIdentity::PersistentV1`。其symbol形态与linkage合同以`docs/milestone23/DESIGN.md`第3.3节为准。
 
 **MIR meta**：每个Cone的MIR同时输出一份metadata，随`.slib`导出（见2.6），内容包括：persistent HIR source id到external callable/global/constructor/accessor的typed bridge；各单态化实例的symbol、specialization key、ODR group、generic来源与具体类型实参；各导出exact类型的vtable/itable schema、slot/adjust thunk、exact generic ancestry/conformance与TypeDescriptor symbol。类型布局不在其中——布局由LIR生产、经LIR meta导出（见2.4）。`ExportHir` template、`LocalConcreteHir` concrete实例与MIR实体使用不同typed id；跨层关系只能通过显式mapping表达，不能由name mangling反推。
 

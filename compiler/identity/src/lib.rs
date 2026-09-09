@@ -16,6 +16,7 @@ mod capability;
 mod cone;
 mod entity;
 mod ids;
+mod mangling;
 mod source;
 mod syntax;
 
@@ -118,6 +119,11 @@ pub use ids::{
     PersistentPropertyId, PersistentSafepointSiteId, PersistentScanId, PersistentSourceContextId,
     PersistentSourceNativeExternalContractId, PersistentStaticStorageId, PersistentTypeAliasId,
     PersistentTypeId,
+};
+pub use mangling::{
+    LinkageClass, MangledSymbol, ManglingSchemaIdentity, PersistentSymbolError,
+    PersistentSymbolKey, PersistentSymbolKind, PersistentSymbolRequest,
+    PersistentSymbolRequestTable,
 };
 pub use source::{
     DecodedNormalizedSourcePath, DecodedSourceIdentity, NormalizedSourcePath,

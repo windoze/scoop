@@ -1249,7 +1249,7 @@ u64 value = little_endian_u64(digest[0..8])
 scoop$1$<kind-tag>$<64 lowercase hexadecimal digits>
 ```
 
-prefix、`$`、schema十进制字面量和kind tag均为ASCII，hex不允许大写或缩写。mangler入口是封闭`PersistentSymbolKeyV1`，不是`mangle(&str, &[u8])`：
+prefix、`$`、schema十进制字面量和kind tag均为ASCII，hex不允许大写或缩写。mangler入口是封闭`PersistentSymbolKey`，不是`mangle(&str, &[u8])`：
 
 | key tag | kind tag | symbol key owner | 用途 |
 | ---: | --- | --- | --- |
@@ -1275,15 +1275,15 @@ prefix、`$`、schema十进制字面量和kind tag均为ASCII，hex不允许大�
 | 20 | `bs` | `ObjectDefinitionAtomId` | verifier start boundary |
 | 21 | `be` | `ObjectDefinitionAtomId` | verifier end boundary |
 
-`PersistentSymbolKeyV1`在wire上是`0=key tag, 1=typed owner`的封闭sum，key tag与上表一一对应。`PersistentSymbolRequestV1`是map `1=PersistentSymbolKeyV1, 2=LinkageClass`，不冗余存储symbol text；decoder验证后机械重生成字符串。request table按`(key tag, owner raw id)`排序，同key的两个linkage request是冲突而不是两条合法record。
+`PersistentSymbolKey`在wire上是`0=key tag, 1=typed owner`的封闭sum，key tag与上表一一对应。`PersistentSymbolRequest`是map `1=PersistentSymbolKey, 2=LinkageClass`，不冗余存储symbol text；decoder验证后机械重生成字符串。request table按`(key tag, owner raw id)`排序，同key的两个linkage request是冲突而不是两条合法record。
 
 `OdrMemberId`与`ObjectDefinitionPlanId`的完整identity key都已在第5.2节冻结；M23-3/M23-7只增加expected atom/associated-role闭包、definition payload与物理materialization relation。M23-2 producer不接受raw bytes冒充typed plan owner。generated bridge与boundary都使用本阶段按语义subkey定义的atom id；同一owner若有多个link-visible atom，必须先产生不同typed derived owner，不在hex后追加临时suffix或排序index。
 
 ### 7.2 linkage与例外
 
-`MangledSymbolV1`与`LinkageClass`分开。linkage封闭为`ConeStrong=1, TemplateSupportHidden=2, OdrWeak=3, RuntimeAbi=4`；语言visibility不直接cast为linkage。`RuntimeAbi` tag供相邻的runtime/native definition contract共用同一closed enum，但在全部21种`PersistentSymbolRequestV1`中都非法；runtime ABI永远不取得PersistentV1 symbol。
+`MangledSymbol`与`LinkageClass`分开。linkage封闭为`ConeStrong=1, TemplateSupportHidden=2, OdrWeak=3, RuntimeAbi=4`；语言visibility不直接cast为linkage。`RuntimeAbi` tag供相邻的runtime/native definition contract共用同一closed enum，但在全部21种`PersistentSymbolRequest`中都非法；runtime ABI永远不取得PersistentV1 symbol。
 
-validator不从linkage反猜owner，而是先从完整identity graph计算一个唯一的、只存在于validated view中的`EmissionRootV1 = ConeOwned { producer: ConeIdentity, subject: ConeEmissionSubjectV1 } | OdrOwned { group: OdrGroupId, member: OdrMemberId }`。`ConeEmissionSubjectV1`是validated-only closed sum，精确区分source declaration/generated callable root、source nominal exact root、initialization unit、static storage、immortal object、dispatch slot、root gateway、Cone image与generated bridge atom；它不编码到wire，也不接受裸digest。layout/scan/table/type registration共享exact subject，cell/descriptor/init registration共享unit subject，root registration共享storage subject，immortal registration共享object subject，site/callable registration共享body subject，bs/be共享plan所指subject：
+validator不从linkage反猜owner，而是先从完整identity graph计算一个唯一的、只存在于validated view中的`EmissionRoot = ConeOwned { producer: ConeIdentity, subject: ConeEmissionSubject } | OdrOwned { group: OdrGroupId, member: OdrMemberId }`。`ConeEmissionSubject`是validated-only closed sum，精确区分source declaration/generated callable root、source nominal exact root、initialization unit、static storage、immortal object、dispatch slot、root gateway、Cone image与generated bridge atom；它不编码到wire，也不接受裸digest。layout/scan/table/type registration共享exact subject，cell/descriptor/init registration共享unit subject，root registration共享storage subject，immortal registration共享object subject，site/callable registration共享body subject，bs/be共享plan所指subject：
 
 - source declaration、property、source object与其param-free、source-anchored generated descendant递归回溯到声明的origin Cone；body的`Strong` constructor只在owner恰好解析到一个Cone时合法；
 - callable application及其application-specific generated descendant回溯到`SpecializationKey::Callable`；generic delegated unit回溯到`DelegatedProperty`；nominal application回溯到`Nominal`；tuple/function/raw pointer/native function pointer回溯到以自身exact type为root的`StructuralType`；
@@ -1319,13 +1319,13 @@ validator不从linkage反猜owner，而是先从完整identity graph计算一个
 
 表中C/H/O分别是ConeStrong、TemplateSupportHidden、OdrWeak；RuntimeAbi对全部21行都非法。每个ObjectDefinitionPlan恰有一个primary symbol key，ODR member也不能同时发一个kind-specific primary和`od` alias。primary选择固定为：CallableBody/DispatchAdapter→`cb`；Layout→`ly`；ScanProgram→`sp`；TypeDescriptor→`td`；DispatchTable→`dt`；StaticStorage→`ss`；ImmortalObject→`io`；InitializationCell/Descriptor→`ic`/`id`；RegistrationRecord按discriminator唯一映射`rr/ir/nr/tr/sr/cr`；ReleaseHook→对应body的`cb`。`od`只接受确有物理primary的GeneratedNominal，以及没有上述kind-specific key的DiagnosticBytes、AddressTakenConstant（两种合法discriminator）和ObjectSupport；AddressTakenConstant即使以ImmortalObject作provenance也按member id命名，不能争用该object自身`ImmortalObject` member的`io(id)`。同member双primary、两个member争同primary、两个primary指同range或用alias让Mach-O不同symbol各选不同producer都拒绝。
 
-`ConeOwned`默认且在M23-2唯一可证明的linkage是`ConeStrong`。`TemplateSupportHidden`不是“private等于hidden”的cast：M23-5最多为source root建立visibility/access eligibility；M23-7的required HIR template-support section才从实际Export template body证明`{producer, template owner, source support subject}`的reachability，随后M23-7 LIR/object section把该subject投影为上述`ConeEmissionSubjectV1`并闭合全部派生definition。两个proof都存在且一致后，Link/production profile才可把**整个subject**收窄成`TemplateSupportHidden`；同一subject下的body/site/registration/boundary或exact/layout/scan/TD/registration不得各自选择不同linkage，同key也不能重复请求。可被最终claim的key tag封闭为`cb/ss/io/td/ly/sp/dt/ds/ic/id/rr/ir/nr/tr/sr/cr/bs/be`；Cone-owned initialization startup gateway随其unit subject继承，M24 param-free ReleaseHook及其registration随exact source subject继承，所以“strong”可具体为ConeStrong或TemplateSupportHidden。只有root gateway、image和generated bridge永远不得claim。foundation profile一律拒绝linkage 2；M23-3 production profile同样只接受`ConeStrong`并拒绝linkage 2/3，M23-5 eligibility单独存在也不开放linkage，M23-7 profile才随完整required proof开放。
+`ConeOwned`默认且在M23-2唯一可证明的linkage是`ConeStrong`。`TemplateSupportHidden`不是“private等于hidden”的cast：M23-5最多为source root建立visibility/access eligibility；M23-7的required HIR template-support section才从实际Export template body证明`{producer, template owner, source support subject}`的reachability，随后M23-7 LIR/object section把该subject投影为上述`ConeEmissionSubject`并闭合全部派生definition。两个proof都存在且一致后，Link/production profile才可把**整个subject**收窄成`TemplateSupportHidden`；同一subject下的body/site/registration/boundary或exact/layout/scan/TD/registration不得各自选择不同linkage，同key也不能重复请求。可被最终claim的key tag封闭为`cb/ss/io/td/ly/sp/dt/ds/ic/id/rr/ir/nr/tr/sr/cr/bs/be`；Cone-owned initialization startup gateway随其unit subject继承，M24 param-free ReleaseHook及其registration随exact source subject继承，所以“strong”可具体为ConeStrong或TemplateSupportHidden。只有root gateway、image和generated bridge永远不得claim。foundation profile一律拒绝linkage 2；M23-3 production profile同样只接受`ConeStrong`并拒绝linkage 2/3，M23-5 eligibility单独存在也不开放linkage，M23-7 profile才随完整required proof开放。
 
 `OdrOwned`只能选择`OdrWeak`，`ConeOwned`不能选择`OdrWeak`。因此constructor的最终判定精确为：先求root，再检查上表和可选hidden-support proof，最后比较request linkage；不允许用“当前只有一个producer”、语言visibility、symbol spelling或native linker容忍重复来降级/升级。
 
 `@Extern`指定的native symbol与runtime固定C ABI symbol走`NativeExternalSymbol`/`RuntimeAbiSymbol`独立type，不进mangler。M23-1旧runner需要的`scoop_main`仅由driver/codegen的`LegacyExecutableShim`定义，其body只调用已有`cb`持久symbol；同一Scoop main body不同时发射CompactV2与PersistentV1两个symbol。shim不进`.slib`、identity和semantic fingerprint，M23-11删除。
 
-`ManglingSchemaIdentity`可保留`CompactV2`用于诊断输入不兼容，active producer唯一值为`PersistentV1`且不实现`Default`。任何`format!`手工Scoop symbol、arena ordinal discriminator、source ordinal stem或通过临时伪`Module`调用mangler的production path都在本阶段删除。
+`ManglingSchemaIdentity`唯一值为`PersistentV1`且不实现`Default`；`CompactV2`不作为历史输入或兼容分支保留。任何`format!`手工Scoop symbol、arena ordinal discriminator、source ordinal stem或通过临时伪`Module`调用mangler的production path都在本阶段删除。
 
 ## 8. `.slib` bootstrap manifest与typed directory
 
@@ -1361,7 +1361,7 @@ validator不从linkage反猜owner，而是先从完整identity graph计算一个
 | 12 | `CompositeIdentityAbiFingerprint` |
 | 13/14 | `ArtifactCapabilityProfileId` / `ArtifactCapabilityProfileFingerprint` |
 
-上述六类fingerprint均是不可互换的typed 32-byte digest。`ManglingSchemaIdentity`不是数字version：v1 decoder是封闭text enum，只接受`persistent-v1`；`compact-v2`可作为旧输入诊断值但M23 producer/consumer不把它视为同family的较小版本。Graph/Compile要求当前toolchain认识所有profile且exact match，不以producer version text判断兼容。
+上述六类fingerprint均是不可互换的typed 32-byte digest。`ManglingSchemaIdentity`不是数字version：decoder是封闭text enum，只接受`persistent-v1`，没有旧输入兼容值。Graph/Compile要求当前toolchain认识所有profile且exact match，不以producer version text判断兼容。
 
 其中language/runtime ABI leaf不是未定义的外部常量。M23 registry冻结：
 
@@ -1451,7 +1451,7 @@ QualifiedPointerLayoutV1 {
 
 `DarwinAarch64V1`的field 1…15精确取：`"aarch64-apple-darwin"`；`"e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"`；`org.scoop-lang.object-format/mach-o-relocatable/1`；`Little=1`；按kind严格递增的`I1=1:(1,1), I8=2:(1,1), I16=3:(2,2), I32=4:(4,4), I64=5:(8,8)`；`(8,8)`；`(8,8, AllZeroBits=1, BitPreservingU64=1)`；同前；`(8,8)`；`16`；`16`；`9,223,372,036,854,775,807`；`ElideZeroSizedDirectScalarIndirectAggregate=1`；`GeneratedBridgeSystemCCompiler=1`；`MachOExternalUnderscore=1`。array不得遗漏、重复或改变scalar顺序。Float/Double尚未进入当前编译器实现子集，也不是M23 C-FFI-safe storage，因此不得伪装成I32/I64；未来启用F32/F64必须扩展scalar/storage contract并提升target profile major。
 
-`NativeSymbolNormalizationV1::MachOExternalUnderscore`把1…4095 byte、无NUL且不以LLVM escape byte `0x01`开头的logical symbol逐byte映射为`0x5f || logical`，输出恰为2…4096 byte；不做Unicode、大小写或已有underscore折叠。固定向量是`foo → _foo`、`_foo → __foo`、`scoop$1$cb$<64hex> → _scoop$1$cb$<64hex>`。Scoop LLVM object与generated-C bridge object verifier都必须应用同一policy；`NativeExternalSymbolKey.native_link_symbol`保存输出bytes，不能一个保存logical C name、另一个保存Mach-O `nlist` name。第7章的`MangledSymbolV1`语法描述logical Scoop symbol；codegen/object verifier以本field唯一映射到真实object symbol。
+`NativeSymbolNormalizationV1::MachOExternalUnderscore`把1…4095 byte、无NUL且不以LLVM escape byte `0x01`开头的logical symbol逐byte映射为`0x5f || logical`，输出恰为2…4096 byte；不做Unicode、大小写或已有underscore折叠。固定向量是`foo → _foo`、`_foo → __foo`、`scoop$1$cb$<64hex> → _scoop$1$cb$<64hex>`。Scoop LLVM object与generated-C bridge object verifier都必须应用同一policy；`NativeExternalSymbolKey.native_link_symbol`保存输出bytes，不能一个保存logical C name、另一个保存Mach-O `nlist` name。第7章的`MangledSymbol`语法描述logical Scoop symbol；codegen/object verifier以本field唯一映射到真实object symbol。
 
 该contract的Wire CBOR v1为：
 
@@ -1717,7 +1717,7 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 | 10 | `PersistentSafepointSiteId` records |
 | 11 | `RuntimeTypeMappingRecordV1` records |
 | 12 | `SafepointMappingRecordV1` records |
-| 13 | `PersistentSymbolRequestV1` records |
+| 13 | `PersistentSymbolRequest` records |
 | 14 | `NativeExternalContractRecord` records |
 | 15 | `CanonicalCAbiSignatureFingerprintRecord` records |
 | 16 | `CanonicalCAbiLayoutFingerprintRecord` records |
@@ -1961,7 +1961,7 @@ M23-2 foundation的code/runtime-image fingerprint是第8.1节的`Unavailable`；
 - 删除production `CallableLinkStem`/`NominalLinkStem`和`CompactV2`生成路径；MIR只保存typed persistent origin、Strong/ODR signature subject、MIR-first local value与callback storage ABI，不为调mangler构造伪`Module`。
 - closure/callback/coroutine/adapter/constructor/string/global等分散`format!`全部改用第7章入口；arena id/state number不得作overload discriminator。
 - 每个LIR function非可选地携带`PersistentCallableBodyId`；external runtime/native body使用其他typed target，不填伪body id。
-- LIR在body/layout/scan/table/storage/site/bridge owner全部形成并完成Strong/ODR分类后，集中构造`PersistentSymbolRequestV1`与mangled symbol；MIR没有这张表，也不能预猜LIR才存在的owner。
+- LIR在body/layout/scan/table/storage/site/bridge owner全部形成并完成Strong/ODR分类后，集中构造`PersistentSymbolRequest`与mangled symbol；MIR没有这张表，也不能预猜LIR才存在的owner。
 - safepoint lowering先记site role，在final CFG后集中生成site/full/u64映射。runtime type id从exact type派生，删除String=1和遍历顺序自增规则。
 - codegen只消费已验证的mangled symbol、runtime type id和safepoint id，不持有hash/mangler的fallback实现。legacy executable shim与Scoop body分层清晰。
 

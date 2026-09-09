@@ -1458,7 +1458,7 @@ LIR foundation的field 1…22精确为：
 | 10 | `PersistentSafepointSiteId` |
 | 11 | `RuntimeTypeMappingRecordV1` |
 | 12 | `SafepointMappingRecordV1` |
-| 13 | `PersistentSymbolRequestV1` |
+| 13 | `PersistentSymbolRequest` |
 | 14 | `NativeExternalContractRecord` |
 | 15 | `CanonicalCAbiSignatureFingerprintRecord` |
 | 16 | `CanonicalCAbiLayoutFingerprintRecord` |
