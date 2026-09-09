@@ -154,8 +154,9 @@ pub use source_declaration::{
     SourceDeclarationSite, SourceNominalKind,
 };
 pub use source_origin::{
-    ConcreteExpressionOrigin, DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject,
-    EvaluationOrigin, ExpressionOrigin, SourceContextKey, SourceOriginError, SourceSpan,
+    ConcreteExpressionOrigin, DecodedSourceContextKey, DefinitionOrigin, DefinitionOriginRecord,
+    DefinitionOriginSubject, EvaluationOrigin, ExpressionOrigin, SourceContextKey,
+    SourceContextResolutionError, SourceContextResolver, SourceOriginError, SourceSpan,
     SourceSpanError,
 };
 pub use structural::{

@@ -14,6 +14,10 @@ use crate::{
     PersistentTypeId, SourceIdentity,
 };
 
+mod decode;
+
+pub use decode::{DecodedSourceContextKey, SourceContextResolutionError, SourceContextResolver};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SourceSpan {
     start_byte: u64,
