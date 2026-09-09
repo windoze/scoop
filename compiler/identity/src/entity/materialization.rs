@@ -7,6 +7,13 @@ use crate::{
     PersistentLocalValueId, PersistentPropertyId, PersistentTypeId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedInitializationUnitKey, DecodedLocalValueKey, InitializationUnitResolutionError,
+    LocalValueResolutionError,
+};
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum InitializationUnitKey {
     TopLevelProperty(PersistentPropertyId),

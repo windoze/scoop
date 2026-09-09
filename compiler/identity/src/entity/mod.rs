@@ -104,7 +104,9 @@ pub use generated_nominal::{
     GeneratedNominalResolutionError,
 };
 pub use materialization::{
-    InitializationUnitKey, LocalValueKey, LocalValueSelector, SyntheticLocalRole,
+    DecodedInitializationUnitKey, DecodedLocalValueKey, InitializationUnitKey,
+    InitializationUnitResolutionError, LocalValueKey, LocalValueResolutionError,
+    LocalValueSelector, SyntheticLocalRole,
 };
 pub use native_contract::{
     NativeExternAbi, NativeExternalContract, NativeExternalContractFingerprintInput,
