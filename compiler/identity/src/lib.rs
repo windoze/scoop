@@ -40,6 +40,9 @@ pub use entity::{
     SourceSpanError, SourceSpanV1, StructuralDefinitionPathV1, StructuralDefinitionSiteRoleV1,
     StructuralPathSegmentV1,
 };
+pub use entity::{
+    InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
+};
 pub use ids::{
     DecodedPersistentIdV1, GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeLinkRequirementId,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, OdrGroupId, OdrMemberId,

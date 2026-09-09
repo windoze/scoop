@@ -1,5 +1,6 @@
 mod callable;
 mod exact_type;
+mod materialization;
 mod owners;
 mod signature;
 mod source_declaration;
@@ -19,6 +20,9 @@ pub use owners::{
 pub use exact_type::{
     CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticError, ExactTypeDiagnosticGraphV1,
     ExactTypeKeyV1,
+};
+pub use materialization::{
+    InitializationUnitKeyV1, LocalValueKeyV1, LocalValueSelectorV1, SyntheticLocalRoleV1,
 };
 pub use signature::{
     CallingConventionV1, DuplicateSignatureKeyV1, EffectV1, NonEmptyVec, NonEmptyVecError,
