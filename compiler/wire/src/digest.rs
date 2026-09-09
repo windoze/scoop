@@ -2,7 +2,7 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-use crate::cbor::{Decoder, Encoder, WireDecode, WireEncode, encode};
+use crate::cbor::{Decoder, Encoder, WireDecode, WireEncode, encode_into_hasher};
 use crate::runtime::{RuntimeEncode, encode_runtime};
 use crate::{WireError, WireErrorKind};
 
@@ -99,12 +99,11 @@ pub fn domain_separated_cbor_hash(
     if !domain.is_ascii() || domain.as_bytes().contains(&0) {
         return Err(HashError::InvalidDomain);
     }
-    let encoded = encode(value).map_err(|_| HashError::CborEncoding)?;
     let length = u64::try_from(domain.len()).map_err(|_| HashError::LengthOverflow)?;
     let mut hasher = Sha256::new();
     hasher.update(length.to_le_bytes());
     hasher.update(domain.as_bytes());
-    hasher.update(encoded);
+    let hasher = encode_into_hasher(value, hasher).map_err(|_| HashError::CborEncoding)?;
     Ok(Digest256(hasher.finalize().into()))
 }
 

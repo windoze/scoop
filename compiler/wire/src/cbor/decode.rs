@@ -360,6 +360,7 @@ pub fn decode_canonical_with_meter<T: WireDecode>(
                 requested_slots: input_length,
             },
             EncodeError::LengthLimit => WireErrorKind::NonCanonicalCbor,
+            EncodeError::OutputSinkMismatch => WireErrorKind::NonCanonicalCbor,
         };
         WireError::new(kind, WirePath::default(), None)
     })?;

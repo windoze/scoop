@@ -1,11 +1,13 @@
 use std::fmt;
 
+use sha2::{Digest, Sha256};
+
 /// A trusted producer for the Wire CBOR v1 subset.
 ///
 /// Only definite arrays/maps, unsigned integers, byte strings, and UTF-8 text
 /// are exposed. This makes forbidden CBOR types unrepresentable at call sites.
 pub struct Encoder {
-    inner: minicbor::Encoder<FallibleVec>,
+    inner: minicbor::Encoder<EncodingSink>,
 }
 
 impl Encoder {
@@ -15,10 +17,16 @@ impl Encoder {
 
     pub(crate) fn with_max_length(max_length: Option<usize>) -> Self {
         Self {
-            inner: minicbor::Encoder::new(FallibleVec {
+            inner: minicbor::Encoder::new(EncodingSink::Bytes(FallibleVec {
                 bytes: Vec::new(),
                 max_length,
-            }),
+            })),
+        }
+    }
+
+    fn with_hasher(hasher: Sha256) -> Self {
+        Self {
+            inner: minicbor::Encoder::new(EncodingSink::Hash(hasher)),
         }
     }
 
@@ -51,8 +59,8 @@ impl Encoder {
         self.unsigned(u64::from(field))
     }
 
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.inner.into_writer().bytes
+    fn into_sink(self) -> EncodingSink {
+        self.inner.into_writer()
     }
 }
 
@@ -69,7 +77,10 @@ pub trait WireEncode {
 pub fn encode(value: &impl WireEncode) -> Result<Vec<u8>, EncodeError> {
     let mut encoder = Encoder::new();
     value.encode(&mut encoder)?;
-    Ok(encoder.into_bytes())
+    match encoder.into_sink() {
+        EncodingSink::Bytes(output) => Ok(output.bytes),
+        EncodingSink::Hash(_) => Err(EncodeError::OutputSinkMismatch),
+    }
 }
 
 pub(crate) fn encode_with_limit(
@@ -78,13 +89,29 @@ pub(crate) fn encode_with_limit(
 ) -> Result<Vec<u8>, EncodeError> {
     let mut encoder = Encoder::with_max_length(Some(max_length));
     value.encode(&mut encoder)?;
-    Ok(encoder.into_bytes())
+    match encoder.into_sink() {
+        EncodingSink::Bytes(output) => Ok(output.bytes),
+        EncodingSink::Hash(_) => Err(EncodeError::OutputSinkMismatch),
+    }
+}
+
+pub(crate) fn encode_into_hasher(
+    value: &impl WireEncode,
+    hasher: Sha256,
+) -> Result<Sha256, EncodeError> {
+    let mut encoder = Encoder::with_hasher(hasher);
+    value.encode(&mut encoder)?;
+    match encoder.into_sink() {
+        EncodingSink::Hash(hasher) => Ok(hasher),
+        EncodingSink::Bytes(_) => Err(EncodeError::OutputSinkMismatch),
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EncodeError {
     Allocation,
     LengthLimit,
+    OutputSinkMismatch,
 }
 
 impl From<minicbor::encode::Error<OutputError>> for EncodeError {
@@ -101,6 +128,7 @@ impl fmt::Display for EncodeError {
         formatter.write_str(match self {
             Self::Allocation => "Wire CBOR v1 output allocation failed",
             Self::LengthLimit => "Wire CBOR v1 output exceeded its length limit",
+            Self::OutputSinkMismatch => "Wire CBOR v1 encoder output sink mismatch",
         })
     }
 }
@@ -116,6 +144,25 @@ enum OutputError {
 struct FallibleVec {
     bytes: Vec<u8>,
     max_length: Option<usize>,
+}
+
+enum EncodingSink {
+    Bytes(FallibleVec),
+    Hash(Sha256),
+}
+
+impl minicbor::encode::Write for EncodingSink {
+    type Error = OutputError;
+
+    fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
+        match self {
+            Self::Bytes(output) => output.write_all(bytes),
+            Self::Hash(hasher) => {
+                hasher.update(bytes);
+                Ok(())
+            }
+        }
+    }
 }
 
 impl minicbor::encode::Write for FallibleVec {
