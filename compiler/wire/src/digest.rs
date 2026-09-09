@@ -3,6 +3,7 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 use crate::cbor::{WireEncode, encode};
+use crate::runtime::{RuntimeEncode, encode_runtime};
 
 /// A content digest. Semantic identities use distinct newtypes in
 /// `scoop-identity` and cannot be converted from this type through safe APIs.
@@ -33,6 +34,7 @@ pub enum HashError {
     LengthOverflow,
     InvalidDomain,
     CborEncoding,
+    RuntimeEncoding,
 }
 
 impl fmt::Display for HashError {
@@ -41,6 +43,7 @@ impl fmt::Display for HashError {
             Self::LengthOverflow => "byte span length does not fit u64",
             Self::InvalidDomain => "hash domain must be non-NUL ASCII",
             Self::CborEncoding => "canonical CBOR encoding failed",
+            Self::RuntimeEncoding => "canonical runtime metadata encoding failed",
         })
     }
 }
@@ -73,6 +76,22 @@ pub fn domain_separated_cbor_hash(
         return Err(HashError::InvalidDomain);
     }
     let encoded = encode(value).map_err(|_| HashError::CborEncoding)?;
+    let length = u64::try_from(domain.len()).map_err(|_| HashError::LengthOverflow)?;
+    let mut hasher = Sha256::new();
+    hasher.update(length.to_le_bytes());
+    hasher.update(domain.as_bytes());
+    hasher.update(encoded);
+    Ok(Digest256(hasher.finalize().into()))
+}
+
+pub fn domain_separated_runtime_hash(
+    domain: &str,
+    value: &impl RuntimeEncode,
+) -> Result<Digest256, HashError> {
+    if !domain.is_ascii() || domain.as_bytes().contains(&0) {
+        return Err(HashError::InvalidDomain);
+    }
+    let encoded = encode_runtime(value).map_err(|_| HashError::RuntimeEncoding)?;
     let length = u64::try_from(domain.len()).map_err(|_| HashError::LengthOverflow)?;
     let mut hasher = Sha256::new();
     hasher.update(length.to_le_bytes());

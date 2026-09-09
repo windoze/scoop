@@ -1339,7 +1339,7 @@ ConeIdentity =
     DomainSeparatedCborHash("scoop-cone-id-v1", ConeCoordinate)
 ```
 
-长度转换必须checked到`u64`；domain不带NUL。在`DomainSeparatedCborHash`及其他直接拼接CBOR item的公式中，`WireCborV1(value)`已是唯一、自定界item，不再隐式套`ByteSpan`；仅当公式明确写`raw(id)`时，typed 32-byte id直接拼入，其他可变长raw片段一律使用`ByteSpan`。若专门公式显式写出`ByteSpan(WireCborV1(...))`则以该公式为准，12.5的`ArtifactFingerprint`即是这种有意的外层framing。runtime可重算的callable-body与runtime registration key使用另一套`RuntimeEncodeV1`（little-endian `u32/u64`、显式count、product按声明序、sum以little-endian `u32` tag开头），不得用Wire CBOR替代。manifest同时保存canonical coordinate record与digest，reader必须重算。version属于identity，因此两个版本即使源码相同也不是同一声明/type origin。artifact内容另有`ArtifactFingerprint`，不能用它、package、FQN、manifest路径或session-local provider编号代替`ConeIdentity`。
+长度转换必须checked到`u64`；domain不带NUL。在`DomainSeparatedCborHash`及其他直接拼接CBOR item的公式中，`WireCborV1(value)`已是唯一、自定界item，不再隐式套`ByteSpan`；仅当公式明确写`raw(id)`时，typed 32-byte id直接拼入，其他可变长raw片段一律使用`ByteSpan`。若专门公式显式写出`ByteSpan(WireCborV1(...))`则以该公式为准，12.5的`ArtifactFingerprint`即是这种有意的外层framing。runtime可重算的callable-body与runtime registration key使用另一套`RuntimeEncode`（little-endian `u32/u64`、显式count、product按声明序、sum以little-endian `u32` tag开头），不得用Wire CBOR替代。manifest同时保存canonical coordinate record与digest，reader必须重算。version属于identity，因此两个版本即使源码相同也不是同一声明/type origin。artifact内容另有`ArtifactFingerprint`，不能用它、package、FQN、manifest路径或session-local provider编号代替`ConeIdentity`。
 
 manifest-backed生产source Cone的最小manifest schema为：
 
@@ -1517,15 +1517,15 @@ runtime TypeDescriptor中的诊断类型名不是源码display spelling，而是
 layout、callable body、static storage、immortal object、initialization unit与safepoint site分别使用不同persistent id。M23每个由LIR定义并发射到当前Cone某个已验证`LinkObject`的Scoop callable body使用以下runtime-encoder identity；它不能改写成Wire CBOR hash：
 
 ```text
-CallableBodyKeyV1 = Strong { owner }                         // tag 1
+CallableBodyKey = Strong { owner }                         // tag 1
                   | Odr { member: CallableOdrMemberId }      // tag 2
                   | RootGateway { root_cone, main }          // tag 3
                   | InitializationStartupGateway { unit }    // tag 4
 PersistentCallableBodyId =
-    SHA-256(ByteSpan("scoop-callable-body-v1") || RuntimeEncodeV1(CallableBodyKeyV1))
+    SHA-256(ByteSpan("scoop-callable-body-v1") || RuntimeEncode(CallableBodyKey))
 ```
 
-variant tag是little-endian `u32`，product按声明顺序编码。后两个gateway不能冒充其调用的main/ensure。M24把**全部**machine body统一切到`CallableBodyKeyV2`与domain`scoop-callable-body-v2`，保留前四个tag并增加`ReleaseHook { owner: PersistentExactTypeId }=5`，公式仍是`SHA-256(ByteSpan(domain) || RuntimeEncodeV1(key))`；M24的HIR/MIR/LIR outer schema、identity-foundation capability major及引用它们的artifact profile同步升为2，而container、persistent identity schema、`persistent-v1` mangler与runtime metadata record prefix仍为1。旧M23 artifact整体重建，M24 artifact不得混留body-v1。`PersistentCallableApplicationId`、`OdrGroupId`及以CallableApplication/GeneratedCallable作discriminator的primary member不因body版本改变；body id、其safepoint及以CallableBody/SafepointSite作discriminator的派生member、registration与ODR fingerprint全部重生。
+variant tag是little-endian `u32`，product按声明顺序编码。后两个gateway不能冒充其调用的main/ensure。M24把**全部**machine body统一切到`CallableBodyKeyV2`与domain`scoop-callable-body-v2`，保留前四个tag并增加`ReleaseHook { owner: PersistentExactTypeId }=5`，公式仍是`SHA-256(ByteSpan(domain) || RuntimeEncode(key))`；M24的HIR/MIR/LIR outer schema、identity-foundation capability major及引用它们的artifact profile同步升为2，而container、persistent identity schema、`persistent-v1` mangler与runtime metadata record prefix仍为1。旧M23 artifact整体重建，M24 artifact不得混留body-v1。`PersistentCallableApplicationId`、`OdrGroupId`及以CallableApplication/GeneratedCallable作discriminator的primary member不因body版本改变；body id、其safepoint及以CallableBody/SafepointSite作discriminator的派生member、registration与ODR fingerprint全部重生。
 
 只有声明的native extern、validated runtime artifact函数及由非Scoop LIR producer生成的native body/bridge不属于callable-body集合，它们使用各自typed identity与目录或final-input verifier capability。layout id由exact type、target profile与representation role派生；storage/object id由typed owner declaration或specialization、stable definition path与封闭生成role派生，内容变化进入definition fingerprint而不另造content identity；safepoint site id由callable body id与CFG site role/ordinal派生。TypeDescriptor直接以`PersistentExactTypeId`登记，不另设与exact type竞争的type identity。凡concrete exact type进入LIR layout/type closure或param-free exported LIR bridge就必须runtime-materialize一份TD registration；只存在于未替换Export HIR template/binder中的type尚不materialize。非nominal exact type以exact id建立12.5的`StructuralType` ODR group；nominal exact type及以它为shape owner的box、coroutine step/slot/shell/start一律沿`ExactOwnerRoot`回到source Cone或Nominal specialization，不能为nominal exact type另造`StructuralType`组。最终程序中每个materialized exact type恰有一个TD地址，是否materialize不改变语言type identity。
 

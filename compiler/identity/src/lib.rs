@@ -29,11 +29,12 @@ pub use cone::{
 };
 pub use entity::{
     AccessorRole, BindableEntity, BindingNamespace, BindingRole, BindingTarget, BindingTargetError,
-    CallableApplicationKey, CallableArguments, CallableInstantiationOwner, CallableMaterialization,
-    CallableMaterializationContext, CallableTemplateOrigin, CallableTemplateOwner,
-    CallbackApplicationIdentityError, CallbackApplicationKey, CallbackParameterIndex,
-    CallbackRegistrationKey, ExportBindingKey, LocalBindingKey, LocalBindingRole,
-    PropertyAccessorKey, SignatureCallableShape,
+    CallableApplicationKey, CallableArguments, CallableBodyKey, CallableBodyKeyKind,
+    CallableInstantiationOwner, CallableMaterialization, CallableMaterializationContext,
+    CallableTemplateOrigin, CallableTemplateOwner, CallbackApplicationIdentityError,
+    CallbackApplicationKey, CallbackParameterIndex, CallbackRegistrationKey, ExportBindingKey,
+    LocalBindingKey, LocalBindingRole, MainCallableBodyId, PropertyAccessorKey,
+    SignatureCallableShape, StrongCallableDefinitionOwner,
 };
 pub use entity::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,

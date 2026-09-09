@@ -338,10 +338,10 @@ CallableBodyKeyV2 =
 
 PersistentCallableBodyId =
     SHA-256(ByteSpan("scoop-callable-body-v2") ||
-            RuntimeEncodeV1(CallableBodyKeyV2))
+            RuntimeEncode(CallableBodyKeyV2))
 ```
 
-`RuntimeEncodeV1`沿用M23 runtime metadata encoder：tag为little-endian `u32`，product按声明序编码，typed id写固定32 bytes；这里绝不是Wire CBOR，也不在key bytes外再套一层CBOR或host struct。所有五个variant都使用v2 domain，旧v1 artifact整体重建。`ReleaseHook` payload只有owner exact type id，因此runtime可从type registration的`PersistentExactTypeId`重算唯一合法body id，再要求该callable entry与TypeDescriptor函数指针逐bit一致。
+`RuntimeEncode`沿用M23 runtime metadata encoder：tag为little-endian `u32`，product按声明序编码，typed id写固定32 bytes；这里绝不是Wire CBOR，也不在key bytes外再套一层CBOR或host struct。所有五个variant都使用v2 domain，旧v1 artifact整体重建。`ReleaseHook` payload只有owner exact type id，因此runtime可从type registration的`PersistentExactTypeId`重算唯一合法body id，再要求该callable entry与TypeDescriptor函数指针逐bit一致。
 
 param-free source class不构造ReleaseHook ODR member；其hook body使用上述精确`ReleaseHook(owner)` body key，但definition plan走Strong owner并与同一个exact source subject的TypeDescriptor、callable registration一起由定义Cone发射，默认`ConeStrong`。若M23-7已经对整个subject取得完整template-support hidden proof，它们可以整体继承`TemplateSupportHidden`，但仍属于Strong侧而不是ODR；不得只把hook、registration或TD中的一个改成hidden。
 

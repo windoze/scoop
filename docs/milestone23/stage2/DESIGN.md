@@ -1184,14 +1184,14 @@ reader分别重算symbol id与contract fingerprint，再验证source contract经
 `PersistentCallableBodyId`不是source function id的alias。其key使用runtime metadata canonical encoder v1，而非CBOR：
 
 ```text
-CallableBodyKeyV1 =
+CallableBodyKey =
     Strong { owner: StrongCallableDefinitionOwner }                 // tag 1
   | Odr { member: CallableOdrMemberId }                              // tag 2
   | RootGateway { root_cone: ConeIdentity, main: MainCallableBodyId }// tag 3
   | InitializationStartupGateway { unit: PersistentInitializationUnitId } // tag 4
 
 PersistentCallableBodyId =
-    SHA-256(ByteSpan("scoop-callable-body-v1") || RuntimeEncodeV1(key))
+    SHA-256(ByteSpan("scoop-callable-body-v1") || RuntimeEncode(key))
 ```
 
 variant tag是小端u32，product按声明顺序编码。`StrongCallableDefinitionOwner`是typed sum，tag固定为`Function=1, Constructor=2, PropertyAccessor=3, GeneratedCallable=4`，只带对应persistent id。`CallableOdrMemberId`与`MainCallableBodyId`是refinement，前者只接受callable ODR member，后者只能由root Cone符合entry规则的top-level ordinary non-generic `() -> Unit` Strong body得到。

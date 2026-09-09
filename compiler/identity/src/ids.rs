@@ -2,8 +2,9 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use scoop_wire::{
-    Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
-    domain_separated_cbor_hash,
+    Decoder, Digest256, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder,
+    WireDecode, WireEncode, WireError, WireErrorKind, domain_separated_cbor_hash,
+    domain_separated_runtime_hash,
 };
 
 mod private {
@@ -59,6 +60,15 @@ macro_rules! persistent_id {
                 encoder: &mut Encoder,
             ) -> Result<(), scoop_wire::cbor::EncodeError> {
                 encoder.bytes(&self.0)
+            }
+        }
+
+        impl RuntimeEncode for $name {
+            fn runtime_encode(
+                &self,
+                encoder: &mut RuntimeEncoder,
+            ) -> Result<(), RuntimeEncodeError> {
+                encoder.fixed(&self.0)
             }
         }
 
@@ -212,6 +222,13 @@ pub(crate) fn derive_persistent_id<I: PersistentIdConstruction>(
     key: &impl WireEncode,
 ) -> Result<I, HashError> {
     domain_separated_cbor_hash(domain, key).map(I::from_digest)
+}
+
+pub(crate) fn derive_runtime_persistent_id<I: PersistentIdConstruction>(
+    domain: &'static str,
+    key: &impl RuntimeEncode,
+) -> Result<I, HashError> {
+    domain_separated_runtime_hash(domain, key).map(I::from_digest)
 }
 
 fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

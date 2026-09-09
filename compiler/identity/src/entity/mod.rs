@@ -1,6 +1,7 @@
 mod binding;
 mod c_abi;
 mod callable;
+mod callable_body;
 mod callback;
 mod dispatch;
 mod enum_variant;
@@ -37,6 +38,9 @@ pub use callable::{
     AccessorRole, CallableApplicationKey, CallableArguments, CallableInstantiationOwner,
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOrigin,
     CallableTemplateOwner, PropertyAccessorKey,
+};
+pub use callable_body::{
+    CallableBodyKey, CallableBodyKeyKind, MainCallableBodyId, StrongCallableDefinitionOwner,
 };
 pub use callback::{
     CallbackApplicationIdentityError, CallbackApplicationKey, CallbackParameterIndex,
