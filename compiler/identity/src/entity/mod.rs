@@ -48,7 +48,8 @@ pub use callable::{
     CallableTemplateOwner, PropertyAccessorKey,
 };
 pub use callable_body::{
-    CallableBodyKey, CallableBodyKeyKind, MainCallableBodyId, StrongCallableDefinitionOwner,
+    CallableBodyKey, CallableBodyKeyKind, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
+    DecodedStrongCallableDefinitionOwner, MainCallableBodyId, StrongCallableDefinitionOwner,
 };
 pub use callback::{
     CallbackApplicationIdentityError, CallbackApplicationKey, CallbackParameterIndex,

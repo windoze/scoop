@@ -1,10 +1,14 @@
-use scoop_wire::{HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireEncode};
+use scoop_wire::{
+    HashError, RuntimeDecode, RuntimeDecodeError, RuntimeDecodeErrorKind, RuntimeDecoder,
+    RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireEncode,
+};
 
 use super::CallableOdrMemberId;
 use crate::ids::derive_runtime_persistent_id;
 use crate::{
-    ConeIdentity, PersistentCallableBodyId, PersistentConstructorId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentInitializationUnitId, PersistentPropertyAccessorId,
+    ConeIdentity, DecodedPersistentId, OdrMemberId, PersistentCallableBodyId,
+    PersistentConstructorId, PersistentFunctionId, PersistentGeneratedCallableId, PersistentId,
+    PersistentInitializationUnitId, PersistentPropertyAccessorId,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -90,6 +94,80 @@ impl PersistentCallableBodyId {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum DecodedStrongCallableDefinitionOwner {
+    Function(DecodedPersistentId<PersistentFunctionId>),
+    Constructor(DecodedPersistentId<PersistentConstructorId>),
+    PropertyAccessor(DecodedPersistentId<PersistentPropertyAccessorId>),
+    GeneratedCallable(DecodedPersistentId<PersistentGeneratedCallableId>),
+}
+
+impl RuntimeEncode for DecodedStrongCallableDefinitionOwner {
+    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
+        match self {
+            Self::Function(id) => encode_runtime_sum(encoder, 1, id),
+            Self::Constructor(id) => encode_runtime_sum(encoder, 2, id),
+            Self::PropertyAccessor(id) => encode_runtime_sum(encoder, 3, id),
+            Self::GeneratedCallable(id) => encode_runtime_sum(encoder, 4, id),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum DecodedCallableBodyKeyKind {
+    Strong(DecodedStrongCallableDefinitionOwner),
+    Odr(DecodedPersistentId<OdrMemberId>),
+    RootGateway {
+        root_cone: DecodedPersistentId<ConeIdentity>,
+        main: DecodedPersistentId<PersistentCallableBodyId>,
+    },
+    InitializationStartupGateway(DecodedPersistentId<PersistentInitializationUnitId>),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct DecodedCallableBodyKey(DecodedCallableBodyKeyKind);
+
+impl DecodedCallableBodyKey {
+    pub const fn kind(&self) -> DecodedCallableBodyKeyKind {
+        self.0
+    }
+}
+
+impl RuntimeDecode for DecodedCallableBodyKey {
+    fn runtime_decode(decoder: &mut RuntimeDecoder<'_>) -> Result<Self, RuntimeDecodeError> {
+        let kind = match decoder.u32()? {
+            1 => DecodedCallableBodyKeyKind::Strong(decode_strong_owner(decoder)?),
+            2 => DecodedCallableBodyKeyKind::Odr(decode_persistent_id(decoder)?),
+            3 => DecodedCallableBodyKeyKind::RootGateway {
+                root_cone: decode_persistent_id(decoder)?,
+                main: decode_persistent_id(decoder)?,
+            },
+            4 => DecodedCallableBodyKeyKind::InitializationStartupGateway(decode_persistent_id(
+                decoder,
+            )?),
+            tag => return Err(decoder.error(RuntimeDecodeErrorKind::UnknownTag { tag })),
+        };
+        Ok(Self(kind))
+    }
+}
+
+impl RuntimeEncode for DecodedCallableBodyKey {
+    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
+        match self.0 {
+            DecodedCallableBodyKeyKind::Strong(owner) => encode_runtime_sum(encoder, 1, &owner),
+            DecodedCallableBodyKeyKind::Odr(member) => encode_runtime_sum(encoder, 2, &member),
+            DecodedCallableBodyKeyKind::RootGateway { root_cone, main } => {
+                encoder.u32(3)?;
+                root_cone.runtime_encode(encoder)?;
+                main.runtime_encode(encoder)
+            }
+            DecodedCallableBodyKeyKind::InitializationStartupGateway(unit) => {
+                encode_runtime_sum(encoder, 4, &unit)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct MainCallableBodyId(PersistentCallableBodyId);
 
 impl MainCallableBodyId {
@@ -122,14 +200,41 @@ fn encode_runtime_sum(
     value.runtime_encode(encoder)
 }
 
+fn decode_strong_owner(
+    decoder: &mut RuntimeDecoder<'_>,
+) -> Result<DecodedStrongCallableDefinitionOwner, RuntimeDecodeError> {
+    match decoder.u32()? {
+        1 => decode_persistent_id(decoder).map(DecodedStrongCallableDefinitionOwner::Function),
+        2 => decode_persistent_id(decoder).map(DecodedStrongCallableDefinitionOwner::Constructor),
+        3 => decode_persistent_id(decoder)
+            .map(DecodedStrongCallableDefinitionOwner::PropertyAccessor),
+        4 => decode_persistent_id(decoder)
+            .map(DecodedStrongCallableDefinitionOwner::GeneratedCallable),
+        tag => Err(decoder.error(RuntimeDecodeErrorKind::UnknownTag { tag })),
+    }
+}
+
+fn decode_persistent_id<I: PersistentId>(
+    decoder: &mut RuntimeDecoder<'_>,
+) -> Result<DecodedPersistentId<I>, RuntimeDecodeError> {
+    let source = decoder.fixed(32)?;
+    let mut bytes = [0; 32];
+    bytes.copy_from_slice(source);
+    Ok(DecodedPersistentId::from_unvalidated_bytes(bytes))
+}
+
 #[cfg(test)]
 mod tests {
-    use scoop_wire::encode_runtime;
+    use scoop_wire::{RuntimeDecodeErrorKind, decode_runtime, encode_runtime};
 
     use super::{
-        CallableBodyKey, CallableBodyKeyKind, MainCallableBodyId, StrongCallableDefinitionOwner,
+        CallableBodyKey, CallableBodyKeyKind, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
+        DecodedStrongCallableDefinitionOwner, MainCallableBodyId, StrongCallableDefinitionOwner,
     };
-    use crate::{ConeIdentity, PersistentCallableBodyId, PersistentFunctionId};
+    use crate::{
+        ConeIdentity, OdrMemberId, PersistentCallableBodyId, PersistentFunctionId,
+        PersistentInitializationUnitId,
+    };
 
     #[test]
     fn strong_callable_body_has_fixed_runtime_bytes_and_identity() {
@@ -165,5 +270,82 @@ mod tests {
                 main,
             }
         );
+    }
+
+    #[test]
+    fn decoded_body_keys_round_trip_every_runtime_variant() {
+        let bytes = ConeIdentity::CORE.0;
+        let encoded = [
+            [b"\x01\0\0\0\x01\0\0\0".as_slice(), bytes.as_slice()].concat(),
+            [b"\x01\0\0\0\x02\0\0\0".as_slice(), bytes.as_slice()].concat(),
+            [b"\x01\0\0\0\x03\0\0\0".as_slice(), bytes.as_slice()].concat(),
+            [b"\x01\0\0\0\x04\0\0\0".as_slice(), bytes.as_slice()].concat(),
+            [b"\x02\0\0\0".as_slice(), bytes.as_slice()].concat(),
+            [
+                b"\x03\0\0\0".as_slice(),
+                ConeIdentity::SINGLE_FILE.as_array(),
+                bytes.as_slice(),
+            ]
+            .concat(),
+            [b"\x04\0\0\0".as_slice(), bytes.as_slice()].concat(),
+        ];
+
+        for bytes in encoded {
+            let decoded = decode_runtime::<DecodedCallableBodyKey>(&bytes).unwrap();
+            assert_eq!(encode_runtime(&decoded).unwrap(), bytes);
+        }
+
+        let strong = decode_runtime::<DecodedCallableBodyKey>(&encoded_strong(bytes)).unwrap();
+        assert!(matches!(
+            strong.kind(),
+            DecodedCallableBodyKeyKind::Strong(
+                DecodedStrongCallableDefinitionOwner::Function(id)
+            ) if id.as_array() == &bytes
+        ));
+
+        let odr = decode_runtime::<DecodedCallableBodyKey>(
+            &[b"\x02\0\0\0".as_slice(), bytes.as_slice()].concat(),
+        )
+        .unwrap();
+        assert!(matches!(
+            odr.kind(),
+            DecodedCallableBodyKeyKind::Odr(id) if id.as_array() == OdrMemberId(bytes).as_array()
+        ));
+
+        let unit = decode_runtime::<DecodedCallableBodyKey>(
+            &[b"\x04\0\0\0".as_slice(), bytes.as_slice()].concat(),
+        )
+        .unwrap();
+        assert!(matches!(
+            unit.kind(),
+            DecodedCallableBodyKeyKind::InitializationStartupGateway(id)
+                if id.as_array() == PersistentInitializationUnitId(bytes).as_array()
+        ));
+    }
+
+    #[test]
+    fn decoded_body_key_rejects_unknown_and_incomplete_variants() {
+        let unknown = decode_runtime::<DecodedCallableBodyKey>(b"\x05\0\0\0").unwrap_err();
+        assert_eq!(
+            unknown.kind(),
+            RuntimeDecodeErrorKind::UnknownTag { tag: 5 }
+        );
+
+        let unknown_owner =
+            decode_runtime::<DecodedCallableBodyKey>(b"\x01\0\0\0\x05\0\0\0").unwrap_err();
+        assert_eq!(
+            unknown_owner.kind(),
+            RuntimeDecodeErrorKind::UnknownTag { tag: 5 }
+        );
+
+        let incomplete = decode_runtime::<DecodedCallableBodyKey>(b"\x02\0\0\0").unwrap_err();
+        assert!(matches!(
+            incomplete.kind(),
+            RuntimeDecodeErrorKind::UnexpectedEnd { .. }
+        ));
+    }
+
+    fn encoded_strong(bytes: [u8; 32]) -> Vec<u8> {
+        [b"\x01\0\0\0\x01\0\0\0".as_slice(), bytes.as_slice()].concat()
     }
 }

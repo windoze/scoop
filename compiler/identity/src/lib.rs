@@ -33,8 +33,9 @@ pub use entity::{
     CallableApplicationKey, CallableArguments, CallableBodyKey, CallableBodyKeyKind,
     CallableInstantiationOwner, CallableMaterialization, CallableMaterializationContext,
     CallableTemplateOrigin, CallableTemplateOwner, CallbackApplicationIdentityError,
-    CallbackApplicationKey, CallbackParameterIndex, CallbackRegistrationKey, ExportBindingKey,
-    LocalBindingKey, LocalBindingRole, MainCallableBodyId, PropertyAccessorKey,
+    CallbackApplicationKey, CallbackParameterIndex, CallbackRegistrationKey,
+    DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DecodedStrongCallableDefinitionOwner,
+    ExportBindingKey, LocalBindingKey, LocalBindingRole, MainCallableBodyId, PropertyAccessorKey,
     SignatureCallableShape, StrongCallableDefinitionOwner,
 };
 pub use entity::{

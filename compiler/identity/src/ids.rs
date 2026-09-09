@@ -141,13 +141,20 @@ persistent_id!(
 ///
 /// Validation must call [`Self::verify`] with an id recomputed from the
 /// canonical key before the concrete identity can escape.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DecodedPersistentId<I: PersistentId> {
     bytes: [u8; 32],
     marker: PhantomData<I>,
 }
 
 impl<I: PersistentId> DecodedPersistentId<I> {
+    pub(crate) const fn from_unvalidated_bytes(bytes: [u8; 32]) -> Self {
+        Self {
+            bytes,
+            marker: PhantomData,
+        }
+    }
+
     pub fn as_array(&self) -> &[u8; 32] {
         &self.bytes
     }
@@ -167,6 +174,12 @@ impl<I: PersistentId> DecodedPersistentId<I> {
 impl<I: PersistentId> WireEncode for DecodedPersistentId<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.bytes)
+    }
+}
+
+impl<I: PersistentId> RuntimeEncode for DecodedPersistentId<I> {
+    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
+        encoder.fixed(&self.bytes)
     }
 }
 
