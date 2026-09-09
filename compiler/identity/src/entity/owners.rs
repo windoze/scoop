@@ -8,6 +8,13 @@ use crate::{
 
 use super::{SourceDeclarationIdentityError, SourceDeclarationKey};
 
+mod decode;
+
+pub use decode::{
+    DecodedCallableOwner, DecodedDispatchDeclarationOwner, DecodedNominalDeclarationOwner,
+    DecodedNominalOwner, DecodedPropertyOwner,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PropertyOwner {
     Property(PersistentPropertyId),

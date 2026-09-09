@@ -65,7 +65,9 @@ pub use enum_variant::{
 pub use exact_signature::{ExactCallableSignature, OptionalExactOwner};
 pub use field::{FieldIdentityError, FieldIdentityKey, GeneratedFieldKey, SourceFieldKey};
 pub use owners::{
-    CallableOwner, DispatchDeclarationOwner, NominalDeclarationOwner, NominalOwner, PropertyOwner,
+    CallableOwner, DecodedCallableOwner, DecodedDispatchDeclarationOwner,
+    DecodedNominalDeclarationOwner, DecodedNominalOwner, DecodedPropertyOwner,
+    DispatchDeclarationOwner, NominalDeclarationOwner, NominalOwner, PropertyOwner,
 };
 pub use runtime_identity::{
     DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner, ImmortalObjectRole, LayoutKey,
