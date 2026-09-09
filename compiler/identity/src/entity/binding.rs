@@ -12,6 +12,13 @@ use crate::{
     SourceIdentity,
 };
 
+mod decode;
+
+pub use decode::{
+    BindingIdentityResolutionError, BindingResolver, DecodedBindableEntity,
+    DecodedExportBindingKey, DecodedLocalBindingKey,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum BindingNamespace {
     Type,

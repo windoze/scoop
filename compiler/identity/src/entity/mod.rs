@@ -28,8 +28,9 @@ mod source_origin;
 mod structural;
 
 pub use binding::{
-    BindableEntity, BindingNamespace, BindingRole, BindingTarget, BindingTargetError,
-    ExportBindingKey, LocalBindingKey, LocalBindingRole,
+    BindableEntity, BindingIdentityResolutionError, BindingNamespace, BindingResolver, BindingRole,
+    BindingTarget, BindingTargetError, DecodedBindableEntity, DecodedExportBindingKey,
+    DecodedLocalBindingKey, ExportBindingKey, LocalBindingKey, LocalBindingRole,
 };
 pub use bridge::{
     GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget,
