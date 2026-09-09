@@ -46,7 +46,7 @@ fn manifest(sections: Vec<ManifestSection>) -> BootstrapManifest {
         .unwrap(),
         Vec::new(),
         &members(),
-        SemanticFingerprintRecord::foundation(
+        SemanticFingerprintRecord::from_foundation_digests(
             HirFingerprint::from_array([1; 32]),
             MirFingerprint::from_array([2; 32]),
             LirFingerprint::from_array([3; 32]),

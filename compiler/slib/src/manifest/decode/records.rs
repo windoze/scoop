@@ -246,7 +246,7 @@ impl DecodedSemanticFingerprintRecord {
         ) {
             return Err(SemanticFingerprintValidationError::RuntimeImageMustBeUnavailable);
         }
-        Ok(SemanticFingerprintRecord::foundation(
+        Ok(SemanticFingerprintRecord::from_foundation_digests(
             HirFingerprint::from_array(*self.hir.as_array()),
             MirFingerprint::from_array(*self.mir.as_array()),
             LirFingerprint::from_array(*self.lir.as_array()),

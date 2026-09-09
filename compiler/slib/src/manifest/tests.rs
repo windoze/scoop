@@ -9,7 +9,7 @@ use crate::{
 };
 
 fn fingerprints(seed: u8) -> SemanticFingerprintRecord {
-    SemanticFingerprintRecord::foundation(
+    SemanticFingerprintRecord::from_foundation_digests(
         HirFingerprint::from_array([seed; 32]),
         MirFingerprint::from_array([seed.wrapping_add(1); 32]),
         LirFingerprint::from_array([seed.wrapping_add(2); 32]),

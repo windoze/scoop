@@ -245,7 +245,11 @@ pub struct SemanticFingerprintRecord {
 }
 
 impl SemanticFingerprintRecord {
-    pub fn foundation(hir: HirFingerprint, mir: MirFingerprint, lir: LirFingerprint) -> Self {
+    pub(crate) fn from_foundation_digests(
+        hir: HirFingerprint,
+        mir: MirFingerprint,
+        lir: LirFingerprint,
+    ) -> Self {
         Self {
             hir,
             mir,
