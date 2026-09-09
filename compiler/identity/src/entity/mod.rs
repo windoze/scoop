@@ -138,6 +138,8 @@ pub use source_origin::{
     SourceSpanError,
 };
 pub use structural::{
-    DeclarationName, DeclarationScope, DefinitionOwnerAtom, DefinitionOwnerChain,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    DeclarationName, DeclarationScope, DecodedDeclarationName, DecodedDeclarationScope,
+    DecodedDefinitionOwnerAtom, DecodedDefinitionOwnerChain, DefinitionOwnerAtom,
+    DefinitionOwnerChain, DefinitionOwnerResolutionError, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };

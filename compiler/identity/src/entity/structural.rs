@@ -6,6 +6,13 @@ use crate::{
     PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId, SourceIdentity,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedDeclarationName, DecodedDeclarationScope, DecodedDefinitionOwnerAtom,
+    DecodedDefinitionOwnerChain, DefinitionOwnerResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum StructuralDefinitionSiteRole {
     LocalDeclaration,
