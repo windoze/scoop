@@ -1242,7 +1242,7 @@ metadata stable key只与同tag role配对；其余stable key还要求key与role
 两个内建object capability的`logical_key`也不留给实现自由选择，并且不把任意多unit id内联到4,096-byte key中。generated bridge把producer-independent recipe unit与producer-specific physical atom严格分开：
 
 ```text
-GeneratedBridgeUnitKeyV1 =
+GeneratedBridgeUnitKey =
     OutboundFunction { contract: NativeExternalContractFingerprint }       // tag 1
   | GlobalRead       { contract: NativeExternalContractFingerprint }       // tag 2
   | GlobalWrite      { contract: NativeExternalContractFingerprint }       // tag 3
@@ -1252,14 +1252,14 @@ GeneratedBridgeUnitKeyV1 =
 
 GeneratedBridgeUnitId =
     DomainSeparatedCborHash("scoop-generated-bridge-unit-v1",
-                            GeneratedBridgeUnitKeyV1)
+                            GeneratedBridgeUnitKey)
 
-GeneratedBridgeAtomKeyV1 = {
+GeneratedBridgeAtomKey = {
     producer: ConeIdentity,                         // field 1
-    atom: GeneratedBridgeAtomRoleKeyV1,             // field 2
+    atom: GeneratedBridgeAtomRoleKey,             // field 2
 }
 
-GeneratedBridgeAtomRoleKeyV1 =
+GeneratedBridgeAtomRoleKey =
     PrimaryEntry { unit: GeneratedBridgeUnitId }                         // tag 1
   | SignatureDescriptor { unit: GeneratedBridgeUnitId,
                           signature: CanonicalCAbiSignatureFingerprint } // tag 2
@@ -1270,9 +1270,9 @@ GeneratedBridgeAtomRoleKeyV1 =
 
 GeneratedBridgeAtomId =
     DomainSeparatedCborHash("scoop-generated-bridge-atom-v1",
-                            GeneratedBridgeAtomKeyV1)
+                            GeneratedBridgeAtomKey)
 
-GeneratedBridgeSemanticTargetV1 = {
+GeneratedBridgeSemanticTarget = {
     unit: GeneratedBridgeUnitId,                    // field 1
 }
 
@@ -1295,7 +1295,7 @@ GeneratedBridgeObjectUnitSetDigest =
 
 sum仍按本节规则编码为`0=tag`及声明顺序payload field；contract/signature/layout id都是对应schema的固定32-byte typed digest。`CallbackParameterIndex`是独立于源码`Long`的typed newtype，在key中编码为Wire CBOR unsigned `u32`，必须小于canonical C signature的参数数且精确指向registration指定的`Ptr<Unit>` context槽；签名中存在别的普通`Ptr<Unit>`参数并不构成歧义。callback trampoline unit严格按`(c_signature, context_parameter)`复用，不包含具体closure、callback application、managed adapter或`PersistentCallableBodyId`；同一签名不同context槽得到不同unit，同一pair可由不同application复用同一个unit recipe。每个实际producer Cone仍为所用unit恰好生成一个`PrimaryEntry(unit)` atom，并以该atom的`GeneratedBridgeAtomId`产生自己的ConeStrong `br` symbol；跨Cone不共享物理symbol。
 
-`GeneratedBridgeSemanticTargetV1`是canonical LIR definition、ODR fingerprint与undefined requirement可引用的唯一bridge target。codegen把它映射到当前artifact Cone的primary atom；object verifier核对真实symbol后规范化回unit。`SignatureDescriptor`与`ContextDescriptor`可在需要时物理materialize；`StaticAssertSupport`只标识canonical generated-C source中的编译期assert recipe，成功object中没有对应section bytes，绝不能产生`br` request、`ObjectDefinitionPlan`或defined-symbol owner。缺少预期assert proof、为它制造sentinel atom、跨producer引用atom或LIR直接保存atom id都拒绝。
+`GeneratedBridgeSemanticTarget`是canonical LIR definition、ODR fingerprint与undefined requirement可引用的唯一bridge target。codegen把它映射到当前artifact Cone的primary atom；object verifier核对真实symbol后规范化回unit。`SignatureDescriptor`与`ContextDescriptor`可在需要时物理materialize；`StaticAssertSupport`只标识canonical generated-C source中的编译期assert recipe，成功object中没有对应section bytes，绝不能产生`br` request、`ObjectDefinitionPlan`或defined-symbol owner。缺少预期assert proof、为它制造sentinel atom、跨producer引用atom或LIR直接保存atom id都拒绝。
 
 `scoop-lir/1` logical key精确为map `1=unit_count: NonZeroU32, 2=ScoopLirObjectUnitSetDigest`；`generated-c-bridge/1`使用同样field形状，但key 2为`GeneratedBridgeObjectUnitSetDigest`。manifest的materialization relation保存完整、按id排序的unit/plan → `SlibMemberId`映射，atom则由producer Cone与unit/role key重算；reader要求每个plan/unit恰出现一次、不同member集合不相交，并证明object内全部可物理atom/record及共享CIE/layout support均为这些unit的typed派生闭包，不允许无owner的standalone support。这样单个object可含任意多unit而logical key仍定长；打包分组改变可以改变member id/code fingerprint，却不改变LIR semantic fingerprint，枚举或线程完成顺序不能改变key。未来producer capability必须冻结自己的unit key、set digest、覆盖和canonicality，不能只分配capability名字后使用临时ordinal。
 

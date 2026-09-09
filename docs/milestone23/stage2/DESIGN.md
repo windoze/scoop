@@ -510,8 +510,8 @@ non-generic type/function constructor要求`type_parameter_count=0`，generic ty
 | `PersistentImmortalObjectId` | `scoop-immortal-object-id-v1` | `{1=ImmortalObjectOwner, 2=object role, 3=structural path}` |
 | `OdrGroupId` | `scoop-odr-v1` | `SpecializationKey` |
 | `OdrMemberId` | `scoop-odr-member-v1` | `OdrMemberKey` |
-| `GeneratedBridgeUnitId` | `scoop-generated-bridge-unit-v1` | `GeneratedBridgeUnitKeyV1` |
-| `GeneratedBridgeAtomId` | `scoop-generated-bridge-atom-v1` | `GeneratedBridgeAtomKeyV1` |
+| `GeneratedBridgeUnitId` | `scoop-generated-bridge-unit-v1` | `GeneratedBridgeUnitKey` |
+| `GeneratedBridgeAtomId` | `scoop-generated-bridge-atom-v1` | `GeneratedBridgeAtomKey` |
 | `ObjectDefinitionPlanId` | `scoop-object-definition-plan-v1` | `ObjectDefinitionPlanKeyV1` |
 | `ObjectDefinitionAtomId` | `scoop-object-definition-atom-v1` | `ObjectDefinitionAtomKeyV1` |
 
@@ -806,17 +806,17 @@ LocalValueSelector =
 
 local value的owner必须同时保留模板与materialization context。param-free callable/initializer使用`NoSubstitution`；generic source callable使用自身Application；generic delegated initializer使用自身InitializationApplication；其中的lambda/anonymous/callable-reference wrapper以该generated template为`template`、以可回溯到其lexical parent或unit的同一context为`context`。因此两个callable application或两个receiver-specific initialization unit中的同一lambda local不会碰撞，也不会丢失它属于哪个lambda。未具体化的Export generic template只保存后续body capability定义的template-local typed selector，不提前构造`PersistentLocalValueId`；进入某个LocalConcrete application/unit后，HIR才为每个可能进入capture/frame的this、parameter、source local与bound receiver非可选地产生context-specific local-value id。MIR新建的eligible temporary使用Synthetic/SuspensionResult构造，并把coroutine saved set按raw id排序。capture/frame field的generated owner与local value必须具有同一个materialization context；只比较模板owner或结构path不足以通过validator。
 
-`GeneratedBridgeUnitKeyV1`与总设计4.1的object logical-key基础使用同一sum：`OutboundFunction=1 {1=NativeExternalContractFingerprint}`、`GlobalRead=2 {1=NativeExternalContractFingerprint}`、`GlobalWrite=3 {1=NativeExternalContractFingerprint}`、`GlobalAddress=4 {1=NativeExternalContractFingerprint}`、`CallbackTrampoline=5 {1=CanonicalCAbiSignatureFingerprint, 2=CallbackParameterIndex}`。`CallbackParameterIndex`是zero-based u32，所指参数必须恰为该registration指定的`Ptr<Unit>` context槽；同一签名可以另有普通`Ptr<Unit>`参数。这个unit key不含closure、managed adapter、arena id或object分片。
+`GeneratedBridgeUnitKey`与总设计4.1的object logical-key基础使用同一sum：`OutboundFunction=1 {1=NativeExternalContractFingerprint}`、`GlobalRead=2 {1=NativeExternalContractFingerprint}`、`GlobalWrite=3 {1=NativeExternalContractFingerprint}`、`GlobalAddress=4 {1=NativeExternalContractFingerprint}`、`CallbackTrampoline=5 {1=CanonicalCAbiSignatureFingerprint, 2=CallbackParameterIndex}`。`CallbackParameterIndex`是zero-based u32，所指参数必须恰为该registration指定的`Ptr<Unit>` context槽；同一签名可以另有普通`Ptr<Unit>`参数。这个unit key不含closure、managed adapter、arena id或object分片。
 
 bridge/object atom不使用“排序后第几个”的logical index；它们由稳定语义subkey区分：
 
 ```text
-GeneratedBridgeAtomKeyV1 {
+GeneratedBridgeAtomKey {
     producer: ConeIdentity,                         // field 1
-    atom: GeneratedBridgeAtomRoleKeyV1,             // field 2
+    atom: GeneratedBridgeAtomRoleKey,             // field 2
 }
 
-GeneratedBridgeAtomRoleKeyV1 =
+GeneratedBridgeAtomRoleKey =
     PrimaryEntry { unit: GeneratedBridgeUnitId }                         // tag 1
   | SignatureDescriptor { unit: GeneratedBridgeUnitId,
                           signature: CanonicalCAbiSignatureFingerprint } // tag 2
@@ -825,7 +825,7 @@ GeneratedBridgeAtomRoleKeyV1 =
   | StaticAssertSupport { unit: GeneratedBridgeUnitId,
                           layout: CanonicalCAbiLayoutFingerprint }       // tag 4
 
-GeneratedBridgeSemanticTargetV1 {
+GeneratedBridgeSemanticTarget {
     unit: GeneratedBridgeUnitId,                    // field 1
 }
 
@@ -898,7 +898,7 @@ DefinitionAtomSubkeyV1 =
   | StructuralPath { path: StructuralDefinitionPath }              // tag 8
 ```
 
-`GeneratedBridgeSemanticTargetV1`是LIR canonical definition、ODR fingerprint与undefined requirement中唯一可引用的bridge target；它只有unit，不含producer/atom。每个实际producer Cone必须为所用unit恰好生成一个`PrimaryEntry { unit }` atom，codegen把semantic target映射成`GeneratedBridgeAtomKeyV1 { producer = current artifact Cone, atom = PrimaryEntry(unit) }`。object verifier核对真实`br` symbol后，把relocation规范化回`GeneratedBridgeUnit { id }` canonical target；defined owner仍是producer-specific atom。这样两个Cone生成同一ODR body时，其机器relocation可各指向本Cone强bridge，但canonical LIR/object definition都观察相同unit recipe，不把consumer-local atom id写进ODR fingerprint。缺失/多个primary、跨producer atom或LIR直接保存atom id全部拒绝。
+`GeneratedBridgeSemanticTarget`是LIR canonical definition、ODR fingerprint与undefined requirement中唯一可引用的bridge target；它只有unit，不含producer/atom。每个实际producer Cone必须为所用unit恰好生成一个`PrimaryEntry { unit }` atom，codegen把semantic target映射成`GeneratedBridgeAtomKey { producer = current artifact Cone, atom = PrimaryEntry(unit) }`。object verifier核对真实`br` symbol后，把relocation规范化回`GeneratedBridgeUnit { id }` canonical target；defined owner仍是producer-specific atom。这样两个Cone生成同一ODR body时，其机器relocation可各指向本Cone强bridge，但canonical LIR/object definition都观察相同unit recipe，不把consumer-local atom id写进ODR fingerprint。缺失/多个primary、跨producer atom或LIR直接保存atom id全部拒绝。
 
 `StrongDefinitionEntityV1 × StrongDefinitionRoleV1`矩阵逐项对应第7.1节key tag 1…18：CallableBody只接受role 1/16，StaticStorage接受2/11，ImmortalObject接受3/12，ExactType接受4/14，Layout、Scan、DispatchTable、DispatchSlot分别接受5…8，InitializationUnit接受9/10/13，SafepointSite接受15，ConeImage接受17，GeneratedBridgeAtom接受18。GeneratedBridgeAtom entity只接受`PrimaryEntry`、`SignatureDescriptor`或`ContextDescriptor`三种可物理materialize的atom id；`StaticAssertSupport`虽有identity record，却永远不能进入plan。Strong owner的entity必须按第7.2节求得同一个`producer` Cone；ODR owner只能与`OdrMemberPrimary`配对，Strong owner只能与`Strong` role配对。由此同一typed entity的body与registration可得到两个不同plan，而不同kind的裸32-byte值不能混用。plan key不含member、section、range、offset或digest；M23-3/M23-7只增加expected boundary/associated-role payload和物理materialization relation，不得重定义plan id。
 

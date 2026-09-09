@@ -1,4 +1,5 @@
 mod binding;
+mod bridge;
 mod c_abi;
 mod callable;
 mod callable_body;
@@ -28,6 +29,10 @@ mod structural;
 pub use binding::{
     BindableEntity, BindingNamespace, BindingRole, BindingTarget, BindingTargetError,
     ExportBindingKey, LocalBindingKey, LocalBindingRole,
+};
+pub use bridge::{
+    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget,
+    GeneratedBridgeUnitKey,
 };
 pub use c_abi::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,
