@@ -1,7 +1,8 @@
 use std::fmt;
 use std::ops::Range;
 
-use scoop_wire::sha256;
+use scoop_wire::budget::COLLECTION_ELEMENT_BYTES_V1;
+use scoop_wire::{BudgetMeter, WireError, WirePath, sha256};
 
 use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
 
@@ -71,7 +72,7 @@ impl CanonicalSlibArchive {
             .try_reserve_exact(capacity)
             .map_err(|_| ArchiveWriteError::Allocation)?;
         output.extend_from_slice(GLOBAL_MAGIC);
-        write_member(&mut output, "manifest.cbor", manifest)?;
+        write_member(&mut output, b"manifest.cbor", manifest)?;
         for (ordinal, member) in members.into_iter().enumerate() {
             let name = member_name(ordinal).ok_or(ArchiveWriteError::TooManyMembers {
                 actual: ordinal
@@ -192,7 +193,7 @@ pub enum ArchiveReadError {
         id: SlibMemberId,
     },
     LengthOverflow,
-    Allocation,
+    Budget(WireError),
 }
 
 impl fmt::Display for ArchiveReadError {
@@ -254,7 +255,7 @@ impl fmt::Display for ArchiveReadError {
                 )
             }
             Self::LengthOverflow => formatter.write_str("archive length arithmetic overflowed"),
-            Self::Allocation => formatter.write_str("failed to allocate archive member ranges"),
+            Self::Budget(error) => error.fmt(formatter),
         }
     }
 }
@@ -271,7 +272,7 @@ pub struct ManifestArchive<'input> {
 }
 
 impl<'input> ManifestArchive<'input> {
-    pub fn open(input: &'input [u8]) -> Result<Self, ArchiveReadError> {
+    pub fn open(input: &'input [u8], meter: &mut BudgetMeter) -> Result<Self, ArchiveReadError> {
         let input_length =
             u64::try_from(input.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
         if input_length > MAX_ARCHIVE_BYTES {
@@ -279,12 +280,19 @@ impl<'input> ManifestArchive<'input> {
                 actual: input_length,
             });
         }
+        let path = WirePath::default();
+        meter
+            .charge_work(1, &path)
+            .map_err(ArchiveReadError::Budget)?;
         if input.get(..GLOBAL_MAGIC.len()) != Some(GLOBAL_MAGIC) {
             return Err(ArchiveReadError::BadMagic);
         }
+        meter
+            .charge_work(1, &path)
+            .map_err(ArchiveReadError::Budget)?;
         let ordinal = ArchiveMemberOrdinal::Manifest;
         let (manifest, next_header) =
-            read_member(input, GLOBAL_MAGIC.len(), "manifest.cbor", ordinal)?;
+            read_member(input, GLOBAL_MAGIC.len(), b"manifest.cbor", ordinal)?;
         let manifest_length =
             u64::try_from(manifest.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
         if manifest_length > MAX_MANIFEST_BYTES {
@@ -306,12 +314,19 @@ impl<'input> ManifestArchive<'input> {
     pub fn validate_directory(
         self,
         records: &[SlibMemberRecord],
+        meter: &mut BudgetMeter,
     ) -> Result<DecodedArchive<'input>, ArchiveReadError> {
         if records.len() > MAX_MEMBERS {
             return Err(ArchiveReadError::TooManyMembers {
                 actual: records.len(),
             });
         }
+        let path = WirePath::default();
+        let record_count =
+            u64::try_from(records.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        meter
+            .charge_canonical_sequence(record_count, &path)
+            .map_err(ArchiveReadError::Budget)?;
         for (index, pair) in records.windows(2).enumerate() {
             if pair[0].id() >= pair[1].id() {
                 return Err(ArchiveReadError::NonIncreasingDirectory {
@@ -341,11 +356,22 @@ impl<'input> ManifestArchive<'input> {
         }
 
         let mut ranges = Vec::new();
-        ranges
-            .try_reserve_exact(records.len())
-            .map_err(|_| ArchiveReadError::Allocation)?;
+        meter
+            .check_table_entries(record_count, &path)
+            .map_err(ArchiveReadError::Budget)?;
+        meter
+            .try_reserve_exact(
+                &mut ranges,
+                record_count,
+                COLLECTION_ELEMENT_BYTES_V1,
+                &path,
+            )
+            .map_err(ArchiveReadError::Budget)?;
         let mut cursor = self.next_header;
         for (index, record) in records.iter().enumerate() {
+            meter
+                .charge_work(1, &path)
+                .map_err(ArchiveReadError::Budget)?;
             let ordinal = u32::try_from(index).map_err(|_| ArchiveReadError::LengthOverflow)?;
             let member = ArchiveMemberOrdinal::Directory(ordinal);
             let name = member_name(index).ok_or(ArchiveReadError::TooManyMembers {
@@ -363,6 +389,9 @@ impl<'input> ManifestArchive<'input> {
                     actual,
                 });
             }
+            meter
+                .charge_sha256(actual, &path)
+                .map_err(ArchiveReadError::Budget)?;
             if sha256(&self.input[range.clone()]) != record.sha256() {
                 return Err(ArchiveReadError::MemberDigestMismatch { id: record.id() });
             }
@@ -401,7 +430,7 @@ impl<'input> DecodedArchive<'input> {
 fn read_member(
     input: &[u8],
     header_start: usize,
-    expected_name: &str,
+    expected_name: &[u8],
     member: ArchiveMemberOrdinal,
 ) -> Result<(Range<usize>, usize), ArchiveReadError> {
     let header_length =
@@ -413,17 +442,7 @@ fn read_member(
         .get(header_start..header_end)
         .ok_or(ArchiveReadError::TruncatedHeader { member })?;
 
-    let mut canonical_name = String::new();
-    let name_length = expected_name
-        .len()
-        .checked_add(1)
-        .ok_or(ArchiveReadError::LengthOverflow)?;
-    canonical_name
-        .try_reserve_exact(name_length)
-        .map_err(|_| ArchiveReadError::Allocation)?;
-    canonical_name.push_str(expected_name);
-    canonical_name.push('/');
-    if !is_canonical_field(&header[0..16], canonical_name.as_bytes())
+    if !is_canonical_archive_name(&header[0..16], expected_name)
         || !is_canonical_field(&header[16..28], b"0")
         || !is_canonical_field(&header[28..34], b"0")
         || !is_canonical_field(&header[34..40], b"0")
@@ -463,6 +482,18 @@ fn is_canonical_field(field: &[u8], value: &[u8]) -> bool {
             .is_some_and(|padding| padding.iter().all(|byte| *byte == b' '))
 }
 
+fn is_canonical_archive_name(field: &[u8], name: &[u8]) -> bool {
+    let Some(slash_index) = name.len().checked_add(1) else {
+        return false;
+    };
+    name.len() < field.len()
+        && field.get(..name.len()) == Some(name)
+        && field.get(name.len()) == Some(&b'/')
+        && field
+            .get(slash_index..)
+            .is_some_and(|padding| padding.iter().all(|byte| *byte == b' '))
+}
+
 fn parse_size(field: &[u8]) -> Option<u64> {
     let value_length = field
         .iter()
@@ -487,26 +518,26 @@ fn encoded_member_length(payload_length: u64) -> Option<u64> {
         .and_then(|length| length.checked_add(payload_length & 1))
 }
 
-fn member_name(ordinal: usize) -> Option<String> {
+fn member_name(ordinal: usize) -> Option<[u8; 9]> {
     if ordinal >= MAX_MEMBERS {
         return None;
     }
-    Some(format!("m{ordinal:08}"))
+    let mut name = *b"m00000000";
+    let mut value = ordinal;
+    for digit in name[1..].iter_mut().rev() {
+        *digit = b'0' + (value % 10) as u8;
+        value /= 10;
+    }
+    Some(name)
 }
 
-fn write_member(output: &mut Vec<u8>, name: &str, payload: &[u8]) -> Result<(), ArchiveWriteError> {
+fn write_member(
+    output: &mut Vec<u8>,
+    name: &[u8],
+    payload: &[u8],
+) -> Result<(), ArchiveWriteError> {
     let header_start = output.len();
-    let mut archive_name = String::new();
-    let archive_name_length = name
-        .len()
-        .checked_add(1)
-        .ok_or(ArchiveWriteError::LengthOverflow)?;
-    archive_name
-        .try_reserve_exact(archive_name_length)
-        .map_err(|_| ArchiveWriteError::Allocation)?;
-    archive_name.push_str(name);
-    archive_name.push('/');
-    write_field(output, archive_name.as_bytes(), 16)?;
+    write_archive_name_field(output, name)?;
     write_field(output, b"0", 12)?;
     write_field(output, b"0", 6)?;
     write_field(output, b"0", 6)?;
@@ -518,6 +549,20 @@ fn write_member(output: &mut Vec<u8>, name: &str, payload: &[u8]) -> Result<(), 
     if payload.len() & 1 == 1 {
         output.push(b'\n');
     }
+    Ok(())
+}
+
+fn write_archive_name_field(output: &mut Vec<u8>, name: &[u8]) -> Result<(), ArchiveWriteError> {
+    let length = name
+        .len()
+        .checked_add(1)
+        .ok_or(ArchiveWriteError::LengthOverflow)?;
+    if length > 16 {
+        return Err(ArchiveWriteError::HeaderFieldOverflow);
+    }
+    output.extend_from_slice(name);
+    output.push(b'/');
+    output.resize(output.len() + 16 - length, b' ');
     Ok(())
 }
 

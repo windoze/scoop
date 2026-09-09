@@ -96,8 +96,8 @@ impl<'input> DecodedSlibEnvelope<'input> {
         limits: DecodeLimits,
         selection: ValidatedLirTargetSelection,
     ) -> Result<Self, SlibReadError> {
-        let archive = ManifestArchive::open(input).map_err(SlibReadError::Container)?;
         let mut meter = BudgetMeter::new(limits);
+        let archive = ManifestArchive::open(input, &mut meter).map_err(SlibReadError::Container)?;
         let decoded =
             decode_canonical_with_meter::<DecodedBootstrapManifest>(archive.manifest(), &mut meter)
                 .map_err(SlibReadError::CanonicalWire)?;
@@ -105,7 +105,7 @@ impl<'input> DecodedSlibEnvelope<'input> {
             .validate(selection)
             .map_err(|error| SlibReadError::Manifest(Box::new(error)))?;
         let archive = archive
-            .validate_directory(manifest.members())
+            .validate_directory(manifest.members(), &mut meter)
             .map_err(SlibReadError::Directory)?;
         Ok(Self {
             archive,
