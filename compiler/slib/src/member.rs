@@ -247,6 +247,34 @@ pub struct SlibMemberRecord {
     sha256: Digest256,
 }
 
+/// A directory record bound to the exact payload from which its length and
+/// content digest were computed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SlibMember {
+    record: SlibMemberRecord,
+    payload: Vec<u8>,
+}
+
+impl SlibMember {
+    pub fn new(
+        cone: ConeIdentity,
+        stable_key: MemberStableKey,
+        role: SlibMemberRole,
+        payload: Vec<u8>,
+    ) -> Result<Self, SlibMemberRecordError> {
+        let record = SlibMemberRecord::new(cone, stable_key, role, &payload)?;
+        Ok(Self { record, payload })
+    }
+
+    pub const fn record(&self) -> &SlibMemberRecord {
+        &self.record
+    }
+
+    pub fn payload(&self) -> &[u8] {
+        &self.payload
+    }
+}
+
 impl SlibMemberRecord {
     pub fn new(
         cone: ConeIdentity,

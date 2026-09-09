@@ -5,3 +5,6 @@
 
 mod member;
 pub use member::*;
+
+mod archive;
+pub use archive::*;
