@@ -13,6 +13,7 @@ mod materialization;
 mod native_contract;
 mod native_link;
 mod native_name;
+mod odr;
 mod owners;
 mod scoop_abi;
 mod signature;
@@ -81,6 +82,10 @@ pub use native_link::{
 pub use native_name::{
     CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbol,
     SourceNativeSymbolError,
+};
+pub use odr::{
+    CallableOdrMemberId, OdrMemberDiscriminator, OdrMemberIdentityError, OdrMemberKey,
+    OdrMemberRole, SpecializationKey,
 };
 pub use scoop_abi::{
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,

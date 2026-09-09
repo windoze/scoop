@@ -1543,13 +1543,13 @@ SpecializationKey = Nominal { origin: PersistentGenericTypeId, exact arguments }
                   | DelegatedProperty { origin: PersistentExtensionPropertyId,
                                         exact receiver arguments }
                   | StructuralType { exact_type: PersistentExactTypeId }
-OdrGroupId = DomainSeparatedCborHash("scoop-odr-v1", SpecializationKeyV1)
-OdrMemberKeyV1 = { group: OdrGroupId, role: OdrMemberRoleV1,
-                   discriminator: OdrMemberDiscriminatorV1 }
-OdrMemberId = DomainSeparatedCborHash("scoop-odr-member-v1", OdrMemberKeyV1)
+OdrGroupId = DomainSeparatedCborHash("scoop-odr-v1", SpecializationKey)
+OdrMemberKey = { group: OdrGroupId, role: OdrMemberRole,
+                   discriminator: OdrMemberDiscriminator }
+OdrMemberId = DomainSeparatedCborHash("scoop-odr-member-v1", OdrMemberKey)
 ```
 
-四个specialization variant的wire tag固定为1…4。全部argument/application必须使用persistent exact type identity；没有owner/application/argument时使用对应variant的typed空分支，不能靠空vector推断entity kind。member role只区分同一group内的member，不进入`SpecializationKey`或`OdrGroupId`。`OdrMemberRoleV1`的tag 1…16固定为`CallableBody, GeneratedNominal, Layout, ScanProgram, TypeDescriptor, DispatchTable, DispatchAdapter, StaticStorage, ImmortalObject, InitializationCell, InitializationDescriptor, RegistrationRecord, DiagnosticBytes, AddressTakenConstant, ObjectSupport, ReleaseHook`；`ReleaseHook=16`在identity schema v1中已有唯一语义且只允许`ExactType` discriminator，但M23 HIR/MIR/LIR schema v1与artifact profile必须拒绝产生/消费它，M24 schema/profile v2才启用。
+四个specialization variant的wire tag固定为1…4。全部argument/application必须使用persistent exact type identity；没有owner/application/argument时使用对应variant的typed空分支，不能靠空vector推断entity kind。member role只区分同一group内的member，不进入`SpecializationKey`或`OdrGroupId`。`OdrMemberRole`的tag 1…16固定为`CallableBody, GeneratedNominal, Layout, ScanProgram, TypeDescriptor, DispatchTable, DispatchAdapter, StaticStorage, ImmortalObject, InitializationCell, InitializationDescriptor, RegistrationRecord, DiagnosticBytes, AddressTakenConstant, ObjectSupport, ReleaseHook`；`ReleaseHook=16`在identity schema v1中已有唯一语义且只允许`ExactType` discriminator，但M23 HIR/MIR/LIR schema v1与artifact profile必须拒绝产生/消费它，M24 schema/profile v2才启用。
 
 role/discriminator合法性之外，reader还必须从discriminator完整canonical key沿typed owner关系回溯到本group唯一root：Callable application逐字段等于group key；Nominal的exact application、DelegatedProperty的unit与StructuralType的非nominal exact type分别匹配自身origin/arguments。任意别组typed id、producer Cone、symbol、object分片、相同layout或first use均不能建立provenance。多个Cone产生同一specialization时发射相同group，且相同role/member provenance具有相同`OdrMemberId`与ODR linkage：nominal group完整包含由该nominal application产生的layout、TypeDescriptor、vtable/itable、scan及相关box/adjust member；callable group包含由该callable application产生的body、closure/coroutine/adapter；delegated-property group包含其storage/root/cell/failure/init/ensure/descriptor；structural-type group包含materialized layout/scan/box/TypeDescriptor。specialization-owned registration、address-taken string/constant/diagnostic bytes及其他支持定义都必须进入同组，不能直接指向consumer-local private定义，也不能增加未列入上述封闭sum的content-group旁路。唯一的受验证例外是generated-C bridge：canonical LIR/ODR只引用producer-independent的`GeneratedBridgeSemanticTargetV1 { unit }`，实际object relocation才绑定当前producer的local strong primary atom并由object verifier正规化回unit；它是外部semantic dependency，不成为当前specialization group成员。一个group可以通过typed ref引用另一既有canonical group，但不能把自身产生的runtime identity漏在组外。
 

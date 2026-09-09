@@ -187,7 +187,7 @@ ReleasePolicy<Target> = None
 
 `ExportHir`中的generic owner保存typed release template、其 `ReleaseFieldRef` 集合、`ReleaseSafe` call graph edge及`RequiresReleaseValue` type-argument条件；param-free owner保存完整hook body。`LocalConcreteHir`只含fully substituted `ConcreteReleasePolicy`，其中hook target、每个field exact type及所有call target都已确定；不能保留源码名称、nullable body或“稍后检查ReleaseValue”的flag。
 
-release block使用独立的stage-local `ExportReleaseHookId` / `ConcreteReleaseHookId`。它们不能与function、method、constructor、accessor或ordinary callable id混用，但也**不是**persistent identity：M24不定义`PersistentReleaseHookId`，不为它分配新mangler kind。跨Cone template body进入generic hidden support closure但不进入public lookup surface；具体machine body只由第4.2节`PersistentCallableBodyId`标识，generic ODR归组复用M23已冻结的`OdrMemberRoleV1::ReleaseHook=16`。
+release block使用独立的stage-local `ExportReleaseHookId` / `ConcreteReleaseHookId`。它们不能与function、method、constructor、accessor或ordinary callable id混用，但也**不是**persistent identity：M24不定义`PersistentReleaseHookId`，不为它分配新mangler kind。跨Cone template body进入generic hidden support closure但不进入public lookup surface；具体machine body只由第4.2节`PersistentCallableBodyId`标识，generic ODR归组复用M23已冻结的`OdrMemberRole::ReleaseHook=16`。
 
 ### 3.2 MIR
 
@@ -345,7 +345,7 @@ PersistentCallableBodyId =
 
 param-free source class不构造ReleaseHook ODR member；其hook body使用上述精确`ReleaseHook(owner)` body key，但definition plan走Strong owner并与同一个exact source subject的TypeDescriptor、callable registration一起由定义Cone发射，默认`ConeStrong`。若M23-7已经对整个subject取得完整template-support hidden proof，它们可以整体继承`TemplateSupportHidden`，但仍属于Strong侧而不是ODR；不得只把hook、registration或TD中的一个改成hidden。
 
-generic exact application使用M23已冻结的nominal specialization group，且恰有一个`OdrMemberKeyV1 { group=owner的Nominal组, role=ReleaseHook(16), discriminator=ExactType(owner) }`。validator逐字段证明group的origin/arguments等于owner的`ExactTypeKey::NominalApplication`；hook body仍是`CallableBodyKeyV2::ReleaseHook(owner)`，其`cb` symbol与ObjectDefinitionPlan primary由该ReleaseHook member拥有并取`OdrWeak`。同组另有且只有一个`RegistrationRecord/CallableBody(body id)` member供`cr`使用；不能再制造`CallableBody` role member、`od`第二primary、safepoint或`sr`。TD的hook relocation必须命中该`cb` entry。多个consumer materialize同一application时逐member证明并coalesce为同一TD、registration和hook地址。
+generic exact application使用M23已冻结的nominal specialization group，且恰有一个`OdrMemberKey { group=owner的Nominal组, role=ReleaseHook(16), discriminator=ExactType(owner) }`。validator逐字段证明group的origin/arguments等于owner的`ExactTypeKey::NominalApplication`；hook body仍是`CallableBodyKeyV2::ReleaseHook(owner)`，其`cb` symbol与ObjectDefinitionPlan primary由该ReleaseHook member拥有并取`OdrWeak`。同组另有且只有一个`RegistrationRecord/CallableBody(body id)` member供`cr`使用；不能再制造`CallableBody` role member、`od`第二primary、safepoint或`sr`。TD的hook relocation必须命中该`cb` entry。多个consumer materialize同一application时逐member证明并coalesce为同一TD、registration和hook地址。
 
 hook调用verified pure C leaf bridge时，canonical LIR definition、object relocation fingerprint与ODR digest只引用M23的`GeneratedBridgeSemanticTargetV1 { unit }`；各producer实际指向本Cone `PrimaryEntry(unit)` atom，object verifier必须再规范化回unit。producer-local atom id不能进入generic hook fingerprint，否则两个consumer会为同一release specialization得到不同definition。
 

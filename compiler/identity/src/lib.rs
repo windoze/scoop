@@ -52,6 +52,10 @@ pub use entity::{
     OptionalExactOwner, SourceFieldKey,
 };
 pub use entity::{
+    CallableOdrMemberId, OdrMemberDiscriminator, OdrMemberIdentityError, OdrMemberKey,
+    OdrMemberRole, SpecializationKey,
+};
+pub use entity::{
     CallableOwner, CallingConvention, CanonicalExactTypeDiagnosticName, ConcreteExpressionOrigin,
     DeclarationName, DeclarationScope, DefinitionOrigin, DefinitionOriginRecord,
     DefinitionOriginSubject, DefinitionOwnerAtom, DefinitionOwnerChain, DispatchDeclarationOwner,

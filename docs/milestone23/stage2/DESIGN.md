@@ -508,8 +508,8 @@ non-generic type/function constructor要求`type_parameter_count=0`，generic ty
 | `PersistentDispatchTableId` | `scoop-dispatch-table-id-v1` | `{1=exact type, 2=table role, 3=optional interface exact type}` |
 | `PersistentStaticStorageId` | `scoop-static-storage-id-v1` | `{1=typed owner, 2=storage role}` |
 | `PersistentImmortalObjectId` | `scoop-immortal-object-id-v1` | `{1=ImmortalObjectOwnerV1, 2=object role, 3=structural path}` |
-| `OdrGroupId` | `scoop-odr-v1` | `SpecializationKeyV1` |
-| `OdrMemberId` | `scoop-odr-member-v1` | `OdrMemberKeyV1` |
+| `OdrGroupId` | `scoop-odr-v1` | `SpecializationKey` |
+| `OdrMemberId` | `scoop-odr-member-v1` | `OdrMemberKey` |
 | `GeneratedBridgeUnitId` | `scoop-generated-bridge-unit-v1` | `GeneratedBridgeUnitKeyV1` |
 | `GeneratedBridgeAtomId` | `scoop-generated-bridge-atom-v1` | `GeneratedBridgeAtomKeyV1` |
 | `ObjectDefinitionPlanId` | `scoop-object-definition-plan-v1` | `ObjectDefinitionPlanKeyV1` |
@@ -907,7 +907,7 @@ DefinitionAtomSubkeyV1 =
 现有generic materialization已经要求可持久引用的ODR identity，因此M23-2冻结最小、但不声称完成definition等价验证的key：
 
 ```text
-SpecializationKeyV1 =
+SpecializationKey =
     Nominal { origin: PersistentGenericTypeId,
               arguments: NonEmpty<PersistentExactTypeId> }                // tag 1
   | Callable { application: CallableApplicationKey }                    // tag 2
@@ -915,18 +915,18 @@ SpecializationKeyV1 =
                         receiver_arguments: NonEmpty<PersistentExactTypeId> } // tag 3
   | StructuralType { exact_type: PersistentExactTypeId }                  // tag 4
 
-OdrMemberKeyV1 {
+OdrMemberKey {
     group: OdrGroupId,                         // field 1
-    role: OdrMemberRoleV1,                     // field 2
-    discriminator: OdrMemberDiscriminatorV1,   // field 3
+    role: OdrMemberRole,                     // field 2
+    discriminator: OdrMemberDiscriminator,   // field 3
 }
 ```
 
-`OdrMemberRoleV1`固定为`CallableBody=1, GeneratedNominal=2, Layout=3, ScanProgram=4, TypeDescriptor=5, DispatchTable=6, DispatchAdapter=7, StaticStorage=8, ImmortalObject=9, InitializationCell=10, InitializationDescriptor=11, RegistrationRecord=12, DiagnosticBytes=13, AddressTakenConstant=14, ObjectSupport=15, ReleaseHook=16`。tag 16在identity schema v1中为M24预留唯一语义，M23 HIR/MIR/LIR schema v1不得产生它；这不是unknown/reserved tag。`OdrMemberDiscriminatorV1`固定为`Singleton=1, CallableApplication=2, GeneratedCallable=3, GeneratedNominal=4, ExactType=5, Layout=6, Scan=7, DispatchTable=8, DispatchSlot=9, StaticStorage=10, ImmortalObject=11, InitializationUnit=12, StructuralPath=13, CallableBody=14, SafepointSite=15`，除Singleton外field 1携带名字所示typed id/path。
+`OdrMemberRole`固定为`CallableBody=1, GeneratedNominal=2, Layout=3, ScanProgram=4, TypeDescriptor=5, DispatchTable=6, DispatchAdapter=7, StaticStorage=8, ImmortalObject=9, InitializationCell=10, InitializationDescriptor=11, RegistrationRecord=12, DiagnosticBytes=13, AddressTakenConstant=14, ObjectSupport=15, ReleaseHook=16`。tag 16在identity schema v1中为M24预留唯一语义，M23 HIR/MIR/LIR schema v1不得产生它；这不是unknown/reserved tag。`OdrMemberDiscriminator`固定为`Singleton=1, CallableApplication=2, GeneratedCallable=3, GeneratedNominal=4, ExactType=5, Layout=6, Scan=7, DispatchTable=8, DispatchSlot=9, StaticStorage=10, ImmortalObject=11, InitializationUnit=12, StructuralPath=13, CallableBody=14, SafepointSite=15`，除Singleton外field 1携带名字所示typed id/path。
 
 role与discriminator允许矩阵也属于v1 schema：`CallableBody→CallableApplication|GeneratedCallable|InitializationUnit`；`GeneratedNominal→GeneratedNominal`；`Layout→Layout`；`ScanProgram→Scan`；`TypeDescriptor→ExactType`；`DispatchTable→DispatchTable`；`DispatchAdapter→DispatchSlot|GeneratedCallable`；`StaticStorage→StaticStorage`；`ImmortalObject→ImmortalObject`；`InitializationCell|InitializationDescriptor→InitializationUnit`；`RegistrationRecord→CallableBody|SafepointSite|ExactType|StaticStorage|ImmortalObject|InitializationUnit`；`DiagnosticBytes→ExactType|CallableApplication|GeneratedNominal|StructuralPath`；`AddressTakenConstant→ImmortalObject|StructuralPath`；`ObjectSupport→Singleton|StructuralPath`；`ReleaseHook→ExactType`。其他组合拒绝。`CallableOdrMemberId`只接受`CallableBody`/`DispatchAdapter`及`CallableApplication|GeneratedCallable|InitializationUnit` discriminator；其中`CallableBody/InitializationUnit`只允许generic delegated-property组的startup gateway，discriminator unit必须逐字段等于group root的property与receiver arguments。`ReleaseHookOdrMemberId`只接受`ReleaseHook/ExactType`，且只有M24 outer schema v2可把它作为semantic member使用。Callable group还必须逐字段比较内嵌`CallableApplicationKey`与对应`PersistentCallableApplicationId` record，不能只相信一份32-byte摘要。
 
-合法role/discriminator还不等于合法group成员；v1同时冻结`SpecializationKeyV1 variant × member provenance`门禁：
+合法role/discriminator还不等于合法group成员；v1同时冻结`SpecializationKey variant × member provenance`门禁：
 
 - `Callable`组的`CallableApplication`必须逐字段等于group key；generated callable/nominal、body、site、storage与support必须沿模板级lexical owner加该application的materialization relation回溯到它，不能把另一个application或全局shape helper挂入；
 - `Nominal`组的root必须是与`origin + arguments`相同的`ExactTypeKey::NominalApplication`；layout/scan/TD/table/field/adapter及其generated descendant都须沿exact owner链回溯到该root；
@@ -970,9 +970,9 @@ validator从完整canonical key/typed relation重算上述可达性；producer C
 
 M24 generic release hook使用`{group = 该owner的Nominal specialization group, role = ReleaseHook, discriminator = ExactType(该owner application)}`。validator必须逐字段证明group的`origin + arguments`与该`PersistentExactTypeId`的`NominalApplication` key一致；每个有release policy的generic exact owner恰有一个该member，hook body的ObjectDefinitionPlan owner就是它，`cb(CallableBodyKeyV2::ReleaseHook(owner))`取`OdrWeak`。另有且只有一个同组`RegistrationRecord/CallableBody(body id)` member供`cr`使用；TD relocation必须命中该`cb` entry，不得再为同一hook制造`CallableBody` member或`od`第二primary，release body也不得有`safepoint/sr`。若body调用verified pure C leaf bridge，canonical definition只引用unit并按前述规则把producer-local atom relocation正规化。
 
-param-free hook不构造ReleaseHook ODR member；其body、callable registration与TD都继承同一个exact source subject，因而可按M23-7完整hidden proof统一为ConeStrong或TemplateSupportHidden。这样M24只启用M23-2已经赋义的role/matrix，不改变`OdrGroupId`、`OdrMemberKeyV1`或`persistent-v1`；但M23 schema v1的artifact profile仍一律拒绝ReleaseHook semantic member。
+param-free hook不构造ReleaseHook ODR member；其body、callable registration与TD都继承同一个exact source subject，因而可按M23-7完整hidden proof统一为ConeStrong或TemplateSupportHidden。这样M24只启用M23-2已经赋义的role/matrix，不改变`OdrGroupId`、`OdrMemberKey`或`persistent-v1`；但M23 schema v1的artifact profile仍一律拒绝ReleaseHook semantic member。
 
-M23-2对当前callable application生成`SpecializationKeyV1::Callable`、对应`CallableBody` member与`OdrWeak` symbol，使同一generic owner/callable application从一开始就没有temporary Strong identity。但foundation profile不可发布、没有Link view；M23-3的production profile仍明确拒绝任何ODR member。直到M23-7补齐完整member闭包、ABI/definition fingerprint、object materialization和跨Cone member-set/definition一致性证明后，含ODR member的artifact才可取得Publishable/Link proof。M23-7不重定义上述group/member key。不使用FQN、symbol、producer Cone、object分片或全零bytes作占位。
+M23-2对当前callable application生成`SpecializationKey::Callable`、对应`CallableBody` member与`OdrWeak` symbol，使同一generic owner/callable application从一开始就没有temporary Strong identity。但foundation profile不可发布、没有Link view；M23-3的production profile仍明确拒绝任何ODR member。直到M23-7补齐完整member闭包、ABI/definition fingerprint、object materialization和跨Cone member-set/definition一致性证明后，含ODR member的artifact才可取得Publishable/Link proof。M23-7不重定义上述group/member key。不使用FQN、symbol、producer Cone、object分片或全零bytes作占位。
 
 ### 5.3 identity record与顺序
 
@@ -1286,7 +1286,7 @@ prefix、`$`、schema十进制字面量和kind tag均为ASCII，hex不允许大�
 validator不从linkage反猜owner，而是先从完整identity graph计算一个唯一的、只存在于validated view中的`EmissionRootV1 = ConeOwned { producer: ConeIdentity, subject: ConeEmissionSubjectV1 } | OdrOwned { group: OdrGroupId, member: OdrMemberId }`。`ConeEmissionSubjectV1`是validated-only closed sum，精确区分source declaration/generated callable root、source nominal exact root、initialization unit、static storage、immortal object、dispatch slot、root gateway、Cone image与generated bridge atom；它不编码到wire，也不接受裸digest。layout/scan/table/type registration共享exact subject，cell/descriptor/init registration共享unit subject，root registration共享storage subject，immortal registration共享object subject，site/callable registration共享body subject，bs/be共享plan所指subject：
 
 - source declaration、property、source object与其param-free、source-anchored generated descendant递归回溯到声明的origin Cone；body的`Strong` constructor只在owner恰好解析到一个Cone时合法；
-- callable application及其application-specific generated descendant回溯到`SpecializationKeyV1::Callable`；generic delegated unit回溯到`DelegatedProperty`；nominal application回溯到`Nominal`；tuple/function/raw pointer/native function pointer回溯到以自身exact type为root的`StructuralType`；
+- callable application及其application-specific generated descendant回溯到`SpecializationKey::Callable`；generic delegated unit回溯到`DelegatedProperty`；nominal application回溯到`Nominal`；tuple/function/raw pointer/native function pointer回溯到以自身exact type为root的`StructuralType`；
 - generated nominal/callable的闭包、frame、continuation、adapter、box、coroutine step/slot、derived equality、dispatch/boxing adjust等严格使用第5.2节已经冻结的owner/materialization/root函数：`NoSubstitution`的source-anchored实体回到唯一Cone，`Application`回到对应Callable组，`InitializationApplication`回到对应unit的Cone或DelegatedProperty组；shape helper按表选择`ExactOwnerRoot`或仅接受非nominal exact type的`StructuralRoot`，前者仍可能得到source Cone、Nominal组或StructuralType组；找不到root、找到两个root或跨root混合都拒绝；
 - `InitializationUnitKey`的前四个variant回到声明Cone，`GenericDelegatedExtensionApplication`回到对应DelegatedProperty组；`RootGateway`回到`root_cone`，`InitializationStartupGateway`继承unit root；
 - 每个`OdrOwned`结果还必须定位第5.2节中role/discriminator正确、root provenance完整的唯一member record。只有group id而没有member，或只有同role的别组member，都不能获得`OdrWeak`。

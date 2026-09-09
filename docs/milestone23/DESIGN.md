@@ -502,13 +502,13 @@ SpecializationKey = Nominal { origin: PersistentGenericTypeId, exact arguments }
                                         exact receiver arguments }
                   | StructuralType { exact_type: PersistentExactTypeId }
 OdrGroupId = DomainSeparatedCborHash("scoop-odr-v1", SpecializationKey)
-OdrMemberKeyV1 = { group: OdrGroupId,
-                   role: OdrMemberRoleV1,
-                   discriminator: OdrMemberDiscriminatorV1 }
-OdrMemberId = DomainSeparatedCborHash("scoop-odr-member-v1", OdrMemberKeyV1)
+OdrMemberKey = { group: OdrGroupId,
+                   role: OdrMemberRole,
+                   discriminator: OdrMemberDiscriminator }
+OdrMemberId = DomainSeparatedCborHash("scoop-odr-member-v1", OdrMemberKey)
 ```
 
-四个Specialization variant的wire tag固定为1…4。`OdrMemberRoleV1`的tag 1…16依次是`CallableBody, GeneratedNominal, Layout, ScanProgram, TypeDescriptor, DispatchTable, DispatchAdapter, StaticStorage, ImmortalObject, InitializationCell, InitializationDescriptor, RegistrationRecord, DiagnosticBytes, AddressTakenConstant, ObjectSupport, ReleaseHook`；tag 16已经属于identity schema v1，但M23 outer schema/profile v1不得产生或消费其semantic member，只有M24 schema/profile v2启用。member discriminator与完整role矩阵由M23-2详细设计冻结。所有argument/application必须是persistent exact type identity；没有owner或没有callable arguments由第3.1节typed sum表达，不能靠空Vec猜实体类别。member role标识group内member而不进入group key；否则function、TypeDescriptor和storage会被错误拆成互不关联的多个“组”。validator还必须从每个discriminator的canonical key沿typed owner/application关系回溯到当前group root：Callable application逐字段等于group key，nominal exact application、delegated-property unit和structural exact type分别是其variant唯一root；合法role不能搭配任意别组typed id。producer Cone、symbol、object分片或相同layout都不构成provenance。
+四个Specialization variant的wire tag固定为1…4。`OdrMemberRole`的tag 1…16依次是`CallableBody, GeneratedNominal, Layout, ScanProgram, TypeDescriptor, DispatchTable, DispatchAdapter, StaticStorage, ImmortalObject, InitializationCell, InitializationDescriptor, RegistrationRecord, DiagnosticBytes, AddressTakenConstant, ObjectSupport, ReleaseHook`；tag 16已经属于identity schema v1，但M23 outer schema/profile v1不得产生或消费其semantic member，只有M24 schema/profile v2启用。member discriminator与完整role矩阵由M23-2详细设计冻结。所有argument/application必须是persistent exact type identity；没有owner或没有callable arguments由第3.1节typed sum表达，不能靠空Vec猜实体类别。member role标识group内member而不进入group key；否则function、TypeDescriptor和storage会被错误拆成互不关联的多个“组”。validator还必须从每个discriminator的canonical key沿typed owner/application关系回溯到当前group root：Callable application逐字段等于group key，nominal exact application、delegated-property unit和structural exact type分别是其variant唯一root；合法role不能搭配任意别组typed id。producer Cone、symbol、object分片或相同layout都不构成provenance。
 
 - param-free source-anchored type/callable默认由其定义Cone以`ConeStrong`发射，layout/dispatch/TypeDescriptor从同一个exact/source subject继承；只有M23-7同时取得实际Export template-body reachability与LIR/object派生闭包证明后，整个Cone-owned subject才可统一收窄为`TemplateSupportHidden`。`param-free`本身不是Cone ownership证明：`FunctionShape`等真正非nominal exact shape才进入`StructuralType`组；box/coroutine step、slot、shell/start等以`ExactOwnerRoot`求根，source nominal回到定义Cone，nominal application进入`Nominal`组，只有非nominal exact owner才进入`StructuralType`。adapter再按其冻结的source/target shape root规则判定，不能把所有compiler helper一概归为Structural；
 - 上游generic template与下游local type组成的新application在**实际消费Cone**完成HIR concretization、layout、MIR/LIR与发射。定义Cone不可能预计算`Upstream<DownstreamLocal>`，因此“layout只在定义Cone计算一次”只适用于param-free实体；
