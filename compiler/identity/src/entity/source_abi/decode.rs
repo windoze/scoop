@@ -9,6 +9,14 @@ use crate::{
     PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId, SignatureTypeKey,
 };
 
+mod contract;
+
+pub use contract::{
+    DecodedSourceNativeExternalContract, DecodedSourceNativeExternalContractKey,
+    DecodedSourceNativeExternalContractRecord, DecodedSourceNativeExternalOwner,
+    SourceNativeExternalResolutionError,
+};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedSourceNativeLibraryBinding {
     DefaultNativeNamespace,

@@ -13,7 +13,10 @@ mod decode;
 
 pub use decode::{
     DecodedSourceCAbiFunctionSignature, DecodedSourceCAbiReturn, DecodedSourceExternFunctionAbi,
+    DecodedSourceNativeExternalContract, DecodedSourceNativeExternalContractKey,
+    DecodedSourceNativeExternalContractRecord, DecodedSourceNativeExternalOwner,
     DecodedSourceNativeLibraryBinding, DecodedSourceScoopAbiFunctionSignature,
+    SourceNativeExternalResolutionError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

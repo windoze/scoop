@@ -144,11 +144,14 @@ pub use signature::{
 };
 pub use source_abi::{
     CallbackMode, DecodedSourceCAbiFunctionSignature, DecodedSourceCAbiReturn,
-    DecodedSourceExternFunctionAbi, DecodedSourceNativeLibraryBinding,
+    DecodedSourceExternFunctionAbi, DecodedSourceNativeExternalContract,
+    DecodedSourceNativeExternalContractKey, DecodedSourceNativeExternalContractRecord,
+    DecodedSourceNativeExternalOwner, DecodedSourceNativeLibraryBinding,
     DecodedSourceScoopAbiFunctionSignature, GcEffect, SourceCAbiFunctionSignature,
     SourceCAbiReturn, SourceCallingConvention, SourceExternFunctionAbi, SourceNativeContractError,
     SourceNativeExternalContract, SourceNativeExternalContractKey,
-    SourceNativeExternalContractRecord, SourceNativeExternalOwner, SourceNativeLibraryBinding,
+    SourceNativeExternalContractRecord, SourceNativeExternalOwner,
+    SourceNativeExternalResolutionError, SourceNativeLibraryBinding,
     SourceScoopAbiFunctionSignature,
 };
 pub use source_declaration::{
