@@ -23,3 +23,6 @@ pub use envelope::*;
 
 mod graph;
 pub use graph::*;
+
+mod metadata;
+pub use metadata::*;

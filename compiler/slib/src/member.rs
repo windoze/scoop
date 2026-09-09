@@ -132,6 +132,7 @@ impl MemberPurposeSet {
     pub const GRAPH: Self = Self(0x0000_0001);
     pub const COMPILE: Self = Self(0x0000_0002);
     pub const LINK: Self = Self(0x0000_0004);
+    pub const COMPILE_AND_LINK: Self = Self(Self::COMPILE.0 | Self::LINK.0);
     pub const DIAGNOSTICS: Self = Self(0x0000_0008);
 
     pub const fn bits(self) -> u32 {
