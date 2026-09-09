@@ -12,6 +12,13 @@ use crate::{
     PersistentScanId, PersistentStaticStorageId, PersistentTypeId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedOdrMemberDiscriminator, DecodedOdrMemberKey, DecodedSpecializationKey,
+    OdrIdentityResolutionError, OdrMemberResolver, SpecializationResolver,
+};
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SpecializationKey {
     Nominal {

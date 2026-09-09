@@ -75,8 +75,10 @@ pub use entity::{
     SourceFieldKey,
 };
 pub use entity::{
-    CallableOdrMemberId, OdrMemberDiscriminator, OdrMemberIdentityError, OdrMemberKey,
-    OdrMemberRole, SpecializationKey,
+    CallableOdrMemberId, DecodedOdrMemberDiscriminator, DecodedOdrMemberKey,
+    DecodedSpecializationKey, OdrIdentityResolutionError, OdrMemberDiscriminator,
+    OdrMemberIdentityError, OdrMemberKey, OdrMemberResolver, OdrMemberRole, SpecializationKey,
+    SpecializationResolver,
 };
 pub use entity::{
     CallableOwner, CallingConvention, CanonicalExactTypeDiagnosticName, ConcreteExpressionOrigin,

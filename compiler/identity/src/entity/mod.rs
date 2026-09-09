@@ -144,8 +144,10 @@ pub use object_definition::{
     StrongDefinitionRole,
 };
 pub use odr::{
-    CallableOdrMemberId, OdrMemberDiscriminator, OdrMemberIdentityError, OdrMemberKey,
-    OdrMemberRole, SpecializationKey,
+    CallableOdrMemberId, DecodedOdrMemberDiscriminator, DecodedOdrMemberKey,
+    DecodedSpecializationKey, OdrIdentityResolutionError, OdrMemberDiscriminator,
+    OdrMemberIdentityError, OdrMemberKey, OdrMemberResolver, OdrMemberRole, SpecializationKey,
+    SpecializationResolver,
 };
 pub use scoop_abi::{
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage,
