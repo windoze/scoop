@@ -6,6 +6,13 @@ use super::{CallableMaterialization, ExactCallableSignature, StructuralDefinitio
 use crate::ids::derive_persistent_id;
 use crate::{PersistentExactTypeId, PersistentTypeId};
 
+mod decode;
+
+pub use decode::{
+    DecodedCallableAdapterEnvironmentKey, DecodedGeneratedNominalKey,
+    GeneratedNominalResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ClosureEnvironmentRole {
     Lambda,

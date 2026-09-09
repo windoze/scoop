@@ -52,13 +52,15 @@ pub use entity::{
 };
 pub use entity::{
     CallableAdapterEnvironmentKey, ClosureEnvironmentRole, ContinuationShellRole,
-    CoroutineAdapterRole, DecodedExactCallableSignature, DecodedOptionalExactOwner,
-    EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityError,
-    EnumVariantIdentityKey, ExactCallableSignature, ExactCallableSignatureResolutionError,
-    FieldIdentityError, FieldIdentityKey, GeneratedCallableIdentityError, GeneratedCallableKey,
+    CoroutineAdapterRole, DecodedCallableAdapterEnvironmentKey, DecodedExactCallableSignature,
+    DecodedGeneratedNominalKey, DecodedOptionalExactOwner, EnumVariantFieldKey,
+    EnumVariantFieldSelector, EnumVariantIdentityError, EnumVariantIdentityKey,
+    ExactCallableSignature, ExactCallableSignatureResolutionError, FieldIdentityError,
+    FieldIdentityKey, GeneratedCallableIdentityError, GeneratedCallableKey,
     GeneratedEnumVariantRole, GeneratedFieldKey, GeneratedNominalIdentityError,
-    GeneratedNominalKey, InitializationCallableRole, LexicalCallableParent, LexicalCallableRole,
-    LexicalParentError, OptionalExactOwner, SourceFieldKey,
+    GeneratedNominalKey, GeneratedNominalResolutionError, InitializationCallableRole,
+    LexicalCallableParent, LexicalCallableRole, LexicalParentError, OptionalExactOwner,
+    SourceFieldKey,
 };
 pub use entity::{
     CallableOdrMemberId, OdrMemberDiscriminator, OdrMemberIdentityError, OdrMemberKey,

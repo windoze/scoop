@@ -93,8 +93,9 @@ pub use generated_callable::{
     LexicalParentError,
 };
 pub use generated_nominal::{
-    CallableAdapterEnvironmentKey, ClosureEnvironmentRole, GeneratedNominalIdentityError,
-    GeneratedNominalKey,
+    CallableAdapterEnvironmentKey, ClosureEnvironmentRole, DecodedCallableAdapterEnvironmentKey,
+    DecodedGeneratedNominalKey, GeneratedNominalIdentityError, GeneratedNominalKey,
+    GeneratedNominalResolutionError,
 };
 pub use materialization::{
     InitializationUnitKey, LocalValueKey, LocalValueSelector, SyntheticLocalRole,
