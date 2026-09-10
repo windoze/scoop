@@ -107,6 +107,7 @@ pub struct CompilerExceptionCore {
 
 #[derive(Debug, Clone)]
 pub struct InitializationUnit {
+    pub identity: InitializationUnitIdentityRecord,
     pub stable_key: String,
     pub display_name: String,
     pub schedule: InitializationSchedule,
@@ -116,6 +117,9 @@ pub struct InitializationUnit {
     pub failure_root: InitializationFailureRootId,
     pub dependencies: Vec<InitializationDependency>,
 }
+
+pub type InitializationUnitIdentityRecord =
+    CborIdentityRecord<PersistentInitializationUnitId, InitializationUnitKey>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationSchedule {

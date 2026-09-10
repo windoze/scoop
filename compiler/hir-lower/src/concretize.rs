@@ -520,6 +520,7 @@ impl<'a> Concretizer<'a> {
             let id = self
                 .initialization_units
                 .alloc(concrete::InitializationUnit {
+                    identity: self.source.initialization_unit_identities[source_id].clone(),
                     stable_key: source.stable_key.clone(),
                     display_name: source.display_name.clone(),
                     schedule: match source.schedule {

@@ -48,6 +48,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     module
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
+            identity: initialization_unit_identity(ConeIdentity::CORE, "alpha"),
             stable_key: "$local$opaque-z".to_string(),
             display_name: "top-level:alpha".to_string(),
             schedule: scoop_lir::InitializationSchedule::EagerStartup,
@@ -60,6 +61,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     module
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
+            identity: initialization_unit_identity(ConeIdentity::SINGLE_FILE, "zed"),
             stable_key: "$local$opaque-a".to_string(),
             display_name: "top-level:zed".to_string(),
             schedule: scoop_lir::InitializationSchedule::LazyAccess,

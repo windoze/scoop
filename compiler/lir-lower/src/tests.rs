@@ -6,10 +6,11 @@ use support::*;
 
 use scoop_identity::{
     CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
-    CallbackRegistrationKey, CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal,
-    DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
-    LexicalCallableParent, PackagePath, PersistentCallbackApplicationId, PersistentExactTypeId,
-    PersistentFunctionId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    CallbackRegistrationKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
+    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
+    ExactTypeKey, InitializationUnitKey, LexicalCallableParent, PackagePath,
+    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentPropertyId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
     SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
@@ -69,6 +70,20 @@ fn exact_callback_signature() -> ExactCallableSignature {
     ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit)
 }
 
+fn initialization_unit_identity() -> mir::InitializationUnitIdentityRecord {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let property =
+        SourceDeclarationKey::property(site, CanonicalIdentifier::new("initializedValue").unwrap());
+    let property = PersistentPropertyId::from_source_declaration(&property).unwrap();
+    CborIdentityRecord::from_key(InitializationUnitKey::TopLevelProperty(property)).unwrap()
+}
+
 #[test]
 fn selected_target_profile_is_embedded_in_lir_meta() {
     let mut builder = Builder::new();
@@ -111,6 +126,7 @@ fn initialization_display_name_survives_lir_lowering() {
             global: failure_global,
         });
     let unit = source.initialization_units.alloc(mir::InitializationUnit {
+        identity: initialization_unit_identity(),
         stable_key: "$local$opaque-value".to_string(),
         display_name: "top-level:value".to_string(),
         schedule: mir::InitializationSchedule::EagerStartup,
@@ -132,6 +148,11 @@ fn initialization_display_name_survives_lir_lowering() {
         module.initialization_units[lir::InitializationUnitId::from_raw(unit_id.into_raw())]
             .display_name,
         "top-level:value"
+    );
+    assert_eq!(
+        module.initialization_units[lir::InitializationUnitId::from_raw(unit_id.into_raw())]
+            .identity,
+        source.initialization_units[unit].identity
     );
 }
 

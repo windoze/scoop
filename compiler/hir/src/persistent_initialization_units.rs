@@ -14,7 +14,7 @@ use crate::{
     PropertyRepresentation, SingletonPublishedRoot, SingletonValue, TopLevelInitialization,
 };
 
-type InitializationUnitRecord =
+pub type HirInitializationUnitIdentity =
     CborIdentityRecord<PersistentInitializationUnitId, InitializationUnitKey>;
 
 mod error;
@@ -23,10 +23,14 @@ pub use error::{HirInitializationUnitIdentityError, InitializationRelation};
 /// Total persistent identity relation for the initialization-unit arena.
 #[derive(Clone, Debug)]
 pub struct HirInitializationUnitIdentities {
-    identities: Vec<InitializationUnitRecord>,
+    identities: Vec<HirInitializationUnitIdentity>,
 }
 
 impl HirInitializationUnitIdentities {
+    pub fn records(&self) -> &[HirInitializationUnitIdentity] {
+        &self.identities
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn from_declarations(
         units: &Arena<InitializationUnit>,
@@ -126,7 +130,7 @@ impl HirInitializationUnitIdentities {
 }
 
 impl Index<InitializationUnitId> for HirInitializationUnitIdentities {
-    type Output = InitializationUnitRecord;
+    type Output = HirInitializationUnitIdentity;
 
     fn index(&self, id: InitializationUnitId) -> &Self::Output {
         &self.identities[local_index(id)]

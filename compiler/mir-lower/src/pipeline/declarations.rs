@@ -61,6 +61,7 @@ impl Lowerer {
                 },
             };
             let id = self.initialization_units.alloc(mir::InitializationUnit {
+                identity: source.identity.clone(),
                 stable_key: source.stable_key.clone(),
                 display_name: source.display_name.clone(),
                 schedule: match source.schedule {

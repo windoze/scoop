@@ -3,12 +3,12 @@ use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_identity::{
     CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
-    CallbackRegistrationKey, CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal,
-    DeclarationScope, DefinitionOwnerChain, Effect, LexicalCallableParent, PackagePath,
-    PersistentCallbackApplicationId, PersistentFunctionId, SignatureCallableShape,
-    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
-    SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    CallbackRegistrationKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
+    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, InitializationUnitKey,
+    LexicalCallableParent, PackagePath, PersistentCallbackApplicationId, PersistentFunctionId,
+    PersistentPropertyId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
     BasicBlock, CODE_PTR, CallSite, CallTargets, CoroutineAdapterState, DirectCallSignature,
@@ -55,6 +55,22 @@ mod validation_boundaries;
 use enums::enum_module;
 use exceptions::exceptions_module;
 use objects::heap_module;
+
+fn initialization_unit_identity(
+    cone: ConeIdentity,
+    name: &str,
+) -> scoop_lir::InitializationUnitIdentityRecord {
+    let site = SourceDeclarationSite::new(
+        cone,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let property = SourceDeclarationKey::property(site, CanonicalIdentifier::new(name).unwrap());
+    let owner = PersistentPropertyId::from_source_declaration(&property).unwrap();
+    CborIdentityRecord::from_key(InitializationUnitKey::TopLevelProperty(owner)).unwrap()
+}
 
 fn callback_application(ordinal: u32) -> PersistentCallbackApplicationId {
     let site = SourceDeclarationSite::new(

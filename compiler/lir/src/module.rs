@@ -33,6 +33,7 @@ pub struct Module {
 
 #[derive(Debug)]
 pub struct InitializationUnit {
+    pub identity: InitializationUnitIdentityRecord,
     pub stable_key: String,
     pub display_name: String,
     pub schedule: InitializationSchedule,
@@ -42,6 +43,11 @@ pub struct InitializationUnit {
     pub ensure: ManagedLocalFunctionRef,
     pub dependencies: Vec<InitializationUnitId>,
 }
+
+pub type InitializationUnitIdentityRecord = scoop_identity::CborIdentityRecord<
+    scoop_identity::PersistentInitializationUnitId,
+    scoop_identity::InitializationUnitKey,
+>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {

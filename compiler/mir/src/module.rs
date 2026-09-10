@@ -388,6 +388,7 @@ pub struct Global {
 
 #[derive(Debug)]
 pub struct InitializationUnit {
+    pub identity: InitializationUnitIdentityRecord,
     pub stable_key: String,
     pub display_name: String,
     pub schedule: InitializationSchedule,
@@ -398,6 +399,11 @@ pub struct InitializationUnit {
     pub dependencies: Vec<InitializationUnitId>,
     pub cycle_exception: MessageClassConstructor,
 }
+
+pub type InitializationUnitIdentityRecord = scoop_identity::CborIdentityRecord<
+    scoop_identity::PersistentInitializationUnitId,
+    scoop_identity::InitializationUnitKey,
+>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationSchedule {

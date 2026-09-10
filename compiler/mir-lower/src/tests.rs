@@ -60,6 +60,26 @@ fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
     .expect("the MIR test keeps its HIR type identities structurally complete")
 }
 
+fn rebuild_initialization_unit_identities(
+    module: &hir::Module,
+) -> hir::HirInitializationUnitIdentities {
+    hir::HirInitializationUnitIdentities::from_declarations(
+        &module.initialization_units,
+        &module.initialization_failure_roots,
+        &module.functions,
+        &module.globals,
+        &module.objects,
+        &module.companion_relations,
+        &module.singleton_values,
+        &module.singleton_published_roots,
+        &module.properties,
+        &module.delegate_storages,
+        &module.nominal_identities,
+        &module.property_identities,
+    )
+    .expect("the MIR test keeps its initialization-unit identities complete")
+}
+
 fn extend_function_identities(module: &mut hir::Module, preserved_functions: usize) {
     let preserved = module.function_identities.clone();
     let identities = module

@@ -6,6 +6,13 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     let backing = harness.class("Registry", hir::ClassModifier::Final, &[], None, &[]);
     let backing_ty = harness.class_ty(backing);
     let main = empty_main(&mut harness);
+    let ensure = harness.user_fn(
+        "ensureRegistry",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
     let executable = harness.finish_with_initialization_core(main);
     let entry = executable.entry();
     let mut source = executable.into_module();
@@ -71,7 +78,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
                 published_root,
             },
             initializer: main,
-            ensure: main,
+            ensure,
             failure_root,
             dependencies: Vec::new(),
             span: SPAN,
@@ -87,8 +94,10 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         &source.objects,
     );
     source.type_identities = rebuild_type_identities(&source);
+    source.initialization_unit_identities = rebuild_initialization_unit_identities(&source);
 
     let source = legacy_executable(source, entry);
+    let expected_identity = source.initialization_unit_identities[initialization].clone();
     let module = lower(&source);
     let declaration = &module.objects[mir::ObjectId::from_raw(0_u32.into())];
     let singleton = &module.singleton_values[mir::SingletonValueId::from_raw(0_u32.into())];
@@ -96,6 +105,10 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     assert_eq!(
         module.initialization_units[singleton.initialization].display_name,
         "object:Registry"
+    );
+    assert_eq!(
+        module.initialization_units[singleton.initialization].identity,
+        expected_identity
     );
     assert_eq!(declaration.name, "Registry");
     assert_eq!(declaration.object_type, singleton.object_type);
