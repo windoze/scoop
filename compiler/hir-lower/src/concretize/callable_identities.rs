@@ -158,9 +158,20 @@ impl<'a> CallableIdentityBuilder<'a> {
             &mut self.struct_constructor_materializations,
             "struct constructor",
         );
+        let generated_bodies = function_materializations
+            .iter()
+            .chain(&class_constructor_materializations)
+            .chain(&struct_constructor_materializations)
+            .filter_map(generated_body_member)
+            .collect::<Vec<_>>();
         let callable_applications =
-            concrete::CallableApplicationIdentities::checked(self.applications)
-                .expect("validated concrete callable applications form one complete acyclic table");
+            concrete::CallableApplicationIdentities::checked_with_generated_bodies(
+                self.applications,
+                generated_bodies,
+            )
+            .expect(
+                "validated concrete callable applications form one complete ODR identity graph",
+            );
         let callback_applications =
             concrete::CallbackApplicationIdentities::checked(self.callback_applications)
                 .expect("validated concrete callback applications form one canonical table");
@@ -536,4 +547,19 @@ fn complete_callback_applications(
                 .unwrap_or_else(|| panic!("missing foreign callback application at index {index}"))
         })
         .collect()
+}
+
+fn generated_body_member(
+    materialization: &CallableMaterialization,
+) -> Option<(
+    PersistentCallableApplicationId,
+    scoop_identity::PersistentGeneratedCallableId,
+)> {
+    let CallableTemplateOwner::Generated(generated) = materialization.template() else {
+        return None;
+    };
+    let CallableMaterializationContext::Application(application) = materialization.context() else {
+        return None;
+    };
+    Some((application, generated))
 }

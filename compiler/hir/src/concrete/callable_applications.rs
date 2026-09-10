@@ -34,6 +34,13 @@ pub struct CallableApplicationIdentities {
     records: Vec<CallableApplicationRecord>,
     positions: HashMap<PersistentCallableApplicationId, usize>,
     odr: HashMap<PersistentCallableApplicationId, CallableApplicationOdr>,
+    generated_bodies: HashMap<
+        (
+            PersistentCallableApplicationId,
+            PersistentGeneratedCallableId,
+        ),
+        CallableOdrMemberId,
+    >,
     odr_groups: Vec<OdrGroupRecord>,
     odr_members: Vec<OdrMemberRecord>,
 }
@@ -41,6 +48,18 @@ pub struct CallableApplicationIdentities {
 impl CallableApplicationIdentities {
     pub fn checked(
         records: Vec<CallableApplicationRecord>,
+    ) -> Result<Self, CallableApplicationIdentityError> {
+        Self::checked_with_generated_bodies(records, [])
+    }
+
+    pub fn checked_with_generated_bodies(
+        records: Vec<CallableApplicationRecord>,
+        generated_bodies: impl IntoIterator<
+            Item = (
+                PersistentCallableApplicationId,
+                PersistentGeneratedCallableId,
+            ),
+        >,
     ) -> Result<Self, CallableApplicationIdentityError> {
         let records =
             stable_topological_identity_order(records, CborIdentityRecord::id, |record| {
@@ -81,12 +100,46 @@ impl CallableApplicationIdentities {
             odr_groups.push(group);
             odr_members.push(member);
         }
+        let mut member_positions = odr_members
+            .iter()
+            .enumerate()
+            .map(|(position, record)| (record.id(), position))
+            .collect::<HashMap<_, _>>();
+        let mut generated_body_members = HashMap::new();
+        for (application, generated) in generated_bodies {
+            let application_odr = odr.get(&application).copied().ok_or(
+                CallableApplicationIdentityError::MissingApplication(application),
+            )?;
+            let member_key = OdrMemberKey::new(
+                application_odr.group(),
+                OdrMemberRole::CallableBody,
+                OdrMemberDiscriminator::GeneratedCallable(generated),
+            )
+            .map_err(CallableApplicationIdentityError::OdrMember)?;
+            let body = CallableOdrMemberId::from_key(&member_key)
+                .map_err(CallableApplicationIdentityError::OdrMember)?;
+            let member = CborIdentityRecord::from_key(member_key)
+                .map_err(CallableApplicationIdentityError::OdrMemberRecord)?;
+            debug_assert_eq!(body.member(), member.id());
+            if let Some(position) = member_positions.get(&member.id()).copied() {
+                if odr_members[position] != member {
+                    return Err(CallableApplicationIdentityError::OdrMemberCollision(
+                        member.id(),
+                    ));
+                }
+            } else {
+                member_positions.insert(member.id(), odr_members.len());
+                odr_members.push(member);
+            }
+            generated_body_members.insert((application, generated), body);
+        }
         odr_groups.sort_by_key(CborIdentityRecord::id);
         odr_members.sort_by_key(CborIdentityRecord::id);
         Ok(Self {
             records,
             positions,
             odr,
+            generated_bodies: generated_body_members,
             odr_groups,
             odr_members,
         })
@@ -104,6 +157,16 @@ impl CallableApplicationIdentities {
 
     pub fn odr(&self, id: PersistentCallableApplicationId) -> Option<CallableApplicationOdr> {
         self.odr.get(&id).copied()
+    }
+
+    pub fn generated_body(
+        &self,
+        application: PersistentCallableApplicationId,
+        generated: PersistentGeneratedCallableId,
+    ) -> Option<CallableOdrMemberId> {
+        self.generated_bodies
+            .get(&(application, generated))
+            .copied()
     }
 
     pub fn odr_group_records(&self) -> &[OdrGroupRecord] {
@@ -129,6 +192,8 @@ pub enum CallableApplicationIdentityError {
     OdrGroup(HashError),
     OdrMember(OdrMemberIdentityError),
     OdrMemberRecord(HashError),
+    MissingApplication(PersistentCallableApplicationId),
+    OdrMemberCollision(OdrMemberId),
 }
 
 impl fmt::Display for CallableApplicationIdentityError {
@@ -140,6 +205,12 @@ impl fmt::Display for CallableApplicationIdentityError {
             Self::OdrMemberRecord(error) => {
                 write!(formatter, "failed to record ODR member: {error}")
             }
+            Self::MissingApplication(_) => {
+                formatter.write_str("generated callable references a missing application")
+            }
+            Self::OdrMemberCollision(_) => {
+                formatter.write_str("distinct ODR member keys have the same identity")
+            }
         }
     }
 }
@@ -150,8 +221,8 @@ impl std::error::Error for CallableApplicationIdentityError {}
 mod tests {
     use scoop_identity::{
         CallableInstantiationOwner, CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal,
-        DeclarationScope, DefinitionOwnerChain, ExactTypeKey, PackagePath, PersistentExactTypeId,
-        PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
+        DeclarationScope, DefinitionOwnerChain, ExactTypeKey, GeneratedCallableKey, PackagePath,
+        PersistentExactTypeId, PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
     };
 
     use super::*;
@@ -196,8 +267,16 @@ mod tests {
         ))
         .unwrap();
 
-        let table = CallableApplicationIdentities::checked(vec![inner.clone(), outer.clone()])
-            .expect("the complete application graph is valid");
+        let generated = CborIdentityRecord::from_key(GeneratedCallableKey::DerivedEquality {
+            exact_owner: unit(),
+        })
+        .unwrap()
+        .id();
+        let table = CallableApplicationIdentities::checked_with_generated_bodies(
+            vec![inner.clone(), outer.clone()],
+            [(outer.id(), generated)],
+        )
+        .expect("the complete application graph is valid");
         assert_eq!(table.records(), &[outer.clone(), inner.clone()]);
         assert_eq!(table.get(inner.id()), Some(&inner));
 
@@ -228,13 +307,36 @@ mod tests {
             ));
         }
         assert_eq!(table.odr_group_records().len(), 2);
-        assert_eq!(table.odr_member_records().len(), 2);
+        assert_eq!(table.odr_member_records().len(), 3);
+        let generated_body = table
+            .generated_body(outer.id(), generated)
+            .expect("the generated callable has one body member in its application group");
+        let generated_member = table
+            .odr_member_records()
+            .iter()
+            .find(|record| record.id() == generated_body.member())
+            .expect("the generated callable ODR member record is present");
+        assert_eq!(
+            generated_member.key().group(),
+            table.odr(outer.id()).unwrap().group()
+        );
+        assert!(matches!(
+            generated_member.key().discriminator(),
+            OdrMemberDiscriminator::GeneratedCallable(id) if *id == generated
+        ));
 
         assert!(matches!(
-            CallableApplicationIdentities::checked(vec![inner]),
+            CallableApplicationIdentities::checked(vec![inner.clone()]),
             Err(CallableApplicationIdentityError::ApplicationOrder(
                 StableIdentityOrderError::MissingDependency { .. }
             ))
+        ));
+        assert!(matches!(
+            CallableApplicationIdentities::checked_with_generated_bodies(
+                vec![outer],
+                [(inner.id(), generated)]
+            ),
+            Err(CallableApplicationIdentityError::MissingApplication(id)) if id == inner.id()
         ));
     }
 }

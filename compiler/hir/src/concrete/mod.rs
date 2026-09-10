@@ -11,7 +11,7 @@ pub use scoop_identity::{
     CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CborIdentityRecord,
     NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError,
     OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    SpecializationKey,
+    PersistentGeneratedCallableId, SpecializationKey,
 };
 
 pub use super::{

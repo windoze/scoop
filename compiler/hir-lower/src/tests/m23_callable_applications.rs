@@ -147,15 +147,35 @@ fn callable_applications_form_one_persistent_lexical_graph() {
         .iter()
         .filter(|(_, function)| function.name.starts_with("$lambda"))
         .map(|(_, function)| {
-            assert!(matches!(
-                function.materialization.template(),
-                hir::concrete::CallableTemplateOwner::Generated(_)
-            ));
+            let hir::concrete::CallableTemplateOwner::Generated(generated) =
+                function.materialization.template()
+            else {
+                panic!("a lambda body has a generated callable template")
+            };
             let hir::concrete::CallableMaterializationContext::Application(application) =
                 function.materialization.context()
             else {
                 panic!("the generated lambda inherits the factory application")
             };
+            let member = module
+                .callable_applications
+                .generated_body(application, generated)
+                .expect("the generated lambda has an ODR body member");
+            assert_eq!(
+                module
+                    .callable_applications
+                    .odr(application)
+                    .unwrap()
+                    .group(),
+                module
+                    .callable_applications
+                    .odr_member_records()
+                    .iter()
+                    .find(|record| record.id() == member.member())
+                    .expect("the generated lambda member record is present")
+                    .key()
+                    .group()
+            );
             application
         })
         .collect::<HashSet<_>>();
