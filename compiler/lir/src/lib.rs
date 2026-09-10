@@ -35,6 +35,9 @@ pub use module::*;
 mod metadata;
 pub use metadata::*;
 
+mod identity_metadata;
+pub use identity_metadata::*;
+
 mod function;
 pub use function::*;
 
