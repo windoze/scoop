@@ -63,7 +63,7 @@ fn boxing_only_materializes_the_payload_class() {
     };
     assert_eq!(
         boxed_meta.identity().root(),
-        &mir::BoxedValueRoot::SourceNominal(*owner)
+        &mir::ExactOwnerRoot::SourceNominal(*owner)
     );
     assert_eq!(
         module.classes[boxed_meta.class()].declared_fields()[0].ty,
@@ -227,7 +227,7 @@ fn generic_nominal_and_tuple_boxes_use_their_exact_odr_roots() {
     };
     let nominal_exact = exact_for(nominal);
     let tuple_exact = exact_for(tuple);
-    let mir::BoxedValueRoot::NominalApplication(nominal_root) = nominal.identity().root() else {
+    let mir::ExactOwnerRoot::NominalApplication(nominal_root) = nominal.identity().root() else {
         panic!("generic nominal boxes are ODR-owned")
     };
     let scoop_identity::ExactTypeKey::NominalApplication { origin, arguments } =
@@ -256,7 +256,7 @@ fn generic_nominal_and_tuple_boxes_use_their_exact_odr_roots() {
             .unwrap()
             .id()
     );
-    let mir::BoxedValueRoot::Structural(tuple_root) = tuple.identity().root() else {
+    let mir::ExactOwnerRoot::Structural(tuple_root) = tuple.identity().root() else {
         panic!("tuple boxes are ODR-owned")
     };
     assert_eq!(

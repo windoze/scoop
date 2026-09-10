@@ -5,99 +5,45 @@ use std::fmt;
 use scoop_identity::{
     CborIdentityRecord, ExactTypeKey, FieldIdentityError, FieldIdentityKey,
     GeneratedNominalIdentityError, GeneratedNominalKey, OdrGroupId, OdrMemberDiscriminator,
-    OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentExactTypeId,
-    PersistentFieldId, PersistentTypeId, SpecializationKey,
+    OdrMemberRole, PersistentExactTypeId, PersistentFieldId, PersistentTypeId, SpecializationKey,
 };
-use scoop_wire::HashError;
+
+use crate::{ExactOwnerRoot, ExactOwnerRootError};
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type GeneratedTypeRecord = CborIdentityRecord<PersistentTypeId, GeneratedNominalKey>;
 type FieldRecord = CborIdentityRecord<PersistentFieldId, FieldIdentityKey>;
 type OdrGroupRecord = CborIdentityRecord<OdrGroupId, SpecializationKey>;
-type OdrMemberRecord = CborIdentityRecord<OdrMemberId, OdrMemberKey>;
-
-/// The unique materialization root selected by `ExactOwnerRoot(payload)`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BoxedValueRoot {
-    /// A parameter-free source nominal is materialized by its definition Cone.
-    SourceNominal(PersistentTypeId),
-    /// A nominal application reuses the specialization group emitted by HIR.
-    NominalApplication(Box<BoxedValueNominalRoot>),
-    /// A tuple creates its structural group as part of the MIR delta.
-    Structural(Box<BoxedValueStructuralRoot>),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BoxedValueNominalRoot {
-    group: OdrGroupId,
-    member: OdrMemberRecord,
-}
-
-impl BoxedValueNominalRoot {
-    pub const fn group(&self) -> OdrGroupId {
-        self.group
-    }
-
-    pub const fn member_record(&self) -> &OdrMemberRecord {
-        &self.member
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BoxedValueStructuralRoot {
-    group: OdrGroupRecord,
-    member: OdrMemberRecord,
-}
-
-impl BoxedValueStructuralRoot {
-    pub const fn group_record(&self) -> &OdrGroupRecord {
-        &self.group
-    }
-
-    pub const fn member_record(&self) -> &OdrMemberRecord {
-        &self.member
-    }
-}
 
 /// Complete persistent identity projection for one generated value box.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoxedValueIdentity {
     generated_type: GeneratedTypeRecord,
     payload_field: FieldRecord,
-    root: BoxedValueRoot,
+    root: ExactOwnerRoot,
 }
 
 impl BoxedValueIdentity {
     pub fn for_source_nominal(payload: &ExactTypeRecord) -> Result<Self, BoxedValueIdentityError> {
-        let ExactTypeKey::Nominal(owner) = payload.key() else {
-            return Err(BoxedValueIdentityError::ExpectedSourceNominal);
-        };
-        Self::build(payload.id(), BoxedValueRoot::SourceNominal(*owner))
+        let generated_type = Self::generated_type(payload.id())?;
+        let root =
+            ExactOwnerRoot::source_nominal(payload).map_err(BoxedValueIdentityError::Root)?;
+        Self::finish(generated_type, root)
     }
 
     pub fn for_nominal_application(
         payload: &ExactTypeRecord,
         group: &OdrGroupRecord,
     ) -> Result<Self, BoxedValueIdentityError> {
-        let ExactTypeKey::NominalApplication { origin, arguments } = payload.key() else {
-            return Err(BoxedValueIdentityError::ExpectedNominalApplication);
-        };
-        let expected = SpecializationKey::Nominal {
-            origin: *origin,
-            arguments: arguments.clone(),
-        };
-        if group.key() != &expected {
-            return Err(BoxedValueIdentityError::NominalGroupMismatch);
-        }
         let generated_type = Self::generated_type(payload.id())?;
-        let member = Self::odr_member(group.id(), generated_type.id())?;
-        Self::finish(
-            generated_type,
-            BoxedValueRoot::NominalApplication(Box::new(BoxedValueNominalRoot {
-                group: group.id(),
-                member,
-            })),
+        let root = ExactOwnerRoot::nominal_application(
+            payload,
+            group,
+            OdrMemberRole::GeneratedNominal,
+            OdrMemberDiscriminator::GeneratedNominal(generated_type.id()),
         )
+        .map_err(BoxedValueIdentityError::Root)?;
+        Self::finish(generated_type, root)
     }
 
     pub fn for_tuple(payload: &ExactTypeRecord) -> Result<Self, BoxedValueIdentityError> {
@@ -105,22 +51,12 @@ impl BoxedValueIdentity {
             return Err(BoxedValueIdentityError::ExpectedTuple);
         }
         let generated_type = Self::generated_type(payload.id())?;
-        let group = CborIdentityRecord::from_key(SpecializationKey::StructuralType {
-            exact_type: payload.id(),
-        })
-        .map_err(BoxedValueIdentityError::OdrGroup)?;
-        let member = Self::odr_member(group.id(), generated_type.id())?;
-        Self::finish(
-            generated_type,
-            BoxedValueRoot::Structural(Box::new(BoxedValueStructuralRoot { group, member })),
+        let root = ExactOwnerRoot::structural(
+            payload,
+            OdrMemberRole::GeneratedNominal,
+            OdrMemberDiscriminator::GeneratedNominal(generated_type.id()),
         )
-    }
-
-    fn build(
-        payload: PersistentExactTypeId,
-        root: BoxedValueRoot,
-    ) -> Result<Self, BoxedValueIdentityError> {
-        let generated_type = Self::generated_type(payload)?;
+        .map_err(BoxedValueIdentityError::Root)?;
         Self::finish(generated_type, root)
     }
 
@@ -133,7 +69,7 @@ impl BoxedValueIdentity {
 
     fn finish(
         generated_type: GeneratedTypeRecord,
-        root: BoxedValueRoot,
+        root: ExactOwnerRoot,
     ) -> Result<Self, BoxedValueIdentityError> {
         let payload_field = CborIdentityRecord::from_key(
             FieldIdentityKey::box_payload(generated_type.key())
@@ -147,19 +83,6 @@ impl BoxedValueIdentity {
         })
     }
 
-    fn odr_member(
-        group: OdrGroupId,
-        generated_type: PersistentTypeId,
-    ) -> Result<OdrMemberRecord, BoxedValueIdentityError> {
-        let member_key = OdrMemberKey::new(
-            group,
-            OdrMemberRole::GeneratedNominal,
-            OdrMemberDiscriminator::GeneratedNominal(generated_type),
-        )
-        .map_err(BoxedValueIdentityError::OdrMember)?;
-        CborIdentityRecord::from_key(member_key).map_err(BoxedValueIdentityError::OdrMemberRecord)
-    }
-
     pub const fn generated_type_record(&self) -> &GeneratedTypeRecord {
         &self.generated_type
     }
@@ -168,41 +91,26 @@ impl BoxedValueIdentity {
         &self.payload_field
     }
 
-    pub const fn root(&self) -> &BoxedValueRoot {
+    pub const fn root(&self) -> &ExactOwnerRoot {
         &self.root
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BoxedValueIdentityError {
-    ExpectedSourceNominal,
-    ExpectedNominalApplication,
     ExpectedTuple,
-    NominalGroupMismatch,
     GeneratedType(GeneratedNominalIdentityError),
     PayloadField(FieldIdentityError),
-    OdrGroup(HashError),
-    OdrMember(OdrMemberIdentityError),
-    OdrMemberRecord(HashError),
+    Root(ExactOwnerRootError),
 }
 
 impl fmt::Display for BoxedValueIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ExpectedSourceNominal => {
-                formatter.write_str("boxed payload is not a parameter-free source nominal")
-            }
-            Self::ExpectedNominalApplication => {
-                formatter.write_str("boxed payload is not a nominal application")
-            }
             Self::ExpectedTuple => formatter.write_str("boxed payload is not a tuple"),
-            Self::NominalGroupMismatch => {
-                formatter.write_str("boxed nominal group does not match the exact payload")
-            }
             Self::GeneratedType(error) => error.fmt(formatter),
             Self::PayloadField(error) => error.fmt(formatter),
-            Self::OdrGroup(error) | Self::OdrMemberRecord(error) => error.fmt(formatter),
-            Self::OdrMember(error) => error.fmt(formatter),
+            Self::Root(error) => error.fmt(formatter),
         }
     }
 }
@@ -259,7 +167,7 @@ mod tests {
         );
         assert_eq!(
             identity.root(),
-            &BoxedValueRoot::SourceNominal(CoreBuiltinNominal::Unit.identity_record().id())
+            &ExactOwnerRoot::SourceNominal(CoreBuiltinNominal::Unit.identity_record().id())
         );
     }
 
@@ -279,7 +187,7 @@ mod tests {
         })
         .unwrap();
         let identity = BoxedValueIdentity::for_nominal_application(&payload, &group).unwrap();
-        let BoxedValueRoot::NominalApplication(root) = identity.root() else {
+        let ExactOwnerRoot::NominalApplication(root) = identity.root() else {
             panic!("nominal applications are ODR-owned")
         };
         assert_eq!(root.group(), group.id());
@@ -298,7 +206,7 @@ mod tests {
         )))
         .unwrap();
         let identity = BoxedValueIdentity::for_tuple(&payload).unwrap();
-        let BoxedValueRoot::Structural(root) = identity.root() else {
+        let ExactOwnerRoot::Structural(root) = identity.root() else {
             panic!("tuples are ODR-owned")
         };
         assert_eq!(
@@ -319,7 +227,9 @@ mod tests {
         .unwrap();
         assert_eq!(
             BoxedValueIdentity::for_source_nominal(&payload),
-            Err(BoxedValueIdentityError::ExpectedSourceNominal)
+            Err(BoxedValueIdentityError::Root(
+                ExactOwnerRootError::ExpectedSourceNominal
+            ))
         );
     }
 
@@ -338,7 +248,9 @@ mod tests {
         .unwrap();
         assert_eq!(
             BoxedValueIdentity::for_nominal_application(&payload, &wrong),
-            Err(BoxedValueIdentityError::NominalGroupMismatch)
+            Err(BoxedValueIdentityError::Root(
+                ExactOwnerRootError::NominalGroupMismatch
+            ))
         );
     }
 }

@@ -25,6 +25,9 @@ pub use types::*;
 mod function_adapter;
 pub use function_adapter::*;
 
+mod exact_owner;
+pub use exact_owner::*;
+
 mod boxed_value;
 pub use boxed_value::*;
 

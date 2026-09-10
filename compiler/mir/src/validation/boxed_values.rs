@@ -47,14 +47,14 @@ fn validate_root(
     identity: &BoxedValueIdentity,
 ) -> Result<(), MirValidationError> {
     match identity.root() {
-        BoxedValueRoot::SourceNominal(_) => Ok(()),
-        BoxedValueRoot::NominalApplication(root) => validate_member(
+        ExactOwnerRoot::SourceNominal(_) => Ok(()),
+        ExactOwnerRoot::NominalApplication(root) => validate_member(
             location,
             root.group(),
             root.member_record(),
             identity.generated_type_record().id(),
         ),
-        BoxedValueRoot::Structural(root) => {
+        ExactOwnerRoot::Structural(root) => {
             if root.group_record().key()
                 != &(SpecializationKey::StructuralType {
                     exact_type: payload,
