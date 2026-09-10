@@ -233,9 +233,13 @@ fn add_foreign_callback_bridge(
     family: scoop_lir::ForeignCallbackFamilyId,
     fixture: ForeignCallbackBridgeFixture<'_>,
 ) {
+    let application = callback_application(
+        u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32"),
+    );
     module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
+            application,
             family,
             adapter_symbol: fixture.adapter.to_string(),
             trampoline_symbol: fixture.trampoline.to_string(),
@@ -518,9 +522,13 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             callback_modes.one_shot(),
         ),
     ] {
+        let application = callback_application(
+            u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32"),
+        );
         module
             .foreign_callback_bridges
             .alloc(scoop_lir::ForeignCallbackBridge {
+                application,
                 family: foreign_callback_family,
                 adapter_symbol: adapter.to_string(),
                 trampoline_symbol: "scoop_foreign_callback_0".to_string(),
@@ -1404,6 +1412,7 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
     module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
+            application: callback_application(0),
             family,
             adapter_symbol: "scoop_main".to_string(),
             trampoline_symbol: "foreign_callback".to_string(),

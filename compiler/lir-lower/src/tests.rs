@@ -4,12 +4,63 @@ mod support;
 
 use support::*;
 
+use scoop_identity::{
+    CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
+    CallbackRegistrationKey, CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal,
+    DeclarationScope, DefinitionOwnerChain, Effect, LexicalCallableParent, PackagePath,
+    PersistentCallbackApplicationId, PersistentFunctionId, SignatureCallableShape,
+    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
+    SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
+};
+
 fn nominal_link_stem(name: impl Into<String>) -> mir::NominalLinkStem {
     mir::NominalLinkStem::from_session_local_encoding(name.into())
 }
 
 fn lower(module: &mir::Module) -> lir::Module {
     super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
+}
+
+fn callback_application() -> PersistentCallbackApplicationId {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::CORE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let function = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new("callbackOwner").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    ))
+    .unwrap();
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    let registration = CallbackRegistrationKey::new(
+        LexicalCallableParent::function(function),
+        StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::CallbackConversion, 0),
+            [],
+        ),
+        SourceCAbiFunctionSignature::new(Vec::new(), SourceCAbiReturn::Void),
+        CallbackParameterIndex::new(0),
+        SignatureCallableShape::new(
+            Effect::Ordinary,
+            None,
+            Vec::new(),
+            SignatureTypeKey::Nominal(unit),
+        ),
+        CallbackMode::Reusable,
+    );
+    let application = CallbackApplicationKey::new(
+        &registration,
+        CallableMaterializationContext::NoSubstitution,
+    )
+    .unwrap();
+    PersistentCallbackApplicationId::from_key(&application).unwrap()
 }
 
 #[test]
@@ -530,9 +581,11 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             function: main,
             managed_signature,
         });
+    let application = callback_application();
     module
         .foreign_callback_bridges
         .alloc(mir::ForeignCallbackBridge {
+            application,
             adapter,
             family,
             native_signature,
@@ -541,6 +594,16 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         });
 
     let lowered = lower(&module);
+    assert_eq!(
+        lowered
+            .foreign_callback_bridges
+            .iter()
+            .next()
+            .expect("the callback bridge is retained")
+            .1
+            .application,
+        application
+    );
     let lowered_family = lowered.foreign_callback_families.iter().next().unwrap().1;
     assert_eq!(lowered_family.callback.into_raw(), callback.into_raw());
     assert_eq!(

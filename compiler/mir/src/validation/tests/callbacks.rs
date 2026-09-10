@@ -1,11 +1,62 @@
 use super::*;
 
+use scoop_identity::{
+    CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
+    CallbackRegistrationKey, CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal,
+    DeclarationScope, DefinitionOwnerChain, Effect, LexicalCallableParent, PackagePath,
+    PersistentCallbackApplicationId, PersistentFunctionId, SignatureCallableShape,
+    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
+    SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
+};
+
 fn unit_variant(name: &str) -> VariantDef {
     VariantDef {
         name: name.to_string(),
         gc_free: true,
         fields: Vec::new(),
     }
+}
+
+fn callback_application(ordinal: u32) -> PersistentCallbackApplicationId {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::CORE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let function = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new("callbackOwner").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    ))
+    .unwrap();
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    let registration = CallbackRegistrationKey::new(
+        LexicalCallableParent::function(function),
+        StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::CallbackConversion, ordinal),
+            [],
+        ),
+        SourceCAbiFunctionSignature::new(Vec::new(), SourceCAbiReturn::Void),
+        CallbackParameterIndex::new(0),
+        SignatureCallableShape::new(
+            Effect::Ordinary,
+            None,
+            Vec::new(),
+            SignatureTypeKey::Nominal(unit),
+        ),
+        CallbackMode::Reusable,
+    );
+    let application = CallbackApplicationKey::new(
+        &registration,
+        CallableMaterializationContext::NoSubstitution,
+    )
+    .unwrap();
+    PersistentCallbackApplicationId::from_key(&application).unwrap()
 }
 
 fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeId) {
@@ -123,6 +174,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     let bridge = module
         .foreign_callback_bridges
         .alloc(ForeignCallbackBridge {
+            application: callback_application(0),
             adapter,
             family,
             native_signature,
@@ -130,6 +182,31 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
             mode: modes.reusable(),
         });
     (module, family, bridge)
+}
+
+#[test]
+fn callback_application_has_one_mir_bridge() {
+    let (mut module, _, bridge) = callback_module();
+    let source = &module.foreign_callback_bridges[bridge];
+    let duplicate = ForeignCallbackBridge {
+        application: source.application,
+        adapter: source.adapter,
+        family: source.family,
+        native_signature: source.native_signature,
+        context_index: source.context_index,
+        mode: source.mode,
+    };
+    let duplicate = module.foreign_callback_bridges.alloc(duplicate);
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::ForeignCallbackBridge { bridge: duplicate },
+            kind: MirValidationErrorKind::InvalidForeignCallbackBridge {
+                reason: "callback application is materialized by more than one bridge",
+            },
+        })
+    );
 }
 
 #[test]

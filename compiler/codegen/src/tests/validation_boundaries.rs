@@ -216,6 +216,7 @@ fn malformed_callback_registration(corruption: CallbackRegistrationCorruption) -
     let bridge = module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
+            application: callback_application(0),
             family,
             adapter_symbol: adapter_symbol.to_string(),
             trampoline_symbol: "scoop.invalid_id_callback_trampoline".to_string(),

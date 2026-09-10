@@ -185,6 +185,14 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         callback_ty,
     )));
     source.callback_registration_identities = rebuild_callback_identities(&source);
+    let expected_application = scoop_identity::PersistentCallbackApplicationId::from_key(
+        &scoop_identity::CallbackApplicationKey::new(
+            source.callback_registration_identities[registration].key(),
+            scoop_identity::CallableMaterializationContext::NoSubstitution,
+        )
+        .unwrap(),
+    )
+    .unwrap();
 
     let source = legacy_executable(source, entry);
     let module = lower(&source);
@@ -193,6 +201,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         .iter()
         .next()
         .expect("registration generates one native bridge");
+    assert_eq!(bridge.application, expected_application);
     let family = module.foreign_callback_families[bridge.family];
     assert_eq!(family.callback, module.structs.iter().next().unwrap().0);
     assert_eq!(

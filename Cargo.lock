@@ -427,6 +427,7 @@ dependencies = [
  "inkwell",
  "la-arena",
  "object",
+ "scoop-identity",
  "scoop-lir",
 ]
 
@@ -474,6 +475,7 @@ dependencies = [
  "insta",
  "la-arena",
  "scoop-ast",
+ "scoop-identity",
  "scoop-lir",
  "scoop-mir",
 ]

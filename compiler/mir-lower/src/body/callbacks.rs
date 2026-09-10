@@ -209,11 +209,13 @@ impl BodyLowerer<'_> {
         registration_id: hir::ForeignCallbackRegistrationId,
         span: Span,
     ) -> mir::ForeignCallbackBridgeId {
-        if let Some(&bridge) = self.foreign_callback_by_registration.get(&registration_id) {
+        let registration = self.module.foreign_callback_registrations[registration_id].clone();
+        if let Some(&bridge) = self
+            .foreign_callback_by_application
+            .get(&registration.application)
+        {
             return bridge;
         }
-
-        let registration = self.module.foreign_callback_registrations[registration_id].clone();
         let native_signature = self.lower_function_type_id(registration.native_function_type);
         let managed_signature = self.lower_function_type_id(registration.managed_function_type);
         let callback = self.struct_map[&registration.callback];
@@ -434,14 +436,15 @@ impl BodyLowerer<'_> {
         let bridge = self
             .foreign_callback_bridges
             .alloc(mir::ForeignCallbackBridge {
+                application: registration.application,
                 adapter,
                 family,
                 native_signature,
                 context_index: registration.context_index,
                 mode,
             });
-        self.foreign_callback_by_registration
-            .insert(registration_id, bridge);
+        self.foreign_callback_by_application
+            .insert(registration.application, bridge);
         bridge
     }
 }

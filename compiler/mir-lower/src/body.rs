@@ -35,8 +35,8 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) foreign_callback_family_by_callback:
         &'a mut HashMap<mir::StructId, mir::ForeignCallbackFamilyId>,
     pub(super) foreign_callback_bridges: &'a mut Arena<mir::ForeignCallbackBridge>,
-    pub(super) foreign_callback_by_registration:
-        &'a mut HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
+    pub(super) foreign_callback_by_application:
+        &'a mut HashMap<hir::PersistentCallbackApplicationId, mir::ForeignCallbackBridgeId>,
     /// Local-concrete constructor callable -> MIR function.
     pub(super) ctors: &'a HashMap<hir::ClassConstructorId, mir::FunctionId>,
     pub(super) struct_ctors: &'a HashMap<hir::StructConstructorId, mir::FunctionId>,

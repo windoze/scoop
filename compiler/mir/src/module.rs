@@ -275,6 +275,8 @@ impl ForeignCallbackFailureResult {
 /// `CallbackBridgeId` so a closure can never enter the NoGC callback path.
 #[derive(Debug)]
 pub struct ForeignCallbackBridge {
+    /// Persistent identity of this fully concrete callback materialization.
+    pub application: scoop_identity::PersistentCallbackApplicationId,
     pub adapter: ForeignCallbackAdapterId,
     pub family: ForeignCallbackFamilyId,
     pub native_signature: FunctionTypeId,

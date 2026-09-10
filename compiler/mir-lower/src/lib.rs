@@ -157,7 +157,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         foreign_callback_families: Arena::new(),
         foreign_callback_family_by_callback: HashMap::new(),
         foreign_callback_bridges: Arena::new(),
-        foreign_callback_by_registration: HashMap::new(),
+        foreign_callback_by_application: HashMap::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: StructRegistry::default(),
@@ -214,8 +214,8 @@ struct Lowerer {
     foreign_callback_families: Arena<mir::ForeignCallbackFamily>,
     foreign_callback_family_by_callback: HashMap<mir::StructId, mir::ForeignCallbackFamilyId>,
     foreign_callback_bridges: Arena<mir::ForeignCallbackBridge>,
-    foreign_callback_by_registration:
-        HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
+    foreign_callback_by_application:
+        HashMap<hir::PersistentCallbackApplicationId, mir::ForeignCallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,

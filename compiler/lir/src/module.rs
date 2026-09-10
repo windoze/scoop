@@ -245,6 +245,8 @@ impl ForeignCallbackFailureResult {
 
 #[derive(Debug)]
 pub struct ForeignCallbackBridge {
+    /// Persistent identity shared with the managed adapter materialization.
+    pub application: scoop_identity::PersistentCallbackApplicationId,
     pub family: ForeignCallbackFamilyId,
     pub adapter_symbol: String,
     pub trampoline_symbol: String,

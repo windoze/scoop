@@ -1,5 +1,7 @@
 use super::*;
 
+use std::collections::HashSet;
+
 pub(super) fn validate_foreign_callback_metadata(
     module: &Module,
 ) -> Result<(), MirValidationError> {
@@ -81,11 +83,17 @@ pub(super) fn validate_foreign_callback_metadata(
         protocol = Some(identity);
     }
 
+    let mut applications = HashSet::new();
     for (bridge_id, bridge) in module.foreign_callback_bridges.iter() {
         let fail = |reason| MirValidationError {
             location: MirValidationLocation::ForeignCallbackBridge { bridge: bridge_id },
             kind: MirValidationErrorKind::InvalidForeignCallbackBridge { reason },
         };
+        if !applications.insert(bridge.application) {
+            return Err(fail(
+                "callback application is materialized by more than one bridge",
+            ));
+        }
         if bridge.family.into_raw().into_u32() as usize >= module.foreign_callback_families.len() {
             return Err(fail("family reference is out of bounds"));
         }
