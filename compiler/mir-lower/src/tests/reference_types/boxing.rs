@@ -46,6 +46,16 @@ fn boxing_only_materializes_the_payload_class() {
     else {
         panic!("boxed metadata carries a boxed-value identity")
     };
+    assert_eq!(
+        module
+            .meta
+            .source_exact_types
+            .get(boxed_meta.payload())
+            .unwrap()
+            .identity_record()
+            .id(),
+        *payload
+    );
     let exact_type = concrete
         .module()
         .exact_type_identities

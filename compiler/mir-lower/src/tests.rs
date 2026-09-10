@@ -17,6 +17,7 @@ mod operators;
 mod overloads;
 mod reference_types;
 mod singletons;
+mod source_exact_types;
 mod value_types;
 
 fn lower(module: &hir::LegacyExecutableExportHir) -> mir::Module {

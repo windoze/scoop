@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::*;
+use crate::validation::metadata::source_exact_type;
 
 pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirValidationError> {
     validate_saved_values(module)?;
@@ -126,6 +127,12 @@ fn validate_support_callables(module: &Module) -> Result<HashSet<FunctionId>, Mi
                 "continuation shells and CoroutineStep disagree on the exact result",
             ));
         }
+        if source_exact_type(module, shell.result()) != Some(exact) {
+            return Err(error(
+                location,
+                "continuation shell result does not match the source exact-type relation",
+            ));
+        }
         if !functions.insert(shell.success()) || !functions.insert(shell.failure()) {
             return Err(error(
                 location,
@@ -163,6 +170,12 @@ fn validate_support_callables(module: &Module) -> Result<HashSet<FunctionId>, Mi
             return Err(error(
                 location,
                 "coroutine start helper and CoroutineStep disagree on the exact result",
+            ));
+        }
+        if source_exact_type(module, start.result()) != Some(exact) {
+            return Err(error(
+                location,
+                "coroutine start result does not match the source exact-type relation",
             ));
         }
         if !functions.insert(start.function()) {

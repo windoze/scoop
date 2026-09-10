@@ -31,6 +31,7 @@ impl Lowerer {
                 };
                 types.lower(
                     source.ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,

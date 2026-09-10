@@ -41,6 +41,7 @@ impl BodyLowerer<'_> {
         for interface_ty in declared {
             let lowered = types.lower(
                 interface_ty,
+                self.source_exact_types,
                 self.enums,
                 self.structs,
                 self.interfaces,

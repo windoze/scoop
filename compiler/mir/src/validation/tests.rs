@@ -31,8 +31,27 @@ fn test_exact_type(
     scoop_identity::PersistentExactTypeId,
     scoop_identity::ExactTypeKey,
 > {
+    if matches!(ty, Type::Unit) {
+        return scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::ExactTypeKey::Nominal(
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id(),
+            ),
+        )
+        .unwrap();
+    }
+    if matches!(ty, Type::Any) {
+        return scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::ExactTypeKey::Nominal(
+                scoop_identity::CoreBuiltinNominal::Any
+                    .identity_record()
+                    .id(),
+            ),
+        )
+        .unwrap();
+    }
     let owner_tag = match ty {
-        Type::Unit => 1,
         Type::Integer(_) => 2,
         Type::Boolean => 3,
         Type::String => 4,
@@ -56,6 +75,21 @@ fn test_exact_type(
     let owner = scoop_identity::PersistentTypeId::from_source_declaration(&declaration).unwrap();
     scoop_identity::CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Nominal(owner))
         .unwrap()
+}
+
+fn register_test_exact_type(module: &mut Module, ty: &Type) {
+    if let Some(found) = module.meta.source_exact_types.get(ty) {
+        assert_eq!(found.identity_record().id(), test_exact_type(ty).id());
+        return;
+    }
+    let mut entries = module
+        .meta
+        .source_exact_types
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    entries.push(SourceExactTypeIdentity::checked(ty.clone(), test_exact_type(ty), None).unwrap());
+    module.meta.source_exact_types = SourceExactTypeIdentities::checked(entries).unwrap();
 }
 
 fn test_step_identity(ty: &Type) -> CoroutineStepIdentity {

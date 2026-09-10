@@ -586,6 +586,10 @@ pub enum MirAnnotationValue {
 #[derive(Debug, Default)]
 pub struct MirMeta {
     pub dispatch_tables: Vec<DispatchTable>,
+    /// Complete identity relation for every LocalConcrete HIR type transposed
+    /// into this MIR module. These records remain HIR-owned and are not
+    /// re-emitted as MIR-first identity-foundation entries.
+    pub source_exact_types: SourceExactTypeIdentities,
     /// Concrete callable materializations in creation order. Every entry
     /// carries the persistent HIR identity used across stage boundaries.
     pub instances: Arena<MonomorphizedFunction>,

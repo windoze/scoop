@@ -22,6 +22,7 @@ impl BodyLowerer<'_> {
         ] {
             self.enums.get_or_create(
                 &types,
+                self.source_exact_types,
                 self.structs,
                 self.interfaces,
                 self.shell,

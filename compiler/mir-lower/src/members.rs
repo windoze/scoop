@@ -22,6 +22,7 @@ impl Lowerer {
             .map(|param| {
                 let ty = types.lower(
                     param.ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,
@@ -41,6 +42,7 @@ impl Lowerer {
             .collect();
         let return_ty = types.lower(
             function.return_ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
@@ -93,6 +95,7 @@ impl Lowerer {
         params.extend(method.params.iter().map(|param| {
             let ty = types.lower(
                 param.ty,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -111,6 +114,7 @@ impl Lowerer {
         }));
         let return_ty = types.lower(
             method.return_ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
@@ -162,6 +166,7 @@ impl Lowerer {
                     name: field.name.clone(),
                     ty: types.lower(
                         field.ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -252,6 +257,7 @@ impl Lowerer {
         let mir_class = self.class_map[&class];
         let mut lowerer = BodyLowerer {
             module,
+            source_exact_types: &mut self.source_exact_types,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -357,6 +363,7 @@ impl Lowerer {
         let structure = constructor.structure;
         let mut lowerer = BodyLowerer {
             module,
+            source_exact_types: &mut self.source_exact_types,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,

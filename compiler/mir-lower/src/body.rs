@@ -12,6 +12,7 @@ mod statements;
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {
     pub(super) module: &'a hir::Module,
+    pub(super) source_exact_types: &'a mut SourceExactTypeRegistry,
     pub(super) struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     pub(super) class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     pub(super) interfaces: &'a mut InterfaceRegistry,

@@ -65,6 +65,7 @@ fn module_validation_rejects_stale_coroutine_step_shape() {
         variant_def("Completed", vec![result.clone()]),
         variant_def("Suspended", Vec::new()),
     ]);
+    register_test_exact_type(&mut module, &result);
     let (completed_payload, suspended) = checked_pair(&module, enum_id);
     let identity = test_step_identity(&result);
     let step = CoroutineStep::checked(
@@ -98,6 +99,7 @@ fn module_validation_rejects_stale_coroutine_slot_reference() {
         variant_def("Empty", Vec::new()),
         variant_def("Value", vec![value.clone()]),
     ]);
+    register_test_exact_type(&mut module, &value);
     let empty = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
     let value_variant = MirVariantRef::new(&module.enums, enum_id, 1).unwrap();
     let value_payload = MirVariantFieldRef::new(&module.enums, value_variant, 0).unwrap();
@@ -124,6 +126,7 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
         variant_def("Completed", vec![result.clone()]),
         variant_def("Suspended", Vec::new()),
     ]);
+    register_test_exact_type(&mut module, &result);
     let (completed_payload, suspended) = checked_pair(&module, enum_id);
     module.meta.coroutine_steps.alloc(
         CoroutineStep::checked(

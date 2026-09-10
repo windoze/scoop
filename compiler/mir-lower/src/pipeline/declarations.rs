@@ -34,6 +34,7 @@ impl Lowerer {
             };
             types.lower(
                 module.class_constructors[cycle_source.callable].parameters[0].ty,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -104,6 +105,7 @@ impl Lowerer {
                 .map(|&ty| {
                     types.lower(
                         ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -113,6 +115,7 @@ impl Lowerer {
                 .collect();
             let return_type = types.lower(
                 extern_.return_type,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -156,6 +159,7 @@ impl Lowerer {
                 .map(|parameter| {
                     types.lower(
                         *parameter,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -165,6 +169,7 @@ impl Lowerer {
                 .collect();
             let return_type = types.lower(
                 source.return_type,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -188,6 +193,7 @@ impl Lowerer {
             };
             let ty = types.lower(
                 global.ty,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,

@@ -10,9 +10,10 @@ use scoop_identity::{
     CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
     ExactTypeKey, InitializationUnitKey, LexicalCallableParent, PackagePath,
     PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFunctionId,
-    PersistentPropertyId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
-    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    PersistentPropertyId, PersistentTypeId, SignatureCallableShape, SignatureTypeKey,
+    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
+    SourceNominalKind, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 fn nominal_link_stem(name: impl Into<String>) -> mir::NominalLinkStem {
@@ -71,12 +72,33 @@ fn exact_callback_signature() -> ExactCallableSignature {
     ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit)
 }
 
-fn boxed_type(payload: mir::Type, class: mir::ClassId) -> mir::BoxedType {
-    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
-        CoreBuiltinNominal::Unit.identity_record().id(),
-    ))
+fn register_boxed_source_nominal(
+    module: &mut mir::Module,
+    payload: mir::Type,
+    class: mir::ClassId,
+    name: &str,
+    kind: SourceNominalKind,
+) {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
     .unwrap();
-    mir::BoxedType::for_source_nominal(payload, class, &exact).unwrap()
+    let declaration =
+        SourceDeclarationKey::nominal(site, CanonicalIdentifier::new(name).unwrap(), kind, 0);
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap();
+    let source_exact_type =
+        mir::SourceExactTypeIdentity::checked(payload.clone(), exact.clone(), None).unwrap();
+
+    module.meta.source_exact_types =
+        mir::SourceExactTypeIdentities::checked(vec![source_exact_type]).unwrap();
+    module
+        .meta
+        .boxed_types
+        .push(mir::BoxedType::for_source_nominal(payload, class, &exact).unwrap());
 }
 
 fn initialization_unit_identity() -> mir::InitializationUnitIdentityRecord {

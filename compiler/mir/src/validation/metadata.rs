@@ -15,7 +15,6 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
         }
     }
 
-    let mut exact_types = Vec::new();
     let mut step_results = HashSet::new();
     for (step_id, step) in module.meta.coroutine_steps.iter() {
         if CoroutineStep::checked(
@@ -33,9 +32,7 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
             });
         }
         let exact = step.identity().result_record().id();
-        if !step_results.insert(exact)
-            || !register_exact_type(&mut exact_types, step.result(), exact)
-        {
+        if !step_results.insert(exact) || source_exact_type(module, step.result()) != Some(exact) {
             return Err(MirValidationError {
                 location: MirValidationLocation::CoroutineStep { step: step_id },
                 kind: MirValidationErrorKind::InvalidCoroutineStep,
@@ -60,8 +57,7 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
             });
         }
         let exact = slot.identity().value_record().id();
-        if !slot_values.insert(exact) || !register_exact_type(&mut exact_types, slot.value(), exact)
-        {
+        if !slot_values.insert(exact) || source_exact_type(module, slot.value()) != Some(exact) {
             return Err(MirValidationError {
                 location: MirValidationLocation::CoroutineSlot { slot: slot_id },
                 kind: MirValidationErrorKind::InvalidCoroutineSlot,
@@ -72,18 +68,13 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
     Ok(())
 }
 
-fn register_exact_type(
-    registered: &mut Vec<(Type, scoop_identity::PersistentExactTypeId)>,
+pub(super) fn source_exact_type(
+    module: &Module,
     ty: &Type,
-    exact: scoop_identity::PersistentExactTypeId,
-) -> bool {
-    if let Some((found_ty, found_exact)) = registered
-        .iter()
-        .find(|(found_ty, found_exact)| found_ty == ty || *found_exact == exact)
-    {
-        found_ty == ty && *found_exact == exact
-    } else {
-        registered.push((ty.clone(), exact));
-        true
-    }
+) -> Option<scoop_identity::PersistentExactTypeId> {
+    module
+        .meta
+        .source_exact_types
+        .get(ty)
+        .map(|source| source.identity_record().id())
 }

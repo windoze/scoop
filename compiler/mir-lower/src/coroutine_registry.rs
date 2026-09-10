@@ -24,65 +24,29 @@ pub(super) struct CoroutineRegistry {
     pub(super) resume_points: Arena<mir::CoroutineResumePoint>,
     pub(super) continuation_shells: Vec<mir::CoroutineContinuationShell>,
     pub(super) start_helpers: Vec<mir::CoroutineStart>,
-    source_types: Vec<SourceExactType>,
-}
-
-struct SourceExactType {
-    source: hir::TypeId,
-    lowered: mir::Type,
-    exact: hir::PersistentExactTypeId,
 }
 
 impl CoroutineRegistry {
-    pub(super) fn record_source_type(
-        &mut self,
-        module: &hir::Module,
-        source: hir::TypeId,
-        lowered: mir::Type,
-    ) {
-        let exact = module.exact_type_identities[source].id();
-        if let Some(found) = self
-            .source_types
-            .iter()
-            .find(|found| found.lowered == lowered || found.exact == exact)
-        {
-            assert_eq!(
-                found.lowered, lowered,
-                "one persistent exact type cannot lower to two MIR types"
-            );
-            assert_eq!(
-                found.exact, exact,
-                "one MIR type cannot represent two persistent exact types"
-            );
-            return;
-        }
-        self.source_types.push(SourceExactType {
-            source,
-            lowered,
-            exact,
-        });
-    }
-
-    fn source_type(&self, lowered: &mir::Type) -> &SourceExactType {
-        self.source_types
-            .iter()
-            .find(|source| &source.lowered == lowered)
+    fn source_type<'a>(
+        exact_types: &'a SourceExactTypeRegistry,
+        lowered: &mir::Type,
+    ) -> &'a mir::SourceExactTypeIdentity {
+        exact_types
+            .get(lowered)
             .expect("coroutine value types originate in local-concrete HIR")
     }
 
     pub(super) fn step_for(
         &mut self,
-        module: &hir::Module,
+        exact_types: &SourceExactTypeRegistry,
         result: &mir::Type,
         structs: &StructRegistry,
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineStepId, mir::Type) {
-        let source = self.source_type(result);
-        let exact = &module.exact_type_identities[source.source];
-        let nominal_group = module
-            .exact_type_identities
-            .nominal_specialization(source.source);
+        let source = Self::source_type(exact_types, result);
+        let exact = source.identity_record();
+        let nominal_group = source.nominal_specialization();
         if let Some((_, id)) = self
             .steps_by_result
             .iter()
@@ -149,8 +113,14 @@ impl CoroutineRegistry {
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
 
-    pub(super) fn step_type_for(&self, result: &mir::Type) -> Option<mir::Type> {
-        let exact = self.source_type(result).exact;
+    pub(super) fn step_type_for(
+        &self,
+        exact_types: &SourceExactTypeRegistry,
+        result: &mir::Type,
+    ) -> Option<mir::Type> {
+        let exact = Self::source_type(exact_types, result)
+            .identity_record()
+            .id();
         self.steps_by_result
             .iter()
             .find(|(found, _)| *found == exact)
@@ -170,17 +140,15 @@ impl CoroutineRegistry {
 
     pub(super) fn slot_for(
         &mut self,
-        module: &hir::Module,
+        exact_types: &SourceExactTypeRegistry,
         value: &mir::Type,
         structs: &StructRegistry,
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineSlotId, mir::Type) {
-        let source = self.source_type(value);
-        let exact = &module.exact_type_identities[source.source];
-        let nominal_group = module
-            .exact_type_identities
-            .nominal_specialization(source.source);
+        let source = Self::source_type(exact_types, value);
+        let exact = source.identity_record();
+        let nominal_group = source.nominal_specialization();
         if let Some((_, id)) = self
             .slots_by_value
             .iter()
@@ -244,16 +212,16 @@ impl CoroutineRegistry {
 
     pub(super) fn continuation_shells(
         &mut self,
-        module: &hir::Module,
+        exact_types: &SourceExactTypeRegistry,
         result: &mir::Type,
         continuation: mir::InterfaceId,
         throwable: mir::Type,
         functions: &mut Arena<mir::Function>,
         shell: &mir::Module,
     ) -> (mir::FunctionId, mir::FunctionId) {
-        let source = self.source_type(result).source;
-        let exact = &module.exact_type_identities[source];
-        let nominal_group = module.exact_type_identities.nominal_specialization(source);
+        let source = Self::source_type(exact_types, result);
+        let exact = source.identity_record();
+        let nominal_group = source.nominal_specialization();
         if let Some(found) = self
             .continuation_shells
             .iter()
@@ -340,7 +308,7 @@ impl CoroutineRegistry {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn start_helper(
         &mut self,
-        module: &hir::Module,
+        exact_types: &SourceExactTypeRegistry,
         result: &mir::Type,
         task_interface: mir::InterfaceId,
         continuation_interface: mir::InterfaceId,
@@ -353,9 +321,9 @@ impl CoroutineRegistry {
         top_level: &mut Vec<mir::FunctionId>,
         shell: &mir::Module,
     ) -> mir::FunctionId {
-        let source = self.source_type(result).source;
-        let exact = &module.exact_type_identities[source];
-        let nominal_group = module.exact_type_identities.nominal_specialization(source);
+        let source = Self::source_type(exact_types, result);
+        let exact = source.identity_record();
+        let nominal_group = source.nominal_specialization();
         let step_id = self
             .steps_by_result
             .iter()

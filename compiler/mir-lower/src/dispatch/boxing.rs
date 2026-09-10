@@ -75,6 +75,7 @@ impl Lowerer {
         for param in &signature.params {
             let ty = types.lower(
                 param.ty,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -95,6 +96,7 @@ impl Lowerer {
         }
         let return_ty = types.lower(
             signature.return_ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
@@ -129,6 +131,7 @@ impl Lowerer {
         };
         let receiver_ty = source_types.lower(
             implementation_function.params[0].ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
@@ -160,6 +163,7 @@ impl Lowerer {
             .map(|param| {
                 source_types.lower(
                     param.ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,
@@ -169,6 +173,7 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let implementation_return = source_types.lower(
             implementation_function.return_ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
@@ -294,6 +299,7 @@ impl Lowerer {
             .map(|ty| {
                 let lowered = types.lower(
                     ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,

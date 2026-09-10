@@ -258,6 +258,7 @@ impl Lowerer {
             option_core,
             entry,
             meta: mir::MirMeta {
+                source_exact_types: self.source_exact_types.finish(),
                 instances: self.instances.meta,
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,

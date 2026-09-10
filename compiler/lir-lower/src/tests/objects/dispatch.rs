@@ -293,10 +293,13 @@ fn class_layouts_shift_ref_offsets_by_the_header() {
     );
     let main = b.main(Arena::new(), vec![]);
     let mut mir_module = b.finish(main);
-    mir_module
-        .meta
-        .boxed_types
-        .push(boxed_type(mir::Type::Struct(s), boxed));
+    register_boxed_source_nominal(
+        &mut mir_module,
+        mir::Type::Struct(s),
+        boxed,
+        "S",
+        SourceNominalKind::Struct,
+    );
     let module = lower(&mir_module);
 
     let by_name = |name: &str| {

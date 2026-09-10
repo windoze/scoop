@@ -10,6 +10,7 @@ struct CoroutineFixture {
 fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let (mut module, _) = module_with_variants(Vec::new());
     let result = Type::Integer(IntegerKind::SIGNED_32);
+    register_test_exact_type(&mut module, &result);
     let throwable = module.classes.alloc(ClassDef {
         link_stem: nominal_link_stem(),
         type_arguments: Vec::new(),
@@ -314,6 +315,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
 }
 
 fn slot(module: &mut Module, name: &str, value: Type) -> (CoroutineSlotId, Type) {
+    register_test_exact_type(module, &value);
     let enumeration = module.enums.alloc(EnumDef {
         link_stem: nominal_link_stem(),
         name: name.to_string(),

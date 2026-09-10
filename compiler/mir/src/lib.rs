@@ -28,6 +28,9 @@ pub use function_adapter::*;
 mod exact_owner;
 pub use exact_owner::*;
 
+mod source_exact_types;
+pub use source_exact_types::*;
+
 mod coroutine_shape;
 pub use coroutine_shape::*;
 

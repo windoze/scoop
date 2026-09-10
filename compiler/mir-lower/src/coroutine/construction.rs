@@ -431,7 +431,7 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
             return if signature.is_suspend {
                 lowerer
                     .coroutines
-                    .step_type_for(&signature.return_type)
+                    .step_type_for(&lowerer.source_exact_types, &signature.return_type)
                     .expect("every suspend function result has a CoroutineStep type")
             } else {
                 signature.return_type.clone()

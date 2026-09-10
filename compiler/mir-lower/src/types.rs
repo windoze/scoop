@@ -39,6 +39,60 @@ pub(super) fn exact_function_identity(
     (signature, exact_type)
 }
 
+/// Exact source types that have actually crossed the HIR -> MIR boundary.
+/// Registration happens inside `Types::lower`, so recursive child types are
+/// covered without forcing unused LocalConcrete declarations into MIR.
+#[derive(Default)]
+pub(super) struct SourceExactTypeRegistry {
+    entries: Vec<(hir::TypeId, mir::SourceExactTypeIdentity)>,
+}
+
+impl SourceExactTypeRegistry {
+    fn record(&mut self, module: &hir::Module, source: hir::TypeId, lowered: mir::Type) {
+        if let Some((_, existing)) = self.entries.iter().find(|(found, _)| *found == source) {
+            assert_eq!(
+                existing.ty(),
+                &lowered,
+                "one LocalConcrete HIR type must always lower to the same MIR type"
+            );
+            return;
+        }
+        assert!(
+            self.entries.iter().all(|(_, existing)| {
+                existing.ty() != &lowered
+                    && existing.identity_record().id() != module.exact_type_identities[source].id()
+            }),
+            "source exact types transpose one-to-one into MIR"
+        );
+        let identity = mir::SourceExactTypeIdentity::checked(
+            lowered,
+            module.exact_type_identities[source].clone(),
+            module
+                .exact_type_identities
+                .nominal_specialization(source)
+                .cloned(),
+        )
+        .expect("validated HIR exact types retain their specialization groups");
+        self.entries.push((source, identity));
+    }
+
+    pub(super) fn get(&self, ty: &mir::Type) -> Option<&mir::SourceExactTypeIdentity> {
+        self.entries
+            .iter()
+            .find_map(|(_, entry)| (entry.ty() == ty).then_some(entry))
+    }
+
+    pub(super) fn finish(self) -> mir::SourceExactTypeIdentities {
+        mir::SourceExactTypeIdentities::checked(
+            self.entries
+                .into_iter()
+                .map(|(_, identity)| identity)
+                .collect(),
+        )
+        .expect("registered source exact types are one-to-one")
+    }
+}
+
 /// Closed roles for MIR-only nominal entities. Callers provide typed source
 /// identities or MIR types; generated link stems never derive from display
 /// names or arena ids masquerading as names.
@@ -259,12 +313,13 @@ impl Types<'_> {
     pub(super) fn lower(
         &self,
         ty: hir::TypeId,
+        exact_types: &mut SourceExactTypeRegistry,
         enums: &mut EnumRegistry,
         structs: &mut StructRegistry,
         interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
     ) -> mir::Type {
-        match &self.module.types[ty].kind {
+        let lowered = match &self.module.types[ty].kind {
             hir::TypeKind::Unit => mir::Type::Unit,
             hir::TypeKind::Integer(kind) => mir::Type::Integer(lower_integer_kind(*kind)),
             hir::TypeKind::Boolean => mir::Type::Boolean,
@@ -275,7 +330,7 @@ impl Types<'_> {
                 let args = self.module.interfaces[*id]
                     .type_arguments
                     .iter()
-                    .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
+                    .map(|&arg| self.lower(arg, exact_types, enums, structs, interfaces, shell))
                     .collect();
                 mir::Type::Interface(interfaces.get_or_create(self.module, shell, *id, args))
             }
@@ -283,24 +338,36 @@ impl Types<'_> {
             hir::TypeKind::Tuple(elements) => mir::Type::Tuple(
                 elements
                     .iter()
-                    .map(|&element| self.lower(element, enums, structs, interfaces, shell))
+                    .map(|&element| {
+                        self.lower(element, exact_types, enums, structs, interfaces, shell)
+                    })
                     .collect(),
             ),
             hir::TypeKind::Function(id) => mir::Type::Function(remap_idx(*id)),
-            hir::TypeKind::Ptr(pointee) => mir::Type::Ptr(Box::new(
-                self.lower(*pointee, enums, structs, interfaces, shell),
-            )),
+            hir::TypeKind::Ptr(pointee) => mir::Type::Ptr(Box::new(self.lower(
+                *pointee,
+                exact_types,
+                enums,
+                structs,
+                interfaces,
+                shell,
+            ))),
             hir::TypeKind::FunPtr(id) => mir::Type::FunPtr(remap_idx(*id)),
             hir::TypeKind::Enum(id) => {
                 let args = self.module.enums[*id]
                     .type_arguments
                     .iter()
-                    .map(|argument| self.lower(*argument, enums, structs, interfaces, shell))
+                    .map(|argument| {
+                        self.lower(*argument, exact_types, enums, structs, interfaces, shell)
+                    })
                     .collect::<Vec<_>>();
-                let enum_id = enums.get_or_create(self, structs, interfaces, shell, *id);
+                let enum_id =
+                    enums.get_or_create(self, exact_types, structs, interfaces, shell, *id);
                 mir::Type::Enum(enum_id, args)
             }
-        }
+        };
+        exact_types.record(self.module, ty, lowered.clone());
+        lowered
     }
 }
 
@@ -349,6 +416,7 @@ impl EnumRegistry {
     pub(super) fn get_or_create(
         &mut self,
         types: &Types,
+        exact_types: &mut SourceExactTypeRegistry,
         structs: &mut StructRegistry,
         interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
@@ -378,7 +446,7 @@ impl EnumRegistry {
         let type_arguments = decl
             .type_arguments
             .iter()
-            .map(|argument| types.lower(*argument, self, structs, interfaces, shell))
+            .map(|argument| types.lower(*argument, exact_types, self, structs, interfaces, shell))
             .collect::<Vec<_>>();
         self.defs[id].type_arguments.clone_from(&type_arguments);
         shell.enums[id].type_arguments = type_arguments;
@@ -393,7 +461,7 @@ impl EnumRegistry {
                     .iter()
                     .map(|field| mir::Field {
                         name: field.name.clone(),
-                        ty: types.lower(field.ty, self, structs, interfaces, shell),
+                        ty: types.lower(field.ty, exact_types, self, structs, interfaces, shell),
                     })
                     .collect(),
             })

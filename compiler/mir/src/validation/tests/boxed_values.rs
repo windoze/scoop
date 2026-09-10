@@ -25,6 +25,7 @@ fn module_with_box() -> Module {
         CoreBuiltinNominal::Unit.identity_record().id(),
     ))
     .unwrap();
+    register_test_exact_type(&mut module, &payload);
     module
         .meta
         .boxed_types

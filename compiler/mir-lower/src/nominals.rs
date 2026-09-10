@@ -45,6 +45,7 @@ impl Lowerer {
                             mir::IntrinsicTypeRepresentation::Ptr {
                                 pointee: types.lower(
                                     *pointee,
+                                    &mut self.source_exact_types,
                                     &mut self.enums,
                                     &mut self.structs,
                                     &mut self.interfaces,
@@ -94,6 +95,7 @@ impl Lowerer {
                 .map(|argument| {
                     types.lower(
                         *argument,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -119,6 +121,7 @@ impl Lowerer {
                 .map(|argument| {
                     types.lower(
                         *argument,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -148,6 +151,7 @@ impl Lowerer {
                         name: field.name.clone(),
                         ty: types.lower(
                             field.ty,
+                            &mut self.source_exact_types,
                             &mut self.enums,
                             &mut self.structs,
                             &mut self.interfaces,
@@ -181,6 +185,7 @@ impl Lowerer {
                 .map(|argument| {
                     types.lower(
                         *argument,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -222,6 +227,7 @@ impl Lowerer {
                             mir::IntrinsicTypeRepresentation::Array {
                                 element: types.lower(
                                     *element,
+                                    &mut self.source_exact_types,
                                     &mut self.enums,
                                     &mut self.structs,
                                     &mut self.interfaces,
@@ -233,6 +239,7 @@ impl Lowerer {
                             mir::IntrinsicTypeRepresentation::MutableArray {
                                 element: types.lower(
                                     *element,
+                                    &mut self.source_exact_types,
                                     &mut self.enums,
                                     &mut self.structs,
                                     &mut self.interfaces,
@@ -281,6 +288,7 @@ impl Lowerer {
                 .map(|&interface_ty| {
                     let lowered = types.lower(
                         interface_ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -331,6 +339,7 @@ impl Lowerer {
                 .map(|argument| {
                     types.lower(
                         *argument,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -380,6 +389,7 @@ impl Lowerer {
             .map(|param| {
                 types.lower(
                     param.ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,
@@ -431,6 +441,7 @@ impl Lowerer {
         }
         .lower(
             ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,

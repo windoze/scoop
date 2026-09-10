@@ -159,9 +159,13 @@ impl BodyLowerer<'_> {
         let completion = self.lower_expr(completion);
         let task_interface = self.interfaces.mir_id(protocol.suspend_task);
         let continuation_interface = self.interfaces.mir_id(protocol.continuation);
-        let (_, step_ty) =
-            self.coroutines
-                .step_for(self.module, &result, self.structs, self.enums, self.shell);
+        let (_, step_ty) = self.coroutines.step_for(
+            self.source_exact_types,
+            &result,
+            self.structs,
+            self.enums,
+            self.shell,
+        );
         let run = self.instances.get(protocol.suspend_task_run).unwrap();
         let resume = self.instances.get(protocol.continuation_resume).unwrap();
         let failure = self
@@ -171,7 +175,7 @@ impl BodyLowerer<'_> {
         let throwable =
             mir::Type::Class(self.class_map[&self.module.exception_core.throwable.class()]);
         let helper = self.coroutines.start_helper(
-            self.module,
+            self.source_exact_types,
             &result,
             task_interface,
             continuation_interface,

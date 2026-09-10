@@ -5,6 +5,7 @@ use scoop_identity::{
 };
 
 use super::*;
+use crate::validation::metadata::source_exact_type;
 
 pub(super) fn validate_boxed_value_metadata(module: &Module) -> Result<(), MirValidationError> {
     let mut payloads = HashSet::new();
@@ -18,6 +19,12 @@ pub(super) fn validate_boxed_value_metadata(module: &Module) -> Result<(), MirVa
         else {
             return invalid(location, "the generated nominal is not a value box");
         };
+        if source_exact_type(module, boxed.payload()) != Some(*payload) {
+            return invalid(
+                location,
+                "boxed payload does not match the source exact-type relation",
+            );
+        }
         if !payloads.insert(*payload) {
             return invalid(location, "the same exact payload is boxed more than once");
         }

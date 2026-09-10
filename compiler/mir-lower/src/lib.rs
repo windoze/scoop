@@ -129,10 +129,10 @@ use coroutine_registry::{CoroutineRegistry, SuspendSource};
 use instances::{InstanceRegistry, function_instance};
 use structured as smir;
 use types::{
-    BoxedRegistry, EnumRegistry, GeneratedNominalLinkRole, InterfaceRegistry, StructRegistry,
-    Types, exact_function_identity, generated_nominal_link_stem, is_boxable, is_reference_mir,
-    lower_integer_constant, lower_integer_kind, lower_nominal_link_stem, mir_type_gc_free,
-    raise_integer_kind, remap_idx,
+    BoxedRegistry, EnumRegistry, GeneratedNominalLinkRole, InterfaceRegistry,
+    SourceExactTypeRegistry, StructRegistry, Types, exact_function_identity,
+    generated_nominal_link_stem, is_boxable, is_reference_mir, lower_integer_constant,
+    lower_integer_kind, lower_nominal_link_stem, mir_type_gc_free, raise_integer_kind, remap_idx,
 };
 
 /// Lower a complete legacy executable HIR graph to MIR.
@@ -175,6 +175,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         struct_ctors: HashMap::new(),
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         overloaded_link_stems: overloaded_link_stems(module),
+        source_exact_types: SourceExactTypeRegistry::default(),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -250,6 +251,8 @@ struct Lowerer {
     /// overloads): each of them gets the parameter encoding appended
     /// to its symbol (see `declare_symbol`).
     overloaded_link_stems: HashSet<hir::CallableLinkStem>,
+    /// Exact HIR type relations registered as types cross into MIR.
+    source_exact_types: SourceExactTypeRegistry,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,

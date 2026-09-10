@@ -55,10 +55,13 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
         ],
     );
     let mut mir_module = b.finish(main);
-    mir_module
-        .meta
-        .boxed_types
-        .push(boxed_type(mir::Type::Struct(s), boxed));
+    register_boxed_source_nominal(
+        &mut mir_module,
+        mir::Type::Struct(s),
+        boxed,
+        "S",
+        SourceNominalKind::Struct,
+    );
     let module = lower(&mir_module);
 
     assert!(

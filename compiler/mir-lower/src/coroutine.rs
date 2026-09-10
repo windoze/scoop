@@ -111,20 +111,10 @@ fn transform_function(
     let source_params = &old_params[..old_params.len() - 1];
     let throwable_ty =
         mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
-    let throwable_source = module
-        .types
-        .iter()
-        .find_map(|(ty, definition)| {
-            matches!(
-                definition.kind,
-                hir::TypeKind::Class(class) if class == module.exception_core.throwable.class()
-            )
-            .then_some(ty)
-        })
-        .expect("local-concrete HIR contains the Throwable exact type");
     lowerer
-        .coroutines
-        .record_source_type(module, throwable_source, throwable_ty.clone());
+        .source_exact_types
+        .get(&throwable_ty)
+        .expect("local-concrete HIR contains the Throwable exact type");
 
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
@@ -156,7 +146,7 @@ fn transform_function(
     for local in &saved {
         let value_ty = body.locals[*local].ty.clone();
         let (slot_id, slot_ty) = lowerer.coroutines.slot_for(
-            module,
+            &lowerer.source_exact_types,
             &value_ty,
             &lowerer.structs,
             &mut lowerer.enums,
@@ -178,7 +168,7 @@ fn transform_function(
         );
     }
     let (failure_slot_id, failure_slot_ty) = lowerer.coroutines.slot_for(
-        module,
+        &lowerer.source_exact_types,
         &throwable_ty,
         &lowerer.structs,
         &mut lowerer.enums,
@@ -285,7 +275,7 @@ fn transform_function(
         _ => unreachable!("hidden completion has a concrete Continuation<R> type"),
     };
     let (outer_resume, outer_failure) = lowerer.coroutines.continuation_shells(
-        module,
+        &lowerer.source_exact_types,
         &source_return,
         continuation,
         throwable_ty,

@@ -18,6 +18,7 @@ impl Lowerer {
                     name: capture.name.clone(),
                     ty: types.lower(
                         capture.ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -64,6 +65,7 @@ impl Lowerer {
                     name: capture.name.clone(),
                     ty: types.lower(
                         capture.ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -128,6 +130,7 @@ impl Lowerer {
                     name: "$receiver".to_string(),
                     ty: types.lower(
                         receiver.ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -139,6 +142,7 @@ impl Lowerer {
                 name: capture.name.clone(),
                 ty: types.lower(
                     capture.ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,

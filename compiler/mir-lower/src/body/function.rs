@@ -106,9 +106,23 @@ impl BodyLowerer<'_> {
             struct_map: self.struct_map,
             class_map: self.class_map,
         }
-        .lower(ty, self.enums, self.structs, self.interfaces, self.shell);
-        self.coroutines
-            .record_source_type(self.module, ty, lowered.clone());
+        .lower(
+            ty,
+            self.source_exact_types,
+            self.enums,
+            self.structs,
+            self.interfaces,
+            self.shell,
+        );
+        let source = self
+            .source_exact_types
+            .get(&lowered)
+            .expect("every lowered HIR type has a persistent MIR relation");
+        assert_eq!(
+            source.identity_record().id(),
+            self.module.exact_type_identities[ty].id(),
+            "type lowering preserves the exact HIR identity"
+        );
         lowered
     }
 
