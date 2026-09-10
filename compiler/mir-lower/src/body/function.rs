@@ -3,20 +3,87 @@ use super::*;
 mod adapters;
 
 impl BodyLowerer<'_> {
-    pub(crate) fn allocate_fragment_locals(&mut self, body: &hir::Body) {
-        for (hir_id, local) in body.locals.iter() {
-            let ty = self.lower_type(local.ty);
-            let mir_id = self.locals.alloc(mir::Local {
-                name: local.name.clone(),
-                ty,
-                mutable: local.mutable,
-            });
-            self.local_map.insert(hir_id, mir_id);
-        }
+    pub(crate) fn allocate_function_locals(&mut self, function: hir::FunctionId, body: &hir::Body) {
+        let identities = body
+            .locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .function_local(function, local)
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(&body.locals, identities);
     }
 
-    pub(crate) fn allocate_argument_locals(&mut self, body: &hir::ConstructorArguments) {
-        for (hir_id, local) in body.locals.iter() {
+    pub(crate) fn allocate_class_locals(
+        &mut self,
+        constructor: hir::ClassConstructorId,
+        body: &hir::Body,
+    ) {
+        let identities = body
+            .locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .class_local(constructor, local)
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(&body.locals, identities);
+    }
+
+    pub(crate) fn allocate_struct_argument_locals(
+        &mut self,
+        constructor: hir::StructConstructorId,
+        body: &hir::ConstructorArguments,
+    ) {
+        let identities = body
+            .locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .struct_argument_local(constructor, local)
+                    .expect("secondary constructor argument locals have persistent identities")
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(&body.locals, identities);
+    }
+
+    pub(crate) fn allocate_struct_body_locals(
+        &mut self,
+        constructor: hir::StructConstructorId,
+        body: &hir::Body,
+    ) {
+        let identities = body
+            .locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .struct_body_local(constructor, local)
+                    .expect("secondary constructor body locals have persistent identities")
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(&body.locals, identities);
+    }
+
+    fn allocate_source_locals(
+        &mut self,
+        locals: &Arena<hir::Local>,
+        identities: Vec<hir::LocalValueIdentityRecord>,
+    ) {
+        assert_eq!(
+            locals.len(),
+            identities.len(),
+            "the LocalConcrete local-value relation is total"
+        );
+        for ((hir_id, local), identity) in locals.iter().zip(identities) {
             let ty = self.lower_type(local.ty);
             let mir_id = self.locals.alloc(mir::Local {
                 name: local.name.clone(),
@@ -24,15 +91,18 @@ impl BodyLowerer<'_> {
                 mutable: local.mutable,
             });
             self.local_map.insert(hir_id, mir_id);
+            self.source_local_values
+                .record(self.current_function, mir_id, &identity);
         }
     }
 
     pub(crate) fn lower_function(
         mut self,
+        function_id: hir::FunctionId,
         function: &hir::Function,
         body: &hir::Body,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
-        self.allocate_fragment_locals(body);
+        self.allocate_function_locals(function_id, body);
         let params = function
             .params
             .iter()

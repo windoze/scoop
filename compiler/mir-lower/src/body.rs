@@ -13,6 +13,8 @@ mod statements;
 pub(super) struct BodyLowerer<'a> {
     pub(super) module: &'a hir::Module,
     pub(super) source_exact_types: &'a mut SourceExactTypeRegistry,
+    pub(super) source_local_values: &'a mut SourceLocalValueRegistry,
+    pub(super) current_function: mir::FunctionId,
     pub(super) struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     pub(super) class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     pub(super) interfaces: &'a mut InterfaceRegistry,

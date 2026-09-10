@@ -54,6 +54,32 @@ fn class_initializers_chain_on_one_exact_allocation() {
     );
     let module = lower(&h.finish(main));
 
+    let point_initializer = module
+        .functions
+        .iter()
+        .find_map(|(id, function)| (function.name == "init.Point.$c2").then_some((id, function)))
+        .expect("Point initializer");
+    let receiver = module
+        .meta
+        .source_local_values
+        .get(point_initializer.0, point_initializer.1.params[0].local)
+        .expect("the initializer receiver keeps its LocalConcrete value identity");
+    let parameter = module
+        .meta
+        .source_local_values
+        .get(point_initializer.0, point_initializer.1.params[1].local)
+        .expect("the initializer parameter keeps its LocalConcrete value identity");
+    assert!(matches!(
+        receiver.identity_record().key().selector(),
+        scoop_identity::LocalValueSelector::This
+    ));
+    assert!(matches!(
+        parameter.identity_record().key().selector(),
+        scoop_identity::LocalValueSelector::Parameter {
+            declaration_index: 0
+        }
+    ));
+
     // The use site performs the only allocation. Each initializer receives
     // that object, calls the direct base initializer, then writes its own
     // complete-layout field.

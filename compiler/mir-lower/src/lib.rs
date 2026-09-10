@@ -117,12 +117,14 @@ mod members;
 mod nominals;
 mod pipeline;
 mod singletons;
+mod source_local_values;
 mod structured;
 mod symbols;
 mod types;
 
 use globals::*;
 use lowering_support::*;
+use source_local_values::*;
 use symbols::*;
 
 use coroutine_registry::{CoroutineRegistry, SuspendSource};
@@ -176,6 +178,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         overloaded_link_stems: overloaded_link_stems(module),
         source_exact_types: SourceExactTypeRegistry::default(),
+        source_local_values: SourceLocalValueRegistry::default(),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -253,6 +256,8 @@ struct Lowerer {
     overloaded_link_stems: HashSet<hir::CallableLinkStem>,
     /// Exact HIR type relations registered as types cross into MIR.
     source_exact_types: SourceExactTypeRegistry,
+    /// Typed MIR locations of values transposed from LocalConcrete HIR.
+    source_local_values: SourceLocalValueRegistry,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,

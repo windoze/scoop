@@ -16,6 +16,7 @@ impl Lowerer {
             class_map: &self.class_map,
         };
         let mut locals = Arena::new();
+        let mut source_params = Vec::with_capacity(function.params.len());
         let params = function
             .params
             .iter()
@@ -33,6 +34,7 @@ impl Lowerer {
                     ty: ty.clone(),
                     mutable: false,
                 });
+                source_params.push((local, param.local));
                 mir::Param {
                     name: param.name.clone(),
                     ty,
@@ -58,6 +60,13 @@ impl Lowerer {
             return_ty: return_ty.clone(),
             body: mir::Body::unreachable(locals),
         });
+        for (local, source) in source_params {
+            self.source_local_values.record(
+                id,
+                local,
+                module.local_value_identities.function_local(hir_id, source),
+            );
+        }
         self.function_map.insert(hir_id, id);
         self.record_function_instance(module, hir_id, id);
         id
@@ -258,6 +267,8 @@ impl Lowerer {
         let mut lowerer = BodyLowerer {
             module,
             source_exact_types: &mut self.source_exact_types,
+            source_local_values: &mut self.source_local_values,
+            current_function: self.ctors[&constructor_id],
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -317,19 +328,31 @@ impl Lowerer {
             ty: receiver_ty.clone(),
             mutable: false,
         });
+        lowerer.source_local_values.record(
+            lowerer.current_function,
+            receiver,
+            module.local_value_identities.class_receiver(constructor_id),
+        );
         lowerer.constructor_receiver = Some(smir::Expr::local(receiver, receiver_ty.clone()));
         let mut params = vec![mir::Param {
             name: "this".into(),
             ty: receiver_ty,
             local: receiver,
         }];
-        for parameter in &constructor.parameters {
+        for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
             });
+            lowerer.source_local_values.record(
+                lowerer.current_function,
+                local,
+                module
+                    .local_value_identities
+                    .class_parameter(constructor_id, declaration_index),
+            );
             params.push(mir::Param {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
@@ -339,7 +362,7 @@ impl Lowerer {
                 .constructor_param_map
                 .insert(parameter.id, smir::Expr::local(local, ty));
         }
-        lowerer.allocate_fragment_locals(constructor.body());
+        lowerer.allocate_class_locals(constructor_id, constructor.body());
         let statements = lowerer.lower_statements(&constructor.body().statements);
         assert!(
             lowerer.active_loops.is_empty(),
@@ -364,6 +387,8 @@ impl Lowerer {
         let mut lowerer = BodyLowerer {
             module,
             source_exact_types: &mut self.source_exact_types,
+            source_local_values: &mut self.source_local_values,
+            current_function: self.struct_ctors[&constructor_id],
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -420,13 +445,20 @@ impl Lowerer {
         let return_ty = mir::Type::Struct(lowerer.struct_map[&structure]);
         let mut params = Vec::new();
         let mut arguments = Vec::new();
-        for parameter in &constructor.parameters {
+        for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
             });
+            lowerer.source_local_values.record(
+                lowerer.current_function,
+                local,
+                module
+                    .local_value_identities
+                    .struct_parameter(constructor_id, declaration_index),
+            );
             params.push(mir::Param {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
@@ -456,7 +488,7 @@ impl Lowerer {
                 arguments,
                 body,
             } => {
-                lowerer.allocate_argument_locals(arguments);
+                lowerer.allocate_struct_argument_locals(constructor_id, arguments);
                 let mut statements = lowerer.lower_statements(&arguments.statements);
                 let call_args = arguments
                     .args
@@ -468,6 +500,14 @@ impl Lowerer {
                     ty: return_ty.clone(),
                     mutable: false,
                 });
+                lowerer.source_local_values.record(
+                    lowerer.current_function,
+                    receiver,
+                    module
+                        .local_value_identities
+                        .struct_receiver(constructor_id)
+                        .expect("secondary constructor receivers have persistent identities"),
+                );
                 statements.push(smir::Statement {
                     kind: smir::StatementKind::ValDecl {
                         local: receiver,
@@ -487,7 +527,7 @@ impl Lowerer {
                 });
                 lowerer.constructor_receiver = Some(smir::Expr::local(receiver, return_ty.clone()));
                 lowerer.local_map.clear();
-                lowerer.allocate_fragment_locals(body);
+                lowerer.allocate_struct_body_locals(constructor_id, body);
                 statements.extend(lowerer.lower_statements(&body.statements));
                 statements.push(smir::Statement {
                     kind: smir::StatementKind::Return {

@@ -141,7 +141,7 @@ impl Lowerer {
             let (params, return_ty, body) = if let Some(&unit) = ensure_units.get(&mir_id) {
                 self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
             } else {
-                self.lower_user_function(module, hir_id)
+                self.lower_user_function(module, hir_id, mir_id)
             };
             let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
             if module.functions[hir_id].is_suspend {
@@ -259,6 +259,7 @@ impl Lowerer {
             entry,
             meta: mir::MirMeta {
                 source_exact_types: self.source_exact_types.finish(),
+                source_local_values: self.source_local_values.finish(),
                 instances: self.instances.meta,
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,

@@ -6,6 +6,7 @@ impl Lowerer {
         &mut self,
         module: &hir::Module,
         hir_id: hir::FunctionId,
+        mir_id: mir::FunctionId,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
         let function = &module.functions[hir_id];
         let hir::FunctionKind::User(body) = &function.kind else {
@@ -28,6 +29,8 @@ impl Lowerer {
         BodyLowerer {
             module,
             source_exact_types: &mut self.source_exact_types,
+            source_local_values: &mut self.source_local_values,
+            current_function: mir_id,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -81,6 +84,6 @@ impl Lowerer {
             current_local_capture_params,
             contains_suspend_call: false,
         }
-        .lower_function(function, body)
+        .lower_function(hir_id, function, body)
     }
 }

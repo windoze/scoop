@@ -590,6 +590,10 @@ pub struct MirMeta {
     /// into this MIR module. These records remain HIR-owned and are not
     /// re-emitted as MIR-first identity-foundation entries.
     pub source_exact_types: SourceExactTypeIdentities,
+    /// Complete typed locations of LocalConcrete HIR values transposed into
+    /// MIR. The identity records remain HIR-owned and are not emitted as
+    /// MIR-first foundation entries.
+    pub source_local_values: SourceLocalValueIdentities,
     /// Concrete callable materializations in creation order. Every entry
     /// carries the persistent HIR identity used across stage boundaries.
     pub instances: Arena<MonomorphizedFunction>,

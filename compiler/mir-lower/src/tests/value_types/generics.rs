@@ -110,12 +110,32 @@ fn monomorphizes_generic_functions() {
     assert_eq!(string_instance.params[0].ty, mir::Type::String);
     assert_eq!(string_instance.return_ty, mir::Type::String);
 
+    let int_value = module
+        .meta
+        .source_local_values
+        .get(module.top_level[1], int_instance.params[0].local)
+        .expect("the Int parameter keeps its LocalConcrete value identity");
+    let string_value = module
+        .meta
+        .source_local_values
+        .get(module.top_level[2], string_instance.params[0].local)
+        .expect("the String parameter keeps its LocalConcrete value identity");
+    assert_ne!(
+        int_value.identity_record().id(),
+        string_value.identity_record().id(),
+        "the same template parameter has a distinct value in each materialization"
+    );
+
     // MIR gives every materialized body its own typed identity and
     // records symbol -> generic source provenance in the meta.
     assert_eq!(module.meta.instances.len(), 2);
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
     assert_eq!(int_meta.symbol, "scoop.identity$I32");
     assert_eq!(int_meta.display_name, "identity");
+    assert_eq!(
+        int_value.identity_record().key().owner(),
+        int_meta.materialization
+    );
     assert!(matches!(
         int_meta.materialization.template(),
         scoop_identity::CallableTemplateOwner::GenericFunction(_)
