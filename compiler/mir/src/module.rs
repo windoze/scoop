@@ -705,6 +705,7 @@ pub struct CoroutineStep {
     completed_payload: MirVariantFieldRef,
     suspended: MirVariantRef,
     result: Type,
+    identity: CoroutineStepIdentity,
 }
 
 impl CoroutineStep {
@@ -713,6 +714,7 @@ impl CoroutineStep {
         completed_payload: MirVariantFieldRef,
         suspended: MirVariantRef,
         result: Type,
+        identity: CoroutineStepIdentity,
     ) -> Option<Self> {
         let completed = completed_payload.variant();
         if completed.enum_id() != suspended.enum_id()
@@ -724,14 +726,24 @@ impl CoroutineStep {
         let suspended_definition = suspended.definition(enums).ok()?;
         (enums[completed.enum_id()].type_arguments.is_empty()
             && enums[completed.enum_id()].variants.len() == 2
+            && completed.variant_index() == 0
+            && suspended.variant_index() == 1
+            && completed_definition.name == "Completed"
+            && suspended_definition.name == "Suspended"
             && completed_definition.fields.len() == 1
             && completed_payload.field_index() == 0
             && completed_payload.definition(enums).ok()?.ty == result
+            && identity.result_record().id()
+                == match identity.generated_type_record().key() {
+                    scoop_identity::GeneratedNominalKey::CoroutineStep { result } => *result,
+                    _ => return None,
+                }
             && suspended_definition.fields.is_empty())
         .then_some(Self {
             completed_payload,
             suspended,
             result,
+            identity,
         })
     }
 
@@ -754,6 +766,10 @@ impl CoroutineStep {
     pub const fn result(&self) -> &Type {
         &self.result
     }
+
+    pub const fn identity(&self) -> &CoroutineStepIdentity {
+        &self.identity
+    }
 }
 
 #[derive(Debug)]
@@ -761,6 +777,7 @@ pub struct CoroutineSlot {
     value_payload: MirVariantFieldRef,
     empty: MirVariantRef,
     value: Type,
+    identity: CoroutineSlotIdentity,
 }
 
 impl CoroutineSlot {
@@ -769,6 +786,7 @@ impl CoroutineSlot {
         value_payload: MirVariantFieldRef,
         empty: MirVariantRef,
         value: Type,
+        identity: CoroutineSlotIdentity,
     ) -> Option<Self> {
         let value_variant = value_payload.variant();
         if value_variant.enum_id() != empty.enum_id()
@@ -780,14 +798,24 @@ impl CoroutineSlot {
         let empty_definition = empty.definition(enums).ok()?;
         (enums[value_variant.enum_id()].type_arguments.is_empty()
             && enums[value_variant.enum_id()].variants.len() == 2
+            && empty.variant_index() == 0
+            && value_variant.variant_index() == 1
+            && empty_definition.name == "Empty"
+            && value_definition.name == "Value"
             && value_definition.fields.len() == 1
             && value_payload.field_index() == 0
             && value_payload.definition(enums).ok()?.ty == value
+            && identity.value_record().id()
+                == match identity.generated_type_record().key() {
+                    scoop_identity::GeneratedNominalKey::CoroutineSlot { value } => *value,
+                    _ => return None,
+                }
             && empty_definition.fields.is_empty())
         .then_some(Self {
             value_payload,
             empty,
             value,
+            identity,
         })
     }
 
@@ -809,6 +837,10 @@ impl CoroutineSlot {
 
     pub const fn value(&self) -> &Type {
         &self.value
+    }
+
+    pub const fn identity(&self) -> &CoroutineSlotIdentity {
+        &self.identity
     }
 }
 

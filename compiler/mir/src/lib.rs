@@ -28,6 +28,9 @@ pub use function_adapter::*;
 mod exact_owner;
 pub use exact_owner::*;
 
+mod coroutine_shape;
+pub use coroutine_shape::*;
+
 mod boxed_value;
 pub use boxed_value::*;
 

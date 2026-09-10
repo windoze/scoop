@@ -41,8 +41,15 @@ fn module_validation_rejects_stale_coroutine_step_shape() {
         variant_def("Suspended", Vec::new()),
     ]);
     let (completed_payload, suspended) = checked_pair(&module, enum_id);
-    let step = CoroutineStep::checked(&module.enums, completed_payload, suspended, result)
-        .expect("valid CoroutineStep metadata");
+    let identity = test_step_identity(&result);
+    let step = CoroutineStep::checked(
+        &module.enums,
+        completed_payload,
+        suspended,
+        result,
+        identity,
+    )
+    .expect("valid CoroutineStep metadata");
     let step_id = module.meta.coroutine_steps.alloc(step);
     assert_eq!(module.validate(), Ok(()));
 
@@ -63,11 +70,14 @@ fn module_validation_rejects_stale_coroutine_step_shape() {
 fn module_validation_rejects_stale_coroutine_slot_reference() {
     let value = Type::Boolean;
     let (mut module, enum_id) = module_with_variants(vec![
-        variant_def("Value", vec![value.clone()]),
         variant_def("Empty", Vec::new()),
+        variant_def("Value", vec![value.clone()]),
     ]);
-    let (value_payload, empty) = checked_pair(&module, enum_id);
-    let slot = CoroutineSlot::checked(&module.enums, value_payload, empty, value)
+    let empty = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
+    let value_variant = MirVariantRef::new(&module.enums, enum_id, 1).unwrap();
+    let value_payload = MirVariantFieldRef::new(&module.enums, value_variant, 0).unwrap();
+    let identity = test_slot_identity(&value);
+    let slot = CoroutineSlot::checked(&module.enums, value_payload, empty, value, identity)
         .expect("valid CoroutineSlot metadata");
     let slot_id = module.meta.coroutine_slots.alloc(slot);
     assert_eq!(module.validate(), Ok(()));

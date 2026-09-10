@@ -111,6 +111,20 @@ fn transform_function(
     let source_params = &old_params[..old_params.len() - 1];
     let throwable_ty =
         mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
+    let throwable_source = module
+        .types
+        .iter()
+        .find_map(|(ty, definition)| {
+            matches!(
+                definition.kind,
+                hir::TypeKind::Class(class) if class == module.exception_core.throwable.class()
+            )
+            .then_some(ty)
+        })
+        .expect("local-concrete HIR contains the Throwable exact type");
+    lowerer
+        .coroutines
+        .record_source_type(module, throwable_source, throwable_ty.clone());
 
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
@@ -142,6 +156,7 @@ fn transform_function(
     for local in &saved {
         let value_ty = body.locals[*local].ty.clone();
         let (slot_id, slot_ty) = lowerer.coroutines.slot_for(
+            module,
             &value_ty,
             &lowerer.structs,
             &mut lowerer.enums,
@@ -163,6 +178,7 @@ fn transform_function(
         );
     }
     let (failure_slot_id, failure_slot_ty) = lowerer.coroutines.slot_for(
+        module,
         &throwable_ty,
         &lowerer.structs,
         &mut lowerer.enums,

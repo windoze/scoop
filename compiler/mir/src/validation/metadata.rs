@@ -19,6 +19,7 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
             step.completed_payload(),
             step.suspended(),
             step.result().clone(),
+            step.identity().clone(),
         )
         .is_none()
         {
@@ -35,6 +36,7 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
             slot.value_payload(),
             slot.empty(),
             slot.value().clone(),
+            slot.identity().clone(),
         )
         .is_none()
         {

@@ -51,7 +51,14 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let completed = MirVariantFieldRef::new(&module.enums, completed, 0).unwrap();
     let suspended = MirVariantRef::new(&module.enums, step_enum, 1).unwrap();
     let step = module.meta.coroutine_steps.alloc(
-        CoroutineStep::checked(&module.enums, completed, suspended, result.clone()).unwrap(),
+        CoroutineStep::checked(
+            &module.enums,
+            completed,
+            suspended,
+            result.clone(),
+            test_step_identity(&result),
+        )
+        .unwrap(),
     );
     let (saved_slot, saved_slot_ty) = slot(&mut module, "CoroutineSlot<Int>", result.clone());
     let (failure_slot, failure_slot_ty) = slot(
@@ -313,17 +320,23 @@ fn slot(module: &mut Module, name: &str, value: Type) -> (CoroutineSlotId, Type)
         type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
-            variant_def("Value", vec![value.clone()]),
             variant_def("Empty", Vec::new()),
+            variant_def("Value", vec![value.clone()]),
         ],
     });
-    let payload = MirVariantRef::new(&module.enums, enumeration, 0).unwrap();
+    let empty = MirVariantRef::new(&module.enums, enumeration, 0).unwrap();
+    let payload = MirVariantRef::new(&module.enums, enumeration, 1).unwrap();
     let payload = MirVariantFieldRef::new(&module.enums, payload, 0).unwrap();
-    let empty = MirVariantRef::new(&module.enums, enumeration, 1).unwrap();
-    let slot = module
-        .meta
-        .coroutine_slots
-        .alloc(CoroutineSlot::checked(&module.enums, payload, empty, value).unwrap());
+    let slot = module.meta.coroutine_slots.alloc(
+        CoroutineSlot::checked(
+            &module.enums,
+            payload,
+            empty,
+            value.clone(),
+            test_slot_identity(&value),
+        )
+        .unwrap(),
+    );
     (slot, Type::Enum(enumeration, Vec::new()))
 }
 

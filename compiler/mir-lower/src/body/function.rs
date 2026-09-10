@@ -101,12 +101,15 @@ impl BodyLowerer<'_> {
     }
 
     pub(crate) fn lower_type(&mut self, ty: hir::TypeId) -> mir::Type {
-        Types {
+        let lowered = Types {
             module: self.module,
             struct_map: self.struct_map,
             class_map: self.class_map,
         }
-        .lower(ty, self.enums, self.structs, self.interfaces, self.shell)
+        .lower(ty, self.enums, self.structs, self.interfaces, self.shell);
+        self.coroutines
+            .record_source_type(self.module, ty, lowered.clone());
+        lowered
     }
 
     pub(crate) fn lower_function_type_id(

@@ -68,6 +68,20 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
         step.suspended().definition(&module.enums).unwrap().name,
         "Suspended"
     );
+    let identity = step.identity();
+    assert!(matches!(
+        identity.generated_type_record().key(),
+        scoop_identity::GeneratedNominalKey::CoroutineStep { result }
+            if *result == identity.result_record().id()
+    ));
+    assert_eq!(
+        identity.completed_payload_record().key().variant(),
+        identity.completed_variant_record().id()
+    );
+    assert!(matches!(
+        identity.root(),
+        mir::ExactOwnerRoot::SourceNominal(_)
+    ));
     assert!(
         step.suspended()
             .definition(&module.enums)
@@ -252,6 +266,20 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         int_slot.empty().definition(&module.enums).unwrap().name,
         "Empty"
     );
+    let identity = int_slot.identity();
+    assert!(matches!(
+        identity.generated_type_record().key(),
+        scoop_identity::GeneratedNominalKey::CoroutineSlot { value }
+            if *value == identity.value_record().id()
+    ));
+    assert_eq!(
+        identity.value_payload_record().key().variant(),
+        identity.value_variant_record().id()
+    );
+    assert!(matches!(
+        identity.root(),
+        mir::ExactOwnerRoot::SourceNominal(_)
+    ));
     let throwable = module
         .classes
         .iter()

@@ -4,6 +4,7 @@ impl Lowerer {
     pub(super) fn transform_suspend_abis(&mut self, module: &hir::Module) {
         for source in std::mem::take(&mut self.suspend_sources) {
             let (step, step_ty) = self.coroutines.step_for(
+                module,
                 &source.source_return,
                 &self.structs,
                 &mut self.enums,

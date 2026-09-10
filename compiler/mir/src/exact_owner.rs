@@ -26,6 +26,37 @@ pub enum ExactOwnerRoot {
 }
 
 impl ExactOwnerRoot {
+    pub fn for_member(
+        exact: &ExactTypeRecord,
+        nominal_group: Option<&OdrGroupRecord>,
+        role: OdrMemberRole,
+        discriminator: OdrMemberDiscriminator,
+    ) -> Result<Self, ExactOwnerRootError> {
+        match exact.key() {
+            ExactTypeKey::Nominal(_) => {
+                if nominal_group.is_some() {
+                    return Err(ExactOwnerRootError::UnexpectedNominalGroup);
+                }
+                Self::source_nominal(exact)
+            }
+            ExactTypeKey::NominalApplication { .. } => Self::nominal_application(
+                exact,
+                nominal_group.ok_or(ExactOwnerRootError::MissingNominalGroup)?,
+                role,
+                discriminator,
+            ),
+            ExactTypeKey::Tuple(_)
+            | ExactTypeKey::Function { .. }
+            | ExactTypeKey::RawPointer(_)
+            | ExactTypeKey::NativeFunctionPointer { .. } => {
+                if nominal_group.is_some() {
+                    return Err(ExactOwnerRootError::UnexpectedNominalGroup);
+                }
+                Self::structural(exact, role, discriminator)
+            }
+        }
+    }
+
     pub fn source_nominal(exact: &ExactTypeRecord) -> Result<Self, ExactOwnerRootError> {
         let ExactTypeKey::Nominal(owner) = exact.key() else {
             return Err(ExactOwnerRootError::ExpectedSourceNominal);
@@ -134,6 +165,8 @@ pub enum ExactOwnerRootError {
     ExpectedSourceNominal,
     ExpectedNominalApplication,
     ExpectedStructuralType,
+    MissingNominalGroup,
+    UnexpectedNominalGroup,
     NominalGroupMismatch,
     OdrGroup(HashError),
     OdrMember(OdrMemberIdentityError),
@@ -151,6 +184,12 @@ impl fmt::Display for ExactOwnerRootError {
             }
             Self::ExpectedStructuralType => {
                 formatter.write_str("exact owner is not a structural type")
+            }
+            Self::MissingNominalGroup => {
+                formatter.write_str("nominal application is missing its specialization group")
+            }
+            Self::UnexpectedNominalGroup => {
+                formatter.write_str("non-application exact owner has a nominal group")
             }
             Self::NominalGroupMismatch => {
                 formatter.write_str("nominal specialization group does not match the exact owner")
@@ -279,6 +318,36 @@ mod tests {
                 generated_member(),
             ),
             Err(ExactOwnerRootError::NominalGroupMismatch)
+        );
+    }
+
+    #[test]
+    fn total_constructor_requires_exactly_the_applicable_group_kind() {
+        assert_eq!(
+            ExactOwnerRoot::for_member(
+                &CborIdentityRecord::from_key(ExactTypeKey::NominalApplication {
+                    origin: generic_origin(),
+                    arguments: NonEmptyVec::from_first(unit().id(), []),
+                })
+                .unwrap(),
+                None,
+                OdrMemberRole::GeneratedNominal,
+                generated_member(),
+            ),
+            Err(ExactOwnerRootError::MissingNominalGroup)
+        );
+        let unrelated = CborIdentityRecord::from_key(SpecializationKey::StructuralType {
+            exact_type: unit().id(),
+        })
+        .unwrap();
+        assert_eq!(
+            ExactOwnerRoot::for_member(
+                &unit(),
+                Some(&unrelated),
+                OdrMemberRole::GeneratedNominal,
+                generated_member(),
+            ),
+            Err(ExactOwnerRootError::UnexpectedNominalGroup)
         );
     }
 }

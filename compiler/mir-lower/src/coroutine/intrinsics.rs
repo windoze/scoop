@@ -29,12 +29,14 @@ pub(super) fn rewrite_intrinsic_site(
     };
     let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
     let (result_latch_id, result_latch_ty) = lowerer.coroutines.slot_for(
+        module,
         &site.result,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
     let (failure_latch_id, failure_latch_ty) = lowerer.coroutines.slot_for(
+        module,
         &throwable,
         &lowerer.structs,
         &mut lowerer.enums,

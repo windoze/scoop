@@ -159,9 +159,9 @@ impl BodyLowerer<'_> {
         let completion = self.lower_expr(completion);
         let task_interface = self.interfaces.mir_id(protocol.suspend_task);
         let continuation_interface = self.interfaces.mir_id(protocol.continuation);
-        let (_, step_ty) = self
-            .coroutines
-            .step_for(&result, self.structs, self.enums, self.shell);
+        let (_, step_ty) =
+            self.coroutines
+                .step_for(self.module, &result, self.structs, self.enums, self.shell);
         let run = self.instances.get(protocol.suspend_task_run).unwrap();
         let resume = self.instances.get(protocol.continuation_resume).unwrap();
         let failure = self

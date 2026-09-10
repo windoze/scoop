@@ -25,6 +25,47 @@ fn variant_def(name: &str, fields: Vec<Type>) -> VariantDef {
     }
 }
 
+fn test_exact_type(
+    ty: &Type,
+) -> scoop_identity::CborIdentityRecord<
+    scoop_identity::PersistentExactTypeId,
+    scoop_identity::ExactTypeKey,
+> {
+    let owner_tag = match ty {
+        Type::Unit => 1,
+        Type::Integer(_) => 2,
+        Type::Boolean => 3,
+        Type::String => 4,
+        Type::Class(id) => 32 + id.into_raw().into_u32(),
+        _ => 255,
+    };
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let name = format!("TestType{owner_tag}");
+    let declaration = scoop_identity::SourceDeclarationKey::nominal(
+        site,
+        scoop_identity::CanonicalIdentifier::new(&name).unwrap(),
+        scoop_identity::SourceNominalKind::Struct,
+        0,
+    );
+    let owner = scoop_identity::PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    scoop_identity::CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Nominal(owner))
+        .unwrap()
+}
+
+fn test_step_identity(ty: &Type) -> CoroutineStepIdentity {
+    CoroutineStepIdentity::new(&test_exact_type(ty), None).unwrap()
+}
+
+fn test_slot_identity(ty: &Type) -> CoroutineSlotIdentity {
+    CoroutineSlotIdentity::new(&test_exact_type(ty), None).unwrap()
+}
+
 fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {
@@ -371,8 +412,8 @@ fn raw_struct_construction_validation_rejects_unknown_and_intrinsic_targets() {
 #[test]
 fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     let (mut module, enum_id) = module_with_variants(vec![
-        variant_def("Left", vec![Type::Integer(IntegerKind::SIGNED_32)]),
-        variant_def("Right", Vec::new()),
+        variant_def("Completed", vec![Type::Integer(IntegerKind::SIGNED_32)]),
+        variant_def("Suspended", Vec::new()),
     ]);
     let left = MirVariantRef::new(&module.enums, enum_id, 0).expect("Left exists");
     assert_eq!(left.enum_id(), enum_id);
@@ -386,36 +427,66 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
         Type::Integer(IntegerKind::SIGNED_32)
     );
     let payload_ty = Type::Integer(IntegerKind::SIGNED_32);
-    let step = CoroutineStep::checked(&module.enums, field, right, payload_ty.clone())
-        .expect("valid CoroutineStep shape");
+    let step_identity = test_step_identity(&payload_ty);
+    let step = CoroutineStep::checked(
+        &module.enums,
+        field,
+        right,
+        payload_ty.clone(),
+        step_identity.clone(),
+    )
+    .expect("valid CoroutineStep shape");
     assert_eq!(step.completed(), left);
     assert_eq!(step.suspended(), right);
-    let slot = CoroutineSlot::checked(&module.enums, field, right, payload_ty.clone())
-        .expect("valid CoroutineSlot shape");
-    assert_eq!(slot.value_variant(), left);
-    assert_eq!(slot.empty(), right);
-    assert!(CoroutineStep::checked(&module.enums, field, right, Type::Boolean).is_none());
-    assert!(CoroutineSlot::checked(&module.enums, field, right, Type::Boolean).is_none());
+    module.enums[enum_id].variants[0].name = "Done".to_string();
+    assert!(
+        CoroutineStep::checked(
+            &module.enums,
+            field,
+            right,
+            payload_ty.clone(),
+            step_identity.clone(),
+        )
+        .is_none(),
+        "CoroutineStep roles have fixed generated names"
+    );
+    module.enums[enum_id].variants[0].name = "Completed".to_string();
+    assert!(
+        CoroutineStep::checked(
+            &module.enums,
+            field,
+            right,
+            Type::Boolean,
+            step_identity.clone(),
+        )
+        .is_none()
+    );
     module.enums[enum_id]
         .variants
         .push(variant_def("Unexpected", Vec::new()));
     assert!(
-        CoroutineStep::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
+        CoroutineStep::checked(
+            &module.enums,
+            field,
+            right,
+            payload_ty.clone(),
+            step_identity.clone(),
+        )
+        .is_none(),
         "CoroutineStep metadata requires exactly two variants"
-    );
-    assert!(
-        CoroutineSlot::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
-        "CoroutineSlot metadata requires exactly two variants"
     );
     module.enums[enum_id].variants.pop();
     module.enums[enum_id].type_arguments.push(Type::Boolean);
     assert!(
-        CoroutineStep::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
+        CoroutineStep::checked(
+            &module.enums,
+            field,
+            right,
+            payload_ty.clone(),
+            step_identity.clone(),
+        )
+        .is_none(),
         "CoroutineStep metadata is already concrete"
-    );
-    assert!(
-        CoroutineSlot::checked(&module.enums, field, right, payload_ty.clone()).is_none(),
-        "CoroutineSlot metadata is already concrete"
     );
     module.enums[enum_id].type_arguments.clear();
 
@@ -460,9 +531,72 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     let foreign_none = MirVariantRef::new(&module.enums, foreign_enum, 0).unwrap();
     assert!(OptionCore::checked(&module.enums, some_payload, foreign_none).is_none());
     assert!(
-        CoroutineStep::checked(&module.enums, field, foreign_none, payload_ty.clone()).is_none()
+        CoroutineStep::checked(
+            &module.enums,
+            field,
+            foreign_none,
+            payload_ty.clone(),
+            step_identity,
+        )
+        .is_none()
     );
-    assert!(CoroutineSlot::checked(&module.enums, field, foreign_none, payload_ty).is_none());
+
+    let slot_enum = module.enums.alloc(EnumDef {
+        link_stem: nominal_link_stem(),
+        name: "CoroutineSlot".to_string(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: vec![
+            variant_def("Empty", Vec::new()),
+            variant_def("Value", vec![payload_ty.clone()]),
+        ],
+    });
+    let empty = MirVariantRef::new(&module.enums, slot_enum, 0).unwrap();
+    let value = MirVariantRef::new(&module.enums, slot_enum, 1).unwrap();
+    let value_field = MirVariantFieldRef::new(&module.enums, value, 0).unwrap();
+    let slot = CoroutineSlot::checked(
+        &module.enums,
+        value_field,
+        empty,
+        payload_ty.clone(),
+        test_slot_identity(&payload_ty),
+    )
+    .expect("valid CoroutineSlot shape");
+    assert_eq!(slot.value_variant(), value);
+    assert_eq!(slot.empty(), empty);
+    module.enums[slot_enum].variants[1].name = "Present".to_string();
+    assert!(
+        CoroutineSlot::checked(
+            &module.enums,
+            value_field,
+            empty,
+            payload_ty.clone(),
+            test_slot_identity(&payload_ty),
+        )
+        .is_none(),
+        "CoroutineSlot roles have fixed generated names"
+    );
+    module.enums[slot_enum].variants[1].name = "Value".to_string();
+    assert!(
+        CoroutineSlot::checked(
+            &module.enums,
+            value_field,
+            empty,
+            Type::Boolean,
+            test_slot_identity(&payload_ty),
+        )
+        .is_none()
+    );
+    assert!(
+        CoroutineSlot::checked(
+            &module.enums,
+            value_field,
+            foreign_none,
+            payload_ty,
+            test_slot_identity(&Type::Integer(IntegerKind::SIGNED_32)),
+        )
+        .is_none()
+    );
 
     assert!(matches!(
         MirVariantRef::new(&module.enums, enum_id, 2),

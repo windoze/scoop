@@ -15,29 +15,78 @@ pub(super) struct SuspendSource {
 pub(super) struct CoroutineRegistry {
     pub(super) functions: Arena<mir::CoroutineFunction>,
     pub(super) steps: Arena<mir::CoroutineStep>,
-    pub(super) steps_by_result: Vec<(mir::Type, mir::CoroutineStepId)>,
+    pub(super) steps_by_result: Vec<(hir::PersistentExactTypeId, mir::CoroutineStepId)>,
     pub(super) slots: Arena<mir::CoroutineSlot>,
-    pub(super) slots_by_value: Vec<(mir::Type, mir::CoroutineSlotId)>,
+    pub(super) slots_by_value: Vec<(hir::PersistentExactTypeId, mir::CoroutineSlotId)>,
     pub(super) saved_values: Arena<mir::CoroutineSavedValue>,
     pub(super) failure_values: Arena<mir::CoroutineFailureValue>,
     pub(super) frames: Arena<mir::CoroutineFrame>,
     pub(super) resume_points: Arena<mir::CoroutineResumePoint>,
     pub(super) continuation_shells: Vec<(mir::Type, mir::FunctionId, mir::FunctionId)>,
     pub(super) start_helpers: Vec<(mir::Type, mir::FunctionId)>,
+    source_types: Vec<SourceExactType>,
+}
+
+struct SourceExactType {
+    source: hir::TypeId,
+    lowered: mir::Type,
+    exact: hir::PersistentExactTypeId,
 }
 
 impl CoroutineRegistry {
+    pub(super) fn record_source_type(
+        &mut self,
+        module: &hir::Module,
+        source: hir::TypeId,
+        lowered: mir::Type,
+    ) {
+        let exact = module.exact_type_identities[source].id();
+        if let Some(found) = self
+            .source_types
+            .iter()
+            .find(|found| found.lowered == lowered || found.exact == exact)
+        {
+            assert_eq!(
+                found.lowered, lowered,
+                "one persistent exact type cannot lower to two MIR types"
+            );
+            assert_eq!(
+                found.exact, exact,
+                "one MIR type cannot represent two persistent exact types"
+            );
+            return;
+        }
+        self.source_types.push(SourceExactType {
+            source,
+            lowered,
+            exact,
+        });
+    }
+
+    fn source_type(&self, lowered: &mir::Type) -> &SourceExactType {
+        self.source_types
+            .iter()
+            .find(|source| &source.lowered == lowered)
+            .expect("coroutine value types originate in local-concrete HIR")
+    }
+
     pub(super) fn step_for(
         &mut self,
+        module: &hir::Module,
         result: &mir::Type,
         structs: &StructRegistry,
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineStepId, mir::Type) {
+        let source = self.source_type(result);
+        let exact = &module.exact_type_identities[source.source];
+        let nominal_group = module
+            .exact_type_identities
+            .nominal_specialization(source.source);
         if let Some((_, id)) = self
             .steps_by_result
             .iter()
-            .find(|(found, _)| found == result)
+            .find(|(found, _)| *found == exact.id())
         {
             let step = &self.steps[*id];
             return (*id, mir::Type::Enum(step.enum_id(), Vec::new()));
@@ -85,18 +134,26 @@ impl CoroutineRegistry {
         let completed = enums.variant_ref(enum_id, completed_index);
         let completed_payload = enums.variant_field_ref(completed, completed_payload_index);
         let suspended = enums.variant_ref(enum_id, suspended_index);
-        let step =
-            mir::CoroutineStep::checked(&enums.defs, completed_payload, suspended, result.clone())
-                .expect("synthesized CoroutineStep metadata matches its enum definition");
+        let identity = mir::CoroutineStepIdentity::new(exact, nominal_group)
+            .expect("local-concrete exact types have one coroutine-step root");
+        let step = mir::CoroutineStep::checked(
+            &enums.defs,
+            completed_payload,
+            suspended,
+            result.clone(),
+            identity,
+        )
+        .expect("synthesized CoroutineStep metadata matches its enum definition");
         let id = self.steps.alloc(step);
-        self.steps_by_result.push((result.clone(), id));
+        self.steps_by_result.push((exact.id(), id));
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
 
     pub(super) fn step_type_for(&self, result: &mir::Type) -> Option<mir::Type> {
+        let exact = self.source_type(result).exact;
         self.steps_by_result
             .iter()
-            .find(|(found, _)| found == result)
+            .find(|(found, _)| *found == exact)
             .map(|(_, id)| mir::Type::Enum(self.steps[*id].enum_id(), Vec::new()))
     }
 
@@ -113,12 +170,22 @@ impl CoroutineRegistry {
 
     pub(super) fn slot_for(
         &mut self,
+        module: &hir::Module,
         value: &mir::Type,
         structs: &StructRegistry,
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineSlotId, mir::Type) {
-        if let Some((_, id)) = self.slots_by_value.iter().find(|(found, _)| found == value) {
+        let source = self.source_type(value);
+        let exact = &module.exact_type_identities[source.source];
+        let nominal_group = module
+            .exact_type_identities
+            .nominal_specialization(source.source);
+        if let Some((_, id)) = self
+            .slots_by_value
+            .iter()
+            .find(|(found, _)| *found == exact.id())
+        {
             let slot = &self.slots[*id];
             return (*id, mir::Type::Enum(slot.enum_id(), Vec::new()));
         }
@@ -165,10 +232,13 @@ impl CoroutineRegistry {
         let empty = enums.variant_ref(enum_id, empty_index);
         let value_variant = enums.variant_ref(enum_id, value_index);
         let value_payload = enums.variant_field_ref(value_variant, value_payload_index);
-        let slot = mir::CoroutineSlot::checked(&enums.defs, value_payload, empty, value.clone())
-            .expect("synthesized CoroutineSlot metadata matches its enum definition");
+        let identity = mir::CoroutineSlotIdentity::new(exact, nominal_group)
+            .expect("local-concrete exact types have one coroutine-slot root");
+        let slot =
+            mir::CoroutineSlot::checked(&enums.defs, value_payload, empty, value.clone(), identity)
+                .expect("synthesized CoroutineSlot metadata matches its enum definition");
         let id = self.slots.alloc(slot);
-        self.slots_by_value.push((value.clone(), id));
+        self.slots_by_value.push((exact.id(), id));
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
 
@@ -272,7 +342,7 @@ impl CoroutineRegistry {
         let step_id = self
             .steps_by_result
             .iter()
-            .find(|(found, _)| found == result)
+            .find(|(_, id)| self.steps[*id].result() == result)
             .map(|(_, id)| *id)
             .expect("start helpers are created after their CoroutineStep metadata");
         let step_metadata = &self.steps[step_id];
