@@ -71,6 +71,14 @@ fn exact_callback_signature() -> ExactCallableSignature {
     ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit)
 }
 
+fn boxed_type(payload: mir::Type, class: mir::ClassId) -> mir::BoxedType {
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))
+    .unwrap();
+    mir::BoxedType::for_source_nominal(payload, class, &exact).unwrap()
+}
+
 fn initialization_unit_identity() -> mir::InitializationUnitIdentityRecord {
     let site = SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,

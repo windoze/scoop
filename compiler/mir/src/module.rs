@@ -614,8 +614,72 @@ pub struct MirMeta {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxedType {
-    pub payload: Type,
-    pub class: ClassId,
+    payload: Type,
+    class: ClassId,
+    identity: BoxedValueIdentity,
+}
+
+impl BoxedType {
+    pub fn for_source_nominal(
+        payload: Type,
+        class: ClassId,
+        payload_identity: &scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentExactTypeId,
+            scoop_identity::ExactTypeKey,
+        >,
+    ) -> Result<Self, BoxedValueIdentityError> {
+        Ok(Self {
+            payload,
+            class,
+            identity: BoxedValueIdentity::for_source_nominal(payload_identity)?,
+        })
+    }
+
+    pub fn for_nominal_application(
+        payload: Type,
+        class: ClassId,
+        payload_identity: &scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentExactTypeId,
+            scoop_identity::ExactTypeKey,
+        >,
+        group: &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    ) -> Result<Self, BoxedValueIdentityError> {
+        Ok(Self {
+            payload,
+            class,
+            identity: BoxedValueIdentity::for_nominal_application(payload_identity, group)?,
+        })
+    }
+
+    pub fn for_tuple(
+        payload: Type,
+        class: ClassId,
+        payload_identity: &scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentExactTypeId,
+            scoop_identity::ExactTypeKey,
+        >,
+    ) -> Result<Self, BoxedValueIdentityError> {
+        Ok(Self {
+            payload,
+            class,
+            identity: BoxedValueIdentity::for_tuple(payload_identity)?,
+        })
+    }
+
+    pub fn payload(&self) -> &Type {
+        &self.payload
+    }
+
+    pub const fn class(&self) -> ClassId {
+        self.class
+    }
+
+    pub const fn identity(&self) -> &BoxedValueIdentity {
+        &self.identity
+    }
 }
 
 #[derive(Debug)]

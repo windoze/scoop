@@ -25,6 +25,9 @@ pub use types::*;
 mod function_adapter;
 pub use function_adapter::*;
 
+mod boxed_value;
+pub use boxed_value::*;
+
 mod identity_metadata;
 pub use identity_metadata::*;
 

@@ -174,15 +174,17 @@ impl Lowerer {
             &mut self.interfaces,
             &mut self.shell,
         );
-        for ((local, target_ty), source_ty) in argument_locals
+        for (index, ((local, target_ty), source_ty)) in argument_locals
             .into_iter()
             .zip(&target_params)
             .zip(&source_params)
+            .enumerate()
         {
             args.push(self.adapt_variance_bridge(
                 module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
+                module.exact_type_identities[signature.params[index].ty].id(),
                 source_ty,
             ));
         }
@@ -205,6 +207,7 @@ impl Lowerer {
                     module,
                     call,
                     &implementation_return,
+                    module.exact_type_identities[implementation_function.return_ty].id(),
                     &return_ty,
                 )),
             }

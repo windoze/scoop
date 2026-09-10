@@ -463,8 +463,14 @@ pub(super) fn mir_type_gc_free(
 /// itables are finalized after body lowering discovers all boxing sites.
 #[derive(Default)]
 pub(super) struct BoxedRegistry {
-    pub(super) by_type: Vec<(mir::Type, mir::ClassId)>,
+    pub(super) entries: Vec<BoxedEntry>,
     pub(super) order: Vec<mir::ClassId>,
+}
+
+pub(super) struct BoxedEntry {
+    pub(super) payload: mir::Type,
+    pub(super) class: mir::ClassId,
+    pub(super) payload_identity: hir::PersistentExactTypeId,
 }
 
 impl BoxedRegistry {
@@ -473,10 +479,23 @@ impl BoxedRegistry {
         classes: &mut Arena<mir::ClassDef>,
         shell: &mut mir::Module,
         payload: &mir::Type,
+        payload_identity: hir::PersistentExactTypeId,
     ) -> mir::ClassId {
-        if let Some((_, id)) = self.by_type.iter().find(|(found, _)| found == payload) {
-            return *id;
+        if let Some(entry) = self
+            .entries
+            .iter()
+            .find(|entry| entry.payload_identity == payload_identity)
+        {
+            assert_eq!(
+                &entry.payload, payload,
+                "one exact type identity must lower to one MIR type"
+            );
+            return entry.class;
         }
+        assert!(
+            self.entries.iter().all(|entry| entry.payload != *payload),
+            "one MIR source type must retain one exact type identity"
+        );
         let encoded = mir::encode_type(shell, payload)
             .expect("box payloads always use source-level MIR types");
         let name = format!("box${encoded}");
@@ -511,7 +530,11 @@ impl BoxedRegistry {
             vtable: Vec::new(),
             itables: Vec::new(),
         });
-        self.by_type.push((payload.clone(), id));
+        self.entries.push(BoxedEntry {
+            payload: payload.clone(),
+            class: id,
+            payload_identity,
+        });
         self.order.push(id);
         id
     }

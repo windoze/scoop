@@ -7,6 +7,8 @@ mod callbacks;
 use callbacks::validate_foreign_callback_metadata;
 mod function_adapters;
 use function_adapters::validate_function_adapter_metadata;
+mod boxed_values;
+use boxed_values::validate_boxed_value_metadata;
 mod metadata;
 use metadata::validate_enum_metadata;
 mod coroutines;
@@ -50,6 +52,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidFunctionAdapter {
+        reason: &'static str,
+    },
+    InvalidBoxedValue {
         reason: &'static str,
     },
     InvalidConstantImage {
@@ -165,6 +170,9 @@ pub enum MirValidationLocation {
     DynamicFunctionAdapter {
         adapter: DynamicClosureAdapterId,
     },
+    BoxedValue {
+        boxed: u32,
+    },
     FunctionBlock {
         function: FunctionId,
         block: BlockId,
@@ -243,6 +251,9 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR dynamic function adapter {}: ",
                 adapter.into_raw().into_u32()
             )?,
+            MirValidationLocation::BoxedValue { boxed } => {
+                write!(formatter, "invalid MIR boxed value {boxed}: ")?
+            }
             MirValidationLocation::FunctionBlock { function, block } => write!(
                 formatter,
                 "invalid MIR in function {}, block {}: ",
@@ -279,9 +290,8 @@ impl std::fmt::Display for MirValidationError {
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
             | MirValidationErrorKind::InvalidForeignCallbackExpression { reason }
-            | MirValidationErrorKind::InvalidFunctionAdapter { reason } => {
-                formatter.write_str(reason)
-            }
+            | MirValidationErrorKind::InvalidFunctionAdapter { reason }
+            | MirValidationErrorKind::InvalidBoxedValue { reason } => formatter.write_str(reason),
             MirValidationErrorKind::InvalidConstantImage {
                 path,
                 expected,
@@ -471,6 +481,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_coroutine_metadata(module)?;
     validate_foreign_callback_metadata(module)?;
     validate_function_adapter_metadata(module)?;
+    validate_boxed_value_metadata(module)?;
     validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
         validate_body(module, function_id, &function.body)?;

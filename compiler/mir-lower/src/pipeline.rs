@@ -208,9 +208,28 @@ impl Lowerer {
         let entry = self.function_map[&self.entry];
         let boxed_types = self
             .boxed
-            .by_type
+            .entries
             .into_iter()
-            .map(|(payload, class)| mir::BoxedType { payload, class })
+            .map(|entry| {
+                let ty = module
+                    .exact_type_identities
+                    .type_for_identity(entry.payload_identity)
+                    .expect("boxed exact identities come from local-concrete HIR");
+                let exact = &module.exact_type_identities[ty];
+                if let Some(group) = module.exact_type_identities.nominal_specialization(ty) {
+                    mir::BoxedType::for_nominal_application(
+                        entry.payload,
+                        entry.class,
+                        exact,
+                        group,
+                    )
+                } else if matches!(&entry.payload, mir::Type::Tuple(_)) {
+                    mir::BoxedType::for_tuple(entry.payload, entry.class, exact)
+                } else {
+                    mir::BoxedType::for_source_nominal(entry.payload, entry.class, exact)
+                }
+                .expect("boxable HIR exact types have a boxed-value materialization root")
+            })
             .collect();
         let option_core = self.enums.all_option_core(module);
         mir::Module {

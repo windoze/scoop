@@ -6,6 +6,7 @@ impl Lowerer {
         module: &hir::Module,
         value: smir::Expr,
         source: &mir::Type,
+        source_identity: hir::PersistentExactTypeId,
         target: &mir::Type,
     ) -> smir::Expr {
         if source == target {
@@ -25,9 +26,12 @@ impl Lowerer {
             return value;
         }
         if is_boxable(source) && is_reference_mir(target) {
-            let boxed = self
-                .boxed
-                .get_or_create(&mut self.classes, &mut self.shell, source);
+            let boxed = self.boxed.get_or_create(
+                &mut self.classes,
+                &mut self.shell,
+                source,
+                source_identity,
+            );
             if let mir::Type::Interface(interface) = target {
                 if !self.classes[boxed].interfaces.contains(interface) {
                     self.classes[boxed].interfaces.push(*interface);
@@ -86,8 +90,8 @@ impl Lowerer {
                 class,
                 source,
                 target,
-                source_identity,
-                target_identity,
+                source_identity.clone(),
+                target_identity.clone(),
                 target_function_type,
             )
             .expect("concrete HIR function identities match their canonical exact types"),
@@ -135,6 +139,7 @@ impl Lowerer {
                 module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
+                target_identity.parameters()[index],
                 source_ty,
             ));
         }
@@ -169,6 +174,7 @@ impl Lowerer {
                         module,
                         call,
                         &source_signature.return_type,
+                        source_identity.result(),
                         &target_signature.return_type,
                     )),
                 },

@@ -46,6 +46,7 @@ impl BodyLowerer<'_> {
         &mut self,
         value: smir::Expr,
         source: &mir::Type,
+        source_identity: hir::PersistentExactTypeId,
         target: &mir::Type,
         span: Span,
     ) -> smir::Expr {
@@ -56,9 +57,11 @@ impl BodyLowerer<'_> {
             return self.adapt_function_value(value, *source, *target, span);
         }
         if is_boxable(source) && is_reference_mir(target) {
-            self.register_boxed(source, None);
+            self.register_boxed(source, source_identity, None);
             if let mir::Type::Interface(interface) = target {
-                let boxed = self.boxed.get_or_create(self.classes, self.shell, source);
+                let boxed =
+                    self.boxed
+                        .get_or_create(self.classes, self.shell, source, source_identity);
                 if !self.classes[boxed].interfaces.contains(interface) {
                     self.classes[boxed].interfaces.push(*interface);
                 }
@@ -136,8 +139,8 @@ impl BodyLowerer<'_> {
                 class,
                 source,
                 target,
-                source_identity,
-                target_identity,
+                source_identity.clone(),
+                target_identity.clone(),
                 target_function_type,
             )
             .expect("concrete HIR function identities match their canonical exact types"),
@@ -183,6 +186,7 @@ impl BodyLowerer<'_> {
             args.push(self.adapt_mir_subtype(
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
+                target_identity.parameters()[index],
                 source_ty,
                 span,
             ));
@@ -217,6 +221,7 @@ impl BodyLowerer<'_> {
                     value: Some(self.adapt_mir_subtype(
                         call,
                         &source_signature.return_type,
+                        source_identity.result(),
                         &target_signature.return_type,
                         span,
                     )),

@@ -197,7 +197,7 @@ pub(crate) fn type_descriptors(
         .meta
         .boxed_types
         .iter()
-        .map(|boxed| (boxed.payload.clone(), refs.classes[&boxed.class]))
+        .map(|boxed| (boxed.payload().clone(), refs.classes[&boxed.class()]))
         .collect();
     let string = string.expect("LocalConcreteHir supplies the typed intrinsic String descriptor");
     (descriptors, refs, lir::WellKnownTypeDescriptors { string })

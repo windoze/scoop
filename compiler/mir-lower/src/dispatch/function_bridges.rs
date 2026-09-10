@@ -42,6 +42,8 @@ impl Lowerer {
     ) -> mir::FunctionId {
         let source_signature = self.shell.function_types[source].clone();
         let target_signature = self.shell.function_types[target].clone();
+        let (source_identity, _) = exact_function_identity(module, source);
+        let (target_identity, _) = exact_function_identity(module, target);
         let mut locals = Arena::new();
         let closure = locals.alloc(mir::Local {
             name: "$source".to_string(),
@@ -74,6 +76,7 @@ impl Lowerer {
                 module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
+                target_identity.parameters()[index],
                 source_ty,
             ));
         }
@@ -108,6 +111,7 @@ impl Lowerer {
                         module,
                         call,
                         &source_signature.return_type,
+                        source_identity.result(),
                         &target_signature.return_type,
                     )),
                 },

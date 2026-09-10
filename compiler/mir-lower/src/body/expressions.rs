@@ -599,7 +599,11 @@ impl BodyLowerer<'_> {
             // boxed value type (and the target interface) on the way.
             hir::ExprKind::Box(operand) => {
                 let payload = self.lower_type(operand.ty);
-                self.register_boxed(&payload, Some(expr.ty));
+                self.register_boxed(
+                    &payload,
+                    self.module.exact_type_identities[operand.ty].id(),
+                    Some(expr.ty),
+                );
                 smir::ExprKind::Box(Box::new(self.lower_expr(operand)))
             }
             // Smart casts unbox inline wherever the narrowed local is read
@@ -617,8 +621,9 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::Local(slot)
             }
             hir::ExprKind::IsInstance { operand, check_ty } => {
-                let check_ty = self.lower_type(*check_ty);
-                self.register_check(&check_ty);
+                let exact = *check_ty;
+                let check_ty = self.lower_type(exact);
+                self.register_check(&check_ty, exact);
                 smir::ExprKind::IsInstance {
                     operand: Box::new(self.lower_expr(operand)),
                     check_ty: Box::new(check_ty),
