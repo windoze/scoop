@@ -96,6 +96,9 @@ pub use persistent_export_bindings::*;
 mod persistent_source_contexts;
 pub use persistent_source_contexts::*;
 
+mod persistent_native_contracts;
+pub use persistent_native_contracts::*;
+
 mod persistent_aliases;
 pub use persistent_aliases::*;
 

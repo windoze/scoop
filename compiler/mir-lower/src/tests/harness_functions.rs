@@ -842,6 +842,18 @@ impl Harness {
                 initialization_unit_identities: &initialization_unit_identities,
             })
             .expect("the MIR test fixture source contexts have persistent identities");
+        let source_native_contracts =
+            hir::HirSourceNativeContracts::from_declarations(hir::HirSourceNativeContractInputs {
+                functions: &self.functions,
+                extern_functions: &self.extern_functions,
+                globals: &Arena::new(),
+                properties: &self.properties,
+                function_identities: &function_identities,
+                property_identities: &property_identities,
+                type_inputs: type_identity_inputs,
+                unit: self.unit,
+            })
+            .expect("the MIR test fixture externs have source-native contracts");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -857,6 +869,7 @@ impl Harness {
             export_binding_identities,
             dispatch_slot_identities,
             source_context_identities,
+            source_native_contracts,
             public_surface,
             source_files,
             source_contexts,

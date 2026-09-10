@@ -648,6 +648,31 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let source_native_contracts = match crate::persistent_native_contracts::build(
+            &self,
+            &nominal_identities,
+            &function_identities,
+            &property_identities,
+            &intrinsic_type_core,
+        ) {
+            Ok(contracts) => contracts,
+            Err(error) => {
+                let (file, span) = match error.owner() {
+                    Some(hir::HirSourceNativeContractOwner::Function(function)) => (
+                        self.function_files[&function],
+                        self.functions[function].span,
+                    ),
+                    Some(hir::HirSourceNativeContractOwner::Global(global)) => {
+                        let declaration = &self.globals[global];
+                        (self.property_files[&declaration.property], declaration.span)
+                    }
+                    None => (0, Span { start: 0, end: 0 }),
+                };
+                let mut diagnostic = Diagnostic::at(span, error.to_string());
+                diagnostic.file = file;
+                return Err(vec![diagnostic]);
+            }
+        };
         let source_files = self
             .intrinsic_sources
             .iter()
@@ -691,6 +716,7 @@ impl Lowerer {
             export_binding_identities,
             dispatch_slot_identities,
             source_context_identities,
+            source_native_contracts,
             public_surface,
             source_files,
             source_contexts: self.source_contexts,

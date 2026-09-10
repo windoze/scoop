@@ -39,6 +39,9 @@ pub struct Module {
     pub dispatch_slot_identities: HirDispatchSlotIdentities,
     /// Total persistent identity relation for every typed source context.
     pub source_context_identities: HirSourceContextIdentities,
+    /// Target-independent persistent contract for every source extern
+    /// function and global.
+    pub source_native_contracts: HirSourceNativeContracts,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,
