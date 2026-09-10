@@ -6,6 +6,10 @@
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
+pub use scoop_identity::{
+    CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
+    CallableTemplateOwner, CborIdentityRecord, NonEmptyVec, PersistentCallableApplicationId,
+};
 
 pub use super::{
     ArrayAccessKind, BinOp, CallableLinkStem, CallableModifiers, CallingConvention, ClassModifier,
@@ -23,6 +27,9 @@ pub use types::*;
 
 mod exact_types;
 pub use exact_types::*;
+
+mod callable_applications;
+pub use callable_applications::*;
 
 mod module;
 pub use module::*;

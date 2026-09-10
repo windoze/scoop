@@ -424,10 +424,7 @@ pub fn dump(module: &Module) -> String {
     for (_, instance) in module.meta.instances.iter() {
         out.push_str(&format!(
             "  instance @{} <- {}\n",
-            instance.symbol,
-            module
-                .meta
-                .monomorphized_source_display_name(&instance.source)
+            instance.symbol, instance.display_name
         ));
     }
     for (_, string) in module.strings.iter() {

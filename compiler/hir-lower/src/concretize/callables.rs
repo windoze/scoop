@@ -309,6 +309,11 @@ impl Concretizer<'_> {
                 // without requiring a downstream recursion heuristic.
                 let raw = self.function_slots.len() as u32;
                 self.function_slots.push(None);
+                self.function_keys.push(FunctionKey::Method {
+                    source: application.function,
+                    owner: concrete::MethodOwner::Structural(owner_ty),
+                    specialization: MethodRequest::Plain,
+                });
                 let function = concrete::FunctionId::from_raw(raw.into());
                 self.structural_derived_functions
                     .insert(cache_key, function);
@@ -324,13 +329,9 @@ impl Concretizer<'_> {
                         local: local_map[param.local.into_raw().into_u32() as usize],
                     })
                     .collect();
-                let value = concrete::Function {
+                let value = PendingFunction {
                     link_stem: source_function.link_stem.clone(),
                     name: format!("$derived.equals.{}", source.into_raw().into_u32()),
-                    origin: concrete::FunctionOrigin::Method(concrete::MethodOrigin {
-                        owner: concrete::MethodOwner::Structural(owner_ty),
-                        specialization: concrete::MethodSpecialization::Plain,
-                    }),
                     is_suspend: false,
                     modifiers: export::CallableModifiers {
                         operator: Some(export::OperatorKind::Equals),

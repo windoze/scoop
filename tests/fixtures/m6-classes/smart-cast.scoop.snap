@@ -898,9 +898,6 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  enum Option$D1_SX
-    Some(_1: S)
-    None()
   enum Option$I32
     Some(_1: Int)
     None()
@@ -912,6 +909,9 @@ Module
     None()
   enum Option$V64
     Some(_1: ULong)
+    None()
+  enum Option$D1_SX
+    Some(_1: S)
     None()
   class IntRange vtable=0 itables=1
   class IntRangeIterator vtable=0 itables=1
@@ -7620,11 +7620,11 @@ Module
   global @scoop.str.12 = "array index out of bounds"
   global @scoop.str.13 = "illegal state"
   enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$D1_SX tagged size=16 align=8 variants=(struct10)@8+4 ()@8+0
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option$D1_SX tagged size=16 align=8 variants=(struct10)@8+4 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
   extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
@@ -9200,7 +9200,7 @@ Module
     t41 = safe_integer_Remainder<UInt> local40, local41 : i32
     t42 = integer_compare_Equal<UInt> t41, integer<UInt>(0x00000000) : i1
     ret t42
-  fun @scoop.$local$c0:p0:C20:n16:IntRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C20:n16:IntRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -9253,7 +9253,7 @@ Module
     t0 = heap_load param0 +30 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e2 v1 () : enum2
+    t1 = enum_wrap e1 v1 () : enum1
     ret t1
   block if.merge.2
     t2 = heap_load param0 +28 : i1
@@ -9291,13 +9291,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +30 true
-    t15 = enum_wrap e2 v1 () : enum2
+    t15 = enum_wrap e1 v1 () : enum1
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +30 true
-    t16 = enum_wrap e2 v1 () : enum2
+    t16 = enum_wrap e1 v1 () : enum1
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -9323,13 +9323,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +30 true
-    t25 = enum_wrap e2 v1 () : enum2
+    t25 = enum_wrap e1 v1 () : enum1
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +30 true
-    t26 = enum_wrap e2 v1 () : enum2
+    t26 = enum_wrap e1 v1 () : enum1
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -9384,7 +9384,7 @@ Module
   block if.merge.25
     store local12 -> local45
     store local45 -> local46
-    t44 = enum_wrap e2 v0 (local46) : enum2
+    t44 = enum_wrap e1 v0 (local46) : enum1
     ret t44
   block if.then.26
     t45 = heap_load param0 +28 : i1
@@ -9725,7 +9725,7 @@ Module
     t41 = safe_integer_Remainder<ULong> local40, local41 : i64
     t42 = integer_compare_Equal<ULong> t41, integer<ULong>(0x0000000000000000) : i1
     ret t42
-  fun @scoop.$local$c0:p0:C21:n17:LongRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum3 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C21:n17:LongRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -9778,7 +9778,7 @@ Module
     t0 = heap_load param0 +42 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e3 v1 () : enum3
+    t1 = enum_wrap e2 v1 () : enum2
     ret t1
   block if.merge.2
     t2 = heap_load param0 +40 : i1
@@ -9816,13 +9816,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +42 true
-    t15 = enum_wrap e3 v1 () : enum3
+    t15 = enum_wrap e2 v1 () : enum2
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +42 true
-    t16 = enum_wrap e3 v1 () : enum3
+    t16 = enum_wrap e2 v1 () : enum2
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -9848,13 +9848,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +42 true
-    t25 = enum_wrap e3 v1 () : enum3
+    t25 = enum_wrap e2 v1 () : enum2
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +42 true
-    t26 = enum_wrap e3 v1 () : enum3
+    t26 = enum_wrap e2 v1 () : enum2
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -9909,7 +9909,7 @@ Module
   block if.merge.25
     store local12 -> local45
     store local45 -> local46
-    t44 = enum_wrap e3 v0 (local46) : enum3
+    t44 = enum_wrap e2 v0 (local46) : enum2
     ret t44
   block if.then.26
     t45 = heap_load param0 +40 : i1
@@ -10225,7 +10225,7 @@ Module
     t35 = safe_integer_Remainder<UInt> local34, local35 : i32
     t36 = integer_compare_Equal<UInt> t35, integer<UInt>(0x00000000) : i1
     ret t36
-  fun @scoop.$local$c0:p0:C21:n17:UIntRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum4 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C21:n17:UIntRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum3 size=16 align=8 scan=none>
     local %0 $receiver: i32
     local %1 $argument.0: i32
     local %2 $parameter.other: i32
@@ -10272,7 +10272,7 @@ Module
     t0 = heap_load param0 +30 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e4 v1 () : enum4
+    t1 = enum_wrap e3 v1 () : enum3
     ret t1
   block if.merge.2
     t2 = heap_load param0 +28 : i1
@@ -10310,13 +10310,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +30 true
-    t15 = enum_wrap e4 v1 () : enum4
+    t15 = enum_wrap e3 v1 () : enum3
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +30 true
-    t16 = enum_wrap e4 v1 () : enum4
+    t16 = enum_wrap e3 v1 () : enum3
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -10342,13 +10342,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +30 true
-    t25 = enum_wrap e4 v1 () : enum4
+    t25 = enum_wrap e3 v1 () : enum3
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +30 true
-    t26 = enum_wrap e4 v1 () : enum4
+    t26 = enum_wrap e3 v1 () : enum3
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -10393,7 +10393,7 @@ Module
   block if.merge.25
     store local12 -> local39
     store local39 -> local40
-    t40 = enum_wrap e4 v0 (local40) : enum4
+    t40 = enum_wrap e3 v0 (local40) : enum3
     ret t40
   block if.then.26
     t41 = heap_load param0 +28 : i1
@@ -10709,7 +10709,7 @@ Module
     t35 = safe_integer_Remainder<ULong> local34, local35 : i64
     t36 = integer_compare_Equal<ULong> t35, integer<ULong>(0x0000000000000000) : i1
     ret t36
-  fun @scoop.$local$c0:p0:C22:n18:ULongRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum5 size=16 align=8 scan=none>
+  fun @scoop.$local$c0:p0:C22:n18:ULongRangeIteratorr8:functionq8:ordinaryn4:next(ptr<managed>) -> sret<enum4 size=16 align=8 scan=none>
     local %0 $receiver: i64
     local %1 $argument.0: i64
     local %2 $parameter.other: i64
@@ -10756,7 +10756,7 @@ Module
     t0 = heap_load param0 +42 : i1
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = enum_wrap e5 v1 () : enum5
+    t1 = enum_wrap e4 v1 () : enum4
     ret t1
   block if.merge.2
     t2 = heap_load param0 +40 : i1
@@ -10794,13 +10794,13 @@ Module
     br @if.merge.5
   block if.then.9
     heap_store param0 +42 true
-    t15 = enum_wrap e5 v1 () : enum5
+    t15 = enum_wrap e4 v1 () : enum4
     ret t15
   block if.merge.10
     br @if.merge.8
   block if.then.11
     heap_store param0 +42 true
-    t16 = enum_wrap e5 v1 () : enum5
+    t16 = enum_wrap e4 v1 () : enum4
     ret t16
   block if.merge.12
     br @if.merge.8
@@ -10826,13 +10826,13 @@ Module
     br @if.merge.5
   block if.then.16
     heap_store param0 +42 true
-    t25 = enum_wrap e5 v1 () : enum5
+    t25 = enum_wrap e4 v1 () : enum4
     ret t25
   block if.merge.17
     br @if.merge.15
   block if.then.18
     heap_store param0 +42 true
-    t26 = enum_wrap e5 v1 () : enum5
+    t26 = enum_wrap e4 v1 () : enum4
     ret t26
   block if.merge.19
     br @if.merge.15
@@ -10877,7 +10877,7 @@ Module
   block if.merge.25
     store local12 -> local39
     store local39 -> local40
-    t40 = enum_wrap e5 v0 (local40) : enum5
+    t40 = enum_wrap e4 v0 (local40) : enum4
     ret t40
   block if.then.26
     t41 = heap_load param0 +40 : i1
@@ -10979,13 +10979,13 @@ Module
     local %10 $parameter.value: i1
     local %11 $ub.1: struct10
     local %12 $cast.2: ptr<managed>
-    local %13 $cast.3: enum1
+    local %13 $cast.3: enum5
     local %14 $call.1: struct10
     local %15 $call.2: i1
     local %16 $sc.1: struct10
     local %17 $sc.2: struct10
-    local %18 $sc.3: enum1
-    local %19 $sc.4: enum1
+    local %18 $sc.3: enum5
+    local %19 $sc.4: enum5
   block entry
     poll managed-void-target4 sp220 live=[]
     store integer<Int>(0x00000009) -> local0
@@ -11028,18 +11028,18 @@ Module
     cbr t9 then @if.then.6 else @if.else.7
   block if.then.6
     t10 = heap_load local12 +16 : struct10
-    t11 = enum_wrap e1 v0 (t10) : enum1
+    t11 = enum_wrap e5 v0 (t10) : enum5
     store t11 -> local13
     br @if.merge.8
   block if.else.7
-    t12 = enum_wrap e1 v1 () : enum1
+    t12 = enum_wrap e5 v1 () : enum5
     store t12 -> local13
     br @if.merge.8
   block if.merge.8
-    t13 = enum_wrap e1 v1 () : enum1
+    t13 = enum_wrap e5 v1 () : enum5
     store local13 -> local18
     store t13 -> local19
-    call managed-direct-target1 sp130 live=[] t14 = sig=direct4 (indirect<enum1 size=16 align=8 scan=none>, indirect<enum1 size=16 align=8 scan=none>) -> i1 local-fn75(indirect local18, indirect local19)
+    call managed-direct-target1 sp130 live=[] t14 = sig=direct4 (indirect<enum5 size=16 align=8 scan=none>, indirect<enum5 size=16 align=8 scan=none>) -> i1 local-fn75(indirect local18, indirect local19)
     store t14 -> local15
     t15 = Not local15 : i1
     store t15 -> local9
@@ -11111,16 +11111,16 @@ Module
     t1 = extract param1, 0 : i32
     t2 = integer_compare_Equal<Int> t0, t1 : i1
     ret t2
-  fun @scoop.$local$c0:p0:E9:n6:Optionr8:functionq8:ordinaryn6:equals$D26_$local$u0:p0:r6:structn1:SX(indirect<enum1 size=16 align=8 scan=none>, indirect<enum1 size=16 align=8 scan=none>) -> i1
+  fun @scoop.$local$c0:p0:E9:n6:Optionr8:functionq8:ordinaryn6:equals$D26_$local$u0:p0:r6:structn1:SX(indirect<enum5 size=16 align=8 scan=none>, indirect<enum5 size=16 align=8 scan=none>) -> i1
     local %0 $left.0.0: struct10
     local %1 $right.0.0: struct10
-    local %2 $when.1: enum1
-    local %3 $pattern.subject.2: enum1
-    local %4 $when.3: enum1
-    local %5 $pattern.subject.4: enum1
-    local %6 $pattern.subject.5: enum1
-    local %7 $when.6: enum1
-    local %8 $pattern.subject.7: enum1
+    local %2 $when.1: enum5
+    local %3 $pattern.subject.2: enum5
+    local %4 $when.3: enum5
+    local %5 $pattern.subject.4: enum5
+    local %6 $pattern.subject.5: enum5
+    local %7 $when.6: enum5
+    local %8 $pattern.subject.7: enum5
     local %9 $call.1: i1
     local %10 $sc.1: struct10
     local %11 $sc.2: struct10
@@ -11128,21 +11128,21 @@ Module
     poll managed-void-target0 sp225 live=[]
     store param0 -> local2
     store local2 -> local3
-    t0 = variant_test e1 v0 local3 : i1
+    t0 = variant_test e5 v0 local3 : i1
     cbr t0 then @pattern.pass.1 else @pattern.else.2
   block pattern.pass.1
-    t1 = variant_payload_project e1 v0 f0 local3 : struct10
+    t1 = variant_payload_project e5 v0 f0 local3 : struct10
     store t1 -> local0
     store param1 -> local4
     store local4 -> local5
-    t2 = variant_test e1 v0 local5 : i1
+    t2 = variant_test e5 v0 local5 : i1
     cbr t2 then @pattern.pass.4 else @pattern.else.5
   block pattern.else.2
     store local2 -> local6
-    t3 = variant_test e1 v1 local6 : i1
+    t3 = variant_test e5 v1 local6 : i1
     cbr t3 then @pattern.pass.7 else @pattern.else.8
   block pattern.pass.4
-    t4 = variant_payload_project e1 v0 f0 local5 : struct10
+    t4 = variant_payload_project e5 v0 f0 local5 : struct10
     store t4 -> local1
     store local0 -> local10
     store local1 -> local11
@@ -11154,7 +11154,7 @@ Module
   block pattern.pass.7
     store param1 -> local7
     store local7 -> local8
-    t6 = variant_test e1 v1 local8 : i1
+    t6 = variant_test e5 v1 local8 : i1
     cbr t6 then @pattern.pass.10 else @pattern.else.11
   block pattern.else.8
     unreachable
@@ -11391,11 +11391,11 @@ Module
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout S size=4 align=4 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$D1_SX size=16 align=8 enum-scan=none
   layout Option$I32 size=16 align=8 enum-scan=none
   layout Option$I64 size=16 align=8 enum-scan=none
   layout Option$V32 size=16 align=8 enum-scan=none
   layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option$D1_SX size=16 align=8 enum-scan=none
   layout IntRange size=32 align=8 refs=[]
   layout IntRangeIterator size=32 align=8 refs=[]
   layout LongRange size=48 align=8 refs=[]

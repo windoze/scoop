@@ -102,27 +102,44 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
             .any(|application| application.method_arguments.to_vec() == [output.export.string])
     );
 
-    let concrete_origin =
-        hir::concrete::GenericMethodOriginId::from_raw(definition.into_raw().into_u32());
     let concrete_methods = output
         .local
         .functions
         .iter()
-        .filter_map(|(_, function)| match &function.origin {
-            hir::concrete::FunctionOrigin::Method(hir::concrete::MethodOrigin {
-                owner: hir::concrete::MethodOwner::Class(owner),
-                specialization:
-                    hir::concrete::MethodSpecialization::Generic {
-                        origin,
-                        method_arguments,
-                        ..
-                    },
-            }) if *origin == concrete_origin => Some((*owner, method_arguments.to_vec())),
-            _ => None,
+        .filter_map(|(_, function)| {
+            if function.name != "Box.choose" {
+                return None;
+            }
+            let method = function.method?;
+            let hir::concrete::TypeKind::Class(owner) = output.local.types[method.owner].kind
+            else {
+                panic!("Box.choose has an exact class owner")
+            };
+            let hir::concrete::FunctionEmission::Materialized { arguments, .. } =
+                &function.emission
+            else {
+                panic!("Box.choose is a materialized generic method")
+            };
+            let hir::concrete::CallableMaterializationContext::Application(application) =
+                function.materialization.context()
+            else {
+                panic!("Box.choose carries its persistent application")
+            };
+            assert!(matches!(
+                function.materialization.template(),
+                hir::concrete::CallableTemplateOwner::GenericFunction(_)
+            ));
+            let owner_argument_count = output.local.classes[owner].type_arguments.len();
+            Some((
+                owner,
+                method.owner,
+                arguments.as_slice()[owner_argument_count..].to_vec(),
+                application,
+            ))
         })
         .collect::<Vec<_>>();
     assert_eq!(concrete_methods.len(), 2);
-    for (owner, _) in &concrete_methods {
+    for (owner, owner_type, arguments, application) in &concrete_methods {
         assert_eq!(
             output.local.classes[*owner].type_arguments,
             vec![output.local.string]
@@ -134,16 +151,40 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
                 .all(|method| output.local.functions[*method].name != "Box.choose"),
             "generic methods are direct applications and never dispatch-table members"
         );
+        let record = output
+            .local
+            .callable_applications
+            .get(*application)
+            .expect("the method application is present in the canonical table");
+        assert_eq!(
+            record.key().instantiation_owner(),
+            scoop_identity::CallableInstantiationOwner::ExactNominalOwner(
+                output.local.exact_type_identities[*owner_type].id()
+            )
+        );
+        let scoop_identity::CallableArguments::Arguments(exact_arguments) =
+            record.key().callable_arguments()
+        else {
+            panic!("generic method arguments remain a non-empty typed group")
+        };
+        assert_eq!(
+            exact_arguments.as_slice(),
+            arguments
+                .iter()
+                .map(|argument| output.local.exact_type_identities[*argument].id())
+                .collect::<Vec<_>>()
+                .as_slice()
+        );
     }
     assert!(
         concrete_methods
             .iter()
-            .any(|(_, arguments)| arguments == &[concrete_int_type(&output.local)])
+            .any(|(_, _, arguments, _)| arguments == &[concrete_int_type(&output.local)])
     );
     assert!(
         concrete_methods
             .iter()
-            .any(|(_, arguments)| arguments == &[output.local.string])
+            .any(|(_, _, arguments, _)| arguments == &[output.local.string])
     );
 }
 
@@ -192,14 +233,15 @@ fn parameterized_method_families_use_one_source_identity_domain_for_symbols() {
             if function.name != "Host.keep" {
                 return None;
             }
-            let hir::concrete::FunctionOrigin::Method(origin) = &function.origin else {
+            let hir::concrete::FunctionEmission::Materialized { symbol, .. } = &function.emission
+            else {
                 return None;
             };
-            match &origin.specialization {
-                hir::concrete::MethodSpecialization::OwnerParameterized { symbol, .. }
-                | hir::concrete::MethodSpecialization::Generic { symbol, .. } => Some(*symbol),
-                hir::concrete::MethodSpecialization::Plain => None,
-            }
+            assert!(matches!(
+                function.materialization.context(),
+                hir::concrete::CallableMaterializationContext::Application(_)
+            ));
+            Some(*symbol)
         })
         .collect::<Vec<_>>();
     assert_eq!(symbols.len(), 2);

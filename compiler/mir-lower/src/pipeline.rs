@@ -239,9 +239,6 @@ impl Lowerer {
             option_core,
             entry,
             meta: mir::MirMeta {
-                generic_function_sources: self.instances.generic_function_sources,
-                parameterized_method_sources: self.instances.parameterized_method_sources,
-                generic_method_sources: self.instances.generic_method_sources,
                 instances: self.instances.meta,
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,

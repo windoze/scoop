@@ -1,101 +1,140 @@
 //! Generic nominal specialization and ordinary generic core calls.
 
 use super::*;
-use crate::instances::LoweredFunctionInstance;
 
 #[test]
-fn monomorphization_metadata_preserves_typed_sources_and_argument_groups() {
+fn monomorphization_metadata_preserves_persistent_materializations() {
+    use scoop_identity::{
+        CallableApplicationKey, CallableInstantiationOwner, CallableMaterialization,
+        CallableMaterializationContext, CallableTemplateOwner, CanonicalIdentifier,
+        CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
+        DefinitionOwnerChain, ExactTypeKey, NonEmptyVec, PackagePath, SourceDeclarationKey,
+        SourceDeclarationSite,
+    };
+
+    let site = || {
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap()
+    };
+    let source = |name: &str, type_parameters| {
+        SourceDeclarationKey::function(
+            site(),
+            CanonicalIdentifier::new(name).unwrap(),
+            type_parameters,
+            None,
+            Vec::new(),
+        )
+    };
+    let generic = match scoop_hir::HirSourceFunctionIdentity::from_declaration(source(
+        "identity", 1,
+    ))
+    .unwrap()
+    {
+        scoop_hir::HirSourceFunctionIdentity::Generic(record) => record.id(),
+        scoop_hir::HirSourceFunctionIdentity::Plain(_) => unreachable!(),
+    };
+    let method =
+        match scoop_hir::HirSourceFunctionIdentity::from_declaration(source("get", 0)).unwrap() {
+            scoop_hir::HirSourceFunctionIdentity::Plain(record) => record.id(),
+            scoop_hir::HirSourceFunctionIdentity::Generic(_) => unreachable!(),
+        };
+    let generic_method =
+        match scoop_hir::HirSourceFunctionIdentity::from_declaration(source("convert", 1)).unwrap()
+        {
+            scoop_hir::HirSourceFunctionIdentity::Generic(record) => record.id(),
+            scoop_hir::HirSourceFunctionIdentity::Plain(_) => unreachable!(),
+        };
+    let exact = |nominal: CoreBuiltinNominal| {
+        CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal.identity_record().id()))
+            .unwrap()
+            .id()
+    };
+    let unit = exact(CoreBuiltinNominal::Unit);
+    let any = exact(CoreBuiltinNominal::Any);
+    let application = |key: &CallableApplicationKey| {
+        scoop_identity::PersistentCallableApplicationId::from_key(key).unwrap()
+    };
+    let identity_unit = CallableApplicationKey::for_generic_function(
+        generic,
+        CallableInstantiationOwner::NoOwner,
+        NonEmptyVec::from_first(unit, []),
+    );
+    let identity_any = CallableApplicationKey::for_generic_function(
+        generic,
+        CallableInstantiationOwner::NoOwner,
+        NonEmptyVec::from_first(any, []),
+    );
+    let get = CallableApplicationKey::for_function(
+        method,
+        CallableInstantiationOwner::ExactNominalOwner(any),
+    );
+    let convert = CallableApplicationKey::for_generic_function(
+        generic_method,
+        CallableInstantiationOwner::ExactNominalOwner(any),
+        NonEmptyVec::from_first(unit, []),
+    );
+    let materialization = |template, key: &CallableApplicationKey| {
+        CallableMaterialization::new(
+            template,
+            CallableMaterializationContext::Application(application(key)),
+        )
+    };
+    let materializations = [
+        materialization(
+            CallableTemplateOwner::GenericFunction(generic),
+            &identity_unit,
+        ),
+        materialization(
+            CallableTemplateOwner::GenericFunction(generic),
+            &identity_any,
+        ),
+        materialization(CallableTemplateOwner::Function(method), &get),
+        materialization(
+            CallableTemplateOwner::GenericFunction(generic_method),
+            &convert,
+        ),
+    ];
+
     let mut registry = InstanceRegistry::default();
     let hir_function = |raw: u32| hir::concrete::FunctionId::from_raw(raw.into());
     let mir_function = |raw: u32| mir::FunctionId::from_raw(raw.into());
-    let arguments = |first, rest| mir::NonEmptyTypeArguments::new(first, rest);
+    for (index, (symbol, name)) in [
+        ("scoop.identity$U", "identity"),
+        ("scoop.identity$A", "identity"),
+        ("scoop.Box$A.get", "Box.get"),
+        ("scoop.Host$A.convert$U", "Host.convert"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        registry.record(
+            hir_function(index as u32),
+            mir_function(index as u32),
+            symbol.to_string(),
+            name.to_string(),
+            materializations[index],
+        );
+    }
 
-    registry.record(
-        hir_function(0),
-        mir_function(0),
-        "scoop.identity$I32".to_string(),
-        "identity".to_string(),
-        LoweredFunctionInstance::GenericFunction {
-            origin: hir::concrete::GenericFunctionOriginId::from_raw(7),
-            arguments: arguments(mir::Type::Integer(mir::IntegerKind::SIGNED_32), Vec::new()),
-        },
-    );
-    registry.record(
-        hir_function(1),
-        mir_function(1),
-        "scoop.identity$S".to_string(),
-        "identity".to_string(),
-        LoweredFunctionInstance::GenericFunction {
-            origin: hir::concrete::GenericFunctionOriginId::from_raw(7),
-            arguments: arguments(mir::Type::String, Vec::new()),
-        },
-    );
-    registry.record(
-        hir_function(2),
-        mir_function(2),
-        "scoop.Box$I32.get$I32".to_string(),
-        "Box.get".to_string(),
-        LoweredFunctionInstance::ParameterizedMethod {
-            origin: hir::concrete::OwnerParameterizedMethodOriginId::from_raw(11),
-            owner: mir::MonomorphizedMethodOwner::Class(mir::ClassId::from_raw(3_u32.into())),
-            owner_arguments: arguments(mir::Type::Integer(mir::IntegerKind::SIGNED_32), Vec::new()),
-        },
-    );
-    registry.record(
-        hir_function(3),
-        mir_function(3),
-        "scoop.Host.convert$S".to_string(),
-        "Host.convert".to_string(),
-        LoweredFunctionInstance::GenericMethod {
-            origin: hir::concrete::GenericMethodOriginId::from_raw(13),
-            owner: mir::MonomorphizedMethodOwner::Class(mir::ClassId::from_raw(4_u32.into())),
-            owner_arguments: Vec::new(),
-            method_arguments: arguments(mir::Type::String, Vec::new()),
-        },
-    );
-
-    assert_eq!(registry.generic_function_sources.len(), 1);
-    assert_eq!(registry.parameterized_method_sources.len(), 1);
-    assert_eq!(registry.generic_method_sources.len(), 1);
     assert_eq!(registry.meta.len(), 4);
-
-    let mir::MonomorphizedSource::GenericFunction { source, arguments } =
-        &registry.meta[mir::MonomorphizedFunctionId::from_raw(1_u32.into())].source
-    else {
-        panic!("the second instance must retain its free-function category")
-    };
+    for (index, expected) in materializations.into_iter().enumerate() {
+        let instance = &registry.meta
+            [mir::MonomorphizedFunctionId::from_raw(u32::try_from(index).unwrap().into())];
+        assert_eq!(instance.materialization, expected);
+    }
     assert_eq!(
-        registry.generic_function_sources[*source].display_name,
+        registry.meta[mir::MonomorphizedFunctionId::from_raw(1_u32.into())].display_name,
         "identity"
     );
-    assert_eq!(arguments.to_vec(), vec![mir::Type::String]);
-
-    let mir::MonomorphizedSource::ParameterizedMethod {
-        owner,
-        owner_arguments,
-        ..
-    } = &registry.meta[mir::MonomorphizedFunctionId::from_raw(2_u32.into())].source
-    else {
-        panic!("the owner-parameterized method category must be retained")
-    };
-    assert!(matches!(owner, mir::MonomorphizedMethodOwner::Class(_)));
     assert_eq!(
-        owner_arguments.to_vec(),
-        vec![mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+        registry.get(hir_function(3)),
+        Some(mir::MonomorphizedFunctionId::from_raw(3_u32.into()))
     );
-
-    let mir::MonomorphizedSource::GenericMethod {
-        owner,
-        owner_arguments,
-        method_arguments,
-        ..
-    } = &registry.meta[mir::MonomorphizedFunctionId::from_raw(3_u32.into())].source
-    else {
-        panic!("the generic-method category must be retained")
-    };
-    assert!(matches!(owner, mir::MonomorphizedMethodOwner::Class(_)));
-    assert!(owner_arguments.is_empty());
-    assert_eq!(method_arguments.to_vec(), vec![mir::Type::String]);
 }
 
 #[test]

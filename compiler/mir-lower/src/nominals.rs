@@ -319,7 +319,7 @@ impl Lowerer {
     ) -> String {
         let function = &module.functions[hir_id];
         let link_stem = fn_link_stem(function);
-        if let Some(instance) = function_instance(module, function) {
+        if let Some(instance) = function_instance(function) {
             let types = Types {
                 module,
                 struct_map: &self.struct_map,

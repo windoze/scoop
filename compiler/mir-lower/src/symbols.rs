@@ -38,7 +38,7 @@ pub(super) fn overloaded_link_stems(module: &hir::Module) -> HashSet<hir::Callab
     let mut counts: HashMap<hir::CallableLinkStem, usize> = HashMap::new();
     for (_, function) in module.functions.iter() {
         if !matches!(function.kind, hir::FunctionKind::User(_))
-            || function_instance(module, function).is_some()
+            || function_instance(function).is_some()
         {
             continue;
         }

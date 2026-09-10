@@ -60,6 +60,65 @@ fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
     .expect("the MIR test keeps its HIR type identities structurally complete")
 }
 
+fn extend_function_identities(module: &mut hir::Module, preserved_functions: usize) {
+    let preserved = module.function_identities.clone();
+    let identities = module
+        .functions
+        .iter()
+        .map(|(function, declaration)| {
+            let index = function.into_raw().into_u32() as usize;
+            if index < preserved_functions {
+                return preserved[function].clone();
+            }
+            assert!(matches!(
+                declaration.genericity,
+                hir::FunctionGenericity::Plain
+            ));
+            let site = scoop_identity::SourceDeclarationSite::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                scoop_identity::PackagePath::root(),
+                scoop_identity::DefinitionOwnerChain::top_level(),
+                scoop_identity::DeclarationScope::ConeWide,
+            )
+            .unwrap();
+            let name = format!("extended_fixture_function_{index}");
+            let declaration = scoop_identity::SourceDeclarationKey::function(
+                site,
+                scoop_identity::CanonicalIdentifier::new(&name).unwrap(),
+                0,
+                None,
+                Vec::new(),
+            );
+            hir::HirFunctionIdentity::source(
+                hir::HirSourceFunctionIdentity::from_declaration(declaration).unwrap(),
+            )
+        })
+        .collect();
+    module.function_identities = hir::HirFunctionIdentities::checked(
+        hir::HirFunctionIdentityInputs {
+            functions: &module.functions,
+            lambdas: &module.lambdas,
+            anonymous_functions: &module.anonymous_functions,
+            local_functions: &module.local_functions,
+            property_getters: &module.property_getters,
+            property_setters: &module.property_setters,
+            property_accessor_identities: &module.property_accessor_identities,
+            initialization_units: &module.initialization_units,
+            initialization_unit_identities: &module.initialization_unit_identities,
+            derived_equality_applications: &module.derived_equality_applications,
+            structs: &module.structs,
+            enums: &module.enums,
+            type_identities: &module.type_identities,
+            struct_constructors: &module.struct_constructors,
+            class_constructors: &module.class_constructors,
+            constructor_identities: &module.constructor_identities,
+            enum_member_identities: &module.enum_member_identities,
+        },
+        identities,
+    )
+    .expect("the extended MIR test fixture has a total function identity relation");
+}
+
 fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistrationIdentities {
     hir::HirCallbackRegistrationIdentities::from_registrations(
         hir::HirCallbackRegistrationIdentityInputs {

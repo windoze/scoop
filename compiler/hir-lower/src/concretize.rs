@@ -11,12 +11,15 @@ use scoop_hir as export;
 use scoop_hir::concrete;
 
 mod body;
+mod callable_identities;
 mod callables;
 mod classes;
 mod closures;
 mod functions;
 mod nominals;
 mod types;
+
+use functions::PendingFunction;
 
 pub(crate) fn lower(module: &export::Module) -> concrete::Module {
     export::validate_iteration_plans(module)
@@ -114,7 +117,8 @@ struct Concretizer<'a> {
     companion_relations: Arena<concrete::CompanionRelation>,
     singleton_values: Arena<concrete::SingletonValue>,
     singleton_published_roots: Arena<concrete::SingletonPublishedRoot>,
-    function_slots: Vec<Option<concrete::Function>>,
+    function_slots: Vec<Option<PendingFunction>>,
+    function_keys: Vec<FunctionKey>,
     function_by_key: HashMap<FunctionKey, concrete::FunctionId>,
     /// Concrete ordinary bodies supplied by typed derived-equality
     /// applications before their function key enters the emission queue.
@@ -249,6 +253,7 @@ impl<'a> Concretizer<'a> {
             singleton_values: Arena::new(),
             singleton_published_roots: Arena::new(),
             function_slots: Vec::new(),
+            function_keys: Vec::new(),
             function_by_key: HashMap::new(),
             derived_bodies: HashMap::new(),
             structural_derived_functions: HashMap::new(),
@@ -546,11 +551,6 @@ impl<'a> Concretizer<'a> {
         };
 
         let extra = finish(&self);
-        let functions = arena_from_complete_slots(self.function_slots, "concrete function");
-        let class_constructors =
-            arena_from_complete_slots(self.class_constructor_slots, "concrete class constructor");
-        let struct_constructors =
-            arena_from_complete_slots(self.struct_constructor_slots, "concrete struct constructor");
         let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
             constructor: {
                 let class = self.class_by_key[&(exception.class(), Vec::new())];
@@ -608,10 +608,18 @@ impl<'a> Concretizer<'a> {
                 intrinsic_core: &intrinsic_type_core,
             })
             .expect("validated concretization produces a total exact-type identity relation");
+        let (callable_applications, materializations, emissions) =
+            self.build_callable_identities(&exact_type_identities);
+        let functions = finish_function_slots(self.function_slots, materializations, emissions);
+        let class_constructors =
+            arena_from_complete_slots(self.class_constructor_slots, "concrete class constructor");
+        let struct_constructors =
+            arena_from_complete_slots(self.struct_constructor_slots, "concrete struct constructor");
 
         let module = concrete::Module {
             types: self.types,
             exact_type_identities,
+            callable_applications,
             function_types: self.function_types,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,
@@ -682,7 +690,10 @@ impl<'a> Concretizer<'a> {
         loop {
             self.drain_pending_functions();
             let mut results = Vec::new();
-            for function in self.function_slots.iter().flatten() {
+            for (index, function) in self.function_slots.iter().enumerate() {
+                let Some(function) = function else {
+                    continue;
+                };
                 if function.is_suspend && matches!(function.kind, concrete::FunctionKind::User(_)) {
                     results.push(function.return_ty);
                 }
@@ -695,7 +706,7 @@ impl<'a> Concretizer<'a> {
                                 | concrete::IntrinsicFunctionKind::CoroutineSuspend
                         )
                 ) {
-                    results.extend(self.concrete_function_arguments(function));
+                    results.extend(self.function_key_arguments(&self.function_keys[index]));
                 }
             }
             // Suspend function-value variance bridges are synthesized by MIR
@@ -765,6 +776,27 @@ fn arena_from_complete_slots<T>(slots: Vec<Option<T>>, what: &str) -> Arena<T> {
     for (index, slot) in slots.into_iter().enumerate() {
         let value = slot.unwrap_or_else(|| panic!("missing {what} at index {index}"));
         let id = arena.alloc(value);
+        assert_eq!(id.into_raw().into_u32() as usize, index);
+    }
+    arena
+}
+
+fn finish_function_slots(
+    slots: Vec<Option<PendingFunction>>,
+    materializations: Vec<concrete::CallableMaterialization>,
+    emissions: Vec<concrete::FunctionEmission>,
+) -> Arena<concrete::Function> {
+    assert_eq!(slots.len(), materializations.len());
+    assert_eq!(slots.len(), emissions.len());
+    let mut arena = Arena::new();
+    for (index, ((slot, materialization), emission)) in slots
+        .into_iter()
+        .zip(materializations)
+        .zip(emissions)
+        .enumerate()
+    {
+        let pending = slot.unwrap_or_else(|| panic!("missing concrete function at index {index}"));
+        let id = arena.alloc(pending.finish(materialization, emission));
         assert_eq!(id.into_raw().into_u32() as usize, index);
     }
     arena

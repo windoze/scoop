@@ -37,6 +37,7 @@ pub struct ExactTypeIdentityInputs<'a> {
 #[derive(Clone, Debug)]
 pub struct ExactTypeIdentities {
     identities: Vec<ExactTypeRecord>,
+    types_by_identity: HashMap<PersistentExactTypeId, TypeId>,
 }
 
 impl ExactTypeIdentities {
@@ -54,6 +55,10 @@ impl ExactTypeIdentities {
 
     pub fn is_empty(&self) -> bool {
         self.identities.is_empty()
+    }
+
+    pub fn type_for_identity(&self, identity: PersistentExactTypeId) -> Option<TypeId> {
+        self.types_by_identity.get(&identity).copied()
     }
 }
 
@@ -119,7 +124,20 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
                 identity.ok_or(ExactTypeIdentityError::MissingIdentity { ty: index as u32 })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(ExactTypeIdentities { identities })
+        let types_by_identity = identities
+            .iter()
+            .enumerate()
+            .map(|(index, identity)| {
+                (
+                    identity.id(),
+                    TypeId::from_raw(u32::try_from(index).expect("type ids fit in u32").into()),
+                )
+            })
+            .collect();
+        Ok(ExactTypeIdentities {
+            identities,
+            types_by_identity,
+        })
     }
 
     fn resolve(&mut self, ty: TypeId) -> Result<ExactTypeRecord, ExactTypeIdentityError> {

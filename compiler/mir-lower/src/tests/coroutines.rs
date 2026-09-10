@@ -412,6 +412,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let executable = h.finish_coroutines(main);
     let entry = executable.entry();
     let mut source = executable.into_module();
+    let preserved_functions = source.functions.len();
     let result = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
     let suspend_registration = source.coroutine_core.suspend_registration;
     let registration_ty =
@@ -459,6 +460,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
         span: SPAN,
     });
     source.top_level.push(caller);
+    extend_function_identities(&mut source, preserved_functions);
 
     let source = legacy_executable(source, entry);
     let module = lower(&source);
@@ -534,6 +536,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let executable = h.finish_coroutines(main);
     let entry = executable.entry();
     let mut hir_module = executable.into_module();
+    let preserved_functions = hir_module.functions.len();
     let result = module_integer_type(&hir_module, hir::IntegerKind::SIGNED_32);
     let suspend_task = hir_module.coroutine_core.suspend_task;
     let continuation = hir_module.coroutine_core.continuation;
@@ -584,6 +587,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         span: SPAN,
     });
     hir_module.top_level.push(launcher);
+    extend_function_identities(&mut hir_module, preserved_functions);
 
     let hir_module = legacy_executable(hir_module, entry);
     let module = lower(&hir_module);

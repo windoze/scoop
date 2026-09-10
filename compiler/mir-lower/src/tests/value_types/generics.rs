@@ -115,15 +115,27 @@ fn monomorphizes_generic_functions() {
     assert_eq!(module.meta.instances.len(), 2);
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
     assert_eq!(int_meta.symbol, "scoop.identity$I32");
-    let mir::MonomorphizedSource::GenericFunction { source, arguments } = &int_meta.source else {
-        panic!("identity must retain generic free-function provenance")
+    assert_eq!(int_meta.display_name, "identity");
+    assert!(matches!(
+        int_meta.materialization.template(),
+        scoop_identity::CallableTemplateOwner::GenericFunction(_)
+    ));
+    let scoop_identity::CallableMaterializationContext::Application(int_application) =
+        int_meta.materialization.context()
+    else {
+        panic!("identity<Int> must retain its persistent callable application")
     };
+    let string_meta = &module.meta.instances[instance_id(&module, module.top_level[2])];
     assert_eq!(
-        module.meta.generic_function_sources[*source].display_name,
-        "identity"
+        string_meta.materialization.template(),
+        int_meta.materialization.template()
     );
-    assert_eq!(arguments.to_vec(), vec![int_ty]);
-    assert_eq!(module.meta.generic_function_sources.len(), 1);
+    let scoop_identity::CallableMaterializationContext::Application(string_application) =
+        string_meta.materialization.context()
+    else {
+        panic!("identity<String> must retain its persistent callable application")
+    };
+    assert_ne!(int_application, string_application);
 
     // The calls in main resolve to the two instances.
     let main_fn = &module.functions[module.entry];

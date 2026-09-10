@@ -128,10 +128,8 @@ fn class_bound_member_resolves_to_a_concrete_class_method() {
         .find(|(_, function)| {
             function.name == "read"
                 && matches!(
-                    function.origin,
-                    hir::concrete::FunctionOrigin::Free(
-                        hir::concrete::FreeFunctionOrigin::Generic { .. }
-                    )
+                    &function.emission,
+                    hir::concrete::FunctionEmission::Materialized { .. }
                 )
         })
         .expect("read<StringNode> specialization")
@@ -503,15 +501,11 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
         .map(|(_, function)| function)
         .find(|function| function.name == "second")
         .expect("the local graph contains second<Int, String>");
-    let hir::concrete::FunctionOrigin::Free(hir::concrete::FreeFunctionOrigin::Generic {
-        arguments,
-        ..
-    }) = &concrete.origin
-    else {
+    let hir::concrete::FunctionEmission::Materialized { arguments, .. } = &concrete.emission else {
         panic!("the local second function must retain typed generic provenance")
     };
     assert_eq!(
-        arguments.to_vec(),
+        arguments.as_slice().to_vec(),
         vec![concrete_int_type(&output.local), output.local.string]
     );
     assert_eq!(concrete.params[0].ty, concrete_int_type(&output.local));

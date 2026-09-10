@@ -158,9 +158,12 @@ fn validate_local_entry(
     if function.name != "main"
         || function.method.is_some()
         || !matches!(
-            &function.origin,
-            concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Plain)
+            function.materialization.template(),
+            concrete::CallableTemplateOwner::Function(_)
         )
+        || function.materialization.context()
+            != concrete::CallableMaterializationContext::NoSubstitution
+        || !matches!(function.emission, concrete::FunctionEmission::Direct)
         || function.is_suspend
         || !function.params.is_empty()
         || function.return_ty != unit
@@ -175,6 +178,12 @@ fn validate_local_entry(
 mod tests {
     use la_arena::Arena;
     use scoop_ast::Span;
+    use scoop_identity::{
+        CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
+        CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
+        DefinitionOwnerChain, PackagePath, PersistentFunctionId, SourceDeclarationKey,
+        SourceDeclarationSite,
+    };
 
     use super::*;
 
@@ -207,7 +216,11 @@ mod tests {
         concrete::Function {
             link_stem: crate::CallableLinkStem::from_session_local_encoding("main".to_string()),
             name: "main".to_string(),
-            origin: concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Plain),
+            materialization: CallableMaterialization::new(
+                CallableTemplateOwner::Function(persistent_function("main")),
+                CallableMaterializationContext::NoSubstitution,
+            ),
+            emission: concrete::FunctionEmission::Direct,
             is_suspend: false,
             modifiers: crate::CallableModifiers::default(),
             params: Vec::new(),
@@ -220,6 +233,25 @@ mod tests {
             method: None,
             span: Span::new(0, 0),
         }
+    }
+
+    fn persistent_function(name: &str) -> PersistentFunctionId {
+        let site = SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap();
+        CborIdentityRecord::from_key(SourceDeclarationKey::function(
+            site,
+            CanonicalIdentifier::new(name).unwrap(),
+            0,
+            None,
+            Vec::new(),
+        ))
+        .unwrap()
+        .id()
     }
 
     #[test]
@@ -350,22 +382,12 @@ mod tests {
                 function.name = "notMain".to_string();
                 function
             }),
-            ("method origin", {
+            ("materialized emission", {
                 let mut function = valid();
-                function.origin = concrete::FunctionOrigin::Method(concrete::MethodOrigin {
-                    owner: concrete::MethodOwner::Structural(unit),
-                    specialization: concrete::MethodSpecialization::Plain,
-                });
-                function
-            }),
-            ("generic origin", {
-                let mut function = valid();
-                function.origin =
-                    concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Generic {
-                        origin: concrete::GenericFunctionOriginId::from_raw(0),
-                        arguments: concrete::NonEmptyVec::new(unit, Vec::new()),
-                        symbol: concrete::InstanceSymbol::Unique,
-                    });
+                function.emission = concrete::FunctionEmission::Materialized {
+                    arguments: scoop_identity::NonEmptyVec::new(vec![unit]).unwrap(),
+                    symbol: concrete::InstanceSymbol::Unique,
+                };
                 function
             }),
             ("member", {

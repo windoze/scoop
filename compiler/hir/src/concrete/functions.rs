@@ -6,10 +6,13 @@ pub struct Function {
     /// export HIR without reconstructing it from a display name.
     pub link_stem: CallableLinkStem,
     pub name: String,
-    /// Complete source/application category. MIR consumes this sum type
-    /// directly and never infers genericity or method ownership from an
-    /// argument vector, function name, or the optional `method` field.
-    pub origin: FunctionOrigin,
+    /// Persistent template plus the exact substitution context in which this
+    /// body exists. Declaration, application, and generated-template ids are
+    /// distinct kinds and cannot be reconstructed from names or arena ids.
+    pub materialization: CallableMaterialization,
+    /// Temporary native-symbol inputs retained until the persistent mangler
+    /// replaces the current local emitter. This carries no semantic origin.
+    pub emission: FunctionEmission,
     pub is_suspend: bool,
     pub modifiers: CallableModifiers,
     pub params: Vec<Param>,
@@ -18,28 +21,6 @@ pub struct Function {
     pub kind: FunctionKind,
     pub method: Option<Method>,
     pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FunctionOrigin {
-    Free(FreeFunctionOrigin),
-    Method(MethodOrigin),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FreeFunctionOrigin {
-    Plain,
-    Generic {
-        origin: GenericFunctionOriginId,
-        arguments: NonEmptyVec<TypeId>,
-        symbol: InstanceSymbol,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MethodOrigin {
-    pub owner: MethodOwner,
-    pub specialization: MethodSpecialization,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -55,15 +36,10 @@ pub enum MethodOwner {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MethodSpecialization {
-    Plain,
-    OwnerParameterized {
-        origin: OwnerParameterizedMethodOriginId,
-        symbol: InstanceSymbol,
-    },
-    Generic {
-        origin: GenericMethodOriginId,
-        method_arguments: NonEmptyVec<TypeId>,
+pub enum FunctionEmission {
+    Direct,
+    Materialized {
+        arguments: NonEmptyVec<TypeId>,
         symbol: InstanceSymbol,
     },
 }

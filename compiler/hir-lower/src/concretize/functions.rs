@@ -1,5 +1,41 @@
 use super::*;
 
+pub(super) struct PendingFunction {
+    pub(super) link_stem: export::CallableLinkStem,
+    pub(super) name: String,
+    pub(super) is_suspend: bool,
+    pub(super) modifiers: export::CallableModifiers,
+    pub(super) params: Vec<concrete::Param>,
+    pub(super) return_ty: concrete::TypeId,
+    pub(super) attributes: export::FunctionAttributes,
+    pub(super) kind: concrete::FunctionKind,
+    pub(super) method: Option<concrete::Method>,
+    pub(super) span: scoop_ast::Span,
+}
+
+impl PendingFunction {
+    pub(super) fn finish(
+        self,
+        materialization: concrete::CallableMaterialization,
+        emission: concrete::FunctionEmission,
+    ) -> concrete::Function {
+        concrete::Function {
+            link_stem: self.link_stem,
+            name: self.name,
+            materialization,
+            emission,
+            is_suspend: self.is_suspend,
+            modifiers: self.modifiers,
+            params: self.params,
+            return_ty: self.return_ty,
+            attributes: self.attributes,
+            kind: self.kind,
+            method: self.method,
+            span: self.span,
+        }
+    }
+}
+
 impl Concretizer<'_> {
     pub(super) fn is_emittable_source_function(&self, id: export::FunctionId) -> bool {
         let function = &self.source.functions[id];
@@ -60,6 +96,7 @@ impl Concretizer<'_> {
         );
         let raw = self.function_slots.len() as u32;
         self.function_slots.push(None);
+        self.function_keys.push(key.clone());
         let id = concrete::FunctionId::from_raw(raw.into());
         self.function_by_key.insert(key.clone(), id);
         self.pending_functions.push_back((key, id));
@@ -69,7 +106,7 @@ impl Concretizer<'_> {
         id
     }
 
-    pub(super) fn lower_function(&mut self, key: &FunctionKey) -> concrete::Function {
+    pub(super) fn lower_function(&mut self, key: &FunctionKey) -> PendingFunction {
         let source_id = key.source();
         let source = self.source.functions[source_id].clone();
         let arguments = self.function_key_arguments(key);
@@ -110,11 +147,9 @@ impl Concretizer<'_> {
             modifier: method.modifier,
             dispatch: self.lower_method_dispatch(method.dispatch, key),
         });
-        let origin = self.function_origin(key, &source);
-        concrete::Function {
+        PendingFunction {
             link_stem: source.link_stem,
             name: source.name,
-            origin,
             is_suspend: source.is_suspend,
             modifiers: source.modifiers,
             params,
@@ -157,105 +192,6 @@ impl Concretizer<'_> {
             concrete::MethodOwner::Interface(id) => &self.interfaces[id].type_arguments,
             concrete::MethodOwner::Object(_) => &[],
             concrete::MethodOwner::Structural(_) => &[],
-        }
-    }
-
-    pub(super) fn concrete_function_arguments(
-        &self,
-        function: &concrete::Function,
-    ) -> Vec<concrete::TypeId> {
-        match &function.origin {
-            concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Plain) => Vec::new(),
-            concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Generic {
-                arguments,
-                ..
-            }) => arguments.to_vec(),
-            concrete::FunctionOrigin::Method(origin) => {
-                let mut arguments = self.concrete_method_owner_arguments(origin.owner).to_vec();
-                if let concrete::MethodSpecialization::Generic {
-                    method_arguments, ..
-                } = &origin.specialization
-                {
-                    arguments.extend(method_arguments.iter().copied());
-                }
-                arguments
-            }
-        }
-    }
-
-    pub(super) fn function_origin(
-        &self,
-        key: &FunctionKey,
-        source: &export::Function,
-    ) -> concrete::FunctionOrigin {
-        match key {
-            FunctionKey::Free {
-                source: source_id,
-                arguments,
-            } => match source.genericity {
-                export::FunctionGenericity::Plain => {
-                    concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Plain)
-                }
-                export::FunctionGenericity::Generic { definition, .. } => {
-                    concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Generic {
-                        origin: concrete::GenericFunctionOriginId::from_raw(
-                            definition.into_raw().into_u32(),
-                        ),
-                        arguments: concrete::NonEmptyVec::from_vec(arguments.clone())
-                            .expect("a generic function application has non-empty arguments"),
-                        symbol: self
-                            .instance_symbol(&source.link_stem, source_id.into_raw().into_u32()),
-                    })
-                }
-                export::FunctionGenericity::OwnerParameterizedMethod { .. }
-                | export::FunctionGenericity::GenericMethod { .. } => {
-                    unreachable!("free function keys cannot name methods")
-                }
-            },
-            FunctionKey::Method {
-                source: source_id,
-                owner,
-                specialization,
-            } => {
-                let specialization = match specialization {
-                    MethodRequest::Plain => match source.genericity {
-                        export::FunctionGenericity::Plain => concrete::MethodSpecialization::Plain,
-                        export::FunctionGenericity::OwnerParameterizedMethod { .. } => {
-                            concrete::MethodSpecialization::OwnerParameterized {
-                                origin: concrete::OwnerParameterizedMethodOriginId::from_raw(
-                                    source_id.into_raw().into_u32(),
-                                ),
-                                symbol: self.instance_symbol(
-                                    &source.link_stem,
-                                    source_id.into_raw().into_u32(),
-                                ),
-                            }
-                        }
-                        export::FunctionGenericity::Generic { .. }
-                        | export::FunctionGenericity::GenericMethod { .. } => {
-                            unreachable!("plain method requests match plain method declarations")
-                        }
-                    },
-                    MethodRequest::Generic {
-                        definition,
-                        method_arguments,
-                    } => concrete::MethodSpecialization::Generic {
-                        origin: concrete::GenericMethodOriginId::from_raw(
-                            definition.into_raw().into_u32(),
-                        ),
-                        method_arguments: concrete::NonEmptyVec::from_vec(
-                            method_arguments.to_vec(),
-                        )
-                        .expect("a generic method request has non-empty method arguments"),
-                        symbol: self
-                            .instance_symbol(&source.link_stem, source_id.into_raw().into_u32()),
-                    },
-                };
-                concrete::FunctionOrigin::Method(concrete::MethodOrigin {
-                    owner: *owner,
-                    specialization,
-                })
-            }
         }
     }
 
