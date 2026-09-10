@@ -128,6 +128,7 @@ mod persistent_initialization_units;
 mod persistent_nominals;
 mod persistent_object_values;
 mod persistent_properties;
+mod persistent_source_contexts;
 mod persistent_type_identities;
 mod persistent_types;
 mod pipeline;

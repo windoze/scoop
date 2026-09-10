@@ -648,6 +648,34 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let source_files = self
+            .intrinsic_sources
+            .iter()
+            .map(|source| hir::SourceFileMetadata {
+                provider: source.provider,
+                identity: source.identity.clone(),
+                name: source.name.clone(),
+                source: source.source.clone(),
+            })
+            .collect::<Vec<_>>();
+        let source_context_identities = match crate::persistent_source_contexts::build(
+            &self,
+            &source_files,
+            &nominal_identities,
+            &function_identities,
+            &property_accessor_identities,
+            &constructor_identities,
+            &property_identities,
+            &initialization_unit_identities,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                return Err(vec![Diagnostic::at(
+                    Span { start: 0, end: 0 },
+                    error.to_string(),
+                )]);
+            }
+        };
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -662,17 +690,9 @@ impl Lowerer {
             function_identities,
             export_binding_identities,
             dispatch_slot_identities,
+            source_context_identities,
             public_surface,
-            source_files: self
-                .intrinsic_sources
-                .into_iter()
-                .map(|source| hir::SourceFileMetadata {
-                    provider: source.provider,
-                    identity: source.identity,
-                    name: source.name,
-                    source: source.source,
-                })
-                .collect(),
+            source_files,
             source_contexts: self.source_contexts,
             types: self.types,
             function_types: self.function_types,

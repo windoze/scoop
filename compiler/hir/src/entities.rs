@@ -37,6 +37,8 @@ pub struct Module {
     /// Persistent slot identities for every class virtual family and direct
     /// interface member. Overrides keep the slot of their family root.
     pub dispatch_slot_identities: HirDispatchSlotIdentities,
+    /// Total persistent identity relation for every typed source context.
+    pub source_context_identities: HirSourceContextIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,
@@ -45,8 +47,8 @@ pub struct Module {
     /// concretization consume source provenance without consulting the
     /// parser or filesystem again.
     pub source_files: Vec<SourceFileMetadata>,
-    /// Lexical source contexts referenced by expression origins. The typed id
-    /// keeps function/type names out of every individual expression node.
+    /// Request-local handles for source contexts referenced by expression
+    /// origins. Their persistent identities live in the aligned relation.
     pub source_contexts: Arena<SourceContext>,
     pub types: Arena<Type>,
     /// Canonical function signatures in one-to-one correspondence with their

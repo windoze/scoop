@@ -811,6 +811,37 @@ impl Harness {
             },
         )
         .expect("the empty MIR test public surface has no export bindings");
+        let source_files = vec![hir::SourceFileMetadata {
+            identity: scoop_identity::SourceIdentity::single_file(),
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            name: "<test>".to_string(),
+            source: String::new(),
+        }];
+        let source_context_identities =
+            hir::HirSourceContextIdentities::from_contexts(hir::HirSourceContextIdentityInputs {
+                source_files: &source_files,
+                source_contexts: &source_contexts,
+                structs: &self.structs,
+                enums: &self.enums,
+                classes: &self.classes,
+                interfaces: &self.interfaces,
+                objects: &Arena::new(),
+                functions: &self.functions,
+                struct_constructors: &self.struct_constructors,
+                class_constructors: &self.class_constructors,
+                properties: &self.properties,
+                initialization_units: &Arena::new(),
+                singleton_values: &Arena::new(),
+                lambdas: &Arena::new(),
+                anonymous_functions: &Arena::new(),
+                nominal_identities: &nominal_identities,
+                function_identities: &function_identities,
+                property_accessor_identities: &property_accessor_identities,
+                constructor_identities: &constructor_identities,
+                property_identities: &property_identities,
+                initialization_unit_identities: &initialization_unit_identities,
+            })
+            .expect("the MIR test fixture source contexts have persistent identities");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -825,13 +856,9 @@ impl Harness {
             function_identities,
             export_binding_identities,
             dispatch_slot_identities,
+            source_context_identities,
             public_surface,
-            source_files: vec![hir::SourceFileMetadata {
-                identity: scoop_identity::SourceIdentity::single_file(),
-                provider: hir::IntrinsicProviderId::from_raw(0),
-                name: "<test>".to_string(),
-                source: String::new(),
-            }],
+            source_files,
             source_contexts,
             types: self.types,
             function_types: self.function_types,
