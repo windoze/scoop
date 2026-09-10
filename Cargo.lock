@@ -484,6 +484,8 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-ast",
+ "scoop-identity",
+ "scoop-wire",
 ]
 
 [[package]]

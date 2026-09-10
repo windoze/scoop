@@ -22,6 +22,9 @@ pub use integer::*;
 mod types;
 pub use types::*;
 
+mod identity_metadata;
+pub use identity_metadata::*;
+
 mod module;
 pub use module::*;
 
