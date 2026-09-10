@@ -79,6 +79,7 @@ impl Concretizer<'_> {
             for &constructor in &source.constructors {
                 let raw = self.struct_constructor_slots.len() as u32;
                 self.struct_constructor_slots.push(None);
+                self.struct_constructor_keys.push((constructor, id));
                 let concrete = concrete::StructConstructorId::from_raw(raw.into());
                 assert!(
                     self.struct_constructor_by_key
@@ -140,7 +141,7 @@ impl Concretizer<'_> {
         source_id: export::StructConstructorId,
         structure: concrete::StructId,
         substitution: &[concrete::TypeId],
-    ) -> concrete::StructConstructor {
+    ) -> PendingStructConstructor {
         let source = self.source.struct_constructors[source_id].clone();
         let parameters = source
             .parameters
@@ -167,7 +168,7 @@ impl Concretizer<'_> {
                 }
             }
         };
-        concrete::StructConstructor {
+        PendingStructConstructor {
             structure,
             source_discriminator: source_id.into_raw().into_u32(),
             parameters,

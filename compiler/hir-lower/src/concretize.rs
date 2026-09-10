@@ -15,10 +15,15 @@ mod callable_identities;
 mod callables;
 mod classes;
 mod closures;
+mod constructor_slots;
 mod functions;
 mod nominals;
 mod types;
 
+use constructor_slots::{
+    PendingClassConstructor, PendingStructConstructor, finish_class_constructor_slots,
+    finish_struct_constructor_slots,
+};
 use functions::PendingFunction;
 
 pub(crate) fn lower(module: &export::Module) -> concrete::Module {
@@ -100,10 +105,12 @@ struct Concretizer<'a> {
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     class_source: HashMap<concrete::ClassId, export::ClassId>,
     object_by_backing_class: HashMap<export::ClassId, export::ObjectId>,
-    class_constructor_slots: Vec<Option<concrete::ClassConstructor>>,
+    class_constructor_slots: Vec<Option<PendingClassConstructor>>,
+    class_constructor_keys: Vec<(export::ClassConstructorId, concrete::ClassId)>,
     class_constructor_by_key:
         HashMap<(export::ClassConstructorId, concrete::ClassId), concrete::ClassConstructorId>,
-    struct_constructor_slots: Vec<Option<concrete::StructConstructor>>,
+    struct_constructor_slots: Vec<Option<PendingStructConstructor>>,
+    struct_constructor_keys: Vec<(export::StructConstructorId, concrete::StructId)>,
     struct_constructor_by_key:
         HashMap<(export::StructConstructorId, concrete::StructId), concrete::StructConstructorId>,
     extern_functions: Arena<concrete::ExternFunction>,
@@ -238,8 +245,10 @@ impl<'a> Concretizer<'a> {
             class_source: HashMap::new(),
             object_by_backing_class,
             class_constructor_slots: Vec::new(),
+            class_constructor_keys: Vec::new(),
             class_constructor_by_key: HashMap::new(),
             struct_constructor_slots: Vec::new(),
+            struct_constructor_keys: Vec::new(),
             struct_constructor_by_key: HashMap::new(),
             extern_functions: Arena::new(),
             extern_map: HashMap::new(),
@@ -608,13 +617,22 @@ impl<'a> Concretizer<'a> {
                 intrinsic_core: &intrinsic_type_core,
             })
             .expect("validated concretization produces a total exact-type identity relation");
-        let (callable_applications, materializations, emissions) =
-            self.build_callable_identities(&exact_type_identities);
+        let (
+            callable_applications,
+            materializations,
+            emissions,
+            class_constructor_materializations,
+            struct_constructor_materializations,
+        ) = self.build_callable_identities(&exact_type_identities);
         let functions = finish_function_slots(self.function_slots, materializations, emissions);
-        let class_constructors =
-            arena_from_complete_slots(self.class_constructor_slots, "concrete class constructor");
-        let struct_constructors =
-            arena_from_complete_slots(self.struct_constructor_slots, "concrete struct constructor");
+        let class_constructors = finish_class_constructor_slots(
+            self.class_constructor_slots,
+            class_constructor_materializations,
+        );
+        let struct_constructors = finish_struct_constructor_slots(
+            self.struct_constructor_slots,
+            struct_constructor_materializations,
+        );
 
         let module = concrete::Module {
             types: self.types,
@@ -769,16 +787,6 @@ impl<'a> Concretizer<'a> {
 
 fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
     la_arena::Idx::from_raw(id.into_raw())
-}
-
-fn arena_from_complete_slots<T>(slots: Vec<Option<T>>, what: &str) -> Arena<T> {
-    let mut arena = Arena::new();
-    for (index, slot) in slots.into_iter().enumerate() {
-        let value = slot.unwrap_or_else(|| panic!("missing {what} at index {index}"));
-        let id = arena.alloc(value);
-        assert_eq!(id.into_raw().into_u32() as usize, index);
-    }
-    arena
 }
 
 fn finish_function_slots(

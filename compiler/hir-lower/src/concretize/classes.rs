@@ -73,6 +73,7 @@ impl Concretizer<'_> {
             for &constructor in &source.constructors {
                 let raw = self.class_constructor_slots.len() as u32;
                 self.class_constructor_slots.push(None);
+                self.class_constructor_keys.push((constructor, id));
                 let concrete = concrete::ClassConstructorId::from_raw(raw.into());
                 assert!(
                     self.class_constructor_by_key
@@ -146,7 +147,7 @@ impl Concretizer<'_> {
         source_id: export::ClassConstructorId,
         class: concrete::ClassId,
         substitution: &[concrete::TypeId],
-    ) -> concrete::ClassConstructor {
+    ) -> PendingClassConstructor {
         let source = self.source.class_constructors[source_id].clone();
         let parameters = source
             .parameters
@@ -266,7 +267,7 @@ impl Concretizer<'_> {
                 }
             },
         };
-        concrete::ClassConstructor {
+        PendingClassConstructor {
             class,
             source_discriminator: source_id.into_raw().into_u32(),
             parameters,
@@ -318,7 +319,7 @@ impl Concretizer<'_> {
     fn class_constructors_slot(
         &self,
         constructor: concrete::ClassConstructorId,
-    ) -> &concrete::ClassConstructor {
+    ) -> &PendingClassConstructor {
         self.class_constructor_slots[constructor.into_raw().into_u32() as usize]
             .as_ref()
             .expect("base class initializers are concretized before derived initializers")

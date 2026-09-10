@@ -4,6 +4,26 @@ use scoop_identity::{CallableArguments, CallableInstantiationOwner, CallableTemp
 
 use super::*;
 
+fn generic_class(
+    name: &str,
+    parameters: Vec<ast::TypeParamDecl>,
+    constructor: Vec<(bool, &str, TypeRef)>,
+) -> Decl {
+    let mut declaration = class_decl(
+        ast::ClassModifier::Final,
+        name,
+        constructor,
+        None,
+        Vec::new(),
+        Vec::new(),
+    );
+    let Decl::Class(class) = &mut declaration else {
+        unreachable!()
+    };
+    class.type_params = parameters;
+    declaration
+}
+
 fn lambda_with_local(id: u32) -> ast::Expr {
     ast::Expr::Lambda {
         id: ast::LambdaId(id),
@@ -145,4 +165,98 @@ fn callable_applications_form_one_persistent_lexical_graph() {
         })
         .collect::<HashSet<_>>();
     assert_eq!(local_owners, factory_applications);
+}
+
+#[test]
+fn generic_nominal_constructors_have_persistent_applications() {
+    let output = lower_user_output(file(vec![
+        generic_class(
+            "Box",
+            vec![type_param("T")],
+            vec![(false, "value", ty_named("T"))],
+        ),
+        generic_struct_decl("Cell", vec!["T"], vec![("value", ty_named("T"))]),
+        fun(
+            "main",
+            vec![
+                val("intBox", call("Box", vec![int_lit(1)])),
+                val("stringBox", call("Box", vec![str_lit("box")])),
+                val("intCell", struct_init("Cell", vec![int_lit(2)])),
+                val("stringCell", struct_init("Cell", vec![str_lit("cell")])),
+            ],
+        ),
+    ]))
+    .expect("generic class and struct constructors must materialize");
+    let module = &output.local;
+
+    let class_applications = module
+        .class_constructors
+        .iter()
+        .filter(|(_, constructor)| module.classes[constructor.class].name.starts_with("Box$"))
+        .map(|(_, constructor)| constructor.materialization)
+        .collect::<Vec<_>>();
+    let struct_applications = module
+        .struct_constructors
+        .iter()
+        .filter(|(_, constructor)| {
+            module.structs[constructor.structure]
+                .name
+                .starts_with("Cell$")
+        })
+        .map(|(_, constructor)| constructor.materialization)
+        .collect::<Vec<_>>();
+
+    for materializations in [&class_applications, &struct_applications] {
+        assert_eq!(materializations.len(), 2);
+        let applications = materializations
+            .iter()
+            .map(|materialization| {
+                let hir::concrete::CallableTemplateOwner::Constructor(origin) =
+                    materialization.template()
+                else {
+                    panic!("a source constructor keeps its constructor template")
+                };
+                let hir::concrete::CallableMaterializationContext::Application(application) =
+                    materialization.context()
+                else {
+                    panic!("a generic nominal constructor has an application")
+                };
+                let record = module
+                    .callable_applications
+                    .get(application)
+                    .expect("constructor application record");
+                assert_eq!(
+                    record.key().origin(),
+                    CallableTemplateOrigin::Constructor(origin)
+                );
+                assert!(matches!(
+                    record.key().instantiation_owner(),
+                    CallableInstantiationOwner::ExactNominalOwner(_)
+                ));
+                assert!(matches!(
+                    record.key().callable_arguments(),
+                    CallableArguments::NoCallableArguments
+                ));
+                application
+            })
+            .collect::<HashSet<_>>();
+        assert_eq!(applications.len(), 2);
+    }
+
+    let adapters = module
+        .class_constructors
+        .iter()
+        .filter(|(_, constructor)| {
+            matches!(
+                constructor.materialization.template(),
+                hir::concrete::CallableTemplateOwner::Generated(_)
+            )
+        })
+        .map(|(_, constructor)| constructor.materialization)
+        .collect::<Vec<_>>();
+    assert_eq!(adapters.len(), 1);
+    assert!(matches!(
+        adapters[0].context(),
+        hir::concrete::CallableMaterializationContext::NoSubstitution
+    ));
 }

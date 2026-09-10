@@ -306,6 +306,10 @@ pub struct ClassDef {
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub class: ClassId,
+    /// Persistent identity of this exact constructor implementation. Generic
+    /// nominal owners use their constructor application as the context;
+    /// parameter-free constructors use `NoSubstitution`.
+    pub materialization: CallableMaterialization,
     pub source_discriminator: u32,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
@@ -342,6 +346,8 @@ impl ClassConstructor {
 #[derive(Debug, Clone)]
 pub struct StructConstructor {
     pub structure: StructId,
+    /// Persistent identity of this exact constructor implementation.
+    pub materialization: CallableMaterialization,
     pub source_discriminator: u32,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,

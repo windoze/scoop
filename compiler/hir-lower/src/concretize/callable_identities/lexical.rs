@@ -87,19 +87,16 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterializationContext {
         let declaration = &self.concretizer.source.class_constructors[constructor];
-        let owner = self.class_owner_exact(declaration.owner, arguments);
-        match &self.concretizer.source.constructor_identities[constructor] {
-            export::HirClassConstructorIdentity::Source(record) => {
-                self.constructor_application_context(record.id(), owner, arguments)
-            }
-            export::HirClassConstructorIdentity::ZeroArgumentAdapter { source, .. } => {
-                let source = &self.concretizer.source.constructor_identities[*source];
-                let record = source
-                    .source_record()
-                    .expect("a zero-argument adapter references a source constructor");
-                self.constructor_application_context(record.id(), owner, arguments)
-            }
-        }
+        assert_eq!(
+            self.concretizer.source.classes[declaration.owner]
+                .type_params
+                .len(),
+            arguments.len()
+        );
+        let owner = self.concretizer.class_by_key[&(declaration.owner, arguments.to_vec())];
+        let local = self.concretizer.class_constructor_by_key[&(constructor, owner)];
+        self.resolve_class_constructor(local.into_raw().into_u32() as usize)
+            .context()
     }
 
     fn struct_constructor_context(
@@ -108,12 +105,19 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterializationContext {
         let declaration = &self.concretizer.source.struct_constructors[constructor];
-        let owner = self.struct_owner_exact(declaration.owner, arguments);
-        let persistent = self.concretizer.source.constructor_identities[constructor].id();
-        self.constructor_application_context(persistent, owner, arguments)
+        assert_eq!(
+            self.concretizer.source.structs[declaration.owner]
+                .type_params
+                .len(),
+            arguments.len()
+        );
+        let owner = self.concretizer.struct_by_key[&(declaration.owner, arguments.to_vec())];
+        let local = self.concretizer.struct_constructor_by_key[&(constructor, owner)];
+        self.resolve_struct_constructor(local.into_raw().into_u32() as usize)
+            .context()
     }
 
-    fn constructor_application_context(
+    pub(super) fn constructor_application_context(
         &mut self,
         constructor: scoop_identity::PersistentConstructorId,
         owner: scoop_identity::PersistentExactTypeId,
@@ -162,32 +166,6 @@ impl CallableIdentityBuilder<'_> {
             concrete::MethodOwner::Structural(ty) => ty,
         };
         self.exact_types[ty].id()
-    }
-
-    fn class_owner_exact(
-        &self,
-        owner: export::ClassId,
-        arguments: &[concrete::TypeId],
-    ) -> scoop_identity::PersistentExactTypeId {
-        assert_eq!(
-            self.concretizer.source.classes[owner].type_params.len(),
-            arguments.len()
-        );
-        let local = self.concretizer.class_by_key[&(owner, arguments.to_vec())];
-        self.exact_types[self.concretizer.class_type[&local]].id()
-    }
-
-    fn struct_owner_exact(
-        &self,
-        owner: export::StructId,
-        arguments: &[concrete::TypeId],
-    ) -> scoop_identity::PersistentExactTypeId {
-        assert_eq!(
-            self.concretizer.source.structs[owner].type_params.len(),
-            arguments.len()
-        );
-        let local = self.concretizer.struct_by_key[&(owner, arguments.to_vec())];
-        self.exact_types[self.concretizer.struct_type[&local]].id()
     }
 
     fn enum_owner_exact(

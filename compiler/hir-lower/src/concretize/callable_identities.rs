@@ -35,6 +35,8 @@ impl Concretizer<'_> {
         concrete::CallableApplicationIdentities,
         Vec<CallableMaterialization>,
         Vec<concrete::FunctionEmission>,
+        Vec<CallableMaterialization>,
+        Vec<CallableMaterialization>,
     ) {
         CallableIdentityBuilder::new(self, exact_types).build()
     }
@@ -45,6 +47,8 @@ struct CallableIdentityBuilder<'a> {
     exact_types: &'a concrete::ExactTypeIdentities,
     lexical_sites: HashMap<export::FunctionId, LexicalSite>,
     materializations: Vec<Option<CallableMaterialization>>,
+    class_constructor_materializations: Vec<Option<CallableMaterialization>>,
+    struct_constructor_materializations: Vec<Option<CallableMaterialization>>,
     visiting: Vec<bool>,
     applications: Vec<concrete::CallableApplicationRecord>,
     application_by_key: HashMap<CallableApplicationKey, PersistentCallableApplicationId>,
@@ -94,6 +98,14 @@ impl<'a> CallableIdentityBuilder<'a> {
             exact_types,
             lexical_sites,
             materializations: vec![None; concretizer.function_keys.len()],
+            class_constructor_materializations: vec![
+                None;
+                concretizer.class_constructor_keys.len()
+            ],
+            struct_constructor_materializations: vec![
+                None;
+                concretizer.struct_constructor_keys.len()
+            ],
             visiting: vec![false; concretizer.function_keys.len()],
             applications: Vec::new(),
             application_by_key: HashMap::new(),
@@ -106,9 +118,17 @@ impl<'a> CallableIdentityBuilder<'a> {
         concrete::CallableApplicationIdentities,
         Vec<CallableMaterialization>,
         Vec<concrete::FunctionEmission>,
+        Vec<CallableMaterialization>,
+        Vec<CallableMaterialization>,
     ) {
         for index in 0..self.concretizer.function_keys.len() {
             self.resolve_function(index);
+        }
+        for index in 0..self.concretizer.class_constructor_keys.len() {
+            self.resolve_class_constructor(index);
+        }
+        for index in 0..self.concretizer.struct_constructor_keys.len() {
+            self.resolve_struct_constructor(index);
         }
         let emissions = self
             .concretizer
@@ -124,9 +144,23 @@ impl<'a> CallableIdentityBuilder<'a> {
                     .unwrap_or_else(|| panic!("missing callable materialization at index {index}"))
             })
             .collect::<Vec<_>>();
+        let class_constructor_materializations = complete_materializations(
+            &mut self.class_constructor_materializations,
+            "class constructor",
+        );
+        let struct_constructor_materializations = complete_materializations(
+            &mut self.struct_constructor_materializations,
+            "struct constructor",
+        );
         let applications = concrete::CallableApplicationIdentities::checked(self.applications)
             .expect("validated concrete callable applications form one complete acyclic table");
-        (applications, materializations, emissions)
+        (
+            applications,
+            materializations,
+            emissions,
+            class_constructor_materializations,
+            struct_constructor_materializations,
+        )
     }
 
     fn resolve_function(&mut self, index: usize) -> CallableMaterialization {
@@ -227,6 +261,50 @@ impl<'a> CallableIdentityBuilder<'a> {
         };
         self.visiting[index] = false;
         self.materializations[index] = Some(materialization);
+        materialization
+    }
+
+    fn resolve_class_constructor(&mut self, index: usize) -> CallableMaterialization {
+        if let Some(materialization) = self.class_constructor_materializations[index] {
+            return materialization;
+        }
+        let (source, class) = self.concretizer.class_constructor_keys[index];
+        let arguments = self.concretizer.classes[class].type_arguments.clone();
+        let exact_owner = self.exact_types[self.concretizer.class_type[&class]].id();
+        let identity = &self.concretizer.source.constructor_identities[source];
+        let (template, origin) = match identity {
+            export::HirClassConstructorIdentity::Source(record) => {
+                (CallableTemplateOwner::Constructor(record.id()), record.id())
+            }
+            export::HirClassConstructorIdentity::ZeroArgumentAdapter { source, record } => {
+                let origin = self.concretizer.source.constructor_identities[*source]
+                    .source_record()
+                    .expect("a zero-argument adapter references a source constructor")
+                    .id();
+                (CallableTemplateOwner::Generated(record.id()), origin)
+            }
+        };
+        let materialization = CallableMaterialization::new(
+            template,
+            self.constructor_application_context(origin, exact_owner, &arguments),
+        );
+        self.class_constructor_materializations[index] = Some(materialization);
+        materialization
+    }
+
+    fn resolve_struct_constructor(&mut self, index: usize) -> CallableMaterialization {
+        if let Some(materialization) = self.struct_constructor_materializations[index] {
+            return materialization;
+        }
+        let (source, structure) = self.concretizer.struct_constructor_keys[index];
+        let arguments = self.concretizer.structs[structure].type_arguments.clone();
+        let exact_owner = self.exact_types[self.concretizer.struct_type[&structure]].id();
+        let origin = self.concretizer.source.constructor_identities[source].id();
+        let materialization = CallableMaterialization::new(
+            CallableTemplateOwner::Constructor(origin),
+            self.constructor_application_context(origin, exact_owner, &arguments),
+        );
+        self.struct_constructor_materializations[index] = Some(materialization);
         materialization
     }
 
@@ -386,4 +464,18 @@ fn insert_lexical_site(
             "one lexical callable function has one stable definition site"
         );
     }
+}
+
+fn complete_materializations(
+    materializations: &mut Vec<Option<CallableMaterialization>>,
+    description: &str,
+) -> Vec<CallableMaterialization> {
+    std::mem::take(materializations)
+        .into_iter()
+        .enumerate()
+        .map(|(index, materialization)| {
+            materialization
+                .unwrap_or_else(|| panic!("missing {description} materialization at index {index}"))
+        })
+        .collect()
 }
