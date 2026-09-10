@@ -3,6 +3,9 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Module {
     pub types: Arena<Type>,
+    /// Total persistent identity relation aligned with `types`. Local-
+    /// concrete HIR cannot represent an open type, so every entry is exact.
+    pub exact_type_identities: ExactTypeIdentities,
     pub function_types: Arena<FunctionType>,
     pub lambdas: Arena<Lambda>,
     pub anonymous_functions: Arena<AnonymousFunction>,

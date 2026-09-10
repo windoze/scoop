@@ -592,8 +592,23 @@ impl<'a> Concretizer<'a> {
             })
             .collect();
 
+        let exact_type_identities =
+            concrete::ExactTypeIdentities::from_types(concrete::ExactTypeIdentityInputs {
+                types: &self.types,
+                function_types: &self.function_types,
+                structs: &self.structs,
+                enums: &self.enums,
+                classes: &self.classes,
+                interfaces: &self.interfaces,
+                objects: &self.objects,
+                intrinsic_core: &intrinsic_type_core,
+                source_nominal_identities: &self.source.nominal_identities,
+            })
+            .expect("validated concretization produces a total exact-type identity relation");
+
         let module = concrete::Module {
             types: self.types,
+            exact_type_identities,
             function_types: self.function_types,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,

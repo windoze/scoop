@@ -21,6 +21,9 @@ pub use super::{
 mod types;
 pub use types::*;
 
+mod exact_types;
+pub use exact_types::*;
+
 mod module;
 pub use module::*;
 

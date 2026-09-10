@@ -79,6 +79,15 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         initialization
     );
 
+    source.nominal_identities = crate::tests::harness_nominals::test_nominal_identities(
+        &source.structs,
+        &source.enums,
+        &source.classes,
+        &source.interfaces,
+        &source.objects,
+    );
+    source.type_identities = rebuild_type_identities(&source);
+
     let source = legacy_executable(source, entry);
     let module = lower(&source);
     let declaration = &module.objects[mir::ObjectId::from_raw(0_u32.into())];

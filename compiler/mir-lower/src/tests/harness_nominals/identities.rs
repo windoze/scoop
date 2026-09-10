@@ -35,6 +35,16 @@ pub(in crate::tests) fn test_nominal_identities_without_objects(
     classes: &Arena<hir::ClassDecl>,
     interfaces: &Arena<hir::InterfaceDecl>,
 ) -> hir::HirNominalIdentities {
+    test_nominal_identities(structs, enums, classes, interfaces, &Arena::new())
+}
+
+pub(in crate::tests) fn test_nominal_identities(
+    structs: &Arena<hir::StructDecl>,
+    enums: &Arena<hir::EnumDecl>,
+    classes: &Arena<hir::ClassDecl>,
+    interfaces: &Arena<hir::InterfaceDecl>,
+    objects: &Arena<hir::ObjectDecl>,
+) -> hir::HirNominalIdentities {
     let struct_identities = structs
         .iter()
         .map(|(id, declaration)| {
@@ -75,6 +85,16 @@ pub(in crate::tests) fn test_nominal_identities_without_objects(
             )
         })
         .collect();
+    let object_identities = objects
+        .iter()
+        .map(|(id, _)| {
+            test_source_nominal_identity(
+                &format!("TestObject{}", id.into_raw().into_u32()),
+                scoop_identity::SourceNominalKind::Object,
+                0,
+            )
+        })
+        .collect();
     hir::HirNominalIdentities::checked(
         structs,
         struct_identities,
@@ -84,8 +104,8 @@ pub(in crate::tests) fn test_nominal_identities_without_objects(
         class_identities,
         interfaces,
         interface_identities,
-        &Arena::new(),
-        Vec::new(),
+        objects,
+        object_identities,
     )
     .expect("the MIR test fixture provides one identity per nominal declaration")
 }
