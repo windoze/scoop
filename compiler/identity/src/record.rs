@@ -437,6 +437,31 @@ where
     Ok(ordered)
 }
 
+/// Canonicalizes one stage's delta table while treating dependencies absent
+/// from that delta as references to an earlier stage.
+///
+/// Only edges whose target is present in `values` participate in the local
+/// topological order. Validation of the complete cross-stage union remains a
+/// separate consumer responsibility.
+pub fn stable_topological_identity_delta_order<T, I, Id, Dependencies>(
+    values: Vec<T>,
+    id_of: Id,
+    dependencies_of: Dependencies,
+) -> Result<Vec<T>, StableIdentityOrderError<I>>
+where
+    I: PersistentId,
+    Id: Fn(&T) -> I,
+    Dependencies: Fn(&T) -> Vec<I>,
+{
+    let local_ids = values.iter().map(&id_of).collect::<BTreeSet<_>>();
+    stable_topological_identity_order(values, id_of, |value| {
+        dependencies_of(value)
+            .into_iter()
+            .filter(|dependency| local_ids.contains(dependency))
+            .collect()
+    })
+}
+
 /// Verifies that an identity table is already in its unique stable
 /// dependency-first order without sorting or cloning the records.
 pub fn validate_stable_topological_identity_order<T, I, Id, Dependencies>(
@@ -573,7 +598,8 @@ mod tests {
         CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord,
         DecodedRuntimeIdentityRecord, IdentityRecordResolutionError, IdentityRecordValidationError,
         RuntimeIdentityRecord, RuntimeIdentityRecordValidationError, StableIdentityOrderError,
-        stable_topological_identity_order, validate_stable_topological_identity_order,
+        stable_topological_identity_delta_order, stable_topological_identity_order,
+        validate_stable_topological_identity_order,
     };
     use crate::ids::derive_persistent_id;
     use crate::{
@@ -813,6 +839,31 @@ mod tests {
                 |node| node.1.clone(),
             ),
             Err(StableIdentityOrderError::Cycle { first: a })
+        );
+    }
+
+    #[test]
+    fn delta_order_ignores_external_dependencies_but_orders_local_edges() {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct Node(PersistentExactTypeId, Vec<PersistentExactTypeId>);
+
+        let id = |byte| PersistentExactTypeId([byte; 32]);
+        let external = id(0);
+        let parent = id(1);
+        let child = id(2);
+        let ordered = stable_topological_identity_delta_order(
+            vec![
+                Node(parent, vec![child, external]),
+                Node(child, vec![external]),
+            ],
+            |node| node.0,
+            |node| node.1.clone(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            ordered.into_iter().map(|node| node.0).collect::<Vec<_>>(),
+            vec![child, parent]
         );
     }
 

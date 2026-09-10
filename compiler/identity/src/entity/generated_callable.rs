@@ -114,6 +114,13 @@ impl LexicalCallableParent {
             .map(|id| Self(LexicalCallableParentKind::Generated(id)))
             .map_err(LexicalParentError::Identity)
     }
+
+    pub const fn generated_parent(self) -> Option<PersistentGeneratedCallableId> {
+        match self.0 {
+            LexicalCallableParentKind::Generated(id) => Some(id),
+            _ => None,
+        }
+    }
 }
 
 impl WireEncode for LexicalCallableParent {
@@ -212,6 +219,25 @@ impl GeneratedCallableKey {
             }
             _ => Ok(()),
         }
+    }
+
+    pub fn generated_callable_dependencies(&self) -> Vec<PersistentGeneratedCallableId> {
+        let dependency = match self {
+            Self::Lexical { parent, .. } | Self::CallableReferenceInvoke { parent, .. } => {
+                parent.generated_parent()
+            }
+            Self::StaticNoGcCallbackStorageBridge { source, .. }
+            | Self::CoroutineDriver {
+                source_callable: source,
+            }
+            | Self::CoroutineAdapter {
+                source_callable: source,
+                ..
+            }
+            | Self::DispatchAdjust { target: source, .. } => source.generated_template(),
+            _ => None,
+        };
+        dependency.into_iter().collect()
     }
 }
 

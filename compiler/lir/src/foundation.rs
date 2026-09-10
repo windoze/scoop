@@ -14,7 +14,7 @@ use scoop_identity::{
     PersistentExactTypeId, PersistentId, PersistentImmortalObjectId, PersistentLayoutId,
     PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId, RuntimeIdentityRecord,
     SafepointSiteKey, ScanKey, SpecializationKey, StableIdentityOrderError, StaticStorageKey,
-    stable_topological_identity_order,
+    stable_topological_identity_delta_order,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -101,16 +101,9 @@ impl CanonicalLirFoundation {
         &mut self,
         records: Vec<ExactTypeRecord>,
     ) -> Result<(), LirFoundationBuildError> {
-        let local_ids = records
-            .iter()
-            .map(CborIdentityRecord::id)
-            .collect::<BTreeSet<_>>();
         self.exact_types =
-            stable_topological_identity_order(records, CborIdentityRecord::id, |record| {
-                exact_type_dependencies(record.key())
-                    .into_iter()
-                    .filter(|dependency| local_ids.contains(dependency))
-                    .collect()
+            stable_topological_identity_delta_order(records, CborIdentityRecord::id, |record| {
+                record.key().exact_type_dependencies()
             })
             .map_err(LirFoundationBuildError::ExactTypeOrder)?;
         Ok(())
@@ -495,26 +488,6 @@ impl fmt::Display for LirFoundationBuildError {
 }
 
 impl std::error::Error for LirFoundationBuildError {}
-
-fn exact_type_dependencies(key: &ExactTypeKey) -> Vec<PersistentExactTypeId> {
-    match key {
-        ExactTypeKey::Nominal(_) => Vec::new(),
-        ExactTypeKey::NominalApplication { arguments, .. } | ExactTypeKey::Tuple(arguments) => {
-            arguments.as_slice().to_vec()
-        }
-        ExactTypeKey::Function {
-            parameters, result, ..
-        }
-        | ExactTypeKey::NativeFunctionPointer {
-            parameters, result, ..
-        } => {
-            let mut dependencies = parameters.clone();
-            dependencies.push(*result);
-            dependencies
-        }
-        ExactTypeKey::RawPointer(pointee) => vec![*pointee],
-    }
-}
 
 fn sort_unique<T, I: PersistentId>(
     mut records: Vec<T>,

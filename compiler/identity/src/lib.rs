@@ -192,8 +192,8 @@ pub use record::{
     CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord, DecodedRuntimeIdentityRecord,
     IdentityRecordResolutionError, IdentityRecordValidationError, RuntimeIdentityKey,
     RuntimeIdentityRecord, RuntimeIdentityRecordBuildError, RuntimeIdentityRecordValidationError,
-    StableIdentityOrderError, stable_topological_identity_order,
-    validate_stable_topological_identity_order,
+    StableIdentityOrderError, stable_topological_identity_delta_order,
+    stable_topological_identity_order, validate_stable_topological_identity_order,
 };
 pub use source::{
     DecodedNormalizedSourcePath, DecodedSourceContentDigest, DecodedSourceIdentity,

@@ -25,6 +25,9 @@ pub use types::*;
 mod identity_metadata;
 pub use identity_metadata::*;
 
+mod foundation;
+pub use foundation::*;
+
 mod module;
 pub use module::*;
 

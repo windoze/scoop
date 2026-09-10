@@ -291,6 +291,13 @@ impl CallableMaterialization {
     pub const fn context(&self) -> CallableMaterializationContext {
         self.context
     }
+
+    pub const fn generated_template(&self) -> Option<PersistentGeneratedCallableId> {
+        match self.template {
+            CallableTemplateOwner::Generated(id) => Some(id),
+            _ => None,
+        }
+    }
 }
 
 impl WireEncode for CallableMaterialization {

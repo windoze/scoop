@@ -40,6 +40,28 @@ pub enum ExactTypeKey {
     },
 }
 
+impl ExactTypeKey {
+    pub fn exact_type_dependencies(&self) -> Vec<PersistentExactTypeId> {
+        match self {
+            Self::Nominal(_) => Vec::new(),
+            Self::NominalApplication { arguments, .. } | Self::Tuple(arguments) => {
+                arguments.as_slice().to_vec()
+            }
+            Self::Function {
+                parameters, result, ..
+            }
+            | Self::NativeFunctionPointer {
+                parameters, result, ..
+            } => {
+                let mut dependencies = parameters.clone();
+                dependencies.push(*result);
+                dependencies
+            }
+            Self::RawPointer(pointee) => vec![*pointee],
+        }
+    }
+}
+
 impl WireEncode for ExactTypeKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
