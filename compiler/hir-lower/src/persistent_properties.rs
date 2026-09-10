@@ -194,26 +194,26 @@ impl PropertyIdentityBuilder<'_> {
         property: &hir::Property,
         file: usize,
     ) -> Result<SourceDeclarationSite, PersistentPropertyIdentityError> {
-        let source = &self.lowerer.visibility_file(file).source;
+        let source = self.lowerer.visibility_file(file);
         let package = self.package(id, file)?;
         let owners = match property.owner {
             hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => {
                 DefinitionOwnerChain::top_level()
             }
             hir::PropertyOwner::Class(owner) => {
-                self.member_owners(id, Owner::Class(owner), source, &package)?
+                self.member_owners(id, Owner::Class(owner), &source, &package)?
             }
             hir::PropertyOwner::Struct(owner) => {
-                self.member_owners(id, Owner::Struct(owner), source, &package)?
+                self.member_owners(id, Owner::Struct(owner), &source, &package)?
             }
             hir::PropertyOwner::Enum(owner) => {
-                self.member_owners(id, Owner::Enum(owner), source, &package)?
+                self.member_owners(id, Owner::Enum(owner), &source, &package)?
             }
             hir::PropertyOwner::Interface(owner) => {
-                self.member_owners(id, Owner::Interface(owner), source, &package)?
+                self.member_owners(id, Owner::Interface(owner), &source, &package)?
             }
             hir::PropertyOwner::Object(owner) => {
-                self.member_owners(id, Owner::Object(owner), source, &package)?
+                self.member_owners(id, Owner::Object(owner), &source, &package)?
             }
         };
         let scope = if matches!(

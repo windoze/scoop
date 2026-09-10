@@ -176,11 +176,8 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn visibility_file(&self, file: usize) -> hir::VisibilityFile {
-        hir::VisibilityFile {
-            provider: self.intrinsic_sources[file].provider,
-            source: self.intrinsic_sources[file].identity.clone(),
-        }
+    pub(crate) fn visibility_file(&self, file: usize) -> scoop_identity::SourceIdentity {
+        self.intrinsic_sources[file].identity.clone()
     }
 
     pub(crate) fn normalized_visibility(syntax: ast::VisibilitySyntax) -> hir::DeclaredVisibility {
@@ -204,10 +201,10 @@ impl Lowerer {
         match visibility {
             hir::DeclaredVisibility::Public => hir::AccessDomain::universal(),
             hir::DeclaredVisibility::Internal => {
-                hir::AccessDomain::from_constraints([hir::AccessConstraint::Cone(source.provider)])
+                hir::AccessDomain::from_constraints([hir::AccessConstraint::Cone(source.cone())])
             }
             hir::DeclaredVisibility::Private => hir::AccessDomain::from_constraints([
-                hir::AccessConstraint::Cone(source.provider),
+                hir::AccessConstraint::Cone(source.cone()),
                 hir::AccessConstraint::File(source),
             ]),
             hir::DeclaredVisibility::Protected => {
@@ -314,7 +311,7 @@ impl Lowerer {
         match visibility {
             hir::DeclaredVisibility::Public => hir::AccessDomain::universal(),
             hir::DeclaredVisibility::Internal => {
-                hir::AccessDomain::from_constraints([hir::AccessConstraint::Cone(source.provider)])
+                hir::AccessDomain::from_constraints([hir::AccessConstraint::Cone(source.cone())])
             }
             hir::DeclaredVisibility::Private => {
                 hir::AccessDomain::from_constraints([hir::AccessConstraint::LexicalOwner(
@@ -379,7 +376,7 @@ impl Lowerer {
         hir::DeclarationAccess {
             declared: hir::DeclaredVisibility::Private,
             lookup: hir::EffectiveLookupDomain(hir::AccessDomain::from_constraints([
-                hir::AccessConstraint::Cone(source.provider),
+                hir::AccessConstraint::Cone(source.cone()),
                 hir::AccessConstraint::File(source),
             ])),
             slot: None,
@@ -465,7 +462,7 @@ impl Lowerer {
             .constraints()
             .iter()
             .all(|constraint| match constraint {
-                hir::AccessConstraint::Cone(provider) => site.provider == *provider,
+                hir::AccessConstraint::Cone(cone) => site.cone() == *cone,
                 hir::AccessConstraint::File(file) => site == *file,
                 hir::AccessConstraint::LexicalOwner(owner) => self
                     .current_owner
@@ -486,7 +483,7 @@ impl Lowerer {
             })
     }
 
-    fn owner_definition_file(&self, owner: hir::VisibilityOwner) -> hir::VisibilityFile {
+    fn owner_definition_file(&self, owner: hir::VisibilityOwner) -> scoop_identity::SourceIdentity {
         let file = match owner {
             hir::VisibilityOwner::Class(id) => self.class_files[&id],
             hir::VisibilityOwner::Interface(id) => self.interface_files[&id],
@@ -506,11 +503,11 @@ impl Lowerer {
             return true;
         }
         match (narrower, wider) {
-            (hir::AccessConstraint::File(file), hir::AccessConstraint::Cone(provider)) => {
-                file.provider == *provider
+            (hir::AccessConstraint::File(source), hir::AccessConstraint::Cone(cone)) => {
+                source.cone() == *cone
             }
-            (hir::AccessConstraint::LexicalOwner(owner), hir::AccessConstraint::Cone(provider)) => {
-                self.owner_definition_file(*owner).provider == *provider
+            (hir::AccessConstraint::LexicalOwner(owner), hir::AccessConstraint::Cone(cone)) => {
+                self.owner_definition_file(*owner).cone() == *cone
             }
             (hir::AccessConstraint::LexicalOwner(owner), hir::AccessConstraint::File(file)) => {
                 self.owner_definition_file(*owner) == *file

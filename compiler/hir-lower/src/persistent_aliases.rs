@@ -44,7 +44,7 @@ fn declaration(
             PersistentTypeAliasIdentityErrorDetail::UnknownSourceFile(alias.origin.file),
         ));
     }
-    let source = lowerer.visibility_file(file).source;
+    let source = lowerer.visibility_file(file);
     let package = match lowerer.top_level_namespaces.source_namespace(file) {
         TopLevelLookupLayer::CorePrelude => PackagePath::root(),
         TopLevelLookupLayer::CurrentPackage(package) => {

@@ -7,7 +7,7 @@ use crate::{
 impl Lowerer {
     fn import_source(&self, file: usize) -> scoop_identity::SourceIdentity {
         debug_assert_eq!(self.intrinsic_sources[file].kind, SourceKind::CurrentUnit);
-        self.visibility_file(file).source
+        self.visibility_file(file)
     }
 
     fn import_package(&self, file: usize) -> PackageId {

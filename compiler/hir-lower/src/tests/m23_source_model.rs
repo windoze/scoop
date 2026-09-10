@@ -142,6 +142,7 @@ fn multiple_user_sources_share_one_current_unit_and_keep_file_private_domains() 
         .expect("all user sources are one current-unit declaration side");
     let module = output.export;
     let user_provider = hir::IntrinsicProviderId::from_raw(29);
+    let user_cone = test_source_identity("src/first.scoop").cone();
     let shared = module
         .functions
         .iter()
@@ -149,7 +150,7 @@ fn multiple_user_sources_share_one_current_unit_and_keep_file_private_domains() 
         .expect("the cross-source helper is present");
     assert_eq!(
         shared.access.lookup.0.constraints(),
-        &[hir::AccessConstraint::Cone(user_provider)]
+        &[hir::AccessConstraint::Cone(user_cone)]
     );
     let private = module
         .functions
@@ -159,11 +160,8 @@ fn multiple_user_sources_share_one_current_unit_and_keep_file_private_domains() 
     assert_eq!(
         private.access.lookup.0.constraints(),
         &[
-            hir::AccessConstraint::Cone(user_provider),
-            hir::AccessConstraint::File(hir::VisibilityFile {
-                provider: user_provider,
-                source: test_source_identity("src/first.scoop"),
-            }),
+            hir::AccessConstraint::Cone(user_cone),
+            hir::AccessConstraint::File(test_source_identity("src/first.scoop")),
         ]
     );
     assert_eq!(module.source_files[1].provider, user_provider);
@@ -683,10 +681,7 @@ fn validated_input_retains_source_identities_independently_of_dense_file_indices
                 .lookup
                 .0
                 .constraints()
-                .contains(&hir::AccessConstraint::File(hir::VisibilityFile {
-                    provider: user_provider,
-                    source: expected_source.clone()
-                },))
+                .contains(&hir::AccessConstraint::File(expected_source.clone()))
         );
     }
     assert_eq!(private_domains[0], private_domains[1]);

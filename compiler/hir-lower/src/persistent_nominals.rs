@@ -200,7 +200,7 @@ impl<'a> NominalIdentityBuilder<'a> {
     ) -> Result<hir::HirNominalIdentity, PersistentNominalIdentityError> {
         let declaration = self.declaration(owner);
         let file = self.source_file(owner)?;
-        let source = self.lowerer.visibility_file(file).source;
+        let source = self.lowerer.visibility_file(file);
         let package = match self.lowerer.top_level_namespaces.source_namespace(file) {
             TopLevelLookupLayer::CorePrelude => PackagePath::root(),
             TopLevelLookupLayer::CurrentPackage(package) => {

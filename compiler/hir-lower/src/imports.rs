@@ -66,7 +66,7 @@ pub(crate) struct CurrentUnitBinding {
 #[derive(Debug, Clone)]
 pub(crate) struct CurrentUnitImportWitness {
     pub(crate) source_binding: CurrentUnitBindingId,
-    pub(crate) site: hir::VisibilityFile,
+    pub(crate) site: scoop_identity::SourceIdentity,
     pub(crate) access: hir::EffectiveLookupDomain,
 }
 

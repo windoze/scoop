@@ -163,7 +163,7 @@ fn function_with_visibility(
     index: u32,
     visibility: hir::DeclaredVisibility,
 ) -> CurrentUnitBindingId {
-    let source = lowerer.visibility_file(file).source;
+    let source = lowerer.visibility_file(file);
     let domain = lowerer.top_level_domain(visibility, file);
     surface.insert(
         namespace,

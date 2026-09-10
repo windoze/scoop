@@ -102,7 +102,7 @@ impl CurrentUnitImports {
             lowerer.intrinsic_sources[lowerer.current_file].kind,
             SourceKind::CurrentUnit
         );
-        let source_identity = lowerer.visibility_file(lowerer.current_file).source;
+        let source_identity = lowerer.visibility_file(lowerer.current_file);
         for import in &source.imports {
             match import {
                 ast::ImportSyntax::Exact {
@@ -292,7 +292,7 @@ impl CurrentUnitImports {
                 }
             };
             for import in &imports.exact {
-                assert_eq!(site.source, import.origin.source);
+                assert_eq!(site, import.origin.source);
                 assert!(import.origin.span.start <= import.origin.span.end);
                 for target in import.targets.iter() {
                     check_target(target);
@@ -302,7 +302,7 @@ impl CurrentUnitImports {
                 assert!(!layers[0].bindings.is_empty());
             }
             for import in &imports.stars {
-                assert_eq!(site.source, import.origin.source);
+                assert_eq!(site, import.origin.source);
                 assert!(import.origin.span.start <= import.origin.span.end);
                 let namespace = self.namespaces.get(&import.namespace);
                 for (name, targets) in &import.snapshot {

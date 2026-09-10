@@ -303,7 +303,7 @@ impl Lowerer {
         function: FunctionId,
     ) -> (scoop_identity::SourceIdentity, u32, u32, u32) {
         let file = self.function_files[&function];
-        let source = self.visibility_file(file).source;
+        let source = self.visibility_file(file);
         let span = self.functions[function].span;
         (source, span.start, span.end, function.into_raw().into_u32())
     }

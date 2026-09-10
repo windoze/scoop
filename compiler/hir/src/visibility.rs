@@ -1,5 +1,5 @@
-use crate::{ClassId, EnumId, FunctionId, InterfaceId, IntrinsicProviderId, StructId, TypeId};
-use scoop_identity::SourceIdentity;
+use crate::{ClassId, EnumId, FunctionId, InterfaceId, StructId, TypeId};
+use scoop_identity::{ConeIdentity, SourceIdentity};
 
 /// Source visibility after AST omission has been normalized. There is no
 /// `Omitted` state in HIR: every declaration has made the language default
@@ -10,14 +10,6 @@ pub enum DeclaredVisibility {
     Internal,
     Private,
     Protected,
-}
-
-/// Provider authority and typed source key; diagnostic file indices are kept
-/// separately and never participate in current-unit private access equality.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct VisibilityFile {
-    pub provider: IntrinsicProviderId,
-    pub source: SourceIdentity,
 }
 
 /// Nominal lexical owner used by member-private access. Kinds remain distinct
@@ -36,8 +28,8 @@ pub enum VisibilityOwner {
 /// incomparable and may be intersected with a Cone restriction.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AccessConstraint {
-    Cone(IntrinsicProviderId),
-    File(VisibilityFile),
+    Cone(ConeIdentity),
+    File(SourceIdentity),
     LexicalOwner(VisibilityOwner),
     SubclassesOf(ClassId),
 }
@@ -125,20 +117,18 @@ pub struct PublicSemanticSurface {
 
 fn access_constraint_sort_key(
     constraint: &AccessConstraint,
-) -> (u8, u32, Option<SourceIdentity>, u8, u32) {
+) -> (u8, Option<ConeIdentity>, Option<SourceIdentity>, u8, u32) {
     match constraint {
-        AccessConstraint::Cone(provider) => (0, provider.into_raw(), None, 0, 0),
-        AccessConstraint::File(file) => {
-            (1, file.provider.into_raw(), Some(file.source.clone()), 0, 0)
-        }
+        AccessConstraint::Cone(cone) => (0, Some(*cone), None, 0, 0),
+        AccessConstraint::File(source) => (1, Some(source.cone()), Some(source.clone()), 0, 0),
         AccessConstraint::LexicalOwner(owner) => match owner {
-            VisibilityOwner::Class(id) => (2, 0, None, 0, id.into_raw().into_u32()),
-            VisibilityOwner::Interface(id) => (2, 0, None, 1, id.into_raw().into_u32()),
-            VisibilityOwner::Struct(id) => (2, 0, None, 2, id.into_raw().into_u32()),
-            VisibilityOwner::Enum(id) => (2, 0, None, 3, id.into_raw().into_u32()),
-            VisibilityOwner::Object(id) => (2, 0, None, 4, id.into_raw().into_u32()),
+            VisibilityOwner::Class(id) => (2, None, None, 0, id.into_raw().into_u32()),
+            VisibilityOwner::Interface(id) => (2, None, None, 1, id.into_raw().into_u32()),
+            VisibilityOwner::Struct(id) => (2, None, None, 2, id.into_raw().into_u32()),
+            VisibilityOwner::Enum(id) => (2, None, None, 3, id.into_raw().into_u32()),
+            VisibilityOwner::Object(id) => (2, None, None, 4, id.into_raw().into_u32()),
         },
-        AccessConstraint::SubclassesOf(id) => (3, id.into_raw().into_u32(), None, 0, 0),
+        AccessConstraint::SubclassesOf(id) => (3, None, None, 0, id.into_raw().into_u32()),
     }
 }
 
@@ -208,7 +198,7 @@ impl NominalAccess {
 pub struct LookupAccessWitness {
     pub declaration: AccessDeclaration,
     pub domain: EffectiveLookupDomain,
-    pub site: VisibilityFile,
+    pub site: SourceIdentity,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -254,17 +244,10 @@ mod tests {
 
     #[test]
     fn visibility_distinguishes_semantic_source_identities() {
-        let provider = IntrinsicProviderId::from_raw(1);
-        let current = |path| VisibilityFile {
-            provider,
-            source: source("current", path),
-        };
+        let current = |path| source("current", path);
         let first = current("src/first.scoop");
         let second = current("src/second.scoop");
-        let core = VisibilityFile {
-            provider,
-            source: source("core", "src/first.scoop"),
-        };
+        let core = source("core", "src/first.scoop");
         assert_ne!(first, second);
         assert_ne!(first, core);
         let constraints = [

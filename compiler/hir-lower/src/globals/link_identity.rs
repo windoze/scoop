@@ -210,7 +210,7 @@ impl Lowerer {
     }
 
     fn append_link_source(&self, key: &mut String, file: usize) {
-        let source = self.visibility_file(file).source;
+        let source = self.visibility_file(file);
         field(key, 'c', &source.cone().to_string());
         field(key, 'f', source.logical_path().as_str());
     }

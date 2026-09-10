@@ -125,7 +125,9 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
     );
     assert_eq!(
         module.functions[main].access.lookup.0.constraints(),
-        &[hir::AccessConstraint::Cone(module.source_files[1].provider)]
+        &[hir::AccessConstraint::Cone(
+            module.source_files[1].identity.cone()
+        )]
     );
     assert!(!module.public_surface.functions.contains(&main));
 
