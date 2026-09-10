@@ -317,6 +317,7 @@ CallableTemplateOrigin =
   | GenericFunction(PersistentGenericFunctionId)   // tag 2
   | Constructor(PersistentConstructorId)           // tag 3
   | Accessor(PersistentPropertyAccessorId)          // tag 4
+  | VariantConstructor(PersistentEnumVariantId)    // tag 5
 
 CallableInstantiationOwner =
     NoOwner                                          // tag 1
@@ -338,7 +339,7 @@ PersistentCallableApplicationId =
                             CallableApplicationKey)
 ```
 
-ordinary method/constructor/accessor处于generic nominal时使用其声明宿主的`ExactNominalOwner + NoCallableArguments`；generic method再带自身Arguments；top-level generic function使用NoOwner+Arguments；generic extension-property accessor以receiver binder arguments填Arguments。local callable从普通callable lexical parent继承substitution时使用`EnclosingCallableApplication`；若其nearest enclosing materialization是generic delegated initializer/ensure（包括其中lambda/anonymous callable），则使用`EnclosingInitializationApplication`，且unit必须是同一extension property与完整receiver arguments的`GenericDelegatedExtensionApplication`。local callable若自身generic还要同时带自身Arguments，不能让outer owner吞掉phantom binder。两项都不存在时不构造application，直接使用declaration id。validator沿source/generated lexical parent逐边证明tag 3/4恰好是nearest enclosing materialization；owner不是调用点receiver或动态派生类型。所有arity包含phantom binder且argument必须是concrete exact type；application id与declaration/body/unit id之间没有cast。
+ordinary method/nominal constructor/enum variant constructor/accessor处于generic nominal时使用其声明宿主的`ExactNominalOwner + NoCallableArguments`；generic method再带自身Arguments；top-level generic function使用NoOwner+Arguments；generic extension-property accessor以receiver binder arguments填Arguments。local callable从普通callable lexical parent继承substitution时使用`EnclosingCallableApplication`；若其nearest enclosing materialization是generic delegated initializer/ensure（包括其中lambda/anonymous callable），则使用`EnclosingInitializationApplication`，且unit必须是同一extension property与完整receiver arguments的`GenericDelegatedExtensionApplication`。local callable若自身generic还要同时带自身Arguments，不能让outer owner吞掉phantom binder。两项都不存在时不构造application，直接使用declaration id。validator沿source/generated lexical parent逐边证明tag 3/4恰好是nearest enclosing materialization；owner不是调用点receiver或动态派生类型。所有arity包含phantom binder且argument必须是concrete exact type；application id与declaration/body/unit id之间没有cast。
 
 initializer/ensure的generated **template** identity始终由声明级unit固定：只接受`TopLevelProperty`、`ExtensionProperty`、`Object`或`Companion`；generic delegated template仍使用声明级`ExtensionProperty` unit取得唯一template id。具体`GenericDelegatedExtensionApplication` unit只进入`CallableMaterializationContext::InitializationApplication`，实际initializer/ensure implementation以该context的`MaterializationRoot`求Cone/ODR root。不得为每个receiver application重造一份generated template，也不得只读template key中的声明级unit决定具体body归组。
 

@@ -24,6 +24,7 @@ impl DecodedImmortalObjectOwner {
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<crate::PersistentEnumVariantId, Error = E>
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
             + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>
@@ -95,6 +96,7 @@ impl DecodedImmortalObjectKey {
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<crate::PersistentEnumVariantId, Error = E>
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
             + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>

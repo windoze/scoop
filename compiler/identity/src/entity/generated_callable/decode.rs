@@ -11,10 +11,10 @@ use crate::{
     DecodedCallableMaterialization, DecodedExactCallableSignature, DecodedPersistentId,
     ExactCallableSignatureResolutionError, PersistentCallableApplicationId,
     PersistentCallbackApplicationId, PersistentConstructorId, PersistentDispatchSlotId,
-    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentIdResolver, PersistentInitializationUnitId,
-    PersistentKeyResolver, PersistentPropertyAccessorId, PersistentTypeId,
-    StructuralDefinitionPath,
+    PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentIdResolver,
+    PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
+    PersistentTypeId, StructuralDefinitionPath,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,6 +24,7 @@ pub enum DecodedLexicalCallableParent {
     Constructor(DecodedPersistentId<PersistentConstructorId>),
     Accessor(DecodedPersistentId<PersistentPropertyAccessorId>),
     Generated(DecodedPersistentId<PersistentGeneratedCallableId>),
+    VariantConstructor(DecodedPersistentId<PersistentEnumVariantId>),
 }
 
 impl DecodedLexicalCallableParent {
@@ -36,6 +37,7 @@ impl DecodedLexicalCallableParent {
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<PersistentEnumVariantId, Error = E>
             + PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey, Error = E>,
     {
         match self {
@@ -62,6 +64,10 @@ impl DecodedLexicalCallableParent {
                 LexicalCallableParent::from_generated_key(&key)
                     .map_err(GeneratedCallableResolutionError::Parent)
             }
+            Self::VariantConstructor(id) => resolver
+                .resolve(id)
+                .map(LexicalCallableParent::variant_constructor)
+                .map_err(GeneratedCallableResolutionError::Reference),
         }
     }
 }
@@ -74,6 +80,7 @@ impl WireEncode for DecodedLexicalCallableParent {
             Self::Constructor(id) => encode_value_sum(encoder, 3, id),
             Self::Accessor(id) => encode_value_sum(encoder, 4, id),
             Self::Generated(id) => encode_value_sum(encoder, 5, id),
+            Self::VariantConstructor(id) => encode_value_sum(encoder, 6, id),
         }
     }
 }
@@ -98,6 +105,9 @@ impl WireDecode for DecodedLexicalCallableParent {
             5 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::Generated),
+            6 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::VariantConstructor),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -179,6 +189,7 @@ impl DecodedGeneratedCallableKey {
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<PersistentEnumVariantId, Error = E>
             + PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>

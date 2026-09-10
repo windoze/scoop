@@ -114,6 +114,7 @@ pub enum DecodedDefinitionOwnerAtom {
     ExtensionProperty(DecodedPersistentId<crate::PersistentExtensionPropertyId>),
     GeneratedCallable(DecodedPersistentId<PersistentGeneratedCallableId>),
     PropertyAccessor(DecodedPersistentId<PersistentPropertyAccessorId>),
+    EnumVariant(DecodedPersistentId<crate::PersistentEnumVariantId>),
 }
 
 impl DecodedDefinitionOwnerAtom {
@@ -127,7 +128,8 @@ impl DecodedDefinitionOwnerAtom {
             + PersistentIdResolver<PersistentPropertyId, Error = E>
             + PersistentIdResolver<crate::PersistentExtensionPropertyId, Error = E>
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
-            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>,
+            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<crate::PersistentEnumVariantId, Error = E>,
     {
         match self {
             Self::Type(id) => resolver.resolve(id).map(DefinitionOwnerAtom::Type),
@@ -147,6 +149,7 @@ impl DecodedDefinitionOwnerAtom {
             Self::PropertyAccessor(id) => resolver
                 .resolve(id)
                 .map(DefinitionOwnerAtom::PropertyAccessor),
+            Self::EnumVariant(id) => resolver.resolve(id).map(DefinitionOwnerAtom::EnumVariant),
         }
     }
 }
@@ -163,6 +166,7 @@ impl WireEncode for DecodedDefinitionOwnerAtom {
             Self::ExtensionProperty(id) => (7, id),
             Self::GeneratedCallable(id) => (8, id),
             Self::PropertyAccessor(id) => (9, id),
+            Self::EnumVariant(id) => (10, id),
         };
         encode_sum(encoder, tag, id)
     }
@@ -201,6 +205,9 @@ impl WireDecode for DecodedDefinitionOwnerAtom {
             9 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::PropertyAccessor),
+            10 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::EnumVariant),
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
@@ -223,7 +230,8 @@ impl DecodedDefinitionOwnerChain {
             + PersistentIdResolver<PersistentPropertyId, Error = E>
             + PersistentIdResolver<crate::PersistentExtensionPropertyId, Error = E>
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
-            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>,
+            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<crate::PersistentEnumVariantId, Error = E>,
     {
         let mut owners = Vec::new();
         owners
@@ -395,11 +403,11 @@ mod tests {
     use super::{DecodedDeclarationName, DecodedDeclarationScope, DecodedDefinitionOwnerChain};
     use crate::{
         ConeIdentity, DeclarationScope, DefinitionOwnerAtom, DefinitionOwnerChain,
-        PersistentConstructorId, PersistentExtensionPropertyId, PersistentFunctionId,
-        PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-        PersistentIdMismatch, PersistentIdResolver, PersistentPropertyAccessorId,
-        PersistentPropertyId, PersistentTypeId, SourceIdentity, StructuralDefinitionPath,
-        StructuralDefinitionSiteRole, StructuralPathSegment,
+        PersistentConstructorId, PersistentEnumVariantId, PersistentExtensionPropertyId,
+        PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+        PersistentGenericTypeId, PersistentIdMismatch, PersistentIdResolver,
+        PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId, SourceIdentity,
+        StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     };
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -459,6 +467,7 @@ mod tests {
     test_id!(PersistentExtensionPropertyId);
     test_id!(PersistentGeneratedCallableId);
     test_id!(PersistentPropertyAccessorId);
+    test_id!(PersistentEnumVariantId);
 
     #[test]
     fn owner_chain_round_trips_all_typed_variants() {
@@ -472,6 +481,7 @@ mod tests {
             DefinitionOwnerAtom::ExtensionProperty(PersistentExtensionPropertyId::from_test_bytes()),
             DefinitionOwnerAtom::GeneratedCallable(PersistentGeneratedCallableId::from_test_bytes()),
             DefinitionOwnerAtom::PropertyAccessor(PersistentPropertyAccessorId::from_test_bytes()),
+            DefinitionOwnerAtom::EnumVariant(PersistentEnumVariantId::from_test_bytes()),
         ]);
         let bytes = encode(&owners).unwrap();
         let decoded =

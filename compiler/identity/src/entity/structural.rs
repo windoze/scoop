@@ -156,6 +156,7 @@ pub enum DefinitionOwnerAtom {
     ExtensionProperty(crate::PersistentExtensionPropertyId),
     GeneratedCallable(PersistentGeneratedCallableId),
     PropertyAccessor(PersistentPropertyAccessorId),
+    EnumVariant(crate::PersistentEnumVariantId),
 }
 
 impl WireEncode for DefinitionOwnerAtom {
@@ -170,6 +171,7 @@ impl WireEncode for DefinitionOwnerAtom {
             Self::ExtensionProperty(id) => (7, id),
             Self::GeneratedCallable(id) => (8, id),
             Self::PropertyAccessor(id) => (9, id),
+            Self::EnumVariant(id) => (10, id),
         };
         encoder.map(2)?;
         encoder.field(0)?;

@@ -8,10 +8,11 @@ use crate::{
     AccessorRole, CallableApplicationKey, CallableInstantiationOwner, CallableMaterialization,
     CallableMaterializationContext, CallableTemplateOwner, CborIdentityRecord,
     DecodedCborIdentityRecord, NonEmptyVec, PersistentCallableApplicationId,
-    PersistentConstructorId, PersistentExactTypeId, PersistentExtensionPropertyId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentIdMismatch, PersistentIdResolver, PersistentInitializationUnitId,
-    PersistentPropertyAccessorId, PersistentPropertyId, PropertyAccessorKey, PropertyOwner,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentExactTypeId,
+    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentInitializationUnitId, PersistentPropertyAccessorId, PersistentPropertyId,
+    PropertyAccessorKey, PropertyOwner,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -60,6 +61,7 @@ test_identity!(PersistentExactTypeId);
 test_identity!(PersistentCallableApplicationId);
 test_identity!(PersistentInitializationUnitId);
 test_identity!(PersistentGeneratedCallableId);
+test_identity!(PersistentEnumVariantId);
 
 #[test]
 fn property_accessor_record_resolves_owner_before_recomputing_identity() {
@@ -93,6 +95,7 @@ fn all_callable_application_shapes_round_trip_and_resolve() {
         ),
         CallableApplicationKey::for_constructor(PersistentConstructorId::expected(), owner),
         CallableApplicationKey::for_accessor(PersistentPropertyAccessorId::expected(), owner),
+        CallableApplicationKey::for_variant_constructor(PersistentEnumVariantId::expected(), owner),
         CallableApplicationKey::for_generic_extension_accessor(
             PersistentPropertyAccessorId::expected(),
             owner,
@@ -137,7 +140,7 @@ fn callable_application_rejects_template_argument_shape_mismatches() {
 #[test]
 fn callable_materialization_round_trips_template_and_context() {
     let materialization = CallableMaterialization::new(
-        CallableTemplateOwner::Generated(PersistentGeneratedCallableId::expected()),
+        CallableTemplateOwner::VariantConstructor(PersistentEnumVariantId::expected()),
         CallableMaterializationContext::InitializationApplication(
             PersistentInitializationUnitId::expected(),
         ),

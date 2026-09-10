@@ -9,10 +9,10 @@ use super::{
 };
 use crate::{
     DecodedPersistentId, DecodedPropertyOwner, NonEmptyVec, PersistentCallableApplicationId,
-    PersistentConstructorId, PersistentExactTypeId, PersistentExtensionPropertyId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentIdResolver, PersistentInitializationUnitId, PersistentPropertyAccessorId,
-    PersistentPropertyId,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentExactTypeId,
+    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentIdResolver, PersistentInitializationUnitId,
+    PersistentPropertyAccessorId, PersistentPropertyId,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -59,6 +59,7 @@ pub enum DecodedCallableTemplateOrigin {
     GenericFunction(DecodedPersistentId<PersistentGenericFunctionId>),
     Constructor(DecodedPersistentId<PersistentConstructorId>),
     Accessor(DecodedPersistentId<PersistentPropertyAccessorId>),
+    VariantConstructor(DecodedPersistentId<PersistentEnumVariantId>),
 }
 
 impl DecodedCallableTemplateOrigin {
@@ -67,7 +68,8 @@ impl DecodedCallableTemplateOrigin {
         R: PersistentIdResolver<PersistentFunctionId, Error = E>
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
-            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>,
+            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<PersistentEnumVariantId, Error = E>,
     {
         match self {
             Self::Function(id) => resolver.resolve(id).map(CallableTemplateOrigin::Function),
@@ -78,6 +80,9 @@ impl DecodedCallableTemplateOrigin {
                 .resolve(id)
                 .map(CallableTemplateOrigin::Constructor),
             Self::Accessor(id) => resolver.resolve(id).map(CallableTemplateOrigin::Accessor),
+            Self::VariantConstructor(id) => resolver
+                .resolve(id)
+                .map(CallableTemplateOrigin::VariantConstructor),
         }
     }
 }
@@ -89,6 +94,7 @@ impl WireEncode for DecodedCallableTemplateOrigin {
             Self::GenericFunction(id) => encode_value_sum(encoder, 2, id),
             Self::Constructor(id) => encode_value_sum(encoder, 3, id),
             Self::Accessor(id) => encode_value_sum(encoder, 4, id),
+            Self::VariantConstructor(id) => encode_value_sum(encoder, 5, id),
         }
     }
 }
@@ -110,6 +116,9 @@ impl WireDecode for DecodedCallableTemplateOrigin {
             4 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::Accessor),
+            5 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::VariantConstructor),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -250,6 +259,7 @@ impl DecodedCallableApplicationKey {
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<PersistentEnumVariantId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>
             + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>,
@@ -318,6 +328,7 @@ pub enum DecodedCallableTemplateOwner {
     Constructor(DecodedPersistentId<PersistentConstructorId>),
     Accessor(DecodedPersistentId<PersistentPropertyAccessorId>),
     Generated(DecodedPersistentId<PersistentGeneratedCallableId>),
+    VariantConstructor(DecodedPersistentId<PersistentEnumVariantId>),
 }
 
 impl DecodedCallableTemplateOwner {
@@ -327,7 +338,8 @@ impl DecodedCallableTemplateOwner {
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
-            + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>,
+            + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
+            + PersistentIdResolver<PersistentEnumVariantId, Error = E>,
     {
         match self {
             Self::Function(id) => resolver.resolve(id).map(CallableTemplateOwner::Function),
@@ -337,6 +349,9 @@ impl DecodedCallableTemplateOwner {
             Self::Constructor(id) => resolver.resolve(id).map(CallableTemplateOwner::Constructor),
             Self::Accessor(id) => resolver.resolve(id).map(CallableTemplateOwner::Accessor),
             Self::Generated(id) => resolver.resolve(id).map(CallableTemplateOwner::Generated),
+            Self::VariantConstructor(id) => resolver
+                .resolve(id)
+                .map(CallableTemplateOwner::VariantConstructor),
         }
     }
 }
@@ -349,6 +364,7 @@ impl WireEncode for DecodedCallableTemplateOwner {
             Self::Constructor(id) => encode_value_sum(encoder, 3, id),
             Self::Accessor(id) => encode_value_sum(encoder, 4, id),
             Self::Generated(id) => encode_value_sum(encoder, 5, id),
+            Self::VariantConstructor(id) => encode_value_sum(encoder, 6, id),
         }
     }
 }
@@ -373,6 +389,9 @@ impl WireDecode for DecodedCallableTemplateOwner {
             5 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::Generated),
+            6 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::VariantConstructor),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -452,6 +471,7 @@ impl DecodedCallableMaterialization {
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
+            + PersistentIdResolver<PersistentEnumVariantId, Error = E>
             + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>,
     {
@@ -534,6 +554,12 @@ fn rebuild_application<E>(
         (CallableTemplateOrigin::Accessor(origin), CallableArguments::Arguments(arguments)) => Ok(
             CallableApplicationKey::for_generic_extension_accessor(origin, owner, arguments),
         ),
+        (
+            CallableTemplateOrigin::VariantConstructor(origin),
+            CallableArguments::NoCallableArguments,
+        ) => Ok(CallableApplicationKey::for_variant_constructor(
+            origin, owner,
+        )),
         _ => Err(CallableApplicationResolutionError::Shape),
     }
 }

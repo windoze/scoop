@@ -6,9 +6,9 @@ use super::{CallableMaterialization, ExactCallableSignature, StructuralDefinitio
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentCallbackApplicationId, PersistentConstructorId, PersistentDispatchSlotId,
-    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentInitializationUnitId, PersistentPropertyAccessorId,
-    PersistentTypeId,
+    PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentInitializationUnitId,
+    PersistentPropertyAccessorId, PersistentTypeId,
 };
 
 mod decode;
@@ -87,6 +87,7 @@ enum LexicalCallableParentKind {
     Constructor(PersistentConstructorId),
     Accessor(PersistentPropertyAccessorId),
     Generated(PersistentGeneratedCallableId),
+    VariantConstructor(PersistentEnumVariantId),
 }
 
 impl LexicalCallableParent {
@@ -104,6 +105,10 @@ impl LexicalCallableParent {
 
     pub const fn accessor(id: PersistentPropertyAccessorId) -> Self {
         Self(LexicalCallableParentKind::Accessor(id))
+    }
+
+    pub const fn variant_constructor(id: PersistentEnumVariantId) -> Self {
+        Self(LexicalCallableParentKind::VariantConstructor(id))
     }
 
     pub fn from_generated_key(key: &GeneratedCallableKey) -> Result<Self, LexicalParentError> {
@@ -131,6 +136,7 @@ impl WireEncode for LexicalCallableParent {
             LexicalCallableParentKind::Constructor(id) => encode_value_sum(encoder, 3, &id),
             LexicalCallableParentKind::Accessor(id) => encode_value_sum(encoder, 4, &id),
             LexicalCallableParentKind::Generated(id) => encode_value_sum(encoder, 5, &id),
+            LexicalCallableParentKind::VariantConstructor(id) => encode_value_sum(encoder, 6, &id),
         }
     }
 }

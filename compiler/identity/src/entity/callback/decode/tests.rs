@@ -9,12 +9,13 @@ use crate::{
     CallbackMode, CallbackParameterIndex, CallbackRegistrationKey, CborIdentityRecord,
     DecodedCborIdentityRecord, Effect, GeneratedCallableKey, LexicalCallableParent,
     PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    PersistentCallbackRegistrationId, PersistentConstructorId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-    PersistentIdMismatch, PersistentIdResolver, PersistentInitializationUnitId,
-    PersistentKeyResolver, PersistentPropertyAccessorId, PersistentTypeId, SignatureCallableShape,
-    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    PersistentCallbackRegistrationId, PersistentConstructorId, PersistentEnumVariantId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
+    PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -45,6 +46,7 @@ id_resolver!(PersistentTypeId, plain_type());
 id_resolver!(PersistentGenericTypeId, generic_type());
 id_resolver!(PersistentCallableApplicationId, callable_application());
 id_resolver!(PersistentInitializationUnitId, initialization_unit());
+id_resolver!(PersistentEnumVariantId, enum_variant());
 
 impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey> for Resolver {
     type Error = ResolutionError;
@@ -267,6 +269,10 @@ const fn callable_application() -> PersistentCallableApplicationId {
 
 const fn initialization_unit() -> PersistentInitializationUnitId {
     PersistentInitializationUnitId([8; 32])
+}
+
+const fn enum_variant() -> PersistentEnumVariantId {
+    PersistentEnumVariantId([9; 32])
 }
 
 struct RawCallbackApplicationKey {

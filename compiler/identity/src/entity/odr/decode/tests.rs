@@ -9,11 +9,11 @@ use crate::{
     DecodedCborIdentityRecord, NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
     OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId,
     PersistentCallableBodyId, PersistentConstructorId, PersistentDispatchSlotId,
-    PersistentDispatchTableId, PersistentExactTypeId, PersistentExtensionPropertyId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentGenericTypeId, PersistentIdMismatch, PersistentIdResolver,
-    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentLayoutId,
-    PersistentPropertyAccessorId, PersistentSafepointSiteId, PersistentScanId,
+    PersistentDispatchTableId, PersistentEnumVariantId, PersistentExactTypeId,
+    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdMismatch,
+    PersistentIdResolver, PersistentImmortalObjectId, PersistentInitializationUnitId,
+    PersistentLayoutId, PersistentPropertyAccessorId, PersistentSafepointSiteId, PersistentScanId,
     PersistentStaticStorageId, PersistentTypeId, SpecializationKey, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
@@ -69,6 +69,7 @@ id_resolver!(PersistentExactTypeId, exact_type);
 id_resolver!(PersistentFunctionId, function);
 id_resolver!(PersistentGenericFunctionId, generic_function);
 id_resolver!(PersistentConstructorId, constructor);
+id_resolver!(PersistentEnumVariantId, enum_variant);
 id_resolver!(PersistentPropertyAccessorId, accessor);
 id_resolver!(PersistentCallableApplicationId, callable_application);
 id_resolver!(PersistentInitializationUnitId, initialization_unit);
@@ -292,6 +293,10 @@ const fn generic_function() -> PersistentGenericFunctionId {
 
 const fn constructor() -> PersistentConstructorId {
     PersistentConstructorId([5; 32])
+}
+
+const fn enum_variant() -> PersistentEnumVariantId {
+    PersistentEnumVariantId([23; 32])
 }
 
 const fn accessor() -> PersistentPropertyAccessorId {

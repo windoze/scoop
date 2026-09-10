@@ -3,9 +3,9 @@ use scoop_wire::{Encoder, HashError, WireEncode};
 use super::{NonEmptyVec, PropertyOwner};
 use crate::ids::derive_persistent_id;
 use crate::{
-    PersistentCallableApplicationId, PersistentConstructorId, PersistentExactTypeId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentInitializationUnitId, PersistentPropertyAccessorId,
+    PersistentCallableApplicationId, PersistentConstructorId, PersistentEnumVariantId,
+    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentInitializationUnitId, PersistentPropertyAccessorId,
 };
 
 mod decode;
@@ -74,6 +74,7 @@ pub enum CallableTemplateOrigin {
     GenericFunction(PersistentGenericFunctionId),
     Constructor(PersistentConstructorId),
     Accessor(PersistentPropertyAccessorId),
+    VariantConstructor(PersistentEnumVariantId),
 }
 
 impl WireEncode for CallableTemplateOrigin {
@@ -83,6 +84,7 @@ impl WireEncode for CallableTemplateOrigin {
             Self::GenericFunction(id) => encode_id_sum(encoder, 2, id),
             Self::Constructor(id) => encode_id_sum(encoder, 3, id),
             Self::Accessor(id) => encode_id_sum(encoder, 4, id),
+            Self::VariantConstructor(id) => encode_id_sum(encoder, 5, id),
         }
     }
 }
@@ -189,6 +191,17 @@ impl CallableApplicationKey {
         }
     }
 
+    pub const fn for_variant_constructor(
+        origin: PersistentEnumVariantId,
+        instantiation_owner: CallableInstantiationOwner,
+    ) -> Self {
+        Self {
+            origin: CallableTemplateOrigin::VariantConstructor(origin),
+            instantiation_owner,
+            callable_arguments: CallableArguments::NoCallableArguments,
+        }
+    }
+
     pub fn for_generic_extension_accessor(
         origin: PersistentPropertyAccessorId,
         instantiation_owner: CallableInstantiationOwner,
@@ -246,6 +259,7 @@ pub enum CallableTemplateOwner {
     Constructor(PersistentConstructorId),
     Accessor(PersistentPropertyAccessorId),
     Generated(PersistentGeneratedCallableId),
+    VariantConstructor(PersistentEnumVariantId),
 }
 
 impl WireEncode for CallableTemplateOwner {
@@ -256,6 +270,7 @@ impl WireEncode for CallableTemplateOwner {
             Self::Constructor(id) => encode_id_sum(encoder, 3, id),
             Self::Accessor(id) => encode_id_sum(encoder, 4, id),
             Self::Generated(id) => encode_id_sum(encoder, 5, id),
+            Self::VariantConstructor(id) => encode_id_sum(encoder, 6, id),
         }
     }
 }

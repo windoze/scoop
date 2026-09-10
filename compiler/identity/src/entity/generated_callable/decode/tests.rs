@@ -9,11 +9,12 @@ use crate::{
     DecodedPersistentId, Effect, ExactCallableSignature, GeneratedCallableIdentityError,
     GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent, LexicalCallableRole,
     LexicalParentError, PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    PersistentConstructorId, PersistentDispatchSlotId, PersistentExactTypeId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentIdMismatch,
-    PersistentIdResolver, PersistentInitializationUnitId, PersistentKeyResolver,
-    PersistentPropertyAccessorId, PersistentTypeId, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    PersistentConstructorId, PersistentDispatchSlotId, PersistentEnumVariantId,
+    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
+    PersistentTypeId, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -65,6 +66,7 @@ test_identity!(PersistentCallableApplicationId);
 test_identity!(PersistentCallbackApplicationId);
 test_identity!(PersistentTypeId);
 test_identity!(PersistentDispatchSlotId);
+test_identity!(PersistentEnumVariantId);
 
 impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey> for Resolver {
     type Error = ResolutionError;
@@ -82,6 +84,22 @@ impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey> 
             .cloned()
             .ok_or(ResolutionError)
     }
+}
+
+#[test]
+fn enum_variant_constructor_is_a_typed_lexical_parent() {
+    let parent = LexicalCallableParent::variant_constructor(PersistentEnumVariantId::expected());
+    let decoded = decode_canonical::<DecodedLexicalCallableParent>(
+        &encode(&parent).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        decoded
+            .resolve(&mut Resolver { generated: vec![] })
+            .unwrap(),
+        parent
+    );
 }
 
 #[test]
@@ -225,11 +243,11 @@ fn generated_callable_decoder_rejects_unknown_tags_and_roles() {
             .unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 17 });
 
-    let parent_bytes = [b"\xa2\x00\x06\x01\x58\x20".as_slice(), &[0; 32]].concat();
+    let parent_bytes = [b"\xa2\x00\x07\x01\x58\x20".as_slice(), &[0; 32]].concat();
     let parent =
         decode_canonical::<DecodedLexicalCallableParent>(&parent_bytes, DecodeLimits::default())
             .unwrap_err();
-    assert_eq!(parent.kind(), &WireErrorKind::UnknownTag { tag: 6 });
+    assert_eq!(parent.kind(), &WireErrorKind::UnknownTag { tag: 7 });
 
     let role =
         decode_canonical::<LexicalCallableRole>(b"\x03", DecodeLimits::default()).unwrap_err();

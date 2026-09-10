@@ -5,12 +5,12 @@ use crate::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CborIdentityRecord, DecodedCborIdentityRecord, DecodedPersistentId, InitializationUnitKey,
     LocalValueKey, LocalValueSelector, NonEmptyVec, PersistentCallableApplicationId,
-    PersistentConstructorId, PersistentExactTypeId, PersistentExtensionPropertyId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentIdMismatch, PersistentIdResolver, PersistentInitializationUnitId,
-    PersistentLocalValueId, PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
-    SyntheticLocalRole,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentExactTypeId,
+    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentInitializationUnitId, PersistentLocalValueId, PersistentPropertyAccessorId,
+    PersistentPropertyId, PersistentTypeId, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment, SyntheticLocalRole,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -60,6 +60,7 @@ test_identity!(PersistentPropertyAccessorId);
 test_identity!(PersistentGeneratedCallableId);
 test_identity!(PersistentCallableApplicationId);
 test_identity!(PersistentInitializationUnitId);
+test_identity!(PersistentEnumVariantId);
 
 #[test]
 fn all_initialization_unit_records_round_trip_and_resolve() {

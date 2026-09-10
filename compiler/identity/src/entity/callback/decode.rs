@@ -92,6 +92,7 @@ impl DecodedCallbackRegistrationKey {
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<crate::PersistentEnumVariantId, Error = E>
             + PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey, Error = E>
             + PersistentIdResolver<PersistentTypeId, Error = E>
             + PersistentIdResolver<PersistentGenericTypeId, Error = E>,

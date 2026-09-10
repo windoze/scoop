@@ -437,7 +437,7 @@ SourceDeclarationKey {
 }
 ```
 
-`PackagePath`编码为segment array，root package是空array；每个segment必须是已通过语言identifier检查的原始UTF-8 text。`CanonicalIdentifier`同样保留源码UTF-8 bytes，不做Unicode normalization。`DeclarationName`是`Named=1 {1=CanonicalIdentifier}`或无payload的`Constructor=2`；只有constructor declaration使用后者，不能伪造`<init>`等字符串。`DefinitionOwnerChain`从外到内编码typed owner atom，atom的v1 tag为`Type=1, GenericType=2, Function=3, GenericFunction=4, Constructor=5, Property=6, ExtensionProperty=7, GeneratedCallable=8, PropertyAccessor=9`，payload只能是对应typed persistent id。空chain表示top-level；owner必须已在dependency-first declaration table中出现。getter/setter body中的named local declaration必须含tag 9的具体accessor owner，不能退回property owner；因此同一property的getter与setter即使出现相同name/path也不会碰撞。
+`PackagePath`编码为segment array，root package是空array；每个segment必须是已通过语言identifier检查的原始UTF-8 text。`CanonicalIdentifier`同样保留源码UTF-8 bytes，不做Unicode normalization。`DeclarationName`是`Named=1 {1=CanonicalIdentifier}`或无payload的`Constructor=2`；只有constructor declaration使用后者，不能伪造`<init>`等字符串。`DefinitionOwnerChain`从外到内编码typed owner atom，atom的初始wire tag为`Type=1, GenericType=2, Function=3, GenericFunction=4, Constructor=5, Property=6, ExtensionProperty=7, GeneratedCallable=8, PropertyAccessor=9, EnumVariant=10`，payload只能是对应typed persistent id。空chain表示top-level；owner必须已在dependency-first declaration table中出现。getter/setter body中的named local declaration必须含tag 9的具体accessor owner，不能退回property owner；因此同一property的getter与setter即使出现相同name/path也不会碰撞。enum variant constructor默认表达式中的named local declaration必须含tag 10的具体variant owner，不能退回enum nominal owner。
 
 `SourceDeclarationKind`的tag为`Class=1, Interface=2, Struct=3, Enum=4, Object=5, AnnotationClass=6, Function=7, Constructor=8, Property=9, ExtensionProperty=10, TypeAlias=11`。kind-specific constructor必须检查kind、`DuplicateSignatureKey` variant与hash domain三者匹配；例如extension property不能以`Property=9`生成相同key后仅靠Rust调用点解释。
 
@@ -525,6 +525,7 @@ CallableTemplateOrigin =
   | GenericFunction { id: PersistentGenericFunctionId }   // tag 2
   | Constructor { id: PersistentConstructorId }           // tag 3
   | Accessor { id: PersistentPropertyAccessorId }          // tag 4
+  | VariantConstructor { id: PersistentEnumVariantId }     // tag 5
 
 CallableArguments =
     NoCallableArguments                                    // tag 1
@@ -537,7 +538,7 @@ CallableApplicationKey {
 }
 ```
 
-`CallableInstantiationOwner`是`NoOwner=1`、`ExactNominalOwner=2 {1=PersistentExactTypeId}`、`EnclosingCallableApplication=3 {1=PersistentCallableApplicationId}`或`EnclosingInitializationApplication=4 {1=PersistentInitializationUnitId}`。普通method、constructor或普通property accessor若声明于generic nominal中，使用ExactNominalOwner和`NoCallableArguments`；这里的exact owner必须是声明宿主的exact application，不是调用点receiver或其动态派生类型。generic method同时保存nominal owner与callable arguments；top-level generic function只有callable arguments；generic extension-property accessor使用NoOwner与该property receiver binder对应的arguments。local callable若外层generic环境来自普通callable application，则使用EnclosingCallableApplication；该parent application已经封装其nominal owner和外层callable arguments，不能再压平复制。若local callable的lexical parent链穿过generic delegated initializer/ensure（包括其中lambda或anonymous callable），则使用EnclosingInitializationApplication；unit必须是同一source extension property与receiver arguments的`GenericDelegatedExtensionApplication`，并完整提供receiver substitution。它不得用于普通initializer、别的property或从调用点动态receiver合成。两项都不存在时不构造application id而直接使用declaration id。owner/argument数量必须分别精确等于nominal/callable、extension-property或lexical binder数且全部concrete；`Function`和`Constructor`禁止携带自身callable arguments，`GenericFunction`必须携带非空且arity匹配的自身arguments，`Accessor`是否允许arguments由其property owner kind决定。local generic的自身arguments即使不出现在exact signature（phantom parameter）也必须进入key；其enclosing initialization owner只提供外层receiver substitution，不得吞并或复制这些arguments。validator必须沿source lexical parent与generated-parent relation逐边证明tag 3或tag 4恰好对应nearest enclosing materialization root；没有这条证明的application id非法。它与declaration id、session-local substitution/ref是不同type，不可通过u32、FQN或空array互换。
+`CallableInstantiationOwner`是`NoOwner=1`、`ExactNominalOwner=2 {1=PersistentExactTypeId}`、`EnclosingCallableApplication=3 {1=PersistentCallableApplicationId}`或`EnclosingInitializationApplication=4 {1=PersistentInitializationUnitId}`。普通method、nominal constructor、enum variant constructor或普通property accessor若声明于generic nominal中，使用ExactNominalOwner和`NoCallableArguments`；这里的exact owner必须是声明宿主的exact application，不是调用点receiver或其动态派生类型。generic method同时保存nominal owner与callable arguments；top-level generic function只有callable arguments；generic extension-property accessor使用NoOwner与该property receiver binder对应的arguments。local callable若外层generic环境来自普通callable application，则使用EnclosingCallableApplication；该parent application已经封装其nominal owner和外层callable arguments，不能再压平复制。若local callable的lexical parent链穿过generic delegated initializer/ensure（包括其中lambda或anonymous callable），则使用EnclosingInitializationApplication；unit必须是同一source extension property与receiver arguments的`GenericDelegatedExtensionApplication`，并完整提供receiver substitution。它不得用于普通initializer、别的property或从调用点动态receiver合成。两项都不存在时不构造application id而直接使用declaration id。owner/argument数量必须分别精确等于nominal/callable、extension-property或lexical binder数且全部concrete；`Function`、`Constructor`和`VariantConstructor`禁止携带自身callable arguments，`GenericFunction`必须携带非空且arity匹配的自身arguments，`Accessor`是否允许arguments由其property owner kind决定。local generic的自身arguments即使不出现在exact signature（phantom parameter）也必须进入key；其enclosing initialization owner只提供外层receiver substitution，不得吞并或复制这些arguments。validator必须沿source lexical parent与generated-parent relation逐边证明tag 3或tag 4恰好对应nearest enclosing materialization root；没有这条证明的application id非法。它与declaration id、session-local substitution/ref是不同type，不可通过u32、FQN或空array互换。
 
 为了区分模板级generated declaration与某次concrete materialization，另有以下closed products：
 
@@ -548,6 +549,7 @@ CallableTemplateOwner =
   | Constructor { id: PersistentConstructorId }            // tag 3
   | Accessor { id: PersistentPropertyAccessorId }           // tag 4
   | Generated { id: PersistentGeneratedCallableId }         // tag 5
+  | VariantConstructor { id: PersistentEnumVariantId }      // tag 6
 
 CallableMaterializationContext =
     NoSubstitution                                           // tag 1
@@ -621,7 +623,7 @@ GeneratedCallableKey =
 
 `ZeroArgumentConstructorAdapter`只表示编译器必须无source argument构造异常、而目标source constructor通过默认参数允许零参数调用时产生的唯一适配器；`constructor`必须是该目标的`PersistentConstructorId`，producer还必须证明目标存在至少一个物理参数、所有source参数均可省略且同一目标只有一个适配器。它不能伪装成第二个同签名source constructor，也不能用于普通调用点的默认参数展开。
 
-`LexicalCallableParent`使用`CallableTemplateOwner`相同的1…5 wire tag，但parent tag 5进一步只接受`GeneratedCallableKey` tag 1/2/6/16产生的`PersistentGeneratedCallableId`；其中tag 2的Initialization callable以声明级unit终止，而不是继续寻找source function。tag 16可包含从source default template实例化而来的lambda、anonymous function或local declaration，因此也是合法lexical parent。它不含任何application id，因而同一个generic模板/initializer内的lambda、anonymous function或callable-reference wrapper只取得一个declaration identity；不同concrete callable application或generic delegated initialization unit由materialization relation区分。嵌套lexical callable递归引用模板级parent，cycle拒绝。
+`LexicalCallableParent`使用`CallableTemplateOwner`相同的1…6 wire tag，但parent tag 5进一步只接受`GeneratedCallableKey` tag 1/2/6/16产生的`PersistentGeneratedCallableId`，tag 6精确表示enum variant constructor；其中tag 2的Initialization callable以声明级unit终止，而不是继续寻找source function。tag 16可包含从source default template实例化而来的lambda、anonymous function或local declaration，因此也是合法lexical parent。它不含任何application id，因而同一个generic模板/initializer内的lambda、anonymous function或callable-reference wrapper只取得一个declaration identity；不同concrete callable application或generic delegated initialization unit由materialization relation区分。嵌套lexical callable递归引用模板级parent，cycle拒绝。
 
 `LexicalCallableRole`为`LambdaBody=1, AnonymousFunctionBody=2`；named local function无论是否generic都走带LexicalScoped的source function declaration identity，不进入此sum。tag 1/6都不把exact signature写入identity，因为Export HIR中的合法signature仍可能含binder；每个param-free实现或concrete application的完整signature改由第9.2节以Strong/ODR subject记录。callable-reference的resolved target也不进入identity：它继续保存在当前typed HIR body，未来实际承载body/default的required HIR capability必须以封闭target sum覆盖named/local/bound/derived-equality/dispatch形态并将target/source/target signature纳入HIR semantic projection。identity-foundation本身不宣称序列化body。这样同一lexical site不会因alias/dispatch refinement换identity，也不要求`CallableOwner`假装覆盖全部call target。
 

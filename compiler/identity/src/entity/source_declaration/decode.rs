@@ -42,7 +42,8 @@ impl DecodedSourceDeclarationKey {
             + PersistentIdResolver<PersistentPropertyId, Error = E>
             + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
-            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>,
+            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<crate::PersistentEnumVariantId, Error = E>,
     {
         let origin = resolver
             .resolve(self.origin)
@@ -307,11 +308,12 @@ mod tests {
     use crate::{
         CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
         DecodedCborIdentityRecord, DefinitionOwnerChain, NonEmptyVec, PackagePath,
-        PersistentConstructorId, PersistentExtensionPropertyId, PersistentFunctionId,
-        PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-        PersistentIdMismatch, PersistentIdResolver, PersistentPropertyAccessorId,
-        PersistentPropertyId, PersistentTypeId, SignatureTypeKey, SourceDeclarationKey,
-        SourceDeclarationKind, SourceDeclarationSite, SourceIdentity, SourceNominalKind,
+        PersistentConstructorId, PersistentEnumVariantId, PersistentExtensionPropertyId,
+        PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+        PersistentGenericTypeId, PersistentIdMismatch, PersistentIdResolver,
+        PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId, SignatureTypeKey,
+        SourceDeclarationKey, SourceDeclarationKind, SourceDeclarationSite, SourceIdentity,
+        SourceNominalKind,
     };
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -374,6 +376,7 @@ mod tests {
     test_identity!(PersistentExtensionPropertyId);
     test_identity!(PersistentGeneratedCallableId);
     test_identity!(PersistentPropertyAccessorId);
+    test_identity!(PersistentEnumVariantId);
 
     fn site() -> SourceDeclarationSite {
         SourceDeclarationSite::new(

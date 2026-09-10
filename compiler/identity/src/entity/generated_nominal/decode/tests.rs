@@ -5,11 +5,11 @@ use crate::{
     CallableAdapterEnvironmentKey, CallableMaterialization, CallableMaterializationContext,
     CallableTemplateOwner, CborIdentityRecord, ClosureEnvironmentRole, DecodedCborIdentityRecord,
     Effect, ExactCallableSignature, GeneratedNominalIdentityError, GeneratedNominalKey,
-    PersistentCallableApplicationId, PersistentConstructorId, PersistentExactTypeId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentIdMismatch, PersistentIdResolver, PersistentInitializationUnitId,
-    PersistentPropertyAccessorId, PersistentTypeId, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    PersistentCallableApplicationId, PersistentConstructorId, PersistentEnumVariantId,
+    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentInitializationUnitId, PersistentPropertyAccessorId, PersistentTypeId,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -57,6 +57,7 @@ test_identity!(PersistentCallableApplicationId);
 test_identity!(PersistentInitializationUnitId);
 test_identity!(PersistentExactTypeId);
 test_identity!(PersistentTypeId);
+test_identity!(PersistentEnumVariantId);
 
 #[test]
 fn all_generated_nominal_shapes_round_trip_and_resolve() {

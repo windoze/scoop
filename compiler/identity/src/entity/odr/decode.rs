@@ -3,11 +3,11 @@ use std::fmt;
 use crate::{
     CallableApplicationResolutionError, OdrGroupId, OdrMemberIdentityError,
     PersistentCallableApplicationId, PersistentCallableBodyId, PersistentConstructorId,
-    PersistentDispatchSlotId, PersistentDispatchTableId, PersistentExactTypeId,
-    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdResolver,
-    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentLayoutId,
-    PersistentPropertyAccessorId, PersistentSafepointSiteId, PersistentScanId,
+    PersistentDispatchSlotId, PersistentDispatchTableId, PersistentEnumVariantId,
+    PersistentExactTypeId, PersistentExtensionPropertyId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
+    PersistentIdResolver, PersistentImmortalObjectId, PersistentInitializationUnitId,
+    PersistentLayoutId, PersistentPropertyAccessorId, PersistentSafepointSiteId, PersistentScanId,
     PersistentStaticStorageId, PersistentTypeId,
 };
 
@@ -23,6 +23,7 @@ pub trait SpecializationResolver<E>:
     + PersistentIdResolver<PersistentFunctionId, Error = E>
     + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
     + PersistentIdResolver<PersistentConstructorId, Error = E>
+    + PersistentIdResolver<PersistentEnumVariantId, Error = E>
     + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
     + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
     + PersistentIdResolver<PersistentInitializationUnitId, Error = E>
@@ -36,6 +37,7 @@ impl<T, E> SpecializationResolver<E> for T where
         + PersistentIdResolver<PersistentFunctionId, Error = E>
         + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
         + PersistentIdResolver<PersistentConstructorId, Error = E>
+        + PersistentIdResolver<PersistentEnumVariantId, Error = E>
         + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
         + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
         + PersistentIdResolver<PersistentInitializationUnitId, Error = E>

@@ -9,12 +9,13 @@ use crate::{
     CapabilityId, ConeIdentity, DefinitionOwner, ImmortalObjectKey, ImmortalObjectOwner,
     InitializationUnitKey, LayoutKey, MainCallableBodyId, NonEmptyVec,
     PersistentCallableApplicationId, PersistentCallableBodyId, PersistentConstructorId,
-    PersistentExactTypeId, PersistentExtensionPropertyId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentIdMismatch,
-    PersistentIdResolver, PersistentInitializationUnitId, PersistentKeyResolver,
-    PersistentLayoutId, PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId,
-    PropertyOwner, RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole, StaticStorageKey,
-    StorageRole, StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    PersistentEnumVariantId, PersistentExactTypeId, PersistentExtensionPropertyId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentIdMismatch, PersistentIdResolver, PersistentInitializationUnitId,
+    PersistentKeyResolver, PersistentLayoutId, PersistentPropertyAccessorId, PersistentPropertyId,
+    PersistentTypeId, PropertyOwner, RepresentationRole, RuntimeIdentityError, ScanKey, ScanRole,
+    StaticStorageKey, StorageRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -48,6 +49,7 @@ id_resolver!(PersistentPropertyAccessorId, accessor());
 id_resolver!(PersistentGeneratedCallableId, generated_callable());
 id_resolver!(PersistentCallableApplicationId, application());
 id_resolver!(PersistentCallableBodyId, callable_body());
+id_resolver!(PersistentEnumVariantId, enum_variant());
 
 impl PersistentIdResolver<PersistentInitializationUnitId> for Resolver {
     type Error = ResolutionError;
@@ -285,6 +287,10 @@ const fn generic_function() -> PersistentGenericFunctionId {
 
 const fn constructor() -> PersistentConstructorId {
     PersistentConstructorId([9; 32])
+}
+
+const fn enum_variant() -> PersistentEnumVariantId {
+    PersistentEnumVariantId([15; 32])
 }
 
 const fn accessor() -> PersistentPropertyAccessorId {
