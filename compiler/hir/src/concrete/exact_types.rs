@@ -11,13 +11,10 @@ use super::{
     ClassDef, ClassId, EnumDef, EnumId, FunctionType, InterfaceDef, InterfaceId, IntrinsicTypeCore,
     ObjectDecl, StructDef, StructId, Type, TypeId, TypeKind,
 };
-use crate::{
-    ClassId as ExportClassId, EnumId as ExportEnumId, HirNominalIdentities, HirNominalIdentity,
-    InterfaceId as ExportInterfaceId, ObjectId as ExportObjectId, StructId as ExportStructId,
-};
+use crate::HirNominalIdentity;
 
 mod error;
-pub use error::{ConcreteNominalKind, ExactTypeIdentityError, ExactTypeRelation};
+pub use error::{ExactTypeIdentityError, ExactTypeRelation};
 
 #[cfg(test)]
 mod tests;
@@ -34,7 +31,6 @@ pub struct ExactTypeIdentityInputs<'a> {
     pub interfaces: &'a Arena<InterfaceDef>,
     pub objects: &'a Arena<ObjectDecl>,
     pub intrinsic_core: &'a IntrinsicTypeCore,
-    pub source_nominal_identities: &'a HirNominalIdentities,
 }
 
 /// Total persistent exact-type relation for LocalConcrete HIR.
@@ -74,7 +70,7 @@ struct ExactTypeIdentityBuilder<'a> {
     identities: Vec<Option<ExactTypeRecord>>,
     visiting: Vec<bool>,
     exact_ids: HashSet<PersistentExactTypeId>,
-    object_by_backing_class: HashMap<ClassId, crate::ObjectId>,
+    object_by_backing_class: HashMap<ClassId, HirNominalIdentity>,
 }
 
 impl<'a> ExactTypeIdentityBuilder<'a> {
@@ -89,7 +85,7 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
     }
 
     fn build(mut self) -> Result<ExactTypeIdentities, ExactTypeIdentityError> {
-        for (object, declaration) in self.inputs.objects.iter() {
+        for (_, declaration) in self.inputs.objects.iter() {
             self.require_class(
                 None,
                 ExactTypeRelation::ObjectBackingClass,
@@ -97,20 +93,11 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             )?;
             if self
                 .object_by_backing_class
-                .insert(
-                    declaration.backing_class,
-                    export_object_id(declaration.origin),
-                )
+                .insert(declaration.backing_class, declaration.origin.clone())
                 .is_some()
             {
                 return Err(ExactTypeIdentityError::DuplicateObjectBackingClass {
                     class: raw_index(declaration.backing_class),
-                });
-            }
-            if raw_index(object) != declaration.origin.into_raw() {
-                return Err(ExactTypeIdentityError::InvalidObjectOrigin {
-                    object: raw_index(object),
-                    origin: declaration.origin.into_raw(),
                 });
             }
         }
@@ -146,59 +133,50 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
 
         let kind = self.inputs.types[ty].kind.clone();
         let key = match kind {
-            TypeKind::Unit => ExactTypeKey::Nominal(
-                self.inputs
-                    .source_nominal_identities
-                    .core_builtin(CoreBuiltinNominal::Unit)
-                    .id(),
-            ),
+            TypeKind::Unit => {
+                ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id())
+            }
             TypeKind::Integer(kind) => {
                 let owner = self.inputs.intrinsic_core.integers.owner(kind);
                 self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let identity = self.source_struct_identity(self.inputs.structs[owner].origin)?;
+                let identity = self.inputs.structs[owner].origin.clone();
                 self.nominal_key(ty, identity, &[])?
             }
             TypeKind::Boolean => {
                 let owner = self.inputs.intrinsic_core.boolean;
                 self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let identity = self.source_struct_identity(self.inputs.structs[owner].origin)?;
+                let identity = self.inputs.structs[owner].origin.clone();
                 self.nominal_key(ty, identity, &[])?
             }
             TypeKind::String => {
                 let owner = self.inputs.intrinsic_core.string;
                 self.require_class(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let identity = self.source_class_identity(self.inputs.classes[owner].origin)?;
+                let identity = self.inputs.classes[owner].origin.clone();
                 self.nominal_key(ty, identity, &[])?
             }
-            TypeKind::Any => ExactTypeKey::Nominal(
-                self.inputs
-                    .source_nominal_identities
-                    .core_builtin(CoreBuiltinNominal::Any)
-                    .id(),
-            ),
+            TypeKind::Any => ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
             TypeKind::Struct(id) => {
                 self.require_struct(Some(ty), ExactTypeRelation::Struct, id)?;
                 let declaration = &self.inputs.structs[id];
-                let identity = self.source_struct_identity(declaration.origin)?;
+                let identity = declaration.origin.clone();
                 let arguments = declaration.type_arguments.clone();
                 self.nominal_key(ty, identity, &arguments)?
             }
             TypeKind::Enum(id) => {
                 self.require_enum(ty, id)?;
                 let declaration = &self.inputs.enums[id];
-                let identity = self.source_enum_identity(declaration.origin)?;
+                let identity = declaration.origin.clone();
                 let arguments = declaration.type_arguments.clone();
                 self.nominal_key(ty, identity, &arguments)?
             }
             TypeKind::Class(id) => {
                 self.require_class(Some(ty), ExactTypeRelation::Class, id)?;
                 let declaration = &self.inputs.classes[id];
-                if let Some(object) = self.object_by_backing_class.get(&id).copied() {
-                    let identity = self.source_object_identity(object)?;
+                if let Some(identity) = self.object_by_backing_class.get(&id).cloned() {
                     let arguments = declaration.type_arguments.clone();
                     self.nominal_key(ty, identity, &arguments)?
                 } else {
-                    let identity = self.source_class_identity(declaration.origin)?;
+                    let identity = declaration.origin.clone();
                     let arguments = declaration.type_arguments.clone();
                     self.nominal_key(ty, identity, &arguments)?
                 }
@@ -206,7 +184,7 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             TypeKind::Interface(id) => {
                 self.require_interface(ty, id)?;
                 let declaration = &self.inputs.interfaces[id];
-                let identity = self.source_interface_identity(declaration.origin)?;
+                let identity = declaration.origin.clone();
                 let arguments = declaration.type_arguments.clone();
                 self.nominal_key(ty, identity, &arguments)?
             }
@@ -331,76 +309,6 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             .collect()
     }
 
-    fn source_struct_identity(
-        &self,
-        origin: super::StructOriginId,
-    ) -> Result<HirNominalIdentity, ExactTypeIdentityError> {
-        self.inputs
-            .source_nominal_identities
-            .get_struct(export_struct_id(origin))
-            .cloned()
-            .ok_or(ExactTypeIdentityError::UnknownNominalOrigin {
-                kind: ConcreteNominalKind::Struct,
-                origin: origin.into_raw(),
-            })
-    }
-
-    fn source_enum_identity(
-        &self,
-        origin: super::EnumOriginId,
-    ) -> Result<HirNominalIdentity, ExactTypeIdentityError> {
-        self.inputs
-            .source_nominal_identities
-            .get_enum(export_enum_id(origin))
-            .cloned()
-            .ok_or(ExactTypeIdentityError::UnknownNominalOrigin {
-                kind: ConcreteNominalKind::Enum,
-                origin: origin.into_raw(),
-            })
-    }
-
-    fn source_class_identity(
-        &self,
-        origin: super::ClassOriginId,
-    ) -> Result<HirNominalIdentity, ExactTypeIdentityError> {
-        self.inputs
-            .source_nominal_identities
-            .get_class(export_class_id(origin))
-            .cloned()
-            .ok_or(ExactTypeIdentityError::UnknownNominalOrigin {
-                kind: ConcreteNominalKind::Class,
-                origin: origin.into_raw(),
-            })
-    }
-
-    fn source_interface_identity(
-        &self,
-        origin: super::InterfaceOriginId,
-    ) -> Result<HirNominalIdentity, ExactTypeIdentityError> {
-        self.inputs
-            .source_nominal_identities
-            .get_interface(export_interface_id(origin))
-            .cloned()
-            .ok_or(ExactTypeIdentityError::UnknownNominalOrigin {
-                kind: ConcreteNominalKind::Interface,
-                origin: origin.into_raw(),
-            })
-    }
-
-    fn source_object_identity(
-        &self,
-        origin: ExportObjectId,
-    ) -> Result<HirNominalIdentity, ExactTypeIdentityError> {
-        self.inputs
-            .source_nominal_identities
-            .get_object(origin)
-            .cloned()
-            .ok_or(ExactTypeIdentityError::UnknownNominalOrigin {
-                kind: ConcreteNominalKind::Object,
-                origin: raw_index(origin),
-            })
-    }
-
     fn require_type(
         &self,
         parent: Option<TypeId>,
@@ -462,26 +370,6 @@ fn require_reference<T>(
             target: raw_index(id),
         })
     }
-}
-
-fn export_struct_id(id: super::StructOriginId) -> ExportStructId {
-    ExportStructId::from_raw(id.into_raw().into())
-}
-
-fn export_enum_id(id: super::EnumOriginId) -> ExportEnumId {
-    ExportEnumId::from_raw(id.into_raw().into())
-}
-
-fn export_class_id(id: super::ClassOriginId) -> ExportClassId {
-    ExportClassId::from_raw(id.into_raw().into())
-}
-
-fn export_interface_id(id: super::InterfaceOriginId) -> ExportInterfaceId {
-    ExportInterfaceId::from_raw(id.into_raw().into())
-}
-
-fn export_object_id(id: super::ObjectOriginId) -> ExportObjectId {
-    ExportObjectId::from_raw(id.into_raw().into())
 }
 
 fn local_index<T>(id: Idx<T>) -> usize {

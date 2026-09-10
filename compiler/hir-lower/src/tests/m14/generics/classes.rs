@@ -58,10 +58,9 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
         .collect::<Vec<_>>();
     instances.sort_by(|left, right| left.name.cmp(&right.name));
     assert_eq!(instances.len(), 2);
-    let concrete_origin =
-        hir::concrete::ClassOriginId::from_raw(export_box_id.into_raw().into_u32());
+    let concrete_origin = &output.export.nominal_identities[export_box_id];
     assert!(instances.iter().all(|instance| {
-        instance.origin == concrete_origin
+        &instance.origin == concrete_origin
             && instance.type_arguments.len() == 1
             && instance.declared_fields().len() == 1
             && instance.declared_fields()[0].ty == instance.type_arguments[0]

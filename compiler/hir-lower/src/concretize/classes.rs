@@ -31,14 +31,14 @@ impl Concretizer<'_> {
             _ => unreachable!("ExportHir declaration and application representations agree"),
         };
         let id = self.classes.alloc(concrete::ClassDef {
-            origin: concrete::ClassOriginId::from_raw(source_id.into_raw().into_u32()),
+            origin: self.source.nominal_identities[source_id].clone(),
             modifier: source.modifier,
             link_stem: source.link_stem.clone(),
             name: self.instance_name(
                 &self.source_nominal_name(&source.name, source.owner),
                 &arguments,
             ),
-            owner: Self::lower_nominal_owner(source.owner),
+            owner: self.lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             representation,
             interfaces: Vec::new(),

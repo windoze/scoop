@@ -170,9 +170,7 @@ fn companion_relation_alias_and_forwarding_are_typed() {
     let local_relation_declaration = &output.local.companion_relations[local_relation];
     assert_eq!(
         local_relation_declaration.host,
-        hir::concrete::NominalOwner::Class(hir::concrete::ClassOriginId::from_raw(
-            host.into_raw().into_u32()
-        ))
+        hir::concrete::NominalOwner::Class(module.nominal_identities[host].clone())
     );
     assert_eq!(
         local_relation_declaration.object,

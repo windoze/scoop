@@ -46,11 +46,6 @@ macro_rules! local_origin_id {
     };
 }
 
-local_origin_id!(StructOriginId);
-local_origin_id!(EnumOriginId);
-local_origin_id!(ClassOriginId);
-local_origin_id!(InterfaceOriginId);
-local_origin_id!(ObjectOriginId);
 local_origin_id!(GenericFunctionOriginId);
 local_origin_id!(OwnerParameterizedMethodOriginId);
 local_origin_id!(GenericMethodOriginId);

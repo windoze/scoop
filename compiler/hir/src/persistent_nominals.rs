@@ -212,26 +212,6 @@ impl HirNominalIdentities {
             CoreBuiltinNominal::Any => &self.any,
         }
     }
-
-    pub fn get_struct(&self, id: StructId) -> Option<&HirNominalIdentity> {
-        self.structs.get(local_index(id))
-    }
-
-    pub fn get_enum(&self, id: EnumId) -> Option<&HirNominalIdentity> {
-        self.enums.get(local_index(id))
-    }
-
-    pub fn get_class(&self, id: ClassId) -> Option<&HirNominalIdentity> {
-        self.classes.get(local_index(id))
-    }
-
-    pub fn get_interface(&self, id: InterfaceId) -> Option<&HirNominalIdentity> {
-        self.interfaces.get(local_index(id))
-    }
-
-    pub fn get_object(&self, id: ObjectId) -> Option<&HirNominalIdentity> {
-        self.objects.get(local_index(id))
-    }
 }
 
 macro_rules! nominal_index {

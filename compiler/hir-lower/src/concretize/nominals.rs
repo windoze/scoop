@@ -33,10 +33,10 @@ impl Concretizer<'_> {
             _ => unreachable!("ExportHir declaration and application representations agree"),
         };
         let id = self.structs.alloc(concrete::StructDef {
-            origin: concrete::StructOriginId::from_raw(source_id.into_raw().into_u32()),
+            origin: self.source.nominal_identities[source_id].clone(),
             link_stem: source.link_stem.clone(),
             name,
-            owner: Self::lower_nominal_owner(source.owner),
+            owner: self.lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             gc_free: false,
             representation,
@@ -221,10 +221,10 @@ impl Concretizer<'_> {
         let declaration_name = self.source_nominal_name(&source.name, source.owner);
         let name = self.instance_name(&declaration_name, &arguments);
         let id = self.enums.alloc(concrete::EnumDef {
-            origin: concrete::EnumOriginId::from_raw(source_id.into_raw().into_u32()),
+            origin: self.source.nominal_identities[source_id].clone(),
             link_stem: source.link_stem.clone(),
             name,
-            owner: Self::lower_nominal_owner(source.owner),
+            owner: self.lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             gc_free: false,
             variants: Vec::new(),
@@ -293,10 +293,10 @@ impl Concretizer<'_> {
         let declaration_name = self.source_nominal_name(&source.name, source.owner);
         let name = self.instance_name(&declaration_name, &arguments);
         let id = self.interfaces.alloc(concrete::InterfaceDef {
-            origin: concrete::InterfaceOriginId::from_raw(source_id.into_raw().into_u32()),
+            origin: self.source.nominal_identities[source_id].clone(),
             link_stem: source.link_stem.clone(),
             name,
-            owner: Self::lower_nominal_owner(source.owner),
+            owner: self.lower_nominal_owner(source.owner),
             family: concrete::InterfaceFamilyId::from_raw(source_id.into_raw().into_u32()),
             type_arguments: arguments.clone(),
             methods: Vec::new(),

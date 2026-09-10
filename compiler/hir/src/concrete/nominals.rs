@@ -1,20 +1,21 @@
 use super::*;
+use crate::HirNominalIdentity;
 
 /// Static declaration owner retained after concretization. Origins name the
 /// declaration template rather than an outer application, so a generic host
 /// does not replicate its nested declarations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NominalOwner {
-    Class(ClassOriginId),
-    Interface(InterfaceOriginId),
-    Struct(StructOriginId),
-    Enum(EnumOriginId),
-    Object(ObjectOriginId),
+    Class(HirNominalIdentity),
+    Interface(HirNominalIdentity),
+    Struct(HirNominalIdentity),
+    Enum(HirNominalIdentity),
+    Object(HirNominalIdentity),
 }
 
 #[derive(Debug, Clone)]
 pub struct ObjectDecl {
-    pub origin: ObjectOriginId,
+    pub origin: HirNominalIdentity,
     pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
@@ -68,7 +69,7 @@ pub struct SingletonPublishedRoot {
 
 #[derive(Debug, Clone)]
 pub struct StructDef {
-    pub origin: StructOriginId,
+    pub origin: HirNominalIdentity,
     pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
@@ -106,7 +107,7 @@ impl StructDef {
 
 #[derive(Debug, Clone)]
 pub struct EnumDef {
-    pub origin: EnumOriginId,
+    pub origin: HirNominalIdentity,
     pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
@@ -286,7 +287,7 @@ impl StructFieldRef {
 
 #[derive(Debug, Clone)]
 pub struct ClassDef {
-    pub origin: ClassOriginId,
+    pub origin: HirNominalIdentity,
     pub modifier: ClassModifier,
     pub link_stem: NominalLinkStem,
     pub name: String,
@@ -408,7 +409,7 @@ pub enum IntrinsicTypeRepresentation {
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDef {
-    pub origin: InterfaceOriginId,
+    pub origin: HirNominalIdentity,
     pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
@@ -526,14 +527,40 @@ pub enum HirPointerNullKind {
 
 #[cfg(test)]
 mod tests {
+    use scoop_identity::{
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, PackagePath,
+        SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    };
+
     use super::*;
+
+    fn nominal_identity(
+        name: &str,
+        kind: SourceNominalKind,
+        type_parameter_count: u32,
+    ) -> HirNominalIdentity {
+        let site = SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .expect("the test declaration site is valid");
+        HirNominalIdentity::from_source_declaration(SourceDeclarationKey::nominal(
+            site,
+            CanonicalIdentifier::new(name).expect("the test declaration name is canonical"),
+            kind,
+            type_parameter_count,
+        ))
+        .expect("the test nominal identity is valid")
+    }
 
     #[test]
     fn concrete_variant_and_struct_field_refs_are_checked() {
         let ty = TypeId::from_raw(0.into());
         let mut enums = Arena::new();
         let enumeration = enums.alloc(EnumDef {
-            origin: EnumOriginId::from_raw(0),
+            origin: nominal_identity("Option", SourceNominalKind::Enum, 1),
             link_stem: NominalLinkStem::from_session_local_encoding("Option".to_string()),
             name: "Option".to_string(),
             owner: None,
@@ -592,7 +619,7 @@ mod tests {
         assert!(OptionCore::checked(&enums, field, empty).is_none());
         enums[enumeration].variants.pop();
         let other = enums.alloc(EnumDef {
-            origin: EnumOriginId::from_raw(1),
+            origin: nominal_identity("Other", SourceNominalKind::Enum, 0),
             link_stem: NominalLinkStem::from_session_local_encoding("Other".to_string()),
             name: "Other".to_string(),
             owner: None,
@@ -613,7 +640,7 @@ mod tests {
 
         let mut structs = Arena::new();
         let declared = structs.alloc(StructDef {
-            origin: StructOriginId::from_raw(0),
+            origin: nominal_identity("Record", SourceNominalKind::Struct, 0),
             link_stem: NominalLinkStem::from_session_local_encoding("Record".to_string()),
             name: "Record".to_string(),
             owner: None,

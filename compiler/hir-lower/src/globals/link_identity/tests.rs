@@ -546,11 +546,12 @@ fn nested_nominal_stems_inherit_a_private_owners_source_identity() {
         output.export.nominal_identities[nested[1].0].concrete_type_id()
     );
     for (source_id, declaration) in nested {
+        let source_identity = &output.export.nominal_identities[source_id];
         let concrete = output
             .local
             .classes
             .iter()
-            .find(|(_, definition)| definition.origin.into_raw() == source_id.into_raw().into_u32())
+            .find(|(_, definition)| &definition.origin == source_identity)
             .expect("each nested declaration is concretized")
             .1;
         assert_eq!(concrete.link_stem, declaration.link_stem);

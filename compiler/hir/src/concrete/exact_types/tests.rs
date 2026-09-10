@@ -1,32 +1,10 @@
 use la_arena::Arena;
 
 use super::*;
-use crate::{
-    ClassDecl, EnumDecl, HirNominalIdentities, IntegerTypeCore, InterfaceDecl, ObjectDecl,
-    StructDecl,
-};
+use crate::IntegerTypeCore;
 
 #[test]
 fn empty_tuple_cannot_enter_the_exact_type_relation() {
-    let export_structs = Arena::<StructDecl>::new();
-    let export_enums = Arena::<EnumDecl>::new();
-    let export_classes = Arena::<ClassDecl>::new();
-    let export_interfaces = Arena::<InterfaceDecl>::new();
-    let export_objects = Arena::<ObjectDecl>::new();
-    let source_nominal_identities = HirNominalIdentities::checked(
-        &export_structs,
-        Vec::new(),
-        &export_enums,
-        Vec::new(),
-        &export_classes,
-        Vec::new(),
-        &export_interfaces,
-        Vec::new(),
-        &export_objects,
-        Vec::new(),
-    )
-    .expect("the empty nominal fixture is total");
-
     let mut types = Arena::new();
     let tuple = types.alloc(Type {
         kind: TypeKind::Tuple(Vec::new()),
@@ -56,7 +34,6 @@ fn empty_tuple_cannot_enter_the_exact_type_relation() {
         interfaces: &interfaces,
         objects: &objects,
         intrinsic_core: &intrinsic_core,
-        source_nominal_identities: &source_nominal_identities,
     })
     .expect_err("an empty tuple has no exact structural identity");
     assert!(matches!(

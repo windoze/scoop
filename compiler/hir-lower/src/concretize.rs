@@ -151,23 +151,26 @@ struct Concretizer<'a> {
 }
 
 impl<'a> Concretizer<'a> {
-    fn lower_nominal_owner(owner: Option<export::NominalOwner>) -> Option<concrete::NominalOwner> {
+    fn lower_nominal_owner(
+        &self,
+        owner: Option<export::NominalOwner>,
+    ) -> Option<concrete::NominalOwner> {
         owner.map(|owner| match owner {
-            export::NominalOwner::Class(id) => concrete::NominalOwner::Class(
-                concrete::ClassOriginId::from_raw(id.into_raw().into_u32()),
-            ),
-            export::NominalOwner::Interface(id) => concrete::NominalOwner::Interface(
-                concrete::InterfaceOriginId::from_raw(id.into_raw().into_u32()),
-            ),
-            export::NominalOwner::Struct(id) => concrete::NominalOwner::Struct(
-                concrete::StructOriginId::from_raw(id.into_raw().into_u32()),
-            ),
-            export::NominalOwner::Enum(id) => concrete::NominalOwner::Enum(
-                concrete::EnumOriginId::from_raw(id.into_raw().into_u32()),
-            ),
-            export::NominalOwner::Object(id) => concrete::NominalOwner::Object(
-                concrete::ObjectOriginId::from_raw(id.into_raw().into_u32()),
-            ),
+            export::NominalOwner::Class(id) => {
+                concrete::NominalOwner::Class(self.source.nominal_identities[id].clone())
+            }
+            export::NominalOwner::Interface(id) => {
+                concrete::NominalOwner::Interface(self.source.nominal_identities[id].clone())
+            }
+            export::NominalOwner::Struct(id) => {
+                concrete::NominalOwner::Struct(self.source.nominal_identities[id].clone())
+            }
+            export::NominalOwner::Enum(id) => {
+                concrete::NominalOwner::Enum(self.source.nominal_identities[id].clone())
+            }
+            export::NominalOwner::Object(id) => {
+                concrete::NominalOwner::Object(self.source.nominal_identities[id].clone())
+            }
         })
     }
 
@@ -332,10 +335,10 @@ impl<'a> Concretizer<'a> {
             });
             assert_eq!(declaration.object_type.into_raw(), object_type.into_raw());
             let object = self.objects.alloc(concrete::ObjectDecl {
-                origin: concrete::ObjectOriginId::from_raw(source_id.into_raw().into_u32()),
+                origin: self.source.nominal_identities[source_id].clone(),
                 link_stem: declaration.link_stem.clone(),
                 name: declaration.name.clone(),
-                owner: Self::lower_nominal_owner(declaration.owner),
+                owner: self.lower_nominal_owner(declaration.owner),
                 object_type,
                 singleton_value: concrete::SingletonValueId::from_raw(
                     declaration.singleton_value.into_raw(),
@@ -353,7 +356,8 @@ impl<'a> Concretizer<'a> {
         }
         for (source_id, relation) in self.source.companion_relations.iter() {
             let lowered = self.companion_relations.alloc(concrete::CompanionRelation {
-                host: Self::lower_nominal_owner(Some(relation.host))
+                host: self
+                    .lower_nominal_owner(Some(relation.host))
                     .expect("a companion relation always has a nominal host"),
                 object: concrete::ObjectId::from_raw(relation.object.into_raw()),
                 name: match &relation.name {
@@ -602,7 +606,6 @@ impl<'a> Concretizer<'a> {
                 interfaces: &self.interfaces,
                 objects: &self.objects,
                 intrinsic_core: &intrinsic_type_core,
-                source_nominal_identities: &self.source.nominal_identities,
             })
             .expect("validated concretization produces a total exact-type identity relation");
 

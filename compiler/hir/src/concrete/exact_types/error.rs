@@ -1,27 +1,6 @@
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ConcreteNominalKind {
-    Struct,
-    Enum,
-    Class,
-    Interface,
-    Object,
-}
-
-impl fmt::Display for ConcreteNominalKind {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Struct => "struct",
-            Self::Enum => "enum",
-            Self::Class => "class",
-            Self::Interface => "interface",
-            Self::Object => "object",
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExactTypeRelation {
     ChildType,
     FunctionType,
@@ -57,16 +36,8 @@ pub enum ExactTypeIdentityError {
         relation: ExactTypeRelation,
         target: u32,
     },
-    UnknownNominalOrigin {
-        kind: ConcreteNominalKind,
-        origin: u32,
-    },
     DuplicateObjectBackingClass {
         class: u32,
-    },
-    InvalidObjectOrigin {
-        object: u32,
-        origin: u32,
     },
     Cycle {
         ty: u32,
@@ -108,19 +79,9 @@ impl fmt::Display for ExactTypeIdentityError {
                 Some(ty) => write!(formatter, "type {ty} refers to unknown {relation} {target}"),
                 None => write!(formatter, "unknown {relation} {target}"),
             },
-            Self::UnknownNominalOrigin { kind, origin } => {
-                write!(
-                    formatter,
-                    "concrete {kind} refers to unknown source origin {origin}"
-                )
-            }
             Self::DuplicateObjectBackingClass { class } => {
                 write!(formatter, "class {class} backs more than one source object")
             }
-            Self::InvalidObjectOrigin { object, origin } => write!(
-                formatter,
-                "concrete object {object} has mismatched source origin {origin}"
-            ),
             Self::Cycle { ty } => write!(formatter, "type {ty} recursively contains itself"),
             Self::MissingIdentity { ty } => write!(formatter, "type {ty} has no exact identity"),
             Self::EmptyTuple { ty } => write!(formatter, "type {ty} is an empty tuple"),
