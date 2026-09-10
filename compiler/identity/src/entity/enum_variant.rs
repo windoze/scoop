@@ -53,6 +53,13 @@ enum EnumVariantIdentityKeyKind {
 }
 
 impl EnumVariantIdentityKey {
+    pub const fn source_owner(&self) -> Option<NominalDeclarationOwner> {
+        match &self.0 {
+            EnumVariantIdentityKeyKind::Source { owner, .. } => Some(*owner),
+            EnumVariantIdentityKeyKind::Generated { .. } => None,
+        }
+    }
+
     pub fn source(
         owner: &SourceDeclarationKey,
         name: CanonicalIdentifier,

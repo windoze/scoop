@@ -70,6 +70,9 @@ pub use visibility::*;
 mod source_record;
 pub use source_record::*;
 
+mod native_boundary;
+pub use native_boundary::*;
+
 mod source_interfaces;
 pub use source_interfaces::*;
 

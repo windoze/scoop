@@ -113,6 +113,17 @@ enum FieldIdentityKeyKind {
 }
 
 impl FieldIdentityKey {
+    pub const fn source_owner(&self) -> Option<NominalDeclarationOwner> {
+        match &self.0 {
+            FieldIdentityKeyKind::Source(SourceFieldKey(
+                SourceFieldKeyKind::Declared { owner, .. }
+                | SourceFieldKeyKind::PropertyBacking { owner, .. }
+                | SourceFieldKeyKind::PropertyDelegate { owner, .. },
+            )) => Some(*owner),
+            FieldIdentityKeyKind::Generated { .. } => None,
+        }
+    }
+
     pub fn source_declared(
         owner: &SourceDeclarationKey,
         name: CanonicalIdentifier,
