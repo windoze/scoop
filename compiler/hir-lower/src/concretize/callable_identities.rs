@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use scoop_identity::{
     CallableApplicationKey, CallableInstantiationOwner, CallableMaterialization,
-    CallableMaterializationContext, CallableTemplateOwner, CborIdentityRecord,
-    GeneratedCallableKey, NonEmptyVec, PersistentCallableApplicationId, StructuralDefinitionPath,
+    CallableMaterializationContext, CallableTemplateOwner, CallbackApplicationKey,
+    CborIdentityRecord, GeneratedCallableKey, NonEmptyVec, PersistentCallableApplicationId,
+    PersistentCallbackApplicationId, StructuralDefinitionPath,
 };
 
 use super::*;
@@ -31,15 +32,19 @@ impl Concretizer<'_> {
     pub(super) fn build_callable_identities(
         &self,
         exact_types: &concrete::ExactTypeIdentities,
-    ) -> (
-        concrete::CallableApplicationIdentities,
-        Vec<CallableMaterialization>,
-        Vec<concrete::FunctionEmission>,
-        Vec<CallableMaterialization>,
-        Vec<CallableMaterialization>,
-    ) {
+    ) -> BuiltCallableIdentities {
         CallableIdentityBuilder::new(self, exact_types).build()
     }
+}
+
+pub(super) struct BuiltCallableIdentities {
+    pub(super) callable_applications: concrete::CallableApplicationIdentities,
+    pub(super) callback_applications: concrete::CallbackApplicationIdentities,
+    pub(super) function_materializations: Vec<CallableMaterialization>,
+    pub(super) function_emissions: Vec<concrete::FunctionEmission>,
+    pub(super) class_constructor_materializations: Vec<CallableMaterialization>,
+    pub(super) struct_constructor_materializations: Vec<CallableMaterialization>,
+    pub(super) foreign_callback_applications: Vec<PersistentCallbackApplicationId>,
 }
 
 struct CallableIdentityBuilder<'a> {
@@ -52,6 +57,9 @@ struct CallableIdentityBuilder<'a> {
     visiting: Vec<bool>,
     applications: Vec<concrete::CallableApplicationRecord>,
     application_by_key: HashMap<CallableApplicationKey, PersistentCallableApplicationId>,
+    callback_applications: Vec<concrete::CallbackApplicationRecord>,
+    callback_application_by_key: HashMap<CallbackApplicationKey, PersistentCallbackApplicationId>,
+    foreign_callback_applications: Vec<Option<PersistentCallbackApplicationId>>,
 }
 
 impl<'a> CallableIdentityBuilder<'a> {
@@ -109,18 +117,13 @@ impl<'a> CallableIdentityBuilder<'a> {
             visiting: vec![false; concretizer.function_keys.len()],
             applications: Vec::new(),
             application_by_key: HashMap::new(),
+            callback_applications: Vec::new(),
+            callback_application_by_key: HashMap::new(),
+            foreign_callback_applications: vec![None; concretizer.foreign_callback_slots.len()],
         }
     }
 
-    fn build(
-        mut self,
-    ) -> (
-        concrete::CallableApplicationIdentities,
-        Vec<CallableMaterialization>,
-        Vec<concrete::FunctionEmission>,
-        Vec<CallableMaterialization>,
-        Vec<CallableMaterialization>,
-    ) {
+    fn build(mut self) -> BuiltCallableIdentities {
         for index in 0..self.concretizer.function_keys.len() {
             self.resolve_function(index);
         }
@@ -130,13 +133,16 @@ impl<'a> CallableIdentityBuilder<'a> {
         for index in 0..self.concretizer.struct_constructor_keys.len() {
             self.resolve_struct_constructor(index);
         }
-        let emissions = self
+        for index in 0..self.concretizer.foreign_callback_slots.len() {
+            self.resolve_foreign_callback(index);
+        }
+        let function_emissions = self
             .concretizer
             .function_keys
             .iter()
             .map(|key| self.emission(key))
             .collect();
-        let materializations = std::mem::take(&mut self.materializations)
+        let function_materializations = std::mem::take(&mut self.materializations)
             .into_iter()
             .enumerate()
             .map(|(index, materialization)| {
@@ -152,15 +158,23 @@ impl<'a> CallableIdentityBuilder<'a> {
             &mut self.struct_constructor_materializations,
             "struct constructor",
         );
-        let applications = concrete::CallableApplicationIdentities::checked(self.applications)
-            .expect("validated concrete callable applications form one complete acyclic table");
-        (
-            applications,
-            materializations,
-            emissions,
+        let callable_applications =
+            concrete::CallableApplicationIdentities::checked(self.applications)
+                .expect("validated concrete callable applications form one complete acyclic table");
+        let callback_applications =
+            concrete::CallbackApplicationIdentities::checked(self.callback_applications)
+                .expect("validated concrete callback applications form one canonical table");
+        let foreign_callback_applications =
+            complete_callback_applications(&mut self.foreign_callback_applications);
+        BuiltCallableIdentities {
+            callable_applications,
+            callback_applications,
+            function_materializations,
+            function_emissions,
             class_constructor_materializations,
             struct_constructor_materializations,
-        )
+            foreign_callback_applications,
+        }
     }
 
     fn resolve_function(&mut self, index: usize) -> CallableMaterialization {
@@ -308,6 +322,21 @@ impl<'a> CallableIdentityBuilder<'a> {
         materialization
     }
 
+    fn resolve_foreign_callback(&mut self, index: usize) -> PersistentCallbackApplicationId {
+        if let Some(application) = self.foreign_callback_applications[index] {
+            return application;
+        }
+        let pending = &self.concretizer.foreign_callback_slots[index];
+        let registration =
+            &self.concretizer.source.callback_registration_identities[pending.source];
+        let context = self.callback_context(pending.source, &pending.arguments);
+        let key = CallbackApplicationKey::new(registration.key(), context)
+            .expect("a concrete callback site has a complete materialization context");
+        let application = self.record_callback_application(key);
+        self.foreign_callback_applications[index] = Some(application);
+        application
+    }
+
     fn declaration_materialization(
         &mut self,
         key: &FunctionKey,
@@ -436,6 +465,22 @@ impl<'a> CallableIdentityBuilder<'a> {
         application
     }
 
+    fn record_callback_application(
+        &mut self,
+        key: CallbackApplicationKey,
+    ) -> PersistentCallbackApplicationId {
+        if let Some(application) = self.callback_application_by_key.get(&key) {
+            return *application;
+        }
+        let record = CborIdentityRecord::from_key(key)
+            .expect("validated callback application keys are hashable");
+        let application = record.id();
+        self.callback_application_by_key
+            .insert(record.key().to_owned(), application);
+        self.callback_applications.push(record);
+        application
+    }
+
     fn emission(&self, key: &FunctionKey) -> concrete::FunctionEmission {
         let arguments = self.concretizer.function_key_arguments(key);
         if arguments.is_empty() {
@@ -476,6 +521,19 @@ fn complete_materializations(
         .map(|(index, materialization)| {
             materialization
                 .unwrap_or_else(|| panic!("missing {description} materialization at index {index}"))
+        })
+        .collect()
+}
+
+fn complete_callback_applications(
+    applications: &mut Vec<Option<PersistentCallbackApplicationId>>,
+) -> Vec<PersistentCallbackApplicationId> {
+    std::mem::take(applications)
+        .into_iter()
+        .enumerate()
+        .map(|(index, application)| {
+            application
+                .unwrap_or_else(|| panic!("missing foreign callback application at index {index}"))
         })
         .collect()
 }

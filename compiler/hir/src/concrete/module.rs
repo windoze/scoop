@@ -9,6 +9,9 @@ pub struct Module {
     /// Canonical application identities referenced by callable
     /// materializations in this local graph.
     pub callable_applications: CallableApplicationIdentities,
+    /// Canonical callback applications referenced by concrete callback
+    /// registrations in this local graph.
+    pub callback_applications: CallbackApplicationIdentities,
     pub function_types: Arena<FunctionType>,
     pub lambdas: Arena<Lambda>,
     pub anonymous_functions: Arena<AnonymousFunction>,
@@ -327,7 +330,8 @@ pub struct IntrinsicTypeCore {
 
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
-    pub definition_path: scoop_identity::StructuralDefinitionPath,
+    /// Persistent identity of this fully concrete callback conversion.
+    pub application: PersistentCallbackApplicationId,
     pub callback: StructId,
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,

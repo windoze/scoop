@@ -194,7 +194,10 @@ impl Concretizer<'_> {
     ) -> concrete::ForeignCallbackRegistrationId {
         let key = (source_id, substitution.to_vec());
         if let Some(&id) = self.foreign_callback_by_key.get(&key) {
-            assert_eq!(self.foreign_callback_registrations[id].callback, callback);
+            assert_eq!(
+                self.foreign_callback_slots[id.into_raw().into_u32() as usize].callback,
+                callback
+            );
             return id;
         }
         let source = self.source.foreign_callback_registrations[source_id].clone();
@@ -209,10 +212,13 @@ impl Concretizer<'_> {
                 .contains(source.mode)
         );
         let mode = self.lower_applied_enum_variant_ref(source.mode, substitution);
-        let id = self
-            .foreign_callback_registrations
-            .alloc(concrete::ForeignCallbackRegistration {
-                definition_path: source.definition_path,
+        let id = concrete::ForeignCallbackRegistrationId::from_raw(
+            (self.foreign_callback_slots.len() as u32).into(),
+        );
+        self.foreign_callback_slots
+            .push(PendingForeignCallbackRegistration {
+                source: source_id,
+                arguments: substitution.to_vec(),
                 callback,
                 native_function_type,
                 managed_function_type,

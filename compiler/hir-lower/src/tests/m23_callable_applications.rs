@@ -24,6 +24,34 @@ fn generic_class(
     declaration
 }
 
+fn callback_registration(lambda_id: u32, mode: &str) -> ast::Expr {
+    let native_signature = ty_function(
+        false,
+        vec![ty_named("Int"), ty_generic("Ptr", vec![ty_named("Unit")])],
+        ty_named("Int"),
+    );
+    let callback = ast::Expr::Lambda {
+        id: ast::LambdaId(lambda_id),
+        is_suspend: false,
+        parameters: Some(vec![ast::LambdaParam {
+            target: pat_bind("value"),
+            ty: Some(ty_named("Int")),
+            span: sp(),
+        }]),
+        body: block(vec![stmt(var("value"))]),
+        span: sp(),
+    };
+    typed_source_call(
+        "foreignCallback",
+        vec![native_signature],
+        vec![
+            named_argument("mode", field(var("ForeignCallbackMode"), mode)),
+            named_argument("callback", callback),
+            named_argument("contextIndex", int_lit(1)),
+        ],
+    )
+}
+
 fn lambda_with_local(id: u32) -> ast::Expr {
     ast::Expr::Lambda {
         id: ast::LambdaId(id),
@@ -259,4 +287,99 @@ fn generic_nominal_constructors_have_persistent_applications() {
         adapters[0].context(),
         hir::concrete::CallableMaterializationContext::NoSubstitution
     ));
+}
+
+#[test]
+fn parameter_free_callback_has_one_persistent_application() {
+    let output = lower_user_output(file(vec![fun(
+        "main",
+        vec![unsafe_block(vec![val(
+            "registered",
+            callback_registration(0, "Reusable"),
+        )])],
+    )]))
+    .expect("a parameter-free callback conversion must materialize");
+    let module = &output.local;
+    let (_, registration) = module
+        .foreign_callback_registrations
+        .iter()
+        .next()
+        .expect("one concrete callback registration");
+    assert_eq!(module.foreign_callback_registrations.len(), 1);
+    assert_eq!(module.callback_applications.len(), 1);
+
+    let record = module
+        .callback_applications
+        .get(registration.application)
+        .expect("the concrete registration references its canonical application record");
+    assert_eq!(
+        record.key().registration(),
+        output.export.callback_registration_identities.records()[0].id()
+    );
+    assert!(matches!(
+        record.key().context(),
+        hir::concrete::CallableMaterializationContext::NoSubstitution
+    ));
+}
+
+#[test]
+fn generic_callback_site_is_distinct_for_each_enclosing_application() {
+    let output = lower_user_output(file(vec![
+        fun_sig(
+            "register",
+            vec!["T"],
+            vec![("value", ty_named("T"))],
+            None,
+            vec![unsafe_block(vec![val(
+                "registered",
+                callback_registration(0, "OneShot"),
+            )])],
+        ),
+        fun(
+            "main",
+            vec![
+                stmt(call("register", vec![int_lit(1)])),
+                stmt(call("register", vec![str_lit("value")])),
+            ],
+        ),
+    ]))
+    .expect("a callback source site must materialize in both generic applications");
+    let module = &output.local;
+
+    let enclosing_applications = module
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name == "register")
+        .map(|(_, function)| {
+            let hir::concrete::CallableMaterializationContext::Application(application) =
+                function.materialization.context()
+            else {
+                panic!("register<T> has a persistent callable application")
+            };
+            application
+        })
+        .collect::<HashSet<_>>();
+    assert_eq!(enclosing_applications.len(), 2);
+
+    let source_registration = output.export.callback_registration_identities.records()[0].id();
+    let callback_applications = module
+        .foreign_callback_registrations
+        .iter()
+        .map(|(_, registration)| {
+            let record = module
+                .callback_applications
+                .get(registration.application)
+                .expect("a concrete callback references its canonical application record");
+            assert_eq!(record.key().registration(), source_registration);
+            let hir::concrete::CallableMaterializationContext::Application(enclosing) =
+                record.key().context()
+            else {
+                panic!("a callback in register<T> inherits its callable application")
+            };
+            assert!(enclosing_applications.contains(&enclosing));
+            registration.application
+        })
+        .collect::<HashSet<_>>();
+    assert_eq!(callback_applications.len(), 2);
+    assert_eq!(module.callback_applications.len(), 2);
 }

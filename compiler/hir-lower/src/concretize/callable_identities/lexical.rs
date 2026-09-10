@@ -7,10 +7,34 @@ impl CallableIdentityBuilder<'_> {
         site: &LexicalSite,
         inherited_arguments: &[concrete::TypeId],
     ) -> CallableMaterializationContext {
-        if let Some(parent) = self.immediate_parent_function(function, site) {
+        self.enclosing_context(Some(function), site.root, &site.path, inherited_arguments)
+    }
+
+    pub(super) fn callback_context(
+        &mut self,
+        callback: export::ForeignCallbackRegistrationId,
+        inherited_arguments: &[concrete::TypeId],
+    ) -> CallableMaterializationContext {
+        let registration = &self.concretizer.source.foreign_callback_registrations[callback];
+        self.enclosing_context(
+            None,
+            registration.definition_root,
+            &registration.definition_path,
+            inherited_arguments,
+        )
+    }
+
+    fn enclosing_context(
+        &mut self,
+        excluded_function: Option<export::FunctionId>,
+        root: export::LexicalDefinitionRoot,
+        path: &scoop_identity::StructuralDefinitionPath,
+        inherited_arguments: &[concrete::TypeId],
+    ) -> CallableMaterializationContext {
+        if let Some(parent) = self.immediate_parent_function(excluded_function, root, path) {
             return self.function_context(parent, inherited_arguments);
         }
-        match site.root {
+        match root {
             export::LexicalDefinitionRoot::Function(parent) => {
                 self.function_context(parent, inherited_arguments)
             }
@@ -28,15 +52,16 @@ impl CallableIdentityBuilder<'_> {
 
     fn immediate_parent_function(
         &self,
-        function: export::FunctionId,
-        site: &LexicalSite,
+        excluded_function: Option<export::FunctionId>,
+        root: export::LexicalDefinitionRoot,
+        path: &scoop_identity::StructuralDefinitionPath,
     ) -> Option<export::FunctionId> {
-        let segments = site.path.segments();
+        let segments = path.segments();
         let mut candidate = None;
         for (possible_parent, possible_site) in &self.lexical_sites {
             let possible_segments = possible_site.path.segments();
-            if *possible_parent == function
-                || possible_site.root != site.root
+            if Some(*possible_parent) == excluded_function
+                || possible_site.root != root
                 || possible_segments.len() >= segments.len()
                 || !segments.starts_with(possible_segments)
             {

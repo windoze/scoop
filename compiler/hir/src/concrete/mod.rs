@@ -8,7 +8,8 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
-    CallableTemplateOwner, CborIdentityRecord, NonEmptyVec, PersistentCallableApplicationId,
+    CallableTemplateOwner, CallbackApplicationKey, CborIdentityRecord, NonEmptyVec,
+    PersistentCallableApplicationId, PersistentCallbackApplicationId,
 };
 
 pub use super::{
@@ -30,6 +31,9 @@ pub use exact_types::*;
 
 mod callable_applications;
 pub use callable_applications::*;
+
+mod callback_applications;
+pub use callback_applications::*;
 
 mod module;
 pub use module::*;

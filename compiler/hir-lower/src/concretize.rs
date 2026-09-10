@@ -13,6 +13,7 @@ use scoop_hir::concrete;
 mod body;
 mod callable_identities;
 mod callables;
+mod callback_slots;
 mod classes;
 mod closures;
 mod constructor_slots;
@@ -20,6 +21,7 @@ mod functions;
 mod nominals;
 mod types;
 
+use callback_slots::{PendingForeignCallbackRegistration, finish_foreign_callback_slots};
 use constructor_slots::{
     PendingClassConstructor, PendingStructConstructor, finish_class_constructor_slots,
     finish_struct_constructor_slots,
@@ -153,7 +155,7 @@ struct Concretizer<'a> {
     function_coercions: Arena<concrete::FunctionCoercion>,
     coercion_by_key:
         HashMap<(export::FunctionCoercionId, Vec<concrete::TypeId>), concrete::FunctionCoercionId>,
-    foreign_callback_registrations: Arena<concrete::ForeignCallbackRegistration>,
+    foreign_callback_slots: Vec<PendingForeignCallbackRegistration>,
     foreign_callback_by_key: HashMap<
         (export::ForeignCallbackRegistrationId, Vec<concrete::TypeId>),
         concrete::ForeignCallbackRegistrationId,
@@ -279,7 +281,7 @@ impl<'a> Concretizer<'a> {
             reference_by_key: HashMap::new(),
             function_coercions: Arena::new(),
             coercion_by_key: HashMap::new(),
-            foreign_callback_registrations: Arena::new(),
+            foreign_callback_slots: Vec::new(),
             foreign_callback_by_key: HashMap::new(),
             next_loop_identity: 0,
         }
@@ -617,34 +619,37 @@ impl<'a> Concretizer<'a> {
                 intrinsic_core: &intrinsic_type_core,
             })
             .expect("validated concretization produces a total exact-type identity relation");
-        let (
-            callable_applications,
-            materializations,
-            emissions,
-            class_constructor_materializations,
-            struct_constructor_materializations,
-        ) = self.build_callable_identities(&exact_type_identities);
-        let functions = finish_function_slots(self.function_slots, materializations, emissions);
+        let identities = self.build_callable_identities(&exact_type_identities);
+        let functions = finish_function_slots(
+            self.function_slots,
+            identities.function_materializations,
+            identities.function_emissions,
+        );
         let class_constructors = finish_class_constructor_slots(
             self.class_constructor_slots,
-            class_constructor_materializations,
+            identities.class_constructor_materializations,
         );
         let struct_constructors = finish_struct_constructor_slots(
             self.struct_constructor_slots,
-            struct_constructor_materializations,
+            identities.struct_constructor_materializations,
+        );
+        let foreign_callback_registrations = finish_foreign_callback_slots(
+            self.foreign_callback_slots,
+            identities.foreign_callback_applications,
         );
 
         let module = concrete::Module {
             types: self.types,
             exact_type_identities,
-            callable_applications,
+            callable_applications: identities.callable_applications,
+            callback_applications: identities.callback_applications,
             function_types: self.function_types,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
             callable_references: self.callable_references,
             function_coercions: self.function_coercions,
-            foreign_callback_registrations: self.foreign_callback_registrations,
+            foreign_callback_registrations,
             functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
