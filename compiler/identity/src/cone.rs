@@ -5,7 +5,7 @@ use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError}
 pub use crate::ids::ConeIdentity;
 use crate::ids::derive_persistent_id;
 
-const CONE_ID_DOMAIN_V1: &str = "scoop-cone-id-v1";
+const CONE_ID_DOMAIN: &str = "scoop-cone-id-v1";
 
 impl ConeIdentity {
     pub const CORE: Self = Self::from_protocol_bytes([
@@ -77,7 +77,7 @@ impl ConeCoordinate {
     }
 
     pub fn identity(&self) -> Result<ConeIdentity, HashError> {
-        derive_persistent_id(CONE_ID_DOMAIN_V1, self)
+        derive_persistent_id(CONE_ID_DOMAIN, self)
     }
 }
 

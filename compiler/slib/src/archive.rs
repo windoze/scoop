@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::Range;
 
-use scoop_wire::budget::COLLECTION_ELEMENT_BYTES_V1;
+use scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
 use scoop_wire::{BudgetMeter, WireError, WirePath, sha256};
 
 use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
@@ -360,12 +360,7 @@ impl<'input> ManifestArchive<'input> {
             .check_table_entries(record_count, &path)
             .map_err(ArchiveReadError::Budget)?;
         meter
-            .try_reserve_exact(
-                &mut ranges,
-                record_count,
-                COLLECTION_ELEMENT_BYTES_V1,
-                &path,
-            )
+            .try_reserve_exact(&mut ranges, record_count, COLLECTION_ELEMENT_BYTES, &path)
             .map_err(ArchiveReadError::Budget)?;
         let mut cursor = self.next_header;
         for (index, record) in records.iter().enumerate() {

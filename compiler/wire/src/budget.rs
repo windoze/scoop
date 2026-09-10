@@ -2,11 +2,11 @@ use std::fmt;
 
 use crate::{WireError, WireErrorKind, WirePath};
 
-pub const LOGICAL_NODE_BYTES_V1: u64 = 64;
-pub const COLLECTION_ELEMENT_BYTES_V1: u64 = 32;
-pub const GRAPH_EDGE_BYTES_V1: u64 = 16;
-pub const READY_SET_ELEMENT_BYTES_V1: u64 = 40;
-pub const PENDING_REMAP_ENTRY_BYTES_V1: u64 = 96;
+pub const LOGICAL_NODE_BYTES: u64 = 64;
+pub const COLLECTION_ELEMENT_BYTES: u64 = 32;
+pub const GRAPH_EDGE_BYTES: u64 = 16;
+pub const READY_SET_ELEMENT_BYTES: u64 = 40;
+pub const PENDING_REMAP_ENTRY_BYTES: u64 = 96;
 
 /// Resources covered by the deterministic logical decode cost model.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -145,7 +145,7 @@ impl BudgetMeter {
             self.limits.decoded_nodes,
             path,
         )?;
-        self.charge_heap(product(count, LOGICAL_NODE_BYTES_V1, path)?, path)
+        self.charge_heap(product(count, LOGICAL_NODE_BYTES, path)?, path)
     }
 
     pub fn charge_collection_slots(
@@ -154,7 +154,7 @@ impl BudgetMeter {
         path: &WirePath,
     ) -> Result<(), WireError> {
         self.check_table_entries(count, path)?;
-        self.charge_heap(product(count, COLLECTION_ELEMENT_BYTES_V1, path)?, path)
+        self.charge_heap(product(count, COLLECTION_ELEMENT_BYTES, path)?, path)
     }
 
     pub fn charge_edges(&mut self, count: u64, path: &WirePath) -> Result<(), WireError> {
@@ -165,7 +165,7 @@ impl BudgetMeter {
             self.limits.decoded_edges,
             path,
         )?;
-        self.charge_heap(product(count, GRAPH_EDGE_BYTES_V1, path)?, path)
+        self.charge_heap(product(count, GRAPH_EDGE_BYTES, path)?, path)
     }
 
     pub fn charge_heap(&mut self, bytes: u64, path: &WirePath) -> Result<(), WireError> {
@@ -225,12 +225,12 @@ impl BudgetMeter {
         let work = comparisons.checked_add(edge_count).ok_or_else(|| {
             limit_error(ResourceKind::ValidationWorkUnits, u64::MAX, u64::MAX, path)
         })?;
-        self.charge_heap(product(node_count, READY_SET_ELEMENT_BYTES_V1, path)?, path)?;
+        self.charge_heap(product(node_count, READY_SET_ELEMENT_BYTES, path)?, path)?;
         self.charge_work(work, path)
     }
 
     pub fn charge_pending_remap(&mut self, count: u64, path: &WirePath) -> Result<(), WireError> {
-        self.charge_heap(product(count, PENDING_REMAP_ENTRY_BYTES_V1, path)?, path)
+        self.charge_heap(product(count, PENDING_REMAP_ENTRY_BYTES, path)?, path)
     }
 
     pub fn try_reserve_exact<T>(

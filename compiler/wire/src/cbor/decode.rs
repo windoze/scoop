@@ -1,4 +1,4 @@
-use crate::budget::{BudgetMeter, COLLECTION_ELEMENT_BYTES_V1, DecodeLimits};
+use crate::budget::{BudgetMeter, COLLECTION_ELEMENT_BYTES, DecodeLimits};
 use crate::{PathSegment, WireError, WireErrorKind, WirePath, WireType};
 
 use super::encode::encode_with_limit;
@@ -238,7 +238,7 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
             usize::try_from(length).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
         values.try_reserve_exact(capacity).map_err(|_| {
             self.error(WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: length.saturating_mul(COLLECTION_ELEMENT_BYTES_V1),
+                requested_logical_bytes: length.saturating_mul(COLLECTION_ELEMENT_BYTES),
                 requested_slots: length,
             })
         })?;
