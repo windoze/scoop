@@ -21,6 +21,9 @@ use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 use crate::{CallbackBridgeRecord, RuntimeTypeMappingRecord, SafepointMappingRecord};
 use scoop_identity::PersistentSymbolRequestTable;
 
+mod wire;
+pub use wire::ValidatedLirFoundationWire;
+
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type LayoutRecord = CborIdentityRecord<PersistentLayoutId, LayoutKey>;
 type ScanRecord = CborIdentityRecord<PersistentScanId, ScanKey>;
