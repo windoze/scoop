@@ -118,6 +118,7 @@ mod patterns;
 mod persistent_accessors;
 mod persistent_aliases;
 mod persistent_enum_members;
+mod persistent_fields;
 mod persistent_nominals;
 mod persistent_object_values;
 mod persistent_properties;

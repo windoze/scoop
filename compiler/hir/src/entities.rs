@@ -15,6 +15,8 @@ pub struct Module {
     pub type_alias_identities: HirTypeAliasIdentities,
     /// Total persistent identity relation for source enum variants and fields.
     pub enum_member_identities: HirEnumMemberIdentities,
+    /// Total persistent identity relation for struct and class storage fields.
+    pub field_identities: HirFieldIdentities,
     /// Total persistent identity and declaration relation for object values.
     pub object_value_identities: HirObjectValueIdentities,
     /// Explicit public source API. Internal/private implementation entities

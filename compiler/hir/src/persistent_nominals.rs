@@ -95,6 +95,15 @@ impl HirNominalIdentity {
         }
     }
 
+    pub const fn generated(
+        &self,
+    ) -> Option<&CborIdentityRecord<PersistentTypeId, GeneratedNominalKey>> {
+        match self {
+            Self::Source(_) => None,
+            Self::Generated(record) => Some(record),
+        }
+    }
+
     pub const fn concrete_type_id(&self) -> Option<PersistentTypeId> {
         match self {
             Self::Source(identity) => identity.concrete_id(),

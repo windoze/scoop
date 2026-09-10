@@ -88,6 +88,9 @@ pub use persistent_aliases::*;
 mod persistent_enum_members;
 pub use persistent_enum_members::*;
 
+mod persistent_fields;
+pub use persistent_fields::*;
+
 mod persistent_object_values;
 pub use persistent_object_values::*;
 
