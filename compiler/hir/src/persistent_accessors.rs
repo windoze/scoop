@@ -137,6 +137,14 @@ impl HirPropertyAccessorIdentities {
         })
     }
 
+    pub fn get_getter(&self, id: PropertyGetterId) -> Option<&HirPropertyAccessorIdentity> {
+        self.getters.get(local_index(id))
+    }
+
+    pub fn get_setter(&self, id: PropertySetterId) -> Option<&HirPropertyAccessorIdentity> {
+        self.setters.get(local_index(id))
+    }
+
     fn check_length(
         table: AccessorTable,
         expected: usize,

@@ -82,6 +82,10 @@ impl HirTypeIdentities {
     pub fn from_types(inputs: HirTypeIdentityInputs<'_>) -> Result<Self, HirTypeIdentityError> {
         builder::build(inputs)
     }
+
+    pub fn get(&self, id: TypeId) -> Option<&HirTypeIdentity> {
+        self.identities.get(id.into_raw().into_u32() as usize)
+    }
 }
 
 impl Index<TypeId> for HirTypeIdentities {
