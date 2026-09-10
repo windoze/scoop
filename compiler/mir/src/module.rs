@@ -109,7 +109,71 @@ pub struct CallbackBridge {
 pub struct ForeignCallbackAdapter {
     pub function: FunctionId,
     pub managed_signature: FunctionTypeId,
+    identity: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentGeneratedCallableId,
+        scoop_identity::GeneratedCallableKey,
+    >,
+    exact_managed_signature: scoop_identity::ExactCallableSignature,
 }
+
+impl ForeignCallbackAdapter {
+    pub fn checked(
+        function: FunctionId,
+        managed_signature: FunctionTypeId,
+        managed_shape: &FunctionType,
+        application: scoop_identity::PersistentCallbackApplicationId,
+        exact_managed_signature: scoop_identity::ExactCallableSignature,
+    ) -> Result<Self, ForeignCallbackAdapterError> {
+        if managed_shape.is_suspend
+            || exact_managed_signature.effect() != scoop_identity::Effect::Ordinary
+            || exact_managed_signature.receiver().is_present()
+            || exact_managed_signature.parameters().len() != managed_shape.parameter_types.len()
+        {
+            return Err(ForeignCallbackAdapterError::InvalidManagedSignature);
+        }
+        let identity = scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::GeneratedCallableKey::ForeignCallbackManagedAdapter { application },
+        )
+        .map_err(ForeignCallbackAdapterError::Identity)?;
+        Ok(Self {
+            function,
+            managed_signature,
+            identity,
+            exact_managed_signature,
+        })
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentGeneratedCallableId,
+        scoop_identity::GeneratedCallableKey,
+    > {
+        &self.identity
+    }
+
+    pub const fn exact_managed_signature(&self) -> &scoop_identity::ExactCallableSignature {
+        &self.exact_managed_signature
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ForeignCallbackAdapterError {
+    InvalidManagedSignature,
+    Identity(scoop_identity::GeneratedCallableIdentityError),
+}
+
+impl std::fmt::Display for ForeignCallbackAdapterError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidManagedSignature => formatter
+                .write_str("managed callback adapter requires an ordinary receiver-free signature"),
+            Self::Identity(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for ForeignCallbackAdapterError {}
 
 /// One concrete `ForeignCallback<F>` protocol family. The record atomically
 /// binds the callback value, state result, and failure result to their exact
@@ -282,6 +346,7 @@ pub struct ForeignCallbackBridge {
     pub native_signature: FunctionTypeId,
     pub context_index: u32,
     pub mode: MirVariantRef,
+    pub callback_mode: scoop_identity::CallbackMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -227,6 +227,13 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         .iter()
         .next()
         .expect("registration generates one managed adapter");
+    assert!(matches!(
+        adapter.identity_record().key(),
+        scoop_identity::GeneratedCallableKey::ForeignCallbackManagedAdapter { application }
+            if *application == expected_application
+    ));
+    assert_eq!(adapter.exact_managed_signature().parameters().len(), 2);
+    assert_eq!(bridge.callback_mode, scoop_identity::CallbackMode::Reusable);
     let function = &module.functions[adapter.function];
     assert_eq!(
         function.return_ty,

@@ -7,11 +7,11 @@ use support::*;
 use scoop_identity::{
     CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
     CallbackRegistrationKey, CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal,
-    DeclarationScope, DefinitionOwnerChain, Effect, LexicalCallableParent, PackagePath,
-    PersistentCallbackApplicationId, PersistentFunctionId, SignatureCallableShape,
-    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
-    SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
+    LexicalCallableParent, PackagePath, PersistentCallbackApplicationId, PersistentExactTypeId,
+    PersistentFunctionId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 fn nominal_link_stem(name: impl Into<String>) -> mir::NominalLinkStem {
@@ -61,6 +61,12 @@ fn callback_application() -> PersistentCallbackApplicationId {
     )
     .unwrap();
     PersistentCallbackApplicationId::from_key(&application).unwrap()
+}
+
+fn exact_callback_signature() -> ExactCallableSignature {
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit)).unwrap();
+    ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit)
 }
 
 #[test]
@@ -575,13 +581,17 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             states,
             failure_result,
         });
-    let adapter = module
-        .foreign_callback_adapters
-        .alloc(mir::ForeignCallbackAdapter {
-            function: main,
-            managed_signature,
-        });
     let application = callback_application();
+    let adapter = module.foreign_callback_adapters.alloc(
+        mir::ForeignCallbackAdapter::checked(
+            main,
+            managed_signature,
+            &module.function_types[managed_signature],
+            application,
+            exact_callback_signature(),
+        )
+        .unwrap(),
+    );
     module
         .foreign_callback_bridges
         .alloc(mir::ForeignCallbackBridge {
@@ -591,6 +601,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             native_signature,
             context_index: 0,
             mode: modes.reusable(),
+            callback_mode: CallbackMode::Reusable,
         });
 
     let lowered = lower(&module);

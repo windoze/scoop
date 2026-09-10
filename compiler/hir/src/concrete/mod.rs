@@ -8,9 +8,10 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
-    CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CborIdentityRecord,
-    NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError,
-    OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
+    CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CallbackMode,
+    CborIdentityRecord, Effect, ExactCallableSignature, NonEmptyVec, OdrGroupId,
+    OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole,
+    PersistentCallableApplicationId, PersistentCallbackApplicationId,
     PersistentGeneratedCallableId, SpecializationKey,
 };
 

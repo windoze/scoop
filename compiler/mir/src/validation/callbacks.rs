@@ -111,8 +111,38 @@ pub(super) fn validate_foreign_callback_metadata(
         if adapter.managed_signature.into_raw().into_u32() as usize >= module.function_types.len() {
             return Err(fail("adapter managed signature reference is out of bounds"));
         }
+        if !matches!(
+            adapter.identity_record().key(),
+            scoop_identity::GeneratedCallableKey::ForeignCallbackManagedAdapter { application }
+                if *application == bridge.application
+        ) {
+            return Err(fail(
+                "adapter persistent identity does not match the callback application",
+            ));
+        }
+        let managed_signature = &module.function_types[adapter.managed_signature];
+        if managed_signature.is_suspend
+            || adapter.exact_managed_signature().effect() != scoop_identity::Effect::Ordinary
+            || adapter.exact_managed_signature().receiver().is_present()
+            || adapter.exact_managed_signature().parameters().len()
+                != managed_signature.parameter_types.len()
+        {
+            return Err(fail(
+                "adapter exact managed signature has an invalid callback shape",
+            ));
+        }
         if bridge.native_signature.into_raw().into_u32() as usize >= module.function_types.len() {
             return Err(fail("native signature reference is out of bounds"));
+        }
+        let expected_callback_mode = if bridge.mode == family.modes.reusable() {
+            scoop_identity::CallbackMode::Reusable
+        } else {
+            scoop_identity::CallbackMode::OneShot
+        };
+        if bridge.callback_mode != expected_callback_mode {
+            return Err(fail(
+                "persistent callback mode does not match the protocol variant",
+            ));
         }
         if bridge.context_index as usize
             >= module.function_types[bridge.native_signature]

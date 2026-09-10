@@ -218,6 +218,8 @@ impl BodyLowerer<'_> {
         }
         let native_signature = self.lower_function_type_id(registration.native_function_type);
         let managed_signature = self.lower_function_type_id(registration.managed_function_type);
+        let exact_managed_signature =
+            exact_callback_signature(self.module, registration.managed_function_type);
         let callback = self.struct_map[&registration.callback];
         let family = self.ensure_foreign_callback_family(callback);
         let mode = self.enums.lower_variant_ref(registration.mode);
@@ -225,6 +227,17 @@ impl BodyLowerer<'_> {
             self.foreign_callback_families[family].modes.contains(mode),
             "a callback registration mode belongs to the validated core protocol"
         );
+        let callback_mode =
+            if registration.mode == self.module.foreign_callback_core.modes.reusable() {
+                hir::CallbackMode::Reusable
+            } else {
+                assert_eq!(
+                    registration.mode,
+                    self.module.foreign_callback_core.modes.one_shot(),
+                    "a callback registration mode belongs to the validated core protocol"
+                );
+                hir::CallbackMode::OneShot
+            };
         let signature = self.shell.function_types[managed_signature].clone();
         debug_assert!(!signature.is_suspend);
 
@@ -427,12 +440,16 @@ impl BodyLowerer<'_> {
             },
         });
         self.top_level.push(function);
-        let adapter = self
-            .foreign_callback_adapters
-            .alloc(mir::ForeignCallbackAdapter {
+        let adapter = self.foreign_callback_adapters.alloc(
+            mir::ForeignCallbackAdapter::checked(
                 function,
                 managed_signature,
-            });
+                &signature,
+                registration.application,
+                exact_managed_signature,
+            )
+            .expect("a callback adapter generated-callable identity is hashable"),
+        );
         let bridge = self
             .foreign_callback_bridges
             .alloc(mir::ForeignCallbackBridge {
@@ -442,9 +459,28 @@ impl BodyLowerer<'_> {
                 native_signature,
                 context_index: registration.context_index,
                 mode,
+                callback_mode,
             });
         self.foreign_callback_by_application
             .insert(registration.application, bridge);
         bridge
     }
+}
+
+fn exact_callback_signature(
+    module: &hir::Module,
+    signature: hir::FunctionTypeId,
+) -> hir::ExactCallableSignature {
+    let signature = &module.function_types[signature];
+    assert!(!signature.is_suspend, "a managed callback cannot suspend");
+    hir::ExactCallableSignature::new(
+        hir::Effect::Ordinary,
+        None,
+        signature
+            .parameter_types
+            .iter()
+            .map(|parameter| module.exact_type_identities[*parameter].id())
+            .collect(),
+        module.exact_type_identities[signature.return_type].id(),
+    )
 }
