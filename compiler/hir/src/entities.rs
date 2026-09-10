@@ -28,6 +28,9 @@ pub struct Module {
     /// Total persistent identity relation for source constructors and the
     /// explicitly distinguished generated zero-argument adapters.
     pub constructor_identities: HirConstructorIdentities,
+    /// Total persistent identity relation for source, accessor, lexical,
+    /// initialization and compiler-derived functions.
+    pub function_identities: HirFunctionIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

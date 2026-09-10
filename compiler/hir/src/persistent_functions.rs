@@ -14,8 +14,8 @@ use crate::{
     AnonymousFunction, ClassConstructor, DerivedEqualityApplication, DerivedEqualityApplicationId,
     EnumDecl, Function, FunctionId, HirConstructorIdentities, HirEnumMemberIdentities,
     HirInitializationUnitIdentities, HirPropertyAccessorIdentities, HirTypeIdentities,
-    InitializationUnit, InitializationUnitId, Lambda, PropertyGetter, PropertyGetterId,
-    PropertySetter, PropertySetterId, StructConstructor, StructDecl,
+    InitializationUnit, InitializationUnitId, Lambda, LocalFunction, PropertyGetter,
+    PropertyGetterId, PropertySetter, PropertySetterId, StructConstructor, StructDecl,
 };
 
 mod error;
@@ -194,6 +194,7 @@ pub struct HirFunctionIdentityInputs<'a> {
     pub functions: &'a Arena<Function>,
     pub lambdas: &'a Arena<Lambda>,
     pub anonymous_functions: &'a Arena<AnonymousFunction>,
+    pub local_functions: &'a Arena<LocalFunction>,
     pub property_getters: &'a Arena<PropertyGetter>,
     pub property_setters: &'a Arena<PropertySetter>,
     pub property_accessor_identities: &'a HirPropertyAccessorIdentities,

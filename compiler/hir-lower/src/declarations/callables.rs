@@ -95,6 +95,12 @@ impl Lowerer {
             }),
             span: decl.span,
         });
+        self.source_function_declarations.insert(
+            id,
+            crate::SourceFunctionDeclaration {
+                name: decl.name.text.clone(),
+            },
+        );
         if let Some(intrinsic) = checked.intrinsic {
             self.register_intrinsic_function(id, intrinsic, decl.span);
         }
@@ -202,6 +208,12 @@ impl Lowerer {
             method: None,
             span: decl.span,
         });
+        self.source_function_declarations.insert(
+            id,
+            crate::SourceFunctionDeclaration {
+                name: decl.name.text.clone(),
+            },
+        );
         if let Some(intrinsic) = checked.intrinsic {
             self.register_intrinsic_function(id, intrinsic, decl.span);
         }

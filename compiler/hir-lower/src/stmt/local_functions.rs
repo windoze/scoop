@@ -96,6 +96,13 @@ impl Lowerer {
             method: None,
             span: decl.span,
         });
+        self.source_function_declarations.insert(
+            function,
+            crate::SourceFunctionDeclaration {
+                name: decl.name.text.clone(),
+            },
+        );
+        self.function_files.insert(function, self.current_file);
         self.signatures.insert(
             function,
             FnSig {

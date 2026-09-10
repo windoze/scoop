@@ -642,6 +642,93 @@ impl Harness {
             &self.class_constructors,
             &self.class_constructor_applications,
         );
+        let function_identity_rows = self
+            .functions
+            .iter()
+            .map(|(function, declaration)| {
+                let accessor = self
+                    .property_getters
+                    .iter()
+                    .find_map(|(getter, value)| {
+                        matches!(
+                            value.implementation,
+                            hir::PropertyAccessorImplementation::Body(actual)
+                                | hir::PropertyAccessorImplementation::AbstractSlot(actual)
+                                if actual == function
+                        )
+                        .then_some(hir::HirPropertyAccessorFunction::Getter(getter))
+                    })
+                    .or_else(|| {
+                        self.property_setters.iter().find_map(|(setter, value)| {
+                            matches!(
+                                value.implementation,
+                                hir::PropertyAccessorImplementation::Body(actual)
+                                    | hir::PropertyAccessorImplementation::AbstractSlot(actual)
+                                    if actual == function
+                            )
+                            .then_some(hir::HirPropertyAccessorFunction::Setter(setter))
+                        })
+                    });
+                if let Some(accessor) = accessor {
+                    return hir::HirFunctionIdentity::property_accessor(accessor);
+                }
+                assert!(!matches!(
+                    declaration.kind,
+                    hir::FunctionKind::DerivedEquality
+                ));
+                let site = scoop_identity::SourceDeclarationSite::new(
+                    scoop_identity::ConeIdentity::SINGLE_FILE,
+                    scoop_identity::PackagePath::root(),
+                    scoop_identity::DefinitionOwnerChain::top_level(),
+                    scoop_identity::DeclarationScope::ConeWide,
+                )
+                .unwrap();
+                let source_name = format!("fixture_function_{}", function.into_raw().into_u32());
+                let name = scoop_identity::CanonicalIdentifier::new(&source_name).unwrap();
+                let own_type_parameters = match &declaration.genericity {
+                    hir::FunctionGenericity::Generic { parameters, .. } => parameters.len(),
+                    hir::FunctionGenericity::GenericMethod {
+                        method_parameters, ..
+                    } => method_parameters.len(),
+                    hir::FunctionGenericity::Plain
+                    | hir::FunctionGenericity::OwnerParameterizedMethod { .. } => 0,
+                };
+                let identity = hir::HirSourceFunctionIdentity::from_declaration(
+                    scoop_identity::SourceDeclarationKey::function(
+                        site,
+                        name,
+                        u32::try_from(own_type_parameters).unwrap(),
+                        None,
+                        Vec::new(),
+                    ),
+                )
+                .unwrap();
+                hir::HirFunctionIdentity::source(identity)
+            })
+            .collect();
+        let function_identities = hir::HirFunctionIdentities::checked(
+            hir::HirFunctionIdentityInputs {
+                functions: &self.functions,
+                lambdas: &Arena::new(),
+                anonymous_functions: &Arena::new(),
+                local_functions: &Arena::new(),
+                property_getters: &self.property_getters,
+                property_setters: &self.property_setters,
+                property_accessor_identities: &property_accessor_identities,
+                initialization_units: &Arena::new(),
+                initialization_unit_identities: &initialization_unit_identities,
+                derived_equality_applications: &Arena::new(),
+                structs: &self.structs,
+                enums: &self.enums,
+                type_identities: &type_identities,
+                struct_constructors: &self.struct_constructors,
+                class_constructors: &self.class_constructors,
+                constructor_identities: &constructor_identities,
+                enum_member_identities: &enum_member_identities,
+            },
+            function_identity_rows,
+        )
+        .expect("the MIR test fixture functions have persistent identities");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -653,6 +740,7 @@ impl Harness {
             initialization_unit_identities,
             type_identities,
             constructor_identities,
+            function_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),

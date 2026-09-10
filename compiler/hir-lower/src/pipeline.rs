@@ -139,6 +139,7 @@ impl Lowerer {
             interface_applications: Arena::new(),
             interface_application_by_key: HashMap::new(),
             functions: Arena::new(),
+            source_function_declarations: HashMap::new(),
             intrinsic_functions: HashMap::new(),
             intrinsic_type_owners: HashMap::new(),
             extern_functions: Arena::new(),

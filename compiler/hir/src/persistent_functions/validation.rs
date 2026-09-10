@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use la_arena::Idx;
 use scoop_identity::{
-    GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent, LexicalCallableRole,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    StructuralDefinitionPath,
+    DeclarationScope, DefinitionOwnerAtom, GeneratedCallableKey, InitializationCallableRole,
+    LexicalCallableParent, LexicalCallableRole, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, StructuralDefinitionPath,
 };
 
 use super::{
@@ -13,8 +13,15 @@ use super::{
 };
 use crate::{FunctionId, FunctionKind, LexicalDefinitionRoot, PropertyAccessorImplementation};
 
+mod topology;
+use topology::{resolve_definition_owner, resolve_lexical_parent};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum ClaimKind {
+    LocalSource {
+        root: LexicalDefinitionRoot,
+        path: StructuralDefinitionPath,
+    },
     PropertyAccessor(HirPropertyAccessorFunction),
     Lexical {
         root: LexicalDefinitionRoot,
@@ -48,6 +55,7 @@ pub(super) fn validate(
     let mut claims = vec![None; inputs.functions.len()];
     claim_accessors(inputs, &mut claims)?;
     claim_lexical_functions(inputs, &mut claims)?;
+    claim_local_functions(inputs, &mut claims)?;
     claim_initialization(inputs, &mut claims)?;
     let nominal_derived = claim_derived_equality(inputs, &mut claims)?;
 
@@ -141,6 +149,26 @@ fn claim_lexical_functions(
             ClaimKind::Lexical {
                 root: declaration.definition_root,
                 role: LexicalCallableRole::AnonymousFunctionBody,
+                path: declaration.definition_path.clone(),
+            },
+        )?;
+    }
+    Ok(())
+}
+
+fn claim_local_functions(
+    inputs: &HirFunctionIdentityInputs<'_>,
+    claims: &mut [Option<Claim>],
+) -> Result<(), HirFunctionIdentityError> {
+    for (local, declaration) in inputs.local_functions.iter() {
+        claim(
+            inputs,
+            claims,
+            declaration.function,
+            FunctionIdentityRelation::LocalFunction,
+            raw_index(local),
+            ClaimKind::LocalSource {
+                root: declaration.definition_root,
                 path: declaration.definition_path.clone(),
             },
         )?;
@@ -284,6 +312,15 @@ fn validate_entry(
     match (identity, claim) {
         (HirFunctionIdentity::Source(_), None) if !is_derived => Ok(()),
         (
+            HirFunctionIdentity::Source(source),
+            Some(Claim {
+                kind: ClaimKind::LocalSource { root, path },
+                ..
+            }),
+        ) if !is_derived => {
+            validate_local_source(inputs, identities, function, source, *root, path)
+        }
+        (
             HirFunctionIdentity::PropertyAccessor(actual),
             Some(Claim {
                 kind: ClaimKind::PropertyAccessor(expected),
@@ -297,7 +334,7 @@ fn validate_entry(
                 ..
             }),
         ) => {
-            let parent = resolve_lexical_parent(inputs, identities, function, *root)?;
+            let parent = resolve_lexical_parent(inputs, identities, function, *root, path)?;
             if record.key()
                 == &(GeneratedCallableKey::Lexical {
                     parent,
@@ -347,6 +384,32 @@ fn validate_entry(
         _ => Err(HirFunctionIdentityError::IdentityKind {
             function: raw_index(function),
         }),
+    }
+}
+
+fn validate_local_source(
+    inputs: &HirFunctionIdentityInputs<'_>,
+    identities: &[HirFunctionIdentity],
+    function: FunctionId,
+    identity: &HirSourceFunctionIdentity,
+    root: LexicalDefinitionRoot,
+    path: &StructuralDefinitionPath,
+) -> Result<(), HirFunctionIdentityError> {
+    let declaration = identity.declaration();
+    let valid_scope = matches!(
+        declaration.scope(),
+        DeclarationScope::LexicalScoped {
+            source,
+            path: declaration_path,
+        } if source.cone() == declaration.origin() && declaration_path == path
+    );
+    let parent = resolve_definition_owner(inputs, identities, function, root, path)?;
+    if valid_scope && declaration.owners().owners().last() == Some(&parent) {
+        Ok(())
+    } else {
+        Err(HirFunctionIdentityError::LexicalIdentity {
+            function: raw_index(function),
+        })
     }
 }
 
@@ -431,81 +494,6 @@ fn validate_derived_equality(
         }
     }
     Ok(())
-}
-
-fn resolve_lexical_parent(
-    inputs: &HirFunctionIdentityInputs<'_>,
-    identities: &[HirFunctionIdentity],
-    function: FunctionId,
-    root: LexicalDefinitionRoot,
-) -> Result<LexicalCallableParent, HirFunctionIdentityError> {
-    let invalid = || HirFunctionIdentityError::LexicalIdentity {
-        function: raw_index(function),
-    };
-    match root {
-        LexicalDefinitionRoot::Function(root) => {
-            let root_identity = identities.get(local_index(root)).ok_or_else(invalid)?;
-            match root_identity {
-                HirFunctionIdentity::Source(identity) => Ok(identity.lexical_parent()),
-                HirFunctionIdentity::PropertyAccessor(accessor) => {
-                    let id = match accessor {
-                        HirPropertyAccessorFunction::Getter(getter) => inputs
-                            .property_accessor_identities
-                            .get_getter(*getter)
-                            .ok_or_else(invalid)?
-                            .id(),
-                        HirPropertyAccessorFunction::Setter(setter) => inputs
-                            .property_accessor_identities
-                            .get_setter(*setter)
-                            .ok_or_else(invalid)?
-                            .id(),
-                    };
-                    Ok(LexicalCallableParent::accessor(id))
-                }
-                HirFunctionIdentity::LexicalGenerated(record)
-                | HirFunctionIdentity::Initialization { record, .. } => {
-                    LexicalCallableParent::from_generated_key(record.key())
-                        .map_err(HirFunctionIdentityError::LexicalParent)
-                }
-                HirFunctionIdentity::DerivedEquality(_) => Err(invalid()),
-            }
-        }
-        LexicalDefinitionRoot::ClassConstructor(root) => {
-            if local_index(root) >= inputs.class_constructors.len() {
-                return Err(invalid());
-            }
-            let identity = &inputs.constructor_identities[root];
-            if let Some(record) = identity.source_record() {
-                Ok(LexicalCallableParent::constructor(record.id()))
-            } else if let Some(record) = identity.generated_record() {
-                LexicalCallableParent::from_generated_key(record.key())
-                    .map_err(HirFunctionIdentityError::LexicalParent)
-            } else {
-                Err(invalid())
-            }
-        }
-        LexicalDefinitionRoot::StructConstructor(root) => {
-            if local_index(root) >= inputs.struct_constructors.len() {
-                return Err(invalid());
-            }
-            Ok(LexicalCallableParent::constructor(
-                inputs.constructor_identities[root].id(),
-            ))
-        }
-        LexicalDefinitionRoot::VariantConstructor(root) => {
-            let enumeration = root.enumeration();
-            if local_index(enumeration) >= inputs.enums.len() {
-                return Err(invalid());
-            }
-            let declaration = &inputs.enums[enumeration];
-            if root.local_index() as usize >= declaration.variants.len() {
-                return Err(invalid());
-            }
-            Ok(LexicalCallableParent::variant_constructor(
-                inputs.enum_member_identities[root].id(),
-            ))
-        }
-    }
 }
 
 fn collect_unique_ids(

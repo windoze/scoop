@@ -121,6 +121,7 @@ mod persistent_aliases;
 mod persistent_constructor_identities;
 mod persistent_enum_members;
 mod persistent_fields;
+mod persistent_functions;
 mod persistent_initialization_units;
 mod persistent_nominals;
 mod persistent_object_values;
@@ -357,6 +358,13 @@ struct SourceProvider {
     source: String,
 }
 
+/// Source spelling retained for every source FunctionId.
+/// Generated/accessor/initialization functions are deliberately absent.
+#[derive(Debug, Clone)]
+pub(crate) struct SourceFunctionDeclaration {
+    pub(crate) name: String,
+}
+
 /// Convert an already checked export-side graph into the local concrete graph.
 /// Kept public so stage-boundary tests can feed handcrafted checked HIR through
 /// the same fixed-point pass as the production pipeline.
@@ -455,6 +463,9 @@ pub(crate) struct Lowerer {
     pub(crate) interface_application_by_key:
         HashMap<(InterfaceId, Vec<TypeId>), hir::InterfaceApplicationId>,
     pub(crate) functions: Arena<Function>,
+    /// Typed source-declaration provenance. Display names cannot substitute
+    /// for this relation because member and lifted-local names are decorated.
+    pub(crate) source_function_declarations: HashMap<FunctionId, SourceFunctionDeclaration>,
     /// Complete source relation for every validated intrinsic kind. Duplicate
     /// declarations are diagnosed at insertion; core contract validation reads
     /// this map directly and never scans functions or compares names.
