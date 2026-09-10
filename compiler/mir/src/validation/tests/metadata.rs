@@ -1,5 +1,78 @@
 use super::*;
 
+fn source_local_record() -> SourceLocalValueRecord {
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new("sourceLocalOwner").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    scoop_identity::CborIdentityRecord::from_key(scoop_identity::LocalValueKey::new(
+        scoop_identity::CallableMaterialization::new(
+            scoop_identity::CallableTemplateOwner::Function(function),
+            scoop_identity::CallableMaterializationContext::NoSubstitution,
+        ),
+        scoop_identity::LocalValueSelector::Parameter {
+            declaration_index: 0,
+        },
+    ))
+    .unwrap()
+}
+
+#[test]
+fn module_validation_rejects_source_value_locations_outside_the_function_graph() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let missing_function = FunctionId::from_raw(7_u32.into());
+    let local = LocalId::from_raw(0_u32.into());
+    module.meta.source_local_values =
+        SourceLocalValueIdentities::checked(vec![SourceLocalValueIdentity::new(
+            missing_function,
+            local,
+            source_local_record(),
+        )])
+        .unwrap();
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::SourceLocalValue {
+                function: missing_function,
+                local,
+            },
+            kind: MirValidationErrorKind::InvalidSourceLocalValue {
+                reason: "the owning function does not exist",
+            },
+        })
+    );
+
+    let function = module.entry;
+    module.meta.source_local_values =
+        SourceLocalValueIdentities::checked(vec![SourceLocalValueIdentity::new(
+            function,
+            local,
+            source_local_record(),
+        )])
+        .unwrap();
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::SourceLocalValue { function, local },
+            kind: MirValidationErrorKind::InvalidSourceLocalValue {
+                reason: "the local does not exist in the owning function body",
+            },
+        })
+    );
+}
+
 fn checked_pair(module: &Module, enum_id: EnumId) -> (MirVariantFieldRef, MirVariantRef) {
     let payload = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
     let payload = MirVariantFieldRef::new(&module.enums, payload, 0).unwrap();

@@ -2,6 +2,34 @@ use std::collections::HashSet;
 
 use super::*;
 
+pub(super) fn validate_source_local_value_metadata(
+    module: &Module,
+) -> Result<(), MirValidationError> {
+    for entry in module.meta.source_local_values.iter() {
+        let location = MirValidationLocation::SourceLocalValue {
+            function: entry.function(),
+            local: entry.local(),
+        };
+        let Some(function) = arena_get(&module.functions, entry.function()) else {
+            return Err(MirValidationError {
+                location,
+                kind: MirValidationErrorKind::InvalidSourceLocalValue {
+                    reason: "the owning function does not exist",
+                },
+            });
+        };
+        if arena_get(&function.body.locals, entry.local()).is_none() {
+            return Err(MirValidationError {
+                location,
+                kind: MirValidationErrorKind::InvalidSourceLocalValue {
+                    reason: "the local does not exist in the owning function body",
+                },
+            });
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidationError> {
     for option in module.option_core.iter().copied() {
         if OptionCore::checked(&module.enums, option.some_payload(), option.none()) != Some(option)
@@ -77,4 +105,8 @@ pub(super) fn source_exact_type(
         .source_exact_types
         .get(ty)
         .map(|source| source.identity_record().id())
+}
+
+fn arena_get<T>(arena: &Arena<T>, id: Idx<T>) -> Option<&T> {
+    ((id.into_raw().into_u32() as usize) < arena.len()).then(|| &arena[id])
 }
