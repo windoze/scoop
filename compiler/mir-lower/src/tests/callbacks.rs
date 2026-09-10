@@ -127,6 +127,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         [],
     );
     let reference = source.callable_references.alloc(hir::CallableReference {
+        definition_root: hir::LexicalDefinitionRoot::Function(target),
         definition_path,
         target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target)),
         function_type,
@@ -139,6 +140,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         source
             .foreign_callback_registrations
             .alloc(hir::ForeignCallbackRegistration {
+                definition_root: hir::LexicalDefinitionRoot::Function(target),
                 definition_path: scoop_identity::StructuralDefinitionPath::from_first(
                     scoop_identity::StructuralPathSegment::new(
                         scoop_identity::StructuralDefinitionSiteRole::CallbackConversion,

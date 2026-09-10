@@ -178,6 +178,7 @@ impl Lowerer {
             .definition_paths
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let id = self.callable_references.alloc(hir::CallableReference {
+            definition_root: self.current_definition_root(),
             definition_path,
             target: hir::CallableReferenceTarget::Named(callee),
             function_type,
@@ -408,6 +409,7 @@ impl Lowerer {
             .definition_paths
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let id = self.callable_references.alloc(hir::CallableReference {
+            definition_root: self.current_definition_root(),
             definition_path,
             target,
             function_type,
@@ -493,6 +495,7 @@ impl Lowerer {
             .definition_paths
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let id = self.callable_references.alloc(hir::CallableReference {
+            definition_root: self.current_definition_root(),
             definition_path,
             target: hir::CallableReferenceTarget::Local {
                 local_function,

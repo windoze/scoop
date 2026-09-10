@@ -58,6 +58,10 @@ fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
     let template = &output.export.export_default_exprs
         [output.export.export_default_sources[source].expression];
     assert_eq!(
+        template.definition_root,
+        hir::LexicalDefinitionRoot::Function(consume)
+    );
+    assert_eq!(
         definition_path(&template.definition_path),
         vec![(
             scoop_identity::StructuralDefinitionSiteRole::DefaultValue,

@@ -152,10 +152,16 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
             interface.owner == hir::ExportParameterOwner::ClassConstructor(source_constructor)
         })
         .expect("the source constructor exports its default protocol");
-    assert!(matches!(
-        parameter_interface.parameters[0].calling,
-        hir::ExportParameterCalling::Default { .. }
-    ));
+    let hir::ExportParameterCalling::Default { source, .. } =
+        parameter_interface.parameters[0].calling
+    else {
+        panic!("compiler exception source constructor default");
+    };
+    let expression = output.export.export_default_sources[source].expression;
+    assert_eq!(
+        output.export.export_default_exprs[expression].definition_root,
+        hir::LexicalDefinitionRoot::ClassConstructor(source_constructor)
+    );
     assert!(
         output.export.class_constructors[export.illegal_state_exception.callable()]
             .parameters

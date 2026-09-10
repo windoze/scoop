@@ -162,6 +162,7 @@ impl Lowerer {
         let registration =
             self.foreign_callback_registrations
                 .alloc(hir::ForeignCallbackRegistration {
+                    definition_root: self.current_definition_root(),
                     definition_path,
                     native_function_type,
                     managed_function_type,

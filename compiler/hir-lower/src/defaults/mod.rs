@@ -69,6 +69,7 @@ struct ParameterSource {
 
 #[derive(Clone)]
 struct DefaultContext {
+    definition_root: hir::LexicalDefinitionRoot,
     type_parameters: Vec<hir::TypeParamDecl>,
     receiver: Option<(hir::TypeId, Option<Owner>)>,
     is_suspend: bool,
@@ -130,6 +131,7 @@ impl Lowerer {
                     })
                     .collect::<Vec<_>>();
                 let context = DefaultContext {
+                    definition_root: hir::LexicalDefinitionRoot::StructConstructor(constructor),
                     type_parameters: self.structs[structure].type_params.clone(),
                     receiver: None,
                     is_suspend: false,
@@ -201,6 +203,7 @@ impl Lowerer {
                             })
                             .collect::<Vec<_>>();
                         let context = DefaultContext {
+                            definition_root: hir::LexicalDefinitionRoot::ClassConstructor(primary),
                             type_parameters: self.classes[class].type_params.clone(),
                             receiver: None,
                             is_suspend: false,
@@ -280,7 +283,10 @@ impl Lowerer {
                         calling,
                     })
                     .collect::<Vec<_>>();
+                let variant = hir::EnumVariantRef::checked(&self.enums, enumeration, variant_index)
+                    .expect("a source enum variant index is checked against its declaration");
                 let context = DefaultContext {
+                    definition_root: hir::LexicalDefinitionRoot::VariantConstructor(variant),
                     type_parameters: self.enums[enumeration].type_params.clone(),
                     receiver: None,
                     is_suspend: false,
@@ -290,8 +296,6 @@ impl Lowerer {
                         self.enums[enumeration].name, source_variant.name.text
                     ),
                 };
-                let variant = hir::EnumVariantRef::checked(&self.enums, enumeration, variant_index)
-                    .expect("a source enum variant index is checked against its declaration");
                 self.lower_parameter_interface(
                     hir::ExportParameterOwner::VariantConstructor(variant),
                     &sources,
@@ -346,6 +350,18 @@ impl Lowerer {
             owner,
             &sources,
             &DefaultContext {
+                definition_root: match owner {
+                    hir::ExportParameterOwner::StructConstructor(constructor) => {
+                        hir::LexicalDefinitionRoot::StructConstructor(constructor)
+                    }
+                    hir::ExportParameterOwner::ClassConstructor(constructor) => {
+                        hir::LexicalDefinitionRoot::ClassConstructor(constructor)
+                    }
+                    hir::ExportParameterOwner::Function(_)
+                    | hir::ExportParameterOwner::VariantConstructor(_) => {
+                        unreachable!("constructor helper receives a constructor owner")
+                    }
+                },
                 type_parameters,
                 receiver: None,
                 is_suspend: false,

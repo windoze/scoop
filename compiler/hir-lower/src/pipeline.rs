@@ -93,6 +93,7 @@ impl Lowerer {
             declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
             source_contexts,
             definition_paths: crate::definition_paths::DefinitionPathContext::default(),
+            definition_root: None,
             constructor_definition_paths: HashMap::new(),
             types,
             function_types: Arena::new(),

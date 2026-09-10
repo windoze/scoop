@@ -143,13 +143,16 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
         ),
         (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
     ];
-    assert!(
-        output
-            .export
-            .lambdas
-            .iter()
-            .all(|(_, lambda)| definition_path(&lambda.definition_path) == expected_path)
-    );
+    let (factory, _) = output
+        .export
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "factory")
+        .expect("factory function");
+    assert!(output.export.lambdas.iter().all(|(_, lambda)| {
+        lambda.definition_root == hir::LexicalDefinitionRoot::Function(factory)
+            && definition_path(&lambda.definition_path) == expected_path
+    }));
     assert!(
         output
             .local

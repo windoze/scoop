@@ -115,6 +115,9 @@ fn nested_lambdas_reserve_distinct_body_names_before_lowering() {
     assert_eq!(names.len(), 2);
     assert!(names.contains("$lambda.0"));
     assert!(names.contains("$lambda.1"));
+    assert!(module.lambdas.iter().all(|(_, lambda)| {
+        lambda.definition_root == hir::LexicalDefinitionRoot::Function(module.entry())
+    }));
     let paths = module
         .lambdas
         .iter()
@@ -164,6 +167,9 @@ fn nested_anonymous_functions_reserve_distinct_body_names_before_lowering() {
     assert_eq!(names.len(), 2);
     assert!(names.contains("$anonymous.0"));
     assert!(names.contains("$anonymous.1"));
+    assert!(module.anonymous_functions.iter().all(|(_, function)| {
+        function.definition_root == hir::LexicalDefinitionRoot::Function(module.entry())
+    }));
     let paths = module
         .anonymous_functions
         .iter()

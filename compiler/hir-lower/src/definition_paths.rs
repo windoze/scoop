@@ -6,6 +6,8 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
+use crate::Lowerer;
+
 /// Role-local counters for one definition owner. `prefix` is the complete
 /// path of that owner within its own source declaration root.
 #[derive(Clone, Debug, Default)]
@@ -41,6 +43,13 @@ impl DefinitionPathContext {
         segments.push(StructuralPathSegment::new(role, ordinal));
         StructuralDefinitionPath::new(segments)
             .expect("appending a definition-site segment always makes a non-empty path")
+    }
+}
+
+impl Lowerer {
+    pub(crate) fn current_definition_root(&self) -> scoop_hir::LexicalDefinitionRoot {
+        self.definition_root
+            .expect("identity-bearing lexical sites are lowered inside a typed definition root")
     }
 }
 

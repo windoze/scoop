@@ -561,6 +561,15 @@ impl Lowerer {
             .unwrap_or_default();
         let outer_definition_paths =
             std::mem::replace(&mut self.definition_paths, definition_paths);
+        let definition_root = match source {
+            ConstructorSource::Class(constructor) => {
+                hir::LexicalDefinitionRoot::ClassConstructor(constructor)
+            }
+            ConstructorSource::Struct(constructor) => {
+                hir::LexicalDefinitionRoot::StructConstructor(constructor)
+            }
+        };
+        let outer_definition_root = self.definition_root.replace(definition_root);
         let (parameters, type_parameters, owner, owner_name) = match source {
             ConstructorSource::Class(constructor) => {
                 let declaration = &self.class_constructors[constructor];
@@ -648,6 +657,7 @@ impl Lowerer {
         self.type_params_in_scope = outer_type_parameters;
         let definition_paths =
             std::mem::replace(&mut self.definition_paths, outer_definition_paths);
+        self.definition_root = outer_definition_root;
         assert!(
             self.constructor_definition_paths
                 .insert(source, definition_paths)

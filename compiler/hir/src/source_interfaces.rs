@@ -138,6 +138,8 @@ pub struct ExportParameterInterface {
 /// `value_parameters`; callers never resolve their source names again.
 #[derive(Debug, Clone)]
 pub struct ExportDefaultExpr {
+    /// Typed root shared by the complete lexical path of this template.
+    pub definition_root: LexicalDefinitionRoot,
     /// Stable declaration-local path of this source default. Instantiating the
     /// template preserves this path and never assigns a call-site ordinal.
     pub definition_path: scoop_identity::StructuralDefinitionPath,

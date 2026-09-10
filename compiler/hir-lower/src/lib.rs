@@ -378,6 +378,9 @@ pub(crate) struct Lowerer {
     /// Role-local structural paths for the definition owner currently being
     /// lowered. Nested callables replace this context and restore it on exit.
     pub(crate) definition_paths: definition_paths::DefinitionPathContext,
+    /// Typed root of the active stable lexical traversal. It is present only
+    /// while lowering a function, constructor, or declaration-bound default.
+    pub(crate) definition_root: Option<hir::LexicalDefinitionRoot>,
     /// Constructor expressions are lowered in several semantic passes. Their
     /// owner-local counters persist between those regions so source-order
     /// sites never fall back to a pass-local or arena-local ordinal.

@@ -433,6 +433,8 @@ pub struct SourceLocationCore {
 
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
+    /// Typed root whose stable lexical traversal owns this conversion.
+    pub definition_root: LexicalDefinitionRoot,
     /// Stable definition-site path of this callback conversion. Concrete
     /// instantiations preserve the path instead of allocating a new site.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
@@ -450,8 +452,20 @@ pub enum ForeignCallbackOperation {
     Failure,
 }
 
+/// Typed root of one stable lexical definition traversal. Paths are complete
+/// relative to this root, so nested callables keep the same root while
+/// appending their own segments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LexicalDefinitionRoot {
+    Function(FunctionId),
+    ClassConstructor(ClassConstructorId),
+    StructConstructor(StructConstructorId),
+    VariantConstructor(EnumVariantRef),
+}
+
 #[derive(Debug, Clone)]
 pub struct Lambda {
+    pub definition_root: LexicalDefinitionRoot,
     /// Stable lexical definition path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
@@ -468,6 +482,7 @@ pub struct Lambda {
 
 #[derive(Debug, Clone)]
 pub struct AnonymousFunction {
+    pub definition_root: LexicalDefinitionRoot,
     /// Stable lexical definition path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
@@ -493,6 +508,7 @@ pub enum CallableBodyTypeArguments {
 /// closure over the same body.
 #[derive(Debug, Clone)]
 pub struct LocalFunction {
+    pub definition_root: LexicalDefinitionRoot,
     /// Stable lexical declaration path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
@@ -506,6 +522,7 @@ pub struct LocalFunction {
 
 #[derive(Debug, Clone)]
 pub struct CallableReference {
+    pub definition_root: LexicalDefinitionRoot,
     /// Stable definition-site path of the generated invoke wrapper.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub target: CallableReferenceTarget,

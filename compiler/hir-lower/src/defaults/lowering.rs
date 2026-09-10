@@ -24,6 +24,9 @@ impl Lowerer {
                     .map(|ty| (ty, None))
             });
         let context = DefaultContext {
+            definition_root: self
+                .definition_root
+                .unwrap_or(hir::LexicalDefinitionRoot::Function(function)),
             type_parameters: signature.type_params,
             receiver,
             is_suspend: signature.is_suspend,
@@ -49,6 +52,9 @@ impl Lowerer {
             })
             .collect::<Vec<_>>();
         let context = DefaultContext {
+            definition_root: self
+                .definition_root
+                .unwrap_or(hir::LexicalDefinitionRoot::Function(function)),
             type_parameters: signature.type_params,
             receiver: None,
             is_suspend: signature.is_suspend,
@@ -238,6 +244,7 @@ impl Lowerer {
             &mut self.definition_paths,
             crate::definition_paths::DefinitionPathContext::nested(&definition_path),
         );
+        let outer_definition_root = self.definition_root.replace(context.definition_root);
         let capture_environment = lexical_captures.then(|| self.capture_environment());
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
@@ -344,6 +351,7 @@ impl Lowerer {
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
         self.definition_paths = outer_definition_paths;
+        self.definition_root = outer_definition_root;
         self.current_this = outer_this;
         self.current_owner = outer_owner;
         self.constructor_params_in_scope = outer_constructor_parameters;
@@ -353,6 +361,7 @@ impl Lowerer {
         value.map(|value| {
             (
                 hir::ExportDefaultExpr {
+                    definition_root: context.definition_root,
                     definition_path,
                     locals,
                     statements,

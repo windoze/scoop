@@ -322,10 +322,15 @@ fn variant_parameter_interface_keeps_its_checked_owner_identity() {
         .find(|interface| interface.owner == hir::ExportParameterOwner::VariantConstructor(variant))
         .expect("variant constructor parameter protocol");
     assert_eq!(interface.parameters.len(), 1);
-    assert!(matches!(
-        interface.parameters[0].calling,
-        hir::ExportParameterCalling::Default { .. }
-    ));
+    let hir::ExportParameterCalling::Default { source, .. } = interface.parameters[0].calling
+    else {
+        panic!("variant parameter default");
+    };
+    let expression = module.export_default_sources[source].expression;
+    assert_eq!(
+        module.export_default_exprs[expression].definition_root,
+        hir::LexicalDefinitionRoot::VariantConstructor(variant)
+    );
     assert_eq!(
         module.enums[variant.enumeration()].variants[variant.local_index() as usize].name,
         "WithDefault"

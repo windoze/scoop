@@ -60,6 +60,10 @@ fn top_level_reference_is_a_distinct_typed_entity() {
         .next()
         .expect("reference entity");
     assert_eq!(
+        reference.definition_root,
+        hir::LexicalDefinitionRoot::Function(module.entry())
+    );
+    assert_eq!(
         definition_path(&reference.definition_path),
         vec![(
             scoop_identity::StructuralDefinitionSiteRole::CallableConversion,

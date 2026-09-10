@@ -71,6 +71,10 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         .next()
         .expect("local function");
     assert_eq!(
+        local.definition_root,
+        hir::LexicalDefinitionRoot::Function(module.entry())
+    );
+    assert_eq!(
         definition_path(&local.definition_path),
         vec![(
             scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
