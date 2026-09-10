@@ -57,6 +57,13 @@ fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
     };
     let template = &output.export.export_default_exprs
         [output.export.export_default_sources[source].expression];
+    assert_eq!(
+        definition_path(&template.definition_path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::DefaultValue,
+            0,
+        )]
+    );
     assert_eq!(template.references.callables.len(), 1);
     assert_eq!(template.references.constructors.len(), 1);
     assert!(!template.references.types.is_empty());

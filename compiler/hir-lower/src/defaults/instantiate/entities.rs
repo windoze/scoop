@@ -320,6 +320,7 @@ impl Lowerer {
             self.instantiate_default_function_type(source.managed_function_type, context);
         self.foreign_callback_registrations
             .alloc(hir::ForeignCallbackRegistration {
+                definition_path: source.definition_path,
                 native_function_type,
                 managed_function_type,
                 context_index: source.context_index,
@@ -342,6 +343,7 @@ impl Lowerer {
             .map(|capture| self.instantiate_default_capture(capture, context))
             .collect();
         self.lambdas.alloc(hir::Lambda {
+            definition_path: source.definition_path,
             function: source.function,
             function_type,
             owner_type_param_count: source.owner_type_param_count,
@@ -366,6 +368,7 @@ impl Lowerer {
             .map(|capture| self.instantiate_default_capture(capture, context))
             .collect();
         self.anonymous_functions.alloc(hir::AnonymousFunction {
+            definition_path: source.definition_path,
             function: source.function,
             function_type,
             owner_type_param_count: source.owner_type_param_count,
@@ -412,6 +415,7 @@ impl Lowerer {
             .map(|capture| self.instantiate_default_capture(capture, context))
             .collect();
         self.callable_references.alloc(hir::CallableReference {
+            definition_path: source.definition_path,
             target,
             function_type,
             owner_type_param_count: source.owner_type_param_count,

@@ -555,6 +555,12 @@ impl Lowerer {
         lower: impl FnOnce(&mut Self, &mut Vec<hir::Statement>) -> Option<T>,
     ) -> Option<LoweredConstructorExpression<T>> {
         let source = source.into();
+        let definition_paths = self
+            .constructor_definition_paths
+            .remove(&source)
+            .unwrap_or_default();
+        let outer_definition_paths =
+            std::mem::replace(&mut self.definition_paths, definition_paths);
         let (parameters, type_parameters, owner, owner_name) = match source {
             ConstructorSource::Class(constructor) => {
                 let declaration = &self.class_constructors[constructor];
@@ -640,6 +646,14 @@ impl Lowerer {
         self.loop_targets = outer_loop_targets;
         self.constructor_params_in_scope = outer_constructor_parameters;
         self.type_params_in_scope = outer_type_parameters;
+        let definition_paths =
+            std::mem::replace(&mut self.definition_paths, outer_definition_paths);
+        assert!(
+            self.constructor_definition_paths
+                .insert(source, definition_paths)
+                .is_none(),
+            "a constructor definition-path context is checked out only once"
+        );
 
         value.map(|value| LoweredConstructorExpression {
             locals,
@@ -792,7 +806,7 @@ impl Lowerer {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ConstructorSource {
     Class(hir::ClassConstructorId),
     Struct(hir::StructConstructorId),

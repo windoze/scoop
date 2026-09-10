@@ -20,6 +20,7 @@ impl Concretizer<'_> {
                 .collect(),
         };
         let value = concrete::Lambda {
+            definition_path: source.definition_path,
             function: self.request_function(source.function, body_arguments),
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
@@ -53,6 +54,7 @@ impl Concretizer<'_> {
                 .collect(),
         };
         let value = concrete::AnonymousFunction {
+            definition_path: source.definition_path,
             function: self.request_function(source.function, body_arguments),
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
@@ -79,6 +81,7 @@ impl Concretizer<'_> {
         }
         let source = self.source.local_functions[source_id].clone();
         let value = concrete::LocalFunction {
+            definition_path: source.definition_path,
             function: self.request_function(source.function, substitution.to_vec()),
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
@@ -149,6 +152,7 @@ impl Concretizer<'_> {
             }
         };
         let value = concrete::CallableReference {
+            definition_path: source.definition_path,
             target,
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
@@ -208,6 +212,7 @@ impl Concretizer<'_> {
         let id = self
             .foreign_callback_registrations
             .alloc(concrete::ForeignCallbackRegistration {
+                definition_path: source.definition_path,
                 callback,
                 native_function_type,
                 managed_function_type,

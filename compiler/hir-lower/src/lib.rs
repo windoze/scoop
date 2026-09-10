@@ -102,6 +102,7 @@ mod core_contract;
 mod declaration_surface;
 mod declarations;
 mod defaults;
+mod definition_paths;
 mod derived;
 mod effects;
 mod expr;
@@ -374,6 +375,14 @@ pub fn concretize_legacy_export(
 #[derive(Clone)]
 pub(crate) struct Lowerer {
     pub(crate) source_contexts: Arena<hir::SourceContext>,
+    /// Role-local structural paths for the definition owner currently being
+    /// lowered. Nested callables replace this context and restore it on exit.
+    pub(crate) definition_paths: definition_paths::DefinitionPathContext,
+    /// Constructor expressions are lowered in several semantic passes. Their
+    /// owner-local counters persist between those regions so source-order
+    /// sites never fall back to a pass-local or arena-local ordinal.
+    pub(crate) constructor_definition_paths:
+        HashMap<class::ConstructorSource, definition_paths::DefinitionPathContext>,
     pub(crate) imports: imports::CurrentUnitImports,
     /// Published once after every source callable signature is resolved.
     /// Rejected ids remain diagnostic-only and never enter body resolution.

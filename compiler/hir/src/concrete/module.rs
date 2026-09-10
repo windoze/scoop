@@ -321,6 +321,7 @@ pub struct IntrinsicTypeCore {
 
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub callback: StructId,
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,

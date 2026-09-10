@@ -217,6 +217,15 @@ fn concrete_int_type(module: &hir::concrete::Module) -> hir::concrete::TypeId {
     concrete_integer_type(module, hir::IntegerKind::SIGNED_32)
 }
 
+fn definition_path(
+    path: &scoop_identity::StructuralDefinitionPath,
+) -> Vec<(scoop_identity::StructuralDefinitionSiteRole, u32)> {
+    path.segments()
+        .iter()
+        .map(|segment| (segment.site_role(), segment.ordinal()))
+        .collect()
+}
+
 fn binding_local(pattern: &hir::Pattern) -> Option<hir::LocalId> {
     match pattern {
         hir::Pattern::Binding { local } => Some(*local),

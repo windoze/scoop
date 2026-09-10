@@ -174,7 +174,11 @@ impl Lowerer {
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let id = self.callable_references.alloc(hir::CallableReference {
+            definition_path,
             target: hir::CallableReferenceTarget::Named(callee),
             function_type,
             owner_type_param_count: self.type_params_in_scope.len(),
@@ -400,7 +404,11 @@ impl Lowerer {
                 ),
             }
         };
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let id = self.callable_references.alloc(hir::CallableReference {
+            definition_path,
             target,
             function_type,
             owner_type_param_count: self.type_params_in_scope.len(),
@@ -481,7 +489,11 @@ impl Lowerer {
                 },
             )
             .collect();
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let id = self.callable_references.alloc(hir::CallableReference {
+            definition_path,
             target: hir::CallableReferenceTarget::Local {
                 local_function,
                 callee: resolved.callable,

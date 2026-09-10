@@ -59,6 +59,13 @@ fn top_level_reference_is_a_distinct_typed_entity() {
         .iter()
         .next()
         .expect("reference entity");
+    assert_eq!(
+        definition_path(&reference.definition_path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::CallableConversion,
+            0,
+        )]
+    );
     assert!(reference.captures.is_empty());
     let hir::CallableReferenceTarget::Named(callable) = &reference.target else {
         panic!("expected a top-level callable reference")

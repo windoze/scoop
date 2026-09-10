@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Lambda {
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
@@ -10,6 +11,7 @@ pub struct Lambda {
 
 #[derive(Debug, Clone)]
 pub struct AnonymousFunction {
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
@@ -18,6 +20,7 @@ pub struct AnonymousFunction {
 
 #[derive(Debug, Clone)]
 pub struct LocalFunction {
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
@@ -26,6 +29,7 @@ pub struct LocalFunction {
 
 #[derive(Debug, Clone)]
 pub struct CallableReference {
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub target: CallableReferenceTarget,
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,

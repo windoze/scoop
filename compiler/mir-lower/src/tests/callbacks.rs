@@ -119,7 +119,15 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         canonical_type
     );
     source.type_identities = rebuild_type_identities(&source);
+    let definition_path = scoop_identity::StructuralDefinitionPath::from_first(
+        scoop_identity::StructuralPathSegment::new(
+            scoop_identity::StructuralDefinitionSiteRole::CallableConversion,
+            0,
+        ),
+        [],
+    );
     let reference = source.callable_references.alloc(hir::CallableReference {
+        definition_path,
         target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target)),
         function_type,
         owner_type_param_count: 0,
@@ -131,6 +139,13 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         source
             .foreign_callback_registrations
             .alloc(hir::ForeignCallbackRegistration {
+                definition_path: scoop_identity::StructuralDefinitionPath::from_first(
+                    scoop_identity::StructuralPathSegment::new(
+                        scoop_identity::StructuralDefinitionSiteRole::CallbackConversion,
+                        0,
+                    ),
+                    [],
+                ),
                 native_function_type: function_type,
                 managed_function_type: function_type,
                 context_index: 0,

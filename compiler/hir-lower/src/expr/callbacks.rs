@@ -156,9 +156,13 @@ impl Lowerer {
         }
         let mode = *variant;
         self.check_call_effects(hir::Callable::Function(function), call.span);
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::CallbackConversion);
         let registration =
             self.foreign_callback_registrations
                 .alloc(hir::ForeignCallbackRegistration {
+                    definition_path,
                     native_function_type,
                     managed_function_type,
                     context_index: context_index as u32,

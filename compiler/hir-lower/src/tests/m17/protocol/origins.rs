@@ -136,6 +136,28 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
     ]))
     .expect("default-instantiated lambdas must retain their body origin boundary");
 
+    let expected_path = vec![
+        (
+            scoop_identity::StructuralDefinitionSiteRole::DefaultValue,
+            0,
+        ),
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+    ];
+    assert!(
+        output
+            .export
+            .lambdas
+            .iter()
+            .all(|(_, lambda)| definition_path(&lambda.definition_path) == expected_path)
+    );
+    assert!(
+        output
+            .local
+            .lambdas
+            .iter()
+            .all(|(_, lambda)| definition_path(&lambda.definition_path) == expected_path)
+    );
+
     let (_, lambda) = output
         .local
         .functions

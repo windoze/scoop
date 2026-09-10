@@ -70,6 +70,13 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         .iter()
         .next()
         .expect("local function");
+    assert_eq!(
+        definition_path(&local.definition_path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
+            0,
+        )]
+    );
     assert_eq!(local.captures.len(), 1);
     assert_eq!(local.captures[0].name, "base");
     let hir::FunctionKind::User(main_body) = &module.functions[module.entry()].kind else {

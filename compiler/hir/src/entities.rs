@@ -433,6 +433,9 @@ pub struct SourceLocationCore {
 
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
+    /// Stable definition-site path of this callback conversion. Concrete
+    /// instantiations preserve the path instead of allocating a new site.
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
@@ -449,6 +452,8 @@ pub enum ForeignCallbackOperation {
 
 #[derive(Debug, Clone)]
 pub struct Lambda {
+    /// Stable lexical definition path, independent of every arena id.
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     /// Type parameters inherited from the enclosing generic callable. The
@@ -463,6 +468,8 @@ pub struct Lambda {
 
 #[derive(Debug, Clone)]
 pub struct AnonymousFunction {
+    /// Stable lexical definition path, independent of every arena id.
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub owner_type_param_count: usize,
@@ -486,6 +493,8 @@ pub enum CallableBodyTypeArguments {
 /// closure over the same body.
 #[derive(Debug, Clone)]
 pub struct LocalFunction {
+    /// Stable lexical declaration path, independent of every arena id.
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
@@ -497,6 +506,8 @@ pub struct LocalFunction {
 
 #[derive(Debug, Clone)]
 pub struct CallableReference {
+    /// Stable definition-site path of the generated invoke wrapper.
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub target: CallableReferenceTarget,
     pub function_type: FunctionTypeId,
     /// Type parameters of the callable containing this reference expression.

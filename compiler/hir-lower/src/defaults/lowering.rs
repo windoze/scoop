@@ -224,6 +224,20 @@ impl Lowerer {
         context: &DefaultContext,
         lexical_captures: bool,
     ) -> Option<(hir::ExportDefaultExpr, Vec<hir::Capture>)> {
+        let default_ordinal = sources[..parameter_index]
+            .iter()
+            .filter(|source| parameter_has_default_expression(source))
+            .count();
+        let default_ordinal = u32::try_from(default_ordinal)
+            .expect("one source declaration cannot contain more than u32::MAX defaults");
+        let definition_path = self.definition_paths.at(
+            scoop_identity::StructuralDefinitionSiteRole::DefaultValue,
+            default_ordinal,
+        );
+        let outer_definition_paths = std::mem::replace(
+            &mut self.definition_paths,
+            crate::definition_paths::DefinitionPathContext::nested(&definition_path),
+        );
         let capture_environment = lexical_captures.then(|| self.capture_environment());
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
@@ -329,6 +343,7 @@ impl Lowerer {
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
         self.current_this = outer_this;
         self.current_owner = outer_owner;
         self.constructor_params_in_scope = outer_constructor_parameters;
@@ -338,6 +353,7 @@ impl Lowerer {
         value.map(|value| {
             (
                 hir::ExportDefaultExpr {
+                    definition_path,
                     locals,
                     statements,
                     value,
@@ -408,6 +424,17 @@ impl Lowerer {
             },
         }
     }
+}
+
+fn parameter_has_default_expression(source: &ParameterSource) -> bool {
+    matches!(
+        source.calling,
+        FnParamCalling::Default { .. }
+            | FnParamCalling::Vararg {
+                omission: FnVarargOmission::Default { .. },
+                ..
+            }
+    )
 }
 
 fn source_owner(owner: hir::ExportParameterOwner) -> SourceParameterOwner {

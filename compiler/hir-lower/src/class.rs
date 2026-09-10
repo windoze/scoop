@@ -39,6 +39,7 @@ use hir::{ClassId, FunctionId, Type, TypeId};
 use crate::{FnParam, FnSig, ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext};
 
 mod construction;
+pub(crate) use construction::ConstructorSource;
 mod declarations;
 mod hierarchy;
 mod inheritance;

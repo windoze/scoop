@@ -807,6 +807,7 @@ impl Lowerer {
             self.current_file = pending.file;
             let outer_loop_targets = std::mem::take(&mut self.loop_targets);
             let outer_source_context = self.current_source_context;
+            let outer_definition_paths = std::mem::take(&mut self.definition_paths);
             self.type_params_in_scope.clear();
             self.current_return_ty = self.unit;
             self.current_fn_name = self.functions[pending.function].name.clone();
@@ -883,6 +884,7 @@ impl Lowerer {
             self.current_initialization_unit = None;
             self.pop_scope();
             self.current_source_context = outer_source_context;
+            self.definition_paths = outer_definition_paths;
             self.pop_safety_context();
             self.pop_suspension_context();
             self.functions[pending.function].kind = FunctionKind::User(hir::Body {

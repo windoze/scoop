@@ -78,6 +78,13 @@ impl Lowerer {
 
         let capture_environment = self.capture_environment();
         let literal_origin = self.expression_origin(span);
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::Lambda);
+        let outer_definition_paths = std::mem::replace(
+            &mut self.definition_paths,
+            crate::definition_paths::DefinitionPathContext::nested(&definition_path),
+        );
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
@@ -219,6 +226,7 @@ impl Lowerer {
             }
             let captures = self.finish_current_captures();
             let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
+                definition_path: definition_path.clone(),
                 function,
                 function_type,
                 owner_type_param_count: type_params.len(),
@@ -245,6 +253,7 @@ impl Lowerer {
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;

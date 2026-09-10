@@ -103,6 +103,7 @@ impl Lowerer {
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
+        let outer_definition_paths = std::mem::take(&mut self.definition_paths);
         let sig = self.signatures[&id].clone();
         // Member functions (M6): `this` is parameter 0, an immutable
         // local of the host type; bare property / method names in the
@@ -223,6 +224,7 @@ impl Lowerer {
         self.current_this = None;
         self.current_owner = None;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
         self.pop_safety_context();
         self.pop_suspension_context();
         debug_assert!(self.loop_targets.is_empty());

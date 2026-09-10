@@ -65,6 +65,9 @@ impl Lowerer {
         let attributes = self
             .check_function_annotations(decl, crate::FunctionTarget::Local)
             .attributes;
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration);
         let local_number = self.local_functions.len();
         let access = self.local_declaration_access();
         let link_stem = self.local_callable_link_stem(
@@ -109,6 +112,7 @@ impl Lowerer {
             self.register_generic(function, type_params.clone());
         }
         let local = self.local_functions.alloc(hir::LocalFunction {
+            definition_path: definition_path.clone(),
             function,
             function_type,
             captures: Vec::new(),
@@ -139,6 +143,10 @@ impl Lowerer {
                 .declare(decl.name.text.clone(), local);
         }
 
+        let outer_definition_paths = std::mem::replace(
+            &mut self.definition_paths,
+            crate::definition_paths::DefinitionPathContext::nested(&definition_path),
+        );
         self.lower_local_parameter_interface(function);
 
         let capture_environment = self.capture_environment();
@@ -265,6 +273,7 @@ impl Lowerer {
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;
         debug_assert!(self.loop_targets.is_empty());

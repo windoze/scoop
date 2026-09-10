@@ -115,6 +115,19 @@ fn nested_lambdas_reserve_distinct_body_names_before_lowering() {
     assert_eq!(names.len(), 2);
     assert!(names.contains("$lambda.0"));
     assert!(names.contains("$lambda.1"));
+    let paths = module
+        .lambdas
+        .iter()
+        .map(|(_, lambda)| definition_path(&lambda.definition_path))
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&vec![(
+        scoop_identity::StructuralDefinitionSiteRole::Lambda,
+        0,
+    )]));
+    assert!(paths.contains(&vec![
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+    ]));
 }
 
 #[test]
@@ -151,6 +164,19 @@ fn nested_anonymous_functions_reserve_distinct_body_names_before_lowering() {
     assert_eq!(names.len(), 2);
     assert!(names.contains("$anonymous.0"));
     assert!(names.contains("$anonymous.1"));
+    let paths = module
+        .anonymous_functions
+        .iter()
+        .map(|(_, function)| definition_path(&function.definition_path))
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&vec![(
+        scoop_identity::StructuralDefinitionSiteRole::Lambda,
+        0,
+    )]));
+    assert!(paths.contains(&vec![
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+    ]));
 }
 
 #[test]

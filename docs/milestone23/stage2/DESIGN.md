@@ -1699,6 +1699,8 @@ Export HIR中的type identity relation按`TypeId` arena等长、非可选，并�
 
 Export HIR中的constructor identity relation分别与`StructConstructorId`、`ClassConstructorId` arena等长、非可选。source constructor使用其source nominal owner chain及按owner binder映射后的完整source parameter type序列构造`PersistentConstructorId`；implicit primary constructor与source object的implicit constructor同属语言source constructor，后者必须归一到source object declaration owner，不能使用generated backing class。class constructor另以`ClassConstructorIdentityKind`从结构上区分source与`ZeroArgumentAdapter { source }`；后者只为已验证可零参数调用但具有非空物理参数的compiler exception source constructor产生，使用`GeneratedCallableKey::ZeroArgumentConstructorAdapter`，并验证唯一source反指、同owner、零参数delegation、target application及默认实参数量。constructor arena位置、显示名、参数名及class/struct application位置均不进入identity。
 
+Export HIR中的每个identity-bearing lexical site必须直接保存完整`StructuralDefinitionPath`，不能在foundation构造时从lambda/local/callback等arena序号、显示名或source span补算。每个definition owner对其直接child按语言求值/声明顺序遍历，并对`LocalDeclaration`、`Lambda`、`DefaultValue`、`CallbackConversion`、`CallableConversion`等role分别从0计数；进入default template、named local function、lambda或anonymous function时，把该child segment追加到当前prefix并为新的owner建立独立role计数器。default template的ordinal只统计同一source parameter owner中实际带source default expression的参数，继承或实例化只复制definition path而不重新编号。constructor的多个分离lowering region复用同一constructor-local计数状态，普通function/accessor/initialization body则各自从空prefix开始。路径溢出必须拒绝，不能截断为`u32`或退回arena ordinal。
+
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
 
 | field | table |

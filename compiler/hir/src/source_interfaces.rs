@@ -138,6 +138,9 @@ pub struct ExportParameterInterface {
 /// `value_parameters`; callers never resolve their source names again.
 #[derive(Debug, Clone)]
 pub struct ExportDefaultExpr {
+    /// Stable declaration-local path of this source default. Instantiating the
+    /// template preserves this path and never assigns a call-site ordinal.
+    pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub locals: Arena<Local>,
     pub statements: Vec<Statement>,
     pub value: Expr,
