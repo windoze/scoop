@@ -38,6 +38,9 @@ pub use metadata::*;
 mod identity_metadata;
 pub use identity_metadata::*;
 
+mod foundation;
+pub use foundation::*;
+
 mod function;
 pub use function::*;
 

@@ -295,6 +295,12 @@ pub struct PersistentSymbolRequestTable {
 }
 
 impl PersistentSymbolRequestTable {
+    pub const fn empty() -> Self {
+        Self {
+            requests: Vec::new(),
+        }
+    }
+
     pub fn new(mut requests: Vec<PersistentSymbolRequest>) -> Result<Self, PersistentSymbolError> {
         requests.sort_by(compare_requests);
         if let Some(duplicate) = requests.windows(2).find(|pair| pair[0].key == pair[1].key) {
