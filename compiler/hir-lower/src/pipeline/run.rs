@@ -565,6 +565,18 @@ impl Lowerer {
                     return Err(vec![diagnostic]);
                 }
             };
+        let initialization_unit_identities = match crate::persistent_initialization_units::build(
+            &self,
+            &nominal_identities,
+            &property_identities,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -573,6 +585,7 @@ impl Lowerer {
             enum_member_identities,
             field_identities,
             object_value_identities,
+            initialization_unit_identities,
             public_surface,
             source_files: self
                 .intrinsic_sources

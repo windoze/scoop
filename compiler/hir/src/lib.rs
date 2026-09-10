@@ -94,6 +94,9 @@ pub use persistent_fields::*;
 mod persistent_object_values;
 pub use persistent_object_values::*;
 
+mod persistent_initialization_units;
+pub use persistent_initialization_units::*;
+
 mod foundation;
 pub use foundation::*;
 

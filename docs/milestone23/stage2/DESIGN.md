@@ -1690,6 +1690,8 @@ Export HIR必须在每个variant上保存已验证的`Unit`/`Positional`/`Named`
 
 Export HIR中的object-value identity relation按`SingletonValueId` arena等长、非可选，并验证`ObjectDecl`、`ObjectType`与`SingletonValue`三者是逐项唯一且双向闭合的关系。每项复用source object nominal的完整`SourceDeclarationKey`构造`PersistentObjectValueId`，同时显式保留其`ObjectId`反指；object value id不得从显示名、singleton/root/init arena位置或生成的backing class identity派生，也不得与source object type id互转。
 
+Export HIR中的initialization-unit identity relation按`InitializationUnitId` arena等长、非可选。runtime top-level ordinary property与extension property分别使用其已形成的typed property identity；standalone object与companion分别使用其source object declaration的`PersistentTypeId`及不同的`Object`/`Companion` key variant。relation同时验证unit与property/global/delegate storage或object/singleton/published root、failure root及initializer/ensure function反指闭合；这些关联对象必须各自由唯一unit拥有。初始化策略必须匹配eager property或lazy singleton的typed kind。`stable_key`、`display_name`、storage arena位置、unit arena位置、initializer body与dependency顺序均不参与identity。
+
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
 
 | field | table |

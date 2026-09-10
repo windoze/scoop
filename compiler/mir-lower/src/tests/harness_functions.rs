@@ -594,6 +594,22 @@ impl Harness {
             &nominal_identities,
         )
         .expect("the MIR test fixture has no object values");
+        let initialization_unit_identities =
+            hir::HirInitializationUnitIdentities::from_declarations(
+                &Arena::new(),
+                &Arena::new(),
+                &self.functions,
+                &Arena::new(),
+                &Arena::new(),
+                &Arena::new(),
+                &Arena::new(),
+                &Arena::new(),
+                &self.properties,
+                &Arena::new(),
+                &nominal_identities,
+                &property_identities,
+            )
+            .expect("the MIR test fixture has no initialization units");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -602,6 +618,7 @@ impl Harness {
             enum_member_identities,
             field_identities,
             object_value_identities,
+            initialization_unit_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),

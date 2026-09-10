@@ -19,6 +19,9 @@ pub struct Module {
     pub field_identities: HirFieldIdentities,
     /// Total persistent identity and declaration relation for object values.
     pub object_value_identities: HirObjectValueIdentities,
+    /// Total persistent identity relation for compiler-managed initialization
+    /// units, including their typed declaration and storage ownership.
+    pub initialization_unit_identities: HirInitializationUnitIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,
