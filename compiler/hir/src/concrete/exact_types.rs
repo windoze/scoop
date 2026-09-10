@@ -4,7 +4,7 @@ use std::ops::Index;
 use la_arena::{Arena, Idx};
 use scoop_identity::{
     CallingConvention, CborIdentityRecord, CoreBuiltinNominal, Effect, ExactTypeKey, NonEmptyVec,
-    PersistentExactTypeId,
+    OdrGroupId, PersistentExactTypeId, SpecializationKey,
 };
 
 use super::{
@@ -20,6 +20,7 @@ pub use error::{ExactTypeIdentityError, ExactTypeRelation};
 mod tests;
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
+pub type NominalSpecializationRecord = CborIdentityRecord<OdrGroupId, SpecializationKey>;
 
 #[derive(Clone, Copy)]
 pub struct ExactTypeIdentityInputs<'a> {
@@ -38,6 +39,8 @@ pub struct ExactTypeIdentityInputs<'a> {
 pub struct ExactTypeIdentities {
     identities: Vec<ExactTypeRecord>,
     types_by_identity: HashMap<PersistentExactTypeId, TypeId>,
+    nominal_specializations: Vec<Option<usize>>,
+    nominal_specialization_records: Vec<NominalSpecializationRecord>,
 }
 
 impl ExactTypeIdentities {
@@ -60,6 +63,17 @@ impl ExactTypeIdentities {
     pub fn type_for_identity(&self, identity: PersistentExactTypeId) -> Option<TypeId> {
         self.types_by_identity.get(&identity).copied()
     }
+
+    pub fn nominal_specialization(&self, ty: TypeId) -> Option<&NominalSpecializationRecord> {
+        self.nominal_specializations
+            .get(local_index(ty))
+            .and_then(|position| *position)
+            .map(|position| &self.nominal_specialization_records[position])
+    }
+
+    pub fn nominal_specialization_records(&self) -> &[NominalSpecializationRecord] {
+        &self.nominal_specialization_records
+    }
 }
 
 impl Index<TypeId> for ExactTypeIdentities {
@@ -75,6 +89,9 @@ struct ExactTypeIdentityBuilder<'a> {
     identities: Vec<Option<ExactTypeRecord>>,
     visiting: Vec<bool>,
     exact_ids: HashSet<PersistentExactTypeId>,
+    nominal_specialization_ids: HashSet<OdrGroupId>,
+    nominal_specializations: Vec<Option<OdrGroupId>>,
+    nominal_specialization_records: Vec<NominalSpecializationRecord>,
     object_by_backing_class: HashMap<ClassId, HirNominalIdentity>,
 }
 
@@ -84,6 +101,9 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             identities: vec![None; inputs.types.len()],
             visiting: vec![false; inputs.types.len()],
             exact_ids: HashSet::new(),
+            nominal_specialization_ids: HashSet::new(),
+            nominal_specializations: vec![None; inputs.types.len()],
+            nominal_specialization_records: Vec::new(),
             object_by_backing_class: HashMap::new(),
             inputs,
         }
@@ -134,9 +154,24 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
                 )
             })
             .collect();
+        self.nominal_specialization_records
+            .sort_by_key(CborIdentityRecord::id);
+        let specialization_positions = self
+            .nominal_specialization_records
+            .iter()
+            .enumerate()
+            .map(|(position, record)| (record.id(), position))
+            .collect::<HashMap<_, _>>();
+        let nominal_specializations = self
+            .nominal_specializations
+            .into_iter()
+            .map(|group| group.map(|group| specialization_positions[&group]))
+            .collect();
         Ok(ExactTypeIdentities {
             identities,
             types_by_identity,
+            nominal_specializations,
+            nominal_specialization_records: self.nominal_specialization_records,
         })
     }
 
@@ -226,6 +261,25 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
         })?;
         if !self.exact_ids.insert(identity.id()) {
             return Err(ExactTypeIdentityError::DuplicateIdentity { ty: raw_index(ty) });
+        }
+        if let ExactTypeKey::NominalApplication { origin, arguments } = identity.key() {
+            let specialization = CborIdentityRecord::from_key(SpecializationKey::Nominal {
+                origin: *origin,
+                arguments: arguments.clone(),
+            })
+            .map_err(|error| {
+                ExactTypeIdentityError::InvalidNominalSpecialization {
+                    ty: raw_index(ty),
+                    error,
+                }
+            })?;
+            if !self.nominal_specialization_ids.insert(specialization.id()) {
+                return Err(ExactTypeIdentityError::DuplicateNominalSpecialization {
+                    ty: raw_index(ty),
+                });
+            }
+            self.nominal_specializations[index] = Some(specialization.id());
+            self.nominal_specialization_records.push(specialization);
         }
         self.visiting[index] = false;
         self.identities[index] = Some(identity.clone());

@@ -63,7 +63,14 @@ pub enum ExactTypeIdentityError {
         ty: u32,
         error: scoop_wire::HashError,
     },
+    InvalidNominalSpecialization {
+        ty: u32,
+        error: scoop_wire::HashError,
+    },
     DuplicateIdentity {
+        ty: u32,
+    },
+    DuplicateNominalSpecialization {
         ty: u32,
     },
 }
@@ -107,12 +114,20 @@ impl fmt::Display for ExactTypeIdentityError {
                     "type {ty} has an invalid exact identity: {error}"
                 )
             }
+            Self::InvalidNominalSpecialization { ty, error } => write!(
+                formatter,
+                "type {ty} has an invalid nominal specialization: {error}"
+            ),
             Self::DuplicateIdentity { ty } => {
                 write!(
                     formatter,
                     "type {ty} duplicates another exact type identity"
                 )
             }
+            Self::DuplicateNominalSpecialization { ty } => write!(
+                formatter,
+                "type {ty} duplicates another nominal specialization identity"
+            ),
         }
     }
 }

@@ -1,4 +1,4 @@
-use scoop_identity::ExactTypeKey;
+use scoop_identity::{ExactTypeKey, SpecializationKey};
 
 use super::*;
 
@@ -79,6 +79,17 @@ fn local_concrete_types_have_total_exact_identities() {
         arguments.as_slice(),
         &[module.exact_type_identities[pair_argument].id()]
     );
+    let specialization = module
+        .exact_type_identities
+        .nominal_specialization(pair_type)
+        .expect("Pair<Int> has one nominal specialization group");
+    assert!(matches!(
+        specialization.key(),
+        SpecializationKey::Nominal {
+            origin: specialization_origin,
+            arguments: specialization_arguments,
+        } if specialization_origin == actual_origin && specialization_arguments == arguments
+    ));
 
     let tuple_type = module
         .types
@@ -101,6 +112,47 @@ fn local_concrete_types_have_total_exact_identities() {
             .map(|element| module.exact_type_identities[*element].id())
             .collect::<Vec<_>>()
     );
+    assert!(
+        module
+            .exact_type_identities
+            .nominal_specialization(tuple_type)
+            .is_none(),
+        "structural types create an ODR group only when a generated materialization needs one"
+    );
+    let specialization_records = module
+        .exact_type_identities
+        .nominal_specialization_records();
+    assert!(
+        specialization_records
+            .windows(2)
+            .all(|pair| pair[0].id() < pair[1].id())
+    );
+    assert!(
+        specialization_records
+            .iter()
+            .any(|record| record == specialization)
+    );
+    assert_eq!(
+        specialization_records.len(),
+        module
+            .types
+            .iter()
+            .filter(|(id, _)| matches!(
+                module.exact_type_identities[*id].key(),
+                ExactTypeKey::NominalApplication { .. }
+            ))
+            .count()
+    );
+    assert!(module.types.iter().all(|(id, _)| {
+        module
+            .exact_type_identities
+            .nominal_specialization(id)
+            .is_some()
+            == matches!(
+                module.exact_type_identities[id].key(),
+                ExactTypeKey::NominalApplication { .. }
+            )
+    }));
 }
 
 #[test]
