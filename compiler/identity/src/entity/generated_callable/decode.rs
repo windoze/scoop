@@ -164,6 +164,9 @@ pub enum DecodedGeneratedCallableKey {
         payload: DecodedPersistentId<PersistentExactTypeId>,
         interface: DecodedPersistentId<PersistentExactTypeId>,
     },
+    ZeroArgumentConstructorAdapter {
+        constructor: DecodedPersistentId<PersistentConstructorId>,
+    },
 }
 
 impl DecodedGeneratedCallableKey {
@@ -276,6 +279,11 @@ impl DecodedGeneratedCallableKey {
                 payload: resolve_id(resolver, payload)?,
                 interface: resolve_id(resolver, interface)?,
             },
+            Self::ZeroArgumentConstructorAdapter { constructor } => {
+                GeneratedCallableKey::ZeroArgumentConstructorAdapter {
+                    constructor: resolve_id(resolver, constructor)?,
+                }
+            }
         };
         key.validate()
             .map_err(GeneratedCallableResolutionError::Key)?;
@@ -337,6 +345,9 @@ impl WireEncode for DecodedGeneratedCallableKey {
                 payload,
                 interface,
             } => encode_three_value_sum(encoder, 15, slot, payload, interface),
+            Self::ZeroArgumentConstructorAdapter { constructor } => {
+                encode_value_sum(encoder, 16, constructor)
+            }
         }
     }
 }
@@ -438,6 +449,9 @@ impl WireDecode for DecodedGeneratedCallableKey {
                     interface: decoder.field(3, DecodedPersistentId::decode)?,
                 })
             }
+            16 => decode_id_variant(decoder, fields, |constructor| {
+                Self::ZeroArgumentConstructorAdapter { constructor }
+            }),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }

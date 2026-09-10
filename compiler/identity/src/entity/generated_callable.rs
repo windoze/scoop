@@ -196,6 +196,9 @@ pub enum GeneratedCallableKey {
         payload: PersistentExactTypeId,
         interface: PersistentExactTypeId,
     },
+    ZeroArgumentConstructorAdapter {
+        constructor: PersistentConstructorId,
+    },
 }
 
 impl GeneratedCallableKey {
@@ -205,6 +208,7 @@ impl GeneratedCallableKey {
             Self::Lexical { .. }
                 | Self::Initialization { .. }
                 | Self::CallableReferenceInvoke { .. }
+                | Self::ZeroArgumentConstructorAdapter { .. }
         )
     }
 
@@ -356,6 +360,9 @@ impl WireEncode for GeneratedCallableKey {
                 encoder.field(3)?;
                 interface.encode(encoder)
             }
+            Self::ZeroArgumentConstructorAdapter { constructor } => {
+                encode_value_sum(encoder, 16, constructor)
+            }
         }
     }
 }
@@ -395,7 +402,7 @@ impl fmt::Display for LexicalParentError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::GeneratedRoleNotLexical => formatter.write_str(
-                "generated lexical parent must be lexical, initialization, or callable-reference invoke",
+                "generated lexical parent must be lexical, initialization, callable-reference invoke, or zero-argument constructor adapter",
             ),
             Self::Identity(error) => error.fmt(formatter),
         }
@@ -439,9 +446,10 @@ mod tests {
     use crate::{
         CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
         ConeIdentity, Effect, ExactCallableSignature, PersistentCallbackApplicationId,
-        PersistentDispatchSlotId, PersistentExactTypeId, PersistentFunctionId,
-        PersistentGeneratedCallableId, PersistentInitializationUnitId, PersistentTypeId,
-        StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+        PersistentConstructorId, PersistentDispatchSlotId, PersistentExactTypeId,
+        PersistentFunctionId, PersistentGeneratedCallableId, PersistentInitializationUnitId,
+        PersistentTypeId, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+        StructuralPathSegment,
     };
 
     #[test]
@@ -611,6 +619,13 @@ mod tests {
                 15,
                 0xa4,
             ),
+            (
+                GeneratedCallableKey::ZeroArgumentConstructorAdapter {
+                    constructor: PersistentConstructorId(ConeIdentity::CORE.0),
+                },
+                16,
+                0xa2,
+            ),
         ];
         for (key, tag, map_header) in cases {
             let encoded = encode(&key).unwrap();
@@ -632,6 +647,14 @@ mod tests {
             path,
         };
         assert!(LexicalCallableParent::from_generated_key(&key).is_ok());
+        assert!(
+            LexicalCallableParent::from_generated_key(
+                &GeneratedCallableKey::ZeroArgumentConstructorAdapter {
+                    constructor: PersistentConstructorId(ConeIdentity::CORE.0),
+                }
+            )
+            .is_ok()
+        );
     }
 
     fn hex(bytes: &[u8]) -> String {

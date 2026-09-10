@@ -614,11 +614,14 @@ GeneratedCallableKey =
   | BoxingAdjust { slot: PersistentDispatchSlotId,
                    payload: PersistentExactTypeId,
                    interface: PersistentExactTypeId }                        // tag 15
+  | ZeroArgumentConstructorAdapter { constructor: PersistentConstructorId } // tag 16
 ```
 
 `GeneratedCallableKey::Initialization.unit`只接受声明级`TopLevelProperty`、`ExtensionProperty`、`Object`或`Companion` unit；它是initializer/ensure模板的source owner。`GenericDelegatedExtensionApplication`是concrete materialization unit，禁止直接写进该template key：generic delegated extension property仍以其声明级`ExtensionProperty` unit产生唯一Initialization template，再以`CallableMaterializationContext::InitializationApplication`携带每组exact receiver arguments。否则同一source initializer会被错误复制成多个“模板”，其中的binder callback/local declaration也无法先于concretization取得identity。
 
-`LexicalCallableParent`使用`CallableTemplateOwner`相同的1…5 wire tag，但parent tag 5进一步只接受`GeneratedCallableKey` tag 1/2/6产生的`PersistentGeneratedCallableId`；其中tag 2的Initialization callable以声明级unit终止，而不是继续寻找source function。它不含任何application id，因而同一个generic模板/initializer内的lambda、anonymous function或callable-reference wrapper只取得一个declaration identity；不同concrete callable application或generic delegated initialization unit由materialization relation区分。嵌套lexical callable递归引用模板级parent，cycle拒绝。
+`ZeroArgumentConstructorAdapter`只表示编译器必须无source argument构造异常、而目标source constructor通过默认参数允许零参数调用时产生的唯一适配器；`constructor`必须是该目标的`PersistentConstructorId`，producer还必须证明目标存在至少一个物理参数、所有source参数均可省略且同一目标只有一个适配器。它不能伪装成第二个同签名source constructor，也不能用于普通调用点的默认参数展开。
+
+`LexicalCallableParent`使用`CallableTemplateOwner`相同的1…5 wire tag，但parent tag 5进一步只接受`GeneratedCallableKey` tag 1/2/6/16产生的`PersistentGeneratedCallableId`；其中tag 2的Initialization callable以声明级unit终止，而不是继续寻找source function。tag 16可包含从source default template实例化而来的lambda、anonymous function或local declaration，因此也是合法lexical parent。它不含任何application id，因而同一个generic模板/initializer内的lambda、anonymous function或callable-reference wrapper只取得一个declaration identity；不同concrete callable application或generic delegated initialization unit由materialization relation区分。嵌套lexical callable递归引用模板级parent，cycle拒绝。
 
 `LexicalCallableRole`为`LambdaBody=1, AnonymousFunctionBody=2`；named local function无论是否generic都走带LexicalScoped的source function declaration identity，不进入此sum。tag 1/6都不把exact signature写入identity，因为Export HIR中的合法signature仍可能含binder；每个param-free实现或concrete application的完整signature改由第9.2节以Strong/ODR subject记录。callable-reference的resolved target也不进入identity：它继续保存在当前typed HIR body，未来实际承载body/default的required HIR capability必须以封闭target sum覆盖named/local/bound/derived-equality/dispatch形态并将target/source/target signature纳入HIR semantic projection。identity-foundation本身不宣称序列化body。这样同一lexical site不会因alias/dispatch refinement换identity，也不要求`CallableOwner`假装覆盖全部call target。
 

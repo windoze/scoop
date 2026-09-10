@@ -152,6 +152,9 @@ fn all_generated_callable_records_round_trip_and_resolve() {
             payload: exact,
             interface: exact,
         },
+        GeneratedCallableKey::ZeroArgumentConstructorAdapter {
+            constructor: PersistentConstructorId::expected(),
+        },
     ];
     let mut resolver = Resolver { generated: vec![] };
 
@@ -218,9 +221,9 @@ fn generated_callable_resolution_rejects_nonlexical_generated_parent() {
 #[test]
 fn generated_callable_decoder_rejects_unknown_tags_and_roles() {
     let outer =
-        decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x10", DecodeLimits::default())
+        decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x11", DecodeLimits::default())
             .unwrap_err();
-    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 16 });
+    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 17 });
 
     let parent_bytes = [b"\xa2\x00\x06\x01\x58\x20".as_slice(), &[0; 32]].concat();
     let parent =
