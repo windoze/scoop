@@ -469,6 +469,15 @@ impl Harness {
         let intrinsic_array = self.intrinsic_array_class(hir::IntrinsicTypeKind::Array);
         let intrinsic_mutable_array =
             self.intrinsic_array_class(hir::IntrinsicTypeKind::MutableArray);
+        let intrinsic_type_core = hir::IntrinsicTypeCore {
+            integers: intrinsic_integers,
+            boolean: intrinsic_boolean,
+            string: intrinsic_string,
+            array: intrinsic_array,
+            mutable_array: intrinsic_mutable_array,
+            ptr,
+            fun_ptr,
+        };
         let mut source_contexts = Arena::new();
         source_contexts.alloc(hir::SourceContext {
             function_name: String::new(),
@@ -610,6 +619,22 @@ impl Harness {
                 &property_identities,
             )
             .expect("the MIR test fixture has no initialization units");
+        let type_identities = hir::HirTypeIdentities::from_types(hir::HirTypeIdentityInputs {
+            types: &self.types,
+            function_types: &self.function_types,
+            structs: &self.structs,
+            struct_applications: &self.struct_applications,
+            enums: &self.enums,
+            enum_applications: &self.enum_applications,
+            classes: &self.classes,
+            class_applications: &self.class_applications,
+            interfaces: &self.interfaces,
+            interface_applications: &self.interface_applications,
+            objects: &Arena::new(),
+            intrinsic_core: &intrinsic_type_core,
+            nominal_identities: &nominal_identities,
+        })
+        .expect("the MIR test fixture types have persistent identities");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -619,6 +644,7 @@ impl Harness {
             field_identities,
             object_value_identities,
             initialization_unit_identities,
+            type_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),
@@ -628,7 +654,7 @@ impl Harness {
             }],
             source_contexts,
             types: self.types,
-            function_types: Arena::new(),
+            function_types: self.function_types,
             lambdas: Arena::new(),
             anonymous_functions: Arena::new(),
             local_functions: Arena::new(),
@@ -695,15 +721,7 @@ impl Harness {
                 query_state: entry,
                 failure: entry,
             },
-            intrinsic_type_core: hir::IntrinsicTypeCore {
-                integers: intrinsic_integers,
-                boolean: intrinsic_boolean,
-                string: intrinsic_string,
-                array: intrinsic_array,
-                mutable_array: intrinsic_mutable_array,
-                ptr,
-                fun_ptr,
-            },
+            intrinsic_type_core,
             source_location_core: hir::SourceLocationCore {
                 location: ptr,
                 current: entry,

@@ -118,6 +118,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         source.types.alloc(hir::Type::Function(function_type)),
         canonical_type
     );
+    source.type_identities = rebuild_type_identities(&source);
     let reference = source.callable_references.alloc(hir::CallableReference {
         target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target)),
         function_type,

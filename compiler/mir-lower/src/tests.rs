@@ -41,6 +41,25 @@ fn legacy_executable(
         .expect("the MIR test keeps its typed legacy entry structurally valid")
 }
 
+fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
+    hir::HirTypeIdentities::from_types(hir::HirTypeIdentityInputs {
+        types: &module.types,
+        function_types: &module.function_types,
+        structs: &module.structs,
+        struct_applications: &module.struct_applications,
+        enums: &module.enums,
+        enum_applications: &module.enum_applications,
+        classes: &module.classes,
+        class_applications: &module.class_applications,
+        interfaces: &module.interfaces,
+        interface_applications: &module.interface_applications,
+        objects: &module.objects,
+        intrinsic_core: &module.intrinsic_type_core,
+        nominal_identities: &module.nominal_identities,
+    })
+    .expect("the MIR test keeps its HIR type identities structurally complete")
+}
+
 fn dump(module: &mir::Module) -> String {
     mir::dump(module)
         .lines()
@@ -140,6 +159,7 @@ enum CanonicalTypePlan {
 
 struct Harness {
     types: Arena<hir::Type>,
+    function_types: Arena<hir::FunctionType>,
     functions: Arena<hir::Function>,
     extern_functions: Arena<hir::ExternFunction>,
     generic_functions: Arena<hir::GenericFunction>,

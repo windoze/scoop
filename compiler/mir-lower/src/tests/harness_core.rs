@@ -64,6 +64,7 @@ impl Harness {
         enum_applications_by_key.insert((option_enum, vec![t]), actual_option_self_application);
         Harness {
             types,
+            function_types: Arena::new(),
             functions,
             extern_functions,
             generic_functions: Arena::new(),

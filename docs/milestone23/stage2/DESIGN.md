@@ -1692,6 +1692,8 @@ Export HIR中的object-value identity relation按`SingletonValueId` arena等长�
 
 Export HIR中的initialization-unit identity relation按`InitializationUnitId` arena等长、非可选。runtime top-level ordinary property与extension property分别使用其已形成的typed property identity；standalone object与companion分别使用其source object declaration的`PersistentTypeId`及不同的`Object`/`Companion` key variant。relation同时验证unit与property/global/delegate storage或object/singleton/published root、failure root及initializer/ensure function反指闭合；这些关联对象必须各自由唯一unit拥有。初始化策略必须匹配eager property或lazy singleton的typed kind。`stable_key`、`display_name`、storage arena位置、unit arena位置、initializer body与dependency顺序均不参与identity。
 
+Export HIR中的type identity relation按`TypeId` arena等长、非可选，并以closed sum明确区分可产生`PersistentExactTypeId`的closed exact type与仍含source binder的open type；open分支必须保留其non-empty、按全局type-parameter identity排序的binder集合，不能用缺失record或失败查询表示。closed分支递归使用已形成的nominal identity与child exact identity构造`ExactTypeKey`，并验证nominal/function application的template、arity与canonical-type反指。source object的class representation必须归一到source object declaration identity，不能泄漏generated backing-class identity。display type name、application/type arena位置与type-parameter substitution slot均不进入exact identity。
+
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
 
 | field | table |

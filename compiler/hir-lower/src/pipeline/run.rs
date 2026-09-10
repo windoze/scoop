@@ -508,6 +508,18 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let type_identities = match crate::persistent_type_identities::build(
+            &self,
+            &nominal_identities,
+            &intrinsic_type_core,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let property_identities = match crate::persistent_properties::build(
             &self,
             &nominal_identities,
@@ -586,6 +598,7 @@ impl Lowerer {
             field_identities,
             object_value_identities,
             initialization_unit_identities,
+            type_identities,
             public_surface,
             source_files: self
                 .intrinsic_sources

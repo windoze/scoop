@@ -3,19 +3,16 @@ use super::*;
 impl Lowerer {
     /// Intern a type, so structurally equal types share a single
     /// `TypeId` (this makes instantiation dedup a plain id comparison).
-    /// On a dedup hit the fresh entry simply stays unreferenced
-    /// (nothing iterates the arena semantically).
+    /// Deduplication happens before allocation so the arena itself remains a
+    /// canonical set and every entry can receive one persistent identity.
     pub(crate) fn intern_type(&mut self, candidate: Type) -> TypeId {
         if let Type::Function(function) = &candidate {
             return self.function_types[*function].canonical_type;
         }
-        let id = self.types.alloc(candidate);
-        for (other, _) in self.types.iter() {
-            if other != id && type_value_equal(&self.types, other, id) {
-                return other;
-            }
+        if let Some((existing, _)) = self.types.iter().find(|(_, value)| *value == &candidate) {
+            return existing;
         }
-        id
+        self.types.alloc(candidate)
     }
 
     /// Intern one complete function signature and return its ordinary HIR

@@ -97,6 +97,9 @@ pub use persistent_object_values::*;
 mod persistent_initialization_units;
 pub use persistent_initialization_units::*;
 
+mod persistent_types;
+pub use persistent_types::*;
+
 mod foundation;
 pub use foundation::*;
 

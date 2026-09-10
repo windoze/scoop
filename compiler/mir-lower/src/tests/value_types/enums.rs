@@ -332,8 +332,21 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
     let int = h.int;
     let string = h.string;
     let pointer = h.types.alloc(hir::Type::Ptr(int));
-    let function_type = hir::FunctionTypeId::from_raw(0.into());
+    let function_type = hir::FunctionTypeId::from_raw(
+        u32::try_from(h.function_types.len())
+            .expect("function type id fits u32")
+            .into(),
+    );
     let managed_function = h.types.alloc(hir::Type::Function(function_type));
+    assert_eq!(
+        h.function_types.alloc(hir::FunctionType {
+            canonical_type: managed_function,
+            is_suspend: false,
+            parameter_types: vec![int],
+            return_type: int,
+        }),
+        function_type
+    );
     let function_pointer = h.types.alloc(hir::Type::FunPtr(function_type));
     let payload_types = [int, string, pointer, function_pointer];
     let option_types = payload_types.map(|payload| h.option(payload));
@@ -367,19 +380,7 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
     }
     let main = h.user_fn("main", hir::Body { locals, statements });
     let executable = h.finish(main);
-    let entry = executable.entry();
-    let mut source = executable.into_module();
-    assert_eq!(
-        source.function_types.alloc(hir::FunctionType {
-            canonical_type: managed_function,
-            is_suspend: false,
-            parameter_types: vec![int],
-            return_type: int,
-        }),
-        function_type
-    );
-    let source = legacy_executable(source, entry);
-    let module = lower(&source);
+    let module = lower(&executable);
     assert_eq!(module.validate(), Ok(()));
 
     let body = &module.functions[module.entry].body;

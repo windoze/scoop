@@ -22,6 +22,9 @@ pub struct Module {
     /// Total persistent identity relation for compiler-managed initialization
     /// units, including their typed declaration and storage ownership.
     pub initialization_unit_identities: HirInitializationUnitIdentities,
+    /// Total classification and persistent identity relation for every HIR
+    /// type. Open types retain their exact source binder set.
+    pub type_identities: HirTypeIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,
