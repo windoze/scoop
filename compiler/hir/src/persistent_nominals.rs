@@ -5,8 +5,8 @@ use std::ops::Index;
 
 use la_arena::{Arena, Idx};
 use scoop_identity::{
-    CborIdentityRecord, DefinitionOwnerAtom, GeneratedNominalIdentityError, GeneratedNominalKey,
-    PersistentGenericTypeId, PersistentTypeId, SourceDeclarationIdentityError,
+    CborIdentityRecord, CoreBuiltinNominal, DefinitionOwnerAtom, GeneratedNominalIdentityError,
+    GeneratedNominalKey, PersistentGenericTypeId, PersistentTypeId, SourceDeclarationIdentityError,
     SourceDeclarationKey,
 };
 
@@ -129,10 +129,14 @@ impl std::error::Error for HirNominalIdentityError {}
 
 /// Arena-aligned persistent identities for every export HIR nominal kind.
 ///
-/// Construction checks every table length against its authoritative arena;
-/// indexing therefore cannot observe a missing identity for a valid local id.
+/// The compiler-owned Unit and Any identities are stored alongside the five
+/// source/generated arena tables. Construction checks every table length
+/// against its authoritative arena; indexing therefore cannot observe a
+/// missing identity for a valid local id.
 #[derive(Clone, Debug)]
 pub struct HirNominalIdentities {
+    unit: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
+    any: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
     structs: Vec<HirNominalIdentity>,
     enums: Vec<HirNominalIdentity>,
     classes: Vec<HirNominalIdentity>,
@@ -180,12 +184,24 @@ impl HirNominalIdentities {
             object_identities.len(),
         )?;
         Ok(Self {
+            unit: CoreBuiltinNominal::Unit.identity_record(),
+            any: CoreBuiltinNominal::Any.identity_record(),
             structs: struct_identities,
             enums: enum_identities,
             classes: class_identities,
             interfaces: interface_identities,
             objects: object_identities,
         })
+    }
+
+    pub const fn core_builtin(
+        &self,
+        builtin: CoreBuiltinNominal,
+    ) -> &CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> {
+        match builtin {
+            CoreBuiltinNominal::Unit => &self.unit,
+            CoreBuiltinNominal::Any => &self.any,
+        }
     }
 }
 

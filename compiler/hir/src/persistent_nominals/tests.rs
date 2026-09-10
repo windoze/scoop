@@ -1,8 +1,8 @@
 use la_arena::Arena;
 use scoop_identity::{
-    CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, GeneratedNominalKey,
-    NormalizedSourcePath, PackagePath, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
-    SourceNominalKind,
+    CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain,
+    GeneratedNominalKey, NormalizedSourcePath, PackagePath, SourceDeclarationKey,
+    SourceDeclarationSite, SourceIdentity, SourceNominalKind,
 };
 
 use super::*;
@@ -74,4 +74,25 @@ fn aligned_tables_reject_missing_identities_before_indexing() {
     assert_eq!(error.table(), HirNominalIdentityTable::Struct);
     assert_eq!(error.expected(), 0);
     assert_eq!(error.actual(), 1);
+}
+
+#[test]
+fn empty_arena_tables_still_carry_both_core_builtin_nominals() {
+    let identities = HirNominalIdentities::checked(
+        &Arena::new(),
+        Vec::new(),
+        &Arena::new(),
+        Vec::new(),
+        &Arena::new(),
+        Vec::new(),
+        &Arena::new(),
+        Vec::new(),
+        &Arena::new(),
+        Vec::new(),
+    )
+    .unwrap();
+
+    for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
+        assert_eq!(identities.core_builtin(builtin), &builtin.identity_record());
+    }
 }

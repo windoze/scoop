@@ -469,6 +469,8 @@ SourceDeclarationKey {
 
 `effect` tag为`Ordinary=1, Suspend=2`，`calling_convention`的v1唯一值为`C=1`。typealias在生成signature key前透明展开；nullable语法先脱糖为core `Option`。binder是签名中唯一允许的非concrete type ref，其depth/index必须落在对应declaration binder stack中。
 
+`Unit`与`Any`是没有普通source nominal arena项的compiler builtin，但它们在signature/exact type中仍必须是唯一的typed nominal identity。trusted core authority为两者各构造一个canonical non-generic `SourceDeclarationKey`：origin均为reserved core `ConeIdentity`，package为root，owner chain为top-level，scope为`ConeWide`，type parameter count为0；`Unit`的name/kind为`Unit`/`Struct`，`Any`的name/kind为`Any`/`Class`。这两条record由compiler authority密封生成并非可被artifact自报或覆写的普通源声明；Export HIR必须与五类nominal arena identity一起非可选地保存它们，后续stage不得从显示name重建。
+
 non-generic type/function constructor要求`type_parameter_count=0`，generic type/function constructor要求大于0。普通property要求count 0且receiver absent，extension property可有binder且receiver必须present；M23 typealias严格non-generic，因而其duplicate variant无count，未来generic alias必须提升identity schema。反之均是identity-construction error，不在reader中猜测修复。
 
 ### 5.2 kind domain与构造器

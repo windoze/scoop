@@ -4,6 +4,7 @@ mod c_abi;
 mod callable;
 mod callable_body;
 mod callback;
+mod core_builtin;
 mod dispatch;
 mod enum_variant;
 mod exact_signature;
@@ -66,6 +67,7 @@ pub use callback::{
     CallbackParameterIndex, CallbackRegistrationKey, DecodedCallbackApplicationKey,
     DecodedCallbackRegistrationKey, DecodedSignatureCallableShape, SignatureCallableShape,
 };
+pub use core_builtin::CoreBuiltinNominal;
 pub use dispatch::{
     DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,
     DispatchIdentityResolutionError, DispatchRole, DispatchSlotKey, DispatchTableKey,
