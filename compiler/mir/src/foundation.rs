@@ -15,6 +15,9 @@ use scoop_wire::{Encoder, WireEncode};
 
 use crate::{CallableSignatureRecord, CallbackApplicationRecord};
 
+mod wire;
+pub use wire::ValidatedMirFoundationWire;
+
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type GeneratedCallableRecord =
     CborIdentityRecord<PersistentGeneratedCallableId, GeneratedCallableKey>;
