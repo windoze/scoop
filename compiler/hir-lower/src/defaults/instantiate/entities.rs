@@ -326,6 +326,7 @@ impl Lowerer {
                 managed_function_type,
                 context_index: source.context_index,
                 mode: source.mode,
+                span: source.span,
             })
     }
 

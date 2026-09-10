@@ -118,6 +118,23 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         source.types.alloc(hir::Type::Function(function_type)),
         canonical_type
     );
+    let native_canonical_type = hir::TypeId::from_raw(
+        u32::try_from(source.types.len())
+            .expect("type id fits u32")
+            .into(),
+    );
+    let native_function_type = source.function_types.alloc(hir::FunctionType {
+        canonical_type: native_canonical_type,
+        is_suspend: false,
+        parameter_types: vec![int, int, int],
+        return_type: int,
+    });
+    assert_eq!(
+        source
+            .types
+            .alloc(hir::Type::Function(native_function_type)),
+        native_canonical_type
+    );
     source.type_identities = rebuild_type_identities(&source);
     let definition_path = scoop_identity::StructuralDefinitionPath::from_first(
         scoop_identity::StructuralPathSegment::new(
@@ -148,10 +165,11 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
                     ),
                     [],
                 ),
-                native_function_type: function_type,
+                native_function_type,
                 managed_function_type: function_type,
                 context_index: 0,
                 mode,
+                span: SPAN,
             });
     let hir::FunctionKind::User(main_body) = &mut source.functions[main].kind else {
         panic!("main is a user function")
@@ -166,6 +184,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         },
         callback_ty,
     )));
+    source.callback_registration_identities = rebuild_callback_identities(&source);
 
     let source = legacy_executable(source, entry);
     let module = lower(&source);

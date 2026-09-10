@@ -130,8 +130,7 @@ fn every_source_callable_and_constructor_uses_explicit_temporaries() {
     }
 }
 
-#[test]
-fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
+fn callback_registration(mode: &str) -> ast::Expr {
     let native_signature = ty_function(
         false,
         vec![ty_named("Int"), ty_generic("Ptr", vec![ty_named("Unit")])],
@@ -148,22 +147,77 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         body: block(vec![stmt(var("value"))]),
         span: sp(),
     };
-    let registration = typed_source_call(
+    typed_source_call(
         "foreignCallback",
         vec![native_signature],
         vec![
-            named_argument("mode", field(var("ForeignCallbackMode"), "Reusable")),
+            named_argument("mode", field(var("ForeignCallbackMode"), mode)),
             named_argument("callback", callback),
             named_argument("contextIndex", int_lit(1)),
         ],
-    );
-    let module = lower_user(file(vec![fun(
-        "main",
-        vec![unsafe_block(vec![val("registered", registration)])],
-    )]))
-    .expect("named callback arguments should survive explicit materialization");
+    )
+}
 
-    let (_, registration) = module
+fn callback_registration_source() -> ast::SourceFile {
+    file(vec![fun(
+        "main",
+        vec![unsafe_block(vec![val(
+            "registered",
+            callback_registration("Reusable"),
+        )])],
+    )])
+}
+
+fn rebuild_callback_identities(
+    module: &hir::Module,
+) -> Result<hir::HirCallbackRegistrationIdentities, hir::HirCallbackRegistrationIdentityError> {
+    hir::HirCallbackRegistrationIdentities::from_registrations(
+        hir::HirCallbackRegistrationIdentityInputs {
+            registrations: &module.foreign_callback_registrations,
+            functions: &module.functions,
+            lambdas: &module.lambdas,
+            anonymous_functions: &module.anonymous_functions,
+            local_functions: &module.local_functions,
+            class_constructors: &module.class_constructors,
+            struct_constructors: &module.struct_constructors,
+            function_identities: &module.function_identities,
+            property_accessor_identities: &module.property_accessor_identities,
+            constructor_identities: &module.constructor_identities,
+            enum_member_identities: &module.enum_member_identities,
+            callback_modes: module.foreign_callback_core.modes,
+            type_inputs: hir::HirTypeIdentityInputs {
+                types: &module.types,
+                function_types: &module.function_types,
+                structs: &module.structs,
+                struct_applications: &module.struct_applications,
+                enums: &module.enums,
+                enum_applications: &module.enum_applications,
+                classes: &module.classes,
+                class_applications: &module.class_applications,
+                interfaces: &module.interfaces,
+                interface_applications: &module.interface_applications,
+                objects: &module.objects,
+                intrinsic_core: &module.intrinsic_type_core,
+                nominal_identities: &module.nominal_identities,
+            },
+            unit: module.unit,
+        },
+    )
+}
+
+#[test]
+fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
+    let source = callback_registration_source();
+    let mut shifted_source = source.clone();
+    shifted_source
+        .declarations
+        .insert(0, fun("unrelated", vec![]));
+    let module = lower_user(source)
+        .expect("named callback arguments should survive explicit materialization");
+    let shifted = lower_user(shifted_source)
+        .expect("an unrelated declaration must not affect callback identity");
+
+    let (registration_id, registration) = module
         .foreign_callback_registrations
         .iter()
         .next()
@@ -180,6 +234,32 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         registration.mode,
         module.foreign_callback_core.modes.reusable()
     );
+    let identity = &module.callback_registration_identities[registration_id];
+    let shifted_identity = shifted
+        .callback_registration_identities
+        .records()
+        .first()
+        .expect("the shifted module has one callback identity");
+    assert_eq!(identity, shifted_identity);
+    assert_eq!(module.callback_registration_identities.records().len(), 1);
+    assert_eq!(identity.key().context_index().get(), 1);
+    assert_eq!(
+        identity.key().mode(),
+        scoop_identity::CallbackMode::Reusable
+    );
+    assert_eq!(identity.key().source_signature().parameters().len(), 2);
+    assert!(matches!(
+        identity.key().source_signature().result(),
+        scoop_identity::SourceCAbiReturn::Value(_)
+    ));
+    assert_eq!(identity.key().managed_signature().parameters().len(), 1);
+    assert_eq!(
+        identity.key().parent(),
+        module.function_identities[module.entry()]
+            .source_identity()
+            .expect("main has a source identity")
+            .lexical_parent()
+    );
     let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main has a user body")
     };
@@ -189,6 +269,61 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         local_init(main, "registered").kind,
         hir::ExprKind::ForeignCallbackRegister { .. }
     ));
+}
+
+#[test]
+fn callback_identity_relation_rejects_an_invalid_context_parameter() {
+    let mut module = lower_user(callback_registration_source())
+        .expect("the callback registration fixture lowers")
+        .into_module();
+    let (registration, _) = module
+        .foreign_callback_registrations
+        .iter()
+        .next()
+        .expect("one callback registration");
+    module.foreign_callback_registrations[registration].context_index = u32::MAX;
+
+    let error = rebuild_callback_identities(&module)
+        .expect_err("the context parameter must belong to the native signature");
+    assert!(error.to_string().contains("context index is out of bounds"));
+}
+
+#[test]
+fn callback_identity_uses_the_nearest_local_callable_parent() {
+    let local = local_fun_sig(
+        "install",
+        vec![],
+        vec![],
+        None,
+        vec![unsafe_block(vec![val(
+            "registered",
+            callback_registration("OneShot"),
+        )])],
+    );
+    let module = lower_user(file(vec![fun("main", vec![local])]))
+        .expect("a callback conversion inside a local function lowers");
+    let local_function = module
+        .functions
+        .iter()
+        .find_map(|(function, declaration)| {
+            declaration.name.ends_with(".install").then_some(function)
+        })
+        .expect("the local source function exists");
+    let (registration, _) = module
+        .foreign_callback_registrations
+        .iter()
+        .next()
+        .expect("one callback registration");
+    let identity = &module.callback_registration_identities[registration];
+
+    assert_eq!(
+        identity.key().parent(),
+        module.function_identities[local_function]
+            .source_identity()
+            .expect("the local function has a source identity")
+            .lexical_parent()
+    );
+    assert_eq!(identity.key().mode(), scoop_identity::CallbackMode::OneShot);
 }
 
 #[test]

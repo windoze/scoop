@@ -499,6 +499,8 @@ impl Lowerer {
             .expect("missing or invalid intrinsic core types are always diagnosed");
         let source_location_core = source_location_core
             .expect("a missing or invalid source location core is always diagnosed");
+        let foreign_callback_core = foreign_callback_core
+            .expect("a missing or invalid foreign callback core protocol is always diagnosed");
         let public_surface = self.public_semantic_surface();
         let nominal_identities = match crate::persistent_nominals::build(&self) {
             Ok(identities) => identities,
@@ -619,6 +621,44 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let callback_registration_identities = match crate::persistent_callbacks::build(
+            &self,
+            foreign_callback_core,
+            &nominal_identities,
+            &property_accessor_identities,
+            &constructor_identities,
+            &enum_member_identities,
+            &function_identities,
+            &intrinsic_type_core,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let (file, span) =
+                    error
+                        .registration()
+                        .map_or((0, Span { start: 0, end: 0 }), |registration| {
+                            let registration = &self.foreign_callback_registrations[registration];
+                            let file = match registration.definition_root {
+                                hir::LexicalDefinitionRoot::Function(function) => {
+                                    self.function_files[&function]
+                                }
+                                hir::LexicalDefinitionRoot::ClassConstructor(constructor) => {
+                                    self.class_files[&self.class_constructors[constructor].owner]
+                                }
+                                hir::LexicalDefinitionRoot::StructConstructor(constructor) => {
+                                    self.struct_files[&self.struct_constructors[constructor].owner]
+                                }
+                                hir::LexicalDefinitionRoot::VariantConstructor(variant) => {
+                                    self.enum_files[&variant.enumeration()]
+                                }
+                            };
+                            (file, registration.span)
+                        });
+                let mut diagnostic = Diagnostic::at(span, error.to_string());
+                diagnostic.file = file;
+                return Err(vec![diagnostic]);
+            }
+        };
         let export_binding_identities = match crate::persistent_export_bindings::build(
             &self,
             &public_surface,
@@ -713,6 +753,7 @@ impl Lowerer {
             type_identities,
             constructor_identities,
             function_identities,
+            callback_registration_identities,
             export_binding_identities,
             dispatch_slot_identities,
             source_context_identities,
@@ -777,8 +818,7 @@ impl Lowerer {
             exception_core,
             coroutine_core,
             ffi_core,
-            foreign_callback_core: foreign_callback_core
-                .expect("a missing or invalid foreign callback core protocol is always diagnosed"),
+            foreign_callback_core,
             intrinsic_type_core,
             source_location_core,
             instantiations: self.instantiations,

@@ -168,6 +168,7 @@ impl Lowerer {
                     managed_function_type,
                     context_index: context_index as u32,
                     mode,
+                    span: call.span,
                 });
         Some(hir::Expr {
             kind: ExprKind::ForeignCallbackRegister {

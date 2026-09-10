@@ -854,6 +854,26 @@ impl Harness {
                 unit: self.unit,
             })
             .expect("the MIR test fixture externs have source-native contracts");
+        let callback_registration_identities =
+            hir::HirCallbackRegistrationIdentities::from_registrations(
+                hir::HirCallbackRegistrationIdentityInputs {
+                    registrations: &Arena::new(),
+                    functions: &self.functions,
+                    lambdas: &Arena::new(),
+                    anonymous_functions: &Arena::new(),
+                    local_functions: &Arena::new(),
+                    class_constructors: &self.class_constructors,
+                    struct_constructors: &self.struct_constructors,
+                    function_identities: &function_identities,
+                    property_accessor_identities: &property_accessor_identities,
+                    constructor_identities: &constructor_identities,
+                    enum_member_identities: &enum_member_identities,
+                    callback_modes,
+                    type_inputs: type_identity_inputs,
+                    unit: self.unit,
+                },
+            )
+            .expect("the empty MIR test callback relation is valid");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -866,6 +886,7 @@ impl Harness {
             type_identities,
             constructor_identities,
             function_identities,
+            callback_registration_identities,
             export_binding_identities,
             dispatch_slot_identities,
             source_context_identities,

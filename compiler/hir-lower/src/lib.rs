@@ -118,6 +118,7 @@ mod overload;
 mod patterns;
 mod persistent_accessors;
 mod persistent_aliases;
+mod persistent_callbacks;
 mod persistent_constructor_identities;
 mod persistent_dispatch;
 mod persistent_enum_members;

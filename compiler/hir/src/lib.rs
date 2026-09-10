@@ -88,6 +88,9 @@ pub use persistent_constructors::*;
 mod persistent_functions;
 pub use persistent_functions::*;
 
+mod persistent_callbacks;
+pub use persistent_callbacks::*;
+
 mod persistent_dispatch;
 pub use persistent_dispatch::*;
 mod persistent_export_bindings;

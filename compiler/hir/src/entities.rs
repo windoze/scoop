@@ -31,6 +31,9 @@ pub struct Module {
     /// Total persistent identity relation for source, accessor, lexical,
     /// initialization and compiler-derived functions.
     pub function_identities: HirFunctionIdentities,
+    /// Total persistent identity relation for source foreign-callback
+    /// conversion sites.
+    pub callback_registration_identities: HirCallbackRegistrationIdentities,
     /// Direct public package bindings derived from the typed declaration
     /// surface. Member declarations remain reachable through their owners.
     pub export_binding_identities: HirExportBindingIdentities,
@@ -456,6 +459,7 @@ pub struct ForeignCallbackRegistration {
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
     pub mode: AppliedEnumVariantRef,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

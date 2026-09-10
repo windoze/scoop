@@ -60,6 +60,42 @@ fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
     .expect("the MIR test keeps its HIR type identities structurally complete")
 }
 
+fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistrationIdentities {
+    hir::HirCallbackRegistrationIdentities::from_registrations(
+        hir::HirCallbackRegistrationIdentityInputs {
+            registrations: &module.foreign_callback_registrations,
+            functions: &module.functions,
+            lambdas: &module.lambdas,
+            anonymous_functions: &module.anonymous_functions,
+            local_functions: &module.local_functions,
+            class_constructors: &module.class_constructors,
+            struct_constructors: &module.struct_constructors,
+            function_identities: &module.function_identities,
+            property_accessor_identities: &module.property_accessor_identities,
+            constructor_identities: &module.constructor_identities,
+            enum_member_identities: &module.enum_member_identities,
+            callback_modes: module.foreign_callback_core.modes,
+            type_inputs: hir::HirTypeIdentityInputs {
+                types: &module.types,
+                function_types: &module.function_types,
+                structs: &module.structs,
+                struct_applications: &module.struct_applications,
+                enums: &module.enums,
+                enum_applications: &module.enum_applications,
+                classes: &module.classes,
+                class_applications: &module.class_applications,
+                interfaces: &module.interfaces,
+                interface_applications: &module.interface_applications,
+                objects: &module.objects,
+                intrinsic_core: &module.intrinsic_type_core,
+                nominal_identities: &module.nominal_identities,
+            },
+            unit: module.unit,
+        },
+    )
+    .expect("the MIR test keeps its callback identities structurally complete")
+}
+
 fn dump(module: &mir::Module) -> String {
     mir::dump(module)
         .lines()
