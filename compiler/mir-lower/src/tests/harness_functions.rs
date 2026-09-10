@@ -790,6 +790,27 @@ impl Harness {
             interface_slots,
         )
         .expect("the MIR test fixture dispatch slots have persistent identities");
+        let public_surface = hir::PublicSemanticSurface::default();
+        let export_binding_identities = hir::HirExportBindingIdentities::from_public_surface(
+            hir::HirExportBindingIdentityInputs {
+                surface: &public_surface,
+                structs: &self.structs,
+                enums: &self.enums,
+                classes: &self.classes,
+                interfaces: &self.interfaces,
+                objects: &Arena::new(),
+                singleton_values: &Arena::new(),
+                functions: &self.functions,
+                properties: &self.properties,
+                type_aliases: &Arena::new(),
+                nominal_identities: &nominal_identities,
+                object_value_identities: &object_value_identities,
+                function_identities: &function_identities,
+                property_identities: &property_identities,
+                type_alias_identities: &type_alias_identities,
+            },
+        )
+        .expect("the empty MIR test public surface has no export bindings");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -802,8 +823,9 @@ impl Harness {
             type_identities,
             constructor_identities,
             function_identities,
+            export_binding_identities,
             dispatch_slot_identities,
-            public_surface: hir::PublicSemanticSurface::default(),
+            public_surface,
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),
                 provider: hir::IntrinsicProviderId::from_raw(0),

@@ -235,6 +235,30 @@ impl ExportBindingKey {
             role: binding.role,
         }
     }
+
+    pub const fn exporter(&self) -> ConeIdentity {
+        self.exporter
+    }
+
+    pub fn package(&self) -> &PackagePath {
+        &self.package
+    }
+
+    pub const fn namespace(&self) -> BindingNamespace {
+        self.namespace
+    }
+
+    pub fn name(&self) -> &CanonicalIdentifier {
+        &self.name
+    }
+
+    pub const fn target(&self) -> BindableEntity {
+        self.target
+    }
+
+    pub const fn role(&self) -> BindingRole {
+        self.role
+    }
 }
 
 impl WireEncode for ExportBindingKey {

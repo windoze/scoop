@@ -90,6 +90,8 @@ pub use persistent_functions::*;
 
 mod persistent_dispatch;
 pub use persistent_dispatch::*;
+mod persistent_export_bindings;
+pub use persistent_export_bindings::*;
 
 mod persistent_aliases;
 pub use persistent_aliases::*;

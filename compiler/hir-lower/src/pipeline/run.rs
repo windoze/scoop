@@ -619,6 +619,23 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let export_binding_identities = match crate::persistent_export_bindings::build(
+            &self,
+            &public_surface,
+            &nominal_identities,
+            &object_value_identities,
+            &function_identities,
+            &property_identities,
+            &type_alias_identities,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                return Err(vec![Diagnostic::at(
+                    Span { start: 0, end: 0 },
+                    error.to_string(),
+                )]);
+            }
+        };
         let dispatch_slot_identities = match crate::persistent_dispatch::build(
             &self,
             &function_identities,
@@ -643,6 +660,7 @@ impl Lowerer {
             type_identities,
             constructor_identities,
             function_identities,
+            export_binding_identities,
             dispatch_slot_identities,
             public_surface,
             source_files: self

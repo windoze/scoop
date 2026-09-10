@@ -31,6 +31,9 @@ pub struct Module {
     /// Total persistent identity relation for source, accessor, lexical,
     /// initialization and compiler-derived functions.
     pub function_identities: HirFunctionIdentities,
+    /// Direct public package bindings derived from the typed declaration
+    /// surface. Member declarations remain reachable through their owners.
+    pub export_binding_identities: HirExportBindingIdentities,
     /// Persistent slot identities for every class virtual family and direct
     /// interface member. Overrides keep the slot of their family root.
     pub dispatch_slot_identities: HirDispatchSlotIdentities,

@@ -38,7 +38,8 @@ impl Lowerer {
             .functions
             .iter()
             .filter_map(|(id, function)| {
-                (!accessor_functions.contains(&id)
+                (self.source_function_declarations.contains_key(&id)
+                    && !accessor_functions.contains(&id)
                     && Self::declaration_is_exported(&function.access))
                 .then_some(id)
             })

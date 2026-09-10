@@ -121,6 +121,7 @@ mod persistent_aliases;
 mod persistent_constructor_identities;
 mod persistent_dispatch;
 mod persistent_enum_members;
+mod persistent_export_bindings;
 mod persistent_fields;
 mod persistent_functions;
 mod persistent_initialization_units;
