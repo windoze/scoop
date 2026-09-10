@@ -119,6 +119,7 @@ mod persistent_accessors;
 mod persistent_aliases;
 mod persistent_enum_members;
 mod persistent_nominals;
+mod persistent_object_values;
 mod persistent_properties;
 mod persistent_types;
 mod pipeline;

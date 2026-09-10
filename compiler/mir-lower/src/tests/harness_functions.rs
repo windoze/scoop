@@ -576,12 +576,20 @@ impl Harness {
         let enum_member_identities =
             hir::HirEnumMemberIdentities::from_declarations(&self.enums, &nominal_identities)
                 .expect("the MIR test fixture enum members have persistent identities");
+        let object_value_identities = hir::HirObjectValueIdentities::from_declarations(
+            &Arena::new(),
+            &Arena::new(),
+            &Arena::new(),
+            &nominal_identities,
+        )
+        .expect("the MIR test fixture has no object values");
         let module = hir::Module {
             nominal_identities,
             property_identities,
             property_accessor_identities,
             type_alias_identities,
             enum_member_identities,
+            object_value_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),
