@@ -9,6 +9,14 @@ use crate::{
     PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
 };
 
+mod decode;
+
+pub use decode::{
+    DecodedManglingSchemaIdentity, DecodedPersistentSymbolKey, DecodedPersistentSymbolRequest,
+    DecodedPersistentSymbolRequestTable, ManglingSchemaIdentityError,
+    PersistentSymbolResolutionError, PersistentSymbolResolver,
+};
+
 const MANGLED_SYMBOL_PREFIX: &str = "scoop$1$";
 const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
 
@@ -288,13 +296,7 @@ pub struct PersistentSymbolRequestTable {
 
 impl PersistentSymbolRequestTable {
     pub fn new(mut requests: Vec<PersistentSymbolRequest>) -> Result<Self, PersistentSymbolError> {
-        requests.sort_by(|left, right| {
-            left.key
-                .kind()
-                .tag()
-                .cmp(&right.key.kind().tag())
-                .then_with(|| left.key.owner_bytes().cmp(right.key.owner_bytes()))
-        });
+        requests.sort_by(compare_requests);
         if let Some(duplicate) = requests.windows(2).find(|pair| pair[0].key == pair[1].key) {
             return Err(PersistentSymbolError::DuplicateRequest(duplicate[0].key));
         }
@@ -344,6 +346,17 @@ impl fmt::Display for PersistentSymbolError {
             ),
         }
     }
+}
+
+fn compare_requests(
+    left: &PersistentSymbolRequest,
+    right: &PersistentSymbolRequest,
+) -> std::cmp::Ordering {
+    left.key
+        .kind()
+        .tag()
+        .cmp(&right.key.kind().tag())
+        .then_with(|| left.key.owner_bytes().cmp(right.key.owner_bytes()))
 }
 
 impl std::error::Error for PersistentSymbolError {}

@@ -182,9 +182,11 @@ pub use ids::{
     PersistentTypeId,
 };
 pub use mangling::{
-    LinkageClass, MangledSymbol, ManglingSchemaIdentity, PersistentSymbolError,
-    PersistentSymbolKey, PersistentSymbolKind, PersistentSymbolRequest,
-    PersistentSymbolRequestTable,
+    DecodedManglingSchemaIdentity, DecodedPersistentSymbolKey, DecodedPersistentSymbolRequest,
+    DecodedPersistentSymbolRequestTable, LinkageClass, MangledSymbol, ManglingSchemaIdentity,
+    ManglingSchemaIdentityError, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolKind,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentSymbolResolutionError,
+    PersistentSymbolResolver,
 };
 pub use record::{
     CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord, DecodedRuntimeIdentityRecord,
