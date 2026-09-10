@@ -2,6 +2,10 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Total persistent identity relation for every nominal declaration in
+    /// the five export arenas. Local arena ids remain request-scoped and are
+    /// never used as emission or cross-Cone identity.
+    pub nominal_identities: HirNominalIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

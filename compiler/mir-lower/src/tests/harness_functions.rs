@@ -1,3 +1,4 @@
+use super::harness_nominals::test_nominal_identities_without_objects;
 use super::*;
 
 impl Harness {
@@ -551,7 +552,14 @@ impl Harness {
             .expect("test callback failure has None"),
         )
         .expect("test callback failure has the core shape");
+        let nominal_identities = test_nominal_identities_without_objects(
+            &self.structs,
+            &self.enums,
+            &self.classes,
+            &self.interfaces,
+        );
         let module = hir::Module {
+            nominal_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),

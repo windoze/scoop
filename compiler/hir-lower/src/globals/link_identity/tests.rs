@@ -192,6 +192,25 @@ fn class_stems(output: &hir::Output, name: &str) -> Vec<String> {
     export
 }
 
+fn concrete_class_identities(
+    output: &hir::Output,
+    name: &str,
+) -> Vec<scoop_identity::PersistentTypeId> {
+    let mut identities = output
+        .export
+        .classes
+        .iter()
+        .filter(|(_, declaration)| declaration.name == name)
+        .map(|(id, _)| {
+            output.export.nominal_identities[id]
+                .concrete_type_id()
+                .expect("a non-generic test class has a concrete persistent identity")
+        })
+        .collect::<Vec<_>>();
+    identities.sort();
+    identities
+}
+
 fn source_identity(source_key: u32) -> scoop_identity::SourceIdentity {
     let path = match source_key {
         1 => "src/001-one.scoop",
@@ -435,7 +454,23 @@ fn nominal_stems_separate_packages_and_file_private_sources() {
         let stems = class_stems(&output, name);
         assert_eq!(stems.len(), 2);
         assert_ne!(stems[0], stems[1]);
+        let identities = concrete_class_identities(&output, name);
+        assert_eq!(identities.len(), 2);
+        assert_ne!(identities[0], identities[1]);
     }
+}
+
+#[test]
+fn persistent_nominal_identities_ignore_source_order_and_display_locator() {
+    let mut sources = vec![
+        (1, package(file(vec![class("Same", false)]), &["a"])),
+        (2, package(file(vec![class("Same", false)]), &["b"])),
+        (3, file(vec![fun("main", Vec::new())])),
+    ];
+    let first = concrete_class_identities(&lower(&sources, "/old/tree/input.scoop"), "Same");
+    sources.reverse();
+    let second = concrete_class_identities(&lower(&sources, "/new/tree/renamed.scoop"), "Same");
+    assert_eq!(first, second);
 }
 
 #[test]
@@ -448,7 +483,7 @@ fn object_and_backing_class_have_distinct_final_nominal_stems() {
         ]),
     )];
     let output = lower(&sources, "objects.scoop");
-    let (_, object) = output
+    let (object_id, object) = output
         .export
         .objects
         .iter()
@@ -456,6 +491,14 @@ fn object_and_backing_class_have_distinct_final_nominal_stems() {
         .expect("Registry object");
     let backing = &output.export.classes[object.backing_class];
     assert_ne!(object.link_stem, backing.link_stem);
+    let object_identity = &output.export.nominal_identities[object_id];
+    let backing_identity = &output.export.nominal_identities[object.backing_class];
+    assert!(object_identity.source().is_some());
+    assert!(backing_identity.source().is_none());
+    assert_ne!(
+        object_identity.concrete_type_id(),
+        backing_identity.concrete_type_id()
+    );
 
     let (_, concrete_object) = output
         .local
@@ -498,6 +541,10 @@ fn nested_nominal_stems_inherit_a_private_owners_source_identity() {
         .collect::<Vec<_>>();
     assert_eq!(nested.len(), 2);
     assert_ne!(nested[0].1.link_stem, nested[1].1.link_stem);
+    assert_ne!(
+        output.export.nominal_identities[nested[0].0].concrete_type_id(),
+        output.export.nominal_identities[nested[1].0].concrete_type_id()
+    );
     for (source_id, declaration) in nested {
         let concrete = output
             .local

@@ -498,7 +498,16 @@ impl Lowerer {
         let source_location_core = source_location_core
             .expect("a missing or invalid source location core is always diagnosed");
         let public_surface = self.public_semantic_surface();
+        let nominal_identities = match crate::persistent_nominals::build(&self) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let module = hir::Module {
+            nominal_identities,
             public_surface,
             source_files: self
                 .intrinsic_sources

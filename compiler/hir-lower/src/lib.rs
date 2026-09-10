@@ -115,6 +115,7 @@ mod model;
 mod namespace;
 mod overload;
 mod patterns;
+mod persistent_nominals;
 mod pipeline;
 mod properties;
 mod scope;

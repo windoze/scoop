@@ -73,6 +73,9 @@ pub use source_record::*;
 mod native_boundary;
 pub use native_boundary::*;
 
+mod persistent_nominals;
+pub use persistent_nominals::*;
+
 mod foundation;
 pub use foundation::*;
 
