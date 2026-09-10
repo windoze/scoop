@@ -1680,7 +1680,7 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 | 29 | `DefinitionOriginRecord` records |
 | 30 | `NativeBoundaryTypeDefinitionRecordV1` records |
 
-Export HIR中的property identity relation按`PropertyId`与property arena等长、非可选并保留ordinary/extension的typed id分支。普通property直接由`SourceDeclarationKey::property`产生`PersistentPropertyId`；top-level extension property由脱糖且保留binder的receiver `SignatureTypeKey`和完整type-parameter count通过`SourceDeclarationKey::extension_property`产生`PersistentExtensionPropertyId`。同一个`ExtensionPropertyId`必须与其`PropertyId`双向对应；member property的owner chain必须沿已形成的source nominal identity扩展。生成的object backing class仅是表示；source object type出现在receiver tree时必须使用object declaration identity，不得改用backing-class generated identity。
+Export HIR中的property identity relation按`PropertyId`与property arena等长、非可选并保留ordinary/extension的typed id分支。普通property直接由`SourceDeclarationKey::property`产生`PersistentPropertyId`；top-level extension property由脱糖且保留binder的receiver `SignatureTypeKey`和完整type-parameter count通过`SourceDeclarationKey::extension_property`产生`PersistentExtensionPropertyId`。同一个`ExtensionPropertyId`必须与其`PropertyId`双向对应；member property的owner chain必须沿已形成的source nominal identity扩展。生成的object backing class仅是表示；source object type出现在receiver tree时必须使用object declaration identity，不得改用backing-class generated identity。getter/setter identity relation分别与两个accessor arena等长且非可选，每项显式反指唯一`PropertyId`，并由该property的ordinary/extension typed owner及固定Getter/Setter role构造`PersistentPropertyAccessorId`；property capability、反指、owner与role必须全部一致，不能从accessor function、名字或arena位置补猜。
 
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
 

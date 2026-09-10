@@ -123,3 +123,52 @@ pub(in crate::tests) fn test_property_identities(
     hir::HirPropertyIdentities::checked(properties, identities, extensions)
         .expect("the MIR test fixture provides one identity per property declaration")
 }
+
+pub(in crate::tests) fn test_property_accessor_identities(
+    properties: &Arena<hir::Property>,
+    property_identities: &hir::HirPropertyIdentities,
+    getters: &Arena<hir::PropertyGetter>,
+    setters: &Arena<hir::PropertySetter>,
+) -> hir::HirPropertyAccessorIdentities {
+    let mut getter_properties = vec![None; getters.len()];
+    let mut setter_properties = vec![None; setters.len()];
+    for (property_id, property) in properties.iter() {
+        let getter = property.capability.getter().into_raw().into_u32() as usize;
+        assert!(getter_properties[getter].replace(property_id).is_none());
+        if let Some(setter) = property.capability.setter() {
+            let setter = setter.into_raw().into_u32() as usize;
+            assert!(setter_properties[setter].replace(property_id).is_none());
+        }
+    }
+    let getter_identities = getter_properties
+        .into_iter()
+        .map(|property| {
+            let property = property.expect("every test getter has a logical property");
+            hir::HirPropertyAccessorIdentity::getter(
+                property,
+                property_identities[property].property_owner(),
+            )
+            .expect("the synthetic getter identity is valid")
+        })
+        .collect();
+    let setter_identities = setter_properties
+        .into_iter()
+        .map(|property| {
+            let property = property.expect("every test setter has a logical property");
+            hir::HirPropertyAccessorIdentity::setter(
+                property,
+                property_identities[property].property_owner(),
+            )
+            .expect("the synthetic setter identity is valid")
+        })
+        .collect();
+    hir::HirPropertyAccessorIdentities::checked(
+        properties,
+        property_identities,
+        getters,
+        getter_identities,
+        setters,
+        setter_identities,
+    )
+    .expect("the MIR test fixture provides one identity per property accessor")
+}

@@ -293,17 +293,7 @@ impl PropertyIdentityBuilder<'_> {
         &self,
         property: hir::PropertyId,
     ) -> Result<usize, PersistentPropertyIdentityError> {
-        let file = match self.lowerer.properties[property].owner {
-            hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => {
-                self.lowerer.property_files.get(&property)
-            }
-            hir::PropertyOwner::Class(owner) => self.lowerer.class_files.get(&owner),
-            hir::PropertyOwner::Struct(owner) => self.lowerer.struct_files.get(&owner),
-            hir::PropertyOwner::Enum(owner) => self.lowerer.enum_files.get(&owner),
-            hir::PropertyOwner::Interface(owner) => self.lowerer.interface_files.get(&owner),
-            hir::PropertyOwner::Object(owner) => self.lowerer.object_files.get(&owner),
-        };
-        file.copied().ok_or_else(|| {
+        self.lowerer.property_source_file(property).ok_or_else(|| {
             self.failure(
                 property,
                 PersistentPropertyIdentityErrorDetail::MissingSourceFile,
@@ -318,18 +308,7 @@ impl PropertyIdentityBuilder<'_> {
     ) -> PersistentPropertyIdentityError {
         let declaration = &self.lowerer.properties[property];
         PersistentPropertyIdentityError {
-            file: match declaration.owner {
-                hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => {
-                    self.lowerer.property_files.get(&property)
-                }
-                hir::PropertyOwner::Class(owner) => self.lowerer.class_files.get(&owner),
-                hir::PropertyOwner::Struct(owner) => self.lowerer.struct_files.get(&owner),
-                hir::PropertyOwner::Enum(owner) => self.lowerer.enum_files.get(&owner),
-                hir::PropertyOwner::Interface(owner) => self.lowerer.interface_files.get(&owner),
-                hir::PropertyOwner::Object(owner) => self.lowerer.object_files.get(&owner),
-            }
-            .copied()
-            .unwrap_or(0),
+            file: self.lowerer.property_source_file(property).unwrap_or(0),
             span: declaration.span,
             detail,
         }
@@ -344,6 +323,22 @@ impl PropertyIdentityBuilder<'_> {
             span: Span { start: 0, end: 0 },
             detail: PersistentPropertyIdentityErrorDetail::MisalignedTable(error),
         }
+    }
+}
+
+impl Lowerer {
+    pub(crate) fn property_source_file(&self, property: hir::PropertyId) -> Option<usize> {
+        match self.properties[property].owner {
+            hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => {
+                self.property_files.get(&property)
+            }
+            hir::PropertyOwner::Class(owner) => self.class_files.get(&owner),
+            hir::PropertyOwner::Struct(owner) => self.struct_files.get(&owner),
+            hir::PropertyOwner::Enum(owner) => self.enum_files.get(&owner),
+            hir::PropertyOwner::Interface(owner) => self.interface_files.get(&owner),
+            hir::PropertyOwner::Object(owner) => self.object_files.get(&owner),
+        }
+        .copied()
     }
 }
 

@@ -520,9 +520,19 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let property_accessor_identities =
+            match crate::persistent_accessors::build(&self, &property_identities) {
+                Ok(identities) => identities,
+                Err(error) => {
+                    let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                    diagnostic.file = error.file();
+                    return Err(vec![diagnostic]);
+                }
+            };
         let module = hir::Module {
             nominal_identities,
             property_identities,
+            property_accessor_identities,
             public_surface,
             source_files: self
                 .intrinsic_sources

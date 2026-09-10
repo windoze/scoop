@@ -361,7 +361,14 @@ mod tests {
             PropertyAccessorKey::new(PropertyOwner::Property(property), AccessorRole::Setter);
         let getter = PersistentPropertyAccessorId::from_key(&getter_key).unwrap();
         let setter = PersistentPropertyAccessorId::from_key(&setter_key).unwrap();
-        assert_ne!(getter, setter);
+        assert_eq!(
+            getter.to_string(),
+            "f3c09e198bc2e0e3a64bb4d0a23890a9371800e20668b40d06deab719754180f"
+        );
+        assert_eq!(
+            setter.to_string(),
+            "c749f6a3e94702387ca4e670630709bbbaa9a0665a59c451b227ef87fd4eb6e1"
+        );
         assert_eq!(
             hex(&encode(&getter_key).unwrap()),
             format!("a201a20001015820{property}0201")

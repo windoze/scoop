@@ -9,6 +9,8 @@ pub struct Module {
     /// Total persistent identity relation for every source property. The
     /// identity kind distinguishes ordinary and extension declarations.
     pub property_identities: HirPropertyIdentities,
+    /// Total identity and logical-property relation for both accessor arenas.
+    pub property_accessor_identities: HirPropertyAccessorIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

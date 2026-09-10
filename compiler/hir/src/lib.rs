@@ -79,6 +79,9 @@ pub use persistent_nominals::*;
 mod persistent_properties;
 pub use persistent_properties::*;
 
+mod persistent_accessors;
+pub use persistent_accessors::*;
+
 mod foundation;
 pub use foundation::*;
 

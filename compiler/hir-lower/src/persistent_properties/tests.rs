@@ -388,4 +388,22 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
                 .expect("Host is generic")
         )]
     );
+
+    let (extension_id, extension_property) = output
+        .export
+        .properties
+        .iter()
+        .find(|(_, property)| property.name == "genericTag")
+        .expect("genericTag extension property");
+    let getter = extension_property.capability.getter();
+    let accessor = &output.export.property_accessor_identities[getter];
+    assert_eq!(accessor.property(), extension_id);
+    assert_eq!(
+        accessor.record().key().owner(),
+        output.export.property_identities[extension_id].property_owner()
+    );
+    assert_eq!(
+        accessor.record().key().role(),
+        scoop_identity::AccessorRole::Getter
+    );
 }

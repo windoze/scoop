@@ -6,7 +6,7 @@ use std::ops::Index;
 use la_arena::{Arena, Idx};
 use scoop_identity::{
     CborIdentityRecord, DefinitionOwnerAtom, PersistentExtensionPropertyId, PersistentPropertyId,
-    SourceDeclarationIdentityError, SourceDeclarationKey,
+    PropertyOwner as PersistentPropertyOwner, SourceDeclarationIdentityError, SourceDeclarationKey,
 };
 
 use crate::{ExtensionProperty, Property, PropertyId, PropertyOwner};
@@ -57,6 +57,13 @@ impl HirPropertyIdentity {
         match self {
             Self::Ordinary(record) => DefinitionOwnerAtom::Property(record.id()),
             Self::Extension(record) => DefinitionOwnerAtom::ExtensionProperty(record.id()),
+        }
+    }
+
+    pub const fn property_owner(&self) -> PersistentPropertyOwner {
+        match self {
+            Self::Ordinary(record) => PersistentPropertyOwner::Property(record.id()),
+            Self::Extension(record) => PersistentPropertyOwner::ExtensionProperty(record.id()),
         }
     }
 }
