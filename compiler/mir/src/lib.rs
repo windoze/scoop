@@ -22,6 +22,9 @@ pub use integer::*;
 mod types;
 pub use types::*;
 
+mod function_adapter;
+pub use function_adapter::*;
+
 mod identity_metadata;
 pub use identity_metadata::*;
 

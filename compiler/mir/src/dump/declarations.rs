@@ -222,17 +222,17 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  adapter ca{} class=cc{} source=function_type{} target=function_type{}\n",
             id.into_raw().into_u32(),
-            adapter.class.into_raw().into_u32(),
-            adapter.source.into_raw().into_u32(),
-            adapter.target.into_raw().into_u32()
+            adapter.class().into_raw().into_u32(),
+            adapter.source().into_raw().into_u32(),
+            adapter.target().into_raw().into_u32()
         ));
     }
     for (id, adapter) in module.meta.dynamic_closure_adapters.iter() {
         out.push_str(&format!(
             "  dynamic_adapter da{} class=cc{} target=function_type{}\n",
             id.into_raw().into_u32(),
-            adapter.class.into_raw().into_u32(),
-            adapter.target.into_raw().into_u32()
+            adapter.class().into_raw().into_u32(),
+            adapter.target().into_raw().into_u32()
         ));
     }
     for &id in &module.top_level {

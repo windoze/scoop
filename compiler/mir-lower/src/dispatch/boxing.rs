@@ -180,6 +180,7 @@ impl Lowerer {
             .zip(&source_params)
         {
             args.push(self.adapt_variance_bridge(
+                module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
                 source_ty,
@@ -200,7 +201,12 @@ impl Lowerer {
             smir::StatementKind::Expr(call)
         } else {
             smir::StatementKind::Return {
-                value: Some(self.adapt_variance_bridge(call, &implementation_return, &return_ty)),
+                value: Some(self.adapt_variance_bridge(
+                    module,
+                    call,
+                    &implementation_return,
+                    &return_ty,
+                )),
             }
         };
         let encoding = mir::encode_params(&self.shell, &target_params)

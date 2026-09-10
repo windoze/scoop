@@ -21,7 +21,7 @@ impl Lowerer {
                     let invoke = self.closure_classes[class].invoke;
                     self.closure_invokes[invoke].function
                 } else {
-                    self.build_function_bridge(class, source, target)
+                    self.build_function_bridge(module, class, source, target)
                 };
                 self.closure_classes[class]
                     .bridges
@@ -35,6 +35,7 @@ impl Lowerer {
 
     pub(crate) fn build_function_bridge(
         &mut self,
+        module: &hir::Module,
         class: mir::ClosureClassId,
         source: mir::FunctionTypeId,
         target: mir::FunctionTypeId,
@@ -70,6 +71,7 @@ impl Lowerer {
                 local,
             });
             args.push(self.adapt_variance_bridge(
+                module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
                 source_ty,
@@ -103,6 +105,7 @@ impl Lowerer {
             vec![smir::Statement {
                 kind: smir::StatementKind::Return {
                     value: Some(self.adapt_variance_bridge(
+                        module,
                         call,
                         &source_signature.return_type,
                         &target_signature.return_type,

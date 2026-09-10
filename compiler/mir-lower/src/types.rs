@@ -14,6 +14,31 @@ pub(super) fn lower_nominal_link_stem(stem: &hir::NominalLinkStem) -> mir::Nomin
     mir::NominalLinkStem::from_session_local_encoding(stem.as_str().to_string())
 }
 
+pub(super) fn exact_function_identity(
+    module: &hir::Module,
+    function: mir::FunctionTypeId,
+) -> (hir::ExactCallableSignature, hir::PersistentExactTypeId) {
+    let source_id = remap_idx(function);
+    let source = &module.function_types[source_id];
+    let effect = if source.is_suspend {
+        hir::Effect::Suspend
+    } else {
+        hir::Effect::Ordinary
+    };
+    let signature = hir::ExactCallableSignature::new(
+        effect,
+        None,
+        source
+            .parameter_types
+            .iter()
+            .map(|parameter| module.exact_type_identities[*parameter].id())
+            .collect(),
+        module.exact_type_identities[source.return_type].id(),
+    );
+    let exact_type = module.exact_type_identities[source.canonical_type].id();
+    (signature, exact_type)
+}
+
 /// Closed roles for MIR-only nominal entities. Callers provide typed source
 /// identities or MIR types; generated link stems never derive from display
 /// names or arena ids masquerading as names.

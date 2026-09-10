@@ -225,25 +225,6 @@ pub struct ClosureInvokeFunction {
     pub function: FunctionId,
 }
 
-/// Typed identity reserved for variance bridges. M11's variance gate fills
-/// this arena; keeping it distinct now prevents adapters from being confused
-/// with source closure classes.
-#[derive(Debug)]
-pub struct ClosureAdapter {
-    pub class: ClosureClassId,
-    pub source: FunctionTypeId,
-    pub target: FunctionTypeId,
-}
-
-/// Adapter used after a runtime `Any`/interface-to-function check. Its source
-/// signature is discovered from the captured closure's TypeDescriptor bridge
-/// table, while its exposed invoke ABI is exactly `target`.
-#[derive(Debug)]
-pub struct DynamicClosureAdapter {
-    pub class: ClosureClassId,
-    pub target: FunctionTypeId,
-}
-
 /// Opaque request-local identity of one nominal declaration or one
 /// compiler-generated nominal role. It is an emission input, not a
 /// source-facing name and not the persistent identity frozen by M23-2.

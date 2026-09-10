@@ -3,6 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn adapt_variance_bridge(
         &mut self,
+        module: &hir::Module,
         value: smir::Expr,
         source: &mir::Type,
         target: &mir::Type,
@@ -11,11 +12,11 @@ impl Lowerer {
             return value;
         }
         if let (mir::Type::Function(source), mir::Type::Function(target_type)) = (source, target) {
-            let adapter = self.ensure_function_adapter(*source, *target_type);
+            let adapter = self.ensure_function_adapter(module, *source, *target_type);
             return smir::Expr::new(
                 mir::Type::Function(*target_type),
                 smir::ExprKind::ClosureAlloc {
-                    class: self.closure_adapters[adapter].class,
+                    class: self.closure_adapters[adapter].class(),
                     captures: vec![value],
                 },
             );
@@ -39,6 +40,7 @@ impl Lowerer {
 
     pub(crate) fn ensure_function_adapter(
         &mut self,
+        module: &hir::Module,
         source: mir::FunctionTypeId,
         target: mir::FunctionTypeId,
     ) -> mir::ClosureAdapterId {
@@ -77,11 +79,19 @@ impl Lowerer {
             }],
             bridges: Vec::new(),
         });
-        let adapter = self.closure_adapters.alloc(mir::ClosureAdapter {
-            class,
-            source,
-            target,
-        });
+        let (source_identity, _) = exact_function_identity(module, source);
+        let (target_identity, target_function_type) = exact_function_identity(module, target);
+        let adapter = self.closure_adapters.alloc(
+            mir::ClosureAdapter::new(
+                class,
+                source,
+                target,
+                source_identity,
+                target_identity,
+                target_function_type,
+            )
+            .expect("concrete HIR function identities match their canonical exact types"),
+        );
         self.closure_adapter_by_types
             .insert((source, target), adapter);
 
@@ -122,6 +132,7 @@ impl Lowerer {
                 local,
             });
             args.push(self.adapt_variance_bridge(
+                module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
                 source_ty,
@@ -155,6 +166,7 @@ impl Lowerer {
             vec![smir::Statement {
                 kind: smir::StatementKind::Return {
                     value: Some(self.adapt_variance_bridge(
+                        module,
                         call,
                         &source_signature.return_type,
                         &target_signature.return_type,

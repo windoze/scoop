@@ -12,8 +12,8 @@ pub use scoop_identity::{
     CborIdentityRecord, Effect, ExactCallableSignature, GeneratedCallableKey,
     InitializationUnitKey, NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
     OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId,
-    PersistentCallbackApplicationId, PersistentGeneratedCallableId, PersistentInitializationUnitId,
-    SpecializationKey,
+    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentGeneratedCallableId,
+    PersistentInitializationUnitId, SpecializationKey,
 };
 
 pub use super::{

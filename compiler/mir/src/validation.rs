@@ -5,6 +5,8 @@ pub use constants::MirConstantImageError;
 use constants::validate_constant_images;
 mod callbacks;
 use callbacks::validate_foreign_callback_metadata;
+mod function_adapters;
+use function_adapters::validate_function_adapter_metadata;
 mod metadata;
 use metadata::validate_enum_metadata;
 mod coroutines;
@@ -45,6 +47,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidForeignCallbackExpression {
+        reason: &'static str,
+    },
+    InvalidFunctionAdapter {
         reason: &'static str,
     },
     InvalidConstantImage {
@@ -154,6 +159,12 @@ pub enum MirValidationLocation {
     ForeignCallbackBridge {
         bridge: ForeignCallbackBridgeId,
     },
+    FunctionAdapter {
+        adapter: ClosureAdapterId,
+    },
+    DynamicFunctionAdapter {
+        adapter: DynamicClosureAdapterId,
+    },
     FunctionBlock {
         function: FunctionId,
         block: BlockId,
@@ -222,6 +233,16 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR foreign callback bridge {}: ",
                 bridge.into_raw().into_u32()
             )?,
+            MirValidationLocation::FunctionAdapter { adapter } => write!(
+                formatter,
+                "invalid MIR function adapter {}: ",
+                adapter.into_raw().into_u32()
+            )?,
+            MirValidationLocation::DynamicFunctionAdapter { adapter } => write!(
+                formatter,
+                "invalid MIR dynamic function adapter {}: ",
+                adapter.into_raw().into_u32()
+            )?,
             MirValidationLocation::FunctionBlock { function, block } => write!(
                 formatter,
                 "invalid MIR in function {}, block {}: ",
@@ -257,7 +278,8 @@ impl std::fmt::Display for MirValidationError {
             ),
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
-            | MirValidationErrorKind::InvalidForeignCallbackExpression { reason } => {
+            | MirValidationErrorKind::InvalidForeignCallbackExpression { reason }
+            | MirValidationErrorKind::InvalidFunctionAdapter { reason } => {
                 formatter.write_str(reason)
             }
             MirValidationErrorKind::InvalidConstantImage {
@@ -448,6 +470,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_enum_metadata(module)?;
     validate_coroutine_metadata(module)?;
     validate_foreign_callback_metadata(module)?;
+    validate_function_adapter_metadata(module)?;
     validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
         validate_body(module, function_id, &function.body)?;

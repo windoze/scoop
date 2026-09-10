@@ -36,7 +36,7 @@ impl BodyLowerer<'_> {
         smir::Expr::new(
             mir::Type::Function(target),
             smir::ExprKind::ClosureAlloc {
-                class: self.closure_adapters[adapter].class,
+                class: self.closure_adapters[adapter].class(),
                 captures: vec![value],
             },
         )
@@ -129,11 +129,19 @@ impl BodyLowerer<'_> {
             }],
             bridges: Vec::new(),
         });
-        let adapter = self.closure_adapters.alloc(mir::ClosureAdapter {
-            class,
-            source,
-            target,
-        });
+        let (source_identity, _) = exact_function_identity(self.module, source);
+        let (target_identity, target_function_type) = exact_function_identity(self.module, target);
+        let adapter = self.closure_adapters.alloc(
+            mir::ClosureAdapter::new(
+                class,
+                source,
+                target,
+                source_identity,
+                target_identity,
+                target_function_type,
+            )
+            .expect("concrete HIR function identities match their canonical exact types"),
+        );
         self.closure_adapter_by_types
             .insert((source, target), adapter);
 
@@ -246,7 +254,7 @@ impl BodyLowerer<'_> {
         smir::Expr::new(
             mir::Type::Function(target),
             smir::ExprKind::ClosureAlloc {
-                class: self.dynamic_closure_adapters[adapter].class,
+                class: self.dynamic_closure_adapters[adapter].class(),
                 captures: vec![value],
             },
         )
@@ -292,9 +300,11 @@ impl BodyLowerer<'_> {
             }],
             bridges: Vec::new(),
         });
-        let adapter = self
-            .dynamic_closure_adapters
-            .alloc(mir::DynamicClosureAdapter { class, target });
+        let (target_identity, target_function_type) = exact_function_identity(self.module, target);
+        let adapter = self.dynamic_closure_adapters.alloc(
+            mir::DynamicClosureAdapter::new(class, target, target_identity, target_function_type)
+                .expect("concrete HIR function identities match their canonical exact types"),
+        );
         self.dynamic_adapter_by_target.insert(target, adapter);
 
         let mut locals = Arena::new();

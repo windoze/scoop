@@ -130,8 +130,9 @@ use instances::{InstanceRegistry, function_instance};
 use structured as smir;
 use types::{
     BoxedRegistry, EnumRegistry, GeneratedNominalLinkRole, InterfaceRegistry, StructRegistry,
-    Types, generated_nominal_link_stem, is_boxable, is_reference_mir, lower_integer_constant,
-    lower_integer_kind, lower_nominal_link_stem, mir_type_gc_free, raise_integer_kind, remap_idx,
+    Types, exact_function_identity, generated_nominal_link_stem, is_boxable, is_reference_mir,
+    lower_integer_constant, lower_integer_kind, lower_nominal_link_stem, mir_type_gc_free,
+    raise_integer_kind, remap_idx,
 };
 
 /// Lower a complete legacy executable HIR graph to MIR.
