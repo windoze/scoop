@@ -569,10 +569,14 @@ impl Harness {
                 &self.property_getters,
                 &self.property_setters,
             );
+        let type_alias_identities =
+            hir::HirTypeAliasIdentities::from_declarations(&Arena::new(), Vec::new())
+                .expect("the MIR test fixture has an empty type-alias arena");
         let module = hir::Module {
             nominal_identities,
             property_identities,
             property_accessor_identities,
+            type_alias_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),

@@ -82,6 +82,9 @@ pub use persistent_properties::*;
 mod persistent_accessors;
 pub use persistent_accessors::*;
 
+mod persistent_aliases;
+pub use persistent_aliases::*;
+
 mod foundation;
 pub use foundation::*;
 

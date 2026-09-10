@@ -11,6 +11,8 @@ pub struct Module {
     pub property_identities: HirPropertyIdentities,
     /// Total identity and logical-property relation for both accessor arenas.
     pub property_accessor_identities: HirPropertyAccessorIdentities,
+    /// Total persistent identity relation for transparent source aliases.
+    pub type_alias_identities: HirTypeAliasIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

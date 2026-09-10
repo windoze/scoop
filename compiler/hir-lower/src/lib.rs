@@ -116,6 +116,7 @@ mod namespace;
 mod overload;
 mod patterns;
 mod persistent_accessors;
+mod persistent_aliases;
 mod persistent_nominals;
 mod persistent_properties;
 mod persistent_types;

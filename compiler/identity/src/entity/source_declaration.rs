@@ -682,6 +682,16 @@ mod tests {
             SourceDeclarationKey::type_alias(common(), CanonicalIdentifier::new("Alias").unwrap());
         assert!(PersistentTypeAliasId::from_source_declaration(&alias).is_ok());
         assert_eq!(
+            hex(&encode(&alias).unwrap()),
+            "a70158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d0280038004a200010165416c696173050b06a1000507a10001"
+        );
+        assert_eq!(
+            PersistentTypeAliasId::from_source_declaration(&alias)
+                .unwrap()
+                .to_string(),
+            "c150f2c10ca57d1ad0a1defa0a99603af85202799239b5288239b07755da1c43"
+        );
+        assert_eq!(
             PersistentFunctionId::from_source_declaration(&alias),
             Err(SourceDeclarationIdentityError::ExpectedFunction)
         );

@@ -529,10 +529,19 @@ impl Lowerer {
                     return Err(vec![diagnostic]);
                 }
             };
+        let type_alias_identities = match crate::persistent_aliases::build(&self) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let module = hir::Module {
             nominal_identities,
             property_identities,
             property_accessor_identities,
+            type_alias_identities,
             public_surface,
             source_files: self
                 .intrinsic_sources
