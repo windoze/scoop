@@ -193,6 +193,7 @@ pub use record::{
     IdentityRecordResolutionError, IdentityRecordValidationError, RuntimeIdentityKey,
     RuntimeIdentityRecord, RuntimeIdentityRecordBuildError, RuntimeIdentityRecordValidationError,
     StableIdentityOrderError, stable_topological_identity_order,
+    validate_stable_topological_identity_order,
 };
 pub use source::{
     DecodedNormalizedSourcePath, DecodedSourceContentDigest, DecodedSourceIdentity,

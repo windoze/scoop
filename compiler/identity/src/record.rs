@@ -437,11 +437,103 @@ where
     Ok(ordered)
 }
 
+/// Verifies that an identity table is already in its unique stable
+/// dependency-first order without sorting or cloning the records.
+pub fn validate_stable_topological_identity_order<T, I, Id, Dependencies>(
+    values: &[T],
+    id_of: Id,
+    dependencies_of: Dependencies,
+) -> Result<(), StableIdentityOrderError<I>>
+where
+    I: PersistentId,
+    Id: Fn(&T) -> I,
+    Dependencies: Fn(&T) -> Vec<I>,
+{
+    let mut positions = BTreeMap::new();
+    for (position, value) in values.iter().enumerate() {
+        let id = id_of(value);
+        if positions.insert(id, position).is_some() {
+            return Err(StableIdentityOrderError::DuplicateIdentity(id));
+        }
+    }
+
+    let mut indegrees = positions
+        .keys()
+        .copied()
+        .map(|id| (id, 0usize))
+        .collect::<BTreeMap<_, _>>();
+    let mut dependents = BTreeMap::<I, Vec<I>>::new();
+    for value in values {
+        let id = id_of(value);
+        let dependencies = dependencies_of(value).into_iter().collect::<BTreeSet<_>>();
+        for dependency in dependencies {
+            if !positions.contains_key(&dependency) {
+                return Err(StableIdentityOrderError::MissingDependency {
+                    identity: id,
+                    dependency,
+                });
+            }
+            let Some(indegree) = indegrees.get_mut(&id) else {
+                return Err(StableIdentityOrderError::InconsistentGraph(id));
+            };
+            *indegree += 1;
+            dependents.entry(dependency).or_default().push(id);
+        }
+    }
+
+    let mut ready = indegrees
+        .iter()
+        .filter_map(|(&id, &indegree)| (indegree == 0).then_some(id))
+        .collect::<BTreeSet<_>>();
+    for (position, value) in values.iter().enumerate() {
+        let Some(expected) = ready.pop_first() else {
+            let first = indegrees
+                .iter()
+                .find_map(|(&id, &indegree)| (indegree != 0).then_some(id))
+                .ok_or_else(|| StableIdentityOrderError::InconsistentGraph(id_of(value)))?;
+            return Err(StableIdentityOrderError::Cycle { first });
+        };
+        let actual = id_of(value);
+        if actual != expected {
+            return Err(StableIdentityOrderError::NonCanonicalOrder {
+                position,
+                expected,
+                actual,
+            });
+        }
+        if let Some(current_dependents) = dependents.get(&actual) {
+            for dependent in current_dependents {
+                let Some(indegree) = indegrees.get_mut(dependent) else {
+                    return Err(StableIdentityOrderError::InconsistentGraph(*dependent));
+                };
+                let Some(next_indegree) = indegree.checked_sub(1) else {
+                    return Err(StableIdentityOrderError::InconsistentGraph(*dependent));
+                };
+                *indegree = next_indegree;
+                if next_indegree == 0 {
+                    ready.insert(*dependent);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StableIdentityOrderError<I: PersistentId> {
     DuplicateIdentity(I),
-    MissingDependency { identity: I, dependency: I },
-    Cycle { first: I },
+    MissingDependency {
+        identity: I,
+        dependency: I,
+    },
+    Cycle {
+        first: I,
+    },
+    NonCanonicalOrder {
+        position: usize,
+        expected: I,
+        actual: I,
+    },
     InconsistentGraph(I),
 }
 
@@ -455,6 +547,11 @@ impl<I: PersistentId> fmt::Display for StableIdentityOrderError<I> {
                 write!(formatter, "{} identity has a missing dependency", I::KIND)
             }
             Self::Cycle { .. } => write!(formatter, "{} identity table contains a cycle", I::KIND),
+            Self::NonCanonicalOrder { position, .. } => write!(
+                formatter,
+                "{} identity table is not in canonical order at position {position}",
+                I::KIND
+            ),
             Self::InconsistentGraph(_) => write!(
                 formatter,
                 "{} identity graph is internally inconsistent",
@@ -476,7 +573,7 @@ mod tests {
         CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord,
         DecodedRuntimeIdentityRecord, IdentityRecordResolutionError, IdentityRecordValidationError,
         RuntimeIdentityRecord, RuntimeIdentityRecordValidationError, StableIdentityOrderError,
-        stable_topological_identity_order,
+        stable_topological_identity_order, validate_stable_topological_identity_order,
     };
     use crate::ids::derive_persistent_id;
     use crate::{
@@ -712,6 +809,60 @@ mod tests {
         assert_eq!(
             stable_topological_identity_order(
                 vec![Node(b, vec![a]), Node(a, vec![b])],
+                |node| node.0,
+                |node| node.1.clone(),
+            ),
+            Err(StableIdentityOrderError::Cycle { first: a })
+        );
+    }
+
+    #[test]
+    fn stable_order_validator_never_repairs_reader_input() {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct Node(PersistentExactTypeId, Vec<PersistentExactTypeId>);
+
+        let id = |byte| PersistentExactTypeId([byte; 32]);
+        let a = id(1);
+        let b = id(2);
+        let c = id(3);
+        let d = id(4);
+        let canonical = [
+            Node(a, vec![]),
+            Node(b, vec![a]),
+            Node(c, vec![a]),
+            Node(d, vec![b, c]),
+        ];
+        assert_eq!(
+            validate_stable_topological_identity_order(
+                &canonical,
+                |node| node.0,
+                |node| node.1.clone(),
+            ),
+            Ok(())
+        );
+
+        let noncanonical = [
+            Node(a, vec![]),
+            Node(c, vec![a]),
+            Node(b, vec![a]),
+            Node(d, vec![b, c]),
+        ];
+        assert_eq!(
+            validate_stable_topological_identity_order(
+                &noncanonical,
+                |node| node.0,
+                |node| node.1.clone(),
+            ),
+            Err(StableIdentityOrderError::NonCanonicalOrder {
+                position: 1,
+                expected: b,
+                actual: c,
+            })
+        );
+
+        assert_eq!(
+            validate_stable_topological_identity_order(
+                &[Node(b, vec![a]), Node(a, vec![b])],
                 |node| node.0,
                 |node| node.1.clone(),
             ),
