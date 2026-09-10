@@ -619,7 +619,7 @@ impl Harness {
                 &property_identities,
             )
             .expect("the MIR test fixture has no initialization units");
-        let type_identities = hir::HirTypeIdentities::from_types(hir::HirTypeIdentityInputs {
+        let type_identity_inputs = hir::HirTypeIdentityInputs {
             types: &self.types,
             function_types: &self.function_types,
             structs: &self.structs,
@@ -633,8 +633,15 @@ impl Harness {
             objects: &Arena::new(),
             intrinsic_core: &intrinsic_type_core,
             nominal_identities: &nominal_identities,
-        })
-        .expect("the MIR test fixture types have persistent identities");
+        };
+        let type_identities = hir::HirTypeIdentities::from_types(type_identity_inputs)
+            .expect("the MIR test fixture types have persistent identities");
+        let constructor_identities = crate::tests::harness_nominals::test_constructor_identities(
+            type_identity_inputs,
+            &self.struct_constructors,
+            &self.class_constructors,
+            &self.class_constructor_applications,
+        );
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -645,6 +652,7 @@ impl Harness {
             object_value_identities,
             initialization_unit_identities,
             type_identities,
+            constructor_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),

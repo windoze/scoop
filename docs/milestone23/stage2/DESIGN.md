@@ -1697,6 +1697,8 @@ Export HIR中的initialization-unit identity relation按`InitializationUnitId` a
 
 Export HIR中的type identity relation按`TypeId` arena等长、非可选，并以closed sum明确区分可产生`PersistentExactTypeId`的closed exact type与仍含source binder的open type；open分支必须保留其non-empty、按全局type-parameter identity排序的binder集合，不能用缺失record或失败查询表示。closed分支递归使用已形成的nominal identity与child exact identity构造`ExactTypeKey`，并验证nominal/function application的template、arity与canonical-type反指。source object的class representation必须归一到source object declaration identity，不能泄漏generated backing-class identity。display type name、application/type arena位置与type-parameter substitution slot均不进入exact identity。
 
+Export HIR中的constructor identity relation分别与`StructConstructorId`、`ClassConstructorId` arena等长、非可选。source constructor使用其source nominal owner chain及按owner binder映射后的完整source parameter type序列构造`PersistentConstructorId`；implicit primary constructor与source object的implicit constructor同属语言source constructor，后者必须归一到source object declaration owner，不能使用generated backing class。class constructor另以`ClassConstructorIdentityKind`从结构上区分source与`ZeroArgumentAdapter { source }`；后者只为已验证可零参数调用但具有非空物理参数的compiler exception source constructor产生，使用`GeneratedCallableKey::ZeroArgumentConstructorAdapter`，并验证唯一source反指、同owner、零参数delegation、target application及默认实参数量。constructor arena位置、显示名、参数名及class/struct application位置均不进入identity。
+
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
 
 | field | table |

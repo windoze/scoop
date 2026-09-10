@@ -101,6 +101,7 @@ impl Lowerer {
         let declaration = self.class_constructors[source].clone();
         let adapter = self.class_constructors.alloc(hir::ClassConstructor {
             owner: class,
+            identity_kind: hir::ClassConstructorIdentityKind::ZeroArgumentAdapter { source },
             access: declaration.access,
             parameters: Vec::new(),
             kind: hir::ClassConstructorKind::Secondary {

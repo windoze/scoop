@@ -172,3 +172,84 @@ pub(in crate::tests) fn test_property_accessor_identities(
     )
     .expect("the MIR test fixture provides one identity per property accessor")
 }
+
+pub(in crate::tests) fn test_constructor_identities(
+    type_inputs: hir::HirTypeIdentityInputs<'_>,
+    struct_constructors: &Arena<hir::StructConstructor>,
+    class_constructors: &Arena<hir::ClassConstructor>,
+    class_constructor_applications: &Arena<hir::ClassConstructorApplication>,
+) -> hir::HirConstructorIdentities {
+    let mapper = hir::HirSignatureTypeMapper::new(type_inputs);
+    let source_record = |owner: &hir::HirSourceNominalIdentity,
+                         type_params: &[hir::TypeParamDecl],
+                         parameters: &[hir::ConstructorParameter]|
+     -> hir::HirSourceConstructorIdentity {
+        let binders = type_params
+            .iter()
+            .enumerate()
+            .map(|(index, parameter)| hir::HirSignatureBinder {
+                parameter: parameter.id,
+                depth: 0,
+                index: u32::try_from(index).expect("test binder index fits u32"),
+            })
+            .collect::<Vec<_>>();
+        let parameters = parameters
+            .iter()
+            .map(|parameter| mapper.map(parameter.ty, &binders).unwrap())
+            .collect();
+        let mut owners = owner.declaration().owners().owners().to_vec();
+        owners.push(owner.definition_owner());
+        let site = scoop_identity::SourceDeclarationSite::new(
+            owner.declaration().origin(),
+            owner.declaration().package().clone(),
+            scoop_identity::DefinitionOwnerChain::from_outer_to_inner(owners),
+            scoop_identity::DeclarationScope::ConeWide,
+        )
+        .unwrap();
+        scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::SourceDeclarationKey::constructor(site, parameters),
+        )
+        .unwrap()
+    };
+    let structs = struct_constructors
+        .iter()
+        .map(|(_, constructor)| {
+            let owner = type_inputs.nominal_identities[constructor.owner]
+                .source()
+                .unwrap();
+            source_record(
+                owner,
+                &type_inputs.structs[constructor.owner].type_params,
+                &constructor.parameters,
+            )
+        })
+        .collect();
+    let classes = class_constructors
+        .iter()
+        .map(|(_, constructor)| {
+            assert_eq!(
+                constructor.identity_kind,
+                hir::ClassConstructorIdentityKind::Source
+            );
+            let owner = type_inputs.nominal_identities[constructor.owner]
+                .source()
+                .unwrap();
+            hir::HirClassConstructorIdentity::Source(source_record(
+                owner,
+                &type_inputs.classes[constructor.owner].type_params,
+                &constructor.parameters,
+            ))
+        })
+        .collect();
+    hir::HirConstructorIdentities::checked(
+        hir::HirConstructorIdentityInputs {
+            type_inputs,
+            struct_constructors,
+            class_constructors,
+            class_constructor_applications,
+        },
+        structs,
+        classes,
+    )
+    .expect("the MIR test fixture constructors have persistent identities")
+}

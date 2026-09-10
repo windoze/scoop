@@ -25,6 +25,9 @@ pub struct Module {
     /// Total classification and persistent identity relation for every HIR
     /// type. Open types retain their exact source binder set.
     pub type_identities: HirTypeIdentities,
+    /// Total persistent identity relation for source constructors and the
+    /// explicitly distinguished generated zero-argument adapters.
+    pub constructor_identities: HirConstructorIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

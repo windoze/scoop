@@ -133,6 +133,7 @@ impl Harness {
             .collect();
         let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
             owner: class,
+            identity_kind: hir::ClassConstructorIdentityKind::Source,
             access: hir::DeclarationAccess::public(),
             parameters,
             kind: hir::ClassConstructorKind::Primary {
@@ -236,6 +237,7 @@ impl Harness {
             });
         let message_constructor = self.class_constructors.alloc(hir::ClassConstructor {
             owner: illegal_state_class,
+            identity_kind: hir::ClassConstructorIdentityKind::Source,
             access: hir::DeclarationAccess::public(),
             parameters: vec![parameter],
             kind: hir::ClassConstructorKind::Secondary {

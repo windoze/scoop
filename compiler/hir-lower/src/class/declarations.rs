@@ -134,6 +134,7 @@ impl Lowerer {
             );
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
                 parameters,
                 kind: hir::ClassConstructorKind::Primary {
@@ -181,6 +182,7 @@ impl Lowerer {
             );
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
                 parameters,
                 kind: hir::ClassConstructorKind::Secondary {

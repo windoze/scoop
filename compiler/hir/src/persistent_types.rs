@@ -14,7 +14,9 @@ use crate::{
 
 mod builder;
 mod error;
+mod signature;
 pub use error::{HirTypeIdentityError, HirTypeRelation};
+pub use signature::{HirSignatureBinder, HirSignatureTypeMapper, HirSignatureTypeMappingError};
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 
@@ -53,6 +55,7 @@ impl HirTypeIdentity {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct HirTypeIdentityInputs<'a> {
     pub types: &'a Arena<Type>,
     pub function_types: &'a Arena<FunctionType>,

@@ -493,6 +493,7 @@ impl Lowerer {
         self.classes[backing].fields = fields;
         let constructor = self.class_constructors.alloc(hir::ClassConstructor {
             owner: backing,
+            identity_kind: hir::ClassConstructorIdentityKind::Source,
             access: self.local_declaration_access(),
             parameters: Vec::new(),
             kind: hir::ClassConstructorKind::Primary {

@@ -670,11 +670,20 @@ pub struct ConstructorParameter {
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub owner: ClassId,
+    /// Whether this callable is a source constructor or the unique generated
+    /// zero-argument adapter for another source constructor.
+    pub identity_kind: ClassConstructorIdentityKind,
     pub access: DeclarationAccess,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
     pub span: Span,
     pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassConstructorIdentityKind {
+    Source,
+    ZeroArgumentAdapter { source: ClassConstructorId },
 }
 
 #[derive(Debug, Clone)]
