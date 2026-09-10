@@ -385,6 +385,8 @@ pub fn concretize_legacy_export(
 #[derive(Clone)]
 pub(crate) struct Lowerer {
     pub(crate) source_contexts: Arena<hir::SourceContext>,
+    source_context_by_value: HashMap<hir::SourceContext, hir::SourceContextId>,
+    file_source_contexts: Vec<hir::SourceContextId>,
     /// Role-local structural paths for the definition owner currently being
     /// lowered. Nested callables replace this context and restore it on exit.
     pub(crate) definition_paths: definition_paths::DefinitionPathContext,
@@ -634,7 +636,7 @@ pub(crate) struct Lowerer {
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
     /// Typed lexical context attached to every expression origin.
-    pub(crate) current_source_context: hir::SourceContextId,
+    pub(crate) current_source_context: Option<hir::SourceContextId>,
     /// Explicit suspension-permission stack; it is never empty.
     pub(crate) suspension_contexts: Vec<SuspensionContext>,
     /// Lexical permission for unsafe operations; independent of suspension.

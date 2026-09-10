@@ -591,8 +591,12 @@ impl Concretizer<'_> {
         let (line, column) = source_line_column(&file.source, evaluation.span.start);
         let file_name = file.name.clone();
         let context = &self.source.source_contexts[evaluation.context];
-        let function_name = context.function_name.clone();
-        let type_name = context.type_name.clone();
+        assert_eq!(
+            context.source(),
+            &file.identity,
+            "evaluation context source must match its source file"
+        );
+        let (function_name, type_name) = self.source.source_context_names(evaluation.context);
         let location_application =
             self.source.structs[self.source.source_location_core.location].self_application;
         let location = self.lower_struct_application(location_application, substitution);

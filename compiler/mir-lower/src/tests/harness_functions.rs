@@ -479,10 +479,10 @@ impl Harness {
             fun_ptr,
         };
         let mut source_contexts = Arena::new();
-        source_contexts.alloc(hir::SourceContext {
-            function_name: String::new(),
-            type_name: String::new(),
-        });
+        source_contexts.alloc(hir::SourceContext::new(
+            scoop_identity::SourceIdentity::single_file(),
+            hir::SourceContextSubject::File,
+        ));
         let option_some = hir::EnumVariantRef::checked(&self.enums, self.option_enum, 0)
             .expect("test Option has Some");
         let option_some_payload = hir::EnumVariantFieldRef::checked(&self.enums, option_some, 0)

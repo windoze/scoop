@@ -103,7 +103,11 @@ impl Lowerer {
         let function_number = self.next_anonymous_function;
         self.next_anonymous_function += 1;
         self.current_fn_name = format!("$anonymous.{function_number}");
-        self.set_source_context(self.current_fn_name.clone());
+        self.set_source_context(hir::SourceContextSubject::LexicalCallable {
+            root: self.current_definition_root(),
+            path: definition_path.clone(),
+            role: scoop_identity::LexicalCallableRole::AnonymousFunctionBody,
+        });
         self.current_return_ty = known_return.unwrap_or(self.unit);
         self.return_inference = known_return.is_none().then(ReturnInference::default);
         self.push_suspension_context(if is_suspend {

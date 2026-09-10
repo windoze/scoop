@@ -629,7 +629,14 @@ impl Lowerer {
         let outer_owner = self.current_owner.replace(owner);
         let outer_this = self.current_this.take();
         let outer_source_context = self.current_source_context;
-        self.set_source_context(self.current_fn_name.clone());
+        self.set_source_context(hir::SourceContextSubject::Constructor(match source {
+            ConstructorSource::Class(constructor) => {
+                hir::SourceContextConstructor::Class(constructor)
+            }
+            ConstructorSource::Struct(constructor) => {
+                hir::SourceContextConstructor::Struct(constructor)
+            }
+        }));
         self.push_scope();
         self.push_suspension_context(SuspensionContext::Forbidden(
             if self.initialization_context.is_some() {

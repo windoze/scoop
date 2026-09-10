@@ -263,7 +263,7 @@ impl Lowerer {
         let outer_fn_name = std::mem::replace(&mut self.current_fn_name, accessor_name);
         let outer_owner = std::mem::replace(&mut self.current_owner, source.owner);
         let outer_source_context = self.current_source_context;
-        self.set_source_context(self.current_fn_name.clone());
+        self.set_source_context(hir::SourceContextSubject::Function(source.function));
         self.push_suspension_context(SuspensionContext::Forbidden(
             ForbiddenSuspendContext::Function,
         ));

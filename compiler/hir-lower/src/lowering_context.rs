@@ -2,21 +2,30 @@ use super::*;
 
 impl Lowerer {
     /// Establish one lexical source boundary for expression provenance.
-    /// Contexts are arena-backed so origins stay Copy while function/type
-    /// names remain typed HIR data rather than duplicated strings.
-    pub(crate) fn set_source_context(&mut self, function_name: impl Into<String>) {
-        let type_name = match self.current_owner {
-            Some(Owner::Class(id)) => self.classes[id].name.clone(),
-            Some(Owner::Interface(id)) => self.interfaces[id].name.clone(),
-            Some(Owner::Struct(id)) => self.structs[id].name.clone(),
-            Some(Owner::Enum(id)) => self.enums[id].name.clone(),
-            Some(Owner::Object(id)) => self.objects[id].name.clone(),
-            None => String::new(),
-        };
-        self.current_source_context = self.source_contexts.alloc(hir::SourceContext {
-            function_name: function_name.into(),
-            type_name,
-        });
+    /// Contexts are interned by source and typed subject so arena allocation
+    /// order and repeated visits cannot create distinct semantic contexts.
+    pub(crate) fn set_source_context(&mut self, subject: hir::SourceContextSubject) {
+        let context = hir::SourceContext::new(
+            self.intrinsic_sources[self.current_file].identity.clone(),
+            subject,
+        );
+        let id = self
+            .source_context_by_value
+            .get(&context)
+            .copied()
+            .unwrap_or_else(|| {
+                let id = self.source_contexts.alloc(context.clone());
+                self.source_context_by_value.insert(context, id);
+                id
+            });
+        self.current_source_context = Some(id);
+    }
+
+    pub(crate) fn source_context_for_current_file(&self) -> hir::SourceContextId {
+        let source = &self.intrinsic_sources[self.current_file].identity;
+        self.current_source_context
+            .filter(|&context| self.source_contexts[context].source() == source)
+            .unwrap_or(self.file_source_contexts[self.current_file])
     }
 
     /// Allocate a hidden desugaring temporary (`$opt.N` / `$res.N`).

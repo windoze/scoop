@@ -174,7 +174,7 @@ impl Lowerer {
         });
         self.current_return_ty = return_ty;
         self.current_fn_name = self.functions[function].name.clone();
-        self.set_source_context(decl.name.text.clone());
+        self.set_source_context(hir::SourceContextSubject::Function(function));
         self.push_suspension_context(if decl.is_suspend {
             SuspensionContext::SuspendFunction
         } else {

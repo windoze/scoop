@@ -106,7 +106,11 @@ impl Lowerer {
         let function_number = self.next_lambda_function;
         self.next_lambda_function += 1;
         self.current_fn_name = format!("$lambda.{function_number}");
-        self.set_source_context(self.current_fn_name.clone());
+        self.set_source_context(hir::SourceContextSubject::LexicalCallable {
+            root: self.current_definition_root(),
+            path: definition_path.clone(),
+            role: scoop_identity::LexicalCallableRole::LambdaBody,
+        });
         self.push_suspension_context(if is_suspend {
             SuspensionContext::SuspendFunction
         } else {

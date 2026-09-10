@@ -192,6 +192,26 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
     assert_eq!(origin.definition.span, inner_definition);
     assert_eq!(origin.evaluation.span, lambda_call_site);
     assert_ne!(origin.evaluation.span, factory_call_site);
+
+    let (_, source_lambda) = output
+        .export
+        .lambdas
+        .iter()
+        .next()
+        .expect("export lambda metadata");
+    let context = &output.export.source_contexts[origin.evaluation.context];
+    assert_eq!(
+        context.source(),
+        &scoop_identity::SourceIdentity::single_file()
+    );
+    assert_eq!(
+        context.subject(),
+        &hir::SourceContextSubject::LexicalCallable {
+            root: source_lambda.definition_root,
+            path: source_lambda.definition_path.clone(),
+            role: scoop_identity::LexicalCallableRole::LambdaBody,
+        }
+    );
 }
 
 #[test]
@@ -269,6 +289,34 @@ fn current_source_location_reads_the_concrete_evaluation_origin() {
     assert!(
         locations.contains(&("app.scoop", 4, 21, "main", "")),
         "locations: {locations:?}"
+    );
+
+    let (main_id, main) = output
+        .export
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "main")
+        .expect("export main function");
+    let hir::FunctionKind::User(main) = &main.kind else {
+        unreachable!()
+    };
+    let contexts: Vec<_> = main
+        .statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::ValDecl { init, .. } => {
+                Some(init.origin.concrete().evaluation.context)
+            }
+            _ => None,
+        })
+        .collect();
+    assert!(contexts.len() >= 2);
+    assert!(contexts.iter().all(|context| *context == contexts[0]));
+    let context = &output.export.source_contexts[contexts[0]];
+    assert_eq!(context.source(), &test_source_identity("src/user.scoop"));
+    assert_eq!(
+        context.subject(),
+        &hir::SourceContextSubject::Function(main_id)
     );
 }
 
@@ -365,6 +413,30 @@ fn source_location_context_distinguishes_member_generic_and_suspend_bodies() {
                 _ => None,
             })
             .map(|(_, _, _, function, ty)| (function.to_string(), ty.to_string()))
+            .inspect(|_| {
+                let (export_id, export_function) = output
+                    .export
+                    .functions
+                    .iter()
+                    .find(|(_, candidate)| candidate.name == name)
+                    .unwrap_or_else(|| panic!("missing export function `{name}`"));
+                let hir::FunctionKind::User(export_body) = &export_function.kind else {
+                    unreachable!()
+                };
+                let context = return_value(&export_body.statements)
+                    .origin
+                    .definition()
+                    .context;
+                let source_context = &output.export.source_contexts[context];
+                assert_eq!(
+                    source_context.source(),
+                    &scoop_identity::SourceIdentity::single_file()
+                );
+                assert_eq!(
+                    source_context.subject(),
+                    &hir::SourceContextSubject::Function(export_id)
+                );
+            })
             .unwrap_or_else(|| panic!("missing source location in `{name}`"))
     };
     assert_eq!(

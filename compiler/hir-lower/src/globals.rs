@@ -820,7 +820,7 @@ impl Lowerer {
             self.push_safety_context(hir::Safety::Safe);
             self.current_owner = None;
             self.current_this = None;
-            self.set_source_context(self.current_fn_name.clone());
+            self.set_source_context(hir::SourceContextSubject::Function(pending.function));
             self.push_scope();
             self.current_initialization_unit = Some(pending.unit);
 

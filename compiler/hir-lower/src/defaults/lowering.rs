@@ -27,6 +27,7 @@ impl Lowerer {
             definition_root: self
                 .definition_root
                 .unwrap_or(hir::LexicalDefinitionRoot::Function(function)),
+            source_context: hir::SourceContextSubject::Function(function),
             type_parameters: signature.type_params,
             receiver,
             is_suspend: signature.is_suspend,
@@ -55,6 +56,7 @@ impl Lowerer {
             definition_root: self
                 .definition_root
                 .unwrap_or(hir::LexicalDefinitionRoot::Function(function)),
+            source_context: hir::SourceContextSubject::Function(function),
             type_parameters: signature.type_params,
             receiver: None,
             is_suspend: signature.is_suspend,
@@ -281,7 +283,7 @@ impl Lowerer {
 
         self.current_return_ty = parameter.ty;
         self.current_owner = context.receiver.and_then(|(_, owner)| owner);
-        self.set_source_context(context.callable_name.clone());
+        self.set_source_context(context.source_context.clone());
         let origin = self.definition_origin(expression.span());
         self.push_suspension_context(if context.is_suspend {
             SuspensionContext::SuspendFunction
@@ -388,7 +390,7 @@ impl Lowerer {
             provider: self.current_intrinsic_provider(),
             file: u32::try_from(self.current_file).expect("source file index exceeds u32"),
             span,
-            context: self.current_source_context,
+            context: self.source_context_for_current_file(),
         }
     }
 

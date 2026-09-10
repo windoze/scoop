@@ -70,6 +70,7 @@ struct ParameterSource {
 #[derive(Clone)]
 struct DefaultContext {
     definition_root: hir::LexicalDefinitionRoot,
+    source_context: hir::SourceContextSubject,
     type_parameters: Vec<hir::TypeParamDecl>,
     receiver: Option<(hir::TypeId, Option<Owner>)>,
     is_suspend: bool,
@@ -132,6 +133,9 @@ impl Lowerer {
                     .collect::<Vec<_>>();
                 let context = DefaultContext {
                     definition_root: hir::LexicalDefinitionRoot::StructConstructor(constructor),
+                    source_context: hir::SourceContextSubject::Constructor(
+                        hir::SourceContextConstructor::Struct(constructor),
+                    ),
                     type_parameters: self.structs[structure].type_params.clone(),
                     receiver: None,
                     is_suspend: false,
@@ -204,6 +208,9 @@ impl Lowerer {
                             .collect::<Vec<_>>();
                         let context = DefaultContext {
                             definition_root: hir::LexicalDefinitionRoot::ClassConstructor(primary),
+                            source_context: hir::SourceContextSubject::Constructor(
+                                hir::SourceContextConstructor::Class(primary),
+                            ),
                             type_parameters: self.classes[class].type_params.clone(),
                             receiver: None,
                             is_suspend: false,
@@ -287,6 +294,9 @@ impl Lowerer {
                     .expect("a source enum variant index is checked against its declaration");
                 let context = DefaultContext {
                     definition_root: hir::LexicalDefinitionRoot::VariantConstructor(variant),
+                    source_context: hir::SourceContextSubject::Nominal(
+                        hir::SourceContextNominal::Enum(enumeration),
+                    ),
                     type_parameters: self.enums[enumeration].type_params.clone(),
                     receiver: None,
                     is_suspend: false,
@@ -356,6 +366,22 @@ impl Lowerer {
                     }
                     hir::ExportParameterOwner::ClassConstructor(constructor) => {
                         hir::LexicalDefinitionRoot::ClassConstructor(constructor)
+                    }
+                    hir::ExportParameterOwner::Function(_)
+                    | hir::ExportParameterOwner::VariantConstructor(_) => {
+                        unreachable!("constructor helper receives a constructor owner")
+                    }
+                },
+                source_context: match owner {
+                    hir::ExportParameterOwner::StructConstructor(constructor) => {
+                        hir::SourceContextSubject::Constructor(
+                            hir::SourceContextConstructor::Struct(constructor),
+                        )
+                    }
+                    hir::ExportParameterOwner::ClassConstructor(constructor) => {
+                        hir::SourceContextSubject::Constructor(
+                            hir::SourceContextConstructor::Class(constructor),
+                        )
                     }
                     hir::ExportParameterOwner::Function(_)
                     | hir::ExportParameterOwner::VariantConstructor(_) => {

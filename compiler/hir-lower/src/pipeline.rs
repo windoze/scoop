@@ -87,16 +87,12 @@ impl Lowerer {
         let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
-        let mut source_contexts = Arena::new();
-        let root_source_context = source_contexts.alloc(hir::SourceContext {
-            function_name: String::new(),
-            type_name: String::new(),
-        });
-
         Lowerer {
             imports: crate::imports::CurrentUnitImports::default(),
             declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
-            source_contexts,
+            source_contexts: Arena::new(),
+            source_context_by_value: HashMap::new(),
+            file_source_contexts: Vec::new(),
             definition_paths: crate::definition_paths::DefinitionPathContext::default(),
             definition_root: None,
             constructor_definition_paths: HashMap::new(),
@@ -227,7 +223,7 @@ impl Lowerer {
             current_return_ty: unit,
             return_inference: None,
             current_fn_name: String::new(),
-            current_source_context: root_source_context,
+            current_source_context: None,
             suspension_contexts: vec![SuspensionContext::Forbidden(
                 ForbiddenSuspendContext::TopLevel,
             )],
@@ -260,8 +256,22 @@ impl Lowerer {
         sources: Vec<SourceProvider>,
         policy: IntrinsicDeclarationPolicy,
     ) -> Self {
+        assert!(
+            !sources.is_empty(),
+            "HIR lowering requires at least one source"
+        );
         self.intrinsic_sources = sources;
         self.intrinsic_policy = policy;
+        for file in 0..self.intrinsic_sources.len() {
+            let context = hir::SourceContext::new(
+                self.intrinsic_sources[file].identity.clone(),
+                hir::SourceContextSubject::File,
+            );
+            let id = self.source_contexts.alloc(context.clone());
+            assert!(self.source_context_by_value.insert(context, id).is_none());
+            self.file_source_contexts.push(id);
+        }
+        self.current_source_context = self.file_source_contexts.first().copied();
         self
     }
 
