@@ -76,6 +76,9 @@ pub use native_boundary::*;
 mod persistent_nominals;
 pub use persistent_nominals::*;
 
+mod persistent_properties;
+pub use persistent_properties::*;
+
 mod foundation;
 pub use foundation::*;
 

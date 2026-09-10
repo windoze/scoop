@@ -6,6 +6,9 @@ pub struct Module {
     /// the five export arenas. Local arena ids remain request-scoped and are
     /// never used as emission or cross-Cone identity.
     pub nominal_identities: HirNominalIdentities,
+    /// Total persistent identity relation for every source property. The
+    /// identity kind distinguishes ordinary and extension declarations.
+    pub property_identities: HirPropertyIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

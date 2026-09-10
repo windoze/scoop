@@ -1680,6 +1680,8 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 | 29 | `DefinitionOriginRecord` records |
 | 30 | `NativeBoundaryTypeDefinitionRecordV1` records |
 
+Export HIR中的property identity relation按`PropertyId`与property arena等长、非可选并保留ordinary/extension的typed id分支。普通property直接由`SourceDeclarationKey::property`产生`PersistentPropertyId`；top-level extension property由脱糖且保留binder的receiver `SignatureTypeKey`和完整type-parameter count通过`SourceDeclarationKey::extension_property`产生`PersistentExtensionPropertyId`。同一个`ExtensionPropertyId`必须与其`PropertyId`双向对应；member property的owner chain必须沿已形成的source nominal identity扩展。生成的object backing class仅是表示；source object type出现在receiver tree时必须使用object declaration identity，不得改用backing-class generated identity。
+
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
 
 | field | table |

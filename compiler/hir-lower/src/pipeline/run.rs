@@ -495,6 +495,8 @@ impl Lowerer {
             .expect("a missing or invalid compiler exception core is always diagnosed");
         let ffi_core =
             ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
+        let intrinsic_type_core = intrinsic_type_core
+            .expect("missing or invalid intrinsic core types are always diagnosed");
         let source_location_core = source_location_core
             .expect("a missing or invalid source location core is always diagnosed");
         let public_surface = self.public_semantic_surface();
@@ -506,8 +508,21 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let property_identities = match crate::persistent_properties::build(
+            &self,
+            &nominal_identities,
+            &intrinsic_type_core,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let module = hir::Module {
             nominal_identities,
+            property_identities,
             public_surface,
             source_files: self
                 .intrinsic_sources
@@ -579,8 +594,7 @@ impl Lowerer {
             ffi_core,
             foreign_callback_core: foreign_callback_core
                 .expect("a missing or invalid foreign callback core protocol is always diagnosed"),
-            intrinsic_type_core: intrinsic_type_core
-                .expect("missing or invalid intrinsic core types are always diagnosed"),
+            intrinsic_type_core,
             source_location_core,
             instantiations: self.instantiations,
         };

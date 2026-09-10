@@ -89,3 +89,37 @@ pub(in crate::tests) fn test_nominal_identities_without_objects(
     )
     .expect("the MIR test fixture provides one identity per nominal declaration")
 }
+
+pub(in crate::tests) fn test_property_identities(
+    properties: &Arena<hir::Property>,
+    extensions: &Arena<hir::ExtensionProperty>,
+) -> hir::HirPropertyIdentities {
+    let source = scoop_identity::SourceIdentity::single_file();
+    let identities = properties
+        .iter()
+        .map(|(id, property)| {
+            assert!(
+                !matches!(property.owner, hir::PropertyOwner::Extension(_)),
+                "the MIR unit harness has no extension-property templates"
+            );
+            let site = scoop_identity::SourceDeclarationSite::new(
+                source.cone(),
+                scoop_identity::PackagePath::root(),
+                scoop_identity::DefinitionOwnerChain::top_level(),
+                scoop_identity::DeclarationScope::SourceScoped(source.clone()),
+            )
+            .expect("the single-file test property site is valid");
+            let name = scoop_identity::CanonicalIdentifier::new(&format!(
+                "TestProperty{}",
+                id.into_raw().into_u32()
+            ))
+            .expect("synthetic property names are canonical identifiers");
+            hir::HirPropertyIdentity::from_ordinary_declaration(
+                scoop_identity::SourceDeclarationKey::property(site, name),
+            )
+            .expect("the synthetic ordinary property identity is valid")
+        })
+        .collect();
+    hir::HirPropertyIdentities::checked(properties, identities, extensions)
+        .expect("the MIR test fixture provides one identity per property declaration")
+}

@@ -558,8 +558,13 @@ impl Harness {
             &self.classes,
             &self.interfaces,
         );
+        let property_identities = crate::tests::harness_nominals::test_property_identities(
+            &self.properties,
+            &Arena::new(),
+        );
         let module = hir::Module {
             nominal_identities,
+            property_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),

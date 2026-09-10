@@ -516,10 +516,10 @@ mod tests {
     };
     use crate::{
         CanonicalIdentifier, ConeCoordinate, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
-        NormalizedSourcePath, PackagePath, PersistentConstructorId, PersistentFunctionId,
-        PersistentGenericFunctionId, PersistentGenericTypeId, PersistentObjectValueId,
-        PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, SignatureTypeKey,
-        SourceIdentity,
+        NormalizedSourcePath, PackagePath, PersistentConstructorId, PersistentExtensionPropertyId,
+        PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId,
+        PersistentObjectValueId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
+        SignatureTypeKey, SourceIdentity,
     };
 
     fn class_key(type_parameter_count: u32) -> SourceDeclarationKey {
@@ -593,6 +593,48 @@ mod tests {
             "72facdaa3ed11e993a971a19e20edade4299c7601decf2de52c59c49c99fe1ab"
         );
         assert_ne!(type_id.as_array(), value_id.as_array());
+    }
+
+    #[test]
+    fn ordinary_and_extension_property_identities_have_fixed_vectors() {
+        let site = || {
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap()
+        };
+        let ordinary =
+            SourceDeclarationKey::property(site(), CanonicalIdentifier::new("value").unwrap());
+        let extension = SourceDeclarationKey::extension_property(
+            site(),
+            CanonicalIdentifier::new("value").unwrap(),
+            0,
+            SignatureTypeKey::Nominal(crate::CoreBuiltinNominal::Unit.identity_record().id()),
+        );
+        let ordinary_id = PersistentPropertyId::from_source_declaration(&ordinary).unwrap();
+        let extension_id =
+            PersistentExtensionPropertyId::from_source_declaration(&extension).unwrap();
+
+        assert_eq!(
+            hex(&encode(&ordinary).unwrap()),
+            "a70158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d0280038004a20001016576616c7565050906a30004010002a1000107a10001"
+        );
+        assert_eq!(
+            ordinary_id.to_string(),
+            "4ab0a50a935633d91664a4a8fd3ae5e4c5ca920885d9057cf1a6a03b6eafcafb"
+        );
+        assert_eq!(
+            hex(&encode(&extension).unwrap()),
+            "a70158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d0280038004a20001016576616c7565050a06a30004010002a2000201a20001015820ea1de3597e0f30acca2c62c6d871e693648ef7e1097cc8b0082d316acd7e763907a10001"
+        );
+        assert_eq!(
+            extension_id.to_string(),
+            "0d2f6e57609f5038a71aed13e058f45559cdbf01ea224d80bbb5a1e5cbf54bab"
+        );
+        assert_ne!(ordinary_id.as_array(), extension_id.as_array());
     }
 
     #[test]
