@@ -85,6 +85,9 @@ pub use persistent_accessors::*;
 mod persistent_aliases;
 pub use persistent_aliases::*;
 
+mod persistent_enum_members;
+pub use persistent_enum_members::*;
+
 mod foundation;
 pub use foundation::*;
 

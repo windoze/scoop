@@ -298,6 +298,56 @@ mod tests {
     }
 
     #[test]
+    fn source_variant_and_fields_have_fixed_identity() {
+        let owner = source_nominal(crate::SourceNominalKind::Enum);
+        let variant_key = EnumVariantIdentityKey::source(
+            &owner,
+            crate::CanonicalIdentifier::new("Value").unwrap(),
+        )
+        .unwrap();
+        let variant = PersistentEnumVariantId::from_key(&variant_key).unwrap();
+        let named_key = EnumVariantFieldKey::new(
+            variant,
+            EnumVariantFieldSelector::Named(crate::CanonicalIdentifier::new("payload").unwrap()),
+        );
+        let positional_key = EnumVariantFieldKey::new(
+            variant,
+            EnumVariantFieldSelector::Positional {
+                declaration_index: 0,
+            },
+        );
+
+        assert_eq!(
+            hex(&encode(&variant_key).unwrap()),
+            "a3000101a20001015820bf837968fb5186f42afc6b58f6ffab652a39ac12b50914e44ca5339e50d7e55a026556616c7565"
+        );
+        assert_eq!(
+            variant.to_string(),
+            "c4e60df44cc8994b93bdc3cac596f9998a48296caf9af964860254a4b89a5e37"
+        );
+        assert_eq!(
+            hex(&encode(&named_key).unwrap()),
+            "a2015820c4e60df44cc8994b93bdc3cac596f9998a48296caf9af964860254a4b89a5e3702a2000101677061796c6f6164"
+        );
+        assert_eq!(
+            PersistentEnumVariantFieldId::from_key(&named_key)
+                .unwrap()
+                .to_string(),
+            "b776650dc44cfc9b08992c20915de3e4bb058ae718744f5ae0cad7e078efb6b8"
+        );
+        assert_eq!(
+            hex(&encode(&positional_key).unwrap()),
+            "a2015820c4e60df44cc8994b93bdc3cac596f9998a48296caf9af964860254a4b89a5e3702a200020100"
+        );
+        assert_eq!(
+            PersistentEnumVariantFieldId::from_key(&positional_key)
+                .unwrap()
+                .to_string(),
+            "fa87274475a049ae232d3b2846013f3f20575cd8425575633d64ba03613c3c9c"
+        );
+    }
+
+    #[test]
     fn generated_variant_constructor_enforces_owner_matrix() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
         let owner = GeneratedNominalKey::BoxedValue { payload: exact };

@@ -211,7 +211,7 @@ impl Lowerer {
                         .map(|(index, variant)| Constructor::EnumVariant {
                             variant: index as u32,
                             name: variant.name,
-                            style: self.variant_styles[&(enum_id, index as u32)],
+                            style: variant.style,
                             field_names: variant
                                 .fields
                                 .iter()

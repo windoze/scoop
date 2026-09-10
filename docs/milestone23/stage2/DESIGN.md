@@ -1684,6 +1684,8 @@ Export HIR中的property identity relation按`PropertyId`与property arena等长
 
 Export HIR中的type-alias identity relation按`ExportTypeAliasId`与alias arena等长、非可选。每项使用声明的source、package、private source scope与名字构造`SourceDeclarationKey::type_alias`及`PersistentTypeAliasId`；透明展开后的target只属于alias semantic payload，不进入duplicate key。alias identity不得从展开目标、显示locator或arena ordinal派生。
 
+Export HIR必须在每个variant上保存已验证的`Unit`/`Positional`/`Named`/`Constructor`声明形态，不能只在lowerer side table暂存。enum-member identity relation按enum arena、每个enum的variant序列及每个variant的field序列逐层等长、非可选。source variant使用已形成的source enum declaration identity和variant原名构造`EnumVariantIdentityKey`；field使用该variant identity与typed声明形态产生selector：named/constructor field使用原名，positional field使用声明内index。field type、variant顺序及named/constructor field顺序不进入identity；positional field使用的是source declaration index，不是任意可重排的arena ordinal。positional selector不得从HIR为显示而生成的`_1`类名字反推，named selector也不得退化为ordinal。
+
 `MirIdentityFoundationV1`（capability `org.scoop-lang.mir/identity-foundation/1`）：
 
 | field | table |

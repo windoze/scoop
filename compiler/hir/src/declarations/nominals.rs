@@ -847,10 +847,21 @@ pub enum IntrinsicTypeRepresentation {
 #[derive(Debug, Clone)]
 pub struct Variant {
     pub name: String,
+    /// Validated source declaration shape. This is semantic call/pattern
+    /// information and the authoritative source of persistent field selectors.
+    pub style: VariantStyle,
     /// Fields in declaration order; unit variants have none. Named and
     /// constructor-style fields carry their names, positional fields have
     /// generated `_1`-style names.
     pub fields: Vec<Field>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariantStyle {
+    Unit,
+    Positional,
+    Named,
+    Constructor,
 }
 
 #[derive(Debug, Clone)]
@@ -951,6 +962,7 @@ mod tests {
             vec![
                 Variant {
                     name: "Data".to_string(),
+                    style: VariantStyle::Named,
                     fields: vec![Field {
                         name: "value".to_string(),
                         ty: parameter_ty,
@@ -958,6 +970,7 @@ mod tests {
                 },
                 Variant {
                     name: "Empty".to_string(),
+                    style: VariantStyle::Unit,
                     fields: Vec::new(),
                 },
             ],
@@ -974,6 +987,7 @@ mod tests {
             other_application,
             vec![Variant {
                 name: "Data".to_string(),
+                style: VariantStyle::Unit,
                 fields: Vec::new(),
             }],
         ));
@@ -1133,6 +1147,7 @@ mod tests {
             vec![
                 Variant {
                     name: "Data".to_string(),
+                    style: VariantStyle::Named,
                     fields: vec![Field {
                         name: "value".to_string(),
                         ty: unit,
@@ -1140,6 +1155,7 @@ mod tests {
                 },
                 Variant {
                     name: "Empty".to_string(),
+                    style: VariantStyle::Unit,
                     fields: Vec::new(),
                 },
             ],
@@ -1149,6 +1165,7 @@ mod tests {
             EnumApplicationId::from_raw(1.into()),
             vec![Variant {
                 name: "Data".to_string(),
+                style: VariantStyle::Named,
                 fields: vec![Field {
                     name: "value".to_string(),
                     ty: unit,
@@ -1174,6 +1191,7 @@ mod tests {
             vec![
                 Variant {
                     name: "ForeignData".to_string(),
+                    style: VariantStyle::Named,
                     fields: vec![
                         Field {
                             name: "first".to_string(),
@@ -1187,10 +1205,12 @@ mod tests {
                 },
                 Variant {
                     name: "ForeignEmpty".to_string(),
+                    style: VariantStyle::Unit,
                     fields: Vec::new(),
                 },
                 Variant {
                     name: "ForeignExtra".to_string(),
+                    style: VariantStyle::Named,
                     fields: vec![Field {
                         name: "value".to_string(),
                         ty: unit,
@@ -1311,6 +1331,7 @@ mod tests {
             vec![
                 Variant {
                     name: "Some".to_string(),
+                    style: VariantStyle::Positional,
                     fields: vec![Field {
                         name: "value".to_string(),
                         ty: parameter_ty,
@@ -1318,6 +1339,7 @@ mod tests {
                 },
                 Variant {
                     name: "None".to_string(),
+                    style: VariantStyle::Unit,
                     fields: Vec::new(),
                 },
             ],
@@ -1333,6 +1355,7 @@ mod tests {
             EnumApplicationId::from_raw(1.into()),
             vec![Variant {
                 name: "None".to_string(),
+                style: VariantStyle::Unit,
                 fields: Vec::new(),
             }],
         ));
@@ -1351,6 +1374,7 @@ mod tests {
             vec![
                 Variant {
                     name: "Payload".to_string(),
+                    style: VariantStyle::Named,
                     fields: vec![
                         Field {
                             name: "first".to_string(),
@@ -1364,10 +1388,12 @@ mod tests {
                 },
                 Variant {
                     name: "Empty".to_string(),
+                    style: VariantStyle::Unit,
                     fields: Vec::new(),
                 },
                 Variant {
                     name: "Extra".to_string(),
+                    style: VariantStyle::Named,
                     fields: vec![Field {
                         name: "value".to_string(),
                         ty: parameter_ty,

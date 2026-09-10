@@ -475,6 +475,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
         Vec::new(),
         vec![hir::Variant {
             name: "V".to_string(),
+            style: hir::VariantStyle::Named,
             fields: vec![hir::Field {
                 name: "value".to_string(),
                 ty: boolean,

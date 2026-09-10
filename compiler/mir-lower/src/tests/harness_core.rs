@@ -32,6 +32,7 @@ impl Harness {
             variants: vec![
                 hir::Variant {
                     name: "Some".to_string(),
+                    style: hir::VariantStyle::Positional,
                     fields: vec![hir::Field {
                         name: "_1".to_string(),
                         ty: t,
@@ -39,6 +40,7 @@ impl Harness {
                 },
                 hir::Variant {
                     name: "None".to_string(),
+                    style: hir::VariantStyle::Unit,
                     fields: Vec::new(),
                 },
             ],

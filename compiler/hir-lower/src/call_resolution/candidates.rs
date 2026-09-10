@@ -248,7 +248,7 @@ impl Lowerer {
                 let declaration = &self.enums[enumeration];
                 let source_owner = SourceParameterOwner::VariantConstructor(variant);
                 let calling = &self.variant_parameter_calling[&(enumeration, variant_index)];
-                let argument_mode = match self.variant_styles[&(enumeration, variant_index)] {
+                let argument_mode = match declaration.variants[variant_index as usize].style {
                     crate::VariantStyle::Unit | crate::VariantStyle::Constructor => {
                         ArgumentMode::Mixed
                     }

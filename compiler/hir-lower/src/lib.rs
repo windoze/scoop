@@ -117,6 +117,7 @@ mod overload;
 mod patterns;
 mod persistent_accessors;
 mod persistent_aliases;
+mod persistent_enum_members;
 mod persistent_nominals;
 mod persistent_properties;
 mod persistent_types;
@@ -135,6 +136,7 @@ use std::collections::{HashMap, HashSet};
 use la_arena::Arena;
 use scoop_ast as ast;
 use scoop_hir as hir;
+pub(crate) use scoop_hir::VariantStyle;
 
 use annotations::FunctionTarget;
 use ast::{Diagnostic, Span};
@@ -579,8 +581,6 @@ pub(crate) struct Lowerer {
     /// lowering-time lookup feeds the complete typed `CompilerExceptionCore`
     /// emitted after class representations and inheritance are resolved.
     pub(crate) throwable: Option<(ClassId, TypeId)>,
-    /// Surface form of every variant, for pattern shape checks.
-    pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
     /// Source-call protocols for nominal constructor parameters. Layout
     /// fields intentionally do not carry call syntax; these typed owner maps
     /// preserve it until complete Export HIR parameter entities are built.

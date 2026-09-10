@@ -64,10 +64,7 @@ impl Lowerer {
     }
 
     pub(crate) fn resolved_variant_style(&self, target: hir::EnumVariantRef) -> VariantStyle {
-        *self
-            .variant_styles
-            .get(&(target.enumeration(), target.local_index()))
-            .expect("a checked resolved variant retains its source call shape")
+        self.enums[target.enumeration()].variants[target.local_index() as usize].style
     }
 
     /// Resolve the lowest-priority contextual layer against one exact enum

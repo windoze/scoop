@@ -209,7 +209,6 @@ impl Lowerer {
             core_prelude_variants: CorePreludeVariantBindings::default(),
             throwable_candidates: Vec::new(),
             throwable: None,
-            variant_styles: HashMap::new(),
             struct_parameter_calling: HashMap::new(),
             class_parameter_calling: HashMap::new(),
             variant_parameter_calling: HashMap::new(),

@@ -65,10 +65,8 @@ impl Lowerer {
 
         let some_valid = some_index.is_some_and(|index| {
             let variant = &declaration.variants[index];
-            matches!(
-                self.variant_styles.get(&(enumeration, index as u32)),
-                Some(VariantStyle::Positional)
-            ) && matches!(variant.fields.as_slice(), [field]
+            variant.style == VariantStyle::Positional
+                && matches!(variant.fields.as_slice(), [field]
                 if matches!(self.types[field.ty], Type::Param(found) if found == parameter))
         });
         if !some_valid {
@@ -81,10 +79,7 @@ impl Lowerer {
 
         let none_valid = none_index.is_some_and(|index| {
             declaration.variants[index].fields.is_empty()
-                && matches!(
-                    self.variant_styles.get(&(enumeration, index as u32)),
-                    Some(VariantStyle::Unit)
-                )
+                && declaration.variants[index].style == VariantStyle::Unit
         });
         if !none_valid {
             self.error(

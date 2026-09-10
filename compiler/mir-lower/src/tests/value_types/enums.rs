@@ -9,6 +9,7 @@ fn enum_instances_are_created_once_with_substituted_fields() {
         .iter()
         .map(|name| hir::Variant {
             name: name.to_string(),
+            style: hir::VariantStyle::Unit,
             fields: Vec::new(),
         })
         .collect();

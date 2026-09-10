@@ -427,6 +427,7 @@ impl Harness {
                 .iter()
                 .map(|variant| hir::Variant {
                     name: (*variant).to_string(),
+                    style: hir::VariantStyle::Unit,
                     fields: Vec::new(),
                 })
                 .collect()
@@ -572,11 +573,15 @@ impl Harness {
         let type_alias_identities =
             hir::HirTypeAliasIdentities::from_declarations(&Arena::new(), Vec::new())
                 .expect("the MIR test fixture has an empty type-alias arena");
+        let enum_member_identities =
+            hir::HirEnumMemberIdentities::from_declarations(&self.enums, &nominal_identities)
+                .expect("the MIR test fixture enum members have persistent identities");
         let module = hir::Module {
             nominal_identities,
             property_identities,
             property_accessor_identities,
             type_alias_identities,
+            enum_member_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),

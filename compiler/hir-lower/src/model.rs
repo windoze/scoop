@@ -55,19 +55,6 @@ pub(crate) enum FnVarargOmission {
     Default { expression: ast::Expr },
 }
 
-/// How a variant was declared (spec 4.2). `hir::Variant` normalizes
-/// the four surface forms into a field list, so the lowerer keeps the
-/// form on the side: patterns must use the matching shape (positional
-/// patterns for positional variants, field patterns for named ones;
-/// constructor-style variants accept both).
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum VariantStyle {
-    Unit,
-    Positional,
-    Named,
-    Constructor,
-}
-
 #[derive(Clone, Default)]
 pub(crate) struct CorePreludeVariantBindings {
     by_name: HashMap<String, Vec<hir::EnumVariantRef>>,

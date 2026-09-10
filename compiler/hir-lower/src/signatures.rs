@@ -215,10 +215,10 @@ impl Lowerer {
                 continue;
             }
             let style = match &variant.kind {
-                ast::VariantDeclKind::Unit => VariantStyle::Unit,
-                ast::VariantDeclKind::Positional(_) => VariantStyle::Positional,
-                ast::VariantDeclKind::Named(_) => VariantStyle::Named,
-                ast::VariantDeclKind::Constructor(_) => VariantStyle::Constructor,
+                ast::VariantDeclKind::Unit => hir::VariantStyle::Unit,
+                ast::VariantDeclKind::Positional(_) => hir::VariantStyle::Positional,
+                ast::VariantDeclKind::Named(_) => hir::VariantStyle::Named,
+                ast::VariantDeclKind::Constructor(_) => hir::VariantStyle::Constructor,
             };
             let Some(resolved) = self.resolve_variant_fields(variant) else {
                 continue; // diagnostic already recorded
@@ -226,12 +226,12 @@ impl Lowerer {
             let source_index = u32::try_from(index).expect("source variant index exceeds u32");
             let resolved_index =
                 u32::try_from(variants.len()).expect("resolved variant index exceeds u32");
-            self.variant_styles.insert((id, resolved_index), style);
             self.variant_parameter_calling
                 .insert((id, resolved_index), resolved.calling);
             resolved_source_indices.push((source_index, resolved_index));
             variants.push(hir::Variant {
                 name: variant.name.text.clone(),
+                style,
                 fields: resolved.fields,
             });
         }

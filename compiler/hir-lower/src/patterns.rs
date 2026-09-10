@@ -292,7 +292,7 @@ impl Lowerer {
                             );
                             return None;
                         }
-                        let style = self.variant_styles[&(enum_id, variant)];
+                        let style = self.enums[enum_id].variants[variant as usize].style;
                         if style == VariantStyle::Named {
                             let owner = variant_owner(
                                 &self.enums[enum_id].name,
@@ -373,7 +373,7 @@ impl Lowerer {
                             );
                             return None;
                         }
-                        let style = self.variant_styles[&(enum_id, variant)];
+                        let style = self.enums[enum_id].variants[variant as usize].style;
                         if matches!(style, VariantStyle::Unit | VariantStyle::Positional) {
                             let owner = variant_owner(
                                 &self.enums[enum_id].name,
