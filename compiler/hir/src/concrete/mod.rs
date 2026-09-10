@@ -8,8 +8,10 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
-    CallableTemplateOwner, CallbackApplicationKey, CborIdentityRecord, NonEmptyVec,
-    PersistentCallableApplicationId, PersistentCallbackApplicationId,
+    CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CborIdentityRecord,
+    NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError,
+    OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
+    SpecializationKey,
 };
 
 pub use super::{

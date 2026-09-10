@@ -130,6 +130,17 @@ fn callable_applications_form_one_persistent_lexical_graph() {
         })
         .collect::<HashSet<_>>();
     assert_eq!(factory_applications.len(), 2);
+    let factory_odr_bodies = factory_applications
+        .iter()
+        .map(|application| {
+            module
+                .callable_applications
+                .odr(*application)
+                .expect("a generic function application has one ODR body member")
+        })
+        .collect::<Vec<_>>();
+    assert_ne!(factory_odr_bodies[0].group(), factory_odr_bodies[1].group());
+    assert_ne!(factory_odr_bodies[0].body(), factory_odr_bodies[1].body());
 
     let lambda_contexts = module
         .functions
