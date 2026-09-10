@@ -33,9 +33,30 @@ impl Lowerer {
     /// never produces `$` identifiers), so it is not registered in
     /// `scopes`; generated code references it by `LocalId` directly.
     pub(crate) fn alloc_hidden(&mut self, prefix: &str, ty: TypeId) -> hir::LocalId {
+        self.alloc_hidden_with_role(prefix, ty, scoop_identity::SyntheticLocalRole::Temporary)
+    }
+
+    pub(crate) fn alloc_desugared_iterator_hidden(
+        &mut self,
+        prefix: &str,
+        ty: TypeId,
+    ) -> hir::LocalId {
+        self.alloc_hidden_with_role(
+            prefix,
+            ty,
+            scoop_identity::SyntheticLocalRole::DesugaredIterator,
+        )
+    }
+
+    fn alloc_hidden_with_role(
+        &mut self,
+        prefix: &str,
+        ty: TypeId,
+        role: scoop_identity::SyntheticLocalRole,
+    ) -> hir::LocalId {
         let name = format!("${prefix}.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.alloc_local(name, ty, false)
+        self.alloc_synthetic_local(name, ty, false, role)
     }
 
     /// Allocate the branch-result local used when a structured control
@@ -44,7 +65,12 @@ impl Lowerer {
     pub(crate) fn alloc_hidden_result(&mut self, ty: TypeId) -> hir::LocalId {
         let name = format!("$result.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.alloc_local(name, ty, true)
+        self.alloc_synthetic_local(
+            name,
+            ty,
+            true,
+            scoop_identity::SyntheticLocalRole::Temporary,
+        )
     }
 
     /// The variant index of `name` in `enum_id`, if it exists.

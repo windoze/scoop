@@ -50,7 +50,6 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{ExprKind, Type, TypeId};
 
-use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
 use crate::stmt::statements_control_outcomes;
 use crate::types::ArrayKind;

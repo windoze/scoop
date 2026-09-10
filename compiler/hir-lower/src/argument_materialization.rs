@@ -299,7 +299,12 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> hir::Expr {
         let ty = value.ty;
-        let local = self.alloc_local(name, ty, false);
+        let local = self.alloc_synthetic_local(
+            name,
+            ty,
+            false,
+            scoop_identity::SyntheticLocalRole::Temporary,
+        );
         sink.push(hir::Statement {
             kind: hir::StatementKind::ValDecl {
                 pattern: hir::Pattern::Binding { local },

@@ -186,7 +186,7 @@ impl Lowerer {
 
         let lowered = {
             let mut params = Vec::with_capacity(sig_params.len());
-            for param in &sig_params {
+            for (index, param) in sig_params.iter().enumerate() {
                 if self.scopes.is_declared_here(&param.name.text) {
                     self.error(
                         param.name.span,
@@ -194,7 +194,7 @@ impl Lowerer {
                     );
                     continue;
                 }
-                let local = self.alloc_local(param.name.text.clone(), param.ty, false);
+                let local = self.alloc_parameter_local(param.name.text.clone(), param.ty, index);
                 self.scopes.declare(param.name.text.clone(), local);
                 params.push(hir::Param {
                     name: param.name.text.clone(),
@@ -257,8 +257,12 @@ impl Lowerer {
             patch_local_function_calls(&mut statements, local, &captures);
             let mut abi_params = Vec::with_capacity(captures.len() + params.len());
             for capture in &captures {
-                let capture_local =
-                    self.alloc_local(format!("$capture.{}", capture.name), capture.ty, false);
+                let capture_local = self.alloc_synthetic_local(
+                    format!("$capture.{}", capture.name),
+                    capture.ty,
+                    false,
+                    scoop_identity::SyntheticLocalRole::Temporary,
+                );
                 abi_params.push(hir::Param {
                     name: format!("$capture.{}", capture.name),
                     ty: capture.ty,

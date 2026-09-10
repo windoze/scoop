@@ -9,6 +9,10 @@ pub struct Body {
 #[derive(Debug, Clone)]
 pub struct Local {
     pub binding: BindingId,
+    /// Template-local semantic selector. LocalConcrete HIR combines this
+    /// selector with the callable's exact materialization context instead of
+    /// deriving persistent value identity from a name or arena position.
+    pub selector: scoop_identity::LocalValueSelector,
     pub name: String,
     pub ty: TypeId,
     pub mutable: bool,

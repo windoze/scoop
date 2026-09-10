@@ -24,7 +24,8 @@ fn basic_for_plan_keeps_source_iterator_and_next_exactly_once() {
     .expect("a source for loop must lower to one complete typed plan");
 
     let module = &output.export;
-    let plan = first_for(export_body(module, "main"));
+    let export_body = export_body(module, "main");
+    let plan = first_for(export_body);
     let int = int_type(module);
     assert!(plan.source_setup().is_empty());
     let [receiver_setup] = plan.iterator_setup() else {
@@ -52,6 +53,30 @@ fn basic_for_plan_keeps_source_iterator_and_next_exactly_once() {
     assert_eq!(conformance.iterator().ty, application.canonical_type);
 
     let next = plan.next();
+    let iterator_local_ids = [
+        plan.source().local,
+        plan.conformance().source().local,
+        plan.conformance().iterator().local,
+        next.result().local,
+        next.element().local,
+    ];
+    let iterator_paths = iterator_local_ids
+        .into_iter()
+        .map(|local| {
+            let scoop_identity::LocalValueSelector::Synthetic { path, role } =
+                &export_body.locals[local].selector
+            else {
+                panic!("for desugaring locals must have typed synthetic selectors")
+            };
+            assert_eq!(*role, scoop_identity::SyntheticLocalRole::DesugaredIterator);
+            path
+        })
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(
+        iterator_paths.len(),
+        iterator_local_ids.len(),
+        "each for-protocol local must have a distinct structural path"
+    );
     let next_application = &module.method_applications[next.callable()];
     assert_eq!(
         next_application.function,

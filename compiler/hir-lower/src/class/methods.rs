@@ -223,15 +223,15 @@ impl Lowerer {
         host_ty: TypeId,
     ) -> (hir::Body, Vec<hir::Param>) {
         let sig = self.signatures[&id].clone();
-        let this = self.alloc_local("this".to_string(), host_ty, false);
+        let this = self.alloc_this_local(host_ty);
         let mut params = vec![hir::Param {
             name: "this".to_string(),
             ty: host_ty,
             local: this,
         }];
         let mut declared = Vec::with_capacity(sig.params.len());
-        for param in &sig.params {
-            let local = self.alloc_local(param.name.text.clone(), param.ty, false);
+        for (index, param) in sig.params.iter().enumerate() {
+            let local = self.alloc_parameter_local(param.name.text.clone(), param.ty, index);
             params.push(hir::Param {
                 name: param.name.text.clone(),
                 ty: param.ty,

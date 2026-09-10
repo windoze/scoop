@@ -77,7 +77,7 @@ impl Lowerer {
                 continue;
             }
             self.push_scope();
-            let local = self.alloc_local(catch.name.text.clone(), ty, false);
+            let local = self.alloc_declared_local(catch.name.text.clone(), ty, false);
             self.scopes.declare(catch.name.text.clone(), local);
             let body = self.lower_block(&catch.body);
             self.pop_scope();
@@ -132,7 +132,7 @@ impl Lowerer {
                 continue;
             }
             covered.push(ty);
-            let local = self.alloc_local(catch.name.text.clone(), ty, false);
+            let local = self.alloc_declared_local(catch.name.text.clone(), ty, false);
             resolved.push((catch, ty, local));
         }
 

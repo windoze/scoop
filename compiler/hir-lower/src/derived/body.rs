@@ -14,8 +14,21 @@ impl Lowerer {
         stack: &mut Vec<hir::TypeId>,
     ) -> Result<hir::Body, String> {
         let mut locals = Arena::new();
-        let this = self.alloc_derived_local(&mut locals, "this", ty);
-        let other = self.alloc_derived_local(&mut locals, "other", ty);
+        let this = self.alloc_derived_local(
+            &mut locals,
+            "this",
+            ty,
+            scoop_identity::LocalValueSelector::This,
+        );
+        let other = self.alloc_derived_local(
+            &mut locals,
+            "other",
+            ty,
+            scoop_identity::LocalValueSelector::Parameter {
+                declaration_index: 0,
+            },
+        );
+        let mut synthetic_ordinal = 0_u32;
         let this_expr = self.local_expr(this, ty, span);
         let other_expr = self.local_expr(other, ty, span);
         let statements = match self.types[ty].clone() {
@@ -82,11 +95,13 @@ impl Lowerer {
                             &mut locals,
                             &format!("$left.{variant_index}.{field_index}"),
                             field_ty,
+                            next_derived_synthetic_selector(&mut synthetic_ordinal),
                         );
                         let right = self.alloc_derived_local(
                             &mut locals,
                             &format!("$right.{variant_index}.{field_index}"),
                             field_ty,
+                            next_derived_synthetic_selector(&mut synthetic_ordinal),
                         );
                         left_fields
                             .push((field_index as u32, hir::Pattern::Binding { local: left }));
@@ -322,13 +337,32 @@ impl Lowerer {
         locals: &mut Arena<hir::Local>,
         name: &str,
         ty: hir::TypeId,
+        selector: scoop_identity::LocalValueSelector,
     ) -> hir::LocalId {
         locals.alloc(hir::Local {
             binding: self.fresh_binding(),
+            selector,
             name: name.to_string(),
             ty,
             mutable: false,
         })
+    }
+}
+
+fn next_derived_synthetic_selector(ordinal: &mut u32) -> scoop_identity::LocalValueSelector {
+    let current = *ordinal;
+    *ordinal = ordinal
+        .checked_add(1)
+        .expect("one derived equality body cannot exhaust synthetic local ordinals");
+    scoop_identity::LocalValueSelector::Synthetic {
+        path: scoop_identity::StructuralDefinitionPath::from_first(
+            scoop_identity::StructuralPathSegment::new(
+                scoop_identity::StructuralDefinitionSiteRole::SyntheticValue,
+                current,
+            ),
+            [],
+        ),
+        role: scoop_identity::SyntheticLocalRole::Temporary,
     }
 }
 

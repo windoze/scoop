@@ -49,14 +49,81 @@ impl Lowerer {
         hir::LoopId::from_raw(identity)
     }
 
-    pub(crate) fn alloc_local(&mut self, name: String, ty: TypeId, mutable: bool) -> hir::LocalId {
+    fn alloc_local(
+        &mut self,
+        name: String,
+        ty: TypeId,
+        mutable: bool,
+        selector: scoop_identity::LocalValueSelector,
+    ) -> hir::LocalId {
         let binding = self.fresh_binding();
         self.locals.alloc(hir::Local {
             binding,
+            selector,
             name,
             ty,
             mutable,
         })
+    }
+
+    pub(crate) fn alloc_this_local(&mut self, ty: TypeId) -> hir::LocalId {
+        self.alloc_local(
+            "this".to_string(),
+            ty,
+            false,
+            scoop_identity::LocalValueSelector::This,
+        )
+    }
+
+    pub(crate) fn alloc_parameter_local(
+        &mut self,
+        name: String,
+        ty: TypeId,
+        declaration_index: usize,
+    ) -> hir::LocalId {
+        let declaration_index = u32::try_from(declaration_index)
+            .expect("one callable cannot declare more than u32::MAX parameters");
+        self.alloc_local(
+            name,
+            ty,
+            false,
+            scoop_identity::LocalValueSelector::Parameter { declaration_index },
+        )
+    }
+
+    pub(crate) fn alloc_declared_local(
+        &mut self,
+        name: String,
+        ty: TypeId,
+        mutable: bool,
+    ) -> hir::LocalId {
+        let path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration);
+        self.alloc_local(
+            name,
+            ty,
+            mutable,
+            scoop_identity::LocalValueSelector::LocalDeclaration { path },
+        )
+    }
+
+    pub(crate) fn alloc_synthetic_local(
+        &mut self,
+        name: String,
+        ty: TypeId,
+        mutable: bool,
+        role: scoop_identity::SyntheticLocalRole,
+    ) -> hir::LocalId {
+        let path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::SyntheticValue);
+        self.alloc_local(
+            name,
+            ty,
+            mutable,
+            scoop_identity::LocalValueSelector::Synthetic { path, role },
+        )
     }
 
     pub(crate) fn push_scope(&mut self) {

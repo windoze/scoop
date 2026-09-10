@@ -173,25 +173,23 @@ impl Lowerer {
                     _ => None,
                 };
                 if let Some(name) = binding_name {
-                    let pattern = ast::Pattern::Binding(name.clone());
-                    let hir::Pattern::Binding { local } = self.lower_pattern_inner(
-                        &pattern,
-                        parameter_ty,
-                        PatternCtx {
-                            mutable: false,
-                            in_when: false,
-                        },
-                    )?
-                    else {
-                        unreachable!("a binding parameter lowers to a binding")
-                    };
+                    if self.scopes.is_declared_here(&name.text) {
+                        self.error(
+                            name.span,
+                            format!("`{}` is already declared in this scope", name.text),
+                        );
+                        return None;
+                    }
+                    let local = self.alloc_parameter_local(name.text.clone(), parameter_ty, index);
+                    self.scopes.declare(name.text.clone(), local);
                     abi_params.push(hir::Param {
                         name: name.text,
                         ty: parameter_ty,
                         local,
                     });
                 } else {
-                    let local = self.alloc_local(format!("$arg.{index}"), parameter_ty, false);
+                    let local =
+                        self.alloc_parameter_local(format!("$arg.{index}"), parameter_ty, index);
                     let plan = self.lower_irrefutable_binding_plan_from_subject(
                         target.expect("non-binding source parameter has a pattern"),
                         hir::BindingTemporary {
@@ -256,7 +254,12 @@ impl Lowerer {
             let Type::Function(function_type) = self.types[function_ty] else {
                 unreachable!()
             };
-            let closure_local = self.alloc_local("$closure".to_string(), function_ty, false);
+            let closure_local = self.alloc_synthetic_local(
+                "$closure".to_string(),
+                function_ty,
+                false,
+                scoop_identity::SyntheticLocalRole::Temporary,
+            );
             let mut params = Vec::with_capacity(abi_params.len() + 1);
             params.push(hir::Param {
                 name: "$closure".to_string(),

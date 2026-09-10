@@ -350,9 +350,23 @@ struct GcCore {
     gc_stats: hir::FunctionId,
 }
 
+fn test_local_selector(ordinal: u32) -> scoop_identity::LocalValueSelector {
+    scoop_identity::LocalValueSelector::Synthetic {
+        path: scoop_identity::StructuralDefinitionPath::from_first(
+            scoop_identity::StructuralPathSegment::new(
+                scoop_identity::StructuralDefinitionSiteRole::SyntheticValue,
+                ordinal,
+            ),
+            [],
+        ),
+        role: scoop_identity::SyntheticLocalRole::Temporary,
+    }
+}
+
 fn local(name: &str, ty: hir::TypeId) -> hir::Local {
     hir::Local {
         binding: hir::BindingId::from_raw(0),
+        selector: test_local_selector(0),
         name: name.to_string(),
         ty,
         mutable: false,

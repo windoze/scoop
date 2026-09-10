@@ -71,7 +71,12 @@ impl Lowerer {
                 continue;
             }
             let ty = self.instantiate_method_ty(source.ty, &template_bindings);
-            let local = self.alloc_local(source.name.clone(), ty, source.mutable);
+            let local = self.alloc_synthetic_local(
+                source.name.clone(),
+                ty,
+                source.mutable,
+                scoop_identity::SyntheticLocalRole::DefaultValue,
+            );
             mapped[arena_index(source_id)] = Some(hir::Expr {
                 kind: hir::ExprKind::Local(local),
                 ty,

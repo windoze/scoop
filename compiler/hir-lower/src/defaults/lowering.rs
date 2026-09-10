@@ -294,14 +294,14 @@ impl Lowerer {
         self.push_scope();
 
         let receiver = context.receiver.map(|(ty, _)| {
-            let local = self.alloc_local("this".to_string(), ty, false);
+            let local = self.alloc_this_local(ty);
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, ty));
             hir::ExportDefaultReceiver { local, ty }
         });
         let mut value_parameters = Vec::with_capacity(parameter_index);
         for (position, source) in sources.iter().take(parameter_index).enumerate() {
-            let local = self.alloc_local(source.name.text.clone(), source.ty, false);
+            let local = self.alloc_parameter_local(source.name.text.clone(), source.ty, position);
             self.scopes.declare(source.name.text.clone(), local);
             value_parameters.push(hir::ExportDefaultValueParameter {
                 position: position as u32,

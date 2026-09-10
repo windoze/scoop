@@ -70,6 +70,7 @@ impl Harness {
                         ty,
                         local: dummy_locals.alloc(hir::Local {
                             binding: hir::BindingId::from_raw(dummy_locals.len() as u32),
+                            selector: test_local_selector(dummy_locals.len() as u32),
                             name: name.to_string(),
                             ty,
                             mutable: false,

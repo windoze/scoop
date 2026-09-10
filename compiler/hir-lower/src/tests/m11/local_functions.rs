@@ -78,7 +78,7 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         definition_path(&local.definition_path),
         vec![(
             scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
-            0,
+            1,
         )]
     );
     assert_eq!(local.captures.len(), 1);
@@ -86,6 +86,21 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
     let hir::FunctionKind::User(main_body) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
+    let base = main_body
+        .locals
+        .iter()
+        .find_map(|(_, local)| (local.name == "base").then_some(local))
+        .expect("the captured source local remains in the enclosing body");
+    let scoop_identity::LocalValueSelector::LocalDeclaration { path } = &base.selector else {
+        panic!("the captured value must keep a source-local selector")
+    };
+    assert_eq!(
+        definition_path(path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
+            0,
+        )]
+    );
     assert!(matches!(
         main_body.statements[1].kind,
         hir::StatementKind::LocalFunction(id) if id == local_id

@@ -13,7 +13,7 @@ impl Lowerer {
         let mut source_setup = Vec::new();
         let source_init = self.lower_expr(&source.iterable, &mut source_setup, None)?;
         let source_temporary = hir::BindingTemporary {
-            local: self.alloc_hidden("for.source", source_init.ty),
+            local: self.alloc_desugared_iterator_hidden("for.source", source_init.ty),
             ty: source_init.ty,
         };
         let source_receiver = hir::Expr {
@@ -74,12 +74,12 @@ impl Lowerer {
         let element_type = *element_type;
 
         let iterator_result = hir::BindingTemporary {
-            local: self.alloc_hidden("for.iterator.result", iterator_call.ty),
+            local: self.alloc_desugared_iterator_hidden("for.iterator.result", iterator_call.ty),
             ty: iterator_call.ty,
         };
         let iterator_type = iterator_application.canonical_type;
         let iterator = hir::BindingTemporary {
-            local: self.alloc_hidden("for.iterator", iterator_type),
+            local: self.alloc_desugared_iterator_hidden("for.iterator", iterator_type),
             ty: iterator_type,
         };
         let option_type = self.option_type(element_type);
@@ -126,11 +126,11 @@ impl Lowerer {
             hir::MethodOwnerApplication::Interface(application),
         );
         let next_result = hir::BindingTemporary {
-            local: self.alloc_hidden("for.next", option_type),
+            local: self.alloc_desugared_iterator_hidden("for.next", option_type),
             ty: option_type,
         };
         let element = hir::BindingTemporary {
-            local: self.alloc_hidden("for.element", element_type),
+            local: self.alloc_desugared_iterator_hidden("for.element", element_type),
             ty: element_type,
         };
         let target = self.fresh_loop();
