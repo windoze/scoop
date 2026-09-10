@@ -242,7 +242,7 @@ impl Lowerer {
                 }
                 (None, hir::MethodModifier::Final) => hir::MethodDispatch::Direct,
                 (None, hir::MethodModifier::Open | hir::MethodModifier::Abstract) => {
-                    hir::MethodDispatch::Virtual(self.fresh_virtual_method())
+                    hir::MethodDispatch::Virtual(self.fresh_virtual_method(id))
                 }
             };
             self.functions[id]

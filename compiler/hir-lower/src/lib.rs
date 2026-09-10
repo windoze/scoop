@@ -119,6 +119,7 @@ mod patterns;
 mod persistent_accessors;
 mod persistent_aliases;
 mod persistent_constructor_identities;
+mod persistent_dispatch;
 mod persistent_enum_members;
 mod persistent_fields;
 mod persistent_functions;
@@ -411,6 +412,8 @@ pub(crate) struct Lowerer {
     pub(crate) next_type_param_identity: u32,
     /// Cone-wide source identity allocator for class virtual method families.
     pub(crate) next_virtual_method_identity: u32,
+    /// Declaration root captured when each virtual family is created.
+    pub(crate) virtual_method_roots: HashMap<hir::VirtualMethodId, FunctionId>,
     pub(crate) next_constructor_parameter_identity: u32,
     /// Cone-wide identity allocator for structured loop occurrences. The
     /// active target stack below is callable-local, but identities remain

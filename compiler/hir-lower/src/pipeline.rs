@@ -11,9 +11,14 @@ impl Lowerer {
         parameter
     }
 
-    pub(crate) fn fresh_virtual_method(&mut self) -> hir::VirtualMethodId {
+    pub(crate) fn fresh_virtual_method(&mut self, root: hir::FunctionId) -> hir::VirtualMethodId {
         let method = hir::VirtualMethodId::from_raw(self.next_virtual_method_identity);
         self.next_virtual_method_identity += 1;
+        let previous = self.virtual_method_roots.insert(method, root);
+        assert!(
+            previous.is_none(),
+            "fresh virtual method identity is unique"
+        );
         method
     }
 
@@ -103,6 +108,7 @@ impl Lowerer {
             next_anonymous_function: 0,
             next_type_param_identity: 0,
             next_virtual_method_identity: 0,
+            virtual_method_roots: HashMap::new(),
             next_constructor_parameter_identity: 0,
             next_loop_identity: 0,
             local_functions: Arena::new(),

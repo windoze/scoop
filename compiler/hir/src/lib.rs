@@ -88,6 +88,9 @@ pub use persistent_constructors::*;
 mod persistent_functions;
 pub use persistent_functions::*;
 
+mod persistent_dispatch;
+pub use persistent_dispatch::*;
+
 mod persistent_aliases;
 pub use persistent_aliases::*;
 

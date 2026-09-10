@@ -31,6 +31,9 @@ pub struct Module {
     /// Total persistent identity relation for source, accessor, lexical,
     /// initialization and compiler-derived functions.
     pub function_identities: HirFunctionIdentities,
+    /// Persistent slot identities for every class virtual family and direct
+    /// interface member. Overrides keep the slot of their family root.
+    pub dispatch_slot_identities: HirDispatchSlotIdentities,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

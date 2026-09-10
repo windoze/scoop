@@ -729,6 +729,67 @@ impl Harness {
             function_identity_rows,
         )
         .expect("the MIR test fixture functions have persistent identities");
+        let dispatch_key =
+            |function: hir::FunctionId, interface: bool| match &function_identities[function] {
+                hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(record)) => {
+                    if interface {
+                        scoop_identity::DispatchSlotKey::interface_method(record.id())
+                    } else {
+                        scoop_identity::DispatchSlotKey::virtual_method(record.id())
+                    }
+                }
+                hir::HirFunctionIdentity::PropertyAccessor(
+                    hir::HirPropertyAccessorFunction::Getter(getter),
+                ) => scoop_identity::DispatchSlotKey::property_getter(
+                    property_accessor_identities[*getter].id(),
+                ),
+                hir::HirFunctionIdentity::PropertyAccessor(
+                    hir::HirPropertyAccessorFunction::Setter(setter),
+                ) => scoop_identity::DispatchSlotKey::property_setter(
+                    property_accessor_identities[*setter].id(),
+                ),
+                _ => panic!("test dispatch slot owner must be a plain function or accessor"),
+            };
+        let mut virtual_roots = std::collections::BTreeMap::new();
+        for (function, declaration) in self.functions.iter() {
+            let Some(method) = declaration.method else {
+                continue;
+            };
+            let family = match method.dispatch {
+                hir::MethodDispatch::Virtual(family)
+                | hir::MethodDispatch::FinalOverride(family) => family,
+                hir::MethodDispatch::Direct | hir::MethodDispatch::Interface(_) => continue,
+            };
+            virtual_roots.entry(family).or_insert(function);
+        }
+        let virtual_slots = virtual_roots
+            .into_iter()
+            .map(|(family, root)| {
+                let record =
+                    scoop_identity::CborIdentityRecord::from_key(dispatch_key(root, false))
+                        .unwrap();
+                (family, root, record)
+            })
+            .collect();
+        let interface_slots = self
+            .interface_methods
+            .iter()
+            .map(|(_, member)| {
+                scoop_identity::CborIdentityRecord::from_key(dispatch_key(member.function, true))
+                    .unwrap()
+            })
+            .collect();
+        let dispatch_slot_identities = hir::HirDispatchSlotIdentities::checked(
+            hir::HirDispatchSlotIdentityInputs {
+                functions: &self.functions,
+                function_identities: &function_identities,
+                property_accessor_identities: &property_accessor_identities,
+                interface_methods: &self.interface_methods,
+            },
+            virtual_slots,
+            interface_slots,
+        )
+        .expect("the MIR test fixture dispatch slots have persistent identities");
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -741,6 +802,7 @@ impl Harness {
             type_identities,
             constructor_identities,
             function_identities,
+            dispatch_slot_identities,
             public_surface: hir::PublicSemanticSurface::default(),
             source_files: vec![hir::SourceFileMetadata {
                 identity: scoop_identity::SourceIdentity::single_file(),
