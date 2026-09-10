@@ -212,6 +212,13 @@ impl CallableApplicationKey {
     pub fn callable_arguments(&self) -> &CallableArguments {
         &self.callable_arguments
     }
+
+    pub fn callable_application_dependencies(&self) -> Vec<PersistentCallableApplicationId> {
+        match self.instantiation_owner {
+            CallableInstantiationOwner::EnclosingCallableApplication(id) => vec![id],
+            _ => Vec::new(),
+        }
+    }
 }
 
 impl WireEncode for CallableApplicationKey {

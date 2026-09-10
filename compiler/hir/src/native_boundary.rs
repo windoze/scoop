@@ -42,6 +42,26 @@ impl NativeBoundaryNominalOwner {
             Self::GenericTemplate(id) => NominalDeclarationOwner::GenericTemplate(id),
         }
     }
+
+    pub const fn kind_tag(self) -> u8 {
+        match self {
+            Self::Concrete(_) => 1,
+            Self::GenericTemplate(_) => 2,
+        }
+    }
+
+    pub fn raw_id(self) -> [u8; 32] {
+        match self {
+            Self::Concrete(id) => *id.as_array(),
+            Self::GenericTemplate(id) => *id.as_array(),
+        }
+    }
+
+    pub fn compare_sort_key(self, other: Self) -> std::cmp::Ordering {
+        self.kind_tag()
+            .cmp(&other.kind_tag())
+            .then_with(|| self.raw_id().cmp(&other.raw_id()))
+    }
 }
 
 impl WireEncode for NativeBoundaryNominalOwner {

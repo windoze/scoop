@@ -344,6 +344,60 @@ pub enum DefinitionOriginSubject {
     SourceNativeContract(PersistentSourceNativeExternalContractId),
 }
 
+impl DefinitionOriginSubject {
+    pub const fn kind_tag(self) -> u8 {
+        match self {
+            Self::Type(_) => 1,
+            Self::GenericType(_) => 2,
+            Self::Function(_) => 3,
+            Self::GenericFunction(_) => 4,
+            Self::Constructor(_) => 5,
+            Self::Property(_) => 6,
+            Self::ExtensionProperty(_) => 7,
+            Self::PropertyAccessor(_) => 8,
+            Self::TypeAlias(_) => 9,
+            Self::Field(_) => 10,
+            Self::EnumVariant(_) => 11,
+            Self::EnumVariantField(_) => 12,
+            Self::GeneratedCallable(_) => 13,
+            Self::InitializationUnit(_) => 14,
+            Self::LocalBinding(_) => 15,
+            Self::LocalValue(_) => 16,
+            Self::CallbackRegistration(_) => 17,
+            Self::SourceNativeContract(_) => 18,
+        }
+    }
+
+    pub fn raw_id(self) -> [u8; 32] {
+        match self {
+            Self::Type(id) => *id.as_array(),
+            Self::GenericType(id) => *id.as_array(),
+            Self::Function(id) => *id.as_array(),
+            Self::GenericFunction(id) => *id.as_array(),
+            Self::Constructor(id) => *id.as_array(),
+            Self::Property(id) => *id.as_array(),
+            Self::ExtensionProperty(id) => *id.as_array(),
+            Self::PropertyAccessor(id) => *id.as_array(),
+            Self::TypeAlias(id) => *id.as_array(),
+            Self::Field(id) => *id.as_array(),
+            Self::EnumVariant(id) => *id.as_array(),
+            Self::EnumVariantField(id) => *id.as_array(),
+            Self::GeneratedCallable(id) => *id.as_array(),
+            Self::InitializationUnit(id) => *id.as_array(),
+            Self::LocalBinding(id) => *id.as_array(),
+            Self::LocalValue(id) => *id.as_array(),
+            Self::CallbackRegistration(id) => *id.as_array(),
+            Self::SourceNativeContract(id) => *id.as_array(),
+        }
+    }
+
+    pub fn compare_sort_key(self, other: Self) -> std::cmp::Ordering {
+        self.kind_tag()
+            .cmp(&other.kind_tag())
+            .then_with(|| self.raw_id().cmp(&other.raw_id()))
+    }
+}
+
 impl WireEncode for DefinitionOriginSubject {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let (tag, id): (u64, &dyn WireEncode) = match self {
