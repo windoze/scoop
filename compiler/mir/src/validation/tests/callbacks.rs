@@ -1,13 +1,17 @@
 use super::*;
 
 use scoop_identity::{
-    CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
-    CallbackRegistrationKey, CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal,
-    DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
-    LexicalCallableParent, PackagePath, PersistentCallbackApplicationId, PersistentExactTypeId,
-    PersistentFunctionId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
-    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    CallableApplicationKey, CallableInstantiationOwner, CallableMaterializationContext,
+    CallableOwner, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
+    CallbackRegistrationKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
+    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
+    ExactTypeKey, GeneratedCallableKey, LexicalCallableParent, OdrGroupId, OdrMemberDiscriminator,
+    OdrMemberKey, OdrMemberRole, PackagePath, PersistentCallableApplicationId,
+    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentGeneratedCallableId, SignatureCallableShape, SignatureTypeKey,
+    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
+    SpecializationKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 fn unit_variant(name: &str) -> VariantDef {
@@ -18,7 +22,7 @@ fn unit_variant(name: &str) -> VariantDef {
     }
 }
 
-fn callback_application(ordinal: u32) -> PersistentCallbackApplicationId {
+fn callback_owner() -> PersistentFunctionId {
     let site = SourceDeclarationSite::new(
         ConeIdentity::CORE,
         PackagePath::root(),
@@ -26,14 +30,21 @@ fn callback_application(ordinal: u32) -> PersistentCallbackApplicationId {
         DeclarationScope::ConeWide,
     )
     .unwrap();
-    let function = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+    PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
         site,
         CanonicalIdentifier::new("callbackOwner").unwrap(),
         0,
         None,
         Vec::new(),
     ))
-    .unwrap();
+    .unwrap()
+}
+
+fn callback_application_with_context(
+    ordinal: u32,
+    context: CallableMaterializationContext,
+) -> CborIdentityRecord<PersistentCallbackApplicationId, CallbackApplicationKey> {
+    let function = callback_owner();
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
     let registration = CallbackRegistrationKey::new(
         LexicalCallableParent::function(function),
@@ -51,12 +62,14 @@ fn callback_application(ordinal: u32) -> PersistentCallbackApplicationId {
         ),
         CallbackMode::Reusable,
     );
-    let application = CallbackApplicationKey::new(
-        &registration,
-        CallableMaterializationContext::NoSubstitution,
-    )
-    .unwrap();
-    PersistentCallbackApplicationId::from_key(&application).unwrap()
+    let application = CallbackApplicationKey::new(&registration, context).unwrap();
+    CborIdentityRecord::from_key(application).unwrap()
+}
+
+fn callback_application(
+    ordinal: u32,
+) -> CborIdentityRecord<PersistentCallbackApplicationId, CallbackApplicationKey> {
+    callback_application_with_context(ordinal, CallableMaterializationContext::NoSubstitution)
 }
 
 fn exact_callback_signature() -> ExactCallableSignature {
@@ -166,14 +179,17 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
             states,
             failure_result,
         });
-    let application = callback_application(0);
+    let application_identity = callback_application(0);
+    let application = application_identity.id();
+    let exact_signature = exact_callback_signature();
     let adapter = module.foreign_callback_adapters.alloc(
         ForeignCallbackAdapter::checked(
             module.entry,
             signature,
             &module.function_types[signature],
             application,
-            exact_callback_signature(),
+            &exact_signature,
+            None,
         )
         .unwrap(),
     );
@@ -185,13 +201,19 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     let bridge = module
         .foreign_callback_bridges
         .alloc(ForeignCallbackBridge {
-            application,
+            application_identity,
+            application_record: CallbackApplicationRecord::new(
+                application,
+                module.foreign_callback_adapters[adapter].signature_subject(),
+                exact_signature,
+                ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                CallbackMode::Reusable,
+            ),
             adapter,
             family,
             native_signature,
             context_index: 0,
             mode: modes.reusable(),
-            callback_mode: CallbackMode::Reusable,
         });
     (module, family, bridge)
 }
@@ -201,13 +223,13 @@ fn callback_application_has_one_mir_bridge() {
     let (mut module, _, bridge) = callback_module();
     let source = &module.foreign_callback_bridges[bridge];
     let duplicate = ForeignCallbackBridge {
-        application: source.application,
+        application_identity: source.application_identity.clone(),
+        application_record: source.application_record.clone(),
         adapter: source.adapter,
         family: source.family,
         native_signature: source.native_signature,
         context_index: source.context_index,
         mode: source.mode,
-        callback_mode: source.callback_mode,
     };
     let duplicate = module.foreign_callback_bridges.alloc(duplicate);
 
@@ -217,6 +239,47 @@ fn callback_application_has_one_mir_bridge() {
             location: MirValidationLocation::ForeignCallbackBridge { bridge: duplicate },
             kind: MirValidationErrorKind::InvalidForeignCallbackBridge {
                 reason: "callback application is materialized by more than one bridge",
+            },
+        })
+    );
+}
+
+#[test]
+fn callback_application_identity_must_match_its_semantic_record() {
+    let (mut module, _, bridge) = callback_module();
+    module.foreign_callback_bridges[bridge].application_identity = callback_application(1);
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::ForeignCallbackBridge { bridge },
+            kind: MirValidationErrorKind::InvalidForeignCallbackBridge {
+                reason: "callback application identity and semantic record disagree",
+            },
+        })
+    );
+}
+
+#[test]
+fn callback_application_record_must_name_its_adapter_subject() {
+    let (mut module, _, bridge) = callback_module();
+    let record = module.foreign_callback_bridges[bridge]
+        .application_record
+        .clone();
+    module.foreign_callback_bridges[bridge].application_record = CallbackApplicationRecord::new(
+        record.application(),
+        CallableSignatureSubject::strong(CallableOwner::Function(callback_owner())),
+        record.managed_signature().clone(),
+        record.storage_abi(),
+        record.mode(),
+    );
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::ForeignCallbackBridge { bridge },
+            kind: MirValidationErrorKind::InvalidForeignCallbackBridge {
+                reason: "callback application record names a different managed adapter",
             },
         })
     );
@@ -255,7 +318,16 @@ fn callback_bridge_mode_must_belong_to_its_family() {
 #[test]
 fn callback_bridge_mode_identity_must_match_its_protocol_variant() {
     let (mut module, _, bridge) = callback_module();
-    module.foreign_callback_bridges[bridge].callback_mode = CallbackMode::OneShot;
+    let record = module.foreign_callback_bridges[bridge]
+        .application_record
+        .clone();
+    module.foreign_callback_bridges[bridge].application_record = CallbackApplicationRecord::new(
+        record.application(),
+        record.managed_adapter(),
+        record.managed_signature().clone(),
+        record.storage_abi(),
+        CallbackMode::OneShot,
+    );
 
     assert_eq!(
         module.validate(),
@@ -269,6 +341,67 @@ fn callback_bridge_mode_identity_must_match_its_protocol_variant() {
 }
 
 #[test]
+fn materialized_callback_adapter_uses_its_generated_callable_odr_member() {
+    let (mut module, _, bridge) = callback_module();
+    let callable_key =
+        CallableApplicationKey::for_function(callback_owner(), CallableInstantiationOwner::NoOwner);
+    let callable_application = PersistentCallableApplicationId::from_key(&callable_key).unwrap();
+    let application_identity = callback_application_with_context(
+        0,
+        CallableMaterializationContext::Application(callable_application),
+    );
+    let application = application_identity.id();
+    let generated = PersistentGeneratedCallableId::from_key(
+        &GeneratedCallableKey::ForeignCallbackManagedAdapter { application },
+    )
+    .unwrap();
+    let group = OdrGroupId::from_key(&SpecializationKey::Callable {
+        application: callable_key,
+    })
+    .unwrap();
+    let member = CborIdentityRecord::from_key(
+        OdrMemberKey::new(
+            group,
+            OdrMemberRole::CallableBody,
+            OdrMemberDiscriminator::GeneratedCallable(generated),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let managed_signature = module.foreign_callback_adapters
+        [module.foreign_callback_bridges[bridge].adapter]
+        .managed_signature;
+    let exact_signature = exact_callback_signature();
+    let adapter = module.foreign_callback_adapters.alloc(
+        ForeignCallbackAdapter::checked(
+            module.entry,
+            managed_signature,
+            &module.function_types[managed_signature],
+            application,
+            &exact_signature,
+            Some(member.clone()),
+        )
+        .unwrap(),
+    );
+    let subject = module.foreign_callback_adapters[adapter].signature_subject();
+    assert!(matches!(
+        subject,
+        CallableSignatureSubject::Odr(found) if found.member() == member.id()
+    ));
+    module.foreign_callback_bridges[bridge].adapter = adapter;
+    module.foreign_callback_bridges[bridge].application_identity = application_identity;
+    module.foreign_callback_bridges[bridge].application_record = CallbackApplicationRecord::new(
+        application,
+        subject,
+        exact_signature,
+        ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+        CallbackMode::Reusable,
+    );
+
+    assert!(module.validate().is_ok());
+}
+
+#[test]
 fn callback_adapter_identity_must_match_its_application() {
     let (mut module, _, bridge) = callback_module();
     let managed_signature = module.foreign_callback_adapters
@@ -279,8 +412,9 @@ fn callback_adapter_identity_must_match_its_application() {
             module.entry,
             managed_signature,
             &module.function_types[managed_signature],
-            callback_application(1),
-            exact_callback_signature(),
+            callback_application(1).id(),
+            &exact_callback_signature(),
+            None,
         )
         .unwrap(),
     );

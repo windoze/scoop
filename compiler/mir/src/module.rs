@@ -113,7 +113,12 @@ pub struct ForeignCallbackAdapter {
         scoop_identity::PersistentGeneratedCallableId,
         scoop_identity::GeneratedCallableKey,
     >,
-    exact_managed_signature: scoop_identity::ExactCallableSignature,
+    odr_member: Option<
+        scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    >,
 }
 
 impl ForeignCallbackAdapter {
@@ -122,7 +127,13 @@ impl ForeignCallbackAdapter {
         managed_signature: FunctionTypeId,
         managed_shape: &FunctionType,
         application: scoop_identity::PersistentCallbackApplicationId,
-        exact_managed_signature: scoop_identity::ExactCallableSignature,
+        exact_managed_signature: &scoop_identity::ExactCallableSignature,
+        odr_member: Option<
+            scoop_identity::CborIdentityRecord<
+                scoop_identity::OdrMemberId,
+                scoop_identity::OdrMemberKey,
+            >,
+        >,
     ) -> Result<Self, ForeignCallbackAdapterError> {
         if managed_shape.is_suspend
             || exact_managed_signature.effect() != scoop_identity::Effect::Ordinary
@@ -135,11 +146,25 @@ impl ForeignCallbackAdapter {
             scoop_identity::GeneratedCallableKey::ForeignCallbackManagedAdapter { application },
         )
         .map_err(ForeignCallbackAdapterError::Identity)?;
+        if let Some(member) = &odr_member {
+            let typed_member = scoop_identity::CallableOdrMemberId::from_key(member.key())
+                .map_err(ForeignCallbackAdapterError::OdrMember)?;
+            if typed_member.member() != member.id()
+                || member.key().role() != scoop_identity::OdrMemberRole::CallableBody
+                || !matches!(
+                    member.key().discriminator(),
+                    scoop_identity::OdrMemberDiscriminator::GeneratedCallable(generated)
+                        if *generated == identity.id()
+                )
+            {
+                return Err(ForeignCallbackAdapterError::InvalidOdrMember);
+            }
+        }
         Ok(Self {
             function,
             managed_signature,
             identity,
-            exact_managed_signature,
+            odr_member,
         })
     }
 
@@ -152,15 +177,36 @@ impl ForeignCallbackAdapter {
         &self.identity
     }
 
-    pub const fn exact_managed_signature(&self) -> &scoop_identity::ExactCallableSignature {
-        &self.exact_managed_signature
+    pub fn signature_subject(&self) -> crate::CallableSignatureSubject {
+        match &self.odr_member {
+            Some(member) => crate::CallableSignatureSubject::odr(
+                scoop_identity::CallableOdrMemberId::from_key(member.key())
+                    .expect("a checked callback adapter retains a callable ODR member"),
+            ),
+            None => crate::CallableSignatureSubject::strong(
+                scoop_identity::CallableOwner::Generated(self.identity.id()),
+            ),
+        }
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.odr_member.as_ref()
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ForeignCallbackAdapterError {
     InvalidManagedSignature,
+    InvalidOdrMember,
     Identity(scoop_identity::GeneratedCallableIdentityError),
+    OdrMember(scoop_identity::OdrMemberIdentityError),
 }
 
 impl std::fmt::Display for ForeignCallbackAdapterError {
@@ -168,7 +214,10 @@ impl std::fmt::Display for ForeignCallbackAdapterError {
         match self {
             Self::InvalidManagedSignature => formatter
                 .write_str("managed callback adapter requires an ordinary receiver-free signature"),
+            Self::InvalidOdrMember => formatter
+                .write_str("callback adapter ODR member does not identify the generated adapter"),
             Self::Identity(error) => error.fmt(formatter),
+            Self::OdrMember(error) => error.fmt(formatter),
         }
     }
 }
@@ -339,14 +388,22 @@ impl ForeignCallbackFailureResult {
 /// `CallbackBridgeId` so a closure can never enter the NoGC callback path.
 #[derive(Debug)]
 pub struct ForeignCallbackBridge {
-    /// Persistent identity of this fully concrete callback materialization.
-    pub application: scoop_identity::PersistentCallbackApplicationId,
+    pub application_identity: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentCallbackApplicationId,
+        scoop_identity::CallbackApplicationKey,
+    >,
+    pub application_record: crate::CallbackApplicationRecord,
     pub adapter: ForeignCallbackAdapterId,
     pub family: ForeignCallbackFamilyId,
     pub native_signature: FunctionTypeId,
     pub context_index: u32,
     pub mode: MirVariantRef,
-    pub callback_mode: scoop_identity::CallbackMode,
+}
+
+impl ForeignCallbackBridge {
+    pub const fn application(&self) -> scoop_identity::PersistentCallbackApplicationId {
+        self.application_record.application()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

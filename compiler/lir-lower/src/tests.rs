@@ -23,7 +23,8 @@ fn lower(module: &mir::Module) -> lir::Module {
     super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
 }
 
-fn callback_application() -> PersistentCallbackApplicationId {
+fn callback_application()
+-> CborIdentityRecord<PersistentCallbackApplicationId, CallbackApplicationKey> {
     let site = SourceDeclarationSite::new(
         ConeIdentity::CORE,
         PackagePath::root(),
@@ -61,7 +62,7 @@ fn callback_application() -> PersistentCallbackApplicationId {
         CallableMaterializationContext::NoSubstitution,
     )
     .unwrap();
-    PersistentCallbackApplicationId::from_key(&application).unwrap()
+    CborIdentityRecord::from_key(application).unwrap()
 }
 
 fn exact_callback_signature() -> ExactCallableSignature {
@@ -602,27 +603,36 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             states,
             failure_result,
         });
-    let application = callback_application();
+    let application_identity = callback_application();
+    let application = application_identity.id();
+    let exact_signature = exact_callback_signature();
     let adapter = module.foreign_callback_adapters.alloc(
         mir::ForeignCallbackAdapter::checked(
             main,
             managed_signature,
             &module.function_types[managed_signature],
             application,
-            exact_callback_signature(),
+            &exact_signature,
+            None,
         )
         .unwrap(),
     );
     module
         .foreign_callback_bridges
         .alloc(mir::ForeignCallbackBridge {
-            application,
+            application_identity,
+            application_record: mir::CallbackApplicationRecord::new(
+                application,
+                module.foreign_callback_adapters[adapter].signature_subject(),
+                exact_signature,
+                mir::ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                CallbackMode::Reusable,
+            ),
             adapter,
             family,
             native_signature,
             context_index: 0,
             mode: modes.reusable(),
-            callback_mode: CallbackMode::Reusable,
         });
 
     let lowered = lower(&module);

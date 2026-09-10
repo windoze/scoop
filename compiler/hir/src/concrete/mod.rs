@@ -9,10 +9,11 @@ use scoop_ast::Span;
 pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
     CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CallbackMode,
-    CborIdentityRecord, Effect, ExactCallableSignature, InitializationUnitKey, NonEmptyVec,
-    OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
-    OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    PersistentGeneratedCallableId, PersistentInitializationUnitId, SpecializationKey,
+    CborIdentityRecord, Effect, ExactCallableSignature, GeneratedCallableKey,
+    InitializationUnitKey, NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
+    OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId,
+    PersistentCallbackApplicationId, PersistentGeneratedCallableId, PersistentInitializationUnitId,
+    SpecializationKey,
 };
 
 pub use super::{

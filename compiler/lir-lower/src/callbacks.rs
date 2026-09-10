@@ -48,7 +48,7 @@ pub(super) fn lower_foreign_callback_bridges(
                 symbols
             };
         bridges.alloc(lir::ForeignCallbackBridge {
-            application: bridge.application,
+            application: bridge.application(),
             family: lir::ForeignCallbackFamilyId::from_raw(bridge.family.into_raw()),
             adapter_symbol: module.functions[adapter.function].symbol.clone(),
             trampoline_symbol,

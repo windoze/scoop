@@ -440,31 +440,103 @@ impl BodyLowerer<'_> {
             },
         });
         self.top_level.push(function);
+        let generated = hir::PersistentGeneratedCallableId::from_key(
+            &hir::GeneratedCallableKey::ForeignCallbackManagedAdapter {
+                application: registration.application,
+            },
+        )
+        .expect("a callback adapter generated-callable identity is hashable");
+        let odr_member =
+            callback_adapter_odr_member(self.module, registration.application, generated);
         let adapter = self.foreign_callback_adapters.alloc(
             mir::ForeignCallbackAdapter::checked(
                 function,
                 managed_signature,
                 &signature,
                 registration.application,
-                exact_managed_signature,
+                &exact_managed_signature,
+                odr_member,
             )
             .expect("a callback adapter generated-callable identity is hashable"),
+        );
+        let application_identity = self
+            .module
+            .callback_applications
+            .get(registration.application)
+            .expect("a concrete callback registration has a persistent application record")
+            .clone();
+        let application_record = mir::CallbackApplicationRecord::new(
+            registration.application,
+            self.foreign_callback_adapters[adapter].signature_subject(),
+            exact_managed_signature,
+            mir::ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+            callback_mode,
         );
         let bridge = self
             .foreign_callback_bridges
             .alloc(mir::ForeignCallbackBridge {
-                application: registration.application,
+                application_identity,
+                application_record,
                 adapter,
                 family,
                 native_signature,
                 context_index: registration.context_index,
                 mode,
-                callback_mode,
             });
         self.foreign_callback_by_application
             .insert(registration.application, bridge);
         bridge
     }
+}
+
+fn callback_adapter_odr_member(
+    module: &hir::Module,
+    application: hir::PersistentCallbackApplicationId,
+    generated: hir::PersistentGeneratedCallableId,
+) -> Option<hir::OdrMemberRecord> {
+    let application = module
+        .callback_applications
+        .get(application)
+        .expect("a concrete callback registration has a persistent application record");
+    let group = match application.key().context() {
+        hir::CallableMaterializationContext::NoSubstitution => return None,
+        hir::CallableMaterializationContext::Application(application) => module
+            .callable_applications
+            .odr(application)
+            .expect("a callback materialization references a concrete callable application")
+            .group(),
+        hir::CallableMaterializationContext::InitializationApplication(unit) => {
+            let unit = module
+                .initialization_units
+                .iter()
+                .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
+                .expect("a callback materialization references a concrete initialization unit");
+            let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
+                property,
+                receiver_arguments,
+            } = unit.identity.key()
+            else {
+                panic!(
+                    "an initialization callback materialization belongs to a generic delegated extension"
+                )
+            };
+            hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
+                origin: *property,
+                receiver_arguments: receiver_arguments.clone(),
+            })
+            .expect("a delegated-property ODR group identity is hashable")
+        }
+    };
+    let key = hir::OdrMemberKey::new(
+        group,
+        hir::OdrMemberRole::CallableBody,
+        hir::OdrMemberDiscriminator::GeneratedCallable(generated),
+    )
+    .expect("a callback adapter is a callable ODR member");
+    Some(
+        hir::CborIdentityRecord::from_key(key)
+            .expect("a callback adapter ODR member identity is hashable"),
+    )
 }
 
 fn exact_callback_signature(

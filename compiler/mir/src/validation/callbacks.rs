@@ -89,7 +89,13 @@ pub(super) fn validate_foreign_callback_metadata(
             location: MirValidationLocation::ForeignCallbackBridge { bridge: bridge_id },
             kind: MirValidationErrorKind::InvalidForeignCallbackBridge { reason },
         };
-        if !applications.insert(bridge.application) {
+        let application_id = bridge.application();
+        if bridge.application_identity.id() != application_id {
+            return Err(fail(
+                "callback application identity and semantic record disagree",
+            ));
+        }
+        if !applications.insert(application_id) {
             return Err(fail(
                 "callback application is materialized by more than one bridge",
             ));
@@ -114,18 +120,30 @@ pub(super) fn validate_foreign_callback_metadata(
         if !matches!(
             adapter.identity_record().key(),
             scoop_identity::GeneratedCallableKey::ForeignCallbackManagedAdapter { application }
-                if *application == bridge.application
+                if *application == application_id
         ) {
             return Err(fail(
                 "adapter persistent identity does not match the callback application",
             ));
         }
+        let expects_odr = bridge.application_identity.key().context()
+            != scoop_identity::CallableMaterializationContext::NoSubstitution;
+        if adapter.odr_member_record().is_some() != expects_odr {
+            return Err(fail(
+                "adapter definition subject does not match the callback materialization context",
+            ));
+        }
+        if bridge.application_record.managed_adapter() != adapter.signature_subject() {
+            return Err(fail(
+                "callback application record names a different managed adapter",
+            ));
+        }
         let managed_signature = &module.function_types[adapter.managed_signature];
+        let exact_managed_signature = bridge.application_record.managed_signature();
         if managed_signature.is_suspend
-            || adapter.exact_managed_signature().effect() != scoop_identity::Effect::Ordinary
-            || adapter.exact_managed_signature().receiver().is_present()
-            || adapter.exact_managed_signature().parameters().len()
-                != managed_signature.parameter_types.len()
+            || exact_managed_signature.effect() != scoop_identity::Effect::Ordinary
+            || exact_managed_signature.receiver().is_present()
+            || exact_managed_signature.parameters().len() != managed_signature.parameter_types.len()
         {
             return Err(fail(
                 "adapter exact managed signature has an invalid callback shape",
@@ -139,7 +157,7 @@ pub(super) fn validate_foreign_callback_metadata(
         } else {
             scoop_identity::CallbackMode::OneShot
         };
-        if bridge.callback_mode != expected_callback_mode {
+        if bridge.application_record.mode() != expected_callback_mode {
             return Err(fail(
                 "persistent callback mode does not match the protocol variant",
             ));
