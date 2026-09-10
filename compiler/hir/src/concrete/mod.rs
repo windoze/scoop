@@ -13,7 +13,7 @@ pub use scoop_identity::{
     InitializationUnitKey, NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
     OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId,
     PersistentCallbackApplicationId, PersistentExactTypeId, PersistentGeneratedCallableId,
-    PersistentInitializationUnitId, SpecializationKey,
+    PersistentInitializationUnitId, PersistentLocalValueId, SpecializationKey,
 };
 
 pub use super::{
@@ -32,6 +32,9 @@ pub use types::*;
 
 mod exact_types;
 pub use exact_types::*;
+
+mod local_values;
+pub use local_values::*;
 
 mod callable_applications;
 pub use callable_applications::*;

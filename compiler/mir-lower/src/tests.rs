@@ -363,10 +363,20 @@ fn test_local_selector(ordinal: u32) -> scoop_identity::LocalValueSelector {
     }
 }
 
+fn test_local_ordinal(name: &str, ty: hir::TypeId, line: u32, column: u32) -> u32 {
+    let name = name.bytes().fold(0x811c_9dc5_u32, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
+    });
+    name ^ ty.into_raw().into_u32().rotate_left(7) ^ line.rotate_left(13) ^ column.rotate_left(21)
+}
+
+#[track_caller]
 fn local(name: &str, ty: hir::TypeId) -> hir::Local {
+    let caller = std::panic::Location::caller();
+    let ordinal = test_local_ordinal(name, ty, caller.line(), caller.column());
     hir::Local {
-        binding: hir::BindingId::from_raw(0),
-        selector: test_local_selector(0),
+        binding: hir::BindingId::from_raw(ordinal),
+        selector: test_local_selector(ordinal),
         name: name.to_string(),
         ty,
         mutable: false,

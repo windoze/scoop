@@ -220,6 +220,7 @@ fn constructor_identity_relation_rejects_adapter_shape_corruption() {
         .parameters
         .push(hir::ConstructorParameter {
             id: hir::ConstructorParamId::from_raw(999_u32),
+            binding: hir::BindingId::from_raw(999_u32),
             name: "invalid".to_string(),
             ty: module.unit,
         });

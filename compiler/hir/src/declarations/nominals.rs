@@ -663,6 +663,7 @@ pub enum ClassFieldSource {
 #[derive(Debug, Clone)]
 pub struct ConstructorParameter {
     pub id: ConstructorParamId,
+    pub binding: BindingId,
     pub name: String,
     pub ty: TypeId,
 }

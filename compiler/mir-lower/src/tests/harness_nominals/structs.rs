@@ -42,6 +42,7 @@ impl Harness {
                 self.next_constructor_param += 1;
                 hir::ConstructorParameter {
                     id,
+                    binding: hir::BindingId::from_raw(0x4000_0000 + id.into_raw()),
                     name: name.to_string(),
                     ty: *ty,
                 }

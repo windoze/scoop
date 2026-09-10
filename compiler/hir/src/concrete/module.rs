@@ -6,6 +6,9 @@ pub struct Module {
     /// Total persistent identity relation aligned with `types`. Local-
     /// concrete HIR cannot represent an open type, so every entry is exact.
     pub exact_type_identities: ExactTypeIdentities,
+    /// Total persistent identity relation for every callable-local value in
+    /// this fully materialized graph.
+    pub local_value_identities: LocalValueIdentities,
     /// Canonical application identities referenced by callable
     /// materializations in this local graph.
     pub callable_applications: CallableApplicationIdentities,

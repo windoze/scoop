@@ -638,10 +638,20 @@ impl<'a> Concretizer<'a> {
             self.foreign_callback_slots,
             identities.foreign_callback_applications,
         );
+        let local_value_identities =
+            concrete::LocalValueIdentities::from_callables(concrete::LocalValueIdentityInputs {
+                callable_applications: &identities.callable_applications,
+                functions: &functions,
+                local_functions: &self.local_functions,
+                class_constructors: &class_constructors,
+                struct_constructors: &struct_constructors,
+            })
+            .expect("validated concretization produces a total local-value identity relation");
 
         let module = concrete::Module {
             types: self.types,
             exact_type_identities,
+            local_value_identities,
             callable_applications: identities.callable_applications,
             callback_applications: identities.callback_applications,
             function_types: self.function_types,

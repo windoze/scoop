@@ -154,6 +154,7 @@ impl Concretizer<'_> {
             .iter()
             .map(|parameter| concrete::ConstructorParameter {
                 id: concrete::ConstructorParamId::from_raw(parameter.id.into_raw()),
+                binding: concrete::BindingId::from_raw(parameter.binding.into_raw()),
                 name: parameter.name.clone(),
                 ty: self.lower_type(parameter.ty, substitution),
             })
@@ -423,6 +424,7 @@ impl Concretizer<'_> {
                 let ty = self.lower_type(local.ty, substitution);
                 body.locals.alloc(concrete::Local {
                     binding: concrete::BindingId::from_raw(local.binding.into_raw()),
+                    selector: local.selector.clone(),
                     name: local.name.clone(),
                     ty,
                     mutable: local.mutable,

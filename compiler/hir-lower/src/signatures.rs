@@ -117,11 +117,7 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let parameters = fields
             .into_iter()
-            .map(|(name, ty)| hir::ConstructorParameter {
-                id: self.fresh_constructor_parameter(),
-                name,
-                ty,
-            })
+            .map(|(name, ty)| self.constructor_parameter(name, ty))
             .collect();
         let access = self.fixed_representation_access(Owner::Struct(id));
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
@@ -152,11 +148,7 @@ impl Lowerer {
                 let Some(resolved) = self.resolve_fn_param(parameter) else {
                     continue;
                 };
-                parameters.push(hir::ConstructorParameter {
-                    id: self.fresh_constructor_parameter(),
-                    name: resolved.name.text,
-                    ty: resolved.ty,
-                });
+                parameters.push(self.constructor_parameter(resolved.name.text, resolved.ty));
                 callings.push(resolved.calling);
             }
             let access = self.member_access(

@@ -35,6 +35,20 @@ impl Lowerer {
         parameter
     }
 
+    pub(crate) fn constructor_parameter(
+        &mut self,
+        name: String,
+        ty: hir::TypeId,
+    ) -> hir::ConstructorParameter {
+        let id = self.fresh_constructor_parameter();
+        hir::ConstructorParameter {
+            id,
+            binding: self.constructor_parameter_bindings[&id],
+            name,
+            ty,
+        }
+    }
+
     pub(crate) fn fresh_binding(&mut self) -> hir::BindingId {
         let binding = hir::BindingId::from_raw(self.next_binding_id);
         self.next_binding_id += 1;
