@@ -7464,6 +7464,7 @@ Module
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep$I32 result=Int
+  coroutine_start ct0 result=Int function=fn111
   coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:FailingTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf1 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println

@@ -215,6 +215,30 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         panic!("a suspend call requires a state machine")
     };
     assert_eq!(resume_points.len(), 1);
+    let shells = module
+        .meta
+        .continuation_shells
+        .iter()
+        .find(|shell| shell.result() == &caller.source_return)
+        .expect("state-machine result has exact continuation shells");
+    assert!(matches!(
+        shells.identity().success_callable_record().key(),
+        scoop_identity::GeneratedCallableKey::ContinuationShell {
+            result,
+            role: scoop_identity::ContinuationShellRole::Success,
+        } if *result == shells.identity().result_record().id()
+    ));
+    assert!(matches!(
+        shells.identity().failure_callable_record().key(),
+        scoop_identity::GeneratedCallableKey::ContinuationShell {
+            role: scoop_identity::ContinuationShellRole::Failure,
+            ..
+        }
+    ));
+    assert!(matches!(
+        shells.identity().success_root(),
+        mir::ExactOwnerRoot::SourceNominal(_)
+    ));
     let frame = &module.meta.coroutine_frames[*frame];
     let fields = module.classes[frame.class()].declared_fields();
     assert_eq!(fields[0].name, "state");
@@ -627,10 +651,25 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let launcher_entry = &launcher.body.blocks[launcher.body.entry];
     let (start, destination) = statement_call(&launcher_entry.statements[0]);
     assert!(destination.is_none(), "startCoroutine returns Unit");
-    let mir::Callee::User(helper) = start.target.callee else {
+    let mir::Callee::User(helper_id) = start.target.callee else {
         panic!("startCoroutine lowers to its concrete guarded helper")
     };
-    let helper = &module.functions[helper];
+    let start_metadata = module
+        .meta
+        .coroutine_starts
+        .iter()
+        .find(|start| start.function() == helper_id)
+        .expect("startCoroutine helper retains its persistent identity");
+    assert!(matches!(
+        start_metadata.identity().callable_record().key(),
+        scoop_identity::GeneratedCallableKey::CoroutineStart { result }
+            if *result == start_metadata.identity().result_record().id()
+    ));
+    assert!(matches!(
+        start_metadata.identity().root(),
+        mir::ExactOwnerRoot::SourceNominal(_)
+    ));
+    let helper = &module.functions[helper_id];
     let entry = &helper.body.blocks[helper.body.entry];
     let (run, step_local) = statement_call(&entry.statements[0]);
     let mir::CallKind::Interface {

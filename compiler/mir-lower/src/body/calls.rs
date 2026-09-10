@@ -171,6 +171,7 @@ impl BodyLowerer<'_> {
         let throwable =
             mir::Type::Class(self.class_map[&self.module.exception_core.throwable.class()]);
         let helper = self.coroutines.start_helper(
+            self.module,
             &result,
             task_interface,
             continuation_interface,

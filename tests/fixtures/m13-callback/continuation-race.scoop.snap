@@ -8828,6 +8828,8 @@ Module
   coroutine_slot cl0 CoroutineSlot$C32_$local$u0:p0:r5:classn8:RaceTaskX value=RaceTask
   coroutine_slot cl1 CoroutineSlot$I32 value=Int
   coroutine_slot cl2 CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX value=Throwable
+  continuation_shell ch0 result=Int success=fn120 failure=fn121
+  coroutine_start ct0 result=Int function=fn118
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331313a6e383a526163655461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=RaceTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331313a6e383a526163655461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Int
   coroutine_failure cx0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331313a6e383a526163655461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=4 slot=cl2 throwable=Throwable

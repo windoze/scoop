@@ -7,6 +7,31 @@ fn checked_pair(module: &Module, enum_id: EnumId) -> (MirVariantFieldRef, MirVar
     (payload, empty)
 }
 
+fn support_function(module: &mut Module, params: Vec<Type>) -> FunctionId {
+    let mut locals = Arena::new();
+    let params = params
+        .into_iter()
+        .enumerate()
+        .map(|(index, ty)| {
+            let name = format!("parameter{index}");
+            let local = locals.alloc(Local {
+                name: name.clone(),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            Param { name, ty, local }
+        })
+        .collect();
+    module.functions.alloc(Function {
+        gc_effect: GcEffect::Managed,
+        name: "coroutineSupport".to_string(),
+        symbol: "scoop.coroutine.support".to_string(),
+        params,
+        return_ty: Type::Unit,
+        body: Body::unreachable(locals),
+    })
+}
+
 #[test]
 fn module_validation_rejects_stale_option_core_metadata() {
     let value = Type::Integer(IntegerKind::SIGNED_32);
@@ -88,6 +113,97 @@ fn module_validation_rejects_stale_coroutine_slot_reference() {
         Err(MirValidationError {
             location: MirValidationLocation::CoroutineSlot { slot: slot_id },
             kind: MirValidationErrorKind::InvalidCoroutineSlot,
+        })
+    );
+}
+
+#[test]
+fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
+    let result = Type::Integer(IntegerKind::SIGNED_32);
+    let (mut module, enum_id) = module_with_variants(vec![
+        variant_def("Completed", vec![result.clone()]),
+        variant_def("Suspended", Vec::new()),
+    ]);
+    let (completed_payload, suspended) = checked_pair(&module, enum_id);
+    module.meta.coroutine_steps.alloc(
+        CoroutineStep::checked(
+            &module.enums,
+            completed_payload,
+            suspended,
+            result.clone(),
+            test_step_identity(&result),
+        )
+        .unwrap(),
+    );
+    let mut interfaces = Arena::new();
+    let continuation = interfaces.alloc(InterfaceDef {
+        link_stem: nominal_link_stem(),
+        name: "Continuation".to_string(),
+        type_arguments: vec![result.clone()],
+        methods: Vec::new(),
+    });
+    let task = interfaces.alloc(InterfaceDef {
+        link_stem: nominal_link_stem(),
+        name: "SuspendTask".to_string(),
+        type_arguments: vec![result.clone()],
+        methods: Vec::new(),
+    });
+    module.interfaces = interfaces;
+    let throwable = module.classes.alloc(ClassDef {
+        modifier: ClassModifier::Final,
+        link_stem: nominal_link_stem(),
+        name: "Throwable".to_string(),
+        type_arguments: Vec::new(),
+        representation: ClassRepresentation::Declared {
+            fields: Vec::new(),
+            base_class: None,
+        },
+        interfaces: Vec::new(),
+        vtable: Vec::new(),
+        itables: Vec::new(),
+    });
+    let success = support_function(
+        &mut module,
+        vec![Type::Interface(continuation), result.clone()],
+    );
+    let failure = support_function(
+        &mut module,
+        vec![Type::Interface(continuation), Type::Class(throwable)],
+    );
+    module.meta.continuation_shells.push(
+        CoroutineContinuationShell::checked(
+            &module.functions,
+            result.clone(),
+            success,
+            failure,
+            test_continuation_shell_identity(&result),
+        )
+        .unwrap(),
+    );
+    let start = support_function(
+        &mut module,
+        vec![Type::Interface(task), Type::Interface(continuation)],
+    );
+    module.top_level.push(start);
+    module.meta.coroutine_starts.push(
+        CoroutineStart::checked(
+            &module.functions,
+            result.clone(),
+            start,
+            test_coroutine_start_identity(&result),
+        )
+        .unwrap(),
+    );
+    assert_eq!(module.validate(), Ok(()));
+
+    module.functions[success].return_ty = Type::Boolean;
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::ContinuationShell { shell: 0 },
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "continuation shells no longer have their exact generated signatures",
+            },
         })
     );
 }

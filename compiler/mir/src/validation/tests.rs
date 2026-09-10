@@ -66,6 +66,14 @@ fn test_slot_identity(ty: &Type) -> CoroutineSlotIdentity {
     CoroutineSlotIdentity::new(&test_exact_type(ty), None).unwrap()
 }
 
+fn test_continuation_shell_identity(ty: &Type) -> ContinuationShellIdentity {
+    ContinuationShellIdentity::new(&test_exact_type(ty), None).unwrap()
+}
+
+fn test_coroutine_start_identity(ty: &Type) -> CoroutineStartIdentity {
+    CoroutineStartIdentity::new(&test_exact_type(ty), None).unwrap()
+}
+
 fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {

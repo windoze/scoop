@@ -285,6 +285,7 @@ fn transform_function(
         _ => unreachable!("hidden completion has a concrete Continuation<R> type"),
     };
     let (outer_resume, outer_failure) = lowerer.coroutines.continuation_shells(
+        module,
         &source_return,
         continuation,
         throwable_ty,

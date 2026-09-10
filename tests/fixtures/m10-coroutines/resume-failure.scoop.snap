@@ -9257,6 +9257,8 @@ Module
   coroutine_slot cl1 CoroutineSlot$I32 value=Int
   coroutine_slot cl2 CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX value=Throwable
   coroutine_slot cl3 CoroutineSlot$C37_$local$u0:p0:r5:classn12:UncaughtTaskX value=UncaughtTask
+  continuation_shell ch0 result=Int success=fn119 failure=fn120
+  coroutine_start ct0 result=Int function=fn117
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331343a6e31303a4361756768745461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=CaughtTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331343a6e31303a4361756768745461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a556e6361756768745461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl3 value=UncaughtTask

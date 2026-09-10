@@ -8192,6 +8192,7 @@ Module
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep$D40_$local$c0:p0:r6:structn14:SourceLocationX result=SourceLocation
+  coroutine_start ct0 result=SourceLocation function=fn119
   coroutine_fn cf0 @scoop.$local$u0:p0:C16:n12:LocationTaskr8:functionq8:ordinaryn3:run$suspend source_return=SourceLocation step=cs0 immediate
   coroutine_fn cf1 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$D40_$local$c0:p0:r6:structn14:SourceLocationX$suspend source_return=SourceLocation step=cs0 immediate
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println

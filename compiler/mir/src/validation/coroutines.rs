@@ -5,6 +5,7 @@ use super::*;
 pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirValidationError> {
     validate_saved_values(module)?;
     validate_failure_values(module)?;
+    let mut callables = validate_support_callables(module)?;
 
     let mut saved_owners = vec![0_u32; module.meta.coroutine_saved_values.len()];
     let mut failure_owners = vec![0_u32; module.meta.coroutine_failure_values.len()];
@@ -41,7 +42,6 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
 
     let mut frame_owners = vec![0_u32; module.meta.coroutine_frames.len()];
     let mut point_owners = vec![0_u32; module.meta.coroutine_resume_points.len()];
-    let mut callables = HashSet::new();
     let mut drivers = HashSet::new();
     for (coroutine_id, coroutine) in module.meta.coroutine_functions.iter() {
         if !callables.insert(coroutine.function) {
@@ -53,7 +53,10 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
             ));
         }
         if let CoroutineLowering::StateMachine { driver, .. } = &coroutine.lowering {
-            if coroutine.function == *driver || !drivers.insert(*driver) {
+            if coroutine.function == *driver
+                || !drivers.insert(*driver)
+                || !callables.insert(*driver)
+            {
                 return Err(error(
                     MirValidationLocation::CoroutineFunction {
                         coroutine: coroutine_id,
@@ -87,6 +90,100 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
         }
     }
     Ok(())
+}
+
+fn validate_support_callables(module: &Module) -> Result<HashSet<FunctionId>, MirValidationError> {
+    let mut functions = HashSet::new();
+    let mut shell_results = HashSet::new();
+    for (index, shell) in module.meta.continuation_shells.iter().enumerate() {
+        let location = MirValidationLocation::ContinuationShell {
+            shell: u32::try_from(index).expect("MIR metadata index fits u32"),
+        };
+        if CoroutineContinuationShell::checked(
+            &module.functions,
+            shell.result().clone(),
+            shell.success(),
+            shell.failure(),
+            shell.identity().clone(),
+        )
+        .is_none()
+        {
+            return Err(error(
+                location,
+                "continuation shells no longer have their exact generated signatures",
+            ));
+        }
+        let exact = shell.identity().result_record().id();
+        if !shell_results.insert(exact) {
+            return Err(error(
+                location,
+                "an exact result can have only one continuation-shell pair",
+            ));
+        }
+        if step_exact_result(module, shell.result()) != Some(exact) {
+            return Err(error(
+                location,
+                "continuation shells and CoroutineStep disagree on the exact result",
+            ));
+        }
+        if !functions.insert(shell.success()) || !functions.insert(shell.failure()) {
+            return Err(error(
+                location,
+                "each continuation shell function must be uniquely owned",
+            ));
+        }
+    }
+
+    let mut start_results = HashSet::new();
+    for (index, start) in module.meta.coroutine_starts.iter().enumerate() {
+        let location = MirValidationLocation::CoroutineStart {
+            start: u32::try_from(index).expect("MIR metadata index fits u32"),
+        };
+        if CoroutineStart::checked(
+            &module.functions,
+            start.result().clone(),
+            start.function(),
+            start.identity().clone(),
+        )
+        .is_none()
+        {
+            return Err(error(
+                location,
+                "coroutine start helper no longer has its exact erased signature",
+            ));
+        }
+        let exact = start.identity().result_record().id();
+        if !start_results.insert(exact) {
+            return Err(error(
+                location,
+                "an exact result can have only one coroutine start helper",
+            ));
+        }
+        if step_exact_result(module, start.result()) != Some(exact) {
+            return Err(error(
+                location,
+                "coroutine start helper and CoroutineStep disagree on the exact result",
+            ));
+        }
+        if !functions.insert(start.function()) {
+            return Err(error(
+                location,
+                "each coroutine support function must be uniquely owned",
+            ));
+        }
+    }
+    Ok(functions)
+}
+
+fn step_exact_result(
+    module: &Module,
+    result: &Type,
+) -> Option<scoop_identity::PersistentExactTypeId> {
+    let mut matching = module.meta.coroutine_steps.iter().filter_map(|(_, step)| {
+        (step.result() == result).then_some(step.identity().result_record().id())
+    });
+    let exact = matching.next()?;
+    matching.next().is_none().then_some(exact)
 }
 
 fn validate_saved_values(module: &Module) -> Result<(), MirValidationError> {

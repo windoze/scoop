@@ -22,8 +22,8 @@ pub(super) struct CoroutineRegistry {
     pub(super) failure_values: Arena<mir::CoroutineFailureValue>,
     pub(super) frames: Arena<mir::CoroutineFrame>,
     pub(super) resume_points: Arena<mir::CoroutineResumePoint>,
-    pub(super) continuation_shells: Vec<(mir::Type, mir::FunctionId, mir::FunctionId)>,
-    pub(super) start_helpers: Vec<(mir::Type, mir::FunctionId)>,
+    pub(super) continuation_shells: Vec<mir::CoroutineContinuationShell>,
+    pub(super) start_helpers: Vec<mir::CoroutineStart>,
     source_types: Vec<SourceExactType>,
 }
 
@@ -244,18 +244,22 @@ impl CoroutineRegistry {
 
     pub(super) fn continuation_shells(
         &mut self,
+        module: &hir::Module,
         result: &mir::Type,
         continuation: mir::InterfaceId,
         throwable: mir::Type,
         functions: &mut Arena<mir::Function>,
         shell: &mir::Module,
     ) -> (mir::FunctionId, mir::FunctionId) {
-        if let Some((_, resume, failure)) = self
+        let source = self.source_type(result).source;
+        let exact = &module.exact_type_identities[source];
+        let nominal_group = module.exact_type_identities.nominal_specialization(source);
+        if let Some(found) = self
             .continuation_shells
             .iter()
-            .find(|(found, _, _)| found == result)
+            .find(|found| found.identity().result_record().id() == exact.id())
         {
-            return (*resume, *failure);
+            return (found.success(), found.failure());
         }
         let encoded = mir::encode_type(shell, result)
             .expect("continuation result types are source-level MIR types");
@@ -319,14 +323,24 @@ impl CoroutineRegistry {
             return_ty: mir::Type::Unit,
             body: mir::Body::unreachable(failure_locals),
         });
-        self.continuation_shells
-            .push((result.clone(), resume, failure));
+        let identity = mir::ContinuationShellIdentity::new(exact, nominal_group)
+            .expect("local-concrete exact types have one continuation-shell root");
+        let metadata = mir::CoroutineContinuationShell::checked(
+            functions,
+            result.clone(),
+            resume,
+            failure,
+            identity,
+        )
+        .expect("generated continuation shells have the exact dispatch signatures");
+        self.continuation_shells.push(metadata);
         (resume, failure)
     }
 
     #[allow(clippy::too_many_arguments)]
     pub(super) fn start_helper(
         &mut self,
+        module: &hir::Module,
         result: &mir::Type,
         task_interface: mir::InterfaceId,
         continuation_interface: mir::InterfaceId,
@@ -339,10 +353,13 @@ impl CoroutineRegistry {
         top_level: &mut Vec<mir::FunctionId>,
         shell: &mir::Module,
     ) -> mir::FunctionId {
+        let source = self.source_type(result).source;
+        let exact = &module.exact_type_identities[source];
+        let nominal_group = module.exact_type_identities.nominal_specialization(source);
         let step_id = self
             .steps_by_result
             .iter()
-            .find(|(_, id)| self.steps[*id].result() == result)
+            .find(|(found, _)| *found == exact.id())
             .map(|(_, id)| *id)
             .expect("start helpers are created after their CoroutineStep metadata");
         let step_metadata = &self.steps[step_id];
@@ -356,8 +373,12 @@ impl CoroutineRegistry {
             result,
             "the start helper CoroutineStep metadata must carry its result type",
         );
-        if let Some((_, function)) = self.start_helpers.iter().find(|(found, _)| found == result) {
-            return *function;
+        if let Some(found) = self
+            .start_helpers
+            .iter()
+            .find(|found| found.identity().result_record().id() == exact.id())
+        {
+            return found.function();
         }
         let completed_variant = step_metadata.completed();
         let completed_payload = step_metadata.completed_payload();
@@ -525,7 +546,11 @@ impl CoroutineRegistry {
             },
         });
         top_level.push(function);
-        self.start_helpers.push((result.clone(), function));
+        let identity = mir::CoroutineStartIdentity::new(exact, nominal_group)
+            .expect("local-concrete exact types have one coroutine-start root");
+        let metadata = mir::CoroutineStart::checked(functions, result.clone(), function, identity)
+            .expect("generated coroutine start helper has the exact erased signature");
+        self.start_helpers.push(metadata);
         function
     }
 }

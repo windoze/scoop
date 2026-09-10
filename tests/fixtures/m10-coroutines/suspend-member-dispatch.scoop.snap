@@ -13666,6 +13666,8 @@ Module
   coroutine_slot cl6 CoroutineSlot$C40_$local$u0:p0:r5:classn15:AsyncWorkerImplX value=AsyncWorkerImpl
   coroutine_slot cl7 CoroutineSlot$C37_$local$u0:p0:r5:classn12:DispatchTaskX value=DispatchTask
   coroutine_slot cl8 CoroutineSlot$C28_$local$u0:p0:r5:classn4:GateX value=Gate
+  continuation_shell ch0 result=Int success=fn129 failure=fn130
+  coroutine_start ct0 result=Int function=fn127
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a5331363a6e31323a537472756374576f726b657272383a66756e6374696f6e71383a6f7264696e6172796e343a776f726b2473757370656e64 field=2 slot=cl0 value=StructWorker
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a5331363a6e31323a537472756374576f726b657272383a66756e6374696f6e71383a6f7264696e6172796e343a776f726b2473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4531343a6e31303a456e756d576f726b657272383a66756e6374696f6e71383a6f7264696e6172796e343a776f726b2473757370656e64 field=2 slot=cl3 value=EnumWorker

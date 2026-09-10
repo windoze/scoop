@@ -10821,6 +10821,9 @@ Module
   coroutine_slot cl3 CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX value=Throwable
   coroutine_slot cl4 CoroutineSlot$C31_$local$u0:p0:r5:classn7:IntGateX value=IntGate
   coroutine_slot cl5 CoroutineSlot$C36_$local$u0:p0:r5:classn11:BooleanGateX value=BooleanGate
+  continuation_shell ch0 result=Int success=fn126 failure=fn127
+  continuation_shell ch1 result=Boolean success=fn138 failure=fn139
+  coroutine_start ct0 result=Int function=fn124
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4d756c7469706c655461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=MultipleTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4d756c7469706c655461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4d756c7469706c655461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=4 slot=cl1 value=Int

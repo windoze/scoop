@@ -13225,6 +13225,11 @@ Module
   coroutine_slot cl8 CoroutineSlot$J48_$local$c0:p0:r9:interfacen19:SuspendRegistrationAD29_$local$u0:p0:r6:structn4:PairXX value=SuspendRegistration$D4_PairX
   coroutine_slot cl9 CoroutineSlot$J48_$local$c0:p0:r9:interfacen19:SuspendRegistrationABX value=SuspendRegistration$B
   coroutine_slot cl10 CoroutineSlot$J48_$local$c0:p0:r9:interfacen19:SuspendRegistrationAE29_$local$u0:p0:r4:enumn6:ChoiceXX value=SuspendRegistration$E6_ChoiceX
+  continuation_shell ch0 result=Int success=fn146 failure=fn147
+  continuation_shell ch1 result=Pair success=fn160 failure=fn161
+  continuation_shell ch2 result=Boolean success=fn165 failure=fn166
+  continuation_shell ch3 result=Choice success=fn170 failure=fn171
+  coroutine_start ct0 result=Int function=fn144
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a47656e657269635461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=GenericTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a47656e657269635461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a47656e657269635461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=4 slot=cl2 value=Pair

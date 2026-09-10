@@ -143,6 +143,12 @@ pub enum MirValidationLocation {
     CoroutineSlot {
         slot: CoroutineSlotId,
     },
+    ContinuationShell {
+        shell: u32,
+    },
+    CoroutineStart {
+        start: u32,
+    },
     CoroutineSavedValue {
         value: CoroutineSavedValueId,
     },
@@ -206,6 +212,13 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR CoroutineSlot metadata {}: ",
                 slot.into_raw().into_u32()
             )?,
+            MirValidationLocation::ContinuationShell { shell } => write!(
+                formatter,
+                "invalid MIR continuation-shell metadata {shell}: "
+            )?,
+            MirValidationLocation::CoroutineStart { start } => {
+                write!(formatter, "invalid MIR coroutine-start metadata {start}: ")?
+            }
             MirValidationLocation::CoroutineSavedValue { value } => write!(
                 formatter,
                 "invalid MIR coroutine saved-value metadata {}: ",

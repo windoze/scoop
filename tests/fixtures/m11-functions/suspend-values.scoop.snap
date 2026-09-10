@@ -26780,6 +26780,11 @@ Module
   coroutine_slot cl10 CoroutineSlot$FJ41_$local$c0:p0:r9:interfacen12:ContinuationAI32XRUX value=(Continuation$I32) -> Unit
   coroutine_slot cl11 CoroutineSlot$D45_$local$c0:p0:r6:structn19:FunctionSuspendTaskAI32X value=FunctionSuspendTask$I32
   coroutine_slot cl12 CoroutineSlot$D45_$local$c0:p0:r6:structn19:FunctionSuspendTaskAUX value=FunctionSuspendTask$U
+  continuation_shell ch0 result=Int success=fn196 failure=fn197
+  continuation_shell ch1 result=Any success=fn222 failure=fn223
+  continuation_shell ch2 result=Unit success=fn290 failure=fn291
+  coroutine_start ct0 result=Int function=fn188
+  coroutine_start ct1 result=Unit function=fn189
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e247265666572656e63652e302473757370656e64 field=2 slot=cl0 value=suspend () -> Int
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e247265666572656e63652e302473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e247265666572656e63652e312473757370656e64 field=2 slot=cl3 value=suspend (Any) -> Int

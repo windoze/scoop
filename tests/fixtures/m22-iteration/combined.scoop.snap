@@ -16120,6 +16120,10 @@ Module
   coroutine_slot cl8 CoroutineSlot$C28_$local$u0:p0:r5:classn4:GateX value=Gate
   coroutine_slot cl9 CoroutineSlot$U value=Unit
   coroutine_slot cl10 CoroutineSlot$C40_$local$u0:p0:r5:classn15:DelayedIterableAD30_$local$u0:p0:r6:structn5:EntryAC28_$local$u0:p0:r5:classn4:NodeXXX value=DelayedIterable$D14_Entry$C4_NodeXX
+  continuation_shell ch0 result=Long success=fn186 failure=fn187
+  continuation_shell ch1 result=Unit success=fn199 failure=fn200
+  continuation_shell ch2 result=DelayedIterator$D14_Entry$C4_NodeXX success=fn204 failure=fn205
+  coroutine_start ct0 result=Long function=fn183
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a497465726174696f6e5461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=IterationTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a497465726174696f6e5461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Long
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a497465726174696f6e5461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=4 slot=cl2 value=DelayedIterator$D14_Entry$C4_NodeXX

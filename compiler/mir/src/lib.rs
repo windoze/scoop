@@ -31,6 +31,9 @@ pub use exact_owner::*;
 mod coroutine_shape;
 pub use coroutine_shape::*;
 
+mod coroutine_support;
+pub use coroutine_support::*;
+
 mod boxed_value;
 pub use boxed_value::*;
 

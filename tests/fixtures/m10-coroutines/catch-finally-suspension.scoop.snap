@@ -14017,6 +14017,8 @@ Module
   coroutine_slot cl5 CoroutineSlot$C50_$local$u0:p0:r5:classn25:OverrideReturnFinallyTaskX value=OverrideReturnFinallyTask
   coroutine_slot cl6 CoroutineSlot$C49_$local$u0:p0:r5:classn24:OverrideThrowFinallyTaskX value=OverrideThrowFinallyTask
   coroutine_slot cl7 CoroutineSlot$C28_$local$u0:p0:r5:classn4:GateX value=Gate
+  continuation_shell ch0 result=Int success=fn128 failure=fn129
+  coroutine_start ct0 result=Int function=fn126
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331323a6e393a43617463685461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=CatchTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331323a6e393a43617463685461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4332313a6e31373a52657475726e46696e616c6c795461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl3 value=ReturnFinallyTask

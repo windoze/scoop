@@ -13217,6 +13217,9 @@ Module
   coroutine_slot cl3 CoroutineSlot$C33_$local$u0:p0:r5:classn9:ThrowTaskX value=ThrowTask
   coroutine_slot cl4 CoroutineSlot$C28_$local$u0:p0:r5:classn4:GateX value=Gate
   coroutine_slot cl5 CoroutineSlot$U value=Unit
+  continuation_shell ch0 result=Node success=fn130 failure=fn131
+  continuation_shell ch1 result=Unit success=fn138 failure=fn139
+  coroutine_start ct0 result=Node function=fn128
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331343a6e31303a52657475726e5461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=ReturnTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331343a6e31303a52657475726e5461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Node
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331323a6e393a5468726f775461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl3 value=ThrowTask

@@ -10411,6 +10411,8 @@ Module
   coroutine_slot cl4 CoroutineSlot$C29_$local$u0:p0:r5:classn5:OuterX value=Outer
   coroutine_slot cl5 CoroutineSlot$C28_$local$u0:p0:r5:classn4:NodeX value=Node
   coroutine_slot cl6 CoroutineSlot$C28_$local$u0:p0:r5:classn4:GateX value=Gate
+  continuation_shell ch0 result=Int success=fn129 failure=fn130
+  coroutine_start ct0 result=Int function=fn127
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a43383a6e353a496e6e657272383a66756e6374696f6e71383a6f7264696e6172796e31303a636f6d706f6e656e74322473757370656e64 field=2 slot=cl0 value=Inner
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a43383a6e353a496e6e657272383a66756e6374696f6e71383a6f7264696e6172796e31303a636f6d706f6e656e74322473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a42696e64696e675461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl3 value=BindingTask

@@ -596,6 +596,12 @@ pub struct MirMeta {
     pub coroutine_steps: Arena<CoroutineStep>,
     /// Tagged frame slots, deduplicated by their carried value type.
     pub coroutine_slots: Arena<CoroutineSlot>,
+    /// Exact-result continuation dispatch shells retained with their
+    /// generated callable identities.
+    pub continuation_shells: Vec<CoroutineContinuationShell>,
+    /// Exact-result start helpers retained with their generated callable
+    /// identities.
+    pub coroutine_starts: Vec<CoroutineStart>,
     /// Exact dynamic values retained by a pending return or managed throw.
     pub coroutine_saved_values: Arena<CoroutineSavedValue>,
     /// Exact managed throwable slot used by continuation failure injection.
@@ -840,6 +846,108 @@ impl CoroutineSlot {
     }
 
     pub const fn identity(&self) -> &CoroutineSlotIdentity {
+        &self.identity
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CoroutineContinuationShell {
+    result: Type,
+    success: FunctionId,
+    failure: FunctionId,
+    identity: ContinuationShellIdentity,
+}
+
+impl CoroutineContinuationShell {
+    pub fn checked(
+        functions: &Arena<Function>,
+        result: Type,
+        success: FunctionId,
+        failure: FunctionId,
+        identity: ContinuationShellIdentity,
+    ) -> Option<Self> {
+        if success == failure {
+            return None;
+        }
+        let success_definition = arena_get(functions, success)?;
+        let failure_definition = arena_get(functions, failure)?;
+        let [success_receiver, success_value] = success_definition.params.as_slice() else {
+            return None;
+        };
+        let [failure_receiver, failure_value] = failure_definition.params.as_slice() else {
+            return None;
+        };
+        (success_definition.gc_effect == GcEffect::Managed
+            && failure_definition.gc_effect == GcEffect::Managed
+            && success_definition.return_ty == Type::Unit
+            && failure_definition.return_ty == Type::Unit
+            && matches!(success_receiver.ty, Type::Interface(_))
+            && failure_receiver.ty == success_receiver.ty
+            && success_value.ty == result
+            && matches!(failure_value.ty, Type::Class(_)))
+        .then_some(Self {
+            result,
+            success,
+            failure,
+            identity,
+        })
+    }
+
+    pub const fn result(&self) -> &Type {
+        &self.result
+    }
+
+    pub const fn success(&self) -> FunctionId {
+        self.success
+    }
+
+    pub const fn failure(&self) -> FunctionId {
+        self.failure
+    }
+
+    pub const fn identity(&self) -> &ContinuationShellIdentity {
+        &self.identity
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CoroutineStart {
+    result: Type,
+    function: FunctionId,
+    identity: CoroutineStartIdentity,
+}
+
+impl CoroutineStart {
+    pub fn checked(
+        functions: &Arena<Function>,
+        result: Type,
+        function: FunctionId,
+        identity: CoroutineStartIdentity,
+    ) -> Option<Self> {
+        let definition = arena_get(functions, function)?;
+        let [task, completion] = definition.params.as_slice() else {
+            return None;
+        };
+        (definition.gc_effect == GcEffect::Managed
+            && definition.return_ty == Type::Unit
+            && matches!(task.ty, Type::Interface(_))
+            && matches!(completion.ty, Type::Interface(_)))
+        .then_some(Self {
+            result,
+            function,
+            identity,
+        })
+    }
+
+    pub const fn result(&self) -> &Type {
+        &self.result
+    }
+
+    pub const fn function(&self) -> FunctionId {
+        self.function
+    }
+
+    pub const fn identity(&self) -> &CoroutineStartIdentity {
         &self.identity
     }
 }

@@ -11405,6 +11405,8 @@ Module
   coroutine_slot cl3 CoroutineSlot$C44_$local$u0:p0:r5:classn19:ResumeThenThrowTaskX value=ResumeThenThrowTask
   coroutine_slot cl4 CoroutineSlot$C42_$local$u0:p0:r5:classn17:SaveThenThrowTaskX value=SaveThenThrowTask
   coroutine_slot cl5 CoroutineSlot$C47_$local$u0:p0:r5:classn22:SynchronousFailureTaskX value=SynchronousFailureTask
+  continuation_shell ch0 result=Int success=fn131 failure=fn132
+  coroutine_start ct0 result=Int function=fn129
   coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a57616974696e675461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=WaitingTask
   coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a57616974696e675461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4332333a6e31393a526573756d655468656e5468726f775461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl3 value=ResumeThenThrowTask
