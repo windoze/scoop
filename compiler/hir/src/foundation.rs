@@ -22,6 +22,9 @@ use scoop_wire::{Encoder, WireEncode};
 
 use crate::{NativeBoundaryTypeDefinitionRecord, SourceRecord};
 
+mod wire;
+pub use wire::ValidatedHirFoundationWire;
+
 type TypeRecord = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
 type GenericTypeRecord = CborIdentityRecord<PersistentGenericTypeId, SourceDeclarationKey>;
 type FunctionRecord = CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>;
