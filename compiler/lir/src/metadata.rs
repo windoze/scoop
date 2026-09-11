@@ -345,7 +345,10 @@ pub struct TypeDescriptor {
     /// Classes reference their base descriptor; root/reference-key entities
     /// have no parent. The absence is emitted as a metadata-provenance null.
     pub parent: Option<TypeDescriptorRef>,
-    pub vtable: Vec<DispatchEntry>,
+    /// The exact-type-owned virtual dispatch table. Even a type with no
+    /// virtual slots has a typed empty table rather than an identity-less
+    /// vector.
+    pub vtable: VtableRecord,
     pub itables: Vec<ItableRecord>,
 }
 
@@ -357,10 +360,114 @@ pub enum TypeDescriptorScan {
     ArrayElement { stride: u64, scan: RefScan },
 }
 
+/// One exact type's virtual dispatch table and its persistent identity.
+///
+/// The fields are private so callers cannot attach an itable identity to a
+/// vtable payload or replace the exact-type key independently of its slots.
+#[derive(Debug)]
+pub struct VtableRecord {
+    identity: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    >,
+    slots: Vec<DispatchEntry>,
+}
+
+impl VtableRecord {
+    pub fn new(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        slots: Vec<DispatchEntry>,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let identity = scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::DispatchTableKey::vtable(exact_type),
+        )?;
+        Ok(Self { identity, slots })
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    > {
+        &self.identity
+    }
+
+    pub fn belongs_to_exact_type(&self, exact_type: scoop_identity::PersistentExactTypeId) -> bool {
+        self.identity.key() == &scoop_identity::DispatchTableKey::vtable(exact_type)
+    }
+
+    pub fn slots(&self) -> &[DispatchEntry] {
+        &self.slots
+    }
+
+    pub fn slots_mut(&mut self) -> &mut Vec<DispatchEntry> {
+        &mut self.slots
+    }
+}
+
+/// One exact type's implementation table for one exact interface.
+///
+/// Construction binds the table role, owner and interface into one immutable
+/// identity/payload relation. The descriptor reference is retained solely for
+/// code generation of the runtime lookup key.
 #[derive(Debug)]
 pub struct ItableRecord {
-    pub interface: TypeDescriptorRef,
-    pub slots: Vec<DispatchEntry>,
+    identity: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    >,
+    interface: TypeDescriptorRef,
+    slots: Vec<DispatchEntry>,
+}
+
+impl ItableRecord {
+    pub fn new(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        interface_exact_type: scoop_identity::PersistentExactTypeId,
+        interface: TypeDescriptorRef,
+        slots: Vec<DispatchEntry>,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let identity = scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::DispatchTableKey::itable(exact_type, interface_exact_type),
+        )?;
+        Ok(Self {
+            identity,
+            interface,
+            slots,
+        })
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    > {
+        &self.identity
+    }
+
+    pub fn belongs_to_exact_type(&self, exact_type: scoop_identity::PersistentExactTypeId) -> bool {
+        self.identity.key().exact_type() == exact_type
+    }
+
+    pub fn belongs_to_interface_exact_type(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+    ) -> bool {
+        matches!(
+            self.identity.key().interface(),
+            scoop_identity::OptionalExactInterface::Present(interface) if interface == exact_type
+        )
+    }
+
+    pub const fn interface(&self) -> TypeDescriptorRef {
+        self.interface
+    }
+
+    pub fn slots(&self) -> &[DispatchEntry] {
+        &self.slots
+    }
 }
 
 #[derive(Debug)]

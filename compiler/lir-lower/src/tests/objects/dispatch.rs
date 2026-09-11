@@ -214,6 +214,18 @@ fn type_descriptors_carry_tables_parents_and_itables() {
         "scoop_td_{}",
         mir::encode_type(&source, &mir::Type::Class(derived)).unwrap()
     );
+    let exact_type = |ty: &mir::Type| {
+        source
+            .meta
+            .source_exact_types
+            .get(ty)
+            .expect("dispatch owner has an exact type identity")
+            .identity_record()
+            .id()
+    };
+    let interface_exact = exact_type(&mir::Type::Interface(iface));
+    let base_exact = exact_type(&mir::Type::Class(base));
+    let derived_exact = exact_type(&mir::Type::Class(derived));
     let module = lower(&source);
 
     // Interfaces first (itable keys), then classes
@@ -237,6 +249,13 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     assert_eq!(i_td.symbol, interface_symbol);
     assert_eq!((i_td.size, i_td.align), (0, 0));
     assert!(i_td.parent.is_none());
+    assert_eq!(
+        i_td.vtable.identity_record(),
+        &scoop_identity::CborIdentityRecord::from_key(scoop_identity::DispatchTableKey::vtable(
+            interface_exact
+        ))
+        .unwrap()
+    );
 
     assert_eq!(base_td.name, "Base");
     assert_eq!(base_td.symbol, base_symbol);
@@ -245,14 +264,29 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     assert_eq!(*fixed_scan(base_td), lir::RefScan::None);
     assert!(base_td.parent.is_none());
     assert_eq!(
-        base_td.vtable,
+        base_td.vtable.slots(),
         [lir::DispatchEntry {
             callable: lir::CallableRef::Local(lir::LocalFunctionId::from_u32(0)),
         }]
     );
     assert_eq!(base_td.itables.len(), 1);
-    assert_eq!(base_td.itables[0].interface, i_ref);
-    assert_eq!(base_td.itables[0].slots, base_td.vtable);
+    assert_eq!(base_td.itables[0].interface(), i_ref);
+    assert_eq!(base_td.itables[0].slots(), base_td.vtable.slots());
+    assert_eq!(
+        base_td.vtable.identity_record(),
+        &scoop_identity::CborIdentityRecord::from_key(scoop_identity::DispatchTableKey::vtable(
+            base_exact
+        ))
+        .unwrap()
+    );
+    assert_eq!(
+        base_td.itables[0].identity_record(),
+        &scoop_identity::CborIdentityRecord::from_key(scoop_identity::DispatchTableKey::itable(
+            base_exact,
+            interface_exact
+        ))
+        .unwrap()
+    );
 
     assert_eq!(derived_td.symbol, derived_symbol);
     assert_eq!(derived_td.parent, Some(base_ref));
@@ -260,8 +294,26 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     // the one reference.
     assert_eq!((derived_td.size, derived_td.align), (32, 8));
     assert_eq!(*fixed_scan(derived_td), lir::RefScan::References(vec![24]));
-    assert_eq!(derived_td.vtable.len(), 2);
-    assert_eq!(derived_td.itables[0].slots, [derived_td.vtable[0]]);
+    assert_eq!(derived_td.vtable.slots().len(), 2);
+    assert_eq!(
+        derived_td.itables[0].slots(),
+        [derived_td.vtable.slots()[0]]
+    );
+    assert_eq!(
+        derived_td.vtable.identity_record(),
+        &scoop_identity::CborIdentityRecord::from_key(scoop_identity::DispatchTableKey::vtable(
+            derived_exact
+        ))
+        .unwrap()
+    );
+    assert_eq!(
+        derived_td.itables[0].identity_record(),
+        &scoop_identity::CborIdentityRecord::from_key(scoop_identity::DispatchTableKey::itable(
+            derived_exact,
+            interface_exact
+        ))
+        .unwrap()
+    );
     assert_eq!(string_td.symbol, lir::STRING_TD_SYMBOL);
 }
 

@@ -104,7 +104,7 @@ fn lowers_hello_world() {
     );
     assert_eq!(string_descriptor.symbol, lir::STRING_TD_SYMBOL);
     assert_eq!(string_descriptor.runtime_type, string_runtime_type);
-    assert!(string_descriptor.vtable.is_empty());
+    assert!(string_descriptor.vtable.slots().is_empty());
     assert_eq!(
         descriptor_values(&module)
             .filter(|descriptor| descriptor.symbol == lir::STRING_TD_SYMBOL)

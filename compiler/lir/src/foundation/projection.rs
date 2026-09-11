@@ -40,6 +40,21 @@ impl CanonicalLirFoundation {
                 )
                 .collect(),
         )?;
+        foundation.set_dispatch_tables(
+            module
+                .meta
+                .type_descriptors
+                .iter()
+                .flat_map(|(_, descriptor)| {
+                    std::iter::once(descriptor.vtable.identity_record().clone()).chain(
+                        descriptor
+                            .itables
+                            .iter()
+                            .map(|itable| itable.identity_record().clone()),
+                    )
+                })
+                .collect(),
+        )?;
         foundation.set_runtime_types(
             module
                 .meta

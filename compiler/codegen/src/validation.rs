@@ -22,12 +22,52 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_constant_images(module)?;
     validate_variant_primitives(module)?;
     validate_machine_containers(module)?;
+    validate_dispatch_table_identities(module)?;
     validate_dispatch_callable_tables(module)?;
     validate_dispatch_signatures(module)?;
     validate_c_abi(module)?;
     validate_foreign_callbacks(module)?;
     validate_safepoint_identities(module)?;
     validate_call_root_plans(module)
+}
+
+fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenError> {
+    for (_, descriptor) in module.meta.type_descriptors.iter() {
+        let owner = descriptor.runtime_type.exact_type();
+        if !descriptor.vtable.belongs_to_exact_type(owner) {
+            return Err(CodegenError(format!(
+                "type descriptor `{}` carries a vtable identity for another exact type or table role",
+                descriptor.name
+            )));
+        }
+
+        for itable in &descriptor.itables {
+            if !itable.belongs_to_exact_type(owner) {
+                return Err(CodegenError(format!(
+                    "type descriptor `{}` carries an itable identity for another exact type or table role",
+                    descriptor.name
+                )));
+            }
+            let TypeDescriptorRef::Local(interface_id) = itable.interface() else {
+                continue;
+            };
+            let interface_index = arena_index(interface_id);
+            if interface_index >= module.meta.type_descriptors.len() {
+                return Err(CodegenError(format!(
+                    "type descriptor `{}` has invalid local itable interface id {interface_index}",
+                    descriptor.name
+                )));
+            }
+            let interface = &module.meta.type_descriptors[interface_id];
+            if !itable.belongs_to_interface_exact_type(interface.runtime_type.exact_type()) {
+                return Err(CodegenError(format!(
+                    "type descriptor `{}` itable identity and interface descriptor identify different exact types",
+                    descriptor.name
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_variant_ref(
@@ -224,11 +264,11 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
     };
 
     for (_, descriptor) in module.meta.type_descriptors.iter() {
-        for entry in &descriptor.vtable {
+        for entry in descriptor.vtable.slots() {
             validate_entry(descriptor, entry)?;
         }
         for record in &descriptor.itables {
-            for entry in &record.slots {
+            for entry in record.slots() {
                 validate_entry(descriptor, entry)?;
             }
         }

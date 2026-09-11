@@ -71,7 +71,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             RefScan::References(vec![40, 48]),
         ])),
         parent: None,
-        vtable: vec![],
+        vtable: vtable("Holder", vec![]),
         itables: vec![],
     });
     let mut module = Module {

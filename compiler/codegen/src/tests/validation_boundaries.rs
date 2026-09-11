@@ -607,11 +607,58 @@ fn runtime_type_validation_rejects_two_descriptors_for_one_exact_type() {
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
         parent: None,
-        vtable: Vec::new(),
+        vtable: vtable("DuplicateString", Vec::new()),
         itables: Vec::new(),
     });
 
     assert_module_validation_error(&module, "duplicate runtime type mapping identity");
+}
+
+#[test]
+fn dispatch_table_validation_rejects_a_vtable_for_another_exact_type() {
+    let mut module = values_module();
+    module
+        .meta
+        .type_descriptors
+        .iter_mut()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1
+        .vtable = vtable("NotString", Vec::new());
+
+    assert_module_validation_error(
+        &module,
+        "carries a vtable identity for another exact type or table role",
+    );
+}
+
+#[test]
+fn dispatch_table_validation_rejects_an_itable_for_another_interface() {
+    let mut module = super::objects::classes_module();
+    let descriptor_id = |name: &str| {
+        module
+            .meta
+            .type_descriptors
+            .iter()
+            .find_map(|(id, descriptor)| (descriptor.name == name).then_some(id))
+            .unwrap_or_else(|| panic!("missing test descriptor {name}"))
+    };
+    let describable = descriptor_id("Describable");
+    let point = descriptor_id("Point");
+    let slots = module.meta.type_descriptors[point].itables[0]
+        .slots()
+        .to_vec();
+    module.meta.type_descriptors[point].itables[0] = itable(
+        "Point",
+        "Shape",
+        TypeDescriptorRef::Local(describable),
+        slots,
+    );
+
+    assert_module_validation_error(
+        &module,
+        "itable identity and interface descriptor identify different exact types",
+    );
 }
 
 #[test]

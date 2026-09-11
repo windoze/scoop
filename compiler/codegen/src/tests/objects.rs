@@ -4,7 +4,7 @@ use super::*;
 /// user-method vtables with no compiler-owned `Any` slots, one itable) and
 /// indirect calls through a table pointer (vtable / itable dispatch shape,
 /// impl spec 2.9).
-fn classes_module() -> Module {
+pub(super) fn classes_module() -> Module {
     // `fn describe(this: ptr) -> ptr` shared shape: returns `this`.
     let describe = |symbol: &str| {
         let mut blocks = Arena::default();
@@ -106,7 +106,7 @@ fn classes_module() -> Module {
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
         parent: None,
-        vtable: vec![],
+        vtable: vtable("Describable", vec![]),
         itables: vec![],
     });
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
@@ -117,9 +117,12 @@ fn classes_module() -> Module {
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
         parent: None,
-        vtable: vec![DispatchEntry {
-            callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
-        }],
+        vtable: vtable(
+            "Shape",
+            vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+            }],
+        ),
         itables: vec![],
     });
     meta.type_descriptors.alloc(TypeDescriptor {
@@ -130,15 +133,20 @@ fn classes_module() -> Module {
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
         parent: Some(TypeDescriptorRef::Local(shape)),
-        vtable: vec![DispatchEntry {
-            callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
-        }],
-        itables: vec![ItableRecord {
-            interface: TypeDescriptorRef::Local(describable),
-            slots: vec![DispatchEntry {
+        vtable: vtable(
+            "Point",
+            vec![DispatchEntry {
                 callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
             }],
-        }],
+        ),
+        itables: vec![itable(
+            "Point",
+            "Describable",
+            TypeDescriptorRef::Local(describable),
+            vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
+            }],
+        )],
     });
 
     let mut module = Module {
@@ -190,9 +198,12 @@ pub(super) fn heap_module() -> Module {
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![24])),
         parent: None,
-        vtable: vec![DispatchEntry {
-            callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
-        }],
+        vtable: vtable(
+            "Point",
+            vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+            }],
+        ),
         itables: vec![],
     });
     let point_descriptor = TypeDescriptorRef::Local(point_descriptor);

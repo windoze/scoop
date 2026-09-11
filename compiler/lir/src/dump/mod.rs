@@ -334,6 +334,7 @@ pub fn dump(module: &Module) -> String {
             .unwrap_or_else(|| "none".to_string());
         let vtable = td
             .vtable
+            .slots()
             .iter()
             .map(|entry| callable_ref_name(entry.callable))
             .collect::<Vec<_>>()
@@ -343,12 +344,12 @@ pub fn dump(module: &Module) -> String {
             .iter()
             .map(|record| {
                 let slots = record
-                    .slots
+                    .slots()
                     .iter()
                     .map(|entry| callable_ref_name(entry.callable))
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{}:[{slots}]", type_descriptor_ref_name(record.interface))
+                format!("{}:[{slots}]", type_descriptor_ref_name(record.interface()))
             })
             .collect::<Vec<_>>()
             .join(", ");

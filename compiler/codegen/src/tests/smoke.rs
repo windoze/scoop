@@ -605,6 +605,7 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
         .expect("values module has the String descriptor")
         .1
         .vtable
+        .slots_mut()
         .push(DispatchEntry {
             callable: CallableRef::Local(function_id),
         });

@@ -148,7 +148,7 @@ fn emit_type_descriptor<'ctx>(
         context,
         llvm,
         &format!("{}.vtable", descriptor.symbol),
-        &descriptor.vtable,
+        descriptor.vtable.slots(),
         &module.functions,
         &module.meta.external_callables,
     )?;
@@ -158,13 +158,13 @@ fn emit_type_descriptor<'ctx>(
         let mut entries = Vec::with_capacity(descriptor.itables.len());
         for (record_index, record) in descriptor.itables.iter().enumerate() {
             let interface =
-                type_descriptor_global(record.interface, type_globals, external_type_globals)?
+                type_descriptor_global(record.interface(), type_globals, external_type_globals)?
                     .as_pointer_value();
             let slots = emit_fn_table(
                 context,
                 llvm,
                 &format!("{}.itables.{record_index}", descriptor.symbol),
-                &record.slots,
+                record.slots(),
                 &module.functions,
                 &module.meta.external_callables,
             )?;

@@ -76,6 +76,25 @@ pub(super) fn array_layout_identity(name: &str) -> scoop_lir::LayoutIdentity {
     .unwrap()
 }
 
+pub(super) fn vtable(owner: &str, slots: Vec<scoop_lir::DispatchEntry>) -> scoop_lir::VtableRecord {
+    scoop_lir::VtableRecord::new(test_exact_type(owner), slots).unwrap()
+}
+
+pub(super) fn itable(
+    owner: &str,
+    interface: &str,
+    interface_descriptor: scoop_lir::TypeDescriptorRef,
+    slots: Vec<scoop_lir::DispatchEntry>,
+) -> scoop_lir::ItableRecord {
+    scoop_lir::ItableRecord::new(
+        test_exact_type(owner),
+        test_exact_type(interface),
+        interface_descriptor,
+        slots,
+    )
+    .unwrap()
+}
+
 fn test_exact_type(name: &str) -> PersistentExactTypeId {
     let identifier = format!(
         "test{}",
@@ -428,7 +447,7 @@ pub(super) fn string_metadata() -> LirMeta {
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
         parent: None,
-        vtable: Vec::new(),
+        vtable: vtable("String", Vec::new()),
         itables: Vec::new(),
     });
     LirMeta {
@@ -467,7 +486,7 @@ pub(super) fn array_type(
             scan,
         },
         parent: None,
-        vtable: Vec::new(),
+        vtable: vtable(name, Vec::new()),
         itables: Vec::new(),
     });
     meta.arrays.alloc(ArrayType {
