@@ -26,6 +26,13 @@ impl OptionalExactOwner {
     pub const fn is_present(self) -> bool {
         matches!(self, Self::Present(_))
     }
+
+    pub const fn into_option(self) -> Option<PersistentExactTypeId> {
+        match self {
+            Self::Absent => None,
+            Self::Present(owner) => Some(owner),
+        }
+    }
 }
 
 impl WireEncode for OptionalExactOwner {

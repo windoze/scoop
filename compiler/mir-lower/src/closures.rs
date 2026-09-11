@@ -284,7 +284,7 @@ impl Lowerer {
             });
             self.top_level.push(function);
             self.source_callables
-                .record(function, *reference.identity.materialization());
+                .record_callable_reference(module, function, id);
             let invoke = self
                 .closure_invokes
                 .alloc(mir::ClosureInvokeFunction { function });

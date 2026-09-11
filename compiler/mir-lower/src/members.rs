@@ -60,7 +60,7 @@ impl Lowerer {
             return_ty: return_ty.clone(),
             body: mir::Body::unreachable(locals),
         });
-        self.source_callables.record(id, function.materialization);
+        self.source_callables.record_function(module, id, hir_id);
         for (local, source) in source_params {
             self.local_values.record(
                 id,
@@ -219,7 +219,7 @@ impl Lowerer {
         self.top_level.push(id);
         self.ctors.insert(constructor_id, id);
         self.source_callables
-            .record(id, constructor.materialization);
+            .record_class_constructor(module, id, constructor_id);
         id
     }
 
@@ -254,7 +254,7 @@ impl Lowerer {
         self.top_level.push(id);
         self.struct_ctors.insert(constructor_id, id);
         self.source_callables
-            .record(id, constructor.materialization);
+            .record_struct_constructor(module, id, constructor_id);
         id
     }
 

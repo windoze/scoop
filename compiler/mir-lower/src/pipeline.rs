@@ -228,6 +228,25 @@ impl Lowerer {
             }
         }
 
+        // A logical callable signature is itself a HIR -> MIR type use. This
+        // includes hidden class-initializer receivers and source result types
+        // that a later physical ABI transform may erase or replace.
+        for source in self.source_callables.required_types(module) {
+            Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            }
+            .lower(
+                source,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+        }
+
         self.transform_suspend_abis(module);
         coroutine::transform(&mut self, module);
 

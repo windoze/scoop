@@ -424,7 +424,7 @@ impl Lowerer {
         });
         self.top_level.push(id);
         self.function_map.insert(hir_id, id);
-        self.source_callables.record(id, function.materialization);
+        self.source_callables.record_function(module, id, hir_id);
         self.record_function_instance(module, hir_id, id);
         id
     }

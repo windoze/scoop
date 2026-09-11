@@ -87,11 +87,21 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         body: Body::unreachable(wrapper_locals),
     });
     let source = test_source_materialization();
-    module.meta.source_callable_materializations =
-        SourceCallableMaterializations::checked(vec![SourceCallableMaterialization::new(
-            wrapper, source,
-        )])
-        .unwrap();
+    module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
+        SourceCallableMaterialization::new(
+            wrapper,
+            source,
+            scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Suspend,
+                None,
+                Vec::new(),
+                test_exact_type(&result).id(),
+            ),
+            None,
+        )
+        .unwrap(),
+    ])
+    .unwrap();
     let coroutine = module.meta.coroutine_functions.alloc(CoroutineFunction {
         function: wrapper,
         source,

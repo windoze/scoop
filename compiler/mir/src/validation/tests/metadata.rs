@@ -27,12 +27,21 @@ fn source_callable_materialization() -> scoop_identity::CallableMaterialization 
 fn module_validation_rejects_source_callable_locations_outside_the_function_graph() {
     let (mut module, _) = module_with_variants(Vec::new());
     let missing_function = FunctionId::from_raw(7_u32.into());
-    module.meta.source_callable_materializations =
-        SourceCallableMaterializations::checked(vec![SourceCallableMaterialization::new(
+    module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
+        SourceCallableMaterialization::new(
             missing_function,
             source_callable_materialization(),
-        )])
-        .unwrap();
+            scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                Vec::new(),
+                test_exact_type(&Type::Unit).id(),
+            ),
+            None,
+        )
+        .unwrap(),
+    ])
+    .unwrap();
 
     assert_eq!(
         module.validate(),
@@ -42,6 +51,38 @@ fn module_validation_rejects_source_callable_locations_outside_the_function_grap
             },
             kind: MirValidationErrorKind::InvalidSourceCallableMaterialization {
                 reason: "the function does not exist",
+            },
+        })
+    );
+}
+
+#[test]
+fn module_validation_rejects_unknown_exact_types_in_source_callable_signatures() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
+        SourceCallableMaterialization::new(
+            module.entry,
+            source_callable_materialization(),
+            scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                Vec::new(),
+                test_exact_type(&Type::Unit).id(),
+            ),
+            None,
+        )
+        .unwrap(),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::SourceCallableMaterialization {
+                function: module.entry,
+            },
+            kind: MirValidationErrorKind::InvalidSourceCallableMaterialization {
+                reason: "the logical signature references an unknown source exact type",
             },
         })
     );

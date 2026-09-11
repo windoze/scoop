@@ -16,6 +16,32 @@ pub(super) fn validate_source_callable_materializations(
                 },
             });
         }
+        let signature = entry.signature_record().signature();
+        let receiver = match signature.receiver() {
+            scoop_identity::OptionalExactOwner::Absent => None,
+            scoop_identity::OptionalExactOwner::Present(receiver) => Some(receiver),
+        };
+        if receiver
+            .into_iter()
+            .chain(signature.parameters().iter().copied())
+            .chain(std::iter::once(signature.result()))
+            .any(|exact| {
+                module
+                    .meta
+                    .source_exact_types
+                    .get_by_identity(exact)
+                    .is_none()
+            })
+        {
+            return Err(MirValidationError {
+                location: MirValidationLocation::SourceCallableMaterialization {
+                    function: entry.function(),
+                },
+                kind: MirValidationErrorKind::InvalidSourceCallableMaterialization {
+                    reason: "the logical signature references an unknown source exact type",
+                },
+            });
+        }
     }
     Ok(())
 }

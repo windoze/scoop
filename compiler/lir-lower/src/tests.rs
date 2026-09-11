@@ -259,6 +259,14 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
     builder.interfaces[interface_b].link_stem = nominal_link_stem("$pkg$b$interface$View");
     let main = builder.main(Arena::new(), Vec::new());
     let mut source = builder.finish(main);
+    let unit_exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))
+    .unwrap();
+    source.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(vec![
+        mir::SourceExactTypeIdentity::checked(mir::Type::Unit, unit_exact, None).unwrap(),
+    ])
+    .unwrap();
     let function_type = source.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: Vec::new(),
@@ -311,10 +319,15 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
             return_ty: mir::Type::Unit,
             body: mir::Body::unreachable(Arena::new()),
         });
-        source_callables.push(mir::SourceCallableMaterialization::new(
-            invoke_function,
-            materialization,
-        ));
+        source_callables.push(
+            mir::SourceCallableMaterialization::new(
+                invoke_function,
+                materialization,
+                exact_callback_signature(),
+                None,
+            )
+            .unwrap(),
+        );
         let invoke = source
             .closure_invoke_functions
             .alloc(mir::ClosureInvokeFunction {

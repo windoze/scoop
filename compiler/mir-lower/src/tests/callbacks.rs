@@ -280,15 +280,26 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
 
     let source = legacy_executable(source, entry);
     let concrete = scoop_hir_lower::concretize_legacy_export(&source);
-    let reference_materialization = *concrete
+    let concrete_reference = concrete
         .module()
         .callable_references
         .iter()
         .next()
         .expect("the callback test has one concrete callable reference")
-        .1
-        .identity
-        .materialization();
+        .1;
+    let reference_materialization = *concrete_reference.identity.materialization();
+    let reference_function_type =
+        &concrete.module().function_types[concrete_reference.function_type];
+    let reference_signature = scoop_identity::ExactCallableSignature::new(
+        scoop_identity::Effect::Ordinary,
+        None,
+        reference_function_type
+            .parameter_types
+            .iter()
+            .map(|parameter| concrete.module().exact_type_identities[*parameter].id())
+            .collect(),
+        concrete.module().exact_type_identities[reference_function_type.return_type].id(),
+    );
     let module = crate::lower(&concrete);
     let reference_invoke = module
         .functions
@@ -300,14 +311,23 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
                 .then_some(function)
         })
         .expect("the callable reference has one invoke wrapper");
+    let reference_source = module
+        .meta
+        .source_callable_materializations
+        .get(reference_invoke)
+        .expect("the callable-reference wrapper has an exact MIR location");
     assert_eq!(
-        module
-            .meta
-            .source_callable_materializations
-            .get(reference_invoke)
-            .expect("the callable-reference wrapper has an exact MIR location")
-            .materialization(),
+        reference_source.materialization(),
         reference_materialization
+    );
+    assert_eq!(
+        reference_source.signature_record().signature(),
+        &reference_signature
+    );
+    assert_eq!(
+        module.functions[reference_invoke].params.len(),
+        reference_signature.parameters().len() + 1,
+        "the closure environment is physical and does not enter the Scoop signature"
     );
     let (_, bridge) = module
         .foreign_callback_bridges

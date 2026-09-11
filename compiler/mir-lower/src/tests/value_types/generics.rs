@@ -132,15 +132,12 @@ fn monomorphizes_generic_functions() {
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
     assert_eq!(int_meta.symbol, "scoop.identity$I32");
     assert_eq!(int_meta.display_name, "identity");
-    assert_eq!(
-        module
-            .meta
-            .source_callable_materializations
-            .get(int_meta.function)
-            .expect("the generic Int body has an exact MIR location")
-            .materialization(),
-        int_meta.materialization
-    );
+    let int_source = module
+        .meta
+        .source_callable_materializations
+        .get(int_meta.function)
+        .expect("the generic Int body has an exact MIR location");
+    assert_eq!(int_source.materialization(), int_meta.materialization);
     assert_eq!(
         int_value.identity_record().key().owner(),
         int_meta.materialization
@@ -154,6 +151,39 @@ fn monomorphizes_generic_functions() {
     else {
         panic!("identity<Int> must retain its persistent callable application")
     };
+    let int_member = int_source
+        .odr_member_record()
+        .expect("the generic Int body belongs to its callable ODR group");
+    assert!(matches!(
+        int_member.key().discriminator(),
+        scoop_identity::OdrMemberDiscriminator::CallableApplication(found)
+            if *found == int_application
+    ));
+    assert_eq!(
+        int_source.signature_record().subject(),
+        mir::CallableSignatureSubject::odr(
+            scoop_identity::CallableOdrMemberId::from_key(int_member.key()).unwrap()
+        )
+    );
+    let int_function = &module.functions[int_meta.function];
+    let parameter_exact = module
+        .meta
+        .source_exact_types
+        .get(&int_function.params[0].ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    let result_exact = module
+        .meta
+        .source_exact_types
+        .get(&int_function.return_ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    let int_signature = int_source.signature_record().signature();
+    assert!(!int_signature.receiver().is_present());
+    assert_eq!(int_signature.parameters(), &[parameter_exact]);
+    assert_eq!(int_signature.result(), result_exact);
     let string_meta = &module.meta.instances[instance_id(&module, module.top_level[2])];
     assert_eq!(
         module

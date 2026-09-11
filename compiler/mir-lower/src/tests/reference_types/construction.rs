@@ -59,16 +59,43 @@ fn class_initializers_chain_on_one_exact_allocation() {
         .iter()
         .find_map(|(id, function)| (function.name == "init.Point.$c2").then_some((id, function)))
         .expect("Point initializer");
+    let point_source = module
+        .meta
+        .source_callable_materializations
+        .get(point_initializer.0)
+        .expect("the class initializer has an exact MIR location");
     assert!(matches!(
-        module
-            .meta
-            .source_callable_materializations
-            .get(point_initializer.0)
-            .expect("the class initializer has an exact MIR location")
-            .materialization()
-            .template(),
+        point_source.materialization().template(),
         scoop_identity::CallableTemplateOwner::Constructor(_)
     ));
+    let point_signature = point_source.signature_record().signature();
+    let receiver_exact = module
+        .meta
+        .source_exact_types
+        .get(&point_initializer.1.params[0].ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    let parameter_exact = module
+        .meta
+        .source_exact_types
+        .get(&point_initializer.1.params[1].ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    let unit_exact = module
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Unit)
+        .unwrap()
+        .identity_record()
+        .id();
+    assert_eq!(
+        point_signature.receiver(),
+        scoop_identity::OptionalExactOwner::Present(receiver_exact)
+    );
+    assert_eq!(point_signature.parameters(), &[parameter_exact]);
+    assert_eq!(point_signature.result(), unit_exact);
     let receiver = module
         .meta
         .local_values

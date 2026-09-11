@@ -226,16 +226,40 @@ fn generic_structs_instantiate_per_argument_list() {
     let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
         panic!("a struct constructor is a direct user function")
     };
+    let constructor_source = module
+        .meta
+        .source_callable_materializations
+        .get(first_constructor)
+        .expect("the struct constructor has an exact MIR location");
     assert!(matches!(
-        module
-            .meta
-            .source_callable_materializations
-            .get(first_constructor)
-            .expect("the struct constructor has an exact MIR location")
-            .materialization()
-            .template(),
+        constructor_source.materialization().template(),
         scoop_identity::CallableTemplateOwner::Constructor(_)
     ));
+    let constructor = &module.functions[first_constructor];
+    let signature = constructor_source.signature_record().signature();
+    let parameters = constructor
+        .params
+        .iter()
+        .map(|parameter| {
+            module
+                .meta
+                .source_exact_types
+                .get(&parameter.ty)
+                .unwrap()
+                .identity_record()
+                .id()
+        })
+        .collect::<Vec<_>>();
+    let result = module
+        .meta
+        .source_exact_types
+        .get(&constructor.return_ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    assert!(!signature.receiver().is_present());
+    assert_eq!(signature.parameters(), parameters);
+    assert_eq!(signature.result(), result);
     assert_eq!(
         module.functions[first_constructor].gc_effect,
         mir::GcEffect::NoGc,

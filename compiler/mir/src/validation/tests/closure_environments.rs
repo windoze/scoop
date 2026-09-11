@@ -49,13 +49,23 @@ fn module_with_source_closure() -> Module {
 
 pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, ClosureClassId) {
     let (mut module, _) = module_with_variants(Vec::new());
+    register_test_exact_type(&mut module, &Type::Unit);
     let callable = lambda_materialization();
-    module.meta.source_callable_materializations =
-        SourceCallableMaterializations::checked(vec![SourceCallableMaterialization::new(
+    module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
+        SourceCallableMaterialization::new(
             module.entry,
             callable,
-        )])
-        .unwrap();
+            scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                Vec::new(),
+                test_exact_type(&Type::Unit).id(),
+            ),
+            None,
+        )
+        .unwrap(),
+    ])
+    .unwrap();
     let function_type = module.function_types.alloc(FunctionType {
         is_suspend: false,
         parameter_types: Vec::new(),

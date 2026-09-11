@@ -107,12 +107,16 @@ fn static_callback_module() -> (Module, CallbackBridgeId) {
     });
     module.top_level.push(bridge_function);
     let materialization = source_materialization("staticCallbackSource");
-    module.meta.source_callable_materializations =
-        SourceCallableMaterializations::checked(vec![SourceCallableMaterialization::new(
+    module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
+        SourceCallableMaterialization::new(
             module.entry,
             materialization,
-        )])
-        .unwrap();
+            exact_callback_signature(),
+            None,
+        )
+        .unwrap(),
+    ])
+    .unwrap();
     let bridge = module.callback_bridges.alloc(
         CallbackBridge::new(
             module.entry,
