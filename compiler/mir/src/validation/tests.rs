@@ -143,20 +143,33 @@ fn install_generated_exact_types(module: &mut Module) {
 
 fn install_generated_callables(module: &mut Module) {
     let mut entries = Vec::new();
-    let mut register = |function, identity| {
-        entries.push(MirGeneratedCallableIdentity::new(function, identity));
+    let mut register = |function, identity, signature_subject| {
+        entries.push(MirGeneratedCallableIdentity::new(
+            function,
+            identity,
+            signature_subject,
+        ));
     };
     for (_, bridge) in module.callback_bridges.iter() {
-        register(bridge.bridge_function, bridge.identity().callable_record());
+        register(
+            bridge.bridge_function,
+            bridge.identity().callable_record(),
+            bridge.identity().signature_record().subject(),
+        );
     }
     for (_, adapter) in module.foreign_callback_adapters.iter() {
-        register(adapter.function, adapter.identity_record());
+        register(
+            adapter.function,
+            adapter.identity_record(),
+            adapter.signature_subject(),
+        );
     }
     for (_, adapter) in module.meta.closure_adapters.iter() {
         let class = &module.closure_classes[adapter.class()];
         register(
             module.closure_invoke_functions[class.invoke].function,
             adapter.identity().callable_record(),
+            adapter.identity().callable_signature_record().subject(),
         );
     }
     for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
@@ -164,10 +177,15 @@ fn install_generated_callables(module: &mut Module) {
         register(
             module.closure_invoke_functions[class.invoke].function,
             adapter.identity().callable_record(),
+            adapter.identity().callable_signature_record().subject(),
         );
     }
     for bridge in &module.meta.function_bridges {
-        register(bridge.function(), bridge.identity().callable_record());
+        register(
+            bridge.function(),
+            bridge.identity().callable_record(),
+            bridge.identity().signature_record().subject(),
+        );
     }
     for (_, coroutine) in module.meta.coroutine_functions.iter() {
         if let CoroutineLowering::StateMachine {
@@ -176,25 +194,50 @@ fn install_generated_callables(module: &mut Module) {
             ..
         } = &coroutine.lowering
         {
-            register(*driver, driver_identity.callable_record());
+            register(
+                *driver,
+                driver_identity.callable_record(),
+                driver_identity.signature_record().subject(),
+            );
         }
     }
     for shell in &module.meta.continuation_shells {
-        register(shell.success(), shell.identity().success_callable_record());
-        register(shell.failure(), shell.identity().failure_callable_record());
+        register(
+            shell.success(),
+            shell.identity().success_callable_record(),
+            shell.identity().success_signature_record().subject(),
+        );
+        register(
+            shell.failure(),
+            shell.identity().failure_callable_record(),
+            shell.identity().failure_signature_record().subject(),
+        );
     }
     for start in &module.meta.coroutine_starts {
-        register(start.function(), start.identity().callable_record());
+        register(
+            start.function(),
+            start.identity().callable_record(),
+            start.identity().signature_record().subject(),
+        );
     }
     for (_, point) in module.meta.coroutine_resume_points.iter() {
-        register(point.resume(), point.identity().success().callable_record());
+        register(
+            point.resume(),
+            point.identity().success().callable_record(),
+            point.identity().success().signature_record().subject(),
+        );
         register(
             point.resume_with_exception(),
             point.identity().failure().callable_record(),
+            point.identity().failure().signature_record().subject(),
         );
     }
     for adjust in &module.meta.boxing_adjusts {
-        register(adjust.function(), adjust.identity().callable_record());
+        register(
+            adjust.function(),
+            adjust.identity().callable_record(),
+            adjust.identity().signature_record().subject(),
+        );
     }
     module.meta.generated_callables = MirGeneratedCallableIdentities::checked(entries).unwrap();
     install_callable_signatures(module);

@@ -4,7 +4,7 @@ use std::fmt;
 
 use scoop_identity::{CborIdentityRecord, GeneratedCallableKey, PersistentGeneratedCallableId};
 
-use crate::FunctionId;
+use crate::{CallableSignatureSubject, FunctionId};
 
 pub type GeneratedCallableRecord =
     CborIdentityRecord<PersistentGeneratedCallableId, GeneratedCallableKey>;
@@ -14,13 +14,19 @@ pub type GeneratedCallableRecord =
 pub struct MirGeneratedCallableIdentity {
     function: FunctionId,
     identity: GeneratedCallableRecord,
+    signature_subject: CallableSignatureSubject,
 }
 
 impl MirGeneratedCallableIdentity {
-    pub fn new(function: FunctionId, identity: &GeneratedCallableRecord) -> Self {
+    pub fn new(
+        function: FunctionId,
+        identity: &GeneratedCallableRecord,
+        signature_subject: CallableSignatureSubject,
+    ) -> Self {
         Self {
             function,
             identity: identity.clone(),
+            signature_subject,
         }
     }
 
@@ -30,6 +36,10 @@ impl MirGeneratedCallableIdentity {
 
     pub const fn identity_record(&self) -> &GeneratedCallableRecord {
         &self.identity
+    }
+
+    pub const fn signature_subject(&self) -> CallableSignatureSubject {
+        self.signature_subject
     }
 }
 
@@ -58,6 +68,15 @@ impl MirGeneratedCallableIdentities {
                 .find(|(_, existing)| existing.identity.id() == entry.identity.id())
             {
                 return Err(MirGeneratedCallableRelationError::DuplicateIdentity { first, index });
+            }
+            if let Some((first, _)) = entries[..index]
+                .iter()
+                .enumerate()
+                .find(|(_, existing)| existing.signature_subject == entry.signature_subject)
+            {
+                return Err(
+                    MirGeneratedCallableRelationError::DuplicateSignatureSubject { first, index },
+                );
             }
         }
         Ok(Self { entries })
@@ -95,6 +114,7 @@ impl MirGeneratedCallableIdentities {
 pub enum MirGeneratedCallableRelationError {
     DuplicateFunction { first: usize, index: usize },
     DuplicateIdentity { first: usize, index: usize },
+    DuplicateSignatureSubject { first: usize, index: usize },
 }
 
 impl fmt::Display for MirGeneratedCallableRelationError {
@@ -108,6 +128,10 @@ impl fmt::Display for MirGeneratedCallableRelationError {
                 formatter,
                 "MIR generated callable entries {first} and {index} have the same identity"
             ),
+            Self::DuplicateSignatureSubject { first, index } => write!(
+                formatter,
+                "MIR generated callable entries {first} and {index} have the same signature subject"
+            ),
         }
     }
 }
@@ -117,7 +141,8 @@ impl std::error::Error for MirGeneratedCallableRelationError {}
 #[cfg(test)]
 mod tests {
     use scoop_identity::{
-        CoreBuiltinNominal, ExactTypeKey, GeneratedCallableKey, PersistentExactTypeId,
+        CallableOwner, CoreBuiltinNominal, ExactTypeKey, GeneratedCallableKey,
+        PersistentExactTypeId,
     };
 
     use super::*;
@@ -132,21 +157,32 @@ mod tests {
         CborIdentityRecord::from_key(GeneratedCallableKey::CoroutineStart { result }).unwrap()
     }
 
+    fn materialization(
+        function: u32,
+        identity: &GeneratedCallableRecord,
+    ) -> MirGeneratedCallableIdentity {
+        MirGeneratedCallableIdentity::new(
+            FunctionId::from_raw(function.into()),
+            identity,
+            CallableSignatureSubject::strong(CallableOwner::Generated(identity.id())),
+        )
+    }
+
     #[test]
     fn relation_is_sorted_and_queryable_by_both_typed_axes() {
-        let first = MirGeneratedCallableIdentity::new(
-            FunctionId::from_raw(3_u32.into()),
-            &start(exact(CoreBuiltinNominal::Unit)),
-        );
-        let second = MirGeneratedCallableIdentity::new(
-            FunctionId::from_raw(5_u32.into()),
-            &start(exact(CoreBuiltinNominal::Any)),
-        );
+        let first_identity = start(exact(CoreBuiltinNominal::Unit));
+        let first = materialization(3, &first_identity);
+        let second_identity = start(exact(CoreBuiltinNominal::Any));
+        let second = materialization(5, &second_identity);
         let relation =
             MirGeneratedCallableIdentities::checked(vec![first.clone(), second.clone()]).unwrap();
         assert_eq!(
             relation.get(first.function()).unwrap().identity_record(),
             first.identity_record()
+        );
+        assert_eq!(
+            relation.get(first.function()).unwrap().signature_subject(),
+            CallableSignatureSubject::strong(CallableOwner::Generated(first_identity.id()))
         );
         assert_eq!(
             relation
@@ -166,22 +202,32 @@ mod tests {
     #[test]
     fn relation_rejects_duplicate_functions_and_identities() {
         let identity = start(exact(CoreBuiltinNominal::Unit));
-        let first =
-            MirGeneratedCallableIdentity::new(FunctionId::from_raw(0_u32.into()), &identity);
+        let first = materialization(0, &identity);
+        let other_identity = start(exact(CoreBuiltinNominal::Any));
         let same_function = MirGeneratedCallableIdentity::new(
             first.function(),
-            &start(exact(CoreBuiltinNominal::Any)),
+            &other_identity,
+            CallableSignatureSubject::strong(CallableOwner::Generated(other_identity.id())),
         );
         assert!(matches!(
             MirGeneratedCallableIdentities::checked(vec![first.clone(), same_function]),
             Err(MirGeneratedCallableRelationError::DuplicateFunction { .. })
         ));
 
-        let same_identity =
-            MirGeneratedCallableIdentity::new(FunctionId::from_raw(1_u32.into()), &identity);
+        let same_identity = materialization(1, &identity);
         assert!(matches!(
-            MirGeneratedCallableIdentities::checked(vec![first, same_identity]),
+            MirGeneratedCallableIdentities::checked(vec![first.clone(), same_identity]),
             Err(MirGeneratedCallableRelationError::DuplicateIdentity { .. })
+        ));
+
+        let same_subject = MirGeneratedCallableIdentity::new(
+            FunctionId::from_raw(2_u32.into()),
+            &other_identity,
+            first.signature_subject(),
+        );
+        assert!(matches!(
+            MirGeneratedCallableIdentities::checked(vec![first, same_subject]),
+            Err(MirGeneratedCallableRelationError::DuplicateSignatureSubject { .. })
         ));
     }
 }

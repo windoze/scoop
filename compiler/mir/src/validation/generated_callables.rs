@@ -34,6 +34,7 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             bridge.bridge_function,
             bridge.identity().callable_record(),
+            bridge.identity().signature_record().subject(),
         )?;
     }
     for (_, adapter) in module.foreign_callback_adapters.iter() {
@@ -42,6 +43,7 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             adapter.function,
             adapter.identity_record(),
+            adapter.signature_subject(),
         )?;
     }
     for (_, adapter) in module.meta.closure_adapters.iter() {
@@ -50,6 +52,7 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             adapter.class(),
             adapter.identity().callable_record(),
+            adapter.identity().callable_signature_record().subject(),
         )?;
     }
     for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
@@ -58,6 +61,7 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             adapter.class(),
             adapter.identity().callable_record(),
+            adapter.identity().callable_signature_record().subject(),
         )?;
     }
     for bridge in &module.meta.function_bridges {
@@ -66,6 +70,7 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             bridge.function(),
             bridge.identity().callable_record(),
+            bridge.identity().signature_record().subject(),
         )?;
     }
     for (_, coroutine) in module.meta.coroutine_functions.iter() {
@@ -80,6 +85,7 @@ pub(super) fn validate_generated_callable_metadata(
                 &mut expected,
                 *driver,
                 driver_identity.callable_record(),
+                driver_identity.signature_record().subject(),
             )?;
         }
     }
@@ -89,12 +95,14 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             shell.success(),
             shell.identity().success_callable_record(),
+            shell.identity().success_signature_record().subject(),
         )?;
         expect(
             module,
             &mut expected,
             shell.failure(),
             shell.identity().failure_callable_record(),
+            shell.identity().failure_signature_record().subject(),
         )?;
     }
     for start in &module.meta.coroutine_starts {
@@ -103,6 +111,7 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             start.function(),
             start.identity().callable_record(),
+            start.identity().signature_record().subject(),
         )?;
     }
     for (_, point) in module.meta.coroutine_resume_points.iter() {
@@ -111,12 +120,14 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             point.resume(),
             point.identity().success().callable_record(),
+            point.identity().success().signature_record().subject(),
         )?;
         expect(
             module,
             &mut expected,
             point.resume_with_exception(),
             point.identity().failure().callable_record(),
+            point.identity().failure().signature_record().subject(),
         )?;
     }
     for adjust in &module.meta.boxing_adjusts {
@@ -125,6 +136,7 @@ pub(super) fn validate_generated_callable_metadata(
             &mut expected,
             adjust.function(),
             adjust.identity().callable_record(),
+            adjust.identity().signature_record().subject(),
         )?;
     }
     if expected.len() != module.meta.generated_callables.len() {
@@ -141,6 +153,7 @@ fn expect_closure_adapter(
     expected: &mut HashSet<FunctionId>,
     class: ClosureClassId,
     identity: &GeneratedCallableRecord,
+    signature_subject: CallableSignatureSubject,
 ) -> Result<(), MirValidationError> {
     let function = arena_get(&module.closure_classes, class)
         .and_then(|class| arena_get(&module.closure_invoke_functions, class.invoke))
@@ -151,7 +164,7 @@ fn expect_closure_adapter(
                 "a generated closure adapter has no invoke function",
             )
         })?;
-    expect(module, expected, function, identity)
+    expect(module, expected, function, identity, signature_subject)
 }
 
 fn expect(
@@ -159,6 +172,7 @@ fn expect(
     expected: &mut HashSet<FunctionId>,
     function: FunctionId,
     identity: &GeneratedCallableRecord,
+    signature_subject: CallableSignatureSubject,
 ) -> Result<(), MirValidationError> {
     let location = next_location(module);
     if !expected.insert(function) {
@@ -177,6 +191,12 @@ fn expect(
         return invalid(
             location,
             "the function materialization names a different generated callable",
+        );
+    }
+    if entry.signature_subject() != signature_subject {
+        return invalid(
+            location,
+            "the function materialization names a different signature subject",
         );
     }
     Ok(())

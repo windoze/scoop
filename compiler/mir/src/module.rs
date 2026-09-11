@@ -649,6 +649,25 @@ pub struct MirMeta {
     pub boxing_adjusts: Vec<BoxingAdjust>,
 }
 
+impl MirMeta {
+    /// Return the persistent implementation subject carried by one MIR
+    /// function. `None` means that neither relation claims the function or
+    /// that both relations claim it, which is invalid for an emitted body.
+    pub fn callable_signature_subject(
+        &self,
+        function: FunctionId,
+    ) -> Option<crate::CallableSignatureSubject> {
+        match (
+            self.source_callable_materializations.get(function),
+            self.generated_callables.get(function),
+        ) {
+            (Some(source), None) => Some(source.signature_record().subject()),
+            (None, Some(generated)) => Some(generated.signature_subject()),
+            (None, None) | (Some(_), Some(_)) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoxedType {
     payload: Type,

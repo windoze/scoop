@@ -342,12 +342,61 @@ fn every_mir_generated_callable_requires_a_function_materialization() {
 }
 
 #[test]
+fn generated_callable_function_must_retain_its_signature_subject() {
+    let (mut module, bridge) = static_callback_module();
+    let generated = module
+        .meta
+        .generated_callables
+        .get(module.callback_bridges[bridge].bridge_function)
+        .unwrap();
+    let function = generated.function();
+    let identity = generated.identity_record().clone();
+    let generated_subject = generated.signature_subject();
+    let source_subject = module
+        .meta
+        .source_callable_materializations
+        .get(module.entry)
+        .unwrap()
+        .signature_record()
+        .subject();
+    assert_eq!(
+        module.meta.callable_signature_subject(function),
+        Some(generated_subject)
+    );
+    assert_eq!(
+        module.meta.callable_signature_subject(module.entry),
+        Some(source_subject)
+    );
+    module.meta.generated_callables =
+        MirGeneratedCallableIdentities::checked(vec![MirGeneratedCallableIdentity::new(
+            function,
+            &identity,
+            source_subject,
+        )])
+        .unwrap();
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::GeneratedCallable { entry: 1 },
+            kind: MirValidationErrorKind::InvalidGeneratedCallable {
+                reason: "the function materialization names a different signature subject",
+            },
+        })
+    );
+}
+
+#[test]
 fn one_function_cannot_carry_source_and_generated_callable_identities() {
     let (mut module, bridge) = static_callback_module();
     module.meta.generated_callables =
         MirGeneratedCallableIdentities::checked(vec![MirGeneratedCallableIdentity::new(
             module.entry,
             module.callback_bridges[bridge].identity().callable_record(),
+            module.callback_bridges[bridge]
+                .identity()
+                .signature_record()
+                .subject(),
         )])
         .unwrap();
 

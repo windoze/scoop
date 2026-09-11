@@ -814,6 +814,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         mir::MirGeneratedCallableIdentities::checked(vec![mir::MirGeneratedCallableIdentity::new(
             main,
             module.foreign_callback_adapters[adapter].identity_record(),
+            module.foreign_callback_adapters[adapter].signature_subject(),
         )])
         .unwrap();
     install_callable_signatures(&mut module);
