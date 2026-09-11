@@ -336,11 +336,13 @@ fn materialization_odr_group(
 
 fn finish_cfg_body(
     local_values: &mut LocalValueRegistry,
+    coroutines: &mut CoroutineRegistry,
     function: mir::FunctionId,
     owner: hir::CallableMaterialization,
     lowered: cfg::LoweredBody,
 ) -> mir::Body {
     local_values.record_generated(function, owner, &lowered.generated_values);
+    coroutines.record_call_sites(function, lowered.call_sites);
     lowered.body
 }
 

@@ -1,6 +1,10 @@
 use super::*;
 
-pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendSite> {
+pub(super) fn analyze_sites(
+    lowerer: &Lowerer,
+    function: mir::FunctionId,
+    body: &mir::Body,
+) -> Vec<SuspendSite> {
     let block_count = body.blocks.len();
     let mut uses = vec![HashSet::new(); block_count];
     let mut defs = vec![HashSet::new(); block_count];
@@ -73,11 +77,46 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
             live.extend(statement_uses);
         }
     }
+    if sites.is_empty() {
+        return Vec::new();
+    }
+    let call_sites = lowerer.coroutines.call_sites(function);
+    let call_rank = call_sites
+        .iter()
+        .enumerate()
+        .map(|(rank, site)| ((site.block, site.statement), rank))
+        .collect::<HashMap<_, _>>();
+    assert_eq!(
+        call_rank.len(),
+        call_sites.len(),
+        "one structured call location occurs once in its semantic order"
+    );
+    let mut identity_locations = sites
+        .iter()
+        .map(|site| (site.block, site.statement))
+        .collect::<Vec<_>>();
+    identity_locations.sort_by_key(|location| {
+        *call_rank
+            .get(location)
+            .expect("every pre-coroutine suspend call has a structured-call position")
+    });
+    let identity_ordinals = identity_locations
+        .into_iter()
+        .enumerate()
+        .map(|(ordinal, location)| {
+            (
+                location,
+                u32::try_from(ordinal).expect("coroutine suspension-site count fits u32"),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
     sites.sort_by_key(|site| (raw(site.block), site.statement));
     sites
         .into_iter()
         .enumerate()
         .map(|(index, site)| {
+            let identity_ordinal = identity_ordinals[&(site.block, site.statement)];
             let one_based = index
                 .checked_add(1)
                 .expect("coroutine suspension-site count fits usize");
@@ -93,6 +132,13 @@ pub(super) fn analyze_sites(lowerer: &Lowerer, body: &mir::Body) -> Vec<SuspendS
                     u32::try_from(one_based).expect("coroutine suspension-site count fits u32"),
                 )
                 .expect("coroutine suspension states are one-based"),
+                identity_path: hir::StructuralDefinitionPath::from_first(
+                    hir::StructuralPathSegment::new(
+                        hir::StructuralDefinitionSiteRole::CoroutineTransform,
+                        identity_ordinal,
+                    ),
+                    [],
+                ),
             }
         })
         .collect()

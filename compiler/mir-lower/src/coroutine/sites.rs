@@ -19,6 +19,8 @@ pub(super) fn rewrite_site(
     outer_failure: mir::FunctionId,
     source_symbol: &str,
     driver: mir::FunctionId,
+    source: hir::CallableMaterialization,
+    source_odr_group: Option<hir::OdrGroupId>,
     site: SuspendSite,
 ) -> GeneratedSite {
     let parents = freeze_pending_context(site.pending.clone(), saved_values);
@@ -68,6 +70,8 @@ pub(super) fn rewrite_site(
             outer_failure,
             source_symbol,
             driver,
+            source,
+            source_odr_group,
             site,
             call,
             post,
@@ -88,6 +92,9 @@ pub(super) fn rewrite_site(
         outer_failure,
         source_symbol,
         driver,
+        source,
+        source_odr_group,
+        site.identity_path.clone(),
         site.state,
         &site.result,
         None,

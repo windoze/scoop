@@ -386,15 +386,19 @@ pub fn dump(module: &Module) -> String {
         } else {
             format!("{parents} -> ")
         };
+        let identity = point.identity();
         out.push_str(&format!(
-            "  coroutine_resume cp{} site={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
+            "  coroutine_resume cp{} site={} result={} frame=cr{} adapter={} environment_id={} resume=@{} success_id={} failure=@{} failure_id={}\n",
             id.into_raw().into_u32(),
             point.site().get(),
             type_name(module, point.result()),
             point.frame().into_raw().into_u32(),
             module.classes[point.adapter()].name,
+            identity.generated_type_record().id(),
             module.functions[point.resume()].symbol,
-            module.functions[point.resume_with_exception()].symbol
+            identity.success().callable_record().id(),
+            module.functions[point.resume_with_exception()].symbol,
+            identity.failure().callable_record().id()
         ));
         out.push_str(&format!(
             "    success {} -> {}Fallthrough(bb{})\n",

@@ -190,6 +190,7 @@ impl Lowerer {
         );
         let body = finish_cfg_body(
             &mut self.local_values,
+            &mut self.coroutines,
             function,
             owner,
             cfg::lower(

@@ -12,6 +12,7 @@ pub(super) struct GeneratedAdapter {
     pub(super) class: mir::ClassId,
     pub(super) resume: mir::FunctionId,
     pub(super) resume_with_exception: mir::FunctionId,
+    pub(super) identity: mir::ContinuationAdapterIdentity,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -28,6 +29,9 @@ pub(super) fn generate_adapter(
     outer_failure: mir::FunctionId,
     source_symbol: &str,
     driver: mir::FunctionId,
+    source: hir::CallableMaterialization,
+    source_odr_group: Option<hir::OdrGroupId>,
+    suspension_site: hir::StructuralDefinitionPath,
     state: mir::CoroutineSuspendStateId,
     result: &mir::Type,
     safe_latches: Option<(FrameSlot, FrameSlot)>,
@@ -58,6 +62,12 @@ pub(super) fn generate_adapter(
             ty: failure.slot_ty.clone(),
         });
     }
+    let identity = if safe_latches.is_some() {
+        mir::ContinuationAdapterIdentity::latched(source, suspension_site, source_odr_group)
+    } else {
+        mir::ContinuationAdapterIdentity::direct(source, suspension_site, source_odr_group)
+    }
+    .expect("a suspension site has one persistent continuation-adapter identity");
     let class = generated_class(
         lowerer,
         GeneratedNominalLinkRole::CoroutineAdapter {
@@ -113,5 +123,6 @@ pub(super) fn generate_adapter(
         class,
         resume,
         resume_with_exception: failure,
+        identity,
     }
 }

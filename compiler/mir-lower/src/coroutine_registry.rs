@@ -26,9 +26,30 @@ pub(super) struct CoroutineRegistry {
     pub(super) resume_points: Arena<mir::CoroutineResumePoint>,
     pub(super) continuation_shells: Vec<mir::CoroutineContinuationShell>,
     pub(super) start_helpers: Vec<mir::CoroutineStart>,
+    /// Transient structured call order used only while identifying suspend sites.
+    pub(super) pre_coroutine_call_sites: HashMap<mir::FunctionId, Vec<cfg::CallSite>>,
 }
 
 impl CoroutineRegistry {
+    pub(super) fn record_call_sites(
+        &mut self,
+        function: mir::FunctionId,
+        sites: Vec<cfg::CallSite>,
+    ) {
+        assert!(
+            self.pre_coroutine_call_sites
+                .insert(function, sites)
+                .is_none(),
+            "a MIR callable has one pre-coroutine structured-call order"
+        );
+    }
+
+    pub(super) fn call_sites(&self, function: mir::FunctionId) -> &[cfg::CallSite] {
+        self.pre_coroutine_call_sites
+            .get(&function)
+            .expect("a coroutine source retains its structured-call order")
+    }
+
     fn source_type<'a>(
         exact_types: &'a SourceExactTypeRegistry,
         lowered: &mir::Type,

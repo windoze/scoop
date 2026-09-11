@@ -1306,6 +1306,7 @@ pub struct CoroutineResumePoint {
     parents: Vec<CoroutinePendingTransfer>,
     success: CoroutineResumeSuccess,
     failure: CoroutineResumeFailure,
+    identity: Box<ContinuationAdapterIdentity>,
 }
 
 impl CoroutineResumePoint {
@@ -1320,6 +1321,7 @@ impl CoroutineResumePoint {
         parents: Vec<CoroutinePendingTransfer>,
         success: CoroutineResumeSuccess,
         failure: CoroutineResumeFailure,
+        identity: ContinuationAdapterIdentity,
     ) -> Self {
         Self {
             frame,
@@ -1331,6 +1333,7 @@ impl CoroutineResumePoint {
             parents,
             success,
             failure,
+            identity: Box::new(identity),
         }
     }
 
@@ -1376,6 +1379,10 @@ impl CoroutineResumePoint {
 
     pub const fn failure(&self) -> CoroutineResumeFailure {
         self.failure
+    }
+
+    pub const fn identity(&self) -> &ContinuationAdapterIdentity {
+        &self.identity
     }
 }
 

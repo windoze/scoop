@@ -60,15 +60,27 @@ fn state_machine<'a>(
     };
     let metadata = &module.meta.coroutine_frames[*frame];
     assert_eq!(metadata.owner(), owner);
-    (
-        *frame,
-        metadata,
-        &module.functions[*driver],
-        resume_points
-            .iter()
-            .map(|point| &module.meta.coroutine_resume_points[*point])
-            .collect(),
-    )
+    let points = resume_points
+        .iter()
+        .map(|point| &module.meta.coroutine_resume_points[*point])
+        .collect::<Vec<_>>();
+    let mut identity_ordinals = HashSet::new();
+    for point in &points {
+        let [segment] = point.identity().suspension_site().segments() else {
+            panic!("each continuation adapter has one coroutine-transform path segment")
+        };
+        assert_eq!(
+            segment.site_role(),
+            scoop_identity::StructuralDefinitionSiteRole::CoroutineTransform
+        );
+        assert!(identity_ordinals.insert(segment.ordinal()));
+        assert_eq!(point.identity().source(), coroutine.source);
+    }
+    assert_eq!(
+        identity_ordinals,
+        (0..u32::try_from(points.len()).unwrap()).collect::<HashSet<_>>()
+    );
+    (*frame, metadata, &module.functions[*driver], points)
 }
 
 fn assert_resume_leaves(

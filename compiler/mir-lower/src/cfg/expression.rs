@@ -452,10 +452,7 @@ impl<'a> CfgLowerer<'a> {
                 destination.is_none(),
                 "Unit calls do not have MIR destinations"
             );
-            self.push(
-                mir::StatementKind::Call(mir::CallEffect::Unit(normalized)),
-                span,
-            );
+            self.push_call(mir::CallEffect::Unit(normalized), span);
             mir::Expr::new(mir::Type::Unit, mir::ExprKind::UnitLiteral)
         } else {
             let destination = destination.unwrap_or_else(|| {
@@ -466,15 +463,24 @@ impl<'a> CfgLowerer<'a> {
                     return_ty.clone(),
                 )
             });
-            self.push(
-                mir::StatementKind::Call(mir::CallEffect::Value {
+            self.push_call(
+                mir::CallEffect::Value {
                     destination,
                     call: normalized,
-                }),
+                },
                 span,
             );
             mir::Expr::new(return_ty, mir::ExprKind::Local(destination))
         }
+    }
+
+    fn push_call(&mut self, effect: mir::CallEffect, span: Span) {
+        self.ensure_unwind_context();
+        self.call_sites.push(CallSite {
+            block: self.current,
+            statement: self.blocks[self.current].statements.len(),
+        });
+        self.push(mir::StatementKind::Call(effect), span);
     }
 
     pub(super) fn new_hidden(

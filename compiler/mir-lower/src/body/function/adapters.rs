@@ -238,6 +238,7 @@ impl BodyLowerer<'_> {
         );
         let body = finish_cfg_body(
             self.local_values,
+            self.coroutines,
             function,
             owner,
             cfg::lower(
@@ -400,6 +401,7 @@ impl BodyLowerer<'_> {
         );
         let body = finish_cfg_body(
             self.local_values,
+            self.coroutines,
             function,
             owner,
             cfg::lower(

@@ -328,6 +328,7 @@ impl Lowerer {
             identity.materialization(),
             &lowered.generated_values,
         );
+        self.coroutines.record_call_sites(id, lowered.call_sites);
         self.top_level.push(id);
         if signature.is_suspend {
             self.suspend_sources.push(SuspendSource {

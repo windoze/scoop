@@ -173,6 +173,19 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         )
         .unwrap(),
     );
+    module.classes[adapter].representation = ClassRepresentation::Declared {
+        fields: vec![
+            Field {
+                name: "frame".to_string(),
+                ty: Type::Class(frame_class),
+            },
+            Field {
+                name: "status".to_string(),
+                ty: Type::MachineScalar(MachineScalarKind::CoroutineAdapterState),
+            },
+        ],
+        base_class: None,
+    };
 
     let resume = callback(&mut module, "resume", adapter, result.clone());
     let resume_failure = callback(
@@ -331,6 +344,18 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
                 failure_value,
                 None,
             ),
+            ContinuationAdapterIdentity::direct(
+                source,
+                scoop_identity::StructuralDefinitionPath::from_first(
+                    scoop_identity::StructuralPathSegment::new(
+                        scoop_identity::StructuralDefinitionSiteRole::CoroutineTransform,
+                        0,
+                    ),
+                    [],
+                ),
+                None,
+            )
+            .unwrap(),
         ));
     module.meta.coroutine_functions[coroutine].lowering = CoroutineLowering::StateMachine {
         frame,
@@ -439,8 +464,75 @@ fn complete_coroutine_metadata_validates_and_dumps_typed_roles() {
 
     let dump = dump(&fixture.module);
     assert!(dump.contains("state=field0 completion=field1 saved=[cv0] failure=cx0"));
+    assert!(dump.contains("environment_id="));
+    assert!(dump.contains("success_id="));
+    assert!(dump.contains("failure_id="));
     assert!(dump.contains("Return(cv0) -> Fallthrough"));
     assert!(dump.contains("ManagedThrow(cx0, unwind=propagate)"));
+}
+
+#[test]
+fn continuation_adapter_fields_must_match_its_identity_storage() {
+    let mut fixture = coroutine_fixture(false);
+    let (_, point) = fixture
+        .module
+        .meta
+        .coroutine_resume_points
+        .iter()
+        .next()
+        .unwrap();
+    let adapter = point.adapter();
+    fixture.module.classes[adapter].declared_fields_mut()[0].ty = Type::Unit;
+
+    assert!(matches!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "continuation adapter does not have its exact frame, state, and latch field layout"
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn continuation_adapter_identity_must_name_its_coroutine_source() {
+    let mut fixture = coroutine_fixture(false);
+    let (point_id, point) = fixture
+        .module
+        .meta
+        .coroutine_resume_points
+        .iter()
+        .next()
+        .unwrap();
+    let replacement = CoroutineResumePoint::new(
+        point.frame(),
+        point.site(),
+        point.result().clone(),
+        point.adapter(),
+        point.resume(),
+        point.resume_with_exception(),
+        point.parents().to_vec(),
+        point.success(),
+        point.failure(),
+        ContinuationAdapterIdentity::direct(
+            test_source_materialization_named("otherSource"),
+            point.identity().suspension_site().clone(),
+            None,
+        )
+        .unwrap(),
+    );
+    fixture.module.meta.coroutine_resume_points[point_id] = replacement;
+
+    assert!(matches!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "continuation-adapter identity does not match its exact source and suspension site"
+            },
+            ..
+        })
+    ));
 }
 
 #[test]

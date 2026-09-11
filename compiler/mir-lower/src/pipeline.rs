@@ -145,6 +145,7 @@ impl Lowerer {
             };
             let body = finish_cfg_body(
                 &mut self.local_values,
+                &mut self.coroutines,
                 mir_id,
                 module.functions[hir_id].materialization,
                 cfg::lower(body, return_ty.clone(), &self.enums.defs),
@@ -170,6 +171,7 @@ impl Lowerer {
             let (params, return_ty, body) = self.lower_ctor(module, constructor_id);
             let body = finish_cfg_body(
                 &mut self.local_values,
+                &mut self.coroutines,
                 mir_id,
                 module.class_constructors[constructor_id].materialization,
                 cfg::lower(body, return_ty.clone(), &self.enums.defs),
@@ -183,6 +185,7 @@ impl Lowerer {
             let (params, return_ty, body) = self.lower_struct_ctor(module, constructor_id);
             let body = finish_cfg_body(
                 &mut self.local_values,
+                &mut self.coroutines,
                 mir_id,
                 module.struct_constructors[constructor_id].materialization,
                 cfg::lower(body, return_ty.clone(), &self.enums.defs),

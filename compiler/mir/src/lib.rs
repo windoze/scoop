@@ -55,6 +55,9 @@ pub use coroutine_support::*;
 mod coroutine_state_machine;
 pub use coroutine_state_machine::*;
 
+mod continuation_adapter;
+pub use continuation_adapter::*;
+
 mod boxed_value;
 pub use boxed_value::*;
 

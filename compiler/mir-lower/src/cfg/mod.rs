@@ -190,6 +190,14 @@ impl PendingTransfer {
 pub(crate) struct LoweredBody {
     pub(crate) body: mir::Body,
     pub(crate) generated_values: Vec<GeneratedLocalValue>,
+    /// Calls in structured evaluation order, with their locations in the emitted CFG.
+    pub(crate) call_sites: Vec<CallSite>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct CallSite {
+    pub(crate) block: mir::BlockId,
+    pub(crate) statement: usize,
 }
 
 pub(crate) struct GeneratedLocalValue {
@@ -224,6 +232,7 @@ pub(crate) fn lower(
         block_count: 0,
         hidden_count: 0,
         generated_values: Vec::new(),
+        call_sites: Vec::new(),
         return_ty,
         try_stack: Vec::new(),
         unwind_scope_count: 0,
@@ -258,6 +267,7 @@ pub(crate) fn lower(
             loop_header_polls: lowerer.loop_header_polls,
         },
         generated_values: lowerer.generated_values,
+        call_sites: lowerer.call_sites,
     }
 }
 
@@ -270,6 +280,7 @@ struct CfgLowerer<'a> {
     block_count: usize,
     hidden_count: usize,
     generated_values: Vec<GeneratedLocalValue>,
+    call_sites: Vec<CallSite>,
     return_ty: mir::Type,
     try_stack: Vec<UnwindTarget>,
     unwind_scope_count: u32,

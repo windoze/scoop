@@ -52,6 +52,41 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
     let mut point_owners = vec![0_u32; module.meta.coroutine_resume_points.len()];
     let mut drivers = HashSet::new();
     let mut driver_identities = HashSet::new();
+    let mut adapter_classes = HashSet::new();
+    let mut adapter_identities = HashSet::new();
+    let mut adapter_callable_identities = HashSet::new();
+    for (point_id, point) in module.meta.coroutine_resume_points.iter() {
+        let location = MirValidationLocation::CoroutineResumePoint { point: point_id };
+        if !adapter_classes.insert(point.adapter()) {
+            return Err(error(
+                location,
+                "a continuation-adapter class must be uniquely owned",
+            ));
+        }
+        if !adapter_identities.insert(point.identity().generated_type_record().id()) {
+            return Err(error(
+                location,
+                "a continuation-adapter environment identity must be uniquely materialized",
+            ));
+        }
+        for (function, identity) in [
+            (point.resume(), point.identity().success()),
+            (point.resume_with_exception(), point.identity().failure()),
+        ] {
+            if !callables.insert(function) {
+                return Err(error(
+                    location,
+                    "a continuation-adapter callback must be distinct and uniquely owned",
+                ));
+            }
+            if !adapter_callable_identities.insert(identity.callable_record().id()) {
+                return Err(error(
+                    location,
+                    "a continuation-adapter callable identity must be uniquely materialized",
+                ));
+            }
+        }
+    }
     for (coroutine_id, coroutine) in module.meta.coroutine_functions.iter() {
         if !callables.insert(coroutine.function) {
             return Err(error(
@@ -477,6 +512,7 @@ fn validate_coroutine_function(
 
     let mut listed = HashSet::new();
     let mut sites = HashSet::new();
+    let mut identity_sites = HashSet::new();
     for point_id in resume_points {
         if !listed.insert(*point_id) {
             return Err(error(
@@ -502,6 +538,12 @@ fn validate_coroutine_function(
                 "suspension site is reused by another pending context",
             ));
         }
+        if !identity_sites.insert(point.identity().suspension_site()) {
+            return Err(error(
+                MirValidationLocation::CoroutineResumePoint { point: *point_id },
+                "a structural suspension site is reused by another continuation adapter",
+            ));
+        }
         point_owners[raw(*point_id)] += 1;
         validate_resume_point(
             module,
@@ -509,7 +551,7 @@ fn validate_coroutine_function(
             point,
             frame_metadata,
             driver_function,
-            &coroutine.source_return,
+            coroutine,
             frame_parameter.local,
         )?;
     }
@@ -610,16 +652,41 @@ fn validate_resume_point(
     point: &CoroutineResumePoint,
     frame: &CoroutineFrame,
     driver: &Function,
-    source_return: &Type,
+    coroutine: &CoroutineFunction,
     frame_local: LocalId,
 ) -> Result<(), MirValidationError> {
     let location = MirValidationLocation::CoroutineResumePoint { point: point_id };
-    if arena_get(&module.classes, point.adapter()).is_none() {
+    let Some(adapter) = arena_get(&module.classes, point.adapter()) else {
         return Err(error(
             location,
             "resume point refers to an unknown adapter class",
         ));
+    };
+    let rebuilt_identity = match point.identity().storage() {
+        ContinuationAdapterStorageIdentity::Direct => ContinuationAdapterIdentity::direct(
+            coroutine.source,
+            point.identity().suspension_site().clone(),
+            coroutine.source_odr_group,
+        ),
+        ContinuationAdapterStorageIdentity::Latched { .. } => ContinuationAdapterIdentity::latched(
+            coroutine.source,
+            point.identity().suspension_site().clone(),
+            coroutine.source_odr_group,
+        ),
     }
+    .map_err(|_| {
+        error(
+            location,
+            "coroutine source cannot form its canonical continuation-adapter identity",
+        )
+    })?;
+    if &rebuilt_identity != point.identity() {
+        return Err(error(
+            location,
+            "continuation-adapter identity does not match its exact source and suspension site",
+        ));
+    }
+    validate_adapter_fields(module, adapter, point, frame, location)?;
     let Some(resume) = arena_get(&module.functions, point.resume()) else {
         return Err(error(
             location,
@@ -663,7 +730,7 @@ fn validate_resume_point(
             module,
             frame,
             driver,
-            source_return,
+            &coroutine.source_return,
             failure,
             *transfer,
             location,
@@ -716,6 +783,63 @@ fn validate_resume_point(
         ));
     }
     Ok(())
+}
+
+fn validate_adapter_fields(
+    module: &Module,
+    adapter: &ClassDef,
+    point: &CoroutineResumePoint,
+    frame: &CoroutineFrame,
+    location: MirValidationLocation,
+) -> Result<(), MirValidationError> {
+    let ClassRepresentation::Declared { fields, base_class } = &adapter.representation else {
+        return Err(error(
+            location,
+            "continuation adapter must have a declared class representation",
+        ));
+    };
+    let expected_fields = match point.identity().storage() {
+        ContinuationAdapterStorageIdentity::Direct => 2,
+        ContinuationAdapterStorageIdentity::Latched { .. } => 4,
+    };
+    if base_class.is_some()
+        || fields.len() != expected_fields
+        || fields[0].ty != Type::Class(frame.class())
+        || fields[1].ty != Type::MachineScalar(MachineScalarKind::CoroutineAdapterState)
+    {
+        return Err(error(
+            location,
+            "continuation adapter does not have its exact frame, state, and latch field layout",
+        ));
+    }
+    if matches!(
+        point.identity().storage(),
+        ContinuationAdapterStorageIdentity::Latched { .. }
+    ) {
+        let failure = &module.meta.coroutine_failure_values[frame.failure()];
+        let result_slot = coroutine_slot_type(module, point.result());
+        let failure_slot = coroutine_slot_type(module, &Type::Class(failure.throwable()));
+        if result_slot.as_ref() != Some(&fields[2].ty)
+            || failure_slot.as_ref() != Some(&fields[3].ty)
+        {
+            return Err(error(
+                location,
+                "latched continuation adapter fields do not use the exact result and Throwable slots",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn coroutine_slot_type(module: &Module, value: &Type) -> Option<Type> {
+    let mut candidates = module
+        .meta
+        .coroutine_slots
+        .iter()
+        .filter(|(_, slot)| slot.value() == value)
+        .map(|(_, slot)| Type::Enum(slot.enum_id(), Vec::new()));
+    let slot = candidates.next()?;
+    candidates.next().is_none().then_some(slot)
 }
 
 fn validate_transfer(

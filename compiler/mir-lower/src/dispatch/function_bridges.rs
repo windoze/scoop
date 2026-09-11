@@ -164,6 +164,8 @@ impl Lowerer {
             identity.materialization(),
             &lowered.generated_values,
         );
+        self.coroutines
+            .record_call_sites(function, lowered.call_sites);
         self.top_level.push(function);
         if target_signature.is_suspend {
             self.suspend_sources.push(SuspendSource {

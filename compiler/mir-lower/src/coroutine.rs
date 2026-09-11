@@ -31,6 +31,7 @@ struct SuspendSite {
     live_after: Vec<mir::LocalId>,
     pending: mir::CoroutinePendingContext,
     state: mir::CoroutineSuspendStateId,
+    identity_path: hir::StructuralDefinitionPath,
 }
 
 #[derive(Clone)]
@@ -61,7 +62,7 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         .collect();
     for coroutine in coroutine_ids {
         let function = lowerer.coroutines.functions[coroutine].function;
-        let sites = analyze_sites(lowerer, &lowerer.functions[function].body);
+        let sites = analyze_sites(lowerer, function, &lowerer.functions[function].body);
         clear_pending_contexts(&mut lowerer.functions[function].body);
         if sites.is_empty() {
             continue;
@@ -335,6 +336,8 @@ fn transform_function(
             outer_failure,
             &source_symbol,
             driver,
+            source_materialization,
+            source_odr_group,
             site,
         );
         resume_points.push(generated.point);
@@ -570,5 +573,6 @@ fn register_resume_point(
                 failure_value,
                 unwind.map(mir::CoroutineUnwindTarget::new),
             ),
+            adapter.identity.clone(),
         ))
 }
