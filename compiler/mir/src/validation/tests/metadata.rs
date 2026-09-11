@@ -122,7 +122,7 @@ fn module_validation_rejects_value_locations_outside_the_function_graph() {
     let (mut module, _) = module_with_variants(Vec::new());
     let missing_function = FunctionId::from_raw(7_u32.into());
     let local = LocalId::from_raw(0_u32.into());
-    module.meta.local_values = LocalValueIdentities::checked(vec![LocalValueIdentity::new(
+    module.meta.local_values = LocalValueIdentities::checked(vec![LocalValueIdentity::from_hir(
         missing_function,
         local,
         local_value_record(),
@@ -142,7 +142,7 @@ fn module_validation_rejects_value_locations_outside_the_function_graph() {
     );
 
     let function = module.entry;
-    module.meta.local_values = LocalValueIdentities::checked(vec![LocalValueIdentity::new(
+    module.meta.local_values = LocalValueIdentities::checked(vec![LocalValueIdentity::from_hir(
         function,
         local,
         local_value_record(),

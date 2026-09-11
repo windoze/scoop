@@ -27,7 +27,7 @@ impl LocalValueRegistry {
         identity: &hir::LocalValueIdentityRecord,
     ) {
         self.observe_selector(identity.key().owner(), identity.key().selector());
-        self.entries.push(mir::LocalValueIdentity::new(
+        self.entries.push(mir::LocalValueIdentity::from_hir(
             function,
             local,
             identity.clone(),
@@ -77,7 +77,7 @@ impl LocalValueRegistry {
             let identity =
                 hir::CborIdentityRecord::from_key(hir::LocalValueKey::new(owner, selector))
                     .expect("generated callable parameters have hashable identities");
-            self.entries.push(mir::LocalValueIdentity::new(
+            self.entries.push(mir::LocalValueIdentity::from_mir(
                 function,
                 param.local,
                 identity,
@@ -107,7 +107,7 @@ impl LocalValueRegistry {
         ))
         .expect("generated MIR local selectors have hashable identities");
         self.entries
-            .push(mir::LocalValueIdentity::new(function, local, identity));
+            .push(mir::LocalValueIdentity::from_mir(function, local, identity));
     }
 
     fn observe_selector(
@@ -152,17 +152,9 @@ impl LocalValueRegistry {
                 continue;
             }
             if let Some(wrapper_local) = wrapper_parameters.get(&entry.local()) {
-                remapped.push(mir::LocalValueIdentity::new(
-                    source,
-                    *wrapper_local,
-                    entry.identity_record().clone(),
-                ));
+                remapped.push(entry.relocated(source, *wrapper_local));
             }
-            remapped.push(mir::LocalValueIdentity::new(
-                driver,
-                entry.local(),
-                entry.identity_record().clone(),
-            ));
+            remapped.push(entry.relocated(driver, entry.local()));
         }
         self.entries = remapped;
     }
@@ -241,6 +233,13 @@ mod tests {
         );
         assert_eq!(
             identities
+                .get(source, wrapper_parameter)
+                .unwrap()
+                .authority(),
+            mir::LocalValueIdentityAuthority::Hir
+        );
+        assert_eq!(
+            identities
                 .get(driver, source_parameter)
                 .unwrap()
                 .identity_record(),
@@ -288,14 +287,12 @@ mod tests {
             }],
         );
         let identities = registry.finish();
-        let generated = identities
-            .get(function, generated_local)
-            .unwrap()
-            .identity_record();
+        let generated = identities.get(function, generated_local).unwrap();
 
-        assert_ne!(generated.id(), existing.id());
+        assert_eq!(generated.authority(), mir::LocalValueIdentityAuthority::Mir);
+        assert_ne!(generated.identity_record().id(), existing.id());
         assert!(matches!(
-            generated.key().selector(),
+            generated.identity_record().key().selector(),
             LocalValueSelector::Synthetic { path, .. }
                 if path.segments() == [hir::StructuralPathSegment::new(
                     hir::StructuralDefinitionSiteRole::SyntheticValue,

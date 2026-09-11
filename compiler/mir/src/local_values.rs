@@ -4,6 +4,13 @@ use crate::{FunctionId, LocalId};
 
 pub type LocalValueIdentityRecord = CborIdentityRecord<PersistentLocalValueId, LocalValueKey>;
 
+/// The IR stage that first created a persistent local-value identity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LocalValueIdentityAuthority {
+    Hir,
+    Mir,
+}
+
 /// One persistent semantic value attached to its typed MIR local slot.
 ///
 /// The value may be transposed from LocalConcrete HIR or introduced during
@@ -13,11 +20,12 @@ pub type LocalValueIdentityRecord = CborIdentityRecord<PersistentLocalValueId, L
 pub struct LocalValueIdentity {
     function: FunctionId,
     local: LocalId,
+    authority: LocalValueIdentityAuthority,
     identity: LocalValueIdentityRecord,
 }
 
 impl LocalValueIdentity {
-    pub const fn new(
+    pub const fn from_hir(
         function: FunctionId,
         local: LocalId,
         identity: LocalValueIdentityRecord,
@@ -25,6 +33,20 @@ impl LocalValueIdentity {
         Self {
             function,
             local,
+            authority: LocalValueIdentityAuthority::Hir,
+            identity,
+        }
+    }
+
+    pub const fn from_mir(
+        function: FunctionId,
+        local: LocalId,
+        identity: LocalValueIdentityRecord,
+    ) -> Self {
+        Self {
+            function,
+            local,
+            authority: LocalValueIdentityAuthority::Mir,
             identity,
         }
     }
@@ -37,8 +59,21 @@ impl LocalValueIdentity {
         self.local
     }
 
+    pub const fn authority(&self) -> LocalValueIdentityAuthority {
+        self.authority
+    }
+
     pub const fn identity_record(&self) -> &LocalValueIdentityRecord {
         &self.identity
+    }
+
+    pub fn relocated(&self, function: FunctionId, local: LocalId) -> Self {
+        Self {
+            function,
+            local,
+            authority: self.authority,
+            identity: self.identity.clone(),
+        }
     }
 }
 
@@ -160,12 +195,12 @@ mod tests {
 
     #[test]
     fn captured_aliases_may_share_an_identity_across_typed_locations() {
-        let first = LocalValueIdentity::new(
+        let first = LocalValueIdentity::from_hir(
             FunctionId::from_raw(0_u32.into()),
             LocalId::from_raw(0_u32.into()),
             record(),
         );
-        let alias = LocalValueIdentity::new(
+        let alias = LocalValueIdentity::from_hir(
             FunctionId::from_raw(1_u32.into()),
             LocalId::from_raw(0_u32.into()),
             record(),
@@ -188,7 +223,7 @@ mod tests {
 
     #[test]
     fn relation_rejects_duplicate_mir_locations() {
-        let entry = LocalValueIdentity::new(
+        let entry = LocalValueIdentity::from_hir(
             FunctionId::from_raw(0_u32.into()),
             LocalId::from_raw(0_u32.into()),
             record(),

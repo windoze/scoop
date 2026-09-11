@@ -334,7 +334,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
             .local_values
             .iter()
             .cloned()
-            .chain(std::iter::once(LocalValueIdentity::new(
+            .chain(std::iter::once(LocalValueIdentity::from_hir(
                 driver,
                 saved_local,
                 saved_identity,
