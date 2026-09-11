@@ -587,6 +587,8 @@ fn loop_header_poll_carries_live_managed_root() {
     );
 
     let module = lower(&b.finish(function));
+    lir::CanonicalLirFoundation::from_module(&module)
+        .expect("lowered callable and safepoint identities must project canonically");
     let function = module
         .functions
         .iter()

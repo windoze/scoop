@@ -24,6 +24,8 @@ use scoop_identity::PersistentSymbolRequestTable;
 mod wire;
 pub use wire::ValidatedLirFoundationWire;
 
+mod projection;
+
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type LayoutRecord = CborIdentityRecord<PersistentLayoutId, LayoutKey>;
 type ScanRecord = CborIdentityRecord<PersistentScanId, ScanKey>;
@@ -447,6 +449,12 @@ pub enum LirFoundationBuildError {
         table: LirFoundationTable,
         derived: u64,
     },
+    SafepointOwnerMismatch {
+        function: usize,
+        site: [u8; 32],
+        expected: [u8; 32],
+        actual: [u8; 32],
+    },
 }
 
 impl fmt::Display for LirFoundationBuildError {
@@ -486,6 +494,18 @@ impl fmt::Display for LirFoundationBuildError {
                     table.name()
                 )
             }
+            Self::SafepointOwnerMismatch {
+                function,
+                site,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "function {function} safepoint site {} belongs to callable body {}, expected {}",
+                HexIdentity(site),
+                HexIdentity(actual),
+                HexIdentity(expected)
+            ),
         }
     }
 }

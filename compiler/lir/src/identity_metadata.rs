@@ -58,6 +58,15 @@ impl SafepointMappingRecord {
         Ok(Self { site, safepoint })
     }
 
+    /// Preserve the already-validated full-to-runtime relation carried by a
+    /// final LIR safepoint identity.
+    pub fn from_identity(identity: &crate::SafepointIdentity) -> Self {
+        Self {
+            site: identity.site_id(),
+            safepoint: identity.runtime_id(),
+        }
+    }
+
     pub const fn site(self) -> PersistentSafepointSiteId {
         self.site
     }
