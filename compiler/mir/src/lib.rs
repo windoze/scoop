@@ -14,8 +14,8 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub use scoop_identity::{
-    CallableOwner, ImmortalObjectKey, ImmortalObjectOwner, PropertyOwner, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    CallableOwner, ImmortalObjectKey, ImmortalObjectOwner, OdrGroupId, PersistentExactTypeId,
+    PropertyOwner, StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 mod symbols;

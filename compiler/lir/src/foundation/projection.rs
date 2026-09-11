@@ -40,6 +40,14 @@ impl CanonicalLirFoundation {
                 )
                 .collect(),
         )?;
+        foundation.project_layout_materializations(
+            module
+                .meta
+                .layouts
+                .iter()
+                .map(|(_, layout)| &layout.identity)
+                .chain(module.meta.arrays.iter().map(|(_, array)| &array.identity)),
+        )?;
         foundation.set_dispatch_tables(
             module
                 .meta
@@ -65,6 +73,30 @@ impl CanonicalLirFoundation {
                 .collect(),
         )?;
         Ok(foundation)
+    }
+
+    fn project_layout_materializations<'identity>(
+        &mut self,
+        identities: impl IntoIterator<Item = &'identity crate::LayoutIdentity>,
+    ) -> Result<(), LirFoundationBuildError> {
+        let mut groups = BTreeMap::new();
+        let mut members = BTreeMap::new();
+        for identity in identities {
+            insert_projected_identity(
+                &mut groups,
+                identity.lir_odr_group_record(),
+                LirFoundationTable::OdrGroup,
+            )?;
+            for member in identity.odr_member_records() {
+                insert_projected_identity(
+                    &mut members,
+                    Some(member),
+                    LirFoundationTable::OdrMember,
+                )?;
+            }
+        }
+        self.set_odr_groups(groups.into_values().collect())?;
+        self.set_odr_members(members.into_values().collect())
     }
 
     fn project_global_identities(
@@ -129,23 +161,126 @@ impl CanonicalLirFoundation {
     }
 }
 
+fn insert_projected_identity<I, K>(
+    records: &mut BTreeMap<I, CborIdentityRecord<I, K>>,
+    record: Option<&CborIdentityRecord<I, K>>,
+    table: LirFoundationTable,
+) -> Result<(), LirFoundationBuildError>
+where
+    I: Copy + Ord + PersistentId,
+    K: Clone + Eq,
+{
+    let Some(record) = record else {
+        return Ok(());
+    };
+    match records.entry(record.id()) {
+        std::collections::btree_map::Entry::Vacant(entry) => {
+            entry.insert(record.clone());
+            Ok(())
+        }
+        std::collections::btree_map::Entry::Occupied(entry) if entry.get() == record => Ok(()),
+        std::collections::btree_map::Entry::Occupied(entry) => {
+            Err(LirFoundationBuildError::IdentityCollision {
+                table,
+                identity: *entry.key().as_array(),
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use la_arena::Arena;
     use scoop_identity::{
         CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
-        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
-        ImmortalObjectKey, ImmortalObjectOwner, PackagePath, PersistentFunctionId,
-        SafepointSiteRole, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+        CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
+        DefinitionOwnerChain, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, NonEmptyVec,
+        OdrMemberRole, PackagePath, PersistentExactTypeId, PersistentFunctionId, SafepointSiteRole,
+        SourceDeclarationKey, SourceDeclarationSite, SpecializationKey, StructuralDefinitionPath,
         StructuralDefinitionSiteRole, StructuralPathSegment,
     };
 
     use super::*;
     use crate::{
         AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention, GcEffect,
-        Global, GlobalInit, ImmortalObjectIdentity, PointerKind, RefScan, SafepointIdentities,
-        SafepointIdentity, SafepointSiteRef, ScoopAbiSignature, Terminator,
+        Global, GlobalInit, ImmortalObjectIdentity, LayoutIdentity, LirTargetProfile,
+        MaterializationRoot, PointerKind, RefScan, SafepointIdentities, SafepointIdentity,
+        SafepointSiteRef, ScoopAbiSignature, Terminator,
     };
+
+    #[test]
+    fn projects_only_lir_first_layout_groups_and_all_new_layout_members() {
+        let structural = exact_tuple(0);
+        let inherited = exact_tuple(1);
+        let inherited_group = CborIdentityRecord::from_key(SpecializationKey::StructuralType {
+            exact_type: inherited,
+        })
+        .unwrap();
+        let source = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap();
+        let identities = [
+            LayoutIdentity::managed_value(
+                structural,
+                LirTargetProfile::DARWIN_AARCH64,
+                MaterializationRoot::lir_structural_odr(structural).unwrap(),
+            )
+            .unwrap(),
+            LayoutIdentity::c_value(
+                structural,
+                LirTargetProfile::DARWIN_AARCH64,
+                MaterializationRoot::lir_structural_odr(structural).unwrap(),
+            )
+            .unwrap(),
+            LayoutIdentity::managed_value(
+                inherited,
+                LirTargetProfile::DARWIN_AARCH64,
+                MaterializationRoot::prior_stage_odr(inherited_group.id()),
+            )
+            .unwrap(),
+            LayoutIdentity::managed_value(
+                source,
+                LirTargetProfile::DARWIN_AARCH64,
+                MaterializationRoot::cone_owned(),
+            )
+            .unwrap(),
+        ];
+        let mut foundation = CanonicalLirFoundation::empty();
+
+        foundation
+            .project_layout_materializations(&identities)
+            .unwrap();
+
+        assert_eq!(foundation.odr_groups.len(), 1);
+        assert_eq!(
+            foundation.odr_groups[0].key(),
+            &SpecializationKey::StructuralType {
+                exact_type: structural,
+            }
+        );
+        assert_eq!(foundation.odr_members.len(), 6);
+        assert_eq!(
+            foundation
+                .odr_members
+                .iter()
+                .filter(|member| member.key().role() == OdrMemberRole::Layout)
+                .count(),
+            3
+        );
+        assert_eq!(
+            foundation
+                .odr_members
+                .iter()
+                .filter(|member| member.key().role() == OdrMemberRole::ScanProgram)
+                .count(),
+            3
+        );
+        assert!(foundation.odr_members.iter().all(|member| {
+            member.key().group() == foundation.odr_groups[0].id()
+                || member.key().group() == inherited_group.id()
+        }));
+    }
 
     #[test]
     fn projects_callable_bodies_and_safepoint_relations_without_block_scanning() {
@@ -281,6 +416,18 @@ mod tests {
             blocks,
             entry,
         }
+    }
+
+    fn exact_tuple(arity: usize) -> PersistentExactTypeId {
+        let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap();
+        PersistentExactTypeId::from_key(&ExactTypeKey::Tuple(NonEmptyVec::from_first(
+            unit,
+            vec![unit; arity],
+        )))
+        .unwrap()
     }
 
     fn callable_body(name: &str) -> CallableBodyIdentity {

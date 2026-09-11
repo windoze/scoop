@@ -7,6 +7,14 @@ use crate::Type;
 pub type SourceExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 pub type SourceNominalSpecializationRecord = CborIdentityRecord<OdrGroupId, SpecializationKey>;
 
+/// The canonical materialization root class of a source exact type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceExactTypeOwner {
+    ConeOwned,
+    NominalApplication(OdrGroupId),
+    Structural,
+}
+
 /// One exact LocalConcrete HIR type after structural transposition into MIR.
 ///
 /// The persistent identity remains HIR-owned. MIR retains this relation so
@@ -60,6 +68,22 @@ impl SourceExactTypeIdentity {
 
     pub const fn nominal_specialization(&self) -> Option<&SourceNominalSpecializationRecord> {
         self.nominal_specialization.as_ref()
+    }
+
+    pub fn owner(&self) -> SourceExactTypeOwner {
+        match self.identity.key() {
+            ExactTypeKey::Nominal(_) => SourceExactTypeOwner::ConeOwned,
+            ExactTypeKey::NominalApplication { .. } => SourceExactTypeOwner::NominalApplication(
+                self.nominal_specialization
+                    .as_ref()
+                    .expect("a checked nominal application retains its ODR group")
+                    .id(),
+            ),
+            ExactTypeKey::Tuple(_)
+            | ExactTypeKey::Function { .. }
+            | ExactTypeKey::RawPointer(_)
+            | ExactTypeKey::NativeFunctionPointer { .. } => SourceExactTypeOwner::Structural,
+        }
     }
 }
 

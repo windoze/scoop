@@ -435,6 +435,10 @@ pub enum LirFoundationBuildError {
         table: LirFoundationTable,
         identity: [u8; 32],
     },
+    IdentityCollision {
+        table: LirFoundationTable,
+        identity: [u8; 32],
+    },
     MissingCallableBodyDependency {
         identity: [u8; 32],
         dependency: [u8; 32],
@@ -465,6 +469,12 @@ impl fmt::Display for LirFoundationBuildError {
             Self::DuplicateIdentity { table, identity } => write!(
                 formatter,
                 "duplicate {} identity {}",
+                table.name(),
+                HexIdentity(identity)
+            ),
+            Self::IdentityCollision { table, identity } => write!(
+                formatter,
+                "conflicting {} records share identity {}",
                 table.name(),
                 HexIdentity(identity)
             ),

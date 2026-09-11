@@ -47,6 +47,7 @@ fn lowers_hello_world() {
     let string_layout_identity = lir::LayoutIdentity::managed_object(
         string_exact_type,
         lir::LirTargetProfile::DARWIN_AARCH64,
+        lir::MaterializationRoot::cone_owned(),
     )
     .unwrap();
     let expected_callable_bodies = source

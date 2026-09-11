@@ -15,6 +15,7 @@ pub(crate) use values::*;
 /// separate, typed metadata arena rather than a second layout identity.
 pub(crate) fn layouts(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     enums: &lir::EnumDefs,
     from_code: &[mir::Type],
@@ -69,7 +70,7 @@ pub(crate) fn layouts(
             context,
             module,
             enums,
-            struct_layout_identity(context, module, &ty, def),
+            struct_layout_identity(context, identity_roots, module, &ty, def),
             def,
         ));
     }
@@ -79,7 +80,7 @@ pub(crate) fn layouts(
             context,
             enums,
             id,
-            managed_value_layout_identity(context, module, &ty),
+            managed_value_layout_identity(context, identity_roots, module, &ty),
             def,
         ));
     }
@@ -91,7 +92,12 @@ pub(crate) fn layouts(
                     context,
                     module,
                     enums,
-                    managed_object_layout_identity(context, module, &mir::Type::String),
+                    managed_object_layout_identity(
+                        context,
+                        identity_roots,
+                        module,
+                        &mir::Type::String,
+                    ),
                     def,
                 );
                 assert!(
@@ -108,7 +114,12 @@ pub(crate) fn layouts(
                     context,
                     module,
                     enums,
-                    managed_object_layout_identity(context, module, &mir::Type::Class(id)),
+                    managed_object_layout_identity(
+                        context,
+                        identity_roots,
+                        module,
+                        &mir::Type::Class(id),
+                    ),
                     def,
                 ));
             }
@@ -121,6 +132,7 @@ pub(crate) fn layouts(
                 generated_exact_type_record(module, mir::GeneratedExactTypeLocation::Closure(id))
                     .id(),
                 context.target_profile(),
+                identity_roots.for_generated(mir::GeneratedExactTypeLocation::Closure(id)),
             )
             .expect("validated exact type and target must derive a layout identity"),
             name: def.name.clone(),
@@ -139,7 +151,7 @@ pub(crate) fn layouts(
                 context,
                 module,
                 enums,
-                managed_value_layout_identity(context, module, ty),
+                managed_value_layout_identity(context, identity_roots, module, ty),
                 mir::type_name(module, ty),
                 elements,
             ));
@@ -156,22 +168,24 @@ pub(crate) fn layouts(
 
 fn struct_layout_identity(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     ty: &mir::Type,
     def: &mir::StructDef,
 ) -> lir::LayoutIdentity {
     let exact_type = exact_type_record(module, ty).id();
     let target_profile = context.target_profile();
+    let root = identity_roots.for_type(ty);
     match &def.representation {
         mir::StructRepresentation::Declared {
             c_layout: Some(_), ..
-        } => lir::LayoutIdentity::c_value(exact_type, target_profile),
+        } => lir::LayoutIdentity::c_value(exact_type, target_profile, root),
         mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::FunPtr {
             ..
-        }) => lir::LayoutIdentity::native_function_pointer(exact_type, target_profile),
+        }) => lir::LayoutIdentity::native_function_pointer(exact_type, target_profile, root),
         mir::StructRepresentation::Declared { c_layout: None, .. }
         | mir::StructRepresentation::Intrinsic(_) => {
-            lir::LayoutIdentity::managed_value(exact_type, target_profile)
+            lir::LayoutIdentity::managed_value(exact_type, target_profile, root)
         }
     }
     .expect("validated exact type and target must derive a layout identity")
@@ -179,21 +193,28 @@ fn struct_layout_identity(
 
 fn managed_value_layout_identity(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     ty: &mir::Type,
 ) -> lir::LayoutIdentity {
-    lir::LayoutIdentity::managed_value(exact_type_record(module, ty).id(), context.target_profile())
-        .expect("validated exact type and target must derive a layout identity")
+    lir::LayoutIdentity::managed_value(
+        exact_type_record(module, ty).id(),
+        context.target_profile(),
+        identity_roots.for_type(ty),
+    )
+    .expect("validated exact type and target must derive a layout identity")
 }
 
 fn managed_object_layout_identity(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     ty: &mir::Type,
 ) -> lir::LayoutIdentity {
     lir::LayoutIdentity::managed_object(
         exact_type_record(module, ty).id(),
         context.target_profile(),
+        identity_roots.for_type(ty),
     )
     .expect("validated exact type and target must derive a layout identity")
 }

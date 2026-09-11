@@ -256,13 +256,16 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         assert_eq!((layout.size, layout.align), (expected.size, expected.align));
         assert_eq!(layout.kind, lir::LayoutKind::Intrinsic(representation),);
         let identity = match role {
-            scoop_identity::RepresentationRole::ManagedValue => {
-                lir::LayoutIdentity::managed_value(exact, lir::LirTargetProfile::DARWIN_AARCH64)
-            }
+            scoop_identity::RepresentationRole::ManagedValue => lir::LayoutIdentity::managed_value(
+                exact,
+                lir::LirTargetProfile::DARWIN_AARCH64,
+                lir::MaterializationRoot::lir_structural_odr(exact).unwrap(),
+            ),
             scoop_identity::RepresentationRole::NativeFunctionPointer => {
                 lir::LayoutIdentity::native_function_pointer(
                     exact,
                     lir::LirTargetProfile::DARWIN_AARCH64,
+                    lir::MaterializationRoot::lir_structural_odr(exact).unwrap(),
                 )
             }
             scoop_identity::RepresentationRole::ManagedObject

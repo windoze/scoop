@@ -38,6 +38,9 @@ pub use metadata::*;
 mod identity_metadata;
 pub use identity_metadata::*;
 
+mod materialization;
+pub use materialization::*;
+
 mod safepoint;
 pub use safepoint::*;
 

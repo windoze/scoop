@@ -499,6 +499,8 @@ pub struct LayoutIdentity {
         scoop_identity::PersistentScanId,
         scoop_identity::ScanKey,
     >,
+    layout_materialization: MaterializationIdentity,
+    scan_materialization: MaterializationIdentity,
 }
 
 impl LayoutIdentity {
@@ -507,6 +509,7 @@ impl LayoutIdentity {
         target_profile: LirTargetProfile,
         representation: scoop_identity::RepresentationRole,
         scan_role: scoop_identity::ScanRole,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         let layout = scoop_identity::CborIdentityRecord::from_key(scoop_identity::LayoutKey::new(
             exact_type,
@@ -517,66 +520,83 @@ impl LayoutIdentity {
             layout.id(),
             scan_role,
         ))?;
-        Ok(Self { layout, scan })
+        let layout_materialization = root.layout(layout.id())?;
+        let scan_materialization = root.scan(scan.id())?;
+        Ok(Self {
+            layout,
+            scan,
+            layout_materialization,
+            scan_materialization,
+        })
     }
 
     pub fn managed_value(
         exact_type: scoop_identity::PersistentExactTypeId,
         target_profile: LirTargetProfile,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         Self::new(
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::ManagedValue,
             scoop_identity::ScanRole::InlineValue,
+            root,
         )
     }
 
     pub fn managed_object(
         exact_type: scoop_identity::PersistentExactTypeId,
         target_profile: LirTargetProfile,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         Self::new(
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::ManagedObject,
             scoop_identity::ScanRole::ManagedObject,
+            root,
         )
     }
 
     pub fn c_value(
         exact_type: scoop_identity::PersistentExactTypeId,
         target_profile: LirTargetProfile,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         Self::new(
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::CValue,
             scoop_identity::ScanRole::InlineValue,
+            root,
         )
     }
 
     pub fn native_function_pointer(
         exact_type: scoop_identity::PersistentExactTypeId,
         target_profile: LirTargetProfile,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         Self::new(
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::NativeFunctionPointer,
             scoop_identity::ScanRole::InlineValue,
+            root,
         )
     }
 
     pub fn managed_array(
         exact_type: scoop_identity::PersistentExactTypeId,
         target_profile: LirTargetProfile,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         Self::new(
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::ManagedObject,
             scoop_identity::ScanRole::ArrayElement,
+            root,
         )
     }
 
@@ -596,6 +616,30 @@ impl LayoutIdentity {
         scoop_identity::ScanKey,
     > {
         &self.scan
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.layout_materialization.lir_odr_group_record()
+    }
+
+    pub fn odr_member_records(
+        &self,
+    ) -> impl Iterator<
+        Item = &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        [&self.layout_materialization, &self.scan_materialization]
+            .into_iter()
+            .filter_map(MaterializationIdentity::odr_member_record)
     }
 }
 

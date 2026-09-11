@@ -303,6 +303,7 @@ fn generated_runtime_type(
 /// function lowering starts, so no instruction discovers metadata on demand.
 pub(crate) fn array_types(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     enums: &lir::EnumDefs,
     descriptors: &TypeDescriptorRefs,
@@ -329,6 +330,7 @@ pub(crate) fn array_types(
             identity: lir::LayoutIdentity::managed_array(
                 exact_type_record(module, &mir::Type::Class(class_id)).id(),
                 context.target_profile(),
+                identity_roots.for_type(&mir::Type::Class(class_id)),
             )
             .expect("validated array exact type and target must derive layout identities"),
             kind,

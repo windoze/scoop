@@ -51,18 +51,19 @@ pub(super) fn layout_identity(
 ) -> scoop_lir::LayoutIdentity {
     let exact_type = test_exact_type(name);
     let target = scoop_lir::LirTargetProfile::DARWIN_AARCH64;
+    let root = scoop_lir::MaterializationRoot::cone_owned();
     match role {
         scoop_identity::RepresentationRole::ManagedValue => {
-            scoop_lir::LayoutIdentity::managed_value(exact_type, target)
+            scoop_lir::LayoutIdentity::managed_value(exact_type, target, root)
         }
         scoop_identity::RepresentationRole::ManagedObject => {
-            scoop_lir::LayoutIdentity::managed_object(exact_type, target)
+            scoop_lir::LayoutIdentity::managed_object(exact_type, target, root)
         }
         scoop_identity::RepresentationRole::CValue => {
-            scoop_lir::LayoutIdentity::c_value(exact_type, target)
+            scoop_lir::LayoutIdentity::c_value(exact_type, target, root)
         }
         scoop_identity::RepresentationRole::NativeFunctionPointer => {
-            scoop_lir::LayoutIdentity::native_function_pointer(exact_type, target)
+            scoop_lir::LayoutIdentity::native_function_pointer(exact_type, target, root)
         }
     }
     .unwrap()
@@ -72,6 +73,7 @@ pub(super) fn array_layout_identity(name: &str) -> scoop_lir::LayoutIdentity {
     scoop_lir::LayoutIdentity::managed_array(
         test_exact_type(name),
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_lir::MaterializationRoot::cone_owned(),
     )
     .unwrap()
 }

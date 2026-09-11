@@ -87,6 +87,13 @@ impl CanonicalMirFoundation {
         }
     }
 
+    /// ODR groups first introduced by MIR rather than inherited from HIR.
+    /// Later stages use this delta to add members without claiming ownership
+    /// of an already established structural group record.
+    pub fn odr_group_ids(&self) -> impl ExactSizeIterator<Item = OdrGroupId> + '_ {
+        self.odr_groups.iter().map(CborIdentityRecord::id)
+    }
+
     pub fn set_exact_types(
         &mut self,
         records: Vec<ExactTypeRecord>,
