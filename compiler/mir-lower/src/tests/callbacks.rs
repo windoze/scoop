@@ -67,6 +67,15 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
         } if *source == source_materialization
             && signature == bridge.identity().signature_record().signature()
     ));
+    let generated = module
+        .meta
+        .generated_callables
+        .get(bridge.bridge_function)
+        .expect("the static callback bridge has one generated callable location");
+    assert_eq!(
+        generated.identity_record(),
+        bridge.identity().callable_record()
+    );
     assert!(matches!(
         bridge.identity().signature_record().subject(),
         mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(found))
@@ -341,6 +350,12 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(generated))
             if generated == adapter.identity_record().id()
     ));
+    let generated = module
+        .meta
+        .generated_callables
+        .get(adapter.function)
+        .expect("the managed adapter has one generated callable location");
+    assert_eq!(generated.identity_record(), adapter.identity_record());
     assert_eq!(
         bridge.application_identity.id(),
         bridge.application_record.application()

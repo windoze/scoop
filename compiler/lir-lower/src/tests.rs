@@ -772,6 +772,12 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             context_index: 0,
             mode: modes.reusable(),
         });
+    module.meta.generated_callables =
+        mir::MirGeneratedCallableIdentities::checked(vec![mir::MirGeneratedCallableIdentity::new(
+            main,
+            module.foreign_callback_adapters[adapter].identity_record(),
+        )])
+        .unwrap();
 
     let lowered = lower(&module);
     assert_eq!(

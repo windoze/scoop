@@ -1231,6 +1231,36 @@ Module
   generated_exact_type get25 location=enum15 nominal_id=4128ad6da7e2b0bc58abebf06b0767a361595314807dc576fed2c3fc32dbe12d exact_id=f4e8a355f036705cc5147660fcd2d2d3bb5eff8bf83ce9906540738bf63445ec
   generated_exact_type get26 location=enum18 nominal_id=2b4495abd433ad551adff98dce3a3aad6d36c0ed8e90cf36608e3a62405dcc1c exact_id=f57e9d4cdb36ca978900e94760f67f3acaf549d271a2e8ee8a8df8cbb5737c88
   generated_exact_type get27 location=enum21 nominal_id=e903dc14245b71ec92fc6b2bfb8b51d45a70cdbce1c244b3abf9a83beb758d36 exact_id=fea1af84b54d81f6cf6aadea948d0ebe9083eee9b0f288cafc3ade20fb955669
+  generated_callable gc0 function=@scoop.$local$u0:p0:C10:n7:Awaiterr8:functionq8:ordinaryn11:awaitMember$E29_$local$u0:p0:r4:enumn6:ChoiceX$suspend$drive id=0258e0519449d139e919875741695750c8403cae3f48ba389d1939f75d904854
+  generated_callable gc1 function=@scoop.$local$u0:p0:C10:n7:Awaiterr8:functionq8:ordinaryn11:awaitMember$B$suspend$drive id=085e1cdee5d174b2a5b6a873f9268d7552d2cf815a092fa4f1a164f76a181320
+  generated_callable gc2 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=0e024e99750b6f0e5d3da8828b396646147216212b62b6cd811a2baf29d5fbfd
+  generated_callable gc3 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn8:awaitTop$I32$suspend$resume$1 id=1432426b9afaaf22be0409383c8874172936eaf0516089e91bb25322843fd319
+  generated_callable gc4 function=@scoop.$local$u0:p0:C10:n7:Awaiterr8:functionq8:ordinaryn11:awaitMember$B$suspend$resume$1 id=202e6d745a72c408ab5884ea7a4eae0c49405605f16937489a9f7d639eead738
+  generated_callable gc5 function=@scoop.$local$u0:p0:C10:n7:Awaiterr8:functionq8:ordinaryn11:awaitMember$B$suspend$resume_exception$1 id=20a97f686434069943e915a101cf02e90e8199ef17e9ca92357daff084cca801
+  generated_callable gc6 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn8:awaitTop$I32$suspend$resume_exception$1 id=41b8f724b8c898c94aec33ff5094862e9283933119aaff06a8fd5aeba3e82512
+  generated_callable gc7 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$2 id=5b0d32559985ecabc746bd6b5ebe409253ebb8b3e5cf5480ad10ce3b7b0c6ddb
+  generated_callable gc8 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$4 id=5be54779497807f4512f6a62fbbd0eb8036d5c572df85ecd29ae12aed4fe4368
+  generated_callable gc9 function=@scoop.$local$u0:p0:C10:n7:Awaiterr8:functionq8:ordinaryn11:awaitMember$E29_$local$u0:p0:r4:enumn6:ChoiceX$suspend$resume_exception$1 id=6372fb0235ef4769c076442c761797fa2cd1c700dc01b5d6d9893d91903e7a3e
+  generated_callable gc10 function=@scoop.Continuation.resumeWithException$D29_$local$u0:p0:r6:structn4:PairX id=6420c7e3001b62cdfd5d9097604147d593247e377bd424e62ce61666f25b9352
+  generated_callable gc11 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=6dd0276093cd370aed760cb1a46bc62666ed3936c9f6185b1ff8a42eddc5a01b
+  generated_callable gc12 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume$2 id=75328d38584ada20816af888eb731ad4a754318797249cb3413a1e5cd572a747
+  generated_callable gc13 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn8:awaitTop$D29_$local$u0:p0:r6:structn4:PairX$suspend$resume_exception$1 id=93b27e07c1732d1d01f2eda4a6ed5fbc7b2ca660126e4dabc147dae964e10656
+  generated_callable gc14 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn8:awaitTop$D29_$local$u0:p0:r6:structn4:PairX$suspend$resume$1 id=a8465e143c505ddeaad092b152a407bd8f2c6d647306852a2da7d6915834a327
+  generated_callable gc15 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc16 function=@scoop.coroutine.start$I32 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
+  generated_callable gc17 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
+  generated_callable gc18 function=@scoop.Continuation.resume$E29_$local$u0:p0:r4:enumn6:ChoiceX id=ba76bf431805cdbe38c983b75c511dcd982943e27ee04400997009530c0b84dd
+  generated_callable gc19 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume$4 id=bd667922e273d5293d0753d53f3e952570a5c7aa68fc36fd01804cd1fb1fa279
+  generated_callable gc20 function=@scoop.Continuation.resume$D29_$local$u0:p0:r6:structn4:PairX id=c6f5ca219144f3d6f8a3612026cd142396d4939e9c7d2ff610af128fd96146dd
+  generated_callable gc21 function=@scoop.Continuation.resumeWithException$B id=d1ce42a53af6624af174260978e4bb57aeb9c6840a30da506dc44799d27459fe
+  generated_callable gc22 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn8:awaitTop$I32$suspend$drive id=d4d0984f20c4e6b60f7631c4616342283313d3d25ca5161d8bccaf8b420db435
+  generated_callable gc23 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn8:awaitTop$D29_$local$u0:p0:r6:structn4:PairX$suspend$drive id=d5f3d81d1f7c0e354d8b5f15ff078610aa5856c44d16d104bcf088b9ac90ed47
+  generated_callable gc24 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$drive id=ea68f3e4d1da612138c6c47432372a4cb0daab973749c7b4160b7af3ac1ad3f7
+  generated_callable gc25 function=@scoop.Continuation.resume$B id=eeb11346dca2ee90d1e6399714cc088881e36372f57d089099493e88d8ba3ea4
+  generated_callable gc26 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$3 id=f01d269a6f661f08d5858a02f95953be1f62cdb97cd27d0434dfe62a8f19a593
+  generated_callable gc27 function=@scoop.$local$u0:p0:C15:n11:GenericTaskr8:functionq8:ordinaryn3:run$suspend$resume$3 id=f0b306c719fe9d15dd9cb0bc8d792851a12099f660d9df89d34290e2b7d1f292
+  generated_callable gc28 function=@scoop.$local$u0:p0:C10:n7:Awaiterr8:functionq8:ordinaryn11:awaitMember$E29_$local$u0:p0:r4:enumn6:ChoiceX$suspend$resume$1 id=fbbbdcff9248c4fa7b03c5a972e9e5e89a834423d2f3628b7a5dfa72d8ba59fa
+  generated_callable gc29 function=@scoop.Continuation.resumeWithException$E29_$local$u0:p0:r4:enumn6:ChoiceX id=fc9edcd2934550d83a6ff05ab6b8466721fbb3f0b3fbbae323bd3721ba888248
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

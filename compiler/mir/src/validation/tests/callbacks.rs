@@ -124,6 +124,7 @@ fn static_callback_module() -> (Module, CallbackBridgeId) {
         )
         .unwrap(),
     );
+    install_generated_callables(&mut module);
     (module, bridge)
 }
 
@@ -315,7 +316,45 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
             context_index: 0,
             mode: modes.reusable(),
         });
+    install_generated_callables(&mut module);
     (module, family, bridge)
+}
+
+#[test]
+fn every_mir_generated_callable_requires_a_function_materialization() {
+    let (mut module, _) = static_callback_module();
+    module.meta.generated_callables = MirGeneratedCallableIdentities::default();
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::GeneratedCallable { entry: 0 },
+            kind: MirValidationErrorKind::InvalidGeneratedCallable {
+                reason: "a MIR-generated callable has no typed function materialization",
+            },
+        })
+    );
+}
+
+#[test]
+fn one_function_cannot_carry_source_and_generated_callable_identities() {
+    let (mut module, bridge) = static_callback_module();
+    module.meta.generated_callables =
+        MirGeneratedCallableIdentities::checked(vec![MirGeneratedCallableIdentity::new(
+            module.entry,
+            module.callback_bridges[bridge].identity().callable_record(),
+        )])
+        .unwrap();
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::GeneratedCallable { entry: 0 },
+            kind: MirValidationErrorKind::InvalidGeneratedCallable {
+                reason: "the function is also claimed by a source callable materialization",
+            },
+        })
+    );
 }
 
 #[test]
@@ -472,17 +511,16 @@ fn materialized_callback_adapter_uses_its_generated_callable_odr_member() {
         [module.foreign_callback_bridges[bridge].adapter]
         .managed_signature;
     let exact_signature = exact_callback_signature();
-    let adapter = module.foreign_callback_adapters.alloc(
-        ForeignCallbackAdapter::checked(
-            module.entry,
-            managed_signature,
-            &module.function_types[managed_signature],
-            application,
-            &exact_signature,
-            Some(member.clone()),
-        )
-        .unwrap(),
-    );
+    let adapter = module.foreign_callback_bridges[bridge].adapter;
+    module.foreign_callback_adapters[adapter] = ForeignCallbackAdapter::checked(
+        module.entry,
+        managed_signature,
+        &module.function_types[managed_signature],
+        application,
+        &exact_signature,
+        Some(member.clone()),
+    )
+    .unwrap();
     let subject = module.foreign_callback_adapters[adapter].signature_subject();
     assert!(matches!(
         subject,
@@ -497,6 +535,7 @@ fn materialized_callback_adapter_uses_its_generated_callable_odr_member() {
         ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
         CallbackMode::Reusable,
     );
+    install_generated_callables(&mut module);
 
     assert!(module.validate().is_ok());
 }
@@ -507,17 +546,16 @@ fn callback_adapter_identity_must_match_its_application() {
     let managed_signature = module.foreign_callback_adapters
         [module.foreign_callback_bridges[bridge].adapter]
         .managed_signature;
-    let adapter = module.foreign_callback_adapters.alloc(
-        ForeignCallbackAdapter::checked(
-            module.entry,
-            managed_signature,
-            &module.function_types[managed_signature],
-            callback_application(1).id(),
-            &exact_callback_signature(),
-            None,
-        )
-        .unwrap(),
-    );
+    let adapter = module.foreign_callback_bridges[bridge].adapter;
+    module.foreign_callback_adapters[adapter] = ForeignCallbackAdapter::checked(
+        module.entry,
+        managed_signature,
+        &module.function_types[managed_signature],
+        callback_application(1).id(),
+        &exact_callback_signature(),
+        None,
+    )
+    .unwrap();
     module.foreign_callback_bridges[bridge].adapter = adapter;
 
     assert_eq!(

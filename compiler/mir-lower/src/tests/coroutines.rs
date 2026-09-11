@@ -222,6 +222,15 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         scoop_identity::GeneratedCallableKey::CoroutineDriver { source_callable }
             if *source_callable == caller.source
     ));
+    let generated = module
+        .meta
+        .generated_callables
+        .get(*driver)
+        .expect("the coroutine driver has one generated callable location");
+    assert_eq!(
+        generated.identity_record(),
+        driver_identity.callable_record()
+    );
     let shells = module
         .meta
         .continuation_shells

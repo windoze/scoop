@@ -364,6 +364,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         resume_points: vec![point],
     };
     install_generated_exact_types(&mut module);
+    install_generated_callables(&mut module);
     CoroutineFixture {
         module,
         driver,

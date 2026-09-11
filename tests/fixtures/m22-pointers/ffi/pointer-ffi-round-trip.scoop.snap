@@ -2629,6 +2629,7 @@ Module
   interface Iterator$V32
   interface Iterable$V64
   interface Iterator$V64
+  generated_callable gc0 function=@scoop_callback_bridge_0 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

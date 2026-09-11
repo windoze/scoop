@@ -147,6 +147,15 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
         panic!("boxed itable slots are generated functions")
     };
     assert_eq!(adjust.function(), thunk_id);
+    let generated = module
+        .meta
+        .generated_callables
+        .get(thunk_id)
+        .expect("the boxing adjust has one generated callable location");
+    assert_eq!(
+        generated.identity_record(),
+        adjust.identity().callable_record()
+    );
     let source_member = export.module().interfaces[iface].methods[0];
     let expected_slot = &export.module().dispatch_slot_identities[source_member];
     assert_eq!(adjust.identity().slot_record(), expected_slot);

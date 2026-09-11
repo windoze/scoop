@@ -1940,6 +1940,31 @@ Module
   generated_exact_type get27 location=class51 nominal_id=e45d98acf5c92ed4cae976af0f6fd14847c63dd5e51f3f747a7004696ea47b40 exact_id=d9f5090f2f725470c9682ce97029d7119cd23350fbecb40846a380a4d1ad483c
   generated_exact_type get28 location=closure3 nominal_id=1deda9c5206c86341ad96950b3fded3fffec9512dcd6ac8e399fe82c95a9e3a0 exact_id=eb2d41bca85af9d3d2b2cd551229aaac44e4348e1daa017bf059a115a8bbab71
   generated_exact_type get29 location=closure4 nominal_id=c603728844569795b6ef01917e5609b2b20cef122c955fd7a72b8e86258beba0 exact_id=f61a2cece3f5656bc391946dba84206b5b8c7e33636a1434e5e0849e4ebe5ebe
+  generated_callable gc0 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume$2 id=01cc1a2824b5cb2dfa13bfb4ec8a19f37fcd1f2f0fce20121f852a4eb9ca93d1
+  generated_callable gc1 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$drive id=052d6b19c83b131d593c66d4c6a84c14b73a0cca7e3167c75cf5369186850476
+  generated_callable gc2 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$5 id=08546a02a08a8053f72341e52c5dd1d84e056356e8c7cc460634bc2bdc7f300e
+  generated_callable gc3 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume$3 id=0c3e72820cba88fabcca4508d301ba5d8aca29fd02a75bb21fdf4207dc380a06
+  generated_callable gc4 function=@scoop.Continuation.resumeWithException$C40_$local$u0:p0:r5:classn15:DelayedIteratorAD30_$local$u0:p0:r6:structn5:EntryAC28_$local$u0:p0:r5:classn4:NodeXXX id=2bbbd04ffa851f9c2354f6ecdc63a40d072208a930795bd4be19b3581915ae7b
+  generated_callable gc5 function=@scoop.Continuation.resume$C40_$local$u0:p0:r5:classn15:DelayedIteratorAD30_$local$u0:p0:r6:structn5:EntryAC28_$local$u0:p0:r5:classn4:NodeXXX id=2c53fd075655235276e4c822ee4ccfcc5e5b42600d1197dbeac2698b81a16051
+  generated_callable gc6 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn7:waitFor$suspend$drive id=3263a8d0d1fb7b9ee4c8a5a1e63d16b77a68cdf60c4b6fb56a256750b7f4f338
+  generated_callable gc7 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=4f0ae0014bb928ac810ad61ed809cfec434963d92aa67ac50b3c06f1f6595d02
+  generated_callable gc8 function=@scoop.Continuation.resume$U id=5218d734359eb89ca3c1346fb34110c4ef01c4b62a530e6412f988e537b13d71
+  generated_callable gc9 function=@scoop.Continuation.resumeWithException$I64 id=56f39444a7463ea839571fb8e74554a5131857866f26f7648edf611f4e372a9e
+  generated_callable gc10 function=@scoop.Continuation.resumeWithException$U id=570f9d4d12b077cb63adb7e283be0aa3aa376ef5d74c991d2d89e22c33fa8877
+  generated_callable gc11 function=@scoop.$local$u0:p0:C19:n15:DelayedIterabler8:functionq8:ordinaryn8:iterator$D30_$local$u0:p0:r6:structn5:EntryAC28_$local$u0:p0:r5:classn4:NodeXX$suspend$resume_exception$1 id=583f618a842d1337c44e5a738a617a28c9fb4749a898ba37aa48f08b2a1831e8
+  generated_callable gc12 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$4 id=5c58f89c7fe3f112a7b5a26cbd90bc8f123659147f6b258598427d0d65aa2c8f
+  generated_callable gc13 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn7:waitFor$suspend$resume_exception$1 id=5d678f29c70a161d71b561a5867645d87b9f4eaa69f4a3f9c84ad75a94c18f35
+  generated_callable gc14 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$3 id=62628f8ddf9436b9ccc8203c346c131bd1b62d92dd5828d611c2b608074cc388
+  generated_callable gc15 function=@scoop.$local$u0:p0:C19:n15:DelayedIterabler8:functionq8:ordinaryn8:iterator$D30_$local$u0:p0:r6:structn5:EntryAC28_$local$u0:p0:r5:classn4:NodeXX$suspend$drive id=6a85e69bf09d9891eb7b7d091dd2de229ffff9153338063e552913f06abf3b6b
+  generated_callable gc16 function=@scoop.coroutine.start$I64 id=6c4a32c90322351557c14221669ba24728e1bb9b8119699ab1ea49660e71867d
+  generated_callable gc17 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume$4 id=92e9fedb9dc785b27270e88b0210b3f0a5fda3f5910c5a1a5188183b79ebbff2
+  generated_callable gc18 function=@scoop.thunk.D44_$local$u0:p0:r6:structn18:EmptyValueIteratorX.J36_$local$c0:p0:r9:interfacen8:IteratorAUX.next id=9d5e38a72e080119e791adbcf922c1e30ed161658f5ae7fe193ab643aaf3948a
+  generated_callable gc19 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume$5 id=af7056a1371c2b76d4391ec7864321f832f075fdb6480dc0885c417e53a50ed2
+  generated_callable gc20 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=c8c45b7fe743fb51950b560b3487223436f57a8e93644f3da76819798aac2c68
+  generated_callable gc21 function=@scoop.Continuation.resume$I64 id=ca6ecdb1deb940e51400c31b47ecb3416cba31bf9e8ac9138f1d737264d8a5c4
+  generated_callable gc22 function=@scoop.$local$u0:p0:C17:n13:IterationTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$2 id=eb7a7b95d6031be59fb0ddc60a29ce41957506dda71bf8c36b1daeaf18d344d6
+  generated_callable gc23 function=@scoop.$local$u0:p0:C19:n15:DelayedIterabler8:functionq8:ordinaryn8:iterator$D30_$local$u0:p0:r6:structn5:EntryAC28_$local$u0:p0:r5:classn4:NodeXX$suspend$resume$1 id=f66108dc693d72f518f6a693dfc9075b96245f3126c8dcb84d863b6de308bbe4
+  generated_callable gc24 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn7:waitFor$suspend$resume$1 id=fa4db422a009b84209ee7c501cd3e7e1e0ce0e79d4ee32d8fea0fcf0501fc308
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

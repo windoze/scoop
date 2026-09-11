@@ -1057,6 +1057,7 @@ Module
   interface Iterable$Any
   interface Iterator$Any
   generated_exact_type get0 location=class34 nominal_id=768fc1d43de4fd651db6fe5ea8079d960b8cd25a84473ad2987bdcbc61c3e277 exact_id=3d63cf44a2dc755e967691e63546df1c3cf9d9bda15f6eed485a7a62a4edfd84
+  generated_callable gc0 function=@scoop.thunk.D28_$local$u0:p0:r6:structn3:TagX.J33_$local$u0:p0:r9:interfacen5:NamedX.name id=3b7d79d4bd863690b81a009ef7a3111029457e4f9701eb640717430b9c06b4d7
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

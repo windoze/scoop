@@ -46,6 +46,7 @@ fn module_with_function_bridge() -> Module {
         )
         .unwrap(),
     );
+    install_generated_callables(&mut module);
     module
 }
 

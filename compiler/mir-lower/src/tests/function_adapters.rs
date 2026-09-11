@@ -81,6 +81,17 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
         adapter.identity().callable_member_record().key().role(),
         scoop_identity::OdrMemberRole::CallableBody
     );
+    let invoke =
+        module.closure_invoke_functions[module.closure_classes[adapter.class()].invoke].function;
+    let generated = module
+        .meta
+        .generated_callables
+        .get(invoke)
+        .expect("the static adapter invoke has one generated callable location");
+    assert_eq!(
+        generated.identity_record(),
+        adapter.identity().callable_record()
+    );
     assert_eq!(
         adapter.identity().callable_signature_record().signature(),
         match adapter.identity().callable_record().key() {
@@ -162,6 +173,17 @@ fn checked_function_cast_keeps_its_complete_dynamic_adapter_identity() {
     assert_eq!(
         adapter.identity().callable_member_record().key().role(),
         scoop_identity::OdrMemberRole::CallableBody
+    );
+    let invoke =
+        module.closure_invoke_functions[module.closure_classes[adapter.class()].invoke].function;
+    let generated = module
+        .meta
+        .generated_callables
+        .get(invoke)
+        .expect("the dynamic adapter invoke has one generated callable location");
+    assert_eq!(
+        generated.identity_record(),
+        adapter.identity().callable_record()
     );
     assert_eq!(module.validate(), Ok(()));
 

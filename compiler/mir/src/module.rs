@@ -594,6 +594,10 @@ pub struct MirMeta {
     /// Complete typed locations and exact identities of nominal types created
     /// by MIR transforms. HIR-owned object backing classes are excluded.
     pub generated_exact_types: GeneratedExactTypeIdentities,
+    /// Complete typed function locations for callable identities created by
+    /// MIR transforms. HIR-created callable identities remain in the source
+    /// callable materialization relation.
+    pub generated_callables: MirGeneratedCallableIdentities,
     /// Complete typed locations of LocalConcrete HIR callable
     /// materializations transposed into MIR. MIR-generated callables retain
     /// their identities in transform-owned metadata instead.

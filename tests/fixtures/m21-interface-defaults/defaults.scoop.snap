@@ -1112,6 +1112,7 @@ Module
   interface Iterator$V64
   interface Echo$I32
   generated_exact_type get0 location=class24 nominal_id=1391907dca71bc5733a9ed41e551a88d377d1e88e5d73c148f89010778867903 exact_id=2ea652e994029be75eb380ed2c66150d7e77e297a7a9a3c420911f1e0318bf8d
+  generated_callable gc0 function=@scoop.thunk.D37_$local$u0:p0:r6:structn11:HelperValueX.J34_$local$u0:p0:r9:interfacen6:HelperX.result id=eee592a4c353a85c7fcc9ae53568294eb25bd1db74371c6391993a176f85b7c1
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

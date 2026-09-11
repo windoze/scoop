@@ -1012,6 +1012,7 @@ Module
   interface Iterator$V64
   interface Exchange$I32
   generated_exact_type get0 location=class19 nominal_id=176232817bf506f5f46430f154c21ee977d67d5e4058b7982b2ce182cf1ca8ef exact_id=b03cc915d7e3b149ec13ba958ea0d82f3ed91157a8b20a6f9db81ecc714dc16a
+  generated_callable gc0 function=@scoop.thunk.D28_$local$u0:p0:r6:structn3:BoxAI32X.J36_$local$u0:p0:r9:interfacen8:ExchangeAI32X.current id=fcd2410b0bff6f16702854bba909593e1fc7f5dad08f9cd5c6a2c879d9c9aa45
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

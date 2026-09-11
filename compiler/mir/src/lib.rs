@@ -34,6 +34,9 @@ pub use source_exact_types::*;
 mod generated_exact_types;
 pub use generated_exact_types::*;
 
+mod generated_callables;
+pub use generated_callables::*;
+
 mod source_callable_materializations;
 pub use source_callable_materializations::*;
 

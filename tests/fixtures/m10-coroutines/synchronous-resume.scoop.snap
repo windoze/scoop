@@ -940,6 +940,12 @@ Module
   generated_exact_type get3 location=enum5 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
   generated_exact_type get4 location=enum8 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
   generated_exact_type get5 location=enum6 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
+  generated_callable gc0 function=@scoop.$local$u0:p0:C19:n15:SynchronousTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=50c971231d5ab913d42c0b964a2dd0ac2357c2d2db66a905ce824e45009eddd8
+  generated_callable gc1 function=@scoop.$local$u0:p0:C19:n15:SynchronousTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=531b0f7521bc7a5af159a69ded58e38d9770925669a5c244e9f62663dd9286d7
+  generated_callable gc2 function=@scoop.$local$u0:p0:C19:n15:SynchronousTaskr8:functionq8:ordinaryn3:run$suspend$drive id=5a680656f037823b58d3c5596121b779363790b9d55e51b51205b7c94ab2517f
+  generated_callable gc3 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc4 function=@scoop.coroutine.start$I32 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
+  generated_callable gc5 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

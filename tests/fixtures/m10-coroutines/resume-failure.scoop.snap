@@ -1023,6 +1023,15 @@ Module
   generated_exact_type get6 location=enum9 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
   generated_exact_type get7 location=enum7 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
   generated_exact_type get8 location=class24 nominal_id=e52078fa818ce8bd10557432799a64e4ddc7d5e095817f183538f0fdf4e12c10 exact_id=c8a242d612f239a88703ce5653a52b608d3a0fe91087149f5d63d01f211c797e
+  generated_callable gc0 function=@scoop.$local$u0:p0:C16:n12:UncaughtTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=1bb3da3f11cf4457de956632ec8606f09671e9f2cb060289262ec8c7f7e390e4
+  generated_callable gc1 function=@scoop.$local$u0:p0:C14:n10:CaughtTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=1f77e1eab23ea045173152952a2d3919835e1a14ef1d81a91de66fc2bdee7e0f
+  generated_callable gc2 function=@scoop.$local$u0:p0:C16:n12:UncaughtTaskr8:functionq8:ordinaryn3:run$suspend$drive id=53c2a9e4f468717a345e665e5457df7331a5f5116b70c5cc006247d4eec9dcf7
+  generated_callable gc3 function=@scoop.$local$u0:p0:C16:n12:UncaughtTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=73387c11ef3cd077ee29c15dfb72dc5db4afd46c4891016041aa127d8457efc2
+  generated_callable gc4 function=@scoop.$local$u0:p0:C14:n10:CaughtTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=93773521d0d76769bcbb5d3bef3568205a079c7a88fb515c411cafd1a7fa2eb4
+  generated_callable gc5 function=@scoop.$local$u0:p0:C14:n10:CaughtTaskr8:functionq8:ordinaryn3:run$suspend$drive id=94e6b1707c84a0a6ec5e6b1e14712dfe5f248326744cc0be950d7fea5f8f6b61
+  generated_callable gc6 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc7 function=@scoop.coroutine.start$I32 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
+  generated_callable gc8 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

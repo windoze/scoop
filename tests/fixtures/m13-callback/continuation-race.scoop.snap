@@ -1058,6 +1058,13 @@ Module
   generated_exact_type get4 location=enum11 nominal_id=143ebc9c69c7402f3aa85c7022f11dff8ea64f0c93681fa07fd0489f9c67d2b1 exact_id=c70b81a83286c2c750053228d3f3229c1b00575acb70d09b5342c1d6e92b6e7b
   generated_exact_type get5 location=class22 nominal_id=67e77d3d30588ff66244f1ade8f21a1729b459fce8dc0e1adfe3708313c3f0d4 exact_id=ccaae721bd8a26703b81446efbe36d47165f0db65b366c316c7c66a48c162e3d
   generated_exact_type get6 location=closure0 nominal_id=6ec6a01c8d642f1be6aa4bafaff3cd729156cf0768f0fc9cbf0c80e92922f4dc exact_id=eebdfd48c554b846aefa3165e3b9d0d6acd38b46a3891cd1891704c9b5540903
+  generated_callable gc0 function=@scoop_foreign_callback_adapter_0 id=27ccad906a095f0f74093b6b0980d5de8e24a6a146302d05f41592a23564441f
+  generated_callable gc1 function=@scoop.$local$u0:p0:C11:n8:RaceTaskr8:functionq8:ordinaryn3:run$suspend$drive id=32ad059ee9dfa90ca0feb088588e97e6f755013abbed672f9431c94cd9a205ad
+  generated_callable gc2 function=@scoop.$local$u0:p0:C11:n8:RaceTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=40457da431c4d794c6e0b5d01ccdea8286dbc6f8513b93cb870096dee037517e
+  generated_callable gc3 function=@scoop.$local$u0:p0:C11:n8:RaceTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=82c22e77686c9324d00e387e604b2782e214fc3d25e83889c82737160f1816ca
+  generated_callable gc4 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc5 function=@scoop.coroutine.start$I32 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
+  generated_callable gc6 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

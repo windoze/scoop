@@ -1261,6 +1261,22 @@ Module
   generated_exact_type get12 location=enum11 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
   generated_exact_type get13 location=enum10 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
   generated_exact_type get14 location=enum12 nominal_id=0a64a92067055bbf06a9f1dd0481fd91f119340b97f1501d7feccd45d9fecad9 exact_id=f834f773e44df304e1307ad0a06b8e78d5af56e78d767407c6d26e42f3f5c6d4
+  generated_callable gc0 function=@scoop.Continuation.resume$S id=0df5ed325cefcca39e055f179424c9584b72668a3f16fe4da07c71ac77cbab63
+  generated_callable gc1 function=@scoop.$local$u0:p0:C15:n11:AsyncNumberr8:functionq8:ordinaryn4:plus$C31_$local$u0:p0:r5:classn7:PayloadX$suspend$resume_exception$1 id=2f436a441ffdb0771d22b643a99a8454a538c0352bac51e3bb5b91eea5a7a09a
+  generated_callable gc2 function=@scoop.$local$u0:p0:C16:n12:OperatorTaskr8:functionq8:ordinaryn3:run$suspend$drive id=57c1c551f61d6b4b2527e08c3e68e6a6c20ed0ae8fc6f217d852c676e5026823
+  generated_callable gc3 function=@scoop.Continuation.resumeWithException$S id=5bddfe53c3d364e657068d28f60d555e24cc6a321c5f1e840beecdd83e28b347
+  generated_callable gc4 function=@scoop.$local$u0:p0:C16:n12:OperatorTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=6562f927916271101e498fcabf3f8d14dca0fa6c110db5ca18fa61cf1401edcf
+  generated_callable gc5 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn13:awaitOperator$suspend$resume$1 id=69ccdb5fbeb3e8934e92298e4beae68381bc757ea7c776df7b2b21961587e5c2
+  generated_callable gc6 function=@scoop.Continuation.resume$C36_$local$u0:p0:r5:classn11:AsyncNumberAC31_$local$u0:p0:r5:classn7:PayloadXX id=6bb6cfd701617a8e88024737c4639b73f61f7348dc9683c3f684b89368ef8987
+  generated_callable gc7 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn13:awaitOperator$suspend$resume_exception$1 id=706e9914b3457bfb0b4e42f6041aa16a561f6a96cbf10662a01b7f9579ff062e
+  generated_callable gc8 function=@scoop.coroutine.start$S id=a60abafa280ed75bdb296e4365e537ff770ec8c0778bb8ee5fdff6d61d9219cd
+  generated_callable gc9 function=@scoop.$local$u0:p0:C15:n11:AsyncNumberr8:functionq8:ordinaryn4:plus$C31_$local$u0:p0:r5:classn7:PayloadX$suspend$drive id=af4e878ee5cbbc78fe03bb927e990874bd1a790f71bf0c296b08aef57ad7e2e5
+  generated_callable gc10 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc11 function=@scoop.$local$u0:p0:C15:n11:AsyncNumberr8:functionq8:ordinaryn4:plus$C31_$local$u0:p0:r5:classn7:PayloadX$suspend$resume$1 id=b1544f71886186cb5a7bd85e0e4a2b93cee984a22870e2df4b518e462cc19bd5
+  generated_callable gc12 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
+  generated_callable gc13 function=@scoop.Continuation.resumeWithException$C36_$local$u0:p0:r5:classn11:AsyncNumberAC31_$local$u0:p0:r5:classn7:PayloadXX id=bf0f679dd9d4f769605c116f17e8167f49b36b58ef4a8dbdc360459052129938
+  generated_callable gc14 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn13:awaitOperator$suspend$drive id=ca056ddef0636bd516d2b6b95571a47fd4227580c36b7e3dd1ad2c6c0006d1c8
+  generated_callable gc15 function=@scoop.$local$u0:p0:C16:n12:OperatorTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=f2d5aca838a4665f150841f96f9f090302230db3b743812f419a10deed30c1e9
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

@@ -249,6 +249,13 @@ pub fn dump(module: &Module) -> String {
             identity.exact_record().id(),
         ));
     }
+    for (index, identity) in module.meta.generated_callables.iter().enumerate() {
+        out.push_str(&format!(
+            "  generated_callable gc{index} function=@{} id={}\n",
+            module.functions[identity.function()].symbol,
+            identity.identity_record().id(),
+        ));
+    }
     for (id, adapter) in module.meta.closure_adapters.iter() {
         out.push_str(&format!(
             "  adapter ca{} class=cc{} source=function_type{} target=function_type{}\n",

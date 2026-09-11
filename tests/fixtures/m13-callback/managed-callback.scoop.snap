@@ -1507,6 +1507,10 @@ Module
   generated_exact_type get1 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
   generated_exact_type get2 location=closure2 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
   generated_exact_type get3 location=closure3 nominal_id=1deda9c5206c86341ad96950b3fded3fffec9512dcd6ac8e399fe82c95a9e3a0 exact_id=eb2d41bca85af9d3d2b2cd551229aaac44e4348e1daa017bf059a115a8bbab71
+  generated_callable gc0 function=@scoop_foreign_callback_adapter_3 id=0fa53278d62f5be77f230da0c664dd330c2d78e2b5a9eaeed07eed24b070d956
+  generated_callable gc1 function=@scoop_foreign_callback_adapter_2 id=4e24b68e0844ac9d128acdfd2191ee274608d1cd9d7a61ebe32e67c1daa2ae33
+  generated_callable gc2 function=@scoop_foreign_callback_adapter_1 id=77a3bfa27ad96808dd9acbeb542e4d087e6b190ecf5980abb143ee927e3a6638
+  generated_callable gc3 function=@scoop_foreign_callback_adapter_0 id=b45555702850bd4adec62682182b2c5c80188c28dca142a0146d9ab932d171c4
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

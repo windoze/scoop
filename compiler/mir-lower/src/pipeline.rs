@@ -260,7 +260,7 @@ impl Lowerer {
             .collect();
         let generated_exact_types = self.generated_exact_types(&boxed_types);
         let option_core = self.enums.all_option_core(module);
-        mir::Module {
+        let mut output = mir::Module {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
@@ -308,7 +308,9 @@ impl Lowerer {
                 boxing_adjusts: self.boxing_adjusts,
                 ..mir::MirMeta::default()
             },
-        }
+        };
+        output.meta.generated_callables = generated_callables(&output);
+        output
     }
 
     fn generated_exact_types(
@@ -375,4 +377,67 @@ impl Lowerer {
         mir::GeneratedExactTypeIdentities::checked(entries)
             .expect("MIR-generated nominal locations and identities are globally unique")
     }
+}
+
+fn generated_callables(module: &mir::Module) -> mir::MirGeneratedCallableIdentities {
+    let mut entries = Vec::new();
+    let mut register = |function, identity| {
+        entries.push(mir::MirGeneratedCallableIdentity::new(function, identity));
+    };
+
+    for (_, bridge) in module.callback_bridges.iter() {
+        register(bridge.bridge_function, bridge.identity().callable_record());
+    }
+    for (_, adapter) in module.foreign_callback_adapters.iter() {
+        register(adapter.function, adapter.identity_record());
+    }
+    for (_, adapter) in module.meta.closure_adapters.iter() {
+        register(
+            closure_invoke_function(module, adapter.class()),
+            adapter.identity().callable_record(),
+        );
+    }
+    for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        register(
+            closure_invoke_function(module, adapter.class()),
+            adapter.identity().callable_record(),
+        );
+    }
+    for bridge in &module.meta.function_bridges {
+        register(bridge.function(), bridge.identity().callable_record());
+    }
+    for (_, coroutine) in module.meta.coroutine_functions.iter() {
+        if let mir::CoroutineLowering::StateMachine {
+            driver,
+            driver_identity,
+            ..
+        } = &coroutine.lowering
+        {
+            register(*driver, driver_identity.callable_record());
+        }
+    }
+    for shell in &module.meta.continuation_shells {
+        register(shell.success(), shell.identity().success_callable_record());
+        register(shell.failure(), shell.identity().failure_callable_record());
+    }
+    for start in &module.meta.coroutine_starts {
+        register(start.function(), start.identity().callable_record());
+    }
+    for (_, point) in module.meta.coroutine_resume_points.iter() {
+        register(point.resume(), point.identity().success().callable_record());
+        register(
+            point.resume_with_exception(),
+            point.identity().failure().callable_record(),
+        );
+    }
+    for adjust in &module.meta.boxing_adjusts {
+        register(adjust.function(), adjust.identity().callable_record());
+    }
+
+    mir::MirGeneratedCallableIdentities::checked(entries)
+        .expect("MIR-generated callable functions and identities are globally unique")
+}
+
+fn closure_invoke_function(module: &mir::Module, class: mir::ClosureClassId) -> mir::FunctionId {
+    module.closure_invoke_functions[module.closure_classes[class].invoke].function
 }

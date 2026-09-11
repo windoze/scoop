@@ -318,6 +318,7 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
         .unwrap(),
     );
     install_generated_exact_types(&mut module);
+    install_generated_callables(&mut module);
     assert_eq!(module.validate(), Ok(()));
 
     module.functions[success].return_ty = Type::Boolean;

@@ -997,6 +997,15 @@ Module
   generated_exact_type get6 location=enum9 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
   generated_exact_type get7 location=enum7 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
   generated_exact_type get8 location=class23 nominal_id=1d29272d34fe101c64e3e923abfbb2c316645e3c4249e27d9ca021aebb119b93 exact_id=d4ddc9249e37af36d9d4ee075aa01e0153da8e90282a3482bf3c4033a247d656
+  generated_callable gc0 function=@scoop.$local$u0:p0:C20:n16:ConstructionTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=2bba99067b9ed89ee172d0cc787a64d6bec8a35623522a33b280cdd4f27ac961
+  generated_callable gc1 function=@scoop.$local$u0:p0:C20:n16:ConstructionTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=6e44e4d0988b4b3396469ae9690f1a78e804c96117c0540f27b4de8c2956bc09
+  generated_callable gc2 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn10:awaitValue$suspend$resume_exception$1 id=781249ef52107ccafe90856dc75775271b0c02e22c03d561fbff82ee0a1e801b
+  generated_callable gc3 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn10:awaitValue$suspend$drive id=8e55683103354c6aed860be3e2c09803fe9c8838fb80e705c4f5fb24a69b1d8a
+  generated_callable gc4 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc5 function=@scoop.coroutine.start$I32 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
+  generated_callable gc6 function=@scoop.$local$u0:p0:C20:n16:ConstructionTaskr8:functionq8:ordinaryn3:run$suspend$drive id=b15837aff04bba8a8c8a6af39bd30c0efeedcaa70424273f230e469529d791e1
+  generated_callable gc7 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
+  generated_callable gc8 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn10:awaitValue$suspend$resume$1 id=eb02b5c24c02e17a971dad3f441ca0d64cb46595a8a6032378404cbe2d1b4161
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

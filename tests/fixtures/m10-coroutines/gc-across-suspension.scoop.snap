@@ -1190,6 +1190,18 @@ Module
   generated_exact_type get12 location=enum14 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
   generated_exact_type get13 location=enum13 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
   generated_exact_type get14 location=class23 nominal_id=ab0918656989aefe903510cf3b274e3042b5e5dc8b8c33caeec5c0c66858aa94 exact_id=da082b2459e3ab61268d09a583787fdc8066fda72200322ea4d2033e419fe439
+  generated_callable gc0 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn7:deepest$suspend$resume$1 id=343507a70cfcb347afa2dc1ac78551b6cb1c8950c93d00b0aead024327b3a4ab
+  generated_callable gc1 function=@scoop.$local$u0:p0:C9:n6:GcTaskr8:functionq8:ordinaryn3:run$suspend$drive id=594ca2e314f40eaa1cd9e5cc3e785135df8ff656c9be902fa1c31017f9a4c5f4
+  generated_callable gc2 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn6:middle$suspend$resume_exception$1 id=641199e9133328c84bc5cb1804c43d40d94ada30fd85686b6f5a4082b2e03375
+  generated_callable gc3 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn7:deepest$suspend$drive id=7db280a645cd7deb4d4b6661ddb891814480cb12f9e56c54c02ee0b23611eee5
+  generated_callable gc4 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn6:middle$suspend$resume$1 id=a0e7ce53006f3ff2fc93d51207c3f10ca0b62b80944f6a156d567ea3ff22f4f7
+  generated_callable gc5 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn7:deepest$suspend$resume_exception$1 id=a7b18fd51bd72524b8d48c25bc243be45936367f1d3ea055d8f6d32f2325436b
+  generated_callable gc6 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc7 function=@scoop.coroutine.start$I32 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
+  generated_callable gc8 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
+  generated_callable gc9 function=@scoop.$local$u0:p0:C9:n6:GcTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=b26091db8ee6d40a8d70aa424664f686c2b76cb9b853a17ba9abf250b14f5d6d
+  generated_callable gc10 function=@scoop.$local$u0:p0:C9:n6:GcTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=f6e96bf907a5de6318b487dcf78146b7fe5149bd01840f19e8d383b66ff34da5
+  generated_callable gc11 function=@scoop.$local$u0:p0:r8:functionq8:ordinaryn6:middle$suspend$drive id=fbad164aea4a730ca691e75715c630a6e7c0346479a87898bfc314f3533ca2af
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

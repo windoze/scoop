@@ -135,6 +135,64 @@ fn install_generated_exact_types(module: &mut Module) {
     module.meta.generated_exact_types = GeneratedExactTypeIdentities::checked(entries).unwrap();
 }
 
+fn install_generated_callables(module: &mut Module) {
+    let mut entries = Vec::new();
+    let mut register = |function, identity| {
+        entries.push(MirGeneratedCallableIdentity::new(function, identity));
+    };
+    for (_, bridge) in module.callback_bridges.iter() {
+        register(bridge.bridge_function, bridge.identity().callable_record());
+    }
+    for (_, adapter) in module.foreign_callback_adapters.iter() {
+        register(adapter.function, adapter.identity_record());
+    }
+    for (_, adapter) in module.meta.closure_adapters.iter() {
+        let class = &module.closure_classes[adapter.class()];
+        register(
+            module.closure_invoke_functions[class.invoke].function,
+            adapter.identity().callable_record(),
+        );
+    }
+    for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        let class = &module.closure_classes[adapter.class()];
+        register(
+            module.closure_invoke_functions[class.invoke].function,
+            adapter.identity().callable_record(),
+        );
+    }
+    for bridge in &module.meta.function_bridges {
+        register(bridge.function(), bridge.identity().callable_record());
+    }
+    for (_, coroutine) in module.meta.coroutine_functions.iter() {
+        if let CoroutineLowering::StateMachine {
+            driver,
+            driver_identity,
+            ..
+        } = &coroutine.lowering
+        {
+            register(*driver, driver_identity.callable_record());
+        }
+    }
+    for shell in &module.meta.continuation_shells {
+        register(shell.success(), shell.identity().success_callable_record());
+        register(shell.failure(), shell.identity().failure_callable_record());
+    }
+    for start in &module.meta.coroutine_starts {
+        register(start.function(), start.identity().callable_record());
+    }
+    for (_, point) in module.meta.coroutine_resume_points.iter() {
+        register(point.resume(), point.identity().success().callable_record());
+        register(
+            point.resume_with_exception(),
+            point.identity().failure().callable_record(),
+        );
+    }
+    for adjust in &module.meta.boxing_adjusts {
+        register(adjust.function(), adjust.identity().callable_record());
+    }
+    module.meta.generated_callables = MirGeneratedCallableIdentities::checked(entries).unwrap();
+}
+
 fn register_test_exact_type(module: &mut Module, ty: &Type) {
     if let Some(found) = module.meta.source_exact_types.get(ty) {
         assert_eq!(found.identity_record().id(), test_exact_type(ty).id());
