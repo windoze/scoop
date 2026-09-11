@@ -47,7 +47,7 @@ fn module_with_source_closure() -> Module {
     module_with_source_closure_fields(0).0
 }
 
-fn module_with_source_closure_fields(field_count: u32) -> (Module, ClosureClassId) {
+pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, ClosureClassId) {
     let (mut module, _) = module_with_variants(Vec::new());
     let callable = lambda_materialization();
     module.meta.source_callable_materializations =

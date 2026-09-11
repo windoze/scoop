@@ -171,6 +171,112 @@ fn checked_function_cast_keeps_its_complete_dynamic_adapter_identity() {
     );
 }
 
+#[test]
+fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
+    let mut h = Harness::new();
+    h.exception("ClassCastException");
+    let unit = h.unit;
+    let int = h.int;
+    let any = h.any();
+    let source_type = function_type(&mut h, vec![any], unit);
+    let target_type = function_type(&mut h, vec![int], unit);
+
+    let mut target_locals = Arena::new();
+    let value = target_locals.alloc(local("value", any));
+    let target = h.user_fn_full(
+        "consumeAny",
+        Vec::new(),
+        vec![param("value", any, value)],
+        unit,
+        hir::Body {
+            locals: target_locals,
+            statements: Vec::new(),
+        },
+    );
+    let main = empty_main(&mut h);
+    let executable = h.finish(main);
+    let entry = executable.entry();
+    let mut source = executable.into_module();
+    let reference = source.callable_references.alloc(hir::CallableReference {
+        definition_root: hir::LexicalDefinitionRoot::Function(main),
+        definition_path: scoop_identity::StructuralDefinitionPath::from_first(
+            scoop_identity::StructuralPathSegment::new(
+                scoop_identity::StructuralDefinitionSiteRole::CallableConversion,
+                0,
+            ),
+            [],
+        ),
+        target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target)),
+        function_type: source_type.0,
+        owner_type_param_count: 0,
+        captures: Vec::new(),
+        span: SPAN,
+    });
+    let coercion = source.function_coercions.alloc(hir::FunctionCoercion {
+        source: source_type.0,
+        target: target_type.0,
+    });
+    let hir::FunctionKind::User(body) = &mut source.functions[main].kind else {
+        panic!("main is a user function")
+    };
+    let adapted = body.locals.alloc(local("adapted", target_type.1));
+    body.statements.push(val_decl(
+        adapted,
+        expr(
+            hir::ExprKind::FunctionCoercion {
+                source: Box::new(expr(
+                    hir::ExprKind::CallableReference(reference),
+                    source_type.1,
+                )),
+                coercion,
+                target_type: target_type.0,
+            },
+            target_type.1,
+        ),
+    ));
+    let erased = body.locals.alloc(local("erased", any));
+    let checked = body.locals.alloc(local("checked", target_type.1));
+    body.statements.push(val_decl(
+        checked,
+        expr(
+            hir::ExprKind::Cast {
+                operand: Box::new(local_ref(erased, any)),
+                optional: false,
+            },
+            target_type.1,
+        ),
+    ));
+
+    let export = legacy_executable(source, entry);
+    let concrete = scoop_hir_lower::concretize_legacy_export(&export);
+    let module = super::super::lower(&concrete);
+    let bridge = module
+        .meta
+        .function_bridges
+        .first()
+        .expect("the signature-changing source closure creates one bridge");
+    assert_eq!(module.meta.function_bridges.len(), 1);
+    let environment = module
+        .meta
+        .closure_environments
+        .iter()
+        .find(|environment| environment.class() == bridge.class())
+        .expect("the bridge belongs to the callable-reference environment");
+    assert_eq!(
+        bridge.identity().environment_record(),
+        environment.identity().generated_type_record()
+    );
+    assert!(matches!(
+        bridge.identity().callable_record().key(),
+        scoop_identity::GeneratedCallableKey::FunctionBridge {
+            environment: found,
+            target,
+        } if *found == environment.identity().generated_type_record().id()
+            && target == bridge.identity().signature_record().signature()
+    ));
+    assert_eq!(module.validate(), Ok(()));
+}
+
 fn function_type(
     harness: &mut Harness,
     parameters: Vec<hir::TypeId>,

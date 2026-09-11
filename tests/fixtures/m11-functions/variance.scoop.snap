@@ -1308,43 +1308,43 @@ Module
   interface Iterable$V64
   interface Iterator$V64
   closure cc0 $Closure$reference0 type=function_type2 invoke=@scoop.$reference.0 captures=0
-    bridge function_type1 -> @scoop.function_bridge.$Closure$reference0.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference0.FI32RAnyX id=b4582e48b79c83af8a3d001a900b618129b6c857e1035626238f69951d8f15db
     bridge function_type2 -> @scoop.$reference.0
   closure cc1 $Closure$reference1 type=function_type2 invoke=@scoop.$reference.1 captures=0
-    bridge function_type1 -> @scoop.function_bridge.$Closure$reference1.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference1.FI32RAnyX id=81fed0caecaff2a2cb34f69960a3d2b0cc22860ecf3b09b5d96fbcb172828bbd
     bridge function_type2 -> @scoop.$reference.1
   closure cc2 $Closure$reference2 type=function_type3 invoke=@scoop.$reference.2 captures=0
   closure cc3 $Closure$reference3 type=function_type2 invoke=@scoop.$reference.3 captures=0
-    bridge function_type1 -> @scoop.function_bridge.$Closure$reference3.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference3.FI32RAnyX id=293e22d9b1afa6daa656a7615bdc16e45cb246fccfe6dd8eca0f55a0a0c3b1e9
     bridge function_type2 -> @scoop.$reference.3
   closure cc4 $Closure$reference4 type=function_type0 invoke=@scoop.$reference.4 captures=0
-    bridge function_type1 -> @scoop.function_bridge.$Closure$reference4.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference4.FI32RAnyX id=55d18337a3b9a465923687bf7679f3b2779cc2e9ebf7eaaa41f9d68444afc78b
     bridge function_type0 -> @scoop.$reference.4
   closure cc5 $Closure$reference5 type=function_type6 invoke=@scoop.$reference.5 captures=0
-    bridge function_type1 -> @scoop.function_bridge.$Closure$reference5.FI32RAnyX
-    bridge function_type7 -> @scoop.function_bridge.$Closure$reference5.FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference5.FI32RAnyX id=755c4c498ff6e2de22fdb8de366acd573c58956470a2164f6381e6171346408f
+    bridge function_type7 -> @scoop.function_bridge.$Closure$reference5.FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX id=ee022d0d78032a467e0a2969409db8cca92cb346b8536ee0d9de1427ecba5585
   closure cc6 $Closure$reference6 type=function_type8 invoke=@scoop.$reference.6 captures=0
-    bridge function_type9 -> @scoop.function_bridge.$Closure$reference6.FFAnyRI32XRFI32RAnyXX
+    bridge function_type9 -> @scoop.function_bridge.$Closure$reference6.FFAnyRI32XRFI32RAnyXX id=d0b9b8bef4acb1c84f6c321ca1b2435335af7e005290f1c68064987d8687949c
   closure cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX type=function_type1 invoke=@scoop.$adapter.FAnyRI32X.FI32RAnyX captures=1
     bridge function_type1 -> @scoop.$adapter.FAnyRI32X.FI32RAnyX
   closure cc8 $Closure$adapter$FC30_$local$u0:p0:r5:classn6:AnimalXRC27_$local$u0:p0:r5:classn3:DogXX$FC27_$local$u0:p0:r5:classn3:DogXRC30_$local$u0:p0:r5:classn6:AnimalXX type=function_type4 invoke=@scoop.$adapter.FC30_$local$u0:p0:r5:classn6:AnimalXRC27_$local$u0:p0:r5:classn3:DogXX.FC27_$local$u0:p0:r5:classn3:DogXRC30_$local$u0:p0:r5:classn6:AnimalXX captures=1
   closure cc9 $Closure$adapter$FAnyRD30_$local$u0:p0:r6:structn5:LabelXX$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX type=function_type7 invoke=@scoop.$adapter.FAnyRD30_$local$u0:p0:r6:structn5:LabelXX.FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX captures=1
-    bridge function_type1 -> @scoop.function_bridge.$Closure$adapter$FAnyRD30_$local$u0:p0:r6:structn5:LabelXX$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$adapter$FAnyRD30_$local$u0:p0:r6:structn5:LabelXX$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX.FI32RAnyX id=f0915287d7613a982ceb00fd158de32af40d9a83c98f6e770b2ea93781dd8f7a
     bridge function_type7 -> @scoop.$adapter.FAnyRD30_$local$u0:p0:r6:structn5:LabelXX.FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX
   closure cc10 $Closure$adapter$FFI32RAnyXRFAnyRI32XX$FFAnyRI32XRFI32RAnyXX type=function_type9 invoke=@scoop.$adapter.FFI32RAnyXRFAnyRI32XX.FFAnyRI32XRFI32RAnyXX captures=1
     bridge function_type9 -> @scoop.$adapter.FFI32RAnyXRFAnyRI32XX.FFAnyRI32XRFI32RAnyXX
   closure cc11 $Closure$dynamic_adapter$FI32RAnyX type=function_type1 invoke=@scoop.$dynamic_adapter.FI32RAnyX captures=1
     bridge function_type1 -> @scoop.$dynamic_adapter.FI32RAnyX
   closure cc12 $Closure$dynamic_adapter$FAnyRI32X type=function_type2 invoke=@scoop.$dynamic_adapter.FAnyRI32X captures=1
-    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRI32X.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRI32X.FI32RAnyX id=f7b3cf4d88cefe497e6b33d2974ac5508c84e37b70a437c9dd03c2157755b848
     bridge function_type2 -> @scoop.$dynamic_adapter.FAnyRI32X
   closure cc13 $Closure$dynamic_adapter$FAnyRSX type=function_type0 invoke=@scoop.$dynamic_adapter.FAnyRSX captures=1
-    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FI32RAnyX id=b588ce5634df5cf9faec31a7b4e6e1deda7008d3c4e5f64e25f2a1616bf9d55d
     bridge function_type0 -> @scoop.$dynamic_adapter.FAnyRSX
   closure cc14 $Closure$dynamic_adapter$FFAnyRI32XRFI32RAnyXX type=function_type9 invoke=@scoop.$dynamic_adapter.FFAnyRI32XRFI32RAnyXX captures=1
     bridge function_type9 -> @scoop.$dynamic_adapter.FFAnyRI32XRFI32RAnyXX
   closure cc15 $Closure$dynamic_adapter$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX type=function_type7 invoke=@scoop.$dynamic_adapter.FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX captures=1
-    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX.FI32RAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX.FI32RAnyX id=64d64ed6875e91f34fa2265e057351896a7f852a94c63c39c35850af1628c469
     bridge function_type7 -> @scoop.$dynamic_adapter.FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX
   closure cc16 $Closure$adapter$FAnyRSX$FSRAnyX type=function_type5 invoke=@scoop.$adapter.FAnyRSX.FSRAnyX captures=1
   adapter ca0 class=cc7 source=function_type2 target=function_type1

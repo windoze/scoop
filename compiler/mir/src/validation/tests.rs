@@ -5,6 +5,7 @@ mod callbacks;
 mod closure_environments;
 mod constants;
 mod coroutines;
+mod function_bridges;
 mod metadata;
 
 fn nominal_link_stem() -> NominalLinkStem {

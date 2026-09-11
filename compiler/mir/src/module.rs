@@ -601,6 +601,9 @@ pub struct MirMeta {
     /// Persistent generated-type and physical field identities for every
     /// source lambda, anonymous function, and callable-reference closure.
     pub closure_environments: Vec<ClosureEnvironment>,
+    /// Persistent callable identities for generated, signature-changing
+    /// closure dispatch entries. Direct source-invoke entries are excluded.
+    pub function_bridges: Vec<FunctionBridgeMaterialization>,
     /// Concrete callable materializations in creation order. Every entry
     /// carries the persistent HIR identity used across stage boundaries.
     pub instances: Arena<MonomorphizedFunction>,

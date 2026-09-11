@@ -211,10 +211,22 @@ pub fn dump(module: &Module) -> String {
             def.captures.len()
         ));
         for bridge in &def.bridges {
+            let generated = module
+                .meta
+                .function_bridges
+                .iter()
+                .find(|generated| {
+                    generated.class() == id
+                        && generated.target() == bridge.target
+                        && generated.function() == bridge.function
+                })
+                .map(|generated| format!(" id={}", generated.identity().callable_record().id()))
+                .unwrap_or_default();
             out.push_str(&format!(
-                "    bridge function_type{} -> @{}\n",
+                "    bridge function_type{} -> @{}{}\n",
                 bridge.target.into_raw().into_u32(),
-                module.functions[bridge.function].symbol
+                module.functions[bridge.function].symbol,
+                generated,
             ));
         }
     }

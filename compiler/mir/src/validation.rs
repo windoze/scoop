@@ -7,6 +7,8 @@ mod callbacks;
 use callbacks::validate_foreign_callback_metadata;
 mod function_adapters;
 use function_adapters::validate_function_adapter_metadata;
+mod function_bridges;
+use function_bridges::validate_function_bridge_metadata;
 mod closure_environments;
 use closure_environments::validate_closure_environment_metadata;
 mod boxed_values;
@@ -63,6 +65,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidFunctionAdapter {
+        reason: &'static str,
+    },
+    InvalidFunctionBridge {
         reason: &'static str,
     },
     InvalidClosureEnvironment {
@@ -203,6 +208,9 @@ pub enum MirValidationLocation {
     DynamicFunctionAdapter {
         adapter: DynamicClosureAdapterId,
     },
+    FunctionBridge {
+        bridge: u32,
+    },
     ClosureEnvironment {
         environment: u32,
     },
@@ -308,6 +316,9 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR dynamic function adapter {}: ",
                 adapter.into_raw().into_u32()
             )?,
+            MirValidationLocation::FunctionBridge { bridge } => {
+                write!(formatter, "invalid MIR function bridge {bridge}: ")?
+            }
             MirValidationLocation::ClosureEnvironment { environment } => {
                 write!(formatter, "invalid MIR closure environment {environment}: ")?
             }
@@ -360,6 +371,7 @@ impl std::fmt::Display for MirValidationError {
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
             | MirValidationErrorKind::InvalidForeignCallbackExpression { reason }
             | MirValidationErrorKind::InvalidFunctionAdapter { reason }
+            | MirValidationErrorKind::InvalidFunctionBridge { reason }
             | MirValidationErrorKind::InvalidClosureEnvironment { reason }
             | MirValidationErrorKind::InvalidClosureExpression { reason }
             | MirValidationErrorKind::InvalidBoxedValue { reason }
@@ -556,6 +568,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_foreign_callback_metadata(module)?;
     validate_closure_environment_metadata(module)?;
     validate_function_adapter_metadata(module)?;
+    validate_function_bridge_metadata(module)?;
     validate_boxed_value_metadata(module)?;
     validate_boxing_adjust_metadata(module)?;
     validate_constant_images(module)?;

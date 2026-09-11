@@ -193,6 +193,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         closure_capture_indices: HashMap::new(),
         closure_receiver_indices: HashMap::new(),
         closure_environments: Vec::new(),
+        function_bridges: Vec::new(),
         closure_adapters: Arena::new(),
         closure_adapter_by_types: HashMap::new(),
         dynamic_closure_adapters: Arena::new(),
@@ -282,6 +283,8 @@ struct Lowerer {
     closure_receiver_indices: HashMap<mir::ClosureClassId, u32>,
     /// Persistent generated type and field identities for source closures.
     closure_environments: Vec<mir::ClosureEnvironment>,
+    /// Persistent identities for generated closure forwarding entries.
+    function_bridges: Vec<mir::FunctionBridgeMaterialization>,
     closure_adapters: Arena<mir::ClosureAdapter>,
     closure_adapter_by_types:
         HashMap<(mir::FunctionTypeId, mir::FunctionTypeId), mir::ClosureAdapterId>,

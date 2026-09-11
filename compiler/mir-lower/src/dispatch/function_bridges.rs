@@ -17,15 +17,29 @@ impl Lowerer {
                 {
                     continue;
                 }
-                let function = if source == target {
+                let (function, identity) = if source == target {
                     let invoke = self.closure_classes[class].invoke;
-                    self.closure_invokes[invoke].function
+                    (self.closure_invokes[invoke].function, None)
                 } else {
-                    self.build_function_bridge(module, class, source, target)
+                    let (function, identity) =
+                        self.build_function_bridge(module, class, source, target);
+                    (function, Some(identity))
                 };
                 self.closure_classes[class]
                     .bridges
                     .push(mir::FunctionBridge { target, function });
+                if let Some(identity) = identity {
+                    self.function_bridges.push(
+                        mir::FunctionBridgeMaterialization::checked(
+                            class,
+                            &self.closure_classes[class],
+                            target,
+                            function,
+                            identity,
+                        )
+                        .expect("a generated function bridge has one physical dispatch entry"),
+                    );
+                }
                 self.finalized_function_bridges.insert((class, target));
                 added = true;
             }
@@ -39,7 +53,7 @@ impl Lowerer {
         class: mir::ClosureClassId,
         source: mir::FunctionTypeId,
         target: mir::FunctionTypeId,
-    ) -> mir::FunctionId {
+    ) -> (mir::FunctionId, mir::FunctionBridgeIdentity) {
         let source_signature = self.shell.function_types[source].clone();
         let target_signature = self.shell.function_types[target].clone();
         let (source_identity, _) = exact_function_identity(module, source);
@@ -147,6 +161,88 @@ impl Lowerer {
                 instance: None,
             });
         }
-        function
+        let identity = self.function_bridge_identity(module, class, target_identity);
+        (function, identity)
     }
+
+    fn function_bridge_identity(
+        &self,
+        module: &hir::Module,
+        class: mir::ClosureClassId,
+        target: hir::ExactCallableSignature,
+    ) -> mir::FunctionBridgeIdentity {
+        if let Some(environment) = self
+            .closure_environments
+            .iter()
+            .find(|environment| environment.class() == class)
+        {
+            let odr_group = match environment.identity().callable().context() {
+                hir::CallableMaterializationContext::NoSubstitution => None,
+                hir::CallableMaterializationContext::Application(application) => Some(
+                    module
+                        .callable_applications
+                        .odr(application)
+                        .expect("a closure materialization references its callable application")
+                        .group(),
+                ),
+                hir::CallableMaterializationContext::InitializationApplication(unit) => {
+                    Some(delegated_property_group(module, unit))
+                }
+            };
+            return mir::FunctionBridgeIdentity::new(
+                environment.identity().generated_type_record(),
+                target,
+                odr_group,
+            )
+            .expect("a concrete source closure environment has one materialization root");
+        }
+        if let Some((_, adapter)) = self
+            .closure_adapters
+            .iter()
+            .find(|(_, adapter)| adapter.class() == class)
+        {
+            return mir::FunctionBridgeIdentity::new(
+                adapter.identity().environment_record(),
+                target,
+                Some(adapter.identity().odr_group_record().id()),
+            )
+            .expect("a static function adapter environment has one structural root");
+        }
+        if let Some((_, adapter)) = self
+            .dynamic_closure_adapters
+            .iter()
+            .find(|(_, adapter)| adapter.class() == class)
+        {
+            return mir::FunctionBridgeIdentity::new(
+                adapter.identity().environment_record(),
+                target,
+                Some(adapter.identity().odr_group_record().id()),
+            )
+            .expect("a dynamic function adapter environment has one structural root");
+        }
+        unreachable!("every closure class has a persistent environment identity")
+    }
+}
+
+fn delegated_property_group(
+    module: &hir::Module,
+    unit: hir::PersistentInitializationUnitId,
+) -> hir::OdrGroupId {
+    let unit = module
+        .initialization_units
+        .iter()
+        .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
+        .expect("a closure materialization references its initialization unit");
+    let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
+        property,
+        receiver_arguments,
+    } = unit.identity.key()
+    else {
+        panic!("an initialization closure belongs to a generic delegated extension")
+    };
+    hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
+        origin: *property,
+        receiver_arguments: receiver_arguments.clone(),
+    })
+    .expect("a delegated-property ODR group identity is hashable")
 }

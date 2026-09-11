@@ -1871,9 +1871,9 @@ Module
   closure cc27 $Closure$reference0 type=function_type1 invoke=@scoop.$reference.0$suspend captures=1
     bridge function_type1 -> @scoop.$reference.0$suspend
   closure cc28 $Closure$reference1 type=function_type2 invoke=@scoop.$reference.1$suspend captures=0
-    bridge function_type3 -> @scoop.function_bridge.$Closure$reference1.SI32RAnyX$suspend
+    bridge function_type3 -> @scoop.function_bridge.$Closure$reference1.SI32RAnyX$suspend id=af64efa653039a7fd9dcadca3cd2c4b8a4a2e90cb9e9a07d46164e1324de039f
   closure cc29 $Closure$reference2 type=function_type2 invoke=@scoop.$reference.2$suspend captures=0
-    bridge function_type3 -> @scoop.function_bridge.$Closure$reference2.SI32RAnyX$suspend
+    bridge function_type3 -> @scoop.function_bridge.$Closure$reference2.SI32RAnyX$suspend id=a976f05e9052e23ecb6ae582490c3f1fed9c59062abd403ec4ce4cdab91a9dcf
   closure cc30 $Closure$reference3 type=function_type1 invoke=@scoop.$reference.3$suspend captures=0
     bridge function_type1 -> @scoop.$reference.3$suspend
   closure cc31 $Closure$reference4 type=function_type1 invoke=@scoop.$reference.4$suspend captures=1
