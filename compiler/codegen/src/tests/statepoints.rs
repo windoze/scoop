@@ -208,6 +208,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         },
     });
     let safe = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "safe_root".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -258,6 +259,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         },
     });
     let borrowed_function = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "borrowed_result".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -370,6 +372,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
             gc_effect: GcEffect::Managed,
             symbol: "continuation_atomics".to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], state_ty),

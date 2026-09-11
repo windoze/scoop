@@ -27,6 +27,7 @@ fn aggregate_identity(symbol: &str, gc_effect: GcEffect) -> Function {
         },
     });
     Function {
+        callable_body: callable_body(symbol),
         symbol: symbol.to_string(),
         gc_effect,
         signature: aggregate_signature(),
@@ -113,6 +114,7 @@ fn ordinary_caller(symbol: &str, gc_effect: GcEffect, protocol: TestCallProtocol
         terminator: Terminator::Return { value: None },
     });
     Function {
+        callable_body: callable_body(symbol),
         symbol: symbol.to_string(),
         gc_effect,
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -182,6 +184,7 @@ fn invoke_caller() -> Function {
         terminator: Terminator::Br(normal),
     };
     Function {
+        callable_body: callable_body("scoop.aggregate_invoke_caller"),
         symbol: "scoop.aggregate_invoke_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -223,6 +226,7 @@ fn aggregate_dispatch_caller() -> Function {
         terminator: Terminator::Return { value: None },
     });
     Function {
+        callable_body: callable_body("scoop.aggregate_dispatch_caller"),
         symbol: "scoop.aggregate_dispatch_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![METADATA_PTR], LirType::Void),
@@ -382,6 +386,7 @@ fn native_aggregate_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let caller = Function {
+        callable_body: callable_body("scoop.native_aggregate_caller"),
         symbol: "scoop.native_aggregate_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),

@@ -115,6 +115,7 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
         terminator: lir::Terminator::Return { value: None },
     });
     let function = lir::Function {
+        callable_body: test_callable_body("null_provenance"),
         gc_effect: lir::GcEffect::NoGc,
         symbol: "null_provenance".to_string(),
         signature: lir::ScoopAbiSignature::new(

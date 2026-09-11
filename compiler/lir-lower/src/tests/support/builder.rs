@@ -408,6 +408,48 @@ impl Builder {
             vtable: Vec::new(),
             itables: Vec::new(),
         });
+        let mut exact_types = Vec::new();
+        let mut source_callables = Vec::new();
+        for (declaration_index, &function_id) in self.top_level.iter().enumerate() {
+            let function = &self.functions[function_id];
+            let parameters = function
+                .params
+                .iter()
+                .map(|parameter| test_exact_type(&self, &parameter.ty, &mut exact_types))
+                .collect();
+            let result = test_exact_type(&self, &function.return_ty, &mut exact_types);
+            let declaration = SourceDeclarationKey::function(
+                test_declaration_site(),
+                CanonicalIdentifier::new(&format!("testFunction{declaration_index}")).unwrap(),
+                0,
+                None,
+                Vec::new(),
+            );
+            let owner = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+            let materialization = CallableMaterialization::new(
+                CallableTemplateOwner::Function(owner),
+                CallableMaterializationContext::NoSubstitution,
+            );
+            source_callables.push(
+                mir::SourceCallableMaterialization::new(
+                    function_id,
+                    materialization,
+                    ExactCallableSignature::new(Effect::Ordinary, None, parameters, result),
+                    None,
+                )
+                .unwrap(),
+            );
+        }
+        let source_exact_types = mir::SourceExactTypeIdentities::checked(exact_types).unwrap();
+        let source_callable_materializations =
+            mir::SourceCallableMaterializations::checked(source_callables).unwrap();
+        let callable_signatures = mir::MirCallableSignatures::checked(
+            source_callable_materializations
+                .iter()
+                .map(|source| source.signature_record().clone())
+                .collect(),
+        )
+        .unwrap();
         mir::Module {
             functions: self.functions,
             extern_functions: self.extern_functions,
@@ -433,7 +475,122 @@ impl Builder {
             classes: self.classes,
             interfaces: self.interfaces,
             entry,
-            meta: mir::MirMeta::default(),
+            meta: mir::MirMeta {
+                source_exact_types,
+                source_callable_materializations,
+                callable_signatures,
+                ..mir::MirMeta::default()
+            },
         }
     }
+}
+
+fn test_declaration_site() -> SourceDeclarationSite {
+    SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap()
+}
+
+fn test_exact_type(
+    builder: &Builder,
+    ty: &mir::Type,
+    entries: &mut Vec<mir::SourceExactTypeIdentity>,
+) -> PersistentExactTypeId {
+    if let Some(existing) = entries.iter().find(|entry| entry.ty() == ty) {
+        return existing.identity_record().id();
+    }
+    let key = match ty {
+        mir::Type::Unit => ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+        mir::Type::Any => ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
+        mir::Type::Integer(kind) => test_nominal_exact(
+            &format!("Test{}", kind.canonical_name()),
+            SourceNominalKind::Struct,
+        ),
+        mir::Type::MachineScalar(kind) => test_nominal_exact(
+            &format!(
+                "TestMachine{}",
+                kind.name()
+                    .bytes()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>()
+            ),
+            SourceNominalKind::Struct,
+        ),
+        mir::Type::Boolean => test_nominal_exact("TestBoolean", SourceNominalKind::Struct),
+        mir::Type::String => test_nominal_exact("TestString", SourceNominalKind::Class),
+        mir::Type::Struct(id) => test_nominal_exact(
+            &format!("TestStruct{}", id.into_raw().into_u32()),
+            SourceNominalKind::Struct,
+        ),
+        mir::Type::Class(id) => test_nominal_exact(
+            &format!("TestClass{}", id.into_raw().into_u32()),
+            SourceNominalKind::Class,
+        ),
+        mir::Type::Interface(id) => test_nominal_exact(
+            &format!("TestInterface{}", id.into_raw().into_u32()),
+            SourceNominalKind::Interface,
+        ),
+        mir::Type::Enum(id, _) => test_nominal_exact(
+            &format!("TestEnum{}", id.into_raw().into_u32()),
+            SourceNominalKind::Enum,
+        ),
+        mir::Type::Tuple(elements) => ExactTypeKey::Tuple(
+            scoop_identity::NonEmptyVec::new(
+                elements
+                    .iter()
+                    .map(|element| test_exact_type(builder, element, entries))
+                    .collect(),
+            )
+            .expect("test tuple types are non-empty"),
+        ),
+        mir::Type::Function(id) => {
+            let signature = builder.function_types[*id].clone();
+            ExactTypeKey::Function {
+                effect: if signature.is_suspend {
+                    Effect::Suspend
+                } else {
+                    Effect::Ordinary
+                },
+                parameters: signature
+                    .parameter_types
+                    .iter()
+                    .map(|parameter| test_exact_type(builder, parameter, entries))
+                    .collect(),
+                result: test_exact_type(builder, &signature.return_type, entries),
+            }
+        }
+        mir::Type::Ptr(pointee) => {
+            ExactTypeKey::RawPointer(test_exact_type(builder, pointee, entries))
+        }
+        mir::Type::FunPtr(id) => {
+            let signature = builder.function_types[*id].clone();
+            ExactTypeKey::NativeFunctionPointer {
+                calling_convention: scoop_identity::CallingConvention::C,
+                parameters: signature
+                    .parameter_types
+                    .iter()
+                    .map(|parameter| test_exact_type(builder, parameter, entries))
+                    .collect(),
+                result: test_exact_type(builder, &signature.return_type, entries),
+            }
+        }
+    };
+    let record = CborIdentityRecord::from_key(key).unwrap();
+    let id = record.id();
+    entries.push(mir::SourceExactTypeIdentity::checked(ty.clone(), record, None).unwrap());
+    id
+}
+
+fn test_nominal_exact(name: &str, kind: SourceNominalKind) -> ExactTypeKey {
+    let declaration = SourceDeclarationKey::nominal(
+        test_declaration_site(),
+        CanonicalIdentifier::new(name).unwrap(),
+        kind,
+        0,
+    );
+    ExactTypeKey::Nominal(PersistentTypeId::from_source_declaration(&declaration).unwrap())
 }

@@ -16,6 +16,7 @@ fn classes_module() -> Module {
             },
         });
         Function {
+            callable_body: callable_body_at(file!(), line!()),
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -83,6 +84,7 @@ fn classes_module() -> Module {
         },
     });
     let main = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], MANAGED_PTR),
@@ -202,6 +204,7 @@ pub(super) fn heap_module() -> Module {
         },
     });
     let describe = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "Point.describe".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -369,6 +372,7 @@ pub(super) fn heap_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let main = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![], LirType::Void),

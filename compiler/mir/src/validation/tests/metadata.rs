@@ -67,7 +67,7 @@ fn module_validation_rejects_unknown_exact_types_in_source_callable_signatures()
                 scoop_identity::Effect::Ordinary,
                 None,
                 Vec::new(),
-                test_exact_type(&Type::Unit).id(),
+                test_exact_type(&Type::Any).id(),
             ),
             None,
         )
@@ -83,6 +83,79 @@ fn module_validation_rejects_unknown_exact_types_in_source_callable_signatures()
             },
             kind: MirValidationErrorKind::InvalidSourceCallableMaterialization {
                 reason: "the logical signature references an unknown source exact type",
+            },
+        })
+    );
+}
+
+#[test]
+fn emitted_callable_requires_exactly_one_materialization() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    module.meta.source_callable_materializations = SourceCallableMaterializations::default();
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::CallableFunction {
+                function: module.entry,
+            },
+            kind: MirValidationErrorKind::InvalidCallableFunction {
+                reason: "the function is not claimed by exactly one callable materialization",
+            },
+        })
+    );
+}
+
+#[test]
+fn emitted_callable_cannot_be_listed_twice() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    module.top_level.push(module.entry);
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::CallableFunction {
+                function: module.entry,
+            },
+            kind: MirValidationErrorKind::InvalidCallableFunction {
+                reason: "the function is emitted more than once",
+            },
+        })
+    );
+}
+
+#[test]
+fn emitted_callable_must_exist() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let missing_function = FunctionId::from_raw(7_u32.into());
+    module.top_level.push(missing_function);
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::CallableFunction {
+                function: missing_function,
+            },
+            kind: MirValidationErrorKind::InvalidCallableFunction {
+                reason: "the emitted function does not exist",
+            },
+        })
+    );
+}
+
+#[test]
+fn entry_callable_must_be_emitted() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    module.top_level.clear();
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::CallableFunction {
+                function: module.entry,
+            },
+            kind: MirValidationErrorKind::InvalidCallableFunction {
+                reason: "the entry function is not emitted",
             },
         })
     );

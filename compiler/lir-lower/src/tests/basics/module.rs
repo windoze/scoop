@@ -1,8 +1,54 @@
 use super::*;
 
 #[test]
+fn odr_callable_subject_becomes_the_exact_odr_body_identity() {
+    let mut module = hello_world();
+    let function = mir::FunctionId::from_raw(99_u32.into());
+    let exact = exact_callback_signature().result();
+    let generated =
+        CborIdentityRecord::from_key(GeneratedCallableKey::CoroutineStart { result: exact })
+            .unwrap();
+    let group =
+        scoop_identity::OdrGroupId::from_key(&scoop_identity::SpecializationKey::StructuralType {
+            exact_type: exact,
+        })
+        .unwrap();
+    let member_key = scoop_identity::OdrMemberKey::new(
+        group,
+        scoop_identity::OdrMemberRole::CallableBody,
+        scoop_identity::OdrMemberDiscriminator::GeneratedCallable(generated.id()),
+    )
+    .unwrap();
+    let member = scoop_identity::CallableOdrMemberId::from_key(&member_key).unwrap();
+    let subject = mir::CallableSignatureSubject::odr(member);
+    module.meta.generated_callables =
+        mir::MirGeneratedCallableIdentities::checked(vec![mir::MirGeneratedCallableIdentity::new(
+            function, &generated, subject,
+        )])
+        .unwrap();
+
+    assert_eq!(
+        crate::callable_body_identity(&module, function),
+        expected_callable_body(subject)
+    );
+}
+
+#[test]
 fn lowers_hello_world() {
-    let module = lower(&hello_world());
+    let source = hello_world();
+    let expected_callable_bodies = source
+        .top_level
+        .iter()
+        .map(|function| {
+            expected_callable_body(
+                source
+                    .meta
+                    .callable_signature_subject(*function)
+                    .expect("hello-world function has a callable subject"),
+            )
+        })
+        .collect::<Vec<_>>();
+    let module = lower(&source);
 
     // Globals: one per MIR string constant, same symbol and value.
     let globals: Vec<(&str, &str)> = module
@@ -23,6 +69,14 @@ fn lowers_hello_world() {
     // fixed `scoop_main`.
     let symbols: Vec<&str> = module.functions.iter().map(|f| f.symbol.as_str()).collect();
     assert_eq!(symbols, ["scoop.helper", mir::ENTRY_SYMBOL]);
+    assert_eq!(
+        module
+            .functions
+            .iter()
+            .map(|function| &function.callable_body)
+            .collect::<Vec<_>>(),
+        expected_callable_bodies.iter().collect::<Vec<_>>()
+    );
     assert_eq!(module.entry_symbol, mir::ENTRY_SYMBOL);
 
     // The source declaration's typed intrinsic identity survives through

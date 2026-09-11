@@ -202,6 +202,7 @@ fn arrays_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),

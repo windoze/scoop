@@ -224,6 +224,26 @@ pub(super) fn block_successors(block: &lir::BasicBlock) -> Vec<lir::BlockId> {
 mod tests {
     use super::*;
 
+    fn callable_body() -> lir::CallableBodyIdentity {
+        let site = scoop_identity::SourceDeclarationSite::new(
+            scoop_identity::ConeIdentity::SINGLE_FILE,
+            scoop_identity::PackagePath::root(),
+            scoop_identity::DefinitionOwnerChain::top_level(),
+            scoop_identity::DeclarationScope::ConeWide,
+        )
+        .unwrap();
+        let declaration = scoop_identity::SourceDeclarationKey::function(
+            site,
+            scoop_identity::CanonicalIdentifier::new("dataflowTest").unwrap(),
+            0,
+            None,
+            Vec::new(),
+        );
+        let function =
+            scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+        lir::CallableBodyIdentity::for_function(function).unwrap()
+    }
+
     #[test]
     fn variant_primitives_track_their_operand_use_and_temp_definition() {
         let mut enums = lir::EnumDefs::default();
@@ -264,6 +284,7 @@ mod tests {
             terminator: lir::Terminator::Unreachable,
         });
         let function = lir::Function {
+            callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,
             symbol: "scoop.dataflow.variant".to_string(),
             signature: lir::ScoopAbiSignature::new(

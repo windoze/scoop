@@ -94,6 +94,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         return_ty: Type::Enum(step_enum, Vec::new()),
         body: Body::unreachable(wrapper_locals),
     });
+    module.entry = wrapper;
     let source = test_source_materialization();
     let source_signature = scoop_identity::ExactCallableSignature::new(
         scoop_identity::Effect::Suspend,

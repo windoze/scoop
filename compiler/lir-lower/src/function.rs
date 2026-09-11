@@ -87,6 +87,7 @@ fn integer_shift_op(operation: mir::IntegerShiftOperation) -> lir::IntegerShiftO
 pub(super) fn lower_function<'a>(
     context: &'a LoweringContext,
     module: &'a mir::Module,
+    callable_body: lir::CallableBodyIdentity,
     function: &'a mir::Function,
     signature: &'a lir::ScoopAbiSignature,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
@@ -231,6 +232,7 @@ pub(super) fn lower_function<'a>(
     }
     LoweredFunction {
         function: lir::Function {
+            callable_body,
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,

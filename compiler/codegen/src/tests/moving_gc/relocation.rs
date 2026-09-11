@@ -51,6 +51,7 @@ fn managed_live_plan_produces_as1_relocation() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
             gc_effect: GcEffect::Managed,
             symbol: "scoop.live_root".to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -85,6 +86,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         },
     });
     let callee = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.invoke_target".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -172,6 +174,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         },
     };
     let caller = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.invoke_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),

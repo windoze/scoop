@@ -288,9 +288,17 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     let application_identity = callback_application(0);
     let application = application_identity.id();
     let exact_signature = exact_callback_signature();
+    let adapter_function = module.functions.alloc(Function {
+        gc_effect: GcEffect::Managed,
+        name: "foreign callback adapter".to_string(),
+        symbol: "scoop.foreign.callback.adapter".to_string(),
+        params: Vec::new(),
+        return_ty: Type::Unit,
+        body: Body::unreachable(Arena::new()),
+    });
     let adapter = module.foreign_callback_adapters.alloc(
         ForeignCallbackAdapter::checked(
-            module.entry,
+            adapter_function,
             signature,
             &module.function_types[signature],
             application,
@@ -481,7 +489,7 @@ fn callback_application_record_must_name_its_adapter_subject() {
 #[test]
 fn callback_family_metadata_revalidates_every_typed_role() {
     let (mut module, family, _) = callback_module();
-    assert!(module.validate().is_ok());
+    assert!(module.validate().is_ok(), "{:?}", module.validate());
 
     let state = module.foreign_callback_families[family].states.enum_id();
     module.enums[state].variants.swap(0, 1);
@@ -566,8 +574,9 @@ fn materialized_callback_adapter_uses_its_generated_callable_odr_member() {
         .managed_signature;
     let exact_signature = exact_callback_signature();
     let adapter = module.foreign_callback_bridges[bridge].adapter;
+    let adapter_function = module.foreign_callback_adapters[adapter].function;
     module.foreign_callback_adapters[adapter] = ForeignCallbackAdapter::checked(
-        module.entry,
+        adapter_function,
         managed_signature,
         &module.function_types[managed_signature],
         application,
@@ -591,7 +600,7 @@ fn materialized_callback_adapter_uses_its_generated_callable_odr_member() {
     );
     install_generated_callables(&mut module);
 
-    assert!(module.validate().is_ok());
+    assert!(module.validate().is_ok(), "{:?}", module.validate());
 }
 
 #[test]
@@ -601,8 +610,9 @@ fn callback_adapter_identity_must_match_its_application() {
         [module.foreign_callback_bridges[bridge].adapter]
         .managed_signature;
     let adapter = module.foreign_callback_bridges[bridge].adapter;
+    let adapter_function = module.foreign_callback_adapters[adapter].function;
     module.foreign_callback_adapters[adapter] = ForeignCallbackAdapter::checked(
-        module.entry,
+        adapter_function,
         managed_signature,
         &module.function_types[managed_signature],
         callback_application(1).id(),

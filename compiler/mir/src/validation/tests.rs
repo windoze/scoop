@@ -240,6 +240,19 @@ fn install_generated_callables(module: &mut Module) {
         );
     }
     module.meta.generated_callables = MirGeneratedCallableIdentities::checked(entries).unwrap();
+    module.top_level = module
+        .meta
+        .source_callable_materializations
+        .iter()
+        .map(SourceCallableMaterialization::function)
+        .chain(
+            module
+                .meta
+                .generated_callables
+                .iter()
+                .map(MirGeneratedCallableIdentity::function),
+        )
+        .collect();
     install_callable_signatures(module);
 }
 
@@ -428,36 +441,51 @@ fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
         return_ty: Type::Unit,
         body: Body::unreachable(Arena::new()),
     });
-    (
-        Module {
-            functions,
-            extern_functions: Arena::new(),
-            globals: Arena::new(),
-            initialization_units: Arena::new(),
-            initialization_failure_roots: Arena::new(),
-            objects: Arena::new(),
-            object_types: Arena::new(),
-            singleton_values: Arena::new(),
-            singleton_published_roots: Arena::new(),
-            callback_bridges: Arena::new(),
-            foreign_callback_adapters: Arena::new(),
-            foreign_callback_families: Arena::new(),
-            foreign_callback_bridges: Arena::new(),
-            function_types: Arena::new(),
-            closure_classes: Arena::new(),
-            closure_invoke_functions: Arena::new(),
-            top_level: vec![entry],
-            strings: Arena::new(),
-            structs: Arena::new(),
-            enums,
-            classes: Arena::new(),
-            interfaces: Arena::new(),
-            option_core: Vec::new(),
-            entry,
-            meta: MirMeta::default(),
-        },
-        enum_id,
+    let mut module = Module {
+        functions,
+        extern_functions: Arena::new(),
+        globals: Arena::new(),
+        initialization_units: Arena::new(),
+        initialization_failure_roots: Arena::new(),
+        objects: Arena::new(),
+        object_types: Arena::new(),
+        singleton_values: Arena::new(),
+        singleton_published_roots: Arena::new(),
+        callback_bridges: Arena::new(),
+        foreign_callback_adapters: Arena::new(),
+        foreign_callback_families: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
+        function_types: Arena::new(),
+        closure_classes: Arena::new(),
+        closure_invoke_functions: Arena::new(),
+        top_level: vec![entry],
+        strings: Arena::new(),
+        structs: Arena::new(),
+        enums,
+        classes: Arena::new(),
+        interfaces: Arena::new(),
+        option_core: Vec::new(),
+        entry,
+        meta: MirMeta::default(),
+    };
+    register_test_exact_type(&mut module, &Type::Unit);
+    let source = SourceCallableMaterialization::new(
+        entry,
+        test_source_materialization_named("validationEntry"),
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            test_exact_type(&Type::Unit).id(),
+        ),
+        None,
     )
+    .unwrap();
+    module.meta.source_callable_materializations =
+        SourceCallableMaterializations::checked(vec![source.clone()]).unwrap();
+    module.meta.callable_signatures =
+        MirCallableSignatures::checked(vec![source.signature_record().clone()]).unwrap();
+    (module, enum_id)
 }
 
 fn enum_local(locals: &mut Arena<Local>, name: &str, enum_id: EnumId) -> LocalId {

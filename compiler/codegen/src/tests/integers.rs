@@ -23,6 +23,7 @@ fn constant_function(symbol: &str, constant: LirIntegerConstant) -> Function {
         },
     });
     Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::NoGc,
         symbol: symbol.to_string(),
         signature: plain_scoop_signature(Vec::new(), constant.scalar_type()),
@@ -51,6 +52,7 @@ fn instruction_module(
         terminator: Terminator::Return { value: None },
     });
     module_with_functions(vec![Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::NoGc,
         symbol: "integer_test".to_string(),
         signature: plain_scoop_signature(params, LirType::Void),

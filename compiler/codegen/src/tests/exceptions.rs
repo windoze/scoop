@@ -16,6 +16,7 @@ pub(super) fn exceptions_module() -> Module {
         terminator: Terminator::Unreachable,
     });
     let thrower = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.thrower".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
@@ -35,6 +36,7 @@ pub(super) fn exceptions_module() -> Module {
         },
     });
     let may_throw = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.may_throw".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::I64),
@@ -181,6 +183,7 @@ pub(super) fn exceptions_module() -> Module {
         },
     };
     let eh_test = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.eh_test".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR], LirType::I64),

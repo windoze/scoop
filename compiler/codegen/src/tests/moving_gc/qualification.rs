@@ -38,6 +38,7 @@ fn stackmap_qualification_module() -> Module {
             },
         });
         Function {
+            callable_body: callable_body_at(file!(), line!()),
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
             signature: plain_scoop_signature(params, return_ty),

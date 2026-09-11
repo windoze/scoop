@@ -184,6 +184,7 @@ fn callback_adapter(symbol: &str) -> Function {
         },
     });
     Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: symbol.to_string(),
         signature: plain_scoop_signature(
@@ -534,6 +535,7 @@ fn managed_poll_test_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.managed_poll_validation".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -565,6 +567,7 @@ fn managed_indirect_argument_root_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let callee = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_indirect_callee".to_string(),
         signature: callee_signature,
@@ -619,6 +622,7 @@ fn managed_indirect_argument_root_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let caller = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_indirect_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
@@ -674,6 +678,7 @@ fn native_borrowed_root_module(scan: RefScan) -> Module {
         },
     });
     let caller = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_borrowed_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -698,6 +703,7 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
         terminator: Terminator::Return { value: None },
     });
     let callee = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_invoke_callee".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -757,6 +763,7 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
         terminator: Terminator::Br(normal),
     };
     let caller = Function {
+        callable_body: callable_body_at(file!(), line!()),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_invoke_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),

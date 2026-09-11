@@ -222,6 +222,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             lower_function(
                 &context,
                 module,
+                callable_body_identity(module, id),
                 &module.functions[id],
                 &function_signatures[&id],
                 &string_global_map,
@@ -274,6 +275,35 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             external_callables: Arena::new(),
         },
     }
+}
+
+fn callable_body_identity(
+    module: &mir::Module,
+    function: mir::FunctionId,
+) -> lir::CallableBodyIdentity {
+    let subject = module
+        .meta
+        .callable_signature_subject(function)
+        .expect("validated MIR gives every emitted function one callable subject");
+    let identity = match subject {
+        mir::CallableSignatureSubject::Strong(owner) => match owner {
+            mir::CallableOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
+            mir::CallableOwner::Constructor(id) => lir::CallableBodyIdentity::for_constructor(id),
+            mir::CallableOwner::Accessor(id) => {
+                lir::CallableBodyIdentity::for_property_accessor(id)
+            }
+            mir::CallableOwner::Generated(id) => {
+                lir::CallableBodyIdentity::for_generated_callable(id)
+            }
+            mir::CallableOwner::GenericTemplate(_) | mir::CallableOwner::Application(_) => {
+                panic!("validated MIR cannot assign a non-defining strong callable subject")
+            }
+        },
+        mir::CallableSignatureSubject::Odr(member) => {
+            lir::CallableBodyIdentity::for_odr_member(member)
+        }
+    };
+    identity.expect("validated callable-body subjects have canonical runtime identities")
 }
 
 mod abi;

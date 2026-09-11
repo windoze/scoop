@@ -23,6 +23,34 @@ fn abi_value(ty: LirType, size: u64, alignment: u64, scan: RefScan) -> AbiValue 
     .expect("test ABI value must be valid")
 }
 
+fn callable_body(symbol: &str) -> super::CallableBodyIdentity {
+    let identifier = format!(
+        "test{}",
+        symbol
+            .as_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new(&identifier).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    super::CallableBodyIdentity::for_function(function).unwrap()
+}
+
 fn abi_zst(ty: LirType, alignment: u64) -> AbiZst {
     AbiZst::new(
         ty,
@@ -600,6 +628,7 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
         terminator: super::Terminator::Return { value: None },
     });
     let function = super::Function {
+        callable_body: callable_body("logical_params"),
         gc_effect: GcEffect::NoGc,
         symbol: "logical_params".to_string(),
         signature,

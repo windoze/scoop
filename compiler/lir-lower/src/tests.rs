@@ -25,6 +25,56 @@ fn lower(module: &mir::Module) -> lir::Module {
     super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
 }
 
+fn test_callable_body(symbol: &str) -> lir::CallableBodyIdentity {
+    let identifier = format!(
+        "test{}",
+        symbol
+            .as_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new(&identifier).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    lir::CallableBodyIdentity::for_function(function).unwrap()
+}
+
+fn expected_callable_body(subject: mir::CallableSignatureSubject) -> lir::CallableBodyIdentity {
+    match subject {
+        mir::CallableSignatureSubject::Strong(owner) => match owner {
+            mir::CallableOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
+            mir::CallableOwner::Constructor(id) => lir::CallableBodyIdentity::for_constructor(id),
+            mir::CallableOwner::Accessor(id) => {
+                lir::CallableBodyIdentity::for_property_accessor(id)
+            }
+            mir::CallableOwner::Generated(id) => {
+                lir::CallableBodyIdentity::for_generated_callable(id)
+            }
+            mir::CallableOwner::GenericTemplate(_) | mir::CallableOwner::Application(_) => {
+                panic!("test subject must name a concrete strong definition")
+            }
+        },
+        mir::CallableSignatureSubject::Odr(member) => {
+            lir::CallableBodyIdentity::for_odr_member(member)
+        }
+    }
+    .unwrap()
+}
+
 fn callback_application()
 -> CborIdentityRecord<PersistentCallbackApplicationId, CallbackApplicationKey> {
     let site = SourceDeclarationSite::new(
@@ -94,8 +144,14 @@ fn register_boxed_source_nominal(
     let source_exact_type =
         mir::SourceExactTypeIdentity::checked(payload.clone(), exact.clone(), None).unwrap();
 
-    module.meta.source_exact_types =
-        mir::SourceExactTypeIdentities::checked(vec![source_exact_type]).unwrap();
+    let mut exact_types = module
+        .meta
+        .source_exact_types
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    exact_types.push(source_exact_type);
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(exact_types).unwrap();
     module
         .meta
         .boxed_types
@@ -305,7 +361,12 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
         Vec::new(),
     ))
     .unwrap();
-    let mut source_callables = Vec::new();
+    let mut source_callables = source
+        .meta
+        .source_callable_materializations
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
     for (index, link_stem) in [closure_a.clone(), closure_b.clone()]
         .into_iter()
         .enumerate()
@@ -335,6 +396,7 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
             return_ty: mir::Type::Unit,
             body: mir::Body::unreachable(Arena::new()),
         });
+        source.top_level.push(invoke_function);
         source_callables.push(
             mir::SourceCallableMaterialization::new(
                 invoke_function,
@@ -782,9 +844,18 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         mir::SourceExactTypeIdentity::checked(mir::Type::Unit, unit_exact, None).unwrap(),
     ])
     .unwrap();
+    let adapter_function = module.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
+        name: "foreign callback adapter".to_string(),
+        symbol: "scoop.foreign.callback.adapter".to_string(),
+        params: Vec::new(),
+        return_ty: mir::Type::Unit,
+        body: mir::Body::unreachable(Arena::new()),
+    });
+    module.top_level.push(adapter_function);
     let adapter = module.foreign_callback_adapters.alloc(
         mir::ForeignCallbackAdapter::checked(
-            main,
+            adapter_function,
             managed_signature,
             &module.function_types[managed_signature],
             application,
@@ -812,7 +883,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         });
     module.meta.generated_callables =
         mir::MirGeneratedCallableIdentities::checked(vec![mir::MirGeneratedCallableIdentity::new(
-            main,
+            adapter_function,
             module.foreign_callback_adapters[adapter].identity_record(),
             module.foreign_callback_adapters[adapter].signature_subject(),
         )])

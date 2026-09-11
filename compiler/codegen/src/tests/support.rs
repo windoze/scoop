@@ -9,6 +9,37 @@ pub(super) const fn signed64(raw_bits: u64) -> Value {
     Value::IntegerConst(LirIntegerConstant::Signed64(raw_bits))
 }
 
+pub(super) fn callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
+    let identifier = format!(
+        "test{}",
+        symbol
+            .as_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    scoop_lir::CallableBodyIdentity::for_function(function).unwrap()
+}
+
+pub(super) fn callable_body_at(source: &str, line: u32) -> scoop_lir::CallableBodyIdentity {
+    callable_body(&format!("{source}:{line}"))
+}
+
 pub(super) fn host_profile() -> TargetProfile {
     TargetProfile::resolve_host().expect("supported host target")
 }
@@ -458,6 +489,7 @@ pub(super) fn values_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),

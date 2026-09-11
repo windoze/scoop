@@ -13,6 +13,8 @@
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
+pub use scoop_identity::CallableOwner;
+
 mod symbols;
 pub use symbols::*;
 
