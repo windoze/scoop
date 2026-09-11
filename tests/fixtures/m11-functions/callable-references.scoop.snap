@@ -7372,8 +7372,9 @@ Module
       val once: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc3 $Closure$reference3
-          Type BaseMapper
-          Local $call.2
+          CaptureInit field=0
+            Type BaseMapper
+            Local $call.2
       val $argument.0: Int
         Type Int
         FieldAccess 0
@@ -7397,8 +7398,9 @@ Module
       val virtual: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc4 $Closure$reference4
-          Type BaseMapper
-          Local selected
+          CaptureInit field=0
+            Type BaseMapper
+            Local selected
       assign $new.4
         Type PlusHundred
         ClassAlloc PlusHundred
@@ -7428,8 +7430,9 @@ Module
       val interfaceReference: (String) -> String
         Type (String) -> String
         ClosureAlloc cc5 $Closure$reference5
-          Type TextMapper
-          Local mapper
+          CaptureInit field=0
+            Type TextMapper
+            Local mapper
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -7442,8 +7445,9 @@ Module
       val valueReference: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc6 $Closure$reference6
-          Type ValueMapper
-          Local valueMapper
+          CaptureInit field=0
+            Type ValueMapper
+            Local valueMapper
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=100 bits=0x00000064
@@ -7465,8 +7469,9 @@ Module
       val genericMember: (String) -> String
         Type (String) -> String
         ClosureAlloc cc7 $Closure$reference7
-          Type GenericMapper
-          Local $new.7
+          CaptureInit field=0
+            Type GenericMapper
+            Local $new.7
       assign $new.8
         Type OverloadedMapper
         ClassAlloc OverloadedMapper
@@ -7476,8 +7481,9 @@ Module
       val concreteWins: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc8 $Closure$reference8
-          Type OverloadedMapper
-          Local $new.8
+          CaptureInit field=0
+            Type OverloadedMapper
+            Local $new.8
       assign $new.9
         Type ThrowingMapper
         ClassAlloc ThrowingMapper
@@ -7487,8 +7493,9 @@ Module
       val throwing: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc9 $Closure$reference9
-          Type ThrowingMapper
-          Local $new.9
+          CaptureInit field=0
+            Type ThrowingMapper
+            Local $new.9
       call @scoop_rt_gc_collect direct
       call $argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int

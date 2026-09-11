@@ -7810,7 +7810,7 @@ Module
         Type String
         FieldAccess 0
           Type Payload
-          ClosureCapture cc0 0
+          ClosureCapture cc0 1
             Type () -> String
             Local $closure
       val $argument.0: String
@@ -7828,7 +7828,7 @@ Module
         Type String
         FieldAccess 2
           Type AsyncNumber$C7_PayloadX
-          ClosureCapture cc0 1
+          ClosureCapture cc0 0
             Type () -> String
             Local $closure
       val $parameter.other: String
@@ -9186,10 +9186,12 @@ Module
       val render: () -> String
         Type () -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type Payload
-          Local selected
-          Type AsyncNumber$C7_PayloadX
-          Local total
+          CaptureInit field=1
+            Type Payload
+            Local selected
+          CaptureInit field=0
+            Type AsyncNumber$C7_PayloadX
+            Local total
       call @scoop_rt_gc_collect direct
       val $argument.0: Int
         Type Int
@@ -14124,14 +14126,14 @@ Module
     local %6 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp340 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : ptr<managed>
+    t0 = heap_load param0 +32 : ptr<managed>
     t1 = heap_load t0 +16 : ptr<managed>
     store t1 -> local0
     store global15 -> local1
     store local1 -> local2
     call managed-direct-target0 sp167 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local2:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
     store t2 -> local3
-    t3 = heap_load param0 +32 : ptr<managed>
+    t3 = heap_load param0 +24 : ptr<managed>
     t4 = heap_load t3 +32 : ptr<managed>
     store t4 -> local4
     store local4 -> local5
@@ -14938,8 +14940,8 @@ Module
     call managed-direct-target7 sp220 live=[local5:ptr<managed>@0, local12:ptr<managed>@0] t21 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td51, machine<byte-size>(ByteSize(40)))
     t22 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 : ptr
     heap_store t21 +16 t22
-    heap_store t21 +24 local12
-    heap_store t21 +32 local5
+    heap_store t21 +32 local12
+    heap_store t21 +24 local5
     store t21 -> local13
     call managed-void-target1 sp221 live=[local5:ptr<managed>@0, local13:ptr<managed>@0] sig=void1 () runtime @scoop_rt_gc_collect()
     t23 = aggregate () : {}

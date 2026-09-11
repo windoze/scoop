@@ -664,7 +664,9 @@ pub enum ExprKind {
     },
     ClosureAlloc {
         class: ClosureClassId,
-        captures: Vec<Expr>,
+        /// Initializers remain in language evaluation order. Each entry
+        /// names its independently identity-ordered physical field.
+        captures: Vec<ClosureCaptureInit>,
     },
     /// Read one inline capture field from a concrete closure object.
     ClosureCapture {
@@ -868,6 +870,30 @@ pub enum ExprKind {
         operand: Box<Expr>,
         field: MirVariantFieldRef,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ClosureCaptureInit {
+    field: u32,
+    value: Expr,
+}
+
+impl ClosureCaptureInit {
+    pub const fn new(field: u32, value: Expr) -> Self {
+        Self { field, value }
+    }
+
+    pub const fn field(&self) -> u32 {
+        self.field
+    }
+
+    pub const fn value(&self) -> &Expr {
+        &self.value
+    }
+
+    pub const fn value_mut(&mut self) -> &mut Expr {
+        &mut self.value
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -104,22 +104,32 @@ impl<'a> FunctionLowerer<'a> {
                     lir::Value::Temp(invoke),
                     lir::CODE_PTR,
                 );
-                let capture_types = def
-                    .captures
-                    .iter()
-                    .map(|capture| capture.ty.clone())
-                    .collect::<Vec<_>>();
-                for ((capture, capture_ty), offset) in
-                    captures.iter().zip(&capture_types).zip(capture_offsets)
-                {
+                let mut initialized = vec![false; def.captures.len()];
+                for capture in captures {
+                    let field = usize::try_from(capture.field())
+                        .expect("a closure field index fits the target address space");
+                    let capture_ty = &def
+                        .captures
+                        .get(field)
+                        .expect("ClosureAlloc names an existing physical field")
+                        .ty;
                     assert_eq!(
-                        &capture.ty, capture_ty,
+                        &capture.value().ty,
+                        capture_ty,
                         "ClosureAlloc capture type matches its storage field"
                     );
+                    assert!(
+                        !std::mem::replace(&mut initialized[field], true),
+                        "ClosureAlloc initializes each physical field once"
+                    );
                     let capture_lir_ty = self.value_type(capture_ty);
-                    let value = self.lower_expr(capture);
-                    self.store_at_offset(object, offset, value, capture_lir_ty);
+                    let value = self.lower_expr(capture.value());
+                    self.store_at_offset(object, capture_offsets[field], value, capture_lir_ty);
                 }
+                assert!(
+                    initialized.into_iter().all(|initialized| initialized),
+                    "ClosureAlloc initializes every physical field"
+                );
                 object
             }
             mir::ExprKind::ClosureCapture {

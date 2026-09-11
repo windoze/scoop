@@ -2,6 +2,7 @@ use super::*;
 
 mod boxed_values;
 mod callbacks;
+mod closure_environments;
 mod constants;
 mod coroutines;
 mod metadata;

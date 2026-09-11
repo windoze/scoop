@@ -7356,24 +7356,27 @@ Module
       val widenedValue: (Int) -> Any
         Type (Int) -> Any
         ClosureAlloc cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX
-          Type (Any) -> Int
-          Local exactValue
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local exactValue
       val exactReference: (Animal) -> Dog
         Type (Animal) -> Dog
         ClosureAlloc cc2 $Closure$reference2
       val widenedReference: (Dog) -> Animal
         Type (Dog) -> Animal
         ClosureAlloc cc8 $Closure$adapter$FC30_$local$u0:p0:r5:classn6:AnimalXRC27_$local$u0:p0:r5:classn3:DogXX$FC27_$local$u0:p0:r5:classn3:DogXRC30_$local$u0:p0:r5:classn6:AnimalXX
-          Type (Animal) -> Dog
-          Local exactReference
+          CaptureInit field=0
+            Type (Animal) -> Dog
+            Local exactReference
       val failing: (Any) -> Int
         Type (Any) -> Int
         ClosureAlloc cc3 $Closure$reference3
       val widenedFailing: (Int) -> Any
         Type (Int) -> Any
         ClosureAlloc cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX
-          Type (Any) -> Int
-          Local failing
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local failing
       val $argument.0: (Any) -> Int
         Type (Any) -> Int
         Local exactValue
@@ -7398,16 +7401,18 @@ Module
       val boxedReturn: (Int) -> Describable
         Type (Int) -> Describable
         ClosureAlloc cc9 $Closure$adapter$FAnyRD30_$local$u0:p0:r6:structn5:LabelXX$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX
-          Type (Any) -> Label
-          Local boxedExact
+          CaptureInit field=0
+            Type (Any) -> Label
+            Local boxedExact
       val nestedExact: ((Int) -> Any) -> (Any) -> Int
         Type ((Int) -> Any) -> (Any) -> Int
         ClosureAlloc cc6 $Closure$reference6
       val nestedWidened: ((Any) -> Int) -> (Int) -> Any
         Type ((Any) -> Int) -> (Int) -> Any
         ClosureAlloc cc10 $Closure$adapter$FFI32RAnyXRFAnyRI32XX$FFAnyRI32XRFI32RAnyXX
-          Type ((Int) -> Any) -> (Any) -> Int
-          Local nestedExact
+          CaptureInit field=0
+            Type ((Int) -> Any) -> (Any) -> Int
+            Local nestedExact
       call nestedResult: (Int) -> Any = <closure:function_type9> closure[function_type9]
         Type ((Any) -> Int) -> (Int) -> Any
         Local nestedWidened
@@ -7442,8 +7447,9 @@ Module
       val checked: (Int) -> Any
         Type (Int) -> Any
         ClosureAlloc cc11 $Closure$dynamic_adapter$FI32RAnyX
-          Type Any
-          Local $cast.1
+          CaptureInit field=0
+            Type Any
+            Local $cast.1
       val $cast.2: Any
         Type Any
         Local erased
@@ -7468,8 +7474,9 @@ Module
       val exactChecked: (Any) -> Int
         Type (Any) -> Int
         ClosureAlloc cc12 $Closure$dynamic_adapter$FAnyRI32X
-          Type Any
-          Local $cast.2
+          CaptureInit field=0
+            Type Any
+            Local $cast.2
       val $cast.3: Any
         Type Any
         Local erased
@@ -7484,8 +7491,9 @@ Module
         VariantConstruct Option$FI32RAnyX<(Int) -> Any> v0
           Type (Int) -> Any
           ClosureAlloc cc11 $Closure$dynamic_adapter$FI32RAnyX
-            Type Any
-            Local $cast.3
+            CaptureInit field=0
+              Type Any
+              Local $cast.3
       goto bb7
     bb6 if.else.6
       assign $cast.4
@@ -7536,8 +7544,9 @@ Module
         VariantConstruct Option$FAnyRSX<(Any) -> String> v0
           Type (Any) -> String
           ClosureAlloc cc13 $Closure$dynamic_adapter$FAnyRSX
-            Type Any
-            Local $cast.7
+            CaptureInit field=0
+              Type Any
+              Local $cast.7
       goto bb13
     bb12 if.else.12
       assign $cast.8
@@ -7577,8 +7586,9 @@ Module
       val nestedChecked: ((Any) -> Int) -> (Int) -> Any
         Type ((Any) -> Int) -> (Int) -> Any
         ClosureAlloc cc14 $Closure$dynamic_adapter$FFAnyRI32XRFI32RAnyXX
-          Type Any
-          Local $cast.9
+          CaptureInit field=0
+            Type Any
+            Local $cast.9
       call nestedDynamicResult: (Int) -> Any = <closure:function_type9> closure[function_type9]
         Type ((Any) -> Int) -> (Int) -> Any
         Local nestedChecked
@@ -7613,8 +7623,9 @@ Module
       val boxedChecked: (Int) -> Describable
         Type (Int) -> Describable
         ClosureAlloc cc15 $Closure$dynamic_adapter$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX
-          Type Any
-          Local $cast.10
+          CaptureInit field=0
+            Type Any
+            Local $cast.10
       call @scoop_rt_gc_collect direct
       call $call.6: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
@@ -7835,8 +7846,9 @@ Module
       call $call.15: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         ClosureAlloc cc11 $Closure$dynamic_adapter$FI32RAnyX
-          Type Any
-          Local erased
+          CaptureInit field=0
+            Type Any
+            Local erased
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       val $argument.0: Boolean
@@ -7912,15 +7924,17 @@ Module
       return
         Type (Int) -> Any
         ClosureAlloc cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX
-          Type (Any) -> Int
-          Local op
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local op
   fun widen @scoop.$local$u0:p0:r8:functionq8:ordinaryn5:widen$S(op: (Any) -> String) -> (String) -> Any
     bb0 entry
       return
         Type (String) -> Any
         ClosureAlloc cc16 $Closure$adapter$FAnyRSX$FSRAnyX
-          Type (Any) -> String
-          Local op
+          CaptureInit field=0
+            Type (Any) -> String
+            Local op
   fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$B(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
@@ -8586,13 +8600,15 @@ Module
           Local $closure
         Type (Int) -> Any
         ClosureAlloc cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX
-          Type (Any) -> Int
-          Local arg0
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local arg0
       return
         Type (Int) -> Any
         ClosureAlloc cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX
-          Type (Any) -> Int
-          Local $call.1
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local $call.1
   fun $dynamic_adapter.FI32RAnyX @scoop.$dynamic_adapter.FI32RAnyX($closure: (Int) -> Any, arg0: Int) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
@@ -8768,13 +8784,15 @@ Module
         Local $source
         Type (Int) -> Any
         ClosureAlloc cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX
-          Type (Any) -> Int
-          Local arg0
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local arg0
       return
         Type (Int) -> Any
         ClosureAlloc cc7 $Closure$adapter$FAnyRI32X$FI32RAnyX
-          Type (Any) -> Int
-          Local $call.1
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local $call.1
   fun function_bridge.$Closure$adapter$FAnyRD30_$local$u0:p0:r6:structn5:LabelXX$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX.FI32RAnyX @scoop.function_bridge.$Closure$adapter$FAnyRD30_$local$u0:p0:r6:structn5:LabelXX$FI32RJ40_$local$u0:p0:r9:interfacen11:DescribableXX.FI32RAnyX($source: (Int) -> Describable, arg0: Int) -> Any
     bb0 entry
       call $call.1: Describable = <closure:function_type7> closure[function_type7]

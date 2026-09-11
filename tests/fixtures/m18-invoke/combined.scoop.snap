@@ -8824,8 +8824,9 @@ Module
       val $argument.0: (InvokePayload) -> String
         Type (InvokePayload) -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type String
-          Local captured
+          CaptureInit field=0
+            Type String
+            Local captured
       val $parameter.transform: (InvokePayload) -> String
         Type (InvokePayload) -> String
         Local $argument.0

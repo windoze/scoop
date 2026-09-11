@@ -74,7 +74,12 @@ impl<'a> CfgLowerer<'a> {
                 class: *class,
                 captures: captures
                     .iter()
-                    .map(|capture| self.lower_expr(capture, span))
+                    .map(|capture| {
+                        mir::ClosureCaptureInit::new(
+                            capture.field,
+                            self.lower_expr(&capture.value, span),
+                        )
+                    })
                     .collect(),
             },
             smir::ExprKind::ClosureCapture {

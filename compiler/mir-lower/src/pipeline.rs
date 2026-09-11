@@ -261,6 +261,7 @@ impl Lowerer {
                 source_exact_types: self.source_exact_types.finish(),
                 source_callable_materializations: self.source_callables.finish(),
                 source_local_values: self.source_local_values.finish(),
+                closure_environments: self.closure_environments,
                 instances: self.instances.meta,
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,

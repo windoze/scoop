@@ -7028,8 +7028,9 @@ Module
       val bound: (Shown) -> Int
         Type (Shown) -> Int
         ClosureAlloc cc0 $Closure$reference0
-          Type Box$S
-          Local box
+          CaptureInit field=0
+            Type Box$S
+            Local box
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a

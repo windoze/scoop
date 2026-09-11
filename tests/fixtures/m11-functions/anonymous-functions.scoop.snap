@@ -6885,8 +6885,9 @@ Module
       return
         Type (Int) -> Int
         ClosureAlloc cc0 $Closure$anonymous0
-          Type Int
-          Local base
+          CaptureInit field=0
+            Type Int
+            Local base
   fun main @scoop_main() -> Unit
     bb0 entry
       val $argument.0: Int

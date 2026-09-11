@@ -6906,8 +6906,9 @@ Module
       val $argument.0: (Int) -> Unit
         Type (Int) -> Unit
         ClosureAlloc cc0 $Closure$lambda0
-          Type String
-          Local captured
+          CaptureInit field=0
+            Type String
+            Local captured
       val $argument.1: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000

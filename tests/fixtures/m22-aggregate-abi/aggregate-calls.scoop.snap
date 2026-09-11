@@ -8434,8 +8434,9 @@ Module
       val closure: ((Signal, Long)) -> (Int, Long)
         Type ((Signal, Long)) -> (Int, Long)
         ClosureAlloc cc0 $Closure$lambda0
-          Type Long
-          Local bias
+          CaptureInit field=0
+            Type Long
+            Local bias
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009

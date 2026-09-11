@@ -363,7 +363,7 @@ pub(crate) enum ExprKind {
     },
     ClosureAlloc {
         class: mir::ClosureClassId,
-        captures: Vec<Expr>,
+        captures: Vec<ClosureCaptureInit>,
     },
     ClosureCapture {
         closure: Box<Expr>,
@@ -516,6 +516,18 @@ pub(crate) enum ExprKind {
         operand: Box<Expr>,
         field: mir::MirVariantFieldRef,
     },
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ClosureCaptureInit {
+    pub(crate) field: u32,
+    pub(crate) value: Expr,
+}
+
+impl ClosureCaptureInit {
+    pub(crate) const fn new(field: u32, value: Expr) -> Self {
+        Self { field, value }
+    }
 }
 
 #[derive(Debug, Clone)]

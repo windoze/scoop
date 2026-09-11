@@ -5,10 +5,11 @@ mod support;
 use support::*;
 
 use scoop_identity::{
-    CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
-    CallbackRegistrationKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
-    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
-    ExactTypeKey, InitializationUnitKey, LexicalCallableParent, PackagePath,
+    CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
+    CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,
+    CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, GeneratedCallableKey,
+    InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, PackagePath,
     PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFunctionId,
     PersistentPropertyId, PersistentTypeId, SignatureCallableShape, SignatureTypeKey,
     SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
@@ -205,23 +206,63 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
         parameter_types: Vec::new(),
         return_type: mir::Type::Unit,
     });
-    let invoke_function = source.functions.alloc(mir::Function {
-        gc_effect: mir::GcEffect::Managed,
-        name: "$closure.invoke".to_string(),
-        symbol: "scoop.$closure.invoke".to_string(),
-        params: Vec::new(),
-        return_ty: mir::Type::Unit,
-        body: mir::Body::unreachable(Arena::new()),
-    });
-    let invoke = source
-        .closure_invoke_functions
-        .alloc(mir::ClosureInvokeFunction {
-            function: invoke_function,
-        });
     let closure_a = nominal_link_stem("$generated$lambda$pkg-a");
     let closure_b = nominal_link_stem("$generated$lambda$pkg-b");
-    for link_stem in [closure_a.clone(), closure_b.clone()] {
-        source.closure_classes.alloc(mir::ClosureClass {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let owner = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new("descriptorClosureOwner").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    ))
+    .unwrap();
+    let mut source_callables = Vec::new();
+    for (index, link_stem) in [closure_a.clone(), closure_b.clone()]
+        .into_iter()
+        .enumerate()
+    {
+        let callable = CborIdentityRecord::from_key(GeneratedCallableKey::Lexical {
+            parent: LexicalCallableParent::function(owner),
+            role: LexicalCallableRole::LambdaBody,
+            path: StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(
+                    StructuralDefinitionSiteRole::Lambda,
+                    u32::try_from(index).unwrap(),
+                ),
+                [],
+            ),
+        })
+        .unwrap()
+        .id();
+        let materialization = CallableMaterialization::new(
+            CallableTemplateOwner::Generated(callable),
+            CallableMaterializationContext::NoSubstitution,
+        );
+        let invoke_function = source.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name: format!("$closure{index}.invoke"),
+            symbol: format!("scoop.$closure{index}.invoke"),
+            params: Vec::new(),
+            return_ty: mir::Type::Unit,
+            body: mir::Body::unreachable(Arena::new()),
+        });
+        source_callables.push(mir::SourceCallableMaterialization::new(
+            invoke_function,
+            materialization,
+        ));
+        let invoke = source
+            .closure_invoke_functions
+            .alloc(mir::ClosureInvokeFunction {
+                function: invoke_function,
+            });
+        let class = source.closure_classes.alloc(mir::ClosureClass {
             link_stem,
             name: "SameClosure".to_string(),
             function_type,
@@ -229,7 +270,15 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
             captures: Vec::new(),
             bridges: Vec::new(),
         });
+        let identity =
+            mir::ClosureEnvironmentIdentity::for_lambda(materialization, Vec::new()).unwrap();
+        source.meta.closure_environments.push(
+            mir::ClosureEnvironment::checked(class, &source.closure_classes[class], identity)
+                .unwrap(),
+        );
     }
+    source.meta.source_callable_materializations =
+        mir::SourceCallableMaterializations::checked(source_callables).unwrap();
     let expected = [
         mir::encode_type(&source, &mir::Type::Class(class_a)).unwrap(),
         mir::encode_type(&source, &mir::Type::Class(class_b)).unwrap(),

@@ -7470,43 +7470,49 @@ Module
       return
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-          Type Int
-          Local value
+          CaptureInit field=0
+            Type Int
+            Local value
   fun makeLambda @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:makeLambda$S(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc1 $Closure$lambda1
-          Type String
-          Local value
+          CaptureInit field=0
+            Type String
+            Local value
   fun makeAnonymous @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:makeAnonymous$I32(value: Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         ClosureAlloc cc6 $Closure$anonymous0
-          Type Int
-          Local value
+          CaptureInit field=0
+            Type Int
+            Local value
   fun makeAnonymous @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:makeAnonymous$S(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc7 $Closure$anonymous1
-          Type String
-          Local value
+          CaptureInit field=0
+            Type String
+            Local value
   fun makeLocalReference @scoop.$local$u0:p0:r8:functionq8:ordinaryn18:makeLocalReference$I32(value: Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         ClosureAlloc cc10 $Closure$reference0
-          Type Int
-          Local value
+          CaptureInit field=0
+            Type Int
+            Local value
   fun makeLocalReference @scoop.$local$u0:p0:r8:functionq8:ordinaryn18:makeLocalReference$S(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc11 $Closure$reference1
-          Type String
-          Local value
+          CaptureInit field=0
+            Type String
+            Local value
   fun makeNamedReference @scoop.$local$u0:p0:r8:functionq8:ordinaryn18:makeNamedReference$I32(seed: Int) -> (Int) -> Int
     bb0 entry
       val reference: (Int) -> Int
@@ -7528,29 +7534,33 @@ Module
       return
         Type () -> Int
         ClosureAlloc cc14 $Closure$reference4
-          Type Int
-          Local value
+          CaptureInit field=0
+            Type Int
+            Local value
   fun makeExtensionReference @scoop.$local$u0:p0:r8:functionq8:ordinaryn22:makeExtensionReference$S(value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc15 $Closure$reference5
-          Type String
-          Local value
+          CaptureInit field=0
+            Type String
+            Local value
   fun makeNested @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:makeNested$I32(value: Int) -> () -> () -> Int
     bb0 entry
       return
         Type () -> () -> Int
         ClosureAlloc cc8 $Closure$anonymous2
-          Type Int
-          Local value
+          CaptureInit field=0
+            Type Int
+            Local value
   fun makeNested @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:makeNested$S(value: String) -> () -> () -> String
     bb0 entry
       return
         Type () -> () -> String
         ClosureAlloc cc9 $Closure$anonymous3
-          Type String
-          Local value
+          CaptureInit field=0
+            Type String
+            Local value
   fun makeBoxReader @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:makeBoxReader$I32(value: Int) -> () -> Int
     bb0 entry
       val $argument.0: Int
@@ -7565,8 +7575,9 @@ Module
       return
         Type () -> Int
         ClosureAlloc cc2 $Closure$lambda2
-          Type GenericBox$I32
-          Local box
+          CaptureInit field=0
+            Type GenericBox$I32
+            Local box
   fun makeBoxReader @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:makeBoxReader$S(value: String) -> () -> String
     bb0 entry
       val $argument.0: String
@@ -7581,8 +7592,9 @@ Module
       return
         Type () -> String
         ClosureAlloc cc3 $Closure$lambda3
-          Type GenericBox$S
-          Local box
+          CaptureInit field=0
+            Type GenericBox$S
+            Local box
   fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
@@ -7694,19 +7706,21 @@ Module
       return
         Type () -> Int
         ClosureAlloc cc4 $Closure$lambda4
-          Type Int
-          ClosureCapture cc8 0
-            Type () -> () -> Int
-            Local $closure
+          CaptureInit field=0
+            Type Int
+            ClosureCapture cc8 0
+              Type () -> () -> Int
+              Local $closure
   fun $anonymous.1 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr18:anonymous-functioni1:1n12:$anonymous.1$S($closure: () -> () -> String) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc5 $Closure$lambda5
-          Type String
-          ClosureCapture cc9 0
-            Type () -> () -> String
-            Local $closure
+          CaptureInit field=0
+            Type String
+            ClosureCapture cc9 0
+              Type () -> () -> String
+              Local $closure
   fun $lambda.2 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2$I32($closure: () -> Int) -> Int
     bb0 entry
       return

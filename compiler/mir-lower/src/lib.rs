@@ -191,6 +191,8 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         reference_closures: HashMap::new(),
         closure_by_function: HashMap::new(),
         closure_capture_indices: HashMap::new(),
+        closure_receiver_indices: HashMap::new(),
+        closure_environments: Vec::new(),
         closure_adapters: Arena::new(),
         closure_adapter_by_types: HashMap::new(),
         dynamic_closure_adapters: Arena::new(),
@@ -276,6 +278,10 @@ struct Lowerer {
     closure_by_function: HashMap<hir::FunctionId, mir::ClosureClassId>,
     /// HIR lexical binding -> concrete inline field index for one closure.
     closure_capture_indices: HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    /// Bound callable-reference receiver -> persistent-id-ordered field index.
+    closure_receiver_indices: HashMap<mir::ClosureClassId, u32>,
+    /// Persistent generated type and field identities for source closures.
+    closure_environments: Vec<mir::ClosureEnvironment>,
     closure_adapters: Arena<mir::ClosureAdapter>,
     closure_adapter_by_types:
         HashMap<(mir::FunctionTypeId, mir::FunctionTypeId), mir::ClosureAdapterId>,

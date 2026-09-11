@@ -7071,19 +7071,23 @@ Module
       return
         Type () -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type CapturedChoice
-          Local choice
-          Type (Int, String)
-          Local tuple
+          CaptureInit field=1
+            Type CapturedChoice
+            Local choice
+          CaptureInit field=0
+            Type (Int, String)
+            Local tuple
   fun makeIncrement @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:makeIncrement(state: SharedState, amount: Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         ClosureAlloc cc1 $Closure$lambda1
-          Type SharedState
-          Local state
-          Type Int
-          Local amount
+          CaptureInit field=1
+            Type SharedState
+            Local state
+          CaptureInit field=0
+            Type Int
+            Local amount
   fun main @scoop_main() -> Unit
     bb0 entry
       val operation: (Int) -> Int
@@ -7237,8 +7241,9 @@ Module
       assign latest
         Type () -> Int
         ClosureAlloc cc4 $Closure$lambda4
-          Type Int
-          Local snapshot
+          CaptureInit field=0
+            Type Int
+            Local snapshot
       val $receiver: Int
         Type Int
         Local index
@@ -7260,7 +7265,7 @@ Module
     bb0 entry
       val $when.1: CapturedChoice
         Type CapturedChoice
-        ClosureCapture cc0 0
+        ClosureCapture cc0 1
           Type () -> String
           Local $closure
       val $pattern.subject.2: CapturedChoice
@@ -7312,7 +7317,7 @@ Module
         Type String
         FieldAccess 1
           Type (Int, String)
-          ClosureCapture cc0 1
+          ClosureCapture cc0 0
             Type () -> String
             Local $closure
       val $parameter.other: String
@@ -7341,12 +7346,12 @@ Module
         Type Int
         FieldAccess 0
           Type SharedState
-          ClosureCapture cc1 0
+          ClosureCapture cc1 1
             Type () -> Int
             Local $closure
       val $argument.0: Int
         Type Int
-        ClosureCapture cc1 1
+        ClosureCapture cc1 0
           Type () -> Int
           Local $closure
       val $parameter.other: Int
@@ -7354,7 +7359,7 @@ Module
         Local $argument.0
       field_set 0
         Type SharedState
-        ClosureCapture cc1 0
+        ClosureCapture cc1 1
           Type () -> Int
           Local $closure
         Type Int
@@ -7367,7 +7372,7 @@ Module
         Type Int
         FieldAccess 0
           Type SharedState
-          ClosureCapture cc1 0
+          ClosureCapture cc1 1
             Type () -> Int
             Local $closure
   fun $lambda.2 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2($closure: (Int) -> Int, value: Int) -> Int
@@ -11280,8 +11285,8 @@ Module
     call managed-direct-target0 sp126 live=[local0:{i32, ptr<managed>}@8, local3:enum5@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td31, machine<byte-size>(ByteSize(48)))
     t3 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 : ptr
     heap_store t2 +16 t3
-    heap_store t2 +24 local3
-    heap_store t2 +32 local0
+    heap_store t2 +40 local3
+    heap_store t2 +24 local0
     ret t2
   fun @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:makeIncrement(ptr<managed>, i32) -> ptr<managed>
   block entry
@@ -11289,8 +11294,8 @@ Module
     call managed-direct-target0 sp127 live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td32, machine<byte-size>(ByteSize(40)))
     t1 = function_address @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:1n9:$lambda.1 : ptr
     heap_store t0 +16 t1
-    heap_store t0 +24 param0
-    heap_store t0 +32 param1
+    heap_store t0 +32 param0
+    heap_store t0 +24 param1
     ret t0
   fun @scoop_main() -> void
     local %0 operation: ptr<managed>
@@ -11434,7 +11439,7 @@ Module
     local %12 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp239 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : enum5
+    t0 = heap_load param0 +40 : enum5
     store t0 -> local9
     store local9 -> local10
     t1 = variant_test e5 v0 local10 : i1
@@ -11455,7 +11460,7 @@ Module
     store local4 -> local5
     call managed-direct-target0 sp148 live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local5:ptr<managed>@0] t4 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local3, local5)
     store t4 -> local6
-    t5 = heap_load param0 +32 : {i32, ptr<managed>}
+    t5 = heap_load param0 +24 : {i32, ptr<managed>}
     t6 = extract t5, 1 : ptr<managed>
     store t6 -> local7
     store local7 -> local8
@@ -11475,16 +11480,16 @@ Module
     local %2 $parameter.other: i32
   block entry
     poll managed-void-target0 sp240 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : ptr<managed>
+    t0 = heap_load param0 +32 : ptr<managed>
     t1 = heap_load t0 +16 : i32
     store t1 -> local0
-    t2 = heap_load param0 +32 : i32
+    t2 = heap_load param0 +24 : i32
     store t2 -> local1
     store local1 -> local2
-    t3 = heap_load param0 +24 : ptr<managed>
+    t3 = heap_load param0 +32 : ptr<managed>
     t4 = integer_Add<Int> local0, local2 : i32
     heap_store t3 +16 t4
-    t5 = heap_load param0 +24 : ptr<managed>
+    t5 = heap_load param0 +32 : ptr<managed>
     t6 = heap_load t5 +16 : i32
     ret t6
   fun @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2(ptr<managed>, i32) -> i32
@@ -11803,8 +11808,8 @@ Module
   layout IllegalArgumentException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout SharedState size=24 align=8 refs=[]
-  layout $Closure$lambda0 size=48 align=8 refs=[24, 40]
-  layout $Closure$lambda1 size=40 align=8 refs=[24]
+  layout $Closure$lambda0 size=48 align=8 refs=[32, 40]
+  layout $Closure$lambda1 size=40 align=8 refs=[32]
   layout $Closure$lambda2 size=24 align=8 refs=[]
   layout $Closure$lambda3 size=24 align=8 refs=[]
   layout $Closure$lambda4 size=32 align=8 refs=[]

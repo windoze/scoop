@@ -291,14 +291,16 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::StructConstruct {
             fields: elements, ..
         }
-        | mir::ExprKind::ClosureAlloc {
-            captures: elements, ..
-        }
         | mir::ExprKind::VariantConstruct {
             fields: elements, ..
         } => {
             for element in elements {
                 expr_uses(element, uses);
+            }
+        }
+        mir::ExprKind::ClosureAlloc { captures, .. } => {
+            for capture in captures {
+                expr_uses(capture.value(), uses);
             }
         }
         mir::ExprKind::ArrayAssembly { parts, .. } => {

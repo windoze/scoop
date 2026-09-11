@@ -6989,8 +6989,9 @@ Module
       val $argument.0: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc0 $Closure$lambda0
-          Type Continuation$I32
-          Local continuation
+          CaptureInit field=0
+            Type Continuation$I32
+            Local continuation
       val $argument.1: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001

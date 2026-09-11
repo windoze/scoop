@@ -7,6 +7,8 @@ mod callbacks;
 use callbacks::validate_foreign_callback_metadata;
 mod function_adapters;
 use function_adapters::validate_function_adapter_metadata;
+mod closure_environments;
+use closure_environments::validate_closure_environment_metadata;
 mod boxed_values;
 use boxed_values::{validate_boxed_value_metadata, validate_boxing_adjust_metadata};
 mod metadata;
@@ -61,6 +63,12 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidFunctionAdapter {
+        reason: &'static str,
+    },
+    InvalidClosureEnvironment {
+        reason: &'static str,
+    },
+    InvalidClosureExpression {
         reason: &'static str,
     },
     InvalidBoxedValue {
@@ -195,6 +203,9 @@ pub enum MirValidationLocation {
     DynamicFunctionAdapter {
         adapter: DynamicClosureAdapterId,
     },
+    ClosureEnvironment {
+        environment: u32,
+    },
     BoxedValue {
         boxed: u32,
     },
@@ -297,6 +308,9 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR dynamic function adapter {}: ",
                 adapter.into_raw().into_u32()
             )?,
+            MirValidationLocation::ClosureEnvironment { environment } => {
+                write!(formatter, "invalid MIR closure environment {environment}: ")?
+            }
             MirValidationLocation::BoxedValue { boxed } => {
                 write!(formatter, "invalid MIR boxed value {boxed}: ")?
             }
@@ -346,6 +360,8 @@ impl std::fmt::Display for MirValidationError {
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
             | MirValidationErrorKind::InvalidForeignCallbackExpression { reason }
             | MirValidationErrorKind::InvalidFunctionAdapter { reason }
+            | MirValidationErrorKind::InvalidClosureEnvironment { reason }
+            | MirValidationErrorKind::InvalidClosureExpression { reason }
             | MirValidationErrorKind::InvalidBoxedValue { reason }
             | MirValidationErrorKind::InvalidBoxingAdjust { reason } => formatter.write_str(reason),
             MirValidationErrorKind::InvalidConstantImage {
@@ -538,6 +554,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_enum_metadata(module)?;
     validate_coroutine_metadata(module)?;
     validate_foreign_callback_metadata(module)?;
+    validate_closure_environment_metadata(module)?;
     validate_function_adapter_metadata(module)?;
     validate_boxed_value_metadata(module)?;
     validate_boxing_adjust_metadata(module)?;
@@ -665,6 +682,70 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                         actual: field.ty.clone(),
                     });
                 }
+            }
+        }
+        ExprKind::ClosureAlloc { class, captures } => {
+            if class.into_raw().into_u32() as usize >= module.closure_classes.len() {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "allocation references an invalid closure class",
+                });
+            }
+            let definition = &module.closure_classes[*class];
+            if expr.ty != Type::Function(definition.function_type) {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "allocation result does not match the closure function type",
+                });
+            }
+            if captures.len() != definition.captures.len() {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "allocation does not initialize every physical capture field",
+                });
+            }
+            let mut initialized = vec![false; definition.captures.len()];
+            for capture in captures {
+                let field = capture.field() as usize;
+                let Some(expected) = definition.captures.get(field) else {
+                    return Err(MirValidationErrorKind::InvalidClosureExpression {
+                        reason: "allocation references an invalid physical capture field",
+                    });
+                };
+                if std::mem::replace(&mut initialized[field], true) {
+                    return Err(MirValidationErrorKind::InvalidClosureExpression {
+                        reason: "allocation initializes a physical capture field more than once",
+                    });
+                }
+                if capture.value().ty != expected.ty {
+                    return Err(MirValidationErrorKind::InvalidClosureExpression {
+                        reason: "allocation value does not match its physical capture field",
+                    });
+                }
+            }
+        }
+        ExprKind::ClosureCapture {
+            closure,
+            class,
+            index,
+        } => {
+            if class.into_raw().into_u32() as usize >= module.closure_classes.len() {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read references an invalid closure class",
+                });
+            }
+            let definition = &module.closure_classes[*class];
+            if closure.ty != Type::Function(definition.function_type) {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read operand does not match the closure function type",
+                });
+            }
+            let Some(field) = definition.captures.get(*index as usize) else {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read references an invalid physical field",
+                });
+            };
+            if expr.ty != field.ty {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read result does not match its physical field",
+                });
             }
         }
         ExprKind::VariantConstruct { variant, fields } => {

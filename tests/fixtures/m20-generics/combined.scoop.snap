@@ -10579,8 +10579,9 @@ Module
       val $argument.2: (Message, String) -> String
         Type (Message, String) -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type String
-          Local prefix
+          CaptureInit field=0
+            Type String
+            Local prefix
       val $parameter.value: Message
         Type Message
         Local $argument.0

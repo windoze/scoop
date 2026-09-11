@@ -9361,16 +9361,19 @@ Module
         ArrayLiteral MutableArray$FRC4_NodeXX
           Type () -> Node
           ClosureAlloc cc0 $Closure$lambda0
-            Type Node
-            Local fallback
+            CaptureInit field=0
+              Type Node
+              Local fallback
           Type () -> Node
           ClosureAlloc cc1 $Closure$lambda1
-            Type Node
-            Local fallback
+            CaptureInit field=0
+              Type Node
+              Local fallback
           Type () -> Node
           ClosureAlloc cc2 $Closure$lambda2
-            Type Node
-            Local fallback
+            CaptureInit field=0
+              Type Node
+              Local fallback
       call @scoop.$local$u0:p0:r8:functionq8:ordinaryn14:collectAndMove direct
       val $argument.0: Array<Entry$C4_NodeX>
         Type Array<Entry$C4_NodeX>
@@ -9697,8 +9700,9 @@ Module
       val $argument.1: () -> Node
         Type () -> Node
         ClosureAlloc cc4 $Closure$lambda4
-          Type Node
-          Local value
+          CaptureInit field=0
+            Type Node
+            Local value
       val $parameter.index: Long
         Type Long
         Local $argument.0

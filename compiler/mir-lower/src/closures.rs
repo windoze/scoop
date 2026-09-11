@@ -11,21 +11,46 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let captures: Vec<_> = lambda
+            let semantic_fields = lambda
                 .captures
                 .iter()
-                .map(|capture| mir::Field {
-                    name: capture.name.clone(),
-                    ty: types.lower(
-                        capture.ty,
-                        &mut self.source_exact_types,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    ),
+                .enumerate()
+                .map(|(index, capture)| {
+                    (
+                        capture_source(index),
+                        mir::Field {
+                            name: capture.name.clone(),
+                            ty: types.lower(
+                                capture.ty,
+                                &mut self.source_exact_types,
+                                &mut self.enums,
+                                &mut self.structs,
+                                &mut self.interfaces,
+                                &mut self.shell,
+                            ),
+                        },
+                    )
                 })
-                .collect();
+                .collect::<Vec<_>>();
+            let identity = mir::ClosureEnvironmentIdentity::for_lambda(
+                module.functions[lambda.function].materialization,
+                lambda
+                    .captures
+                    .iter()
+                    .enumerate()
+                    .map(|(index, _)| {
+                        (
+                            capture_source(index),
+                            module
+                                .local_value_identities
+                                .lambda_capture(id, index)
+                                .clone(),
+                        )
+                    })
+                    .collect(),
+            )
+            .expect("LocalConcrete lambda captures have complete persistent identities");
+            let captures = order_closure_fields(&identity, semantic_fields);
             let invoke_function = self.function_map[&lambda.function];
             let invoke_symbol = self.functions[invoke_function].symbol.clone();
             let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
@@ -46,9 +71,16 @@ impl Lowerer {
             });
             self.closure_by_function.insert(lambda.function, class);
             for (index, capture) in lambda.captures.iter().enumerate() {
+                let physical = identity
+                    .physical_index(capture_source(index))
+                    .expect("every lambda capture has one physical field");
                 self.closure_capture_indices
-                    .insert((class, capture.binding), index as u32);
+                    .insert((class, capture.binding), physical);
             }
+            self.closure_environments.push(
+                mir::ClosureEnvironment::checked(class, &self.closure_classes[class], identity)
+                    .expect("lambda closure identity covers every physical field"),
+            );
             self.lambda_closures.insert(id, class);
         }
         for (id, anonymous) in module.anonymous_functions.iter() {
@@ -58,21 +90,46 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let captures: Vec<_> = anonymous
+            let semantic_fields = anonymous
                 .captures
                 .iter()
-                .map(|capture| mir::Field {
-                    name: capture.name.clone(),
-                    ty: types.lower(
-                        capture.ty,
-                        &mut self.source_exact_types,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    ),
+                .enumerate()
+                .map(|(index, capture)| {
+                    (
+                        capture_source(index),
+                        mir::Field {
+                            name: capture.name.clone(),
+                            ty: types.lower(
+                                capture.ty,
+                                &mut self.source_exact_types,
+                                &mut self.enums,
+                                &mut self.structs,
+                                &mut self.interfaces,
+                                &mut self.shell,
+                            ),
+                        },
+                    )
                 })
-                .collect();
+                .collect::<Vec<_>>();
+            let identity = mir::ClosureEnvironmentIdentity::for_anonymous_function(
+                module.functions[anonymous.function].materialization,
+                anonymous
+                    .captures
+                    .iter()
+                    .enumerate()
+                    .map(|(index, _)| {
+                        (
+                            capture_source(index),
+                            module
+                                .local_value_identities
+                                .anonymous_function_capture(id, index)
+                                .clone(),
+                        )
+                    })
+                    .collect(),
+            )
+            .expect("LocalConcrete anonymous captures have complete persistent identities");
+            let captures = order_closure_fields(&identity, semantic_fields);
             let invoke_function = self.function_map[&anonymous.function];
             let invoke_symbol = self.functions[invoke_function].symbol.clone();
             let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
@@ -93,9 +150,16 @@ impl Lowerer {
             });
             self.closure_by_function.insert(anonymous.function, class);
             for (index, capture) in anonymous.captures.iter().enumerate() {
+                let physical = identity
+                    .physical_index(capture_source(index))
+                    .expect("every anonymous-function capture has one physical field");
                 self.closure_capture_indices
-                    .insert((class, capture.binding), index as u32);
+                    .insert((class, capture.binding), physical);
             }
+            self.closure_environments.push(
+                mir::ClosureEnvironment::checked(class, &self.closure_classes[class], identity)
+                    .expect("anonymous closure identity covers every physical field"),
+            );
             self.anonymous_closures.insert(id, class);
         }
         for (id, reference) in module.callable_references.iter() {
@@ -123,32 +187,67 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let mut capture_fields =
+            let mut semantic_fields =
+                Vec::with_capacity(reference.captures.len() + usize::from(receiver.is_some()));
+            let mut identity_inputs =
                 Vec::with_capacity(reference.captures.len() + usize::from(receiver.is_some()));
             if let Some(receiver) = receiver {
-                capture_fields.push(mir::Field {
-                    name: "$receiver".to_string(),
-                    ty: types.lower(
-                        receiver.ty,
-                        &mut self.source_exact_types,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    ),
-                });
+                semantic_fields.push((
+                    mir::ClosureFieldSource::CallableReferenceReceiver,
+                    mir::Field {
+                        name: "$receiver".to_string(),
+                        ty: types.lower(
+                            receiver.ty,
+                            &mut self.source_exact_types,
+                            &mut self.enums,
+                            &mut self.structs,
+                            &mut self.interfaces,
+                            &mut self.shell,
+                        ),
+                    },
+                ));
+                identity_inputs.push((
+                    mir::ClosureFieldSource::CallableReferenceReceiver,
+                    module
+                        .local_value_identities
+                        .callable_reference_receiver(id)
+                        .expect("a bound callable reference has a persistent receiver identity")
+                        .clone(),
+                ));
             }
-            capture_fields.extend(reference.captures.iter().map(|capture| mir::Field {
-                name: capture.name.clone(),
-                ty: types.lower(
-                    capture.ty,
-                    &mut self.source_exact_types,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                ),
+            semantic_fields.extend(reference.captures.iter().enumerate().map(
+                |(index, capture)| {
+                    (
+                        capture_source(index),
+                        mir::Field {
+                            name: capture.name.clone(),
+                            ty: types.lower(
+                                capture.ty,
+                                &mut self.source_exact_types,
+                                &mut self.enums,
+                                &mut self.structs,
+                                &mut self.interfaces,
+                                &mut self.shell,
+                            ),
+                        },
+                    )
+                },
+            ));
+            identity_inputs.extend(reference.captures.iter().enumerate().map(|(index, _)| {
+                (
+                    capture_source(index),
+                    module
+                        .local_value_identities
+                        .callable_reference_capture(id, index)
+                        .clone(),
+                )
             }));
+            let identity = mir::ClosureEnvironmentIdentity::for_callable_reference(
+                *reference.identity.materialization(),
+                identity_inputs,
+            )
+            .expect("LocalConcrete callable-reference fields have persistent identities");
+            let capture_fields = order_closure_fields(&identity, semantic_fields);
             let closure_ty = mir::Type::Function(function_type);
             let mut locals = Arena::new();
             let closure = locals.alloc(mir::Local {
@@ -200,40 +299,58 @@ impl Lowerer {
                 captures: capture_fields,
                 bridges: Vec::new(),
             });
-            let capture_offset = u32::from(receiver.is_some());
             for (index, capture) in reference.captures.iter().enumerate() {
+                let physical = identity
+                    .physical_index(capture_source(index))
+                    .expect("every callable-reference capture has one physical field");
                 self.closure_capture_indices
-                    .insert((class, capture.binding), capture_offset + index as u32);
+                    .insert((class, capture.binding), physical);
             }
+            if receiver.is_some() {
+                let physical = identity
+                    .physical_index(mir::ClosureFieldSource::CallableReferenceReceiver)
+                    .expect("every bound callable reference has one receiver field");
+                self.closure_receiver_indices.insert(class, physical);
+            }
+            self.closure_environments.push(
+                mir::ClosureEnvironment::checked(class, &self.closure_classes[class], identity)
+                    .expect("callable-reference identity covers every physical field"),
+            );
             let mut args = Vec::with_capacity(
                 usize::from(receiver.is_some()) + reference.captures.len() + source_args.len(),
             );
             if receiver.is_some() {
+                let receiver_index = self.closure_receiver_indices[&class];
                 args.push(smir::Expr::new(
-                    self.closure_classes[class].captures[0].ty.clone(),
+                    self.closure_classes[class].captures[receiver_index as usize]
+                        .ty
+                        .clone(),
                     smir::ExprKind::ClosureCapture {
                         closure: Box::new(smir::Expr::local(
                             closure,
                             mir::Type::Function(function_type),
                         )),
                         class,
-                        index: 0,
+                        index: receiver_index,
                     },
                 ));
             } else if matches!(
                 &reference.target,
                 hir::CallableReferenceTarget::Local { .. }
             ) {
-                for index in 0..reference.captures.len() {
+                for capture in &reference.captures {
+                    let physical = self.closure_capture_indices[&(class, capture.binding)];
                     args.push(smir::Expr::new(
-                        self.closure_classes[class].captures[index].ty.clone(),
+                        self.closure_classes[class].captures[physical as usize]
+                            .ty
+                            .clone(),
                         smir::ExprKind::ClosureCapture {
                             closure: Box::new(smir::Expr::local(
                                 closure,
                                 mir::Type::Function(function_type),
                             )),
                             class,
-                            index: index as u32,
+                            index: physical,
                         },
                     ));
                 }
@@ -329,4 +446,32 @@ impl Lowerer {
             },
         }
     }
+}
+
+fn capture_source(index: usize) -> mir::ClosureFieldSource {
+    mir::ClosureFieldSource::Capture {
+        declaration_index: u32::try_from(index)
+            .expect("a closure capture declaration index fits the identity schema"),
+    }
+}
+
+fn order_closure_fields(
+    identity: &mir::ClosureEnvironmentIdentity,
+    fields: Vec<(mir::ClosureFieldSource, mir::Field)>,
+) -> Vec<mir::Field> {
+    let mut by_source = fields.into_iter().collect::<HashMap<_, _>>();
+    let physical = identity
+        .fields()
+        .iter()
+        .map(|field| {
+            by_source
+                .remove(&field.source())
+                .expect("every persistent closure field has one physical definition")
+        })
+        .collect();
+    assert!(
+        by_source.is_empty(),
+        "every physical closure field has a persistent identity"
+    );
+    physical
 }

@@ -7005,8 +7005,9 @@ Module
       val operation: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc0 $Closure$lambda0
-          Type Int
-          Local offset
+          CaptureInit field=0
+            Type Int
+            Local offset
       val $argument.0: (Int) -> Int
         Type (Int) -> Int
         Local operation

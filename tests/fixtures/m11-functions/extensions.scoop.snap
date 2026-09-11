@@ -7443,8 +7443,9 @@ Module
       return
         Type (String) -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type String
-          Local this
+          CaptureInit field=0
+            Type String
+            Local this
   fun $extension.kind @scoop.$local$u0:p0:r8:functionq9:extensionn4:kind.Any(this: Any) -> String
     bb0 entry
       return
@@ -7656,8 +7657,9 @@ Module
       val member: () -> String
         Type () -> String
         ClosureAlloc cc1 $Closure$reference0
-          Type Named
-          Local named
+          CaptureInit field=0
+            Type Named
+            Local named
       call $argument.0: String = <closure:function_type1> closure[function_type1]
         Type () -> String
         Local member
@@ -7736,16 +7738,18 @@ Module
       val bound: (String) -> String
         Type (String) -> String
         ClosureAlloc cc3 $Closure$reference2
-          Type String
-          StringConst @scoop.str.14
+          CaptureInit field=0
+            Type String
+            StringConst @scoop.str.14
       val genericUnbound: (String, String) -> String
         Type (String, String) -> String
         ClosureAlloc cc4 $Closure$reference3
       val genericBound: (String) -> String
         Type (String) -> String
         ClosureAlloc cc5 $Closure$reference4
-          Type String
-          StringConst @scoop.str.15
+          CaptureInit field=0
+            Type String
+            StringConst @scoop.str.15
       val $receiver: String
         Type String
         StringConst @scoop.str.16
@@ -7778,8 +7782,9 @@ Module
       val once: (String) -> String
         Type (String) -> String
         ClosureAlloc cc6 $Closure$reference5
-          Type String
-          Local $call.4
+          CaptureInit field=0
+            Type String
+            Local $call.4
       val $argument.0: Int
         Type Int
         FieldAccess 0
@@ -7803,8 +7808,9 @@ Module
       val snapshot: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc7 $Closure$reference6
-          Type Offset
-          Local offset
+          CaptureInit field=0
+            Type Offset
+            Local offset
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=100 bits=0x00000064
@@ -7826,8 +7832,9 @@ Module
       val throwing: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc8 $Closure$reference7
-          Type ThrowingExtension
-          Local $new.6
+          CaptureInit field=0
+            Type ThrowingExtension
+            Local $new.6
       call @scoop_rt_gc_collect direct
       call $argument.0: String = <closure:function_type2> closure[function_type2]
         Type (String, String) -> String

@@ -598,6 +598,9 @@ pub struct MirMeta {
     /// MIR. The identity records remain HIR-owned and are not emitted as
     /// MIR-first foundation entries.
     pub source_local_values: SourceLocalValueIdentities,
+    /// Persistent generated-type and physical field identities for every
+    /// source lambda, anonymous function, and callable-reference closure.
+    pub closure_environments: Vec<ClosureEnvironment>,
     /// Concrete callable materializations in creation order. Every entry
     /// carries the persistent HIR identity used across stage boundaries.
     pub instances: Arena<MonomorphizedFunction>,

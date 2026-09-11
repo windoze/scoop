@@ -7203,8 +7203,9 @@ Module
       return
         Type (Int) -> Int
         ClosureAlloc cc0 $Closure$reference0
-          Type Int
-          Local base
+          CaptureInit field=0
+            Type Int
+            Local base
   fun overloaded @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:overloaded() -> Int
     bb0 entry
       val $argument.0: Int
@@ -7259,8 +7260,9 @@ Module
       return
         Type () -> String
         ClosureAlloc cc2 $Closure$reference2
-          Type LocalLabel
-          Local label
+          CaptureInit field=0
+            Type LocalLabel
+            Local label
   fun nestedLocal @scoop.$local$u0:p0:r8:functionq8:ordinaryn11:nestedLocal(base: Int) -> Int
     bb0 entry
       val $argument.0: Int

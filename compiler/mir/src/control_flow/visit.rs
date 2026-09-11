@@ -14,15 +14,17 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         ExprKind::TupleLiteral(values)
         | ExprKind::StructInit { args: values, .. }
         | ExprKind::StructConstruct { fields: values, .. }
-        | ExprKind::ClosureAlloc {
-            captures: values, ..
-        }
         | ExprKind::ArrayLiteral {
             elements: values, ..
         }
         | ExprKind::VariantConstruct { fields: values, .. } => {
             for value in values {
                 visit_expr(value, visitor);
+            }
+        }
+        ExprKind::ClosureAlloc { captures, .. } => {
+            for capture in captures {
+                visit_expr(capture.value(), visitor);
             }
         }
         ExprKind::ArrayAssembly { parts, .. } => {
@@ -150,15 +152,17 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         ExprKind::TupleLiteral(values)
         | ExprKind::StructInit { args: values, .. }
         | ExprKind::StructConstruct { fields: values, .. }
-        | ExprKind::ClosureAlloc {
-            captures: values, ..
-        }
         | ExprKind::ArrayLiteral {
             elements: values, ..
         }
         | ExprKind::VariantConstruct { fields: values, .. } => {
             for value in values {
                 visit_expr_mut(value, visitor);
+            }
+        }
+        ExprKind::ClosureAlloc { captures, .. } => {
+            for capture in captures {
+                visit_expr_mut(capture.value_mut(), visitor);
             }
         }
         ExprKind::ArrayAssembly { parts, .. } => {

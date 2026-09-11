@@ -37,6 +37,9 @@ pub use source_callable_materializations::*;
 mod source_local_values;
 pub use source_local_values::*;
 
+mod closure_environment;
+pub use closure_environment::*;
+
 mod coroutine_shape;
 pub use coroutine_shape::*;
 

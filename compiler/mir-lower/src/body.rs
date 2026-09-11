@@ -81,7 +81,8 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) reference_closures: &'a HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
     pub(super) closure_classes: &'a mut Arena<mir::ClosureClass>,
     pub(super) closure_invokes: &'a mut Arena<mir::ClosureInvokeFunction>,
-    pub(super) closure_capture_indices: &'a mut HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    pub(super) closure_capture_indices: &'a HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    pub(super) closure_receiver_indices: &'a HashMap<mir::ClosureClassId, u32>,
     pub(super) closure_adapters: &'a mut Arena<mir::ClosureAdapter>,
     pub(super) closure_adapter_by_types:
         &'a mut HashMap<(mir::FunctionTypeId, mir::FunctionTypeId), mir::ClosureAdapterId>,

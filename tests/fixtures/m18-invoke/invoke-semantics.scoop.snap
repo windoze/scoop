@@ -7572,8 +7572,9 @@ Module
       val captured: () -> String
         Type () -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type Handler
-          Local handler
+          CaptureInit field=0
+            Type Handler
+            Local handler
       call $argument.0: String = <closure:function_type0> closure[function_type0]
         Type () -> String
         Local captured

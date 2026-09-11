@@ -220,38 +220,36 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::Lambda(id) => {
                 let class = self.ensure_lambda_closure(*id);
-                let sources: Vec<_> = self.module.lambdas[*id]
+                let sources = self.module.lambdas[*id]
                     .captures
                     .iter()
-                    .map(|capture| capture.source.clone())
+                    .map(|capture| {
+                        (
+                            self.closure_capture_indices[&(class, capture.binding)],
+                            capture.source.clone(),
+                        )
+                    })
                     .collect();
-                smir::ExprKind::ClosureAlloc {
-                    class,
-                    captures: sources
-                        .iter()
-                        .map(|source| self.lower_expr(source))
-                        .collect(),
-                }
+                self.lower_closure_allocation(class, sources)
             }
             hir::ExprKind::AnonymousFunction(id) => {
                 let class = self.ensure_anonymous_closure(*id);
-                let sources: Vec<_> = self.module.anonymous_functions[*id]
+                let sources = self.module.anonymous_functions[*id]
                     .captures
                     .iter()
-                    .map(|capture| capture.source.clone())
+                    .map(|capture| {
+                        (
+                            self.closure_capture_indices[&(class, capture.binding)],
+                            capture.source.clone(),
+                        )
+                    })
                     .collect();
-                smir::ExprKind::ClosureAlloc {
-                    class,
-                    captures: sources
-                        .iter()
-                        .map(|source| self.lower_expr(source))
-                        .collect(),
-                }
+                self.lower_closure_allocation(class, sources)
             }
             hir::ExprKind::CallableReference(id) => {
                 let class = self.ensure_reference_closure(*id);
                 let reference = &self.module.callable_references[*id];
-                let mut captures = Vec::with_capacity(
+                let mut sources = Vec::with_capacity(
                     reference.captures.len()
                         + usize::from(matches!(
                             &reference.target,
@@ -262,17 +260,20 @@ impl BodyLowerer<'_> {
                 match &reference.target {
                     hir::CallableReferenceTarget::BoundMember { receiver, .. }
                     | hir::CallableReferenceTarget::BoundExtension { receiver, .. } => {
-                        captures.push(self.lower_expr(receiver));
+                        sources.push((
+                            self.closure_receiver_indices[&class],
+                            receiver.as_ref().clone(),
+                        ));
                     }
                     _ => {}
                 }
-                captures.extend(
-                    reference
-                        .captures
-                        .iter()
-                        .map(|capture| self.lower_expr(&capture.source)),
-                );
-                smir::ExprKind::ClosureAlloc { class, captures }
+                sources.extend(reference.captures.iter().map(|capture| {
+                    (
+                        self.closure_capture_indices[&(class, capture.binding)],
+                        capture.source.clone(),
+                    )
+                }));
+                self.lower_closure_allocation(class, sources)
             }
             hir::ExprKind::FunctionCoercion {
                 source,
@@ -740,5 +741,27 @@ impl BodyLowerer<'_> {
             }
         };
         smir::Expr::new(ty, kind)
+    }
+
+    fn lower_closure_allocation(
+        &mut self,
+        class: mir::ClosureClassId,
+        semantic_sources: Vec<(u32, hir::Expr)>,
+    ) -> smir::ExprKind {
+        let field_count = self.closure_classes[class].captures.len();
+        assert_eq!(
+            semantic_sources.len(),
+            field_count,
+            "a closure allocation initializes every physical capture field"
+        );
+        smir::ExprKind::ClosureAlloc {
+            class,
+            captures: semantic_sources
+                .into_iter()
+                .map(|(field, source)| {
+                    smir::ClosureCaptureInit::new(field, self.lower_expr(&source))
+                })
+                .collect(),
+        }
     }
 }

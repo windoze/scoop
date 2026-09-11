@@ -53,7 +53,12 @@ pub(super) fn dump_expr(
                 module.closure_classes[*class].name
             ));
             for capture in captures {
-                dump_expr(module, locals, capture, indent + 1, out);
+                out.push_str(&format!(
+                    "{}CaptureInit field={}\n",
+                    "  ".repeat(indent + 1),
+                    capture.field()
+                ));
+                dump_expr(module, locals, capture.value(), indent + 2, out);
             }
         }
         ExprKind::ClosureCapture {

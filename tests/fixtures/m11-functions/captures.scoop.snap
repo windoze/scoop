@@ -3244,8 +3244,9 @@ Module
       return
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-          Type Snapshot
-          Local this
+          CaptureInit field=0
+            Type Snapshot
+            Local this
   fun IntRange.iterator @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn8:iterator(this: IntRange) -> Iterator$I32
     bb0 entry
       val $argument.0: Int
@@ -7058,29 +7059,33 @@ Module
       return
         Type () -> Int
         ClosureAlloc cc1 $Closure$lambda1
-          Type Counter
-          Local this
+          CaptureInit field=0
+            Type Counter
+            Local this
   fun makeAdder @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:makeAdder(base: Int) -> (Int) -> Int
     bb0 entry
       return
         Type (Int) -> Int
         ClosureAlloc cc2 $Closure$lambda2
-          Type Int
-          Local base
+          CaptureInit field=0
+            Type Int
+            Local base
   fun makeNested @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:makeNested(base: Int) -> () -> () -> Int
     bb0 entry
       return
         Type () -> () -> Int
         ClosureAlloc cc3 $Closure$lambda3
-          Type Int
-          Local base
+          CaptureInit field=0
+            Type Int
+            Local base
   fun labelReader @scoop.$local$u0:p0:r8:functionq8:ordinaryn11:labelReader(label: Label) -> () -> String
     bb0 entry
       return
         Type () -> String
         ClosureAlloc cc4 $Closure$lambda4
-          Type Label
-          Local label
+          CaptureInit field=0
+            Type Label
+            Local label
   fun snapshot @scoop.$local$u0:p0:r8:functionq8:ordinaryn8:snapshot() -> () -> Int
     bb0 entry
       var value: Int
@@ -7092,8 +7097,9 @@ Module
       val result: () -> Int
         Type () -> Int
         ClosureAlloc cc5 $Closure$lambda5
-          Type Int
-          Local captured
+          CaptureInit field=0
+            Type Int
+            Local captured
       assign value
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -7301,10 +7307,11 @@ Module
       return
         Type () -> Int
         ClosureAlloc cc6 $Closure$lambda6
-          Type Int
-          ClosureCapture cc3 0
-            Type () -> () -> Int
-            Local $closure
+          CaptureInit field=0
+            Type Int
+            ClosureCapture cc3 0
+              Type () -> () -> Int
+              Local $closure
   fun $lambda.3 @scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3($closure: () -> String) -> String
     bb0 entry
       return

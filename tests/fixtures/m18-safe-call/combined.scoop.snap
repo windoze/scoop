@@ -7427,8 +7427,9 @@ Module
       return
         Type (SafePayload) -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type String
-          Local prefix
+          CaptureInit field=0
+            Type String
+            Local prefix
   fun main @scoop_main() -> Unit
     bb0 entry
       val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>

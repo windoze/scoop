@@ -7444,8 +7444,9 @@ Module
       val $argument.0: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc0 $Closure$lambda0
-          Type Int
-          Local offset
+          CaptureInit field=0
+            Type Int
+            Local offset
       val $argument.1: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001

@@ -18,7 +18,7 @@ impl Lowerer {
                 mir::Type::Function(*target_type),
                 smir::ExprKind::ClosureAlloc {
                     class: self.closure_adapters[adapter].class(),
-                    captures: vec![value],
+                    captures: vec![smir::ClosureCaptureInit::new(0, value)],
                 },
             );
         }

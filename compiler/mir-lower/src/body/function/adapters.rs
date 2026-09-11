@@ -37,7 +37,7 @@ impl BodyLowerer<'_> {
             mir::Type::Function(target),
             smir::ExprKind::ClosureAlloc {
                 class: self.closure_adapters[adapter].class(),
-                captures: vec![value],
+                captures: vec![smir::ClosureCaptureInit::new(0, value)],
             },
         )
     }
@@ -260,7 +260,7 @@ impl BodyLowerer<'_> {
             mir::Type::Function(target),
             smir::ExprKind::ClosureAlloc {
                 class: self.dynamic_closure_adapters[adapter].class(),
-                captures: vec![value],
+                captures: vec![smir::ClosureCaptureInit::new(0, value)],
             },
         )
     }

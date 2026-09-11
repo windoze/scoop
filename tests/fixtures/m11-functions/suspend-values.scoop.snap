@@ -8061,8 +8061,9 @@ Module
       return
         Type suspend () -> Int
         ClosureAlloc cc2 $Closure$lambda2
-          Type Gate
-          Local gate
+          CaptureInit field=0
+            Type Gate
+            Local gate
   fun referenced @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:referenced$suspend($completion: Continuation$I32) -> CoroutineStep$I32
     bb0 entry
       return
@@ -8082,8 +8083,9 @@ Module
       return
         Type suspend () -> Int
         ClosureAlloc cc27 $Closure$reference0
-          Type Gate
-          Local gate
+          CaptureInit field=0
+            Type Gate
+            Local gate
   fun varianceTask @scoop.$local$u0:p0:r8:functionq8:ordinaryn12:varianceTask() -> suspend () -> Int
     bb0 entry
       val exact: suspend (Any) -> Int
@@ -8092,13 +8094,15 @@ Module
       val widened: suspend (Int) -> Any
         Type suspend (Int) -> Any
         ClosureAlloc cc33 $Closure$adapter$SAnyRI32X$SI32RAnyX
-          Type suspend (Any) -> Int
-          Local exact
+          CaptureInit field=0
+            Type suspend (Any) -> Int
+            Local exact
       return
         Type suspend () -> Int
         ClosureAlloc cc3 $Closure$lambda3
-          Type suspend (Int) -> Any
-          Local widened
+          CaptureInit field=0
+            Type suspend (Int) -> Any
+            Local widened
   fun dynamicVarianceTask @scoop.$local$u0:p0:r8:functionq8:ordinaryn19:dynamicVarianceTask() -> suspend () -> Int
     bb0 entry
       val exact: suspend (Any) -> Int
@@ -8133,20 +8137,23 @@ Module
       val checked: suspend (Int) -> Any
         Type suspend (Int) -> Any
         ClosureAlloc cc34 $Closure$dynamic_adapter$SI32RAnyX
-          Type Any
-          Local $cast.1
+          CaptureInit field=0
+            Type Any
+            Local $cast.1
       return
         Type suspend () -> Int
         ClosureAlloc cc4 $Closure$lambda4
-          Type suspend (Int) -> Any
-          Local checked
+          CaptureInit field=0
+            Type suspend (Int) -> Any
+            Local checked
   fun failureTask @scoop.$local$u0:p0:r8:functionq8:ordinaryn11:failureTask(gate: Gate) -> suspend () -> Int
     bb0 entry
       return
         Type suspend () -> Int
         ClosureAlloc cc5 $Closure$lambda5
-          Type Gate
-          Local gate
+          CaptureInit field=0
+            Type Gate
+            Local gate
   fun synchronousValue @scoop.$local$u0:p0:r8:functionq8:ordinaryn16:synchronousValue$suspend($completion: Continuation$I32) -> CoroutineStep$I32
     bb0 entry
       val $frame: CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31363a73796e6368726f6e6f757356616c75652473757370656e64
@@ -8317,8 +8324,9 @@ Module
       return
         Type suspend () -> Int
         ClosureAlloc cc11 $Closure$lambda11
-          Type Gate
-          Local gate
+          CaptureInit field=0
+            Type Gate
+            Local gate
   fun main @scoop_main() -> Unit
     bb0 entry
       val task: suspend () -> Int
@@ -8492,8 +8500,9 @@ Module
       val checked: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc35 $Closure$dynamic_adapter$SRI32X
-          Type Any
-          Local $cast.1
+          CaptureInit field=0
+            Type Any
+            Local $cast.1
       val $argument.0: suspend () -> Int
         Type suspend () -> Int
         Local checked
@@ -8629,8 +8638,9 @@ Module
       val bound: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc31 $Closure$reference4
-          Type Worker
-          Local $new.11
+          CaptureInit field=0
+            Type Worker
+            Local $new.11
       val $argument.0: suspend () -> Int
         Type suspend () -> Int
         Local bound
@@ -8705,8 +8715,9 @@ Module
       val interfaceBound: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc32 $Closure$reference5
-          Type AsyncValue
-          Local interfaceValue
+          CaptureInit field=0
+            Type AsyncValue
+            Local interfaceValue
       val $argument.0: suspend () -> Int
         Type suspend () -> Int
         Local interfaceBound
@@ -10018,8 +10029,9 @@ Module
       return
         Type suspend () -> Int
         ClosureAlloc cc24 $Closure$lambda24
-          Type Int
-          Local value
+          CaptureInit field=0
+            Type Int
+            Local value
   fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
@@ -13841,8 +13853,9 @@ Module
       val $argument.0: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         ClosureAlloc cc0 $Closure$lambda0
-          Type Worker
-          Local this
+          CaptureInit field=0
+            Type Worker
+            Local this
       val $parameter.registration: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         Local $argument.0
@@ -14275,8 +14288,9 @@ Module
       val $argument.0: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         ClosureAlloc cc1 $Closure$lambda1
-          Type AsyncWorker
-          Local this
+          CaptureInit field=0
+            Type AsyncWorker
+            Local this
       val $parameter.registration: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         Local $argument.0
@@ -18183,10 +18197,11 @@ Module
       val $argument.0: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         ClosureAlloc cc19 $Closure$lambda19
-          Type Gate
-          ClosureCapture cc2 0
-            Type suspend () -> Int
-            Local $closure
+          CaptureInit field=0
+            Type Gate
+            ClosureCapture cc2 0
+              Type suspend () -> Int
+              Local $closure
       val $parameter.registration: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         Local $argument.0
@@ -18673,8 +18688,9 @@ Module
       val $argument.0: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         ClosureAlloc cc20 $Closure$lambda20
-          Type Gate
-          Local $capture.gate
+          CaptureInit field=0
+            Type Gate
+            Local $capture.gate
       val $parameter.registration: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         Local $argument.0
@@ -20056,10 +20072,11 @@ Module
       val $argument.0: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         ClosureAlloc cc21 $Closure$lambda21
-          Type Gate
-          ClosureCapture cc5 0
-            Type suspend () -> Int
-            Local $closure
+          CaptureInit field=0
+            Type Gate
+            ClosureCapture cc5 0
+              Type suspend () -> Int
+              Local $closure
       val $parameter.registration: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         Local $argument.0
@@ -20538,10 +20555,11 @@ Module
       val $argument.0: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         ClosureAlloc cc22 $Closure$lambda22
-          Type Gate
-          ClosureCapture cc23 0
-            Type suspend () -> Int
-            Local $closure
+          CaptureInit field=0
+            Type Gate
+            ClosureCapture cc23 0
+              Type suspend () -> Int
+              Local $closure
       val $parameter.registration: (Continuation$I32) -> Unit
         Type (Continuation$I32) -> Unit
         Local $argument.0
@@ -20974,10 +20992,11 @@ Module
       val inner: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc23 $Closure$lambda23
-          Type Gate
-          ClosureCapture cc11 0
-            Type suspend () -> Int
-            Local $closure
+          CaptureInit field=0
+            Type Gate
+            ClosureCapture cc11 0
+              Type suspend () -> Int
+              Local $closure
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a6336343a303037363961663763643461383564393838343163643633646162623865373363346434316263653536663565323235663732393564643237633366333962366631303a6d61696e2e73636f6f7072363a6c616d62646169323a31336e31303a246c616d6264612e31332473757370656e64
         Local $frame

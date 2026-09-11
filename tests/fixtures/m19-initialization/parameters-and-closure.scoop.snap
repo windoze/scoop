@@ -7469,8 +7469,9 @@ Module
         Local this
         Type () -> String
         ClosureAlloc cc0 $Closure$lambda0
-          Type String
-          Local seed
+          CaptureInit field=0
+            Type String
+            Local seed
       val $argument.0: String
         Type String
         FieldAccess 0
