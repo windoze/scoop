@@ -22,6 +22,7 @@ mod nominals;
 mod types;
 
 use callback_slots::{PendingForeignCallbackRegistration, finish_foreign_callback_slots};
+use closures::{PendingCallableReference, finish_callable_references};
 use constructor_slots::{
     PendingClassConstructor, PendingStructConstructor, finish_class_constructor_slots,
     finish_struct_constructor_slots,
@@ -147,7 +148,7 @@ struct Concretizer<'a> {
     local_functions: Arena<concrete::LocalFunction>,
     local_by_key:
         HashMap<(export::LocalFunctionId, Vec<concrete::TypeId>), concrete::LocalFunctionId>,
-    callable_references: Arena<concrete::CallableReference>,
+    callable_reference_slots: Vec<PendingCallableReference>,
     reference_by_key: HashMap<
         (export::CallableReferenceId, Vec<concrete::TypeId>),
         concrete::CallableReferenceId,
@@ -277,7 +278,7 @@ impl<'a> Concretizer<'a> {
             anonymous_by_key: HashMap::new(),
             local_functions: Arena::new(),
             local_by_key: HashMap::new(),
-            callable_references: Arena::new(),
+            callable_reference_slots: Vec::new(),
             reference_by_key: HashMap::new(),
             function_coercions: Arena::new(),
             coercion_by_key: HashMap::new(),
@@ -621,6 +622,10 @@ impl<'a> Concretizer<'a> {
             })
             .expect("validated concretization produces a total exact-type identity relation");
         let identities = self.build_callable_identities(&exact_type_identities);
+        let callable_references = finish_callable_references(
+            self.callable_reference_slots,
+            identities.callable_reference_identities,
+        );
         let functions = finish_function_slots(
             self.function_slots,
             identities.function_materializations,
@@ -658,7 +663,7 @@ impl<'a> Concretizer<'a> {
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
-            callable_references: self.callable_references,
+            callable_references,
             function_coercions: self.function_coercions,
             foreign_callback_registrations,
             functions,

@@ -44,6 +44,7 @@ pub(super) struct BuiltCallableIdentities {
     pub(super) function_emissions: Vec<concrete::FunctionEmission>,
     pub(super) class_constructor_materializations: Vec<CallableMaterialization>,
     pub(super) struct_constructor_materializations: Vec<CallableMaterialization>,
+    pub(super) callable_reference_identities: Vec<concrete::CallableReferenceIdentity>,
     pub(super) foreign_callback_applications: Vec<PersistentCallbackApplicationId>,
 }
 
@@ -133,6 +134,9 @@ impl<'a> CallableIdentityBuilder<'a> {
         for index in 0..self.concretizer.struct_constructor_keys.len() {
             self.resolve_struct_constructor(index);
         }
+        let callable_reference_identities = (0..self.concretizer.callable_reference_slots.len())
+            .map(|index| self.resolve_callable_reference(index))
+            .collect::<Vec<_>>();
         for index in 0..self.concretizer.foreign_callback_slots.len() {
             self.resolve_foreign_callback(index);
         }
@@ -162,6 +166,11 @@ impl<'a> CallableIdentityBuilder<'a> {
             .iter()
             .chain(&class_constructor_materializations)
             .chain(&struct_constructor_materializations)
+            .chain(
+                callable_reference_identities
+                    .iter()
+                    .map(concrete::CallableReferenceIdentity::materialization),
+            )
             .filter_map(generated_body_member)
             .collect::<Vec<_>>();
         let callable_applications =
@@ -184,8 +193,21 @@ impl<'a> CallableIdentityBuilder<'a> {
             function_emissions,
             class_constructor_materializations,
             struct_constructor_materializations,
+            callable_reference_identities,
             foreign_callback_applications,
         }
+    }
+
+    fn resolve_callable_reference(&mut self, index: usize) -> concrete::CallableReferenceIdentity {
+        let pending = &self.concretizer.callable_reference_slots[index];
+        let source = &self.concretizer.source.callable_references[pending.source];
+        let root = source.definition_root;
+        let path = source.definition_path.clone();
+        let arguments = pending.owner_arguments.clone();
+        let enclosing = self.enclosing_materialization(None, root, &path, &arguments);
+        let parent = self.lexical_parent(enclosing);
+        concrete::CallableReferenceIdentity::new(parent, path, enclosing.context())
+            .expect("a validated callable-reference invoke key has a persistent identity")
     }
 
     fn resolve_function(&mut self, index: usize) -> CallableMaterialization {

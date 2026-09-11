@@ -1,5 +1,34 @@
 use super::*;
 
+#[derive(Debug)]
+pub(super) struct PendingCallableReference {
+    pub(super) source: export::CallableReferenceId,
+    pub(super) owner_arguments: Vec<concrete::TypeId>,
+    target: concrete::CallableReferenceTarget,
+    function_type: concrete::FunctionTypeId,
+    captures: Vec<concrete::Capture>,
+    span: scoop_ast::Span,
+}
+
+pub(super) fn finish_callable_references(
+    pending: Vec<PendingCallableReference>,
+    identities: Vec<concrete::CallableReferenceIdentity>,
+) -> Arena<concrete::CallableReference> {
+    assert_eq!(pending.len(), identities.len());
+    let mut references = Arena::new();
+    for (pending, identity) in pending.into_iter().zip(identities) {
+        let id = references.alloc(concrete::CallableReference {
+            identity,
+            target: pending.target,
+            function_type: pending.function_type,
+            captures: pending.captures,
+            span: pending.span,
+        });
+        assert_eq!(id.into_raw().into_u32() as usize, references.len() - 1);
+    }
+    references
+}
+
 impl Concretizer<'_> {
     pub(super) fn ensure_lambda(
         &mut self,
@@ -151,8 +180,10 @@ impl Concretizer<'_> {
                 }
             }
         };
-        let value = concrete::CallableReference {
-            definition_path: source.definition_path,
+        assert!(source.owner_type_param_count <= substitution.len());
+        let value = PendingCallableReference {
+            source: source_id,
+            owner_arguments: substitution[..source.owner_type_param_count].to_vec(),
             target,
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
@@ -162,7 +193,10 @@ impl Concretizer<'_> {
                 .collect(),
             span: source.span,
         };
-        let id = self.callable_references.alloc(value);
+        let id = concrete::CallableReferenceId::from_raw(
+            (self.callable_reference_slots.len() as u32).into(),
+        );
+        self.callable_reference_slots.push(value);
         self.reference_by_key.insert(key, id);
         id
     }

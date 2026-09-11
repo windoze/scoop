@@ -7,7 +7,8 @@ impl CallableIdentityBuilder<'_> {
         site: &LexicalSite,
         inherited_arguments: &[concrete::TypeId],
     ) -> CallableMaterializationContext {
-        self.enclosing_context(Some(function), site.root, &site.path, inherited_arguments)
+        self.enclosing_materialization(Some(function), site.root, &site.path, inherited_arguments)
+            .context()
     }
 
     pub(super) fn callback_context(
@@ -16,36 +17,37 @@ impl CallableIdentityBuilder<'_> {
         inherited_arguments: &[concrete::TypeId],
     ) -> CallableMaterializationContext {
         let registration = &self.concretizer.source.foreign_callback_registrations[callback];
-        self.enclosing_context(
+        self.enclosing_materialization(
             None,
             registration.definition_root,
             &registration.definition_path,
             inherited_arguments,
         )
+        .context()
     }
 
-    fn enclosing_context(
+    pub(super) fn enclosing_materialization(
         &mut self,
         excluded_function: Option<export::FunctionId>,
         root: export::LexicalDefinitionRoot,
         path: &scoop_identity::StructuralDefinitionPath,
         inherited_arguments: &[concrete::TypeId],
-    ) -> CallableMaterializationContext {
+    ) -> CallableMaterialization {
         if let Some(parent) = self.immediate_parent_function(excluded_function, root, path) {
-            return self.function_context(parent, inherited_arguments);
+            return self.function_materialization(parent, inherited_arguments);
         }
         match root {
             export::LexicalDefinitionRoot::Function(parent) => {
-                self.function_context(parent, inherited_arguments)
+                self.function_materialization(parent, inherited_arguments)
             }
             export::LexicalDefinitionRoot::ClassConstructor(constructor) => {
-                self.class_constructor_context(constructor, inherited_arguments)
+                self.class_constructor_materialization(constructor, inherited_arguments)
             }
             export::LexicalDefinitionRoot::StructConstructor(constructor) => {
-                self.struct_constructor_context(constructor, inherited_arguments)
+                self.struct_constructor_materialization(constructor, inherited_arguments)
             }
             export::LexicalDefinitionRoot::VariantConstructor(variant) => {
-                self.variant_constructor_context(variant, inherited_arguments)
+                self.variant_constructor_materialization(variant, inherited_arguments)
             }
         }
     }
@@ -78,11 +80,11 @@ impl CallableIdentityBuilder<'_> {
         candidate.map(|(_, parent)| parent)
     }
 
-    fn function_context(
+    fn function_materialization(
         &mut self,
         source: export::FunctionId,
         inherited_arguments: &[concrete::TypeId],
-    ) -> CallableMaterializationContext {
+    ) -> CallableMaterialization {
         let expected = self.concretizer.source.functions[source].type_param_count();
         assert!(expected <= inherited_arguments.len());
         let arguments = &inherited_arguments[..expected];
@@ -103,14 +105,14 @@ impl CallableIdentityBuilder<'_> {
                 candidates.len()
             )
         };
-        self.resolve_function(*index).context()
+        self.resolve_function(*index)
     }
 
-    fn class_constructor_context(
+    fn class_constructor_materialization(
         &mut self,
         constructor: export::ClassConstructorId,
         arguments: &[concrete::TypeId],
-    ) -> CallableMaterializationContext {
+    ) -> CallableMaterialization {
         let declaration = &self.concretizer.source.class_constructors[constructor];
         assert_eq!(
             self.concretizer.source.classes[declaration.owner]
@@ -121,14 +123,13 @@ impl CallableIdentityBuilder<'_> {
         let owner = self.concretizer.class_by_key[&(declaration.owner, arguments.to_vec())];
         let local = self.concretizer.class_constructor_by_key[&(constructor, owner)];
         self.resolve_class_constructor(local.into_raw().into_u32() as usize)
-            .context()
     }
 
-    fn struct_constructor_context(
+    fn struct_constructor_materialization(
         &mut self,
         constructor: export::StructConstructorId,
         arguments: &[concrete::TypeId],
-    ) -> CallableMaterializationContext {
+    ) -> CallableMaterialization {
         let declaration = &self.concretizer.source.struct_constructors[constructor];
         assert_eq!(
             self.concretizer.source.structs[declaration.owner]
@@ -139,7 +140,6 @@ impl CallableIdentityBuilder<'_> {
         let owner = self.concretizer.struct_by_key[&(declaration.owner, arguments.to_vec())];
         let local = self.concretizer.struct_constructor_by_key[&(constructor, owner)];
         self.resolve_struct_constructor(local.into_raw().into_u32() as usize)
-            .context()
     }
 
     pub(super) fn constructor_application_context(
@@ -159,21 +159,92 @@ impl CallableIdentityBuilder<'_> {
         }
     }
 
-    fn variant_constructor_context(
+    fn variant_constructor_materialization(
         &mut self,
         variant: export::EnumVariantRef,
         arguments: &[concrete::TypeId],
-    ) -> CallableMaterializationContext {
-        if arguments.is_empty() {
-            return CallableMaterializationContext::NoSubstitution;
-        }
-        let exact_owner = self.enum_owner_exact(variant.enumeration(), arguments);
+    ) -> CallableMaterialization {
         let origin = self.concretizer.source.enum_member_identities[variant].id();
-        let application = self.record_application(CallableApplicationKey::for_variant_constructor(
-            origin,
-            CallableInstantiationOwner::ExactNominalOwner(exact_owner),
-        ));
-        CallableMaterializationContext::Application(application)
+        let context = if arguments.is_empty() {
+            CallableMaterializationContext::NoSubstitution
+        } else {
+            let exact_owner = self.enum_owner_exact(variant.enumeration(), arguments);
+            let application =
+                self.record_application(CallableApplicationKey::for_variant_constructor(
+                    origin,
+                    CallableInstantiationOwner::ExactNominalOwner(exact_owner),
+                ));
+            CallableMaterializationContext::Application(application)
+        };
+        CallableMaterialization::new(CallableTemplateOwner::VariantConstructor(origin), context)
+    }
+
+    pub(super) fn lexical_parent(
+        &self,
+        materialization: CallableMaterialization,
+    ) -> scoop_identity::LexicalCallableParent {
+        match materialization.template() {
+            CallableTemplateOwner::Function(id) => {
+                scoop_identity::LexicalCallableParent::function(id)
+            }
+            CallableTemplateOwner::GenericFunction(id) => {
+                scoop_identity::LexicalCallableParent::generic_function(id)
+            }
+            CallableTemplateOwner::Constructor(id) => {
+                scoop_identity::LexicalCallableParent::constructor(id)
+            }
+            CallableTemplateOwner::Accessor(id) => {
+                scoop_identity::LexicalCallableParent::accessor(id)
+            }
+            CallableTemplateOwner::Generated(id) => self.generated_lexical_parent(id),
+            CallableTemplateOwner::VariantConstructor(id) => {
+                scoop_identity::LexicalCallableParent::variant_constructor(id)
+            }
+        }
+    }
+
+    fn generated_lexical_parent(
+        &self,
+        id: scoop_identity::PersistentGeneratedCallableId,
+    ) -> scoop_identity::LexicalCallableParent {
+        for (function, _) in self.concretizer.source.functions.iter() {
+            let identity = &self.concretizer.source.function_identities[function];
+            match identity {
+                export::HirFunctionIdentity::LexicalGenerated(record)
+                | export::HirFunctionIdentity::Initialization { record, .. }
+                    if record.id() == id =>
+                {
+                    return scoop_identity::LexicalCallableParent::from_generated_key(record.key())
+                        .expect("an enclosing generated source callable is a lexical parent");
+                }
+                export::HirFunctionIdentity::DerivedEquality(applications) => {
+                    if let Some(record) = applications
+                        .iter()
+                        .map(export::HirDerivedEqualityFunctionIdentity::record)
+                        .find(|record| record.id() == id)
+                    {
+                        return scoop_identity::LexicalCallableParent::from_generated_key(
+                            record.key(),
+                        )
+                        .expect("an enclosing generated source callable is a lexical parent");
+                    }
+                }
+                export::HirFunctionIdentity::Source(_)
+                | export::HirFunctionIdentity::PropertyAccessor(_)
+                | export::HirFunctionIdentity::LexicalGenerated(_)
+                | export::HirFunctionIdentity::Initialization { .. } => {}
+            }
+        }
+        for (constructor, _) in self.concretizer.source.class_constructors.iter() {
+            if let Some(record) = self.concretizer.source.constructor_identities[constructor]
+                .generated_record()
+                .filter(|record| record.id() == id)
+            {
+                return scoop_identity::LexicalCallableParent::from_generated_key(record.key())
+                    .expect("an enclosing generated constructor is a lexical parent");
+            }
+        }
+        panic!("missing generated lexical parent for {id:?}")
     }
 
     pub(super) fn exact_method_owner(

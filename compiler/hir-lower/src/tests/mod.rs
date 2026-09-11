@@ -44,6 +44,7 @@ mod m22_ranges;
 mod m22_recursive_named_fields;
 mod m23_address_of_globals;
 mod m23_callable_applications;
+mod m23_callable_reference_identities;
 mod m23_callable_references;
 mod m23_delegate_operator_layers;
 mod m23_exact_types;
