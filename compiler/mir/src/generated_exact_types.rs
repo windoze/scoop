@@ -3,7 +3,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CborIdentityRecord, ExactTypeKey, GeneratedNominalKey, PersistentExactTypeId, PersistentTypeId,
+    CborIdentityRecord, ExactTypeKey, GeneratedNominalKey, OdrMemberDiscriminator, OdrMemberId,
+    OdrMemberKey, OdrMemberRole, PersistentExactTypeId, PersistentTypeId,
 };
 use scoop_wire::HashError;
 
@@ -11,6 +12,28 @@ use crate::{ClassId, ClosureClassId, EnumId};
 
 pub type GeneratedNominalRecord = CborIdentityRecord<PersistentTypeId, GeneratedNominalKey>;
 pub type GeneratedExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
+pub type GeneratedExactTypeOdrMemberRecord = CborIdentityRecord<OdrMemberId, OdrMemberKey>;
+
+/// The complete materialization owner of one MIR-generated nominal exact type.
+///
+/// A source-anchored generated nominal resolves to its defining Cone. An ODR-
+/// owned generated nominal retains the exact `GeneratedNominal` member that
+/// MIR already introduced, so later stages never infer its group from a
+/// generated type id or a coincidentally related callable.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum GeneratedExactTypeOwner {
+    ConeOwned,
+    OdrOwned(GeneratedExactTypeOdrMemberRecord),
+}
+
+impl GeneratedExactTypeOwner {
+    pub const fn odr_member_record(&self) -> Option<&GeneratedExactTypeOdrMemberRecord> {
+        match self {
+            Self::ConeOwned => None,
+            Self::OdrOwned(member) => Some(member),
+        }
+    }
+}
 
 /// Typed physical location of one MIR-generated nominal type.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -26,12 +49,14 @@ pub struct GeneratedExactTypeIdentity {
     location: GeneratedExactTypeLocation,
     nominal: GeneratedNominalRecord,
     exact: GeneratedExactTypeRecord,
+    owner: GeneratedExactTypeOwner,
 }
 
 impl GeneratedExactTypeIdentity {
     pub fn new(
         location: GeneratedExactTypeLocation,
         nominal: &GeneratedNominalRecord,
+        odr_member: Option<&GeneratedExactTypeOdrMemberRecord>,
     ) -> Result<Self, GeneratedExactTypeIdentityError> {
         let expected = match nominal.key() {
             GeneratedNominalKey::ClosureEnvironment { .. }
@@ -52,10 +77,22 @@ impl GeneratedExactTypeIdentity {
         }
         let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal.id()))
             .map_err(GeneratedExactTypeIdentityError::ExactType)?;
+        let owner = match odr_member {
+            Some(member)
+                if member.key().role() == OdrMemberRole::GeneratedNominal
+                    && member.key().discriminator()
+                        == &OdrMemberDiscriminator::GeneratedNominal(nominal.id()) =>
+            {
+                GeneratedExactTypeOwner::OdrOwned(member.clone())
+            }
+            Some(_) => return Err(GeneratedExactTypeIdentityError::InvalidOdrMember),
+            None => GeneratedExactTypeOwner::ConeOwned,
+        };
         Ok(Self {
             location,
             nominal: nominal.clone(),
             exact,
+            owner,
         })
     }
 
@@ -69,6 +106,10 @@ impl GeneratedExactTypeIdentity {
 
     pub const fn exact_record(&self) -> &GeneratedExactTypeRecord {
         &self.exact
+    }
+
+    pub const fn owner(&self) -> &GeneratedExactTypeOwner {
+        &self.owner
     }
 }
 
@@ -164,6 +205,7 @@ impl GeneratedExactTypeIdentities {
 pub enum GeneratedExactTypeIdentityError {
     HirOwnedNominal,
     LocationKindMismatch,
+    InvalidOdrMember,
     ExactType(HashError),
 }
 
@@ -176,6 +218,8 @@ impl fmt::Display for GeneratedExactTypeIdentityError {
             Self::LocationKindMismatch => {
                 formatter.write_str("generated nominal kind does not match its MIR location")
             }
+            Self::InvalidOdrMember => formatter
+                .write_str("generated nominal ODR owner does not identify the same generated type"),
             Self::ExactType(error) => error.fmt(formatter),
         }
     }
@@ -217,7 +261,7 @@ mod tests {
         CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
         CanonicalIdentifier, ClosureEnvironmentRole, ConeIdentity, CoreBuiltinNominal,
         DeclarationScope, DefinitionOwnerChain, PackagePath, PersistentFunctionId,
-        SourceDeclarationKey, SourceDeclarationSite,
+        SourceDeclarationKey, SourceDeclarationSite, SpecializationKey,
     };
 
     use super::*;
@@ -268,7 +312,7 @@ mod tests {
     fn generated_nominal_has_its_exact_nominal_identity() {
         let nominal = boxed_nominal();
         let location = GeneratedExactTypeLocation::Class(ClassId::from_raw(3_u32.into()));
-        let identity = GeneratedExactTypeIdentity::new(location, &nominal).unwrap();
+        let identity = GeneratedExactTypeIdentity::new(location, &nominal, None).unwrap();
         assert_eq!(identity.location(), location);
         assert_eq!(identity.nominal_record(), &nominal);
         assert_eq!(
@@ -284,9 +328,66 @@ mod tests {
             GeneratedExactTypeIdentity::new(
                 GeneratedExactTypeLocation::Class(ClassId::from_raw(0_u32.into())),
                 &nominal,
+                None,
             )
             .unwrap_err(),
             GeneratedExactTypeIdentityError::LocationKindMismatch
+        );
+    }
+
+    #[test]
+    fn generated_exact_type_retains_its_exact_odr_owner() {
+        let nominal = boxed_nominal();
+        let group = CborIdentityRecord::from_key(SpecializationKey::StructuralType {
+            exact_type: core_exact(CoreBuiltinNominal::Unit),
+        })
+        .unwrap();
+        let member = CborIdentityRecord::from_key(
+            OdrMemberKey::new(
+                group.id(),
+                OdrMemberRole::GeneratedNominal,
+                OdrMemberDiscriminator::GeneratedNominal(nominal.id()),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let identity = GeneratedExactTypeIdentity::new(
+            GeneratedExactTypeLocation::Class(ClassId::from_raw(0_u32.into())),
+            &nominal,
+            Some(&member),
+        )
+        .unwrap();
+
+        assert_eq!(identity.owner().odr_member_record(), Some(&member));
+    }
+
+    #[test]
+    fn generated_exact_type_rejects_another_nominal_odr_member() {
+        let nominal = boxed_nominal();
+        let other = closure_nominal();
+        let group = CborIdentityRecord::from_key(SpecializationKey::StructuralType {
+            exact_type: core_exact(CoreBuiltinNominal::Unit),
+        })
+        .unwrap();
+        let member = CborIdentityRecord::from_key(
+            OdrMemberKey::new(
+                group.id(),
+                OdrMemberRole::GeneratedNominal,
+                OdrMemberDiscriminator::GeneratedNominal(other.id()),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            GeneratedExactTypeIdentity::new(
+                GeneratedExactTypeLocation::Class(ClassId::from_raw(0_u32.into())),
+                &nominal,
+                Some(&member),
+            )
+            .unwrap_err(),
+            GeneratedExactTypeIdentityError::InvalidOdrMember
         );
     }
 
@@ -296,6 +397,7 @@ mod tests {
         let first = GeneratedExactTypeIdentity::new(
             GeneratedExactTypeLocation::Class(ClassId::from_raw(0_u32.into())),
             &nominal,
+            None,
         )
         .unwrap();
         let duplicate_location = GeneratedExactTypeIdentity::new(
@@ -304,6 +406,7 @@ mod tests {
                 payload: core_exact(CoreBuiltinNominal::Any),
             })
             .unwrap(),
+            None,
         )
         .unwrap();
         assert!(matches!(
@@ -314,6 +417,7 @@ mod tests {
         let duplicate_identity = GeneratedExactTypeIdentity::new(
             GeneratedExactTypeLocation::Class(ClassId::from_raw(1_u32.into())),
             &nominal,
+            None,
         )
         .unwrap();
         assert!(matches!(

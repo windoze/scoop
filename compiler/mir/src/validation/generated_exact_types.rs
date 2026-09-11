@@ -23,13 +23,17 @@ pub(super) fn validate_generated_exact_type_metadata(
         if !exists {
             return invalid(location, "the generated nominal location does not exist");
         }
-        let rebuilt = GeneratedExactTypeIdentity::new(entry.location(), entry.nominal_record())
-            .map_err(|_| {
-                error(
-                    location,
-                    "the generated nominal does not match its physical arena",
-                )
-            })?;
+        let rebuilt = GeneratedExactTypeIdentity::new(
+            entry.location(),
+            entry.nominal_record(),
+            entry.owner().odr_member_record(),
+        )
+        .map_err(|_| {
+            error(
+                location,
+                "the generated nominal does not match its physical arena",
+            )
+        })?;
         if &rebuilt != entry {
             return invalid(
                 location,
@@ -45,6 +49,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Closure(environment.class()),
             environment.identity().generated_type_record(),
+            environment.identity().odr_member_record(),
         )?;
     }
     for (_, adapter) in module.meta.closure_adapters.iter() {
@@ -53,6 +58,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Closure(adapter.class()),
             adapter.identity().environment_record(),
+            Some(adapter.identity().environment_member_record()),
         )?;
     }
     for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
@@ -61,6 +67,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Closure(adapter.class()),
             adapter.identity().environment_record(),
+            Some(adapter.identity().environment_member_record()),
         )?;
     }
     for (_, step) in module.meta.coroutine_steps.iter() {
@@ -69,6 +76,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Enum(step.enum_id()),
             step.identity().generated_type_record(),
+            step.identity().root().member_record(),
         )?;
     }
     for (_, slot) in module.meta.coroutine_slots.iter() {
@@ -77,6 +85,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Enum(slot.enum_id()),
             slot.identity().generated_type_record(),
+            slot.identity().root().member_record(),
         )?;
     }
     for (_, frame) in module.meta.coroutine_frames.iter() {
@@ -85,6 +94,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Class(frame.class()),
             frame.identity().generated_type_record(),
+            frame.identity().odr_member_record(),
         )?;
     }
     for (_, point) in module.meta.coroutine_resume_points.iter() {
@@ -93,6 +103,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Class(point.adapter()),
             point.identity().generated_type_record(),
+            point.identity().odr_member_record(),
         )?;
     }
     for boxed in &module.meta.boxed_types {
@@ -101,6 +112,7 @@ pub(super) fn validate_generated_exact_type_metadata(
             &mut expected,
             GeneratedExactTypeLocation::Class(boxed.class()),
             boxed.identity().generated_type_record(),
+            boxed.identity().root().member_record(),
         )?;
     }
     if expected.len() != module.meta.generated_exact_types.len() {
@@ -117,6 +129,7 @@ fn expect(
     expected: &mut HashSet<GeneratedExactTypeLocation>,
     location: GeneratedExactTypeLocation,
     nominal: &GeneratedNominalRecord,
+    odr_member: Option<&GeneratedExactTypeOdrMemberRecord>,
 ) -> Result<(), MirValidationError> {
     let error_location = next_location(module);
     if !expected.insert(location) {
@@ -131,10 +144,12 @@ fn expect(
             "a MIR-generated nominal has no exact-type identity",
         );
     };
-    if entry.nominal_record() != nominal {
+    let expected = GeneratedExactTypeIdentity::new(location, nominal, odr_member)
+        .map_err(|_| error(error_location, "the generated nominal owner is invalid"))?;
+    if entry != &expected {
         return invalid(
             error_location,
-            "the exact-type relation names a different generated nominal",
+            "the exact-type relation names a different generated nominal or materialization owner",
         );
     }
     Ok(())

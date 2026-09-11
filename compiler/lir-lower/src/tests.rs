@@ -172,55 +172,63 @@ fn register_boxed_source_nominal(
 
 fn install_generated_exact_types(module: &mut mir::Module) {
     let mut entries = Vec::new();
-    let mut register = |location, nominal| {
-        entries.push(mir::GeneratedExactTypeIdentity::new(location, nominal).unwrap());
+    let mut register = |location, nominal, odr_member| {
+        entries.push(mir::GeneratedExactTypeIdentity::new(location, nominal, odr_member).unwrap());
     };
     for environment in &module.meta.closure_environments {
         register(
             mir::GeneratedExactTypeLocation::Closure(environment.class()),
             environment.identity().generated_type_record(),
+            environment.identity().odr_member_record(),
         );
     }
     for (_, adapter) in module.meta.closure_adapters.iter() {
         register(
             mir::GeneratedExactTypeLocation::Closure(adapter.class()),
             adapter.identity().environment_record(),
+            Some(adapter.identity().environment_member_record()),
         );
     }
     for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
         register(
             mir::GeneratedExactTypeLocation::Closure(adapter.class()),
             adapter.identity().environment_record(),
+            Some(adapter.identity().environment_member_record()),
         );
     }
     for (_, step) in module.meta.coroutine_steps.iter() {
         register(
             mir::GeneratedExactTypeLocation::Enum(step.enum_id()),
             step.identity().generated_type_record(),
+            step.identity().root().member_record(),
         );
     }
     for (_, slot) in module.meta.coroutine_slots.iter() {
         register(
             mir::GeneratedExactTypeLocation::Enum(slot.enum_id()),
             slot.identity().generated_type_record(),
+            slot.identity().root().member_record(),
         );
     }
     for (_, frame) in module.meta.coroutine_frames.iter() {
         register(
             mir::GeneratedExactTypeLocation::Class(frame.class()),
             frame.identity().generated_type_record(),
+            frame.identity().odr_member_record(),
         );
     }
     for (_, point) in module.meta.coroutine_resume_points.iter() {
         register(
             mir::GeneratedExactTypeLocation::Class(point.adapter()),
             point.identity().generated_type_record(),
+            point.identity().odr_member_record(),
         );
     }
     for boxed in &module.meta.boxed_types {
         register(
             mir::GeneratedExactTypeLocation::Class(boxed.class()),
             boxed.identity().generated_type_record(),
+            boxed.identity().root().member_record(),
         );
     }
     module.meta.generated_exact_types =
