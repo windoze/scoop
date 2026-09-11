@@ -1011,6 +1011,7 @@ Module
   interface Iterable$V64
   interface Iterator$V64
   interface Exchange$I32
+  generated_exact_type get0 location=class19 nominal_id=176232817bf506f5f46430f154c21ee977d67d5e4058b7982b2ce182cf1ca8ef exact_id=b03cc915d7e3b149ec13ba958ea0d82f3ed91157a8b20a6f9db81ecc714dc16a
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

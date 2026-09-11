@@ -248,6 +248,15 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     ));
     let frame = &module.meta.coroutine_frames[*frame];
     assert_eq!(frame.identity().source(), caller.source);
+    let frame_exact = module
+        .meta
+        .generated_exact_types
+        .get(mir::GeneratedExactTypeLocation::Class(frame.class()))
+        .expect("the coroutine frame has one generated exact type");
+    assert_eq!(
+        frame_exact.exact_record().key(),
+        &scoop_identity::ExactTypeKey::Nominal(frame.identity().generated_type_record().id())
+    );
     assert!(matches!(
         frame.identity().generated_type_record().key(),
         scoop_identity::GeneratedNominalKey::CoroutineFrame { source_callable }

@@ -1200,6 +1200,7 @@ Module
   interface SuspendTask$D14_SourceLocationX
   interface Continuation$D14_SourceLocationX
   interface SuspendRegistration$D14_SourceLocationX
+  generated_exact_type get0 location=enum5 nominal_id=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c exact_id=9ee8e3e9c2738c74c6d6d74011c510f9dc6cfb1ca5707fee17776e41dc5f71fc
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

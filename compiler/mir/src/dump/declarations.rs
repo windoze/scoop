@@ -231,6 +231,24 @@ pub fn dump(module: &Module) -> String {
             ));
         }
     }
+    for (index, identity) in module.meta.generated_exact_types.iter().enumerate() {
+        let location = match identity.location() {
+            GeneratedExactTypeLocation::Closure(class) => {
+                format!("closure{}", class.into_raw().into_u32())
+            }
+            GeneratedExactTypeLocation::Class(class) => {
+                format!("class{}", class.into_raw().into_u32())
+            }
+            GeneratedExactTypeLocation::Enum(enumeration) => {
+                format!("enum{}", enumeration.into_raw().into_u32())
+            }
+        };
+        out.push_str(&format!(
+            "  generated_exact_type get{index} location={location} nominal_id={} exact_id={}\n",
+            identity.nominal_record().id(),
+            identity.exact_record().id(),
+        ));
+    }
     for (id, adapter) in module.meta.closure_adapters.iter() {
         out.push_str(&format!(
             "  adapter ca{} class=cc{} source=function_type{} target=function_type{}\n",

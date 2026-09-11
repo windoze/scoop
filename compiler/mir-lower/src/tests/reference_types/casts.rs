@@ -72,6 +72,7 @@ Module
     None()
   class ClassCastException vtable=0 itables=0
   class box$D1_SX vtable=0 itables=0
+  generated_exact_type get0 location=class7 nominal_id=6099125bb7f1516dea4fcabb23b6a0e9d3dcea0fa10934e5a0d14e7901579ca6 exact_id=bdb2c0fdfd4d7a1b9055d0c0674d2081556c69e5c8c54f4dccca995dae9a150a
   fun main @scoop_main() -> Unit
     bb0 entry
       val is_s: Boolean

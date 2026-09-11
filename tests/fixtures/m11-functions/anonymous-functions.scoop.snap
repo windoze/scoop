@@ -947,6 +947,8 @@ Module
   interface Iterator$V64
   closure cc0 $Closure$anonymous0 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr18:anonymous-functioni1:0n12:$anonymous.0 captures=1
   closure cc1 $Closure$anonymous1 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr18:anonymous-functioni1:1n12:$anonymous.1 captures=0
+  generated_exact_type get0 location=closure0 nominal_id=90a27b59fae67177e43b63e2aecba11908d294b61a6af5fde170f8f4b4583efd exact_id=1e7b23a2b077efe3283abc731c0a5b2e3c13cbe72aa6c05edd2c7f5122dc3423
+  generated_exact_type get1 location=closure1 nominal_id=5e68b0b8cc8e58092426c44b9bc2d9db961f3225bc87056875b5c403c9d51d31 exact_id=ee915ae1b3fcecc6a16b4e9032780c6025784c3d16a3f67460c55addd6bbda3c
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

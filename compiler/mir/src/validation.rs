@@ -18,6 +18,8 @@ use metadata::{
     validate_enum_metadata, validate_local_value_metadata,
     validate_source_callable_materializations,
 };
+mod generated_exact_types;
+use generated_exact_types::validate_generated_exact_type_metadata;
 mod coroutines;
 use coroutines::validate_coroutine_metadata;
 
@@ -49,6 +51,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidLocalValue {
+        reason: &'static str,
+    },
+    InvalidGeneratedExactType {
         reason: &'static str,
     },
     InvalidCoroutineMetadata {
@@ -178,6 +183,9 @@ pub enum MirValidationLocation {
         function: FunctionId,
         local: LocalId,
     },
+    GeneratedExactType {
+        entry: u32,
+    },
     ContinuationShell {
         shell: u32,
     },
@@ -269,6 +277,10 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR local value at function {}, local {}: ",
                 function.into_raw().into_u32(),
                 local.into_raw().into_u32()
+            )?,
+            MirValidationLocation::GeneratedExactType { entry } => write!(
+                formatter,
+                "invalid MIR generated exact-type metadata {entry}: "
             )?,
             MirValidationLocation::ContinuationShell { shell } => write!(
                 formatter,
@@ -370,6 +382,9 @@ impl std::fmt::Display for MirValidationError {
                 formatter.write_str(reason)
             }
             MirValidationErrorKind::InvalidLocalValue { reason } => formatter.write_str(reason),
+            MirValidationErrorKind::InvalidGeneratedExactType { reason } => {
+                formatter.write_str(reason)
+            }
             MirValidationErrorKind::InvalidCoroutineMetadata { reason } => {
                 formatter.write_str(reason)
             }
@@ -582,6 +597,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_function_bridge_metadata(module)?;
     validate_boxed_value_metadata(module)?;
     validate_boxing_adjust_metadata(module)?;
+    validate_generated_exact_type_metadata(module)?;
     validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
         validate_body(module, function_id, &function.body)?;

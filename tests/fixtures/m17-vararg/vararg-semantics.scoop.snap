@@ -1704,6 +1704,7 @@ Module
   interface Iterable$S
   interface Iterator$S
   closure cc0 $Closure$reference0 type=function_type1 invoke=@scoop.$reference.0 captures=0
+  generated_exact_type get0 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

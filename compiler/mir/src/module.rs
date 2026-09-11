@@ -591,6 +591,9 @@ pub struct MirMeta {
     /// into this MIR module. These records remain HIR-owned and are not
     /// re-emitted as MIR-first identity-foundation entries.
     pub source_exact_types: SourceExactTypeIdentities,
+    /// Complete typed locations and exact identities of nominal types created
+    /// by MIR transforms. HIR-owned object backing classes are excluded.
+    pub generated_exact_types: GeneratedExactTypeIdentities,
     /// Complete typed locations of LocalConcrete HIR callable
     /// materializations transposed into MIR. MIR-generated callables retain
     /// their identities in transform-owned metadata instead.

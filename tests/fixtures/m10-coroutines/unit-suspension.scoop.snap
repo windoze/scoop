@@ -950,6 +950,12 @@ Module
   interface Continuation$U
   interface SuspendRegistration$U
   interface SuspendTask$U
+  generated_exact_type get0 location=enum7 nominal_id=c826f3df4fe17a8f5f414150ce9e8ca6b3d5731fe8724e5f090d551501311b64 exact_id=2ff79ecba99a3388e39a21d469e0b6f6376bb669ffe9a13a989858b9ad372ea4
+  generated_exact_type get1 location=enum6 nominal_id=1f72b0e70e64d671b7d2d6aab192c3ed4da57d9c7d6a3387a43eec02031c499f exact_id=7947a01346aacce1104b641b7ff2830112fea2756c002e814f4679b841802773
+  generated_exact_type get2 location=enum9 nominal_id=263241ad55afaae08cf741398ae55879a9b8a368b1a87070d05ffb8425ab943e exact_id=b687e797ac6af66cd50c30d4ec47883e6d57acd40c88ae24acce4990d44e56c2
+  generated_exact_type get3 location=class22 nominal_id=904b7ae910e752a5e47c9023d1c365438e3944cb5ac1b0e2c825f72b594364dc exact_id=bc2d8c337d4aceca3dd1a2cfcdaeb46a1e1d543a03a1b041da4a6a67f97a3d68
+  generated_exact_type get4 location=enum8 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
+  generated_exact_type get5 location=class21 nominal_id=81e1978b881de8b50d165e91919859a7ffdef4f92c96d33518d38b00d350a239 exact_id=c20be7fe6fccae8229f6146c8c7c72ed4b2e729e86d863731aa00e08f65dc4a8
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

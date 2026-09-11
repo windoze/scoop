@@ -957,6 +957,12 @@ Module
   interface Continuation$I32
   interface SuspendRegistration$I32
   interface SuspendTask$I32
+  generated_exact_type get0 location=enum8 nominal_id=55ae354ebe7005cd62365a76dd598c861a84b7bf1aea17f9170e1eb0d4c5ef9a exact_id=3eeb6dcb77fe3a2be1d7fcfdd472c7e9f54541becd759b96b29a0b178288f563
+  generated_exact_type get1 location=class22 nominal_id=38abc81c762f32ba90c670e8d20fd0196d417302a5cbfe638fa252ed9a7fb4ff exact_id=a6d606f764580158469eed1e8c947d150583e0cb2ce801be2df2f5db56bbb1d7
+  generated_exact_type get2 location=enum6 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_exact_type get3 location=enum9 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
+  generated_exact_type get4 location=enum7 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
+  generated_exact_type get5 location=class21 nominal_id=72361029dd3d161809266076adc16e5a668a4ec7e1c5a498a22b031530eaa477 exact_id=c76132362cfca318b28d34756e1f6d29685995896247b771d6bc22393f759a00
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

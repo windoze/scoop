@@ -234,9 +234,8 @@ impl Lowerer {
         // The entry point is a non-generic user function, hence always
         // in the map.
         let entry = self.function_map[&self.entry];
-        let boxed_types = self
-            .boxed
-            .entries
+        let boxed_entries = std::mem::take(&mut self.boxed.entries);
+        let boxed_types: Vec<mir::BoxedType> = boxed_entries
             .into_iter()
             .map(|entry| {
                 let ty = module
@@ -259,6 +258,7 @@ impl Lowerer {
                 .expect("boxable HIR exact types have a boxed-value materialization root")
             })
             .collect();
+        let generated_exact_types = self.generated_exact_types(&boxed_types);
         let option_core = self.enums.all_option_core(module);
         mir::Module {
             functions: self.functions,
@@ -287,6 +287,7 @@ impl Lowerer {
             entry,
             meta: mir::MirMeta {
                 source_exact_types: self.source_exact_types.finish(),
+                generated_exact_types,
                 source_callable_materializations: self.source_callables.finish(),
                 local_values: self.local_values.finish(),
                 closure_environments: self.closure_environments,
@@ -308,5 +309,70 @@ impl Lowerer {
                 ..mir::MirMeta::default()
             },
         }
+    }
+
+    fn generated_exact_types(
+        &self,
+        boxed_types: &[mir::BoxedType],
+    ) -> mir::GeneratedExactTypeIdentities {
+        let mut entries = Vec::new();
+        let mut register = |location, nominal| {
+            entries.push(
+                mir::GeneratedExactTypeIdentity::new(location, nominal)
+                    .expect("MIR-generated nominal identity matches its physical arena"),
+            );
+        };
+
+        for environment in &self.closure_environments {
+            register(
+                mir::GeneratedExactTypeLocation::Closure(environment.class()),
+                environment.identity().generated_type_record(),
+            );
+        }
+        for (_, adapter) in self.closure_adapters.iter() {
+            register(
+                mir::GeneratedExactTypeLocation::Closure(adapter.class()),
+                adapter.identity().environment_record(),
+            );
+        }
+        for (_, adapter) in self.dynamic_closure_adapters.iter() {
+            register(
+                mir::GeneratedExactTypeLocation::Closure(adapter.class()),
+                adapter.identity().environment_record(),
+            );
+        }
+        for (_, step) in self.coroutines.steps.iter() {
+            register(
+                mir::GeneratedExactTypeLocation::Enum(step.enum_id()),
+                step.identity().generated_type_record(),
+            );
+        }
+        for (_, slot) in self.coroutines.slots.iter() {
+            register(
+                mir::GeneratedExactTypeLocation::Enum(slot.enum_id()),
+                slot.identity().generated_type_record(),
+            );
+        }
+        for (_, frame) in self.coroutines.frames.iter() {
+            register(
+                mir::GeneratedExactTypeLocation::Class(frame.class()),
+                frame.identity().generated_type_record(),
+            );
+        }
+        for (_, point) in self.coroutines.resume_points.iter() {
+            register(
+                mir::GeneratedExactTypeLocation::Class(point.adapter()),
+                point.identity().generated_type_record(),
+            );
+        }
+        for boxed in boxed_types {
+            register(
+                mir::GeneratedExactTypeLocation::Class(boxed.class()),
+                boxed.identity().generated_type_record(),
+            );
+        }
+
+        mir::GeneratedExactTypeIdentities::checked(entries)
+            .expect("MIR-generated nominal locations and identities are globally unique")
     }
 }

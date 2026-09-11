@@ -962,6 +962,7 @@ Module
   interface Iterable$V64
   interface Iterator$V64
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:0n9:$lambda.0 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=de858cddadd180c8ab19e65c12c2a07eb699276610a9ab1068709e67854a6276 exact_id=060dd3724dee6fd4521ed7642f59e4d4fead07b4997666a61a221f35e3ac0eab
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

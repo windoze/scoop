@@ -1113,6 +1113,13 @@ Module
   closure cc4 $Closure$lambda4 type=function_type3 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3 captures=1
   closure cc5 $Closure$lambda5 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:4n9:$lambda.4 captures=1
   closure cc6 $Closure$lambda6 type=function_type0 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 captures=1
+  generated_exact_type get0 location=closure3 nominal_id=9d777f680ab41056a4ef323431134518f752372f3c78a304cd0c8f8df8f6d08b exact_id=0c72cf7712f76de0f645e530f5eb5d901a565d81d1c8a16770b3723d74d36b84
+  generated_exact_type get1 location=closure1 nominal_id=c37040d69442a84846e41956617aec44e5aab639376b4821f17eb6ca117b6f73 exact_id=35643acc8764a81c6127f7cc1ab72142a0571d38528424c452ced78bdb7a8759
+  generated_exact_type get2 location=closure4 nominal_id=deec060dea3740e04a6e0dab6b67726dd5273ff2477e48ce4d1a6b06adb45ca7 exact_id=5c7dd3aadcedd842d92dccf4508227d2c7b14cf7c2ee4143d79cde90a73e1c09
+  generated_exact_type get3 location=closure6 nominal_id=2f7cdb7b694f0e80a2190d4d84fb721aa72e559b2a0c7e04a7effa4056d811ee exact_id=80dfaba5df4e6cd92ed934b3f646dfcd4758b5b9c65173d6e90dcdec9c109b96
+  generated_exact_type get4 location=closure5 nominal_id=64ca793907530afa3896311a0502431d78d1ebad1deac3cc051bb459e79f1245 exact_id=d09443fe8cc9469e4fd62f06e3337a531e39d78b21cbd01adbd36e8051cfdced
+  generated_exact_type get5 location=closure2 nominal_id=19e7f523e29e4d2a739cbac2b08e14276cbd705cee36266f21c53ca1c44af997 exact_id=d9dc36d1f81fcd986f725863d8a8e937a99385e8c394fc7a40f9d16ca6318b73
+  generated_exact_type get6 location=closure0 nominal_id=e6243f859555ae2f521c12a2287737c015cc552f839fc12bb12422cd58cfa4ef exact_id=f79a49f1df841007643c19249612762513aba0f3dfc9e2618756c925eba84a81
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

@@ -195,6 +195,7 @@ fn module_validation_rejects_stale_coroutine_step_shape() {
     )
     .expect("valid CoroutineStep metadata");
     let step_id = module.meta.coroutine_steps.alloc(step);
+    install_generated_exact_types(&mut module);
     assert_eq!(module.validate(), Ok(()));
 
     module.enums[enum_id].variants[0].fields.push(Field {
@@ -225,6 +226,7 @@ fn module_validation_rejects_stale_coroutine_slot_reference() {
     let slot = CoroutineSlot::checked(&module.enums, value_payload, empty, value, identity)
         .expect("valid CoroutineSlot metadata");
     let slot_id = module.meta.coroutine_slots.alloc(slot);
+    install_generated_exact_types(&mut module);
     assert_eq!(module.validate(), Ok(()));
 
     module.enums[enum_id].variants.pop();
@@ -315,6 +317,7 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
         )
         .unwrap(),
     );
+    install_generated_exact_types(&mut module);
     assert_eq!(module.validate(), Ok(()));
 
     module.functions[success].return_ty = Type::Boolean;

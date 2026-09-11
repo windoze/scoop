@@ -37,6 +37,15 @@ fn boxing_only_materializes_the_payload_class() {
     assert!(boxed.itables.is_empty());
     assert_eq!(module.meta.boxed_types.len(), 1);
     let boxed_meta = &module.meta.boxed_types[0];
+    let generated_exact = module
+        .meta
+        .generated_exact_types
+        .get(mir::GeneratedExactTypeLocation::Class(boxed_meta.class()))
+        .expect("the value box has one generated exact type");
+    assert_eq!(
+        generated_exact.exact_record().key(),
+        &scoop_identity::ExactTypeKey::Nominal(boxed_meta.identity().generated_type_record().id())
+    );
     assert_eq!(
         boxed_meta.payload(),
         &mir::Type::Struct(la_arena::Idx::from_raw(0.into()))

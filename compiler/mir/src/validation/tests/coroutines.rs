@@ -363,6 +363,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         driver_identity: Box::new(CoroutineDriverIdentity::new(source, None).unwrap()),
         resume_points: vec![point],
     };
+    install_generated_exact_types(&mut module);
     CoroutineFixture {
         module,
         driver,

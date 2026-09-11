@@ -79,6 +79,62 @@ fn test_exact_type(
         .unwrap()
 }
 
+fn install_generated_exact_types(module: &mut Module) {
+    let mut entries = Vec::new();
+    let mut register = |location, nominal| {
+        entries.push(GeneratedExactTypeIdentity::new(location, nominal).unwrap());
+    };
+    for environment in &module.meta.closure_environments {
+        register(
+            GeneratedExactTypeLocation::Closure(environment.class()),
+            environment.identity().generated_type_record(),
+        );
+    }
+    for (_, adapter) in module.meta.closure_adapters.iter() {
+        register(
+            GeneratedExactTypeLocation::Closure(adapter.class()),
+            adapter.identity().environment_record(),
+        );
+    }
+    for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        register(
+            GeneratedExactTypeLocation::Closure(adapter.class()),
+            adapter.identity().environment_record(),
+        );
+    }
+    for (_, step) in module.meta.coroutine_steps.iter() {
+        register(
+            GeneratedExactTypeLocation::Enum(step.enum_id()),
+            step.identity().generated_type_record(),
+        );
+    }
+    for (_, slot) in module.meta.coroutine_slots.iter() {
+        register(
+            GeneratedExactTypeLocation::Enum(slot.enum_id()),
+            slot.identity().generated_type_record(),
+        );
+    }
+    for (_, frame) in module.meta.coroutine_frames.iter() {
+        register(
+            GeneratedExactTypeLocation::Class(frame.class()),
+            frame.identity().generated_type_record(),
+        );
+    }
+    for (_, point) in module.meta.coroutine_resume_points.iter() {
+        register(
+            GeneratedExactTypeLocation::Class(point.adapter()),
+            point.identity().generated_type_record(),
+        );
+    }
+    for boxed in &module.meta.boxed_types {
+        register(
+            GeneratedExactTypeLocation::Class(boxed.class()),
+            boxed.identity().generated_type_record(),
+        );
+    }
+    module.meta.generated_exact_types = GeneratedExactTypeIdentities::checked(entries).unwrap();
+}
+
 fn register_test_exact_type(module: &mut Module, ty: &Type) {
     if let Some(found) = module.meta.source_exact_types.get(ty) {
         assert_eq!(found.identity_record().id(), test_exact_type(ty).id());

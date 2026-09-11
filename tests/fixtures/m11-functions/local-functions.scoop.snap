@@ -1226,6 +1226,9 @@ Module
   closure cc0 $Closure$reference0 type=function_type1 invoke=@scoop.$reference.0 captures=1
   closure cc1 $Closure$reference1 type=function_type1 invoke=@scoop.$reference.1 captures=0
   closure cc2 $Closure$reference2 type=function_type2 invoke=@scoop.$reference.2 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=793f503598284b5cc0ee0407ca038c7e866c86aa84265a3fceee26a20cc3a002 exact_id=620007d345a640d1961798998cb770bd8be8b6981cbfca0385efd06177f5e551
+  generated_exact_type get1 location=closure2 nominal_id=eca58dd6342d9fa1f2745dbad51015ecd497ee8e388828024bde742b1dbaa92f exact_id=b23c0a83a5a741964fb9ac8ade41b9d6c6a81428624e87aba500fbf7be2726ee
+  generated_exact_type get2 location=closure1 nominal_id=b0857244ddf0dc3ea0f406af8862ecb829fe090f4c70bcf58377e054c0a18a54 exact_id=b936a7e40d4db15e5c3a93a898348f0c75f014a512faeedcf0138aa23aa1c2ac
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

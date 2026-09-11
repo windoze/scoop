@@ -1110,6 +1110,11 @@ Module
   closure cc2 $Closure$lambda2 type=function_type2 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:2n9:$lambda.2 captures=0
   closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:3n9:$lambda.3 captures=0
   closure cc4 $Closure$lambda4 type=function_type1 invoke=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr6:lambdai1:4n9:$lambda.4 captures=1
+  generated_exact_type get0 location=closure2 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get1 location=closure0 nominal_id=9b4b7fe07b7a2e116a89156e4cb20b6b0dae19584fa474d5c6002efd8fa608f2 exact_id=24e44dc7a0a2d0ac1d84bc60a36a152e99a4f5e22b30b8f1297ca37718a0380a
+  generated_exact_type get2 location=closure3 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get3 location=closure4 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
+  generated_exact_type get4 location=closure1 nominal_id=fbcf8e68ed7692e469a719f6dde20bccf3d750247189ccf220f362b774a85661 exact_id=fd5a244664b90a9e95b536f9e226ff05ce1015e043fcf81574ed55152e4a1687
   fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8

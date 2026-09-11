@@ -49,6 +49,15 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
         .next()
         .expect("the coercion creates one static function adapter");
     assert_eq!(module.meta.closure_adapters.len(), 1);
+    let exact = module
+        .meta
+        .generated_exact_types
+        .get(mir::GeneratedExactTypeLocation::Closure(adapter.class()))
+        .expect("the adapter environment has one generated exact type");
+    assert_eq!(
+        exact.exact_record().key(),
+        &scoop_identity::ExactTypeKey::Nominal(adapter.identity().environment_record().id())
+    );
     assert!(matches!(
         adapter.identity().environment_record().key(),
         scoop_identity::GeneratedNominalKey::CallableAdapterEnvironment {

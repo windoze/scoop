@@ -100,6 +100,64 @@ fn register_boxed_source_nominal(
         .meta
         .boxed_types
         .push(mir::BoxedType::for_source_nominal(payload, class, &exact).unwrap());
+    install_generated_exact_types(module);
+}
+
+fn install_generated_exact_types(module: &mut mir::Module) {
+    let mut entries = Vec::new();
+    let mut register = |location, nominal| {
+        entries.push(mir::GeneratedExactTypeIdentity::new(location, nominal).unwrap());
+    };
+    for environment in &module.meta.closure_environments {
+        register(
+            mir::GeneratedExactTypeLocation::Closure(environment.class()),
+            environment.identity().generated_type_record(),
+        );
+    }
+    for (_, adapter) in module.meta.closure_adapters.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Closure(adapter.class()),
+            adapter.identity().environment_record(),
+        );
+    }
+    for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Closure(adapter.class()),
+            adapter.identity().environment_record(),
+        );
+    }
+    for (_, step) in module.meta.coroutine_steps.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Enum(step.enum_id()),
+            step.identity().generated_type_record(),
+        );
+    }
+    for (_, slot) in module.meta.coroutine_slots.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Enum(slot.enum_id()),
+            slot.identity().generated_type_record(),
+        );
+    }
+    for (_, frame) in module.meta.coroutine_frames.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Class(frame.class()),
+            frame.identity().generated_type_record(),
+        );
+    }
+    for (_, point) in module.meta.coroutine_resume_points.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Class(point.adapter()),
+            point.identity().generated_type_record(),
+        );
+    }
+    for boxed in &module.meta.boxed_types {
+        register(
+            mir::GeneratedExactTypeLocation::Class(boxed.class()),
+            boxed.identity().generated_type_record(),
+        );
+    }
+    module.meta.generated_exact_types =
+        mir::GeneratedExactTypeIdentities::checked(entries).unwrap();
 }
 
 fn initialization_unit_identity() -> mir::InitializationUnitIdentityRecord {
@@ -279,6 +337,7 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
     }
     source.meta.source_callable_materializations =
         mir::SourceCallableMaterializations::checked(source_callables).unwrap();
+    install_generated_exact_types(&mut source);
     let expected = [
         mir::encode_type(&source, &mir::Type::Class(class_a)).unwrap(),
         mir::encode_type(&source, &mir::Type::Class(class_b)).unwrap(),

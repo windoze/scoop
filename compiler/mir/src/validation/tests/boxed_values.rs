@@ -30,6 +30,7 @@ fn module_with_box() -> Module {
         .meta
         .boxed_types
         .push(BoxedType::for_source_nominal(payload, class, &exact).unwrap());
+    install_generated_exact_types(&mut module);
     module
 }
 
@@ -68,4 +69,19 @@ fn duplicate_boxed_exact_payload_is_rejected() {
             }
         })
     ));
+}
+
+#[test]
+fn every_generated_box_requires_an_exact_type_identity() {
+    let mut module = module_with_box();
+    module.meta.generated_exact_types = GeneratedExactTypeIdentities::default();
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::GeneratedExactType { entry: 0 },
+            kind: MirValidationErrorKind::InvalidGeneratedExactType {
+                reason: "a MIR-generated nominal has no exact-type identity",
+            },
+        })
+    );
 }
