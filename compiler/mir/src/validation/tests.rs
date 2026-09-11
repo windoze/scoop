@@ -141,6 +141,38 @@ fn install_generated_exact_types(module: &mut Module) {
     module.meta.generated_exact_types = GeneratedExactTypeIdentities::checked(entries).unwrap();
 }
 
+fn register_test_function_type(module: &mut Module, id: FunctionTypeId) {
+    let signature = &module.function_types[id];
+    let exact_of = |ty: &Type| {
+        module
+            .meta
+            .source_exact_types
+            .get(ty)
+            .unwrap_or_else(|| panic!("missing test exact identity for {ty:?}"))
+            .identity_record()
+            .id()
+    };
+    let record =
+        scoop_identity::CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Function {
+            effect: if signature.is_suspend {
+                scoop_identity::Effect::Suspend
+            } else {
+                scoop_identity::Effect::Ordinary
+            },
+            parameters: signature.parameter_types.iter().map(exact_of).collect(),
+            result: exact_of(&signature.return_type),
+        })
+        .unwrap();
+    let mut entries = module
+        .meta
+        .source_exact_types
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    entries.push(SourceExactTypeIdentity::checked(Type::Function(id), record, None).unwrap());
+    module.meta.source_exact_types = SourceExactTypeIdentities::checked(entries).unwrap();
+}
+
 fn install_generated_callables(module: &mut Module) {
     let mut entries = Vec::new();
     let mut register = |function, identity, signature_subject| {

@@ -71,6 +71,7 @@ pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, Cl
         parameter_types: Vec::new(),
         return_type: Type::Unit,
     });
+    register_test_function_type(&mut module, function_type);
     let invoke = module
         .closure_invoke_functions
         .alloc(ClosureInvokeFunction {

@@ -24,6 +24,36 @@ fn source_callable_materialization() -> scoop_identity::CallableMaterialization 
 }
 
 #[test]
+fn module_validation_rejects_a_descriptor_class_without_an_exact_identity() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let class = module.classes.alloc(ClassDef {
+        modifier: ClassModifier::Final,
+        link_stem: nominal_link_stem(),
+        name: "MissingIdentity".to_string(),
+        type_arguments: Vec::new(),
+        representation: ClassRepresentation::Declared {
+            fields: Vec::new(),
+            base_class: None,
+        },
+        interfaces: Vec::new(),
+        vtable: Vec::new(),
+        itables: Vec::new(),
+    });
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::RuntimeType {
+                location: MirRuntimeTypeLocation::Class(class),
+            },
+            kind: MirValidationErrorKind::InvalidRuntimeTypeIdentity {
+                reason: "the descriptor type has no exact identity",
+            },
+        })
+    );
+}
+
+#[test]
 fn module_validation_rejects_source_callable_locations_outside_the_function_graph() {
     let (mut module, _) = module_with_variants(Vec::new());
     let missing_function = FunctionId::from_raw(7_u32.into());

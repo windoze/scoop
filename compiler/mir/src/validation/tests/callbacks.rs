@@ -224,6 +224,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         vtable: Vec::new(),
         itables: Vec::new(),
     });
+    register_test_exact_type(&mut module, &Type::Class(throwable));
     let mode = module.enums.alloc(EnumDef {
         link_stem: nominal_link_stem(),
         name: "ForeignCallbackMode".to_string(),
@@ -707,6 +708,7 @@ fn callback_failure_constructor_rejects_another_managed_payload_type() {
         vtable: Vec::new(),
         itables: Vec::new(),
     });
+    register_test_exact_type(&mut module, &Type::Class(other));
     let result = module.foreign_callback_families[family].failure_result;
     let option = OptionCore::checked(&module.enums, result.some_payload(), result.none()).unwrap();
     assert!(ForeignCallbackFailureResult::checked(&module.enums, option, other).is_none());

@@ -133,7 +133,7 @@ Module
     call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
     t1 = aggregate () : {}
     ret
-  td td0 Point @scoop_td_C5_PointX type-id=2 size=32 parent=none vtable=[] itables=[]
+  td td0 Point @scoop_td_C5_PointX type-id=1930812111026443540 size=32 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

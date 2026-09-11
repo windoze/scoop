@@ -23,7 +23,7 @@ fn constant_function(symbol: &str, constant: LirIntegerConstant) -> Function {
         },
     });
     Function {
-        callable_body: callable_body_at(file!(), line!()),
+        callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
         symbol: symbol.to_string(),

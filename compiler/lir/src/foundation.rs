@@ -501,7 +501,7 @@ impl fmt::Display for LirFoundationBuildError {
                 actual,
             } => write!(
                 formatter,
-                "function {function} safepoint site {} belongs to callable body {}, expected {}",
+                "function {function} safepoint site {} belongs to another callable body (actual {}, expected {})",
                 HexIdentity(site),
                 HexIdentity(actual),
                 HexIdentity(expected)

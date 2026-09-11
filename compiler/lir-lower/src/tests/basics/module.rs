@@ -36,6 +36,16 @@ fn odr_callable_subject_becomes_the_exact_odr_body_identity() {
 #[test]
 fn lowers_hello_world() {
     let source = hello_world();
+    let string_runtime_type = lir::RuntimeTypeMappingRecord::new(
+        source
+            .meta
+            .source_exact_types
+            .get(&mir::Type::String)
+            .expect("hello-world String exact identity")
+            .identity_record()
+            .id(),
+    )
+    .unwrap();
     let expected_callable_bodies = source
         .top_level
         .iter()
@@ -89,7 +99,7 @@ fn lowers_hello_world() {
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
     );
     assert_eq!(string_descriptor.symbol, lir::STRING_TD_SYMBOL);
-    assert_eq!(string_descriptor.runtime_type_id, 1);
+    assert_eq!(string_descriptor.runtime_type, string_runtime_type);
     assert!(string_descriptor.vtable.is_empty());
     assert_eq!(
         descriptor_values(&module)

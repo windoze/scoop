@@ -185,20 +185,24 @@ fn emit_type_descriptor<'ctx>(
         &descriptor.name,
     );
     global.set_constant(true);
-    global.set_initializer(&context.const_struct(
-        &[
-            i64_ty.const_int(descriptor.runtime_type_id, false).into(),
-            i64_ty.const_int(descriptor.size, false).into(),
-            i64_ty.const_int(descriptor.align, false).into(),
-            ref_offsets,
-            parent,
-            vtable,
-            itables,
-            i64_ty.const_int(itable_count, false).into(),
-            name.into(),
-        ],
-        false,
-    ));
+    global.set_initializer(
+        &context.const_struct(
+            &[
+                i64_ty
+                    .const_int(descriptor.runtime_type.runtime_type().get(), false)
+                    .into(),
+                i64_ty.const_int(descriptor.size, false).into(),
+                i64_ty.const_int(descriptor.align, false).into(),
+                ref_offsets,
+                parent,
+                vtable,
+                itables,
+                i64_ty.const_int(itable_count, false).into(),
+                name.into(),
+            ],
+            false,
+        ),
+    );
     Ok(())
 }
 

@@ -41,6 +41,32 @@ pub(super) fn callable_body_at(source: &str, line: u32) -> scoop_lir::CallableBo
     callable_body(&format!("{source}:{line}"))
 }
 
+pub(super) fn runtime_type(name: &str) -> scoop_lir::RuntimeTypeMappingRecord {
+    let identifier = format!(
+        "test{}",
+        name.as_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::nominal(
+        site,
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        SourceNominalKind::Class,
+        0,
+    );
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap();
+    scoop_lir::RuntimeTypeMappingRecord::new(exact).unwrap()
+}
+
 pub(super) fn test_safepoints(
     owner_symbol: &str,
     blocks: &Arena<BasicBlock>,
@@ -362,7 +388,7 @@ pub(super) fn string_metadata() -> LirMeta {
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
         name: "String".to_string(),
         symbol: scoop_lir::STRING_TD_SYMBOL.to_string(),
-        runtime_type_id: 1,
+        runtime_type: runtime_type("String"),
         size: 24,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
@@ -395,11 +421,10 @@ pub(super) fn array_type(
     element_align: u64,
     scan: RefScan,
 ) -> ArrayTypeId {
-    let runtime_type_id = meta.type_descriptors.len() as u64 + 1;
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         name: name.to_string(),
         symbol: format!("scoop_td_{name}"),
-        runtime_type_id,
+        runtime_type: runtime_type(name),
         size: element_size,
         align: element_align,
         scan: TypeDescriptorScan::ArrayElement {

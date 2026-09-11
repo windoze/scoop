@@ -60,11 +60,10 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         ],
         terminator: Terminator::Return { value: None },
     });
-    let runtime_type_id = meta.type_descriptors.len() as u64 + 1;
     meta.type_descriptors.alloc(TypeDescriptor {
         name: "Holder".to_string(),
         symbol: "scoop_td_Holder".to_string(),
-        runtime_type_id,
+        runtime_type: runtime_type("Holder"),
         size: 56,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::Sequence(vec![

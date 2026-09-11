@@ -14,7 +14,7 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
         },
     });
     Function {
-        callable_body: callable_body_at(file!(), line!()),
+        callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: symbol.to_string(),

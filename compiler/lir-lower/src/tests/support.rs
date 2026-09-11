@@ -3,7 +3,7 @@ use scoop_ast::Span;
 
 mod builder;
 
-pub(super) use builder::Builder;
+pub(super) use builder::{Builder, test_exact_type};
 
 pub(super) const SPAN: Span = Span { start: 0, end: 0 };
 pub(super) const INT: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_32);

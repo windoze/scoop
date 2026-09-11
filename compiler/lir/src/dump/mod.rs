@@ -357,7 +357,7 @@ pub fn dump(module: &Module) -> String {
             id.into_raw(),
             td.name,
             td.symbol,
-            td.runtime_type_id,
+            td.runtime_type.runtime_type().get(),
             td.size,
             parent,
             vtable,

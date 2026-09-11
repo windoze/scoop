@@ -16,7 +16,7 @@ fn classes_module() -> Module {
             },
         });
         Function {
-            callable_body: callable_body_at(file!(), line!()),
+            callable_body: callable_body(symbol),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
@@ -101,7 +101,7 @@ fn classes_module() -> Module {
     let describable = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Describable".to_string(),
         symbol: "scoop_td_Describable".to_string(),
-        runtime_type_id: 2,
+        runtime_type: runtime_type("Describable"),
         size: 0,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
@@ -112,7 +112,7 @@ fn classes_module() -> Module {
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Shape".to_string(),
         symbol: "scoop_td_Shape".to_string(),
-        runtime_type_id: 3,
+        runtime_type: runtime_type("Shape"),
         size: 24,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
@@ -125,7 +125,7 @@ fn classes_module() -> Module {
     meta.type_descriptors.alloc(TypeDescriptor {
         name: "Point".to_string(),
         symbol: "scoop_td_Point".to_string(),
-        runtime_type_id: 4,
+        runtime_type: runtime_type("Point"),
         size: 32,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
@@ -185,7 +185,7 @@ pub(super) fn heap_module() -> Module {
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Point".to_string(),
         symbol: "scoop_td_Point".to_string(),
-        runtime_type_id: 2,
+        runtime_type: runtime_type("Point"),
         size: 32,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![24])),

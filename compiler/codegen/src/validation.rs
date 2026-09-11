@@ -15,6 +15,8 @@ use scoop_abi::validate_scoop_abi;
 use variants::validate_variant_primitives;
 
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
+    scoop_lir::CanonicalLirFoundation::from_module(module)
+        .map_err(|error| CodegenError(format!("invalid LIR identity foundation: {error}")))?;
     validate_niche_representations(module)?;
     validate_scoop_abi(module)?;
     validate_constant_images(module)?;

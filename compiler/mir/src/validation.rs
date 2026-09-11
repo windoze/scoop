@@ -20,6 +20,9 @@ use metadata::{
 };
 mod generated_exact_types;
 use generated_exact_types::validate_generated_exact_type_metadata;
+mod runtime_types;
+pub use runtime_types::MirRuntimeTypeLocation;
+use runtime_types::validate_runtime_type_metadata;
 mod generated_callables;
 use generated_callables::validate_generated_callable_metadata;
 
@@ -61,6 +64,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidGeneratedExactType {
+        reason: &'static str,
+    },
+    InvalidRuntimeTypeIdentity {
         reason: &'static str,
     },
     InvalidGeneratedCallable {
@@ -202,6 +208,9 @@ pub enum MirValidationLocation {
     GeneratedExactType {
         entry: u32,
     },
+    RuntimeType {
+        location: MirRuntimeTypeLocation,
+    },
     GeneratedCallable {
         entry: u32,
     },
@@ -306,6 +315,10 @@ impl std::fmt::Display for MirValidationError {
             MirValidationLocation::GeneratedExactType { entry } => write!(
                 formatter,
                 "invalid MIR generated exact-type metadata {entry}: "
+            )?,
+            MirValidationLocation::RuntimeType { location } => write!(
+                formatter,
+                "invalid MIR runtime type identity for {location}: "
             )?,
             MirValidationLocation::GeneratedCallable { entry } => write!(
                 formatter,
@@ -421,6 +434,9 @@ impl std::fmt::Display for MirValidationError {
             }
             MirValidationErrorKind::InvalidLocalValue { reason } => formatter.write_str(reason),
             MirValidationErrorKind::InvalidGeneratedExactType { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidRuntimeTypeIdentity { reason } => {
                 formatter.write_str(reason)
             }
             MirValidationErrorKind::InvalidGeneratedCallable { reason } => {
@@ -645,6 +661,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_boxed_value_metadata(module)?;
     validate_boxing_adjust_metadata(module)?;
     validate_generated_exact_type_metadata(module)?;
+    validate_runtime_type_metadata(module)?;
     validate_generated_callable_metadata(module)?;
     validate_callable_functions(module)?;
     validate_callable_signature_metadata(module)?;

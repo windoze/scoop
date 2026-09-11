@@ -329,9 +329,11 @@ pub struct TypeDescriptor {
     pub name: String,
     /// Global symbol, e.g. `scoop_td_Point`.
     pub symbol: String,
-    /// Runtime-visible identity selected by lir-lower. Codegen does not infer
-    /// it from arena position or descriptor category.
-    pub runtime_type_id: u64,
+    /// Complete persistent-to-runtime identity selected by lir-lower.
+    /// Codegen consumes the typed runtime id and foundation projection keeps
+    /// the full exact-type relation; neither infers it from arena position or
+    /// descriptor category.
+    pub runtime_type: RuntimeTypeMappingRecord,
     pub size: u64,
     pub align: u64,
     pub scan: TypeDescriptorScan,

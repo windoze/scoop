@@ -4,10 +4,11 @@ use la_arena::Arena;
 use scoop_identity::{
     CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
     CallbackRegistrationKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
-    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, InitializationUnitKey,
-    LexicalCallableParent, PackagePath, PersistentCallbackApplicationId, PersistentFunctionId,
-    PersistentPropertyId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
-    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, ExactTypeKey,
+    InitializationUnitKey, LexicalCallableParent, PackagePath, PersistentCallbackApplicationId,
+    PersistentExactTypeId, PersistentFunctionId, PersistentPropertyId, PersistentTypeId,
+    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{

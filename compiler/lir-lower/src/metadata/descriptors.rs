@@ -76,8 +76,6 @@ pub(crate) fn dispatch_entry(
     }
 }
 
-const FIRST_GENERATED_TD_TYPE_ID: u64 = 2;
-
 /// Build the complete local TypeDescriptor graph before lowering any body.
 /// Parent, interface, dispatch and operand references can therefore use typed
 /// ids directly; symbols remain emission attributes only.
@@ -93,14 +91,13 @@ pub(crate) fn type_descriptors(
 ) {
     let mut descriptors = Arena::new();
     let mut refs = TypeDescriptorRefs::default();
-    let mut next_type_id = FIRST_GENERATED_TD_TYPE_ID;
     for (interface, def) in module.interfaces.iter() {
         let encoded = mir::encode_type(module, &mir::Type::Interface(interface))
             .expect("MIR interface applications have source type encodings");
         let id = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(&encoded),
-            runtime_type_id: next_type_id,
+            runtime_type: runtime_type(module, &mir::Type::Interface(interface)),
             size: 0,
             align: 0,
             scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
@@ -108,11 +105,20 @@ pub(crate) fn type_descriptors(
             vtable: Vec::new(),
             itables: Vec::new(),
         });
-        next_type_id += 1;
         refs.interfaces
             .insert(interface, lir::TypeDescriptorRef::Local(id));
     }
-    for (id, _) in module.function_types.iter() {
+    let mut function_types = module
+        .meta
+        .source_exact_types
+        .iter()
+        .filter_map(|identity| match identity.ty() {
+            mir::Type::Function(id) => Some((*id, identity.identity_record().id())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    function_types.sort_by_key(|(_, identity)| *identity);
+    for (id, exact_type) in function_types {
         let name = format!(
             "function${}",
             mir::encode_type(module, &mir::Type::Function(id))
@@ -121,7 +127,8 @@ pub(crate) fn type_descriptors(
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             symbol: td_symbol(&name),
             name,
-            runtime_type_id: next_type_id,
+            runtime_type: lir::RuntimeTypeMappingRecord::new(exact_type)
+                .expect("validated function exact type must derive a nonzero runtime id"),
             size: 0,
             align: 0,
             scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
@@ -129,7 +136,6 @@ pub(crate) fn type_descriptors(
             vtable: Vec::new(),
             itables: Vec::new(),
         });
-        next_type_id += 1;
         refs.function_types
             .insert(id, lir::TypeDescriptorRef::Local(descriptor));
     }
@@ -140,19 +146,17 @@ pub(crate) fn type_descriptors(
             def.representation,
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
         );
-        let runtime_type_id = if is_string {
-            1
+        let descriptor_type = if is_string {
+            mir::Type::String
         } else {
-            let assigned = next_type_id;
-            next_type_id += 1;
-            assigned
+            mir::Type::Class(id)
         };
         let descriptor = class_type_descriptor(
             context,
             module,
             enums,
             id,
-            runtime_type_id,
+            runtime_type(module, &descriptor_type),
             &refs,
             local_functions,
         );
@@ -171,7 +175,10 @@ pub(crate) fn type_descriptors(
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(def.link_stem.as_str()),
-            runtime_type_id: next_type_id,
+            runtime_type: generated_runtime_type(
+                module,
+                mir::GeneratedExactTypeLocation::Closure(closure),
+            ),
             size,
             align,
             scan: lir::TypeDescriptorScan::Fixed(scan),
@@ -189,7 +196,6 @@ pub(crate) fn type_descriptors(
                 })
                 .collect(),
         });
-        next_type_id += 1;
         refs.closures
             .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
     }
@@ -208,7 +214,7 @@ pub(crate) fn class_type_descriptor(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     id: mir::ClassId,
-    runtime_type_id: u64,
+    runtime_type: lir::RuntimeTypeMappingRecord,
     refs: &TypeDescriptorRefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> lir::TypeDescriptor {
@@ -233,7 +239,7 @@ pub(crate) fn class_type_descriptor(
                 .expect("MIR class applications have source type encodings");
             td_symbol(&encoded)
         },
-        runtime_type_id,
+        runtime_type,
         size,
         align,
         scan,
@@ -256,6 +262,32 @@ pub(crate) fn class_type_descriptor(
             })
             .collect(),
     }
+}
+
+fn runtime_type(module: &mir::Module, ty: &mir::Type) -> lir::RuntimeTypeMappingRecord {
+    if let Some(identity) = module.meta.source_exact_types.get(ty) {
+        return lir::RuntimeTypeMappingRecord::new(identity.identity_record().id())
+            .expect("validated source exact type must derive a nonzero runtime id");
+    }
+    let location = match ty {
+        mir::Type::Class(id) => mir::GeneratedExactTypeLocation::Class(*id),
+        mir::Type::Enum(id, _) => mir::GeneratedExactTypeLocation::Enum(*id),
+        _ => panic!("validated MIR is missing the source exact identity for {ty:?}"),
+    };
+    generated_runtime_type(module, location)
+}
+
+fn generated_runtime_type(
+    module: &mir::Module,
+    location: mir::GeneratedExactTypeLocation,
+) -> lir::RuntimeTypeMappingRecord {
+    let identity = module
+        .meta
+        .generated_exact_types
+        .get(location)
+        .unwrap_or_else(|| panic!("validated MIR is missing exact identity for {location:?}"));
+    lir::RuntimeTypeMappingRecord::new(identity.exact_record().id())
+        .expect("validated generated exact type must derive a nonzero runtime id")
 }
 
 /// Transpose every concrete intrinsic array class application into one typed

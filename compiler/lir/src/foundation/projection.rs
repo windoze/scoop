@@ -9,7 +9,16 @@ impl CanonicalLirFoundation {
     /// function. It never scans instructions to reconstruct callable-body or
     /// safepoint semantics from local arena ids.
     pub fn from_module(module: &Module) -> Result<Self, LirFoundationBuildError> {
-        Self::from_functions(&module.functions)
+        let mut foundation = Self::from_functions(&module.functions)?;
+        foundation.set_runtime_types(
+            module
+                .meta
+                .type_descriptors
+                .iter()
+                .map(|(_, descriptor)| descriptor.runtime_type)
+                .collect(),
+        )?;
+        Ok(foundation)
     }
 
     fn from_functions(functions: &[Function]) -> Result<Self, LirFoundationBuildError> {

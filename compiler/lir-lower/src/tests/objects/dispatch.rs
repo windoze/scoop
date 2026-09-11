@@ -56,7 +56,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
-  td td0 C @scoop_td_C1_CX type-id=2 size=16 parent=none vtable=[local-fn0] itables=[]
+  td td0 C @scoop_td_C1_CX type-id=1930812111026443540 size=16 parent=none vtable=[local-fn0] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -123,7 +123,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
-  td td0 Describable @scoop_td_J11_DescribableX type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td0 Describable @scoop_td_J11_DescribableX type-id=2551552645907048390 size=0 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

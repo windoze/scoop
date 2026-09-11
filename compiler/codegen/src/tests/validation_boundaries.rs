@@ -589,6 +589,32 @@ fn safepoint_validation_rejects_an_identity_owned_by_another_body() {
 }
 
 #[test]
+fn runtime_type_validation_rejects_two_descriptors_for_one_exact_type() {
+    let mut module = values_module();
+    let runtime_type = module
+        .meta
+        .type_descriptors
+        .iter()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1
+        .runtime_type;
+    module.meta.type_descriptors.alloc(TypeDescriptor {
+        name: "DuplicateString".to_string(),
+        symbol: "scoop_td_DuplicateString".to_string(),
+        runtime_type,
+        size: 24,
+        align: 8,
+        scan: TypeDescriptorScan::Fixed(RefScan::None),
+        parent: None,
+        vtable: Vec::new(),
+        itables: Vec::new(),
+    });
+
+    assert_module_validation_error(&module, "duplicate runtime type mapping identity");
+}
+
+#[test]
 fn safepoint_validation_rejects_a_role_that_disagrees_with_the_instruction() {
     let mut module = managed_poll_test_module();
     let function = &mut module.functions[0];

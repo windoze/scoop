@@ -409,15 +409,38 @@ impl Builder {
             itables: Vec::new(),
         });
         let mut exact_types = Vec::new();
+        test_exact_type(&self.function_types, &mir::Type::String, &mut exact_types);
+        for (id, _) in self.interfaces.iter() {
+            test_exact_type(
+                &self.function_types,
+                &mir::Type::Interface(id),
+                &mut exact_types,
+            );
+        }
+        for (id, class) in self.classes.iter() {
+            if !matches!(
+                class.representation,
+                mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+            ) {
+                test_exact_type(
+                    &self.function_types,
+                    &mir::Type::Class(id),
+                    &mut exact_types,
+                );
+            }
+        }
         let mut source_callables = Vec::new();
         for (declaration_index, &function_id) in self.top_level.iter().enumerate() {
             let function = &self.functions[function_id];
             let parameters = function
                 .params
                 .iter()
-                .map(|parameter| test_exact_type(&self, &parameter.ty, &mut exact_types))
+                .map(|parameter| {
+                    test_exact_type(&self.function_types, &parameter.ty, &mut exact_types)
+                })
                 .collect();
-            let result = test_exact_type(&self, &function.return_ty, &mut exact_types);
+            let result =
+                test_exact_type(&self.function_types, &function.return_ty, &mut exact_types);
             let declaration = SourceDeclarationKey::function(
                 test_declaration_site(),
                 CanonicalIdentifier::new(&format!("testFunction{declaration_index}")).unwrap(),
@@ -495,8 +518,8 @@ fn test_declaration_site() -> SourceDeclarationSite {
     .unwrap()
 }
 
-fn test_exact_type(
-    builder: &Builder,
+pub(in crate::tests) fn test_exact_type(
+    function_types: &Arena<mir::FunctionType>,
     ty: &mir::Type,
     entries: &mut Vec<mir::SourceExactTypeIdentity>,
 ) -> PersistentExactTypeId {
@@ -542,13 +565,13 @@ fn test_exact_type(
             scoop_identity::NonEmptyVec::new(
                 elements
                     .iter()
-                    .map(|element| test_exact_type(builder, element, entries))
+                    .map(|element| test_exact_type(function_types, element, entries))
                     .collect(),
             )
             .expect("test tuple types are non-empty"),
         ),
         mir::Type::Function(id) => {
-            let signature = builder.function_types[*id].clone();
+            let signature = function_types[*id].clone();
             ExactTypeKey::Function {
                 effect: if signature.is_suspend {
                     Effect::Suspend
@@ -558,24 +581,24 @@ fn test_exact_type(
                 parameters: signature
                     .parameter_types
                     .iter()
-                    .map(|parameter| test_exact_type(builder, parameter, entries))
+                    .map(|parameter| test_exact_type(function_types, parameter, entries))
                     .collect(),
-                result: test_exact_type(builder, &signature.return_type, entries),
+                result: test_exact_type(function_types, &signature.return_type, entries),
             }
         }
         mir::Type::Ptr(pointee) => {
-            ExactTypeKey::RawPointer(test_exact_type(builder, pointee, entries))
+            ExactTypeKey::RawPointer(test_exact_type(function_types, pointee, entries))
         }
         mir::Type::FunPtr(id) => {
-            let signature = builder.function_types[*id].clone();
+            let signature = function_types[*id].clone();
             ExactTypeKey::NativeFunctionPointer {
                 calling_convention: scoop_identity::CallingConvention::C,
                 parameters: signature
                     .parameter_types
                     .iter()
-                    .map(|parameter| test_exact_type(builder, parameter, entries))
+                    .map(|parameter| test_exact_type(function_types, parameter, entries))
                     .collect(),
-                result: test_exact_type(builder, &signature.return_type, entries),
+                result: test_exact_type(function_types, &signature.return_type, entries),
             }
         }
     };

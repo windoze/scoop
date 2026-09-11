@@ -25,6 +25,17 @@ fn lower(module: &mir::Module) -> lir::Module {
     super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
 }
 
+fn register_test_source_exact_type(module: &mut mir::Module, ty: mir::Type) {
+    let mut entries = module
+        .meta
+        .source_exact_types
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    test_exact_type(&module.function_types, &ty, &mut entries);
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(entries).unwrap();
+}
+
 fn test_callable_body(symbol: &str) -> lir::CallableBodyIdentity {
     let identifier = format!(
         "test{}",
@@ -148,9 +159,12 @@ fn register_boxed_source_nominal(
         .meta
         .source_exact_types
         .iter()
+        .filter(|entry| entry.ty() != &mir::Type::Class(class))
         .cloned()
         .collect::<Vec<_>>();
-    exact_types.push(source_exact_type);
+    if !exact_types.iter().any(|entry| entry.ty() == &payload) {
+        exact_types.push(source_exact_type);
+    }
     module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(exact_types).unwrap();
     module
         .meta
@@ -331,19 +345,12 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
     builder.interfaces[interface_b].link_stem = nominal_link_stem("$pkg$b$interface$View");
     let main = builder.main(Arena::new(), Vec::new());
     let mut source = builder.finish(main);
-    let unit_exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
-        CoreBuiltinNominal::Unit.identity_record().id(),
-    ))
-    .unwrap();
-    source.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(vec![
-        mir::SourceExactTypeIdentity::checked(mir::Type::Unit, unit_exact, None).unwrap(),
-    ])
-    .unwrap();
     let function_type = source.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: mir::Type::Unit,
     });
+    register_test_source_exact_type(&mut source, mir::Type::Function(function_type));
     let closure_a = nominal_link_stem("$generated$lambda$pkg-a");
     let closure_b = nominal_link_stem("$generated$lambda$pkg-b");
     let site = SourceDeclarationSite::new(
@@ -632,9 +639,10 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         ]
     );
     assert!(
-        descriptor_values(&module).any(|descriptor| {
-            descriptor.name == "function$FI8_I16_I32_I64_V8_V16_V32_V64RV64X"
-        })
+        descriptor_values(&module).all(|descriptor| {
+            descriptor.name != "function$FI8_I16_I32_I64_V8_V16_V32_V64RV64X"
+        }),
+        "a native FunPtr signature must not fabricate a managed TypeDescriptor"
     );
 }
 
@@ -836,14 +844,6 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     let application_identity = callback_application();
     let application = application_identity.id();
     let exact_signature = exact_callback_signature();
-    let unit_exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
-        CoreBuiltinNominal::Unit.identity_record().id(),
-    ))
-    .unwrap();
-    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(vec![
-        mir::SourceExactTypeIdentity::checked(mir::Type::Unit, unit_exact, None).unwrap(),
-    ])
-    .unwrap();
     let adapter_function = module.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
         name: "foreign callback adapter".to_string(),

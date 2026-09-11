@@ -8,16 +8,27 @@ fn module_with_function_bridge() -> Module {
     register_test_exact_type(&mut module, &Type::Unit);
     let target = module.function_types.alloc(FunctionType {
         is_suspend: false,
-        parameter_types: Vec::new(),
+        parameter_types: vec![Type::Unit],
         return_type: Type::Unit,
+    });
+    register_test_function_type(&mut module, target);
+    let mut locals = Arena::new();
+    let parameter = locals.alloc(Local {
+        name: "value".to_string(),
+        ty: Type::Unit,
+        mutable: false,
     });
     let function = module.functions.alloc(Function {
         gc_effect: GcEffect::Managed,
         name: "$function.bridge".to_string(),
         symbol: "scoop.$function.bridge".to_string(),
-        params: Vec::new(),
+        params: vec![Param {
+            name: "value".to_string(),
+            ty: Type::Unit,
+            local: parameter,
+        }],
         return_ty: Type::Unit,
-        body: Body::unreachable(Arena::new()),
+        body: Body::unreachable(locals),
     });
     module.closure_classes[class]
         .bridges
@@ -30,7 +41,7 @@ fn module_with_function_bridge() -> Module {
         ExactCallableSignature::new(
             Effect::Ordinary,
             None,
-            Vec::new(),
+            vec![test_exact_type(&Type::Unit).id()],
             test_exact_type(&Type::Unit).id(),
         ),
         None,
