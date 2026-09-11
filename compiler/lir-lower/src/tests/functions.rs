@@ -63,14 +63,14 @@ fn function_signatures_params_and_calls() {
 Module
   fun @scoop.add(i32, i32) -> i32
   block entry
-    poll managed-void-target0 sp2 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = integer_Add<Int> param0, param1 : i32
     ret t0
   fun @scoop_main() -> void
     local %0 r: i32
   block entry
-    poll managed-void-target0 sp3 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn0(integer<Int>(0x00000028), integer<Int>(0x00000002))
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn0(integer<Int>(0x00000028), integer<Int>(0x00000002))
     store t0 -> local0
     ret
   layout String size=24 align=8 refs=[]
@@ -200,13 +200,13 @@ fn return_inside_a_branch_seals_its_block() {
 Module
   fun @scoop.f(i32) -> i32
   block entry
-    poll managed-void-target0 sp1 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     br @if.then.1
   block if.then.1
     ret param0
   fun @scoop_main() -> void
   block entry
-    poll managed-void-target0 sp2 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]

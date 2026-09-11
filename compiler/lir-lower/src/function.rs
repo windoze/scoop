@@ -24,6 +24,7 @@ impl MappedLoopHeaderPollTarget {
 pub(super) struct LoweredFunction {
     pub(super) function: lir::Function,
     pub(super) loop_header_polls: Vec<MappedLoopHeaderPollTarget>,
+    pub(super) pending_safepoints: safepoints::PendingSafepointSites,
 }
 
 /// Map a primitive MIR binary operator onto its LIR opcode. Operand and result
@@ -103,7 +104,6 @@ pub(super) fn lower_function<'a>(
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-    safepoint_ids: &'a mut safepoints::SafepointIds,
 ) -> LoweredFunction {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
     // Address-taken parameters are copied once into a method-local slot.
@@ -175,6 +175,7 @@ pub(super) fn lower_function<'a>(
         .iter()
         .map(|target| MappedLoopHeaderPollTarget::new(block_map[&target.header()]))
         .collect();
+    let mut pending_safepoints = safepoints::PendingSafepointSites::default();
     let mut lowerer = FunctionLowerer {
         context,
         module,
@@ -192,7 +193,7 @@ pub(super) fn lower_function<'a>(
         function_signatures,
         extern_functions,
         extern_function_refs,
-        safepoint_ids,
+        pending_safepoints: &mut pending_safepoints,
         local_map,
         locals,
         temps: Arena::new(),
@@ -240,12 +241,14 @@ pub(super) fn lower_function<'a>(
             symbol: function.symbol.clone(),
             signature: signature.clone(),
             call_targets: lowerer.call_targets,
+            safepoints: lir::SafepointIdentities::default(),
             locals: lowerer.locals,
             temps: lowerer.temps,
             blocks: lowerer.blocks,
             entry,
         },
         loop_header_polls,
+        pending_safepoints,
     }
 }
 
@@ -291,7 +294,7 @@ struct FunctionLowerer<'a> {
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-    safepoint_ids: &'a mut safepoints::SafepointIds,
+    pending_safepoints: &'a mut safepoints::PendingSafepointSites,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
     temps: Arena<lir::Temp>,
@@ -360,8 +363,8 @@ impl<'a> FunctionLowerer<'a> {
         self.temps.alloc(lir::Temp { ty })
     }
 
-    fn next_safepoint(&mut self) -> lir::SafepointId {
-        self.safepoint_ids.allocate()
+    fn new_safepoint(&mut self, role: lir::SafepointSiteRole) -> lir::SafepointSiteRef {
+        self.pending_safepoints.allocate(role)
     }
 
     /// A fresh hidden slot carrying a short-circuit result across

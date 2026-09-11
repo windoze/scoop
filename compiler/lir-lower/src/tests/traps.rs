@@ -135,7 +135,7 @@ Module
     local %0 $uw.1: i32
     local %1 $uw.2: i32
   block entry
-    poll managed-void-target0 sp1 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = enum_tag e0 param0 : machine<enum-tag>
     t1 = MachineEq(EnumTag) t0, machine<enum-tag>(EnumTag(0)) : i1
     cbr t1 then @if.then.1 else @if.else.2
@@ -163,7 +163,7 @@ Module
     unreachable
   fun @scoop_main() -> void
   block entry
-    poll managed-void-target0 sp2 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]

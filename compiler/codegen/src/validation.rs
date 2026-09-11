@@ -5,10 +5,12 @@ use scoop_lir::{EnumDefId, GcEffect, StructDefId};
 
 mod constants;
 mod root_plans;
+mod safepoints;
 mod scoop_abi;
 mod variants;
 use constants::validate_constant_images;
 use root_plans::validate_call_root_plans;
+use safepoints::validate_safepoint_identities;
 use scoop_abi::validate_scoop_abi;
 use variants::validate_variant_primitives;
 
@@ -22,6 +24,7 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_dispatch_signatures(module)?;
     validate_c_abi(module)?;
     validate_foreign_callbacks(module)?;
+    validate_safepoint_identities(module)?;
     validate_call_root_plans(module)
 }
 

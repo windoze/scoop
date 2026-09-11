@@ -38,17 +38,18 @@ impl LocalFunctionId {
     }
 }
 
-/// Deterministic, nonzero, image-wide identity of one actual safepoint.
+/// Function-local reference to a complete persistent safepoint identity.
+/// The integer is never used to derive the persistent or runtime id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SafepointId(NonZeroU64);
+pub struct SafepointSiteRef(u32);
 
-impl SafepointId {
-    pub fn new(raw: u64) -> Option<Self> {
-        NonZeroU64::new(raw).map(Self)
+impl SafepointSiteRef {
+    pub const fn from_u32(raw: u32) -> Self {
+        Self(raw)
     }
 
-    pub const fn get(self) -> u64 {
-        self.0.get()
+    pub const fn into_u32(self) -> u32 {
+        self.0
     }
 }
 

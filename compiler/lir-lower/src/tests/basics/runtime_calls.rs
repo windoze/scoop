@@ -124,6 +124,7 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
             lir::CallingConvention::Cdecl,
         ),
         call_targets: lir::CallTargets::default(),
+        safepoints: lir::SafepointIdentities::default(),
         locals: Arena::new(),
         temps: Arena::new(),
         blocks,

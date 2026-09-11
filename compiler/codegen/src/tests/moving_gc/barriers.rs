@@ -122,7 +122,7 @@ fn barrier_module() -> Module {
         instructions: vec![],
         terminator: Terminator::Br(header),
     };
-    Module {
+    let mut module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -135,6 +135,7 @@ fn barrier_module() -> Module {
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], LirType::Void),
@@ -146,7 +147,9 @@ fn barrier_module() -> Module {
         }],
         entry_symbol: "scoop_main".to_string(),
         meta,
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 #[test]
@@ -166,10 +169,16 @@ fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
     let mut module = barrier_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
     for (_, block) in module.functions[0].blocks.iter_mut() {
-        block
-            .instructions
-            .retain(|instruction| !matches!(instruction, Instruction::ManagedPoll { .. }));
+        block.instructions.retain(|instruction| {
+            !matches!(
+                instruction,
+                Instruction::ManagedPoll { .. }
+                    | Instruction::Call { .. }
+                    | Instruction::HeapStore { .. }
+            )
+        });
     }
+    refresh_test_safepoints(&mut module.functions[0]);
     let ir = ir_of(&module);
     assert!(
         !ir.contains("gc \"statepoint-example\""),

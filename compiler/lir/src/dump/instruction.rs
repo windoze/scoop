@@ -198,7 +198,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             "    t{} = native_global_load ng{} sp{} roots=[{}] : {}\n",
             out.into_raw(),
             global.into_raw(),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             caller_roots_name(roots.as_slice()),
             function.temps[*out].ty.dump()
         )),
@@ -211,7 +211,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             "    native_global_store ng{}, {} sp{} roots=[{}]\n",
             global.into_raw(),
             value_name(*value),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             caller_roots_name(roots.as_slice())
         )),
         Instruction::NativeGlobalAddress {
@@ -223,7 +223,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             "    t{} = native_global_address ng{} sp{} roots=[{}]\n",
             out.into_raw(),
             global.into_raw(),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             caller_roots_name(roots.as_slice())
         )),
         Instruction::HeapStore {
@@ -397,7 +397,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         Instruction::ManagedPoll { site } => buf.push_str(&format!(
             "    poll managed-void-target{} sp{} live=[{}]\n",
             site.target.into_raw(),
-            site.safepoint.get(),
+            safepoint_name(function, site.safepoint),
             live_set_name(&site.live)
         )),
         Instruction::Invoke { site } => {
@@ -443,7 +443,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
                 out.into_raw(),
                 array_type.into_raw(),
                 elements.join(", "),
-                safepoint.get(),
+                safepoint_name(function, *safepoint),
                 live_set_name(live),
                 function.temps[*out].ty.dump()
             ))
@@ -471,7 +471,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
                 out.into_raw(),
                 array_type.into_raw(),
                 parts.join(", "),
-                safepoint.get(),
+                safepoint_name(function, *safepoint),
                 live_set_name(live),
                 function.temps[*out].ty.dump()
             ))
@@ -523,7 +523,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             out.into_raw(),
             array_type.into_raw(),
             value_name(*operand),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             live_set_name(live),
             function.temps[*out].ty.dump()
         )),

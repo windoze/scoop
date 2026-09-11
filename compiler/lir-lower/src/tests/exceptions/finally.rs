@@ -188,15 +188,15 @@ fn return_inside_try_runs_finally_before_returning() {
 Module
   fun @scoop.helper() -> void
   block entry
-    poll managed-void-target0 sp3 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   fun @scoop.handled() -> void
   block entry
-    poll managed-void-target0 sp4 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   fun @scoop.cleanup() -> void
   block entry
-    poll managed-void-target0 sp5 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   fun @scoop.f() -> i32
     local %0 $return.1: i32
@@ -204,18 +204,18 @@ Module
     local %2 $sc.2: ptr<raw>
     local %3 $sc.3: ptr<managed>
   block entry
-    poll managed-void-target2 sp6 live=[]
+    poll managed-void-target2 sp<managed-poll:0> live=[]
     br @try.body.6
   block try.body.6
     store integer<Int>(0x00000001) -> local0
     br @scope.7
   block scope.7
-    call managed-void-target0 sp1 live=[] sig=void0 () local-fn2()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn2()
     t5 = aggregate () : {}
     ret local0
   fun @scoop_main() -> void
   block entry
-    poll managed-void-target0 sp7 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]

@@ -162,7 +162,7 @@ impl<'a> FunctionLowerer<'a> {
                     .collect();
                 let out_ty = self.value_type(ty);
                 let out = self.new_temp(out_ty);
-                let safepoint = self.next_safepoint();
+                let safepoint = self.new_safepoint(lir::SafepointSiteRole::ManagedCall);
                 self.push(lir::Instruction::ArrayAlloc {
                     out,
                     elements,
@@ -186,7 +186,7 @@ impl<'a> FunctionLowerer<'a> {
                     .collect();
                 let out_ty = self.value_type(ty);
                 let out = self.new_temp(out_ty);
-                let safepoint = self.next_safepoint();
+                let safepoint = self.new_safepoint(lir::SafepointSiteRole::ManagedCall);
                 self.push(lir::Instruction::ArrayAssembly {
                     out,
                     parts,
@@ -239,7 +239,7 @@ impl<'a> FunctionLowerer<'a> {
                 let operand = self.lower_expr(operand);
                 let out_ty = self.value_type(ty);
                 let out = self.new_temp(out_ty);
-                let safepoint = self.next_safepoint();
+                let safepoint = self.new_safepoint(lir::SafepointSiteRole::ManagedCall);
                 self.push(lir::Instruction::ArrayClone {
                     out,
                     operand,
@@ -262,7 +262,8 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::GlobalLoad { out, global })
                     }
                     StorageGlobal::Native(global) => {
-                        let safepoint = self.next_safepoint();
+                        let safepoint =
+                            self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition);
                         self.push(lir::Instruction::NativeGlobalLoad {
                             out,
                             global,
@@ -422,7 +423,8 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::GlobalAddress { out, global })
                     }
                     StorageGlobal::Native(global) => {
-                        let safepoint = self.next_safepoint();
+                        let safepoint =
+                            self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition);
                         self.push(lir::Instruction::NativeGlobalAddress {
                             out,
                             global,

@@ -38,7 +38,8 @@ fn stackmap_qualification_module() -> Module {
             },
         });
         Function {
-            callable_body: callable_body_at(file!(), line!()),
+            callable_body: callable_body(symbol),
+            safepoints: test_safepoints(symbol, &blocks, entry),
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
             signature: plain_scoop_signature(params, return_ty),
@@ -146,9 +147,22 @@ fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
     let module = stackmap_qualification_module();
     let expected = statepoint::expectations(&module).expect("complete safepoint manifest");
     let expected_eh = artifact::eh_expectations(&module).expect("complete EH manifest");
-    assert_eq!(expected.root_count(1), Some(0));
-    assert_eq!(expected.root_count(2), Some(1));
-    assert_eq!(expected.root_count(3), Some(2));
+    let runtime_ids = module
+        .functions
+        .iter()
+        .map(|function| {
+            function
+                .safepoints
+                .iter()
+                .next()
+                .expect("qualification function has one poll")
+                .runtime_id()
+                .get()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(expected.root_count(runtime_ids[0]), Some(0));
+    assert_eq!(expected.root_count(runtime_ids[1]), Some(1));
+    assert_eq!(expected.root_count(runtime_ids[2]), Some(2));
     let profile = host_profile();
     for (name, optimization) in [
         ("o0", OptimizationLevel::None),

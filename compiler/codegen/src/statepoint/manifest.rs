@@ -111,6 +111,17 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                 let Some((safepoint, expectation)) = expectation else {
                     continue;
                 };
+                let safepoint = function
+                    .safepoints
+                    .get(safepoint)
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "LIR function `{}` references missing safepoint site {}",
+                            function.symbol,
+                            safepoint.into_u32()
+                        ))
+                    })?
+                    .runtime_id();
                 if function.gc_effect == GcEffect::NoGc {
                     return Err(CodegenError(format!(
                         "NoGc LIR function `{}` contains safepoint {}",

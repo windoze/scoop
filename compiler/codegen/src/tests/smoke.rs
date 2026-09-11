@@ -387,6 +387,7 @@ fn local_call_signature_cannot_relabel_machine_result_as_i64() {
     });
     module.functions.push(Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "machine_adapter".to_string(),
         signature: plain_scoop_signature(vec![], machine_result),
@@ -461,6 +462,7 @@ fn dispatch_signature_rejects_machine_scalar_domains() {
     function.blocks[function.entry]
         .instructions
         .push(Instruction::Call { site: call });
+    refresh_test_safepoints(function);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
@@ -524,6 +526,7 @@ fn runtime_call_signature_cannot_relabel_a_machine_result() {
     function.blocks[function.entry]
         .instructions
         .push(Instruction::Call { site: call });
+    refresh_test_safepoints(function);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
@@ -581,6 +584,7 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
     });
     module.functions.push(Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "machine_dispatch_adapter".to_string(),
         signature: plain_scoop_signature(
@@ -670,6 +674,7 @@ fn statepoint_plan_cannot_publish_a_machine_scalar_as_a_managed_root() {
     function.blocks[function.entry]
         .instructions
         .push(Instruction::Call { site: call });
+    refresh_test_safepoints(function);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();

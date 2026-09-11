@@ -177,19 +177,19 @@ pub enum Instruction {
     NativeGlobalLoad {
         out: TempId,
         global: NativeGlobalId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         roots: NativeSafeRootSet,
     },
     NativeGlobalStore {
         global: NativeGlobalId,
         value: Value,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         roots: NativeSafeRootSet,
     },
     NativeGlobalAddress {
         out: TempId,
         global: NativeGlobalId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         roots: NativeSafeRootSet,
     },
     /// Store a typed value at the byte address `object + offset`.
@@ -325,7 +325,7 @@ pub enum Instruction {
         out: TempId,
         elements: Vec<Value>,
         array_type: ArrayTypeId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
     /// Allocate one fresh array and fill it from already evaluated element
@@ -334,7 +334,7 @@ pub enum Instruction {
         out: TempId,
         parts: Vec<ArrayAssemblyPart>,
         array_type: ArrayTypeId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
     /// `array.size` (canonical source `Long`, represented by `I64`).
@@ -363,7 +363,7 @@ pub enum Instruction {
         operand: Value,
         /// Target array application (`Array<T>` or `MutableArray<T>`).
         array_type: ArrayTypeId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
     /// Enum operations. The representation (niche pointer or tagged
@@ -407,6 +407,40 @@ pub enum Instruction {
         operand: Value,
         field: LirVariantFieldRef,
     },
+}
+
+impl Instruction {
+    /// Function-local safepoint reference and the semantic role fixed by this
+    /// instruction variant. NoGc instructions have no safepoint.
+    pub fn safepoint(&self) -> Option<(SafepointSiteRole, SafepointSiteRef)> {
+        match self {
+            Self::NativeGlobalLoad { safepoint, .. }
+            | Self::NativeGlobalStore { safepoint, .. }
+            | Self::NativeGlobalAddress { safepoint, .. } => {
+                Some((SafepointSiteRole::NativeSafeTransition, *safepoint))
+            }
+            Self::Call { site } => match site {
+                CallSite::Managed(site) => Some((SafepointSiteRole::ManagedCall, site.safepoint)),
+                CallSite::NativeSafe(site) => {
+                    Some((SafepointSiteRole::NativeSafeTransition, site.safepoint))
+                }
+                CallSite::NativeBorrowed(site) => {
+                    Some((SafepointSiteRole::NativeBorrowedTransition, site.safepoint))
+                }
+                CallSite::NoGc(_) => None,
+            },
+            Self::ManagedPoll { site } => Some((SafepointSiteRole::ManagedPoll, site.safepoint)),
+            Self::Invoke {
+                site: InvokeSite::Managed(site),
+            } => Some((SafepointSiteRole::ManagedInvoke, site.safepoint)),
+            Self::ArrayAlloc { safepoint, .. }
+            | Self::ArrayAssembly { safepoint, .. }
+            | Self::ArrayClone { safepoint, .. } => {
+                Some((SafepointSiteRole::ManagedCall, *safepoint))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -28,6 +28,7 @@ pub(super) fn prune_unreachable_blocks(lowered: &mut LoweredFunction) {
     let LoweredFunction {
         function,
         loop_header_polls,
+        ..
     } = lowered;
     let mut reachable = vec![false; function.blocks.len()];
     let mut worklist = vec![function.entry];
@@ -107,7 +108,7 @@ pub(super) fn remap_block_targets(block: &mut lir::BasicBlock, block_map: &[Opti
 pub(super) fn insert_polls(
     function: &mut lir::Function,
     loop_header_polls: &[MappedLoopHeaderPollTarget],
-    ids: &mut SafepointIds,
+    sites: &mut PendingSafepointSites,
 ) {
     if function.gc_effect == lir::GcEffect::NoGc {
         return;
@@ -147,7 +148,7 @@ pub(super) fn insert_polls(
             lir::Instruction::ManagedPoll {
                 site: lir::ManagedPollSite {
                     target: poll_target,
-                    safepoint: ids.allocate(),
+                    safepoint: sites.allocate(lir::SafepointSiteRole::ManagedPoll),
                     live: lir::StatepointLiveSet::default(),
                 },
             },

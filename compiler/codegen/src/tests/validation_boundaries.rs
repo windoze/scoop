@@ -185,6 +185,7 @@ fn callback_adapter(symbol: &str) -> Function {
     });
     Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: symbol.to_string(),
         signature: plain_scoop_signature(
@@ -490,7 +491,7 @@ fn root_plan_test_module(
     extern_functions: scoop_lir::ExternFunctions,
     entry_symbol: &str,
 ) -> Module {
-    Module {
+    let mut module = Module {
         globals: Arena::new(),
         initialization_units: Arena::new(),
         structs: scoop_lir::StructDefs::default(),
@@ -504,7 +505,9 @@ fn root_plan_test_module(
         functions,
         entry_symbol: entry_symbol.to_string(),
         meta: string_metadata(),
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 fn managed_poll_test_module() -> Module {
@@ -536,6 +539,7 @@ fn managed_poll_test_module() -> Module {
     });
     let function = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.managed_poll_validation".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -550,6 +554,136 @@ fn managed_poll_test_module() -> Module {
         scoop_lir::ExternFunctions::default(),
         "scoop.managed_poll_validation",
     )
+}
+
+fn managed_poll_reference(function: &Function) -> scoop_lir::SafepointSiteRef {
+    match &function.blocks[function.entry].instructions[0] {
+        Instruction::ManagedPoll { site } => site.safepoint,
+        _ => panic!("managed poll fixture starts with a poll"),
+    }
+}
+
+#[test]
+fn safepoint_validation_rejects_a_missing_identity_record() {
+    let mut module = managed_poll_test_module();
+    module.functions[0].safepoints = scoop_lir::SafepointIdentities::default();
+
+    assert_module_validation_error(&module, "references missing safepoint site 702");
+}
+
+#[test]
+fn safepoint_validation_rejects_an_identity_owned_by_another_body() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let identity = scoop_lir::SafepointIdentity::new(
+        callable_body("another_safepoint_owner").id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        0,
+    )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, identity)]).unwrap();
+
+    assert_module_validation_error(&module, "belongs to another callable body");
+}
+
+#[test]
+fn safepoint_validation_rejects_a_role_that_disagrees_with_the_instruction() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let identity = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedCall,
+        0,
+    )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, identity)]).unwrap();
+
+    assert_module_validation_error(&module, "has role ManagedCall, expected ManagedPoll");
+}
+
+#[test]
+fn safepoint_validation_rejects_a_noncanonical_role_ordinal() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let identity = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        1,
+    )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, identity)]).unwrap();
+
+    assert_module_validation_error(&module, "ManagedPoll ordinal 1, expected 0");
+}
+
+#[test]
+fn safepoint_validation_rejects_an_unreferenced_identity_record() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let extra_reference = scoop_lir::SafepointSiteRef::from_u32(800);
+    let first = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        0,
+    )
+    .unwrap();
+    let extra = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        1,
+    )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, first), (extra_reference, extra)])
+            .unwrap();
+
+    assert_module_validation_error(
+        &module,
+        "has 1 referenced safepoints but 2 identity records",
+    );
+}
+
+#[test]
+fn safepoint_validation_rejects_a_reference_reused_by_two_instructions() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let (target, reference) = match &function.blocks[function.entry].instructions[0] {
+        Instruction::ManagedPoll { site } => (site.target, site.safepoint),
+        _ => panic!("managed poll fixture starts with a poll"),
+    };
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::ManagedPoll {
+            site: scoop_lir::ManagedPollSite {
+                target,
+                safepoint: reference,
+                live: scoop_lir::StatepointLiveSet::default(),
+            },
+        });
+
+    assert_module_validation_error(&module, "reuses safepoint reference 702");
+}
+
+#[test]
+fn safepoint_validation_rejects_unreachable_final_cfg_blocks() {
+    let mut module = managed_poll_test_module();
+    module.functions[0].blocks.alloc(BasicBlock {
+        name: "unreachable".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+
+    assert_module_validation_error(
+        &module,
+        "contains unreachable block 1 during safepoint validation",
+    );
 }
 
 fn managed_indirect_argument_root_module() -> Module {
@@ -568,6 +702,7 @@ fn managed_indirect_argument_root_module() -> Module {
     });
     let callee = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_indirect_callee".to_string(),
         signature: callee_signature,
@@ -623,6 +758,7 @@ fn managed_indirect_argument_root_module() -> Module {
     });
     let caller = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_indirect_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
@@ -679,6 +815,7 @@ fn native_borrowed_root_module(scan: RefScan) -> Module {
     });
     let caller = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_borrowed_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -704,6 +841,7 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
     });
     let callee = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_invoke_callee".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -764,6 +902,7 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
     };
     let caller = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.root_plan_invoke_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),

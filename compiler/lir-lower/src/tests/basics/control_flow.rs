@@ -83,10 +83,10 @@ Module
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   fun @scoop_main() -> void
   block entry
-    poll managed-void-target0 sp3 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     br @if.then.1
   block if.then.1
-    call native-borrowed-void-target0 sp1 roots=[] sig=void0 (ptr<managed>) extern0(global0)
+    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[] sig=void0 (ptr<managed>) extern0(global0)
     t0 = aggregate () : {}
     br @if.merge.3
   block if.merge.3
@@ -180,11 +180,11 @@ Module
   fun @scoop_main() -> void
     local %0 n: i32
   block entry
-    poll managed-void-target0 sp1 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000000) -> local0
     br @while.cond.1
   block while.cond.1
-    poll managed-void-target0 sp2 live=[]
+    poll managed-void-target0 sp<managed-poll:1> live=[]
     t0 = integer_compare_Less<Int> local0, integer<Int>(0x00000003) : i1
     cbr t0 then @while.body.2 else @while.exit.3
   block while.body.2
@@ -293,12 +293,12 @@ Module
     local %1 $call.2: i1
     local %2 b: i1
   block entry
-    poll managed-void-target0 sp3 live=[]
-    call native-borrowed-direct-target0 sp1 roots=[] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern0(global0, global1)
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-borrowed-direct-target0 sp<native-borrowed:0> roots=[] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern0(global0, global1)
     store t0 -> local0
     cbr local0 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
-    call native-borrowed-direct-target1 sp2 roots=[] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 extern0(global2, global3)
+    call native-borrowed-direct-target1 sp<native-borrowed:1> roots=[] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 extern0(global2, global3)
     store t1 -> local1
     store local1 -> local2
     br @logic.merge.3
@@ -390,7 +390,7 @@ Module
     local %1 y: i1
     local %2 b: i1
   block entry
-    poll managed-void-target0 sp1 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     store true -> local0
     store false -> local1
     cbr local0 then @logic.short.2 else @logic.rhs.1

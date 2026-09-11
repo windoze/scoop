@@ -16,11 +16,13 @@ use super::metadata::{repr_shape, sequence};
 
 mod cfg;
 mod dataflow;
+mod identity;
 mod plans;
 mod scans;
 
 use cfg::*;
 use dataflow::*;
+use identity::*;
 use plans::*;
 use scans::{
     caller_roots, exceptional_root_set, include_managed_operands, live_value_ty,
@@ -28,24 +30,21 @@ use scans::{
 };
 pub(crate) use scans::{lir_size_align, root_scan};
 
-#[derive(Debug)]
-pub(super) struct SafepointIds {
-    next: u64,
+#[derive(Debug, Default)]
+pub(super) struct PendingSafepointSites {
+    roles: Vec<lir::SafepointSiteRole>,
 }
 
-impl Default for SafepointIds {
-    fn default() -> Self {
-        Self { next: 1 }
+impl PendingSafepointSites {
+    pub(super) fn allocate(&mut self, role: lir::SafepointSiteRole) -> lir::SafepointSiteRef {
+        let index = u32::try_from(self.roles.len())
+            .expect("one LIR function cannot contain more than u32::MAX safepoints");
+        self.roles.push(role);
+        lir::SafepointSiteRef::from_u32(index)
     }
-}
 
-impl SafepointIds {
-    pub(super) fn allocate(&mut self) -> lir::SafepointId {
-        let raw = self.next;
-        self.next = raw
-            .checked_add(1)
-            .expect("a Scoop image cannot contain u64::MAX safepoints");
-        lir::SafepointId::new(raw).expect("SafepointIds starts at one")
+    fn role(&self, site: lir::SafepointSiteRef) -> lir::SafepointSiteRole {
+        self.roles[site.into_u32() as usize]
     }
 }
 
@@ -93,15 +92,20 @@ impl LiveValue {
 
 pub(super) fn complete_function(
     context: &LoweringContext,
-    lowered: &mut LoweredFunction,
+    mut lowered: LoweredFunction,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-    ids: &mut SafepointIds,
-) {
+) -> lir::Function {
     fold_constant_branches(&mut lowered.function);
-    prune_unreachable_blocks(lowered);
-    insert_polls(&mut lowered.function, &lowered.loop_header_polls, ids);
+    prune_unreachable_blocks(&mut lowered);
+    insert_polls(
+        &mut lowered.function,
+        &lowered.loop_header_polls,
+        &mut lowered.pending_safepoints,
+    );
     annotate_root_plans(context, &mut lowered.function, structs, enums);
+    assign_safepoint_identities(&mut lowered.function, &lowered.pending_safepoints);
+    lowered.function
 }
 
 fn arena_index<T>(id: Idx<T>) -> usize {

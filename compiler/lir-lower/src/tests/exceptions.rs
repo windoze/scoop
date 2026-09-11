@@ -45,11 +45,11 @@ fn try_catch_lowers_to_invoke_landingpad_and_rethrow() {
 Module
   fun @scoop.helper() -> void
   block entry
-    poll managed-void-target0 sp3 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   fun @scoop.handled() -> void
   block entry
-    poll managed-void-target0 sp4 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   fun @scoop_main() -> void
     local %0 e: ptr<managed>
@@ -57,7 +57,7 @@ Module
     local %2 $sc.2: ptr<raw>
     local %3 $sc.3: ptr<managed>
   block entry
-    poll managed-void-target2 sp5 live=[]
+    poll managed-void-target2 sp<managed-poll:0> live=[]
     br @try.body.8
   block try.unwind.1
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -88,11 +88,11 @@ Module
   block try.end.7
     ret
   block try.body.8
-    invoke managed-void-target0 sp1 roots=[] sig=void0 () local-fn0() normal @invoke.normal.1 unwind @try.unwind.1
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block try.catch.9
     store local3 -> local0
-    invoke managed-void-target1 sp2 roots=[] sig=void1 () local-fn1() normal @invoke.normal.2 unwind @try.handler_pad.3
+    invoke managed-void-target1 sp<managed-invoke:1> roots=[] sig=void1 () local-fn1() normal @invoke.normal.2 unwind @try.handler_pad.3
     br @invoke.normal.2
   block try.next.10
     invoke no-gc-void-target0 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5

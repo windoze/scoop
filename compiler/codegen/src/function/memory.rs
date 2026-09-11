@@ -173,20 +173,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.function.symbol
             )));
         }
-        let live = self.materialize_statepoint_live(&site.live, site.safepoint)?;
-        let safepoint = self.runtime_fn(
+        let safepoint = self.safepoint_id(site.safepoint);
+        let live = self.materialize_statepoint_live(&site.live, safepoint)?;
+        let poll = self.runtime_fn(
             scoop_lir::RuntimeFunction::Managed(scoop_lir::ManagedRuntimeFunction::Safepoint)
                 .symbol(),
             self.context.void_type().fn_type(&[], false),
         );
-        let call = self.builder.build_call(safepoint, &[], "").map_err(|e| {
+        let call = self.builder.build_call(poll, &[], "").map_err(|e| {
             CodegenError(format!(
                 "safepoint poll @{symbol}: {e}",
                 symbol = self.function.symbol
             ))
         })?;
-        self.apply_safepoint_id(call, site.safepoint);
-        self.restore_statepoint_live(live, site.safepoint)?;
+        self.apply_safepoint_id(call, safepoint);
+        self.restore_statepoint_live(live, safepoint)?;
         Ok(())
     }
 

@@ -59,7 +59,8 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::GlobalStore { global, value })
                     }
                     StorageGlobal::Native(global) => {
-                        let safepoint = self.next_safepoint();
+                        let safepoint =
+                            self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition);
                         self.push(lir::Instruction::NativeGlobalStore {
                             global,
                             value,

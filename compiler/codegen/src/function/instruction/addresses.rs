@@ -300,7 +300,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     roots.as_slice(),
                     None,
                     NativeTransitionKind::Safe,
-                    *safepoint,
+                    self.safepoint_id(*safepoint),
                 )?;
                 self.emit_native_global_call(callee, slot)?;
                 self.finish_native_transition(
@@ -354,7 +354,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     roots.as_slice(),
                     None,
                     NativeTransitionKind::Safe,
-                    *safepoint,
+                    self.safepoint_id(*safepoint),
                 )?;
                 self.emit_native_global_call(callee, slot)?;
                 self.finish_native_transition(
@@ -389,7 +389,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     roots.as_slice(),
                     None,
                     NativeTransitionKind::Safe,
-                    *safepoint,
+                    self.safepoint_id(*safepoint),
                 )?;
                 self.emit_native_global_call(callee, slot)?;
                 self.finish_native_transition(

@@ -120,17 +120,17 @@ Module
   global @scoop.str.0 = "x"
   fun @scoop.init.Point.$c0(ptr<managed>, i32, ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp3 live=[param0:ptr<managed>@0, param2:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param2:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
   block entry
-    poll managed-void-target1 sp4 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
     store t0 -> local0
-    call managed-void-target0 sp2 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
     t1 = aggregate () : {}
     ret
   td td0 Point @scoop_td_C5_PointX type-id=2 size=32 parent=none vtable=[] itables=[]

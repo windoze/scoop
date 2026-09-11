@@ -120,14 +120,14 @@ impl NativeBorrowedRootSet {
 #[derive(Debug)]
 pub struct ManagedPollSite {
     pub target: ManagedVoidTargetId,
-    pub safepoint: SafepointId,
+    pub safepoint: SafepointSiteRef,
     pub live: StatepointLiveSet,
 }
 
 #[derive(Debug)]
 pub struct ManagedCallSite {
     pub call: ManagedTypedCall,
-    pub safepoint: SafepointId,
+    pub safepoint: SafepointSiteRef,
     pub live: StatepointLiveSet,
 }
 
@@ -139,14 +139,14 @@ pub struct NoGcCallSite {
 #[derive(Debug)]
 pub struct NativeSafeCallSite {
     pub call: NativeSafeTypedCall,
-    pub safepoint: SafepointId,
+    pub safepoint: SafepointSiteRef,
     pub roots: NativeSafeRootSet,
 }
 
 #[derive(Debug)]
 pub struct NativeBorrowedCallSite {
     pub call: NativeBorrowedTypedCall,
-    pub safepoint: SafepointId,
+    pub safepoint: SafepointSiteRef,
     pub roots: NativeBorrowedRootSet,
 }
 
@@ -226,7 +226,7 @@ impl CallSite {
 #[derive(Debug)]
 pub struct ManagedInvokeSite {
     pub call: ManagedTypedCall,
-    pub safepoint: SafepointId,
+    pub safepoint: SafepointSiteRef,
     pub roots: ExceptionalRootSet,
     pub normal: BlockId,
     pub unwind: BlockId,

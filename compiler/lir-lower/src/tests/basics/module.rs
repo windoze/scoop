@@ -117,16 +117,16 @@ Module
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
-    poll managed-void-target0 sp4 live=[]
-    call native-borrowed-void-target0 sp1 roots=[] sig=void0 (ptr<managed>) extern0(global1)
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[] sig=void0 (ptr<managed>) extern0(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
   block entry
-    poll managed-void-target1 sp5 live=[]
-    call native-borrowed-void-target0 sp2 roots=[] sig=void0 (ptr<managed>) extern0(global0)
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[] sig=void0 (ptr<managed>) extern0(global0)
     t0 = aggregate () : {}
-    call managed-void-target0 sp3 live=[] sig=void1 () local-fn0()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void1 () local-fn0()
     t1 = aggregate () : {}
     ret
   layout String size=24 align=8 refs=[]

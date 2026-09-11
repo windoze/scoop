@@ -264,6 +264,18 @@ pub(super) fn live_set_name(live: &StatepointLiveSet) -> String {
         .join(", ")
 }
 
+pub(super) fn safepoint_name(function: &Function, reference: SafepointSiteRef) -> String {
+    let identity = &function.safepoints[reference];
+    let role = match identity.role() {
+        SafepointSiteRole::ManagedPoll => "managed-poll",
+        SafepointSiteRole::ManagedCall => "managed-call",
+        SafepointSiteRole::ManagedInvoke => "managed-invoke",
+        SafepointSiteRole::NativeSafeTransition => "native-safe",
+        SafepointSiteRole::NativeBorrowedTransition => "native-borrowed",
+    };
+    format!("<{role}:{}>", identity.ordinal())
+}
+
 pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
     let targets = &function.call_targets;
     match site {
@@ -276,7 +288,7 @@ pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
             format!(
                 "{} sp{} live=[{}] {}",
                 typed_target_name("managed", &call),
-                site.safepoint.get(),
+                safepoint_name(function, site.safepoint),
                 live_set_name(&site.live),
                 typed_call_name(function, &call)
             )
@@ -302,7 +314,7 @@ pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
             format!(
                 "{} sp{} roots=[{}] {}",
                 typed_target_name("native-safe", &call),
-                site.safepoint.get(),
+                safepoint_name(function, site.safepoint),
                 caller_roots_name(site.roots.as_slice()),
                 typed_call_name(function, &call)
             )
@@ -323,7 +335,7 @@ pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
             format!(
                 "{} sp{} roots=[{}]{result} {}",
                 typed_target_name("native-borrowed", &call),
-                site.safepoint.get(),
+                safepoint_name(function, site.safepoint),
                 caller_roots_name(site.roots.as_slice()),
                 typed_call_name(function, &call)
             )
@@ -343,7 +355,7 @@ pub(super) fn invoke_site_name(function: &Function, site: &InvokeSite) -> String
             format!(
                 "{} sp{} roots=[{}] {} normal @{} unwind @{}",
                 typed_target_name("managed", &call),
-                site.safepoint.get(),
+                safepoint_name(function, site.safepoint),
                 exceptional_roots_name(&site.roots),
                 typed_call_name(function, &call),
                 block_name(function, site.normal),

@@ -1,5 +1,6 @@
 use super::*;
 use scoop_lir::LirIntegerConstant;
+use std::collections::{BTreeMap, HashSet};
 
 mod calls;
 
@@ -38,6 +39,104 @@ pub(super) fn callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
 
 pub(super) fn callable_body_at(source: &str, line: u32) -> scoop_lir::CallableBodyIdentity {
     callable_body(&format!("{source}:{line}"))
+}
+
+pub(super) fn test_safepoints(
+    owner_symbol: &str,
+    blocks: &Arena<BasicBlock>,
+    entry: scoop_lir::BlockId,
+) -> scoop_lir::SafepointIdentities {
+    test_safepoints_for_owner(callable_body(owner_symbol).id(), blocks, entry)
+}
+
+fn test_safepoints_for_owner(
+    owner: scoop_identity::PersistentCallableBodyId,
+    blocks: &Arena<BasicBlock>,
+    entry: scoop_lir::BlockId,
+) -> scoop_lir::SafepointIdentities {
+    fn successors(block: &BasicBlock) -> Vec<scoop_lir::BlockId> {
+        if let Some(Instruction::Invoke { site }) = block.instructions.last() {
+            assert!(
+                matches!(block.terminator, Terminator::Br(target) if target == site.normal()),
+                "test invoke block must branch to its normal successor"
+            );
+            return vec![site.normal(), site.unwind()];
+        }
+        match block.terminator {
+            Terminator::Br(target) => vec![target],
+            Terminator::CondBr {
+                then_block,
+                else_block,
+                ..
+            } => vec![then_block, else_block],
+            Terminator::Return { .. } | Terminator::Resume { .. } | Terminator::Unreachable => {
+                Vec::new()
+            }
+        }
+    }
+
+    let mut visited = HashSet::new();
+    let mut postorder = Vec::with_capacity(blocks.len());
+    let mut stack = vec![(entry, false)];
+    while let Some((block, expanded)) = stack.pop() {
+        if expanded {
+            postorder.push(block);
+            continue;
+        }
+        if !visited.insert(block) {
+            continue;
+        }
+        stack.push((block, true));
+        stack.extend(
+            successors(&blocks[block])
+                .into_iter()
+                .rev()
+                .map(|successor| (successor, false)),
+        );
+    }
+    assert_eq!(
+        visited.len(),
+        blocks.len(),
+        "test CFG must be fully reachable"
+    );
+    postorder.reverse();
+
+    let mut ordinals = BTreeMap::<scoop_lir::SafepointSiteRole, u32>::new();
+    let mut references = HashSet::new();
+    let mut identities = Vec::new();
+    for block in postorder {
+        for instruction in &blocks[block].instructions {
+            let Some((role, reference)) = instruction.safepoint() else {
+                continue;
+            };
+            assert!(
+                references.insert(reference),
+                "test fixture reuses a safepoint reference"
+            );
+            let ordinal = ordinals.entry(role).or_default();
+            identities.push((
+                reference,
+                scoop_lir::SafepointIdentity::new(owner, role, *ordinal)
+                    .expect("test safepoint identity"),
+            ));
+            *ordinal = ordinal.checked_add(1).expect("test safepoint ordinal");
+        }
+    }
+    scoop_lir::SafepointIdentities::checked(identities).expect("test safepoint relation")
+}
+
+pub(super) fn refresh_test_safepoints(function: &mut Function) {
+    function.safepoints = test_safepoints_for_owner(
+        function.callable_body.id(),
+        &function.blocks,
+        function.entry,
+    );
+}
+
+pub(super) fn refresh_module_safepoints(module: &mut Module) {
+    for function in &mut module.functions {
+        refresh_test_safepoints(function);
+    }
 }
 
 pub(super) fn host_profile() -> TargetProfile {
@@ -489,7 +588,8 @@ pub(super) fn values_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
-            callable_body: callable_body_at(file!(), line!()),
+            callable_body: callable_body("scoop_main"),
+            safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),

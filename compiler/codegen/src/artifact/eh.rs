@@ -134,7 +134,18 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
                 }
                 let safepoint = match site {
                     scoop_lir::InvokeSite::Managed(site) => {
-                        let id = site.safepoint.get();
+                        let id = function
+                            .safepoints
+                            .get(site.safepoint)
+                            .ok_or_else(|| {
+                                CodegenError(format!(
+                                    "managed invoke in `{}` references missing safepoint site {}",
+                                    function.symbol,
+                                    site.safepoint.into_u32()
+                                ))
+                            })?
+                            .runtime_id()
+                            .get();
                         if !managed_safepoints.insert(id) {
                             return Err(CodegenError(format!(
                                 "duplicate managed invoke SafepointId {id} in EH manifest"

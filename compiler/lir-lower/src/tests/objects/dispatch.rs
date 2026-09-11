@@ -44,16 +44,16 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
 Module
   fun @scoop.C.m(ptr<managed>) -> i32
   block entry
-    poll managed-void-target0 sp2 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000001)
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
     local %1 r: i32
   block entry
-    poll managed-void-target0 sp3 live=[local0:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[local0:ptr<managed>@0]
     t0 = heap_load local0 +0 : ptr<metadata>
     t1 = heap_load t0 +40 : ptr<metadata>
-    call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
   td td0 C @scoop_td_C1_CX type-id=2 size=16 parent=none vtable=[local-fn0] itables=[]
@@ -117,10 +117,10 @@ Module
     local %0 i: ptr<managed>
     local %1 r: i32
   block entry
-    poll managed-void-target0 sp2 live=[local0:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[local0:ptr<managed>@0]
     t0 = heap_load local0 +0 : ptr<metadata>
     call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td0)
-    call managed-direct-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(local0)
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
   td td0 Describable @scoop_td_J11_DescribableX type-id=2 size=0 parent=none vtable=[] itables=[]

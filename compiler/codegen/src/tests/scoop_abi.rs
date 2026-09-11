@@ -28,6 +28,7 @@ fn aggregate_identity(symbol: &str, gc_effect: GcEffect) -> Function {
     });
     Function {
         callable_body: callable_body(symbol),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         symbol: symbol.to_string(),
         gc_effect,
         signature: aggregate_signature(),
@@ -115,6 +116,7 @@ fn ordinary_caller(symbol: &str, gc_effect: GcEffect, protocol: TestCallProtocol
     });
     Function {
         callable_body: callable_body(symbol),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         symbol: symbol.to_string(),
         gc_effect,
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -185,6 +187,7 @@ fn invoke_caller() -> Function {
     };
     Function {
         callable_body: callable_body("scoop.aggregate_invoke_caller"),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         symbol: "scoop.aggregate_invoke_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
@@ -227,6 +230,7 @@ fn aggregate_dispatch_caller() -> Function {
     });
     Function {
         callable_body: callable_body("scoop.aggregate_dispatch_caller"),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         symbol: "scoop.aggregate_dispatch_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![METADATA_PTR], LirType::Void),
@@ -239,7 +243,7 @@ fn aggregate_dispatch_caller() -> Function {
 }
 
 fn aggregate_abi_module() -> Module {
-    Module {
+    let mut module = Module {
         globals: Arena::new(),
         initialization_units: Arena::new(),
         structs: scoop_lir::StructDefs::default(),
@@ -273,7 +277,9 @@ fn aggregate_abi_module() -> Module {
         ],
         entry_symbol: "scoop.aggregate_invoke_caller".to_string(),
         meta: string_metadata(),
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 fn has_ordered_aggregate_attributes(line: &str) -> bool {
@@ -387,6 +393,7 @@ fn native_aggregate_module() -> Module {
     });
     let caller = Function {
         callable_body: callable_body("scoop.native_aggregate_caller"),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         symbol: "scoop.native_aggregate_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
@@ -397,7 +404,7 @@ fn native_aggregate_module() -> Module {
         entry,
     };
 
-    Module {
+    let mut module = Module {
         globals: Arena::new(),
         initialization_units: Arena::new(),
         structs: scoop_lir::StructDefs::default(),
@@ -411,7 +418,9 @@ fn native_aggregate_module() -> Module {
         functions: vec![caller],
         entry_symbol: "scoop.native_aggregate_caller".to_string(),
         meta: string_metadata(),
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 fn has_ordered_managed_aggregate_attributes(line: &str) -> bool {

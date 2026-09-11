@@ -4,7 +4,7 @@
 //! flat public data model while keeping identity/types, module entities,
 //! metadata, functions, instructions and calls in separate source modules.
 
-use std::num::{NonZeroU32, NonZeroU64};
+use std::num::NonZeroU32;
 
 use la_arena::{Arena, Idx};
 
@@ -37,6 +37,9 @@ pub use metadata::*;
 
 mod identity_metadata;
 pub use identity_metadata::*;
+
+mod safepoint;
+pub use safepoint::*;
 
 mod foundation;
 pub use foundation::*;

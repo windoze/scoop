@@ -56,14 +56,14 @@ fn throw_outside_try_is_a_throw_instruction() {
 Module
   fun @scoop.makeError() -> ptr<managed>
   block entry
-    poll managed-void-target0 sp3 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
     ret t0
   fun @scoop_main() -> void
     local %0 $call.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp4 live=[]
-    call managed-direct-target0 sp2 live=[] t0 = sig=direct0 () -> ptr<managed> local-fn0()
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn0()
     store t0 -> local0
     throw local0
     unreachable

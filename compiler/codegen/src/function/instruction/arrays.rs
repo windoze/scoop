@@ -44,7 +44,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         )));
                     }
                 }
-                let live = self.materialize_statepoint_live(live, *safepoint)?;
+                let safepoint = self.safepoint_id(*safepoint);
+                let live = self.materialize_statepoint_live(live, safepoint)?;
                 // `{ ptr td, i64 gc_word, i64 size, [n x elem] }`
                 // (runtime spec 2.5; the 16-byte header is M9):
                 // allocate align_up(24, element_align) + n * stride
@@ -79,7 +80,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let array = self.managed_alloc_value(
                     td,
                     context.i64_type().const_int(total, false),
-                    *safepoint,
+                    safepoint,
                     live,
                 )?;
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
@@ -266,9 +267,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol
                         ))
                     })?;
-                let live = self.materialize_statepoint_live(live, *safepoint)?;
+                let safepoint = self.safepoint_id(*safepoint);
+                let live = self.materialize_statepoint_live(live, safepoint)?;
                 let array =
-                    self.managed_alloc_value(td.as_pointer_value(), total_bytes, *safepoint, live)?;
+                    self.managed_alloc_value(td.as_pointer_value(), total_bytes, safepoint, live)?;
                 let size_ptr = self.byte_gep(array, 16, "assembly_size_ptr")?;
                 builder.build_store(size_ptr, total).map_err(|error| {
                     CodegenError(format!(
@@ -587,7 +589,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         function.symbol
                     )));
                 }
-                let live = self.materialize_statepoint_live(live, *safepoint)?;
+                let safepoint = self.safepoint_id(*safepoint);
+                let live = self.materialize_statepoint_live(live, safepoint)?;
                 let operand = self.statepoint_value(*operand, &live)?;
                 // The target descriptor is explicit: converting Array<T> to
                 // MutableArray<T> (or back) changes nominal runtime identity.
@@ -622,14 +625,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol
                         ))
                     })?;
-                self.apply_safepoint_id(call, *safepoint);
+                self.apply_safepoint_id(call, safepoint);
                 let result = call.try_as_basic_value().basic().ok_or_else(|| {
                     CodegenError(format!(
                         "call @{} produced no value",
                         scoop_lir::ARRAY_CLONE_SYMBOL
                     ))
                 })?;
-                self.restore_statepoint_live(live, *safepoint)?;
+                self.restore_statepoint_live(live, safepoint)?;
                 self.temps.insert(*out, result);
             }
             _ => unreachable!("instruction dispatcher routes only array instructions"),

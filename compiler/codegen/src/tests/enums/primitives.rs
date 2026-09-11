@@ -74,6 +74,7 @@ fn append_variant_projection_function(
     let index = module.functions.len();
     module.functions.push(Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
         symbol: symbol.to_string(),
         signature,
@@ -116,6 +117,7 @@ fn append_variant_test_function(
     let index = module.functions.len();
     module.functions.push(Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
         symbol: symbol.to_string(),
         signature,
@@ -528,6 +530,7 @@ fn redefining_a_tested_temp_invalidates_variant_dominance_fact() {
     };
     module.functions.push(Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
         symbol: "scoop.variant.redefined_temp".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::I64),

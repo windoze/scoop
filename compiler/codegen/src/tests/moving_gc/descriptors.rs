@@ -75,7 +75,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         vtable: vec![],
         itables: vec![],
     });
-    let module = Module {
+    let mut module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -88,6 +88,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
@@ -100,6 +101,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         entry_symbol: "scoop_main".to_string(),
         meta,
     };
+    refresh_module_safepoints(&mut module);
     let ir = ir_of(&module);
     assert!(
             ir.contains(

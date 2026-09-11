@@ -83,11 +83,11 @@ Module
     local %2 chk: i1
     local %3 $sc.1: struct0
   block entry
-    poll managed-void-target0 sp2 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = aggregate (integer<Int>(0x00000001)) : struct0
     store t0 -> local3
     t1 = local_address local3 : ptr
-    call managed-direct-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, machine<byte-size>(ByteSize(4)), root-scan0)
+    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, machine<byte-size>(ByteSize(4)), root-scan0)
     store t2 -> local0
     t3 = heap_load local0 +16 : struct0
     store t3 -> local1
@@ -214,7 +214,7 @@ Module
     local %8 p2: ptr<managed>
     local %9 n: i64
   block entry
-    poll managed-void-target1 sp2 live=[local0:ptr<managed>@0]
+    poll managed-void-target1 sp<managed-poll:0> live=[local0:ptr<managed>@0]
     call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local0)
     store t0 -> local1
     t1 = aggregate (local1) : struct0
@@ -231,7 +231,7 @@ Module
     call no-gc-direct-target3 t7 = sig=direct3 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(t6)
     store t7 -> local7
     store local7 -> local8
-    call managed-void-target0 sp1 live=[] sig=void0 () runtime @scoop_rt_gc_collect()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
     t8 = aggregate () : {}
     call no-gc-direct-target4 t9 = sig=direct4 () -> i64 runtime @scoop_rt_gc_stats()
     store t9 -> local9

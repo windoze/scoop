@@ -633,6 +633,7 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
         symbol: "logical_params".to_string(),
         signature,
         call_targets: CallTargets::default(),
+        safepoints: super::SafepointIdentities::default(),
         locals: la_arena::Arena::new(),
         temps: la_arena::Arena::new(),
         blocks,

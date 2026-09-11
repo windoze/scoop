@@ -17,6 +17,7 @@ fn classes_module() -> Module {
         });
         Function {
             callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
             symbol: symbol.to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -85,6 +86,7 @@ fn classes_module() -> Module {
     });
     let main = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], MANAGED_PTR),
@@ -139,7 +141,7 @@ fn classes_module() -> Module {
         }],
     });
 
-    Module {
+    let mut module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -153,7 +155,9 @@ fn classes_module() -> Module {
         functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
         entry_symbol: "scoop_main".to_string(),
         meta,
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 #[test]
@@ -205,6 +209,7 @@ pub(super) fn heap_module() -> Module {
     });
     let describe = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "Point.describe".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
@@ -373,6 +378,7 @@ pub(super) fn heap_module() -> Module {
     });
     let main = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![], LirType::Void),
@@ -383,7 +389,7 @@ pub(super) fn heap_module() -> Module {
         entry,
     };
 
-    Module {
+    let mut module = Module {
         globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -397,7 +403,9 @@ pub(super) fn heap_module() -> Module {
         functions: vec![describe, main],
         entry_symbol: "scoop_main".to_string(),
         meta,
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 fn keep_heap_object_live_for_appended_access(function: &mut Function, object: TempId) {

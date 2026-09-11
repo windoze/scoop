@@ -14,7 +14,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     scoop_lir::ManagedCallDestination::view,
                 ),
                 CallProtocol::Managed {
-                    safepoint: site.safepoint,
+                    safepoint: self.safepoint_id(site.safepoint),
                     live: &site.live,
                 },
                 None,
@@ -35,7 +35,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     scoop_lir::NativeSafeCallDestination::view,
                 ),
                 CallProtocol::NativeSafe {
-                    safepoint: site.safepoint,
+                    safepoint: self.safepoint_id(site.safepoint),
                     roots: &site.roots,
                 },
                 None,
@@ -45,7 +45,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.emit_typed_call(
                     call.call,
                     CallProtocol::NativeBorrowed {
-                        safepoint: site.safepoint,
+                        safepoint: self.safepoint_id(site.safepoint),
                         roots: &site.roots,
                         result: call.result,
                     },
@@ -68,7 +68,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     scoop_lir::ManagedCallDestination::view,
                 ),
                 CallProtocol::ManagedInvoke {
-                    safepoint: site.safepoint,
+                    safepoint: self.safepoint_id(site.safepoint),
                     roots: &site.roots,
                 },
                 Some((site.normal, site.unwind)),

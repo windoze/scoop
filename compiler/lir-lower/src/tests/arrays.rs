@@ -83,14 +83,14 @@ Module
     local %2 n: i64
     local %3 m: ptr<managed>
   block entry
-    poll managed-void-target0 sp3 live=[]
-    t0 = array_alloc array0 (integer<Int>(0x00000001), integer<Int>(0x00000002)) sp1 live  : ptr<managed>
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = array_alloc array0 (integer<Int>(0x00000001), integer<Int>(0x00000002)) sp<managed-call:0> live  : ptr<managed>
     store t0 -> local0
     t1 = array_get array0 local0 integer<Long>(0x0000000000000000) : i32
     store t1 -> local1
     t2 = array_len array0 local0 : i64
     store t2 -> local2
-    t3 = array_clone array1 local0 sp2 live local0:ptr<managed>@0 : ptr<managed>
+    t3 = array_clone array1 local0 sp<managed-call:1> live local0:ptr<managed>@0 : ptr<managed>
     store t3 -> local3
     array_set array1 local3 integer<Long>(0x0000000000000000) integer<Int>(0x00000028)
     ret

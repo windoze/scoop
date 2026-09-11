@@ -17,7 +17,7 @@ Module
     local %2 p: ptr<managed>
     local %3 o2: enum0
   block entry
-    poll managed-void-target0 sp1 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
     t1 = enum_tag e0 local0 : machine<enum-tag>
@@ -123,7 +123,7 @@ Module
     local %2 p: i32
     local %3 o2: enum0
   block entry
-    poll managed-void-target0 sp1 live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
     t1 = enum_tag e0 local0 : machine<enum-tag>

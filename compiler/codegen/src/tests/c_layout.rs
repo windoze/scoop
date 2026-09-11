@@ -15,6 +15,7 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
     });
     Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: symbol.to_string(),
         signature: plain_scoop_signature(
@@ -429,6 +430,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
@@ -441,6 +443,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         entry_symbol: "scoop_main".to_string(),
         meta,
     };
+    refresh_module_safepoints(&mut module);
 
     let machine = host_target_machine().expect("target machine");
     let target_data = machine.get_target_data();
@@ -667,6 +670,7 @@ fn append_c_void_call(
     caller.blocks[caller.entry]
         .instructions
         .push(Instruction::Call { site });
+    refresh_test_safepoints(caller);
 }
 
 #[test]

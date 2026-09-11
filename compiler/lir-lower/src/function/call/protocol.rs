@@ -273,7 +273,7 @@ impl<'a> FunctionLowerer<'a> {
                         destination,
                         call,
                     ),
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::ManagedCall),
                     live: lir::StatepointLiveSet::default(),
                 })
             }
@@ -301,7 +301,7 @@ impl<'a> FunctionLowerer<'a> {
                         destination,
                         call,
                     ),
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition),
                     roots: lir::NativeSafeRootSet::default(),
                 })
             }
@@ -334,7 +334,7 @@ impl<'a> FunctionLowerer<'a> {
                 let call = self.call_targets.bind_native_borrowed_call(call, result);
                 lir::CallSite::NativeBorrowed(lir::NativeBorrowedCallSite {
                     call,
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeBorrowedTransition),
                     roots: lir::NativeBorrowedRootSet::default(),
                 })
             }
@@ -356,7 +356,7 @@ impl<'a> FunctionLowerer<'a> {
                         destination,
                         call,
                     ),
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::ManagedInvoke),
                     roots: lir::ExceptionalRootSet::default(),
                     normal,
                     unwind,

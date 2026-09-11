@@ -85,6 +85,12 @@ struct ReloadedRoot<'ctx> {
     value: BasicValueEnum<'ctx>,
 }
 
+impl FnEmitter<'_, '_> {
+    fn safepoint_id(&self, site: scoop_lir::SafepointSiteRef) -> scoop_lir::SafepointId {
+        self.function.safepoints[site].runtime_id()
+    }
+}
+
 struct CompilerRootFrame<'ctx> {
     pointer: PointerValue<'ctx>,
 }

@@ -300,6 +300,7 @@ mod tests {
                 lir::CallingConvention::Cdecl,
             ),
             call_targets: lir::CallTargets::default(),
+            safepoints: lir::SafepointIdentities::default(),
             locals: Arena::default(),
             temps,
             blocks,

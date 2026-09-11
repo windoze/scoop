@@ -184,6 +184,7 @@ fn enum_module_with(
     });
     let tagged = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.tagged".to_string(),
         signature: scoop_signature(
@@ -272,6 +273,7 @@ fn enum_module_with(
     });
     let niche = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.niche".to_string(),
         signature: scoop_signature(
@@ -306,6 +308,7 @@ fn enum_module_with(
     });
     let trap_on_none = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.trap_on_none".to_string(),
         signature: plain_scoop_signature(vec![], LirType::Void),
@@ -337,6 +340,7 @@ fn enum_module_with(
     });
     let produce = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.produce_shape".to_string(),
         signature: scoop_signature(
@@ -389,6 +393,7 @@ fn enum_module_with(
     });
     let consume = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.consume_shape".to_string(),
         signature: plain_scoop_signature(vec![], enum_tag_ty.clone()),
@@ -439,6 +444,7 @@ fn enum_module_with(
     });
     let consume_indirect = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.consume_shape_indirect".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR], enum_tag_ty),
@@ -449,7 +455,7 @@ fn enum_module_with(
         entry: indirect_entry,
     };
 
-    Module {
+    let mut module = Module {
         globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -470,7 +476,9 @@ fn enum_module_with(
         ],
         entry_symbol: "scoop.tagged".to_string(),
         meta: string_metadata(),
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 #[test]

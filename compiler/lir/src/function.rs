@@ -97,6 +97,8 @@ pub struct Function {
     /// Function-local call entities. Targets may contain local SSA operands
     /// (for dispatch tables), so their ids are scoped to this function.
     pub call_targets: CallTargets,
+    /// Complete identity relation for every safepoint reference in `blocks`.
+    pub safepoints: SafepointIdentities,
     pub locals: Arena<Local>,
     pub temps: Arena<Temp>,
     pub blocks: Arena<BasicBlock>,

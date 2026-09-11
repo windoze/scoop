@@ -17,6 +17,7 @@ pub(super) fn exceptions_module() -> Module {
     });
     let thrower = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.thrower".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
@@ -37,6 +38,7 @@ pub(super) fn exceptions_module() -> Module {
     });
     let may_throw = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.may_throw".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::I64),
@@ -184,6 +186,7 @@ pub(super) fn exceptions_module() -> Module {
     };
     let eh_test = Function {
         callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         symbol: "scoop.eh_test".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR], LirType::I64),
@@ -194,7 +197,7 @@ pub(super) fn exceptions_module() -> Module {
         entry,
     };
 
-    Module {
+    let mut module = Module {
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -208,7 +211,9 @@ pub(super) fn exceptions_module() -> Module {
         functions: vec![thrower, may_throw, eh_test],
         entry_symbol: "scoop.eh_test".to_string(),
         meta: string_metadata(),
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 #[test]
