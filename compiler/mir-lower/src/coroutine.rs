@@ -301,13 +301,24 @@ fn transform_function(
         mutable: false,
     });
 
+    let protocol = lowerer.coroutine_protocol(module, &source_return);
     let continuation = match completion_ty {
         mir::Type::Interface(interface) => interface,
         _ => unreachable!("hidden completion has a concrete Continuation<R> type"),
     };
+    assert_eq!(
+        continuation,
+        lowerer.interfaces.mir_id(protocol.continuation),
+        "the hidden completion type matches the concrete coroutine protocol",
+    );
     let (outer_resume, outer_failure) = lowerer.coroutines.continuation_shells(
         &lowerer.source_exact_types,
         &source_return,
+        crate::source_callables::exact_function_signature(module, protocol.continuation_resume),
+        crate::source_callables::exact_function_signature(
+            module,
+            protocol.continuation_resume_with_exception,
+        ),
         continuation,
         throwable_ty,
         &mut lowerer.functions,

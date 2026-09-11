@@ -189,6 +189,26 @@ fn validate_support_callables(module: &Module) -> Result<HashSet<FunctionId>, Mi
                 "continuation shell result does not match the source exact-type relation",
             ));
         }
+        let Some(success_signature) = exact_support_signature(module, shell.success(), true) else {
+            return Err(error(
+                location,
+                "continuation success signature has no complete exact-type relation",
+            ));
+        };
+        let Some(failure_signature) = exact_support_signature(module, shell.failure(), true) else {
+            return Err(error(
+                location,
+                "continuation failure signature has no complete exact-type relation",
+            ));
+        };
+        if shell.identity().success_signature_record().signature() != &success_signature
+            || shell.identity().failure_signature_record().signature() != &failure_signature
+        {
+            return Err(error(
+                location,
+                "continuation shell identity does not retain its exact logical signatures",
+            ));
+        }
         if !functions.insert(shell.success()) || !functions.insert(shell.failure()) {
             return Err(error(
                 location,
@@ -234,6 +254,18 @@ fn validate_support_callables(module: &Module) -> Result<HashSet<FunctionId>, Mi
                 "coroutine start result does not match the source exact-type relation",
             ));
         }
+        let Some(signature) = exact_support_signature(module, start.function(), false) else {
+            return Err(error(
+                location,
+                "coroutine start signature has no complete exact-type relation",
+            ));
+        };
+        if start.identity().signature_record().signature() != &signature {
+            return Err(error(
+                location,
+                "coroutine start identity does not retain its exact logical signature",
+            ));
+        }
         if !functions.insert(start.function()) {
             return Err(error(
                 location,
@@ -242,6 +274,31 @@ fn validate_support_callables(module: &Module) -> Result<HashSet<FunctionId>, Mi
         }
     }
     Ok(functions)
+}
+
+fn exact_support_signature(
+    module: &Module,
+    function: FunctionId,
+    has_receiver: bool,
+) -> Option<scoop_identity::ExactCallableSignature> {
+    let function = arena_get(&module.functions, function)?;
+    let mut parameters = function.params.iter();
+    let receiver = has_receiver
+        .then(|| source_exact_type(module, &parameters.next()?.ty))
+        .flatten();
+    if has_receiver && receiver.is_none() {
+        return None;
+    }
+    let parameters = parameters
+        .map(|parameter| source_exact_type(module, &parameter.ty))
+        .collect::<Option<Vec<_>>>()?;
+    let result = source_exact_type(module, &function.return_ty)?;
+    Some(scoop_identity::ExactCallableSignature::new(
+        scoop_identity::Effect::Ordinary,
+        receiver,
+        parameters,
+        result,
+    ))
 }
 
 fn step_exact_result(

@@ -255,6 +255,34 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         shells.identity().success_root(),
         mir::ExactOwnerRoot::SourceNominal(_)
     ));
+    let success = &module.functions[shells.success()];
+    let failure = &module.functions[shells.failure()];
+    let exact = |ty: &mir::Type| {
+        module
+            .meta
+            .source_exact_types
+            .get(ty)
+            .expect("coroutine protocol types retain their source exact identities")
+            .identity_record()
+            .id()
+    };
+    let success_signature = shells.identity().success_signature_record().signature();
+    assert_eq!(
+        success_signature.receiver(),
+        scoop_identity::OptionalExactOwner::Present(exact(&success.params[0].ty))
+    );
+    assert_eq!(
+        success_signature.parameters(),
+        &[exact(&caller.source_return)]
+    );
+    assert_eq!(success_signature.result(), exact(&mir::Type::Unit));
+    let failure_signature = shells.identity().failure_signature_record().signature();
+    assert_eq!(failure_signature.receiver(), success_signature.receiver());
+    assert_eq!(
+        failure_signature.parameters(),
+        &[exact(&failure.params[1].ty)]
+    );
+    assert_eq!(failure_signature.result(), success_signature.result());
     let frame = &module.meta.coroutine_frames[*frame];
     assert_eq!(frame.identity().source(), caller.source);
     let frame_exact = module
@@ -769,6 +797,23 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         mir::ExactOwnerRoot::SourceNominal(_)
     ));
     let helper = &module.functions[helper_id];
+    let signature = start_metadata.identity().signature_record().signature();
+    let exact = |ty: &mir::Type| {
+        module
+            .meta
+            .source_exact_types
+            .get(ty)
+            .expect("coroutine protocol types retain their source exact identities")
+            .identity_record()
+            .id()
+    };
+    assert_eq!(signature.effect(), scoop_identity::Effect::Ordinary);
+    assert!(!signature.receiver().is_present());
+    assert_eq!(
+        signature.parameters(),
+        &[exact(&helper.params[0].ty), exact(&helper.params[1].ty)]
+    );
+    assert_eq!(signature.result(), exact(&mir::Type::Unit));
     let entry = &helper.body.blocks[helper.body.entry];
     let (run, step_local) = statement_call(&entry.statements[0]);
     let mir::CallKind::Interface {

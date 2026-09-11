@@ -53,12 +53,19 @@ fn test_exact_type(
         )
         .unwrap();
     }
-    let owner_tag = match ty {
-        Type::Integer(_) => 2,
-        Type::Boolean => 3,
-        Type::String => 4,
-        Type::Class(id) => 32 + id.into_raw().into_u32(),
-        _ => 255,
+    let name = match ty {
+        Type::Integer(kind) => format!(
+            "TestInteger{}{}",
+            kind.signedness().name(),
+            kind.width().bits()
+        ),
+        Type::Boolean => "TestBoolean".to_string(),
+        Type::String => "TestString".to_string(),
+        Type::Class(id) => format!("TestClass{}", id.into_raw().into_u32()),
+        Type::Interface(id) => format!("TestInterface{}", id.into_raw().into_u32()),
+        Type::Struct(id) => format!("TestStruct{}", id.into_raw().into_u32()),
+        Type::Enum(id, _) => format!("TestEnum{}", id.into_raw().into_u32()),
+        _ => "TestOther".to_string(),
     };
     let site = scoop_identity::SourceDeclarationSite::new(
         scoop_identity::ConeIdentity::SINGLE_FILE,
@@ -67,7 +74,6 @@ fn test_exact_type(
         scoop_identity::DeclarationScope::ConeWide,
     )
     .unwrap();
-    let name = format!("TestType{owner_tag}");
     let declaration = scoop_identity::SourceDeclarationKey::nominal(
         site,
         scoop_identity::CanonicalIdentifier::new(&name).unwrap(),
@@ -216,12 +222,51 @@ fn test_slot_identity(ty: &Type) -> CoroutineSlotIdentity {
     CoroutineSlotIdentity::new(&test_exact_type(ty), None).unwrap()
 }
 
-fn test_continuation_shell_identity(ty: &Type) -> ContinuationShellIdentity {
-    ContinuationShellIdentity::new(&test_exact_type(ty), None).unwrap()
+fn test_continuation_shell_identity(
+    result: &Type,
+    receiver: &Type,
+    failure: &Type,
+) -> ContinuationShellIdentity {
+    let receiver = test_exact_type(receiver).id();
+    let unit = test_exact_type(&Type::Unit).id();
+    ContinuationShellIdentity::new(
+        &test_exact_type(result),
+        None,
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            Some(receiver),
+            vec![test_exact_type(result).id()],
+            unit,
+        ),
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            Some(receiver),
+            vec![test_exact_type(failure).id()],
+            unit,
+        ),
+    )
+    .unwrap()
 }
 
-fn test_coroutine_start_identity(ty: &Type) -> CoroutineStartIdentity {
-    CoroutineStartIdentity::new(&test_exact_type(ty), None).unwrap()
+fn test_coroutine_start_identity(
+    result: &Type,
+    task: &Type,
+    continuation: &Type,
+) -> CoroutineStartIdentity {
+    CoroutineStartIdentity::new(
+        &test_exact_type(result),
+        None,
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            vec![
+                test_exact_type(task).id(),
+                test_exact_type(continuation).id(),
+            ],
+            test_exact_type(&Type::Unit).id(),
+        ),
+    )
+    .unwrap()
 }
 
 fn test_source_materialization() -> scoop_identity::CallableMaterialization {

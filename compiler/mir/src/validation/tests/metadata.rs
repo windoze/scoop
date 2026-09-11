@@ -326,13 +326,17 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
         vtable: Vec::new(),
         itables: Vec::new(),
     });
-    let success = support_function(
-        &mut module,
-        vec![Type::Interface(continuation), result.clone()],
-    );
+    let continuation_ty = Type::Interface(continuation);
+    let task_ty = Type::Interface(task);
+    let throwable_ty = Type::Class(throwable);
+    register_test_exact_type(&mut module, &continuation_ty);
+    register_test_exact_type(&mut module, &task_ty);
+    register_test_exact_type(&mut module, &throwable_ty);
+    register_test_exact_type(&mut module, &Type::Unit);
+    let success = support_function(&mut module, vec![continuation_ty.clone(), result.clone()]);
     let failure = support_function(
         &mut module,
-        vec![Type::Interface(continuation), Type::Class(throwable)],
+        vec![continuation_ty.clone(), throwable_ty.clone()],
     );
     module.meta.continuation_shells.push(
         CoroutineContinuationShell::checked(
@@ -340,27 +344,51 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
             result.clone(),
             success,
             failure,
-            test_continuation_shell_identity(&result),
+            test_continuation_shell_identity(&result, &continuation_ty, &throwable_ty),
         )
         .unwrap(),
     );
-    let start = support_function(
-        &mut module,
-        vec![Type::Interface(task), Type::Interface(continuation)],
-    );
+    let start = support_function(&mut module, vec![task_ty.clone(), continuation_ty.clone()]);
     module.top_level.push(start);
     module.meta.coroutine_starts.push(
         CoroutineStart::checked(
             &module.functions,
             result.clone(),
             start,
-            test_coroutine_start_identity(&result),
+            test_coroutine_start_identity(&result, &task_ty, &continuation_ty),
         )
         .unwrap(),
     );
     install_generated_exact_types(&mut module);
     install_generated_callables(&mut module);
     assert_eq!(module.validate(), Ok(()));
+
+    let wrong_identity = test_continuation_shell_identity(&result, &task_ty, &throwable_ty);
+    module.meta.continuation_shells[0] = CoroutineContinuationShell::checked(
+        &module.functions,
+        result.clone(),
+        success,
+        failure,
+        wrong_identity,
+    )
+    .unwrap();
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::ContinuationShell { shell: 0 },
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "continuation shell identity does not retain its exact logical signatures",
+            },
+        })
+    );
+    module.meta.continuation_shells[0] = CoroutineContinuationShell::checked(
+        &module.functions,
+        result.clone(),
+        success,
+        failure,
+        test_continuation_shell_identity(&result, &continuation_ty, &throwable_ty),
+    )
+    .unwrap();
 
     module.functions[success].return_ty = Type::Boolean;
     assert_eq!(

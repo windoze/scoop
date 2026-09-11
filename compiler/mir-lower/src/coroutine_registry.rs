@@ -233,10 +233,13 @@ impl CoroutineRegistry {
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn continuation_shells(
         &mut self,
         exact_types: &SourceExactTypeRegistry,
         result: &mir::Type,
+        success_signature: hir::ExactCallableSignature,
+        failure_signature: hir::ExactCallableSignature,
         continuation: mir::InterfaceId,
         throwable: mir::Type,
         functions: &mut Arena<mir::Function>,
@@ -314,8 +317,13 @@ impl CoroutineRegistry {
             return_ty: mir::Type::Unit,
             body: mir::Body::unreachable(failure_locals),
         });
-        let identity = mir::ContinuationShellIdentity::new(exact, nominal_group)
-            .expect("local-concrete exact types have one continuation-shell root");
+        let identity = mir::ContinuationShellIdentity::new(
+            exact,
+            nominal_group,
+            success_signature,
+            failure_signature,
+        )
+        .expect("local-concrete coroutine protocols have one continuation-shell identity");
         let metadata = mir::CoroutineContinuationShell::checked(
             functions,
             result.clone(),
@@ -537,8 +545,26 @@ impl CoroutineRegistry {
             },
         });
         top_level.push(function);
-        let identity = mir::CoroutineStartIdentity::new(exact, nominal_group)
-            .expect("local-concrete exact types have one coroutine-start root");
+        let signature = hir::ExactCallableSignature::new(
+            hir::Effect::Ordinary,
+            None,
+            [task_interface, continuation_interface]
+                .map(|interface| {
+                    exact_types
+                        .get(&mir::Type::Interface(interface))
+                        .expect("a concrete coroutine protocol interface has one exact identity")
+                        .identity_record()
+                        .id()
+                })
+                .into(),
+            exact_types
+                .get(&mir::Type::Unit)
+                .expect("the core Unit type has one exact identity")
+                .identity_record()
+                .id(),
+        );
+        let identity = mir::CoroutineStartIdentity::new(exact, nominal_group, signature)
+            .expect("local-concrete coroutine protocols have one coroutine-start identity");
         let metadata = mir::CoroutineStart::checked(functions, result.clone(), function, identity)
             .expect("generated coroutine start helper has the exact erased signature");
         self.start_helpers.push(metadata);
