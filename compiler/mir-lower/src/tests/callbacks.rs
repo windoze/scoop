@@ -195,7 +195,36 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     .unwrap();
 
     let source = legacy_executable(source, entry);
-    let module = lower(&source);
+    let concrete = scoop_hir_lower::concretize_legacy_export(&source);
+    let reference_materialization = *concrete
+        .module()
+        .callable_references
+        .iter()
+        .next()
+        .expect("the callback test has one concrete callable reference")
+        .1
+        .identity
+        .materialization();
+    let module = crate::lower(&concrete);
+    let reference_invoke = module
+        .functions
+        .iter()
+        .find_map(|(function, definition)| {
+            definition
+                .name
+                .starts_with("$reference.")
+                .then_some(function)
+        })
+        .expect("the callable reference has one invoke wrapper");
+    assert_eq!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(reference_invoke)
+            .expect("the callable-reference wrapper has an exact MIR location")
+            .materialization(),
+        reference_materialization
+    );
     let (_, bridge) = module
         .foreign_callback_bridges
         .iter()

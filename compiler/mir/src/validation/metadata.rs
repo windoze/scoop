@@ -2,6 +2,24 @@ use std::collections::HashSet;
 
 use super::*;
 
+pub(super) fn validate_source_callable_materializations(
+    module: &Module,
+) -> Result<(), MirValidationError> {
+    for entry in module.meta.source_callable_materializations.iter() {
+        if arena_get(&module.functions, entry.function()).is_none() {
+            return Err(MirValidationError {
+                location: MirValidationLocation::SourceCallableMaterialization {
+                    function: entry.function(),
+                },
+                kind: MirValidationErrorKind::InvalidSourceCallableMaterialization {
+                    reason: "the function does not exist",
+                },
+            });
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_source_local_value_metadata(
     module: &Module,
 ) -> Result<(), MirValidationError> {

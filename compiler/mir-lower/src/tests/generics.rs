@@ -226,6 +226,16 @@ fn generic_structs_instantiate_per_argument_list() {
     let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
         panic!("a struct constructor is a direct user function")
     };
+    assert!(matches!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(first_constructor)
+            .expect("the struct constructor has an exact MIR location")
+            .materialization()
+            .template(),
+        scoop_identity::CallableTemplateOwner::Constructor(_)
+    ));
     assert_eq!(
         module.functions[first_constructor].gc_effect,
         mir::GcEffect::NoGc,

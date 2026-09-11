@@ -133,6 +133,15 @@ fn monomorphizes_generic_functions() {
     assert_eq!(int_meta.symbol, "scoop.identity$I32");
     assert_eq!(int_meta.display_name, "identity");
     assert_eq!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(int_meta.function)
+            .expect("the generic Int body has an exact MIR location")
+            .materialization(),
+        int_meta.materialization
+    );
+    assert_eq!(
         int_value.identity_record().key().owner(),
         int_meta.materialization
     );
@@ -146,6 +155,15 @@ fn monomorphizes_generic_functions() {
         panic!("identity<Int> must retain its persistent callable application")
     };
     let string_meta = &module.meta.instances[instance_id(&module, module.top_level[2])];
+    assert_eq!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(string_meta.function)
+            .expect("the generic String body has an exact MIR location")
+            .materialization(),
+        string_meta.materialization
+    );
     assert_eq!(
         string_meta.materialization.template(),
         int_meta.materialization.template()

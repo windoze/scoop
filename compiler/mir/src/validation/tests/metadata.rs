@@ -1,5 +1,52 @@
 use super::*;
 
+fn source_callable_materialization() -> scoop_identity::CallableMaterialization {
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new("sourceCallable").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    scoop_identity::CallableMaterialization::new(
+        scoop_identity::CallableTemplateOwner::Function(function),
+        scoop_identity::CallableMaterializationContext::NoSubstitution,
+    )
+}
+
+#[test]
+fn module_validation_rejects_source_callable_locations_outside_the_function_graph() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let missing_function = FunctionId::from_raw(7_u32.into());
+    module.meta.source_callable_materializations =
+        SourceCallableMaterializations::checked(vec![SourceCallableMaterialization::new(
+            missing_function,
+            source_callable_materialization(),
+        )])
+        .unwrap();
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::SourceCallableMaterialization {
+                function: missing_function,
+            },
+            kind: MirValidationErrorKind::InvalidSourceCallableMaterialization {
+                reason: "the function does not exist",
+            },
+        })
+    );
+}
+
 fn source_local_record() -> SourceLocalValueRecord {
     let site = scoop_identity::SourceDeclarationSite::new(
         scoop_identity::ConeIdentity::SINGLE_FILE,

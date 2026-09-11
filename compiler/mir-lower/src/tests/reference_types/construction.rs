@@ -59,6 +59,16 @@ fn class_initializers_chain_on_one_exact_allocation() {
         .iter()
         .find_map(|(id, function)| (function.name == "init.Point.$c2").then_some((id, function)))
         .expect("Point initializer");
+    assert!(matches!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(point_initializer.0)
+            .expect("the class initializer has an exact MIR location")
+            .materialization()
+            .template(),
+        scoop_identity::CallableTemplateOwner::Constructor(_)
+    ));
     let receiver = module
         .meta
         .source_local_values

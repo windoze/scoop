@@ -10,7 +10,10 @@ use function_adapters::validate_function_adapter_metadata;
 mod boxed_values;
 use boxed_values::validate_boxed_value_metadata;
 mod metadata;
-use metadata::{validate_enum_metadata, validate_source_local_value_metadata};
+use metadata::{
+    validate_enum_metadata, validate_source_callable_materializations,
+    validate_source_local_value_metadata,
+};
 mod coroutines;
 use coroutines::validate_coroutine_metadata;
 
@@ -38,6 +41,9 @@ pub enum MirValidationErrorKind {
     InvalidOptionCore,
     InvalidCoroutineStep,
     InvalidCoroutineSlot,
+    InvalidSourceCallableMaterialization {
+        reason: &'static str,
+    },
     InvalidSourceLocalValue {
         reason: &'static str,
     },
@@ -146,6 +152,9 @@ pub enum MirValidationLocation {
     CoroutineSlot {
         slot: CoroutineSlotId,
     },
+    SourceCallableMaterialization {
+        function: FunctionId,
+    },
     SourceLocalValue {
         function: FunctionId,
         local: LocalId,
@@ -218,6 +227,11 @@ impl std::fmt::Display for MirValidationError {
                 formatter,
                 "invalid MIR CoroutineSlot metadata {}: ",
                 slot.into_raw().into_u32()
+            )?,
+            MirValidationLocation::SourceCallableMaterialization { function } => write!(
+                formatter,
+                "invalid MIR source callable materialization at function {}: ",
+                function.into_raw().into_u32()
             )?,
             MirValidationLocation::SourceLocalValue { function, local } => write!(
                 formatter,
@@ -307,6 +321,9 @@ impl std::fmt::Display for MirValidationError {
             ),
             MirValidationErrorKind::InvalidCoroutineSlot => formatter
                 .write_str("stored Value/Empty identities no longer match the coroutine-slot enum"),
+            MirValidationErrorKind::InvalidSourceCallableMaterialization { reason } => {
+                formatter.write_str(reason)
+            }
             MirValidationErrorKind::InvalidSourceLocalValue { reason } => {
                 formatter.write_str(reason)
             }
@@ -506,6 +523,7 @@ impl Module {
 /// not to printed or structural expression equality. Producers must materialize
 /// a tested enum value into such a local before testing and projecting it.
 pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
+    validate_source_callable_materializations(module)?;
     validate_source_local_value_metadata(module)?;
     validate_enum_metadata(module)?;
     validate_coroutine_metadata(module)?;

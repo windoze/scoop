@@ -31,6 +31,9 @@ pub use exact_owner::*;
 mod source_exact_types;
 pub use source_exact_types::*;
 
+mod source_callable_materializations;
+pub use source_callable_materializations::*;
+
 mod source_local_values;
 pub use source_local_values::*;
 

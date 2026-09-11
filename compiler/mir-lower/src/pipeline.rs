@@ -259,6 +259,7 @@ impl Lowerer {
             entry,
             meta: mir::MirMeta {
                 source_exact_types: self.source_exact_types.finish(),
+                source_callable_materializations: self.source_callables.finish(),
                 source_local_values: self.source_local_values.finish(),
                 instances: self.instances.meta,
                 coroutine_functions: self.coroutines.functions,

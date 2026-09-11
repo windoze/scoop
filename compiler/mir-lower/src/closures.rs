@@ -184,6 +184,8 @@ impl Lowerer {
                 body: mir::Body::unreachable(Arena::new()),
             });
             self.top_level.push(function);
+            self.source_callables
+                .record(function, *reference.identity.materialization());
             let invoke = self
                 .closure_invokes
                 .alloc(mir::ClosureInvokeFunction { function });
