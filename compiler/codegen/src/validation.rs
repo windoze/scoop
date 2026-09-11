@@ -33,7 +33,7 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
 
 fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenError> {
     for (_, descriptor) in module.meta.type_descriptors.iter() {
-        let owner = descriptor.runtime_type.exact_type();
+        let owner = descriptor.identity.exact_type();
         if !descriptor.vtable.belongs_to_exact_type(owner) {
             return Err(CodegenError(format!(
                 "type descriptor `{}` carries a vtable identity for another exact type or table role",
@@ -59,7 +59,7 @@ fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenErro
                 )));
             }
             let interface = &module.meta.type_descriptors[interface_id];
-            if !itable.belongs_to_interface_exact_type(interface.runtime_type.exact_type()) {
+            if !itable.belongs_to_interface_exact_type(interface.identity.exact_type()) {
                 return Err(CodegenError(format!(
                     "type descriptor `{}` itable identity and interface descriptor identify different exact types",
                     descriptor.name

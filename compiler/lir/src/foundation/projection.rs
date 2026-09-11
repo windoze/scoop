@@ -40,13 +40,18 @@ impl CanonicalLirFoundation {
                 )
                 .collect(),
         )?;
-        foundation.project_layout_materializations(
+        foundation.project_materializations(
             module
                 .meta
                 .layouts
                 .iter()
                 .map(|(_, layout)| &layout.identity)
                 .chain(module.meta.arrays.iter().map(|(_, array)| &array.identity)),
+            module
+                .meta
+                .type_descriptors
+                .iter()
+                .map(|(_, descriptor)| descriptor),
         )?;
         foundation.set_dispatch_tables(
             module
@@ -69,29 +74,49 @@ impl CanonicalLirFoundation {
                 .meta
                 .type_descriptors
                 .iter()
-                .map(|(_, descriptor)| descriptor.runtime_type)
+                .map(|(_, descriptor)| descriptor.identity.runtime_type())
                 .collect(),
         )?;
         Ok(foundation)
     }
 
-    fn project_layout_materializations<'identity>(
+    fn project_materializations<'identity, 'descriptor>(
         &mut self,
         identities: impl IntoIterator<Item = &'identity crate::LayoutIdentity>,
+        descriptors: impl IntoIterator<Item = &'descriptor crate::TypeDescriptor>,
     ) -> Result<(), LirFoundationBuildError> {
         let mut groups = BTreeMap::new();
         let mut members = BTreeMap::new();
         for identity in identities {
-            insert_projected_identity(
+            insert_materialization_records(
                 &mut groups,
+                &mut members,
                 identity.lir_odr_group_record(),
-                LirFoundationTable::OdrGroup,
+                None,
             )?;
             for member in identity.odr_member_records() {
-                insert_projected_identity(
+                insert_materialization_records(&mut groups, &mut members, None, Some(member))?;
+            }
+        }
+        for descriptor in descriptors {
+            insert_materialization_records(
+                &mut groups,
+                &mut members,
+                descriptor.identity.lir_odr_group_record(),
+                descriptor.identity.odr_member_record(),
+            )?;
+            insert_materialization_records(
+                &mut groups,
+                &mut members,
+                descriptor.vtable.lir_odr_group_record(),
+                descriptor.vtable.odr_member_record(),
+            )?;
+            for itable in &descriptor.itables {
+                insert_materialization_records(
+                    &mut groups,
                     &mut members,
-                    Some(member),
-                    LirFoundationTable::OdrMember,
+                    itable.lir_odr_group_record(),
+                    itable.odr_member_record(),
                 )?;
             }
         }
@@ -161,6 +186,16 @@ impl CanonicalLirFoundation {
     }
 }
 
+fn insert_materialization_records(
+    groups: &mut BTreeMap<OdrGroupId, OdrGroupRecord>,
+    members: &mut BTreeMap<OdrMemberId, OdrMemberRecord>,
+    group: Option<&OdrGroupRecord>,
+    member: Option<&OdrMemberRecord>,
+) -> Result<(), LirFoundationBuildError> {
+    insert_projected_identity(groups, group, LirFoundationTable::OdrGroup)?;
+    insert_projected_identity(members, member, LirFoundationTable::OdrMember)
+}
+
 fn insert_projected_identity<I, K>(
     records: &mut BTreeMap<I, CborIdentityRecord<I, K>>,
     record: Option<&CborIdentityRecord<I, K>>,
@@ -203,9 +238,10 @@ mod tests {
     use super::*;
     use crate::{
         AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention, GcEffect,
-        Global, GlobalInit, ImmortalObjectIdentity, LayoutIdentity, LirTargetProfile,
-        MaterializationRoot, PointerKind, RefScan, SafepointIdentities, SafepointIdentity,
-        SafepointSiteRef, ScoopAbiSignature, Terminator,
+        Global, GlobalInit, ImmortalObjectIdentity, ItableRecord, LayoutIdentity, LirTargetProfile,
+        MaterializationRoot, PointerKind, RefScan, RuntimeTypeMappingRecord, SafepointIdentities,
+        SafepointIdentity, SafepointSiteRef, ScoopAbiSignature, Terminator, TypeDescriptor,
+        TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VtableRecord,
     };
 
     #[test]
@@ -249,7 +285,7 @@ mod tests {
         let mut foundation = CanonicalLirFoundation::empty();
 
         foundation
-            .project_layout_materializations(&identities)
+            .project_materializations(&identities, std::iter::empty())
             .unwrap();
 
         assert_eq!(foundation.odr_groups.len(), 1);
@@ -280,6 +316,93 @@ mod tests {
             member.key().group() == foundation.odr_groups[0].id()
                 || member.key().group() == inherited_group.id()
         }));
+    }
+
+    #[test]
+    fn projects_descriptor_and_dispatch_members_under_one_exact_type_root() {
+        let interface_exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap();
+        let owner_exact = exact_tuple(0);
+        let owner_root = MaterializationRoot::lir_structural_odr(owner_exact).unwrap();
+        let mut descriptors = Arena::new();
+        let interface_identity = TypeDescriptorIdentity::new(
+            RuntimeTypeMappingRecord::new(interface_exact).unwrap(),
+            MaterializationRoot::cone_owned(),
+        )
+        .unwrap();
+        let interface_vtable = VtableRecord::new(&interface_identity, Vec::new()).unwrap();
+        let interface = descriptors.alloc(TypeDescriptor {
+            name: "Interface".to_string(),
+            symbol: "interface".to_string(),
+            identity: interface_identity,
+            size: 0,
+            align: 0,
+            scan: TypeDescriptorScan::Fixed(RefScan::None),
+            parent: None,
+            vtable: interface_vtable,
+            itables: Vec::new(),
+        });
+        let owner_identity = TypeDescriptorIdentity::new(
+            RuntimeTypeMappingRecord::new(owner_exact).unwrap(),
+            owner_root,
+        )
+        .unwrap();
+        let owner_vtable = VtableRecord::new(&owner_identity, Vec::new()).unwrap();
+        let owner_itables = vec![
+            ItableRecord::new(
+                &owner_identity,
+                interface_exact,
+                TypeDescriptorRef::Local(interface),
+                Vec::new(),
+            )
+            .unwrap(),
+        ];
+        descriptors.alloc(TypeDescriptor {
+            name: "Owner".to_string(),
+            symbol: "owner".to_string(),
+            identity: owner_identity,
+            size: 0,
+            align: 0,
+            scan: TypeDescriptorScan::Fixed(RefScan::None),
+            parent: None,
+            vtable: owner_vtable,
+            itables: owner_itables,
+        });
+        let mut foundation = CanonicalLirFoundation::empty();
+
+        foundation
+            .project_materializations(
+                std::iter::empty(),
+                descriptors.iter().map(|(_, descriptor)| descriptor),
+            )
+            .unwrap();
+
+        assert_eq!(foundation.odr_groups.len(), 1);
+        assert_eq!(foundation.odr_members.len(), 3);
+        assert_eq!(
+            foundation
+                .odr_members
+                .iter()
+                .filter(|member| member.key().role() == OdrMemberRole::TypeDescriptor)
+                .count(),
+            1
+        );
+        assert_eq!(
+            foundation
+                .odr_members
+                .iter()
+                .filter(|member| member.key().role() == OdrMemberRole::DispatchTable)
+                .count(),
+            2
+        );
+        assert!(
+            foundation
+                .odr_members
+                .iter()
+                .all(|member| member.key().group() == foundation.odr_groups[0].id())
+        );
     }
 
     #[test]

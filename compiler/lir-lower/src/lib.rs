@@ -213,8 +213,13 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         .collect::<HashMap<_, _>>();
     let initialization_units =
         lower_initialization_units(module, &storage_globals, &local_function_map);
-    let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) =
-        type_descriptors(&context, module, &enums, &local_function_map);
+    let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) = type_descriptors(
+        &context,
+        &identity_roots,
+        module,
+        &enums,
+        &local_function_map,
+    );
     let (arrays, array_type_map) = array_types(
         &context,
         &identity_roots,

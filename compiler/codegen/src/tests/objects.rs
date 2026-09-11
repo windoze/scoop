@@ -101,7 +101,7 @@ pub(super) fn classes_module() -> Module {
     let describable = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Describable".to_string(),
         symbol: "scoop_td_Describable".to_string(),
-        runtime_type: runtime_type("Describable"),
+        identity: type_descriptor_identity("Describable"),
         size: 0,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
@@ -112,7 +112,7 @@ pub(super) fn classes_module() -> Module {
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Shape".to_string(),
         symbol: "scoop_td_Shape".to_string(),
-        runtime_type: runtime_type("Shape"),
+        identity: type_descriptor_identity("Shape"),
         size: 24,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
@@ -128,7 +128,7 @@ pub(super) fn classes_module() -> Module {
     meta.type_descriptors.alloc(TypeDescriptor {
         name: "Point".to_string(),
         symbol: "scoop_td_Point".to_string(),
-        runtime_type: runtime_type("Point"),
+        identity: type_descriptor_identity("Point"),
         size: 32,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
@@ -193,7 +193,7 @@ pub(super) fn heap_module() -> Module {
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Point".to_string(),
         symbol: "scoop_td_Point".to_string(),
-        runtime_type: runtime_type("Point"),
+        identity: type_descriptor_identity("Point"),
         size: 32,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::References(vec![24])),

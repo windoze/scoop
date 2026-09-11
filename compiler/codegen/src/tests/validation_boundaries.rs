@@ -591,18 +591,19 @@ fn safepoint_validation_rejects_an_identity_owned_by_another_body() {
 #[test]
 fn runtime_type_validation_rejects_two_descriptors_for_one_exact_type() {
     let mut module = values_module();
-    let runtime_type = module
+    let identity = module
         .meta
         .type_descriptors
         .iter()
         .next()
         .expect("values fixture has the String descriptor")
         .1
-        .runtime_type;
+        .identity
+        .clone();
     module.meta.type_descriptors.alloc(TypeDescriptor {
         name: "DuplicateString".to_string(),
         symbol: "scoop_td_DuplicateString".to_string(),
-        runtime_type,
+        identity,
         size: 24,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),

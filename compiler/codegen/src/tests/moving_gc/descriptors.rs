@@ -63,7 +63,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     meta.type_descriptors.alloc(TypeDescriptor {
         name: "Holder".to_string(),
         symbol: "scoop_td_Holder".to_string(),
-        runtime_type: runtime_type("Holder"),
+        identity: type_descriptor_identity("Holder"),
         size: 56,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::Sequence(vec![

@@ -81,6 +81,7 @@ pub(crate) fn dispatch_entry(
 /// ids directly; symbols remain emission attributes only.
 pub(crate) fn type_descriptors(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
@@ -92,19 +93,24 @@ pub(crate) fn type_descriptors(
     let mut descriptors = Arena::new();
     let mut refs = TypeDescriptorRefs::default();
     for (interface, def) in module.interfaces.iter() {
-        let encoded = mir::encode_type(module, &mir::Type::Interface(interface))
+        let ty = mir::Type::Interface(interface);
+        let encoded = mir::encode_type(module, &ty)
             .expect("MIR interface applications have source type encodings");
-        let runtime_type = runtime_type(module, &mir::Type::Interface(interface));
+        let runtime_type = runtime_type(module, &ty);
+        let root = identity_roots.for_type(&ty);
+        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
+            .expect("validated interface exact type must derive descriptor identities");
+        let vtable = lir::VtableRecord::new(&identity, Vec::new())
+            .expect("validated interface exact type must derive a vtable identity");
         let id = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(&encoded),
-            runtime_type,
+            identity,
             size: 0,
             align: 0,
             scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
             parent: None,
-            vtable: lir::VtableRecord::new(runtime_type.exact_type(), Vec::new())
-                .expect("validated interface exact type must derive a vtable identity"),
+            vtable,
             itables: Vec::new(),
         });
         refs.interfaces
@@ -128,16 +134,20 @@ pub(crate) fn type_descriptors(
         );
         let runtime_type = lir::RuntimeTypeMappingRecord::new(exact_type)
             .expect("validated function exact type must derive a nonzero runtime id");
+        let root = identity_roots.for_type(&mir::Type::Function(id));
+        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
+            .expect("validated function exact type must derive descriptor identities");
+        let vtable = lir::VtableRecord::new(&identity, Vec::new())
+            .expect("validated function exact type must derive a vtable identity");
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             symbol: td_symbol(&name),
             name,
-            runtime_type,
+            identity,
             size: 0,
             align: 0,
             scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
             parent: None,
-            vtable: lir::VtableRecord::new(exact_type, Vec::new())
-                .expect("validated function exact type must derive a vtable identity"),
+            vtable,
             itables: Vec::new(),
         });
         refs.function_types
@@ -150,17 +160,12 @@ pub(crate) fn type_descriptors(
             def.representation,
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
         );
-        let descriptor_type = if is_string {
-            mir::Type::String
-        } else {
-            mir::Type::Class(id)
-        };
         let descriptor = class_type_descriptor(
             context,
+            identity_roots,
             module,
             enums,
             id,
-            runtime_type(module, &descriptor_type),
             &refs,
             local_functions,
         );
@@ -178,35 +183,37 @@ pub(crate) fn type_descriptors(
         let (_, size, align, scan) = closure_shape(context, module, enums, def);
         let runtime_type =
             generated_runtime_type(module, mir::GeneratedExactTypeLocation::Closure(closure));
-        let exact_type = runtime_type.exact_type();
+        let root = identity_roots.for_generated(mir::GeneratedExactTypeLocation::Closure(closure));
+        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
+            .expect("validated closure exact type must derive descriptor identities");
+        let vtable = lir::VtableRecord::new(&identity, Vec::new())
+            .expect("validated closure exact type must derive a vtable identity");
+        let itables = def
+            .bridges
+            .iter()
+            .map(|bridge| {
+                lir::ItableRecord::new(
+                    &identity,
+                    exact_type_record(module, &mir::Type::Function(bridge.target)).id(),
+                    refs.function_types[&bridge.target],
+                    vec![dispatch_entry(
+                        &mir::TableSlot::Function(bridge.function),
+                        local_functions,
+                    )],
+                )
+                .expect("validated closure and function exact types must derive an itable identity")
+            })
+            .collect();
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(def.link_stem.as_str()),
-            runtime_type,
+            identity,
             size,
             align,
             scan: lir::TypeDescriptorScan::Fixed(scan),
             parent: Some(refs.function_types[&def.function_type]),
-            vtable: lir::VtableRecord::new(exact_type, Vec::new())
-                .expect("validated closure exact type must derive a vtable identity"),
-            itables: def
-                .bridges
-                .iter()
-                .map(|bridge| {
-                    lir::ItableRecord::new(
-                        exact_type,
-                        exact_type_record(module, &mir::Type::Function(bridge.target)).id(),
-                        refs.function_types[&bridge.target],
-                        vec![dispatch_entry(
-                            &mir::TableSlot::Function(bridge.function),
-                            local_functions,
-                        )],
-                    )
-                    .expect(
-                        "validated closure and function exact types must derive an itable identity",
-                    )
-                })
-                .collect(),
+            vtable,
+            itables,
         });
         refs.closures
             .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
@@ -223,15 +230,26 @@ pub(crate) fn type_descriptors(
 
 pub(crate) fn class_type_descriptor(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     enums: &lir::EnumDefs,
     id: mir::ClassId,
-    runtime_type: lir::RuntimeTypeMappingRecord,
     refs: &TypeDescriptorRefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> lir::TypeDescriptor {
     let def = &module.classes[id];
-    let exact_type = runtime_type.exact_type();
+    let descriptor_type = if matches!(
+        def.representation,
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+    ) {
+        mir::Type::String
+    } else {
+        mir::Type::Class(id)
+    };
+    let runtime_type = runtime_type(module, &descriptor_type);
+    let root = identity_roots.for_type(&descriptor_type);
+    let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
+        .expect("validated class exact type must derive descriptor identities");
     let (size, align, scan) = class_layout(context, module, enums, def);
     let scan = match &def.representation {
         mir::ClassRepresentation::Intrinsic(
@@ -240,6 +258,31 @@ pub(crate) fn class_type_descriptor(
         ) => lir::TypeDescriptorScan::ArrayElement { stride: size, scan },
         _ => lir::TypeDescriptorScan::Fixed(scan),
     };
+    let vtable = lir::VtableRecord::new(
+        &identity,
+        def.vtable
+            .iter()
+            .map(|slot| dispatch_entry(slot, local_functions))
+            .collect(),
+    )
+    .expect("validated class exact type must derive a vtable identity");
+    let itables = def
+        .itables
+        .iter()
+        .map(|record| {
+            lir::ItableRecord::new(
+                &identity,
+                exact_type_record(module, &mir::Type::Interface(record.interface)).id(),
+                refs.interfaces[&record.interface],
+                record
+                    .slots
+                    .iter()
+                    .map(|slot| dispatch_entry(slot, local_functions))
+                    .collect(),
+            )
+            .expect("validated class and interface exact types must derive an itable identity")
+        })
+        .collect();
     lir::TypeDescriptor {
         name: def.name.clone(),
         symbol: if matches!(
@@ -252,36 +295,13 @@ pub(crate) fn class_type_descriptor(
                 .expect("MIR class applications have source type encodings");
             td_symbol(&encoded)
         },
-        runtime_type,
+        identity,
         size,
         align,
         scan,
         parent: def.base_class().map(|base| refs.classes[&base]),
-        vtable: lir::VtableRecord::new(
-            exact_type,
-            def.vtable
-                .iter()
-                .map(|slot| dispatch_entry(slot, local_functions))
-                .collect(),
-        )
-        .expect("validated class exact type must derive a vtable identity"),
-        itables: def
-            .itables
-            .iter()
-            .map(|record| {
-                lir::ItableRecord::new(
-                    exact_type,
-                    exact_type_record(module, &mir::Type::Interface(record.interface)).id(),
-                    refs.interfaces[&record.interface],
-                    record
-                        .slots
-                        .iter()
-                        .map(|slot| dispatch_entry(slot, local_functions))
-                        .collect(),
-                )
-                .expect("validated class and interface exact types must derive an itable identity")
-            })
-            .collect(),
+        vtable,
+        itables,
     }
 }
 

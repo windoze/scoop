@@ -124,7 +124,10 @@ fn lowers_hello_world() {
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
     );
     assert_eq!(string_descriptor.symbol, lir::STRING_TD_SYMBOL);
-    assert_eq!(string_descriptor.runtime_type, string_runtime_type);
+    assert_eq!(
+        string_descriptor.identity.runtime_type(),
+        string_runtime_type
+    );
     assert!(string_descriptor.vtable.slots().is_empty());
     assert_eq!(
         descriptor_values(&module)

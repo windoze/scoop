@@ -189,7 +189,10 @@ fn emit_type_descriptor<'ctx>(
         &context.const_struct(
             &[
                 i64_ty
-                    .const_int(descriptor.runtime_type.runtime_type().get(), false)
+                    .const_int(
+                        descriptor.identity.runtime_type().runtime_type().get(),
+                        false,
+                    )
                     .into(),
                 i64_ty.const_int(descriptor.size, false).into(),
                 i64_ty.const_int(descriptor.align, false).into(),

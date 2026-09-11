@@ -45,6 +45,14 @@ pub(super) fn runtime_type(name: &str) -> scoop_lir::RuntimeTypeMappingRecord {
     scoop_lir::RuntimeTypeMappingRecord::new(test_exact_type(name)).unwrap()
 }
 
+pub(super) fn type_descriptor_identity(name: &str) -> scoop_lir::TypeDescriptorIdentity {
+    scoop_lir::TypeDescriptorIdentity::new(
+        runtime_type(name),
+        scoop_lir::MaterializationRoot::cone_owned(),
+    )
+    .unwrap()
+}
+
 pub(super) fn layout_identity(
     name: &str,
     role: scoop_identity::RepresentationRole,
@@ -79,7 +87,7 @@ pub(super) fn array_layout_identity(name: &str) -> scoop_lir::LayoutIdentity {
 }
 
 pub(super) fn vtable(owner: &str, slots: Vec<scoop_lir::DispatchEntry>) -> scoop_lir::VtableRecord {
-    scoop_lir::VtableRecord::new(test_exact_type(owner), slots).unwrap()
+    scoop_lir::VtableRecord::new(&type_descriptor_identity(owner), slots).unwrap()
 }
 
 pub(super) fn itable(
@@ -89,7 +97,7 @@ pub(super) fn itable(
     slots: Vec<scoop_lir::DispatchEntry>,
 ) -> scoop_lir::ItableRecord {
     scoop_lir::ItableRecord::new(
-        test_exact_type(owner),
+        &type_descriptor_identity(owner),
         test_exact_type(interface),
         interface_descriptor,
         slots,
@@ -495,7 +503,7 @@ pub(super) fn string_metadata() -> LirMeta {
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
         name: "String".to_string(),
         symbol: scoop_lir::STRING_TD_SYMBOL.to_string(),
-        runtime_type: runtime_type("String"),
+        identity: type_descriptor_identity("String"),
         size: 24,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
@@ -531,7 +539,7 @@ pub(super) fn array_type(
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         name: name.to_string(),
         symbol: format!("scoop_td_{name}"),
-        runtime_type: runtime_type(name),
+        identity: type_descriptor_identity(name),
         size: element_size,
         align: element_align,
         scan: TypeDescriptorScan::ArrayElement {

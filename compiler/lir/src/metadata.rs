@@ -338,7 +338,7 @@ pub struct TypeDescriptor {
     /// Codegen consumes the typed runtime id and foundation projection keeps
     /// the full exact-type relation; neither infers it from arena position or
     /// descriptor category.
-    pub runtime_type: RuntimeTypeMappingRecord,
+    pub identity: TypeDescriptorIdentity,
     pub size: u64,
     pub align: u64,
     pub scan: TypeDescriptorScan,
@@ -350,6 +350,65 @@ pub struct TypeDescriptor {
     /// vector.
     pub vtable: VtableRecord,
     pub itables: Vec<ItableRecord>,
+}
+
+/// Persistent runtime and materialization identity of one TypeDescriptor.
+/// Construction binds the ODR member, when present, to the same exact type
+/// that derives the runtime type id.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TypeDescriptorIdentity {
+    runtime_type: RuntimeTypeMappingRecord,
+    materialization: MaterializationIdentity,
+}
+
+impl TypeDescriptorIdentity {
+    pub fn new(
+        runtime_type: RuntimeTypeMappingRecord,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let materialization = root.type_descriptor(runtime_type.exact_type())?;
+        Ok(Self {
+            runtime_type,
+            materialization,
+        })
+    }
+
+    pub const fn runtime_type(&self) -> RuntimeTypeMappingRecord {
+        self.runtime_type
+    }
+
+    pub const fn exact_type(&self) -> scoop_identity::PersistentExactTypeId {
+        self.runtime_type.exact_type()
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
+
+    fn dispatch_table(
+        &self,
+        table: scoop_identity::PersistentDispatchTableId,
+    ) -> Result<MaterializationIdentity, scoop_wire::HashError> {
+        self.materialization.dispatch_table(table)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -370,18 +429,24 @@ pub struct VtableRecord {
         scoop_identity::PersistentDispatchTableId,
         scoop_identity::DispatchTableKey,
     >,
+    materialization: MaterializationIdentity,
     slots: Vec<DispatchEntry>,
 }
 
 impl VtableRecord {
     pub fn new(
-        exact_type: scoop_identity::PersistentExactTypeId,
+        owner: &TypeDescriptorIdentity,
         slots: Vec<DispatchEntry>,
     ) -> Result<Self, scoop_wire::HashError> {
         let identity = scoop_identity::CborIdentityRecord::from_key(
-            scoop_identity::DispatchTableKey::vtable(exact_type),
+            scoop_identity::DispatchTableKey::vtable(owner.exact_type()),
         )?;
-        Ok(Self { identity, slots })
+        let materialization = owner.dispatch_table(identity.id())?;
+        Ok(Self {
+            identity,
+            materialization,
+            slots,
+        })
     }
 
     pub const fn identity_record(
@@ -404,6 +469,28 @@ impl VtableRecord {
     pub fn slots_mut(&mut self) -> &mut Vec<DispatchEntry> {
         &mut self.slots
     }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
 }
 
 /// One exact type's implementation table for one exact interface.
@@ -417,22 +504,25 @@ pub struct ItableRecord {
         scoop_identity::PersistentDispatchTableId,
         scoop_identity::DispatchTableKey,
     >,
+    materialization: MaterializationIdentity,
     interface: TypeDescriptorRef,
     slots: Vec<DispatchEntry>,
 }
 
 impl ItableRecord {
     pub fn new(
-        exact_type: scoop_identity::PersistentExactTypeId,
+        owner: &TypeDescriptorIdentity,
         interface_exact_type: scoop_identity::PersistentExactTypeId,
         interface: TypeDescriptorRef,
         slots: Vec<DispatchEntry>,
     ) -> Result<Self, scoop_wire::HashError> {
         let identity = scoop_identity::CborIdentityRecord::from_key(
-            scoop_identity::DispatchTableKey::itable(exact_type, interface_exact_type),
+            scoop_identity::DispatchTableKey::itable(owner.exact_type(), interface_exact_type),
         )?;
+        let materialization = owner.dispatch_table(identity.id())?;
         Ok(Self {
             identity,
+            materialization,
             interface,
             slots,
         })
@@ -467,6 +557,28 @@ impl ItableRecord {
 
     pub fn slots(&self) -> &[DispatchEntry] {
         &self.slots
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
     }
 }
 

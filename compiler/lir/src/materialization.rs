@@ -94,6 +94,16 @@ impl MaterializationRoot {
             OdrMemberDiscriminator::Scan(scan),
         )
     }
+
+    pub(crate) fn type_descriptor(
+        &self,
+        exact_type: PersistentExactTypeId,
+    ) -> Result<MaterializationIdentity, scoop_wire::HashError> {
+        self.materialization(
+            OdrMemberRole::TypeDescriptor,
+            OdrMemberDiscriminator::ExactType(exact_type),
+        )
+    }
 }
 
 /// Persistent ownership relation for one physical LIR entity.
@@ -130,6 +140,35 @@ impl OdrGroupProvenance {
 }
 
 impl MaterializationIdentity {
+    fn sibling(
+        &self,
+        role: OdrMemberRole,
+        discriminator: OdrMemberDiscriminator,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let group = match &self.0 {
+            MaterializationIdentityKind::ConeOwned => {
+                return Ok(Self(MaterializationIdentityKind::ConeOwned));
+            }
+            MaterializationIdentityKind::OdrOwned(identity) => identity.group.clone(),
+        };
+        let key = OdrMemberKey::new(group.id(), role, discriminator)
+            .expect("the closed LIR entity role/discriminator pair is valid");
+        let member = CborIdentityRecord::from_key(key)?;
+        Ok(Self(MaterializationIdentityKind::OdrOwned(Box::new(
+            OdrMaterializationIdentity { group, member },
+        ))))
+    }
+
+    pub(crate) fn dispatch_table(
+        &self,
+        table: scoop_identity::PersistentDispatchTableId,
+    ) -> Result<Self, scoop_wire::HashError> {
+        self.sibling(
+            OdrMemberRole::DispatchTable,
+            OdrMemberDiscriminator::DispatchTable(table),
+        )
+    }
+
     pub const fn is_cone_owned(&self) -> bool {
         matches!(&self.0, MaterializationIdentityKind::ConeOwned)
     }
