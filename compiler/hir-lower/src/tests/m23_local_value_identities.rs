@@ -33,6 +33,15 @@ fn concrete_local_by_name<'body>(
         .unwrap_or_else(|| panic!("missing concrete local `{name}`"))
 }
 
+fn reference(receiver: Option<Expr>, name: &str) -> Expr {
+    Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: receiver.map(Box::new),
+        name: ident(name),
+        span: sp(),
+    }
+}
+
 #[test]
 fn generic_applications_give_the_same_template_local_distinct_persistent_values() {
     let output = lower_user_output(file(vec![
@@ -221,4 +230,101 @@ fn constructor_receivers_and_parameters_have_typed_persistent_values() {
             .is_none(),
         "a primary struct constructor has no receiver value"
     );
+}
+
+#[test]
+fn unbound_callable_reference_has_no_receiver_value() {
+    let output = lower_user_output(file(vec![
+        fun_sig(
+            "identity",
+            Vec::new(),
+            vec![("value", ty_named("Int"))],
+            Some(ty_named("Int")),
+            vec![ret(Some(var("value")))],
+        ),
+        fun(
+            "main",
+            vec![val_ty(
+                "operation",
+                Some(ty_function(false, vec![ty_named("Int")], ty_named("Int"))),
+                reference(None, "identity"),
+            )],
+        ),
+    ]))
+    .expect("an unbound callable reference materializes");
+    let module = &output.local;
+    let (reference_id, _) = module
+        .callable_references
+        .iter()
+        .next()
+        .expect("one concrete callable reference");
+
+    assert!(
+        module
+            .local_value_identities
+            .callable_reference_receiver(reference_id)
+            .is_none()
+    );
+}
+
+#[test]
+fn bound_receiver_values_follow_the_reference_materialization_context() {
+    let operation_ty = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
+    let output = lower_user_output(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Mapper",
+            vec![(false, "offset", ty_named("Int"))],
+            None,
+            Vec::new(),
+            vec![method_expr(
+                "map",
+                vec![("value", ty_named("Int"))],
+                Some(ty_named("Int")),
+                binary(ast::BinOp::Add, var("value"), var("offset")),
+            )],
+        ),
+        fun_sig(
+            "bind",
+            vec!["T"],
+            vec![("mapper", ty_named("Mapper")), ("value", ty_named("T"))],
+            None,
+            vec![val_ty(
+                "operation",
+                Some(operation_ty),
+                reference(Some(var("mapper")), "map"),
+            )],
+        ),
+        fun(
+            "main",
+            vec![
+                val("mapper", call("Mapper", vec![int_lit(2)])),
+                stmt(call("bind", vec![var("mapper"), int_lit(1)])),
+                stmt(call("bind", vec![var("mapper"), str_lit("value")])),
+            ],
+        ),
+    ]))
+    .expect("a bound receiver materializes in two generic contexts");
+    let module = &output.local;
+    let references = module.callable_references.iter().collect::<Vec<_>>();
+    assert_eq!(references.len(), 2);
+    let mut receiver_identities = HashSet::new();
+
+    for (reference_id, reference) in references {
+        let receiver = module
+            .local_value_identities
+            .callable_reference_receiver(reference_id)
+            .expect("a bound reference has one receiver value");
+        assert_eq!(
+            receiver.key().owner(),
+            *reference.identity.materialization()
+        );
+        assert!(matches!(
+            receiver.key().selector(),
+            LocalValueSelector::BoundReceiver { path }
+                if path == reference.identity.definition_path()
+        ));
+        receiver_identities.insert(receiver.id());
+    }
+    assert_eq!(receiver_identities.len(), 2);
 }

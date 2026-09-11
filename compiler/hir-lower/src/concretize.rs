@@ -648,6 +648,7 @@ impl<'a> Concretizer<'a> {
                 callable_applications: &identities.callable_applications,
                 functions: &functions,
                 local_functions: &self.local_functions,
+                callable_references: &callable_references,
                 class_constructors: &class_constructors,
                 struct_constructors: &struct_constructors,
             })

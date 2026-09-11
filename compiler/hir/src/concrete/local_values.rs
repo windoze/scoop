@@ -6,9 +6,10 @@ use scoop_identity::{
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::{
-    BindingId, CallableApplicationIdentities, ClassConstructor, ClassConstructorId,
-    ClassConstructorKind, Function, FunctionId, FunctionKind, LocalFunction, LocalId,
-    StructConstructor, StructConstructorId, StructConstructorKind,
+    BindingId, CallableApplicationIdentities, CallableReference, CallableReferenceId,
+    CallableReferenceTarget, ClassConstructor, ClassConstructorId, ClassConstructorKind, Function,
+    FunctionId, FunctionKind, LocalFunction, LocalId, StructConstructor, StructConstructorId,
+    StructConstructorKind,
 };
 
 mod error;
@@ -21,6 +22,7 @@ pub struct LocalValueIdentityInputs<'a> {
     pub callable_applications: &'a CallableApplicationIdentities,
     pub functions: &'a Arena<Function>,
     pub local_functions: &'a Arena<LocalFunction>,
+    pub callable_references: &'a Arena<CallableReference>,
     pub class_constructors: &'a Arena<ClassConstructor>,
     pub struct_constructors: &'a Arena<StructConstructor>,
 }
@@ -32,6 +34,7 @@ pub struct LocalValueIdentityInputs<'a> {
 pub struct LocalValueIdentities {
     records: Vec<LocalValueIdentityRecord>,
     function_locals: Vec<Vec<PersistentLocalValueId>>,
+    callable_references: Vec<CallableReferenceLocalValue>,
     class_constructors: Vec<ClassConstructorLocalValues>,
     struct_constructors: Vec<StructConstructorLocalValues>,
 }
@@ -57,6 +60,12 @@ enum StructConstructorLocalValueKind {
         argument_locals: Vec<PersistentLocalValueId>,
         body_locals: Vec<PersistentLocalValueId>,
     },
+}
+
+#[derive(Clone, Debug)]
+enum CallableReferenceLocalValue {
+    Unbound,
+    Bound(PersistentLocalValueId),
 }
 
 impl LocalValueIdentities {
@@ -91,6 +100,16 @@ impl LocalValueIdentities {
         let identity = self.class_constructors[arena_index(constructor)].receiver;
         self.record(identity)
             .expect("the total class-receiver relation references a canonical record")
+    }
+
+    pub fn callable_reference_receiver(
+        &self,
+        reference: CallableReferenceId,
+    ) -> Option<&LocalValueIdentityRecord> {
+        match self.callable_references[arena_index(reference)] {
+            CallableReferenceLocalValue::Unbound => None,
+            CallableReferenceLocalValue::Bound(identity) => self.record(identity),
+        }
     }
 
     pub fn class_parameter(
@@ -172,6 +191,7 @@ pub enum LocalValueLocation {
     StructReceiver { constructor: u32 },
     StructArgumentLocal { constructor: u32, local: u32 },
     StructBodyLocal { constructor: u32, local: u32 },
+    CallableReferenceReceiver { reference: u32 },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -234,6 +254,7 @@ impl<'a> LocalValueIdentityBuilder<'a> {
 
         let class_constructors = self.collect_class_constructors()?;
         let struct_constructors = self.collect_struct_constructors()?;
+        let callable_references = self.collect_callable_references()?;
 
         for ((function, local), alias) in &self.capture_aliases {
             let context = self.inputs.functions[*function].materialization.context();
@@ -271,6 +292,7 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                 .map(|(record, _)| record)
                 .collect(),
             function_locals,
+            callable_references,
             class_constructors,
             struct_constructors,
         })
@@ -446,6 +468,35 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                 }
             };
             output.push(StructConstructorLocalValues { parameters, kind });
+        }
+        Ok(output)
+    }
+
+    fn collect_callable_references(
+        &mut self,
+    ) -> Result<Vec<CallableReferenceLocalValue>, LocalValueIdentityError> {
+        let mut output = Vec::with_capacity(self.inputs.callable_references.len());
+        for (reference_id, reference) in self.inputs.callable_references.iter() {
+            let value = match &reference.target {
+                CallableReferenceTarget::Named(_) | CallableReferenceTarget::Local { .. } => {
+                    CallableReferenceLocalValue::Unbound
+                }
+                CallableReferenceTarget::BoundMember { .. }
+                | CallableReferenceTarget::BoundExtension { .. } => {
+                    let location = LocalValueLocation::CallableReferenceReceiver {
+                        reference: raw_arena_index(reference_id),
+                    };
+                    let identity = self.record(
+                        *reference.identity.materialization(),
+                        LocalValueSelector::BoundReceiver {
+                            path: reference.identity.definition_path().clone(),
+                        },
+                        location,
+                    )?;
+                    CallableReferenceLocalValue::Bound(identity)
+                }
+            };
+            output.push(value);
         }
         Ok(output)
     }
