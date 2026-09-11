@@ -1,6 +1,81 @@
 use super::*;
 
 #[test]
+fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
+    let mut h = Harness::new();
+    let target = h.user_fn_full(
+        "staticCallbackTarget",
+        Vec::new(),
+        Vec::new(),
+        h.unit,
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+    h.functions[target].attributes.gc_effect = hir::GcEffect::NoGc;
+    let main = empty_main(&mut h);
+    let executable = h.finish(main);
+    let entry = executable.entry();
+    let mut source = executable.into_module();
+    let function_type = hir::FunctionTypeId::from_raw(
+        u32::try_from(source.function_types.len())
+            .expect("function type id fits u32")
+            .into(),
+    );
+    let managed_function = source.types.alloc(hir::Type::Function(function_type));
+    assert_eq!(
+        source.function_types.alloc(hir::FunctionType {
+            canonical_type: managed_function,
+            is_suspend: false,
+            parameter_types: Vec::new(),
+            return_type: source.unit,
+        }),
+        function_type
+    );
+    let function_pointer = source.types.alloc(hir::Type::FunPtr(function_type));
+    source.type_identities = rebuild_type_identities(&source);
+    let hir::FunctionKind::User(main_body) = &mut source.functions[main].kind else {
+        panic!("main is a user function")
+    };
+    main_body.statements.push(expr_stmt(expr(
+        hir::ExprKind::FunctionAddress(target),
+        function_pointer,
+    )));
+
+    let export = legacy_executable(source, entry);
+    let concrete = scoop_hir_lower::concretize_legacy_export(&export);
+    let module = crate::lower(&concrete);
+    let (_, bridge) = module
+        .callback_bridges
+        .iter()
+        .next()
+        .expect("one function address creates one static callback bridge");
+    let source_materialization = module
+        .meta
+        .source_callable_materializations
+        .get(bridge.source)
+        .expect("the callback source retains its local-concrete materialization")
+        .materialization();
+
+    assert_eq!(bridge.identity().source(), source_materialization);
+    assert!(matches!(
+        bridge.identity().callable_record().key(),
+        scoop_identity::GeneratedCallableKey::StaticNoGcCallbackStorageBridge {
+            source,
+            signature,
+        } if *source == source_materialization
+            && signature == bridge.identity().signature_record().signature()
+    ));
+    assert!(matches!(
+        bridge.identity().signature_record().subject(),
+        mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(found))
+            if found == bridge.identity().callable_record().id()
+    ));
+    assert_eq!(module.validate(), Ok(()));
+}
+
+#[test]
 fn nonzero_ulong_pointer_conversion_keeps_its_proof_in_mir() {
     let mut h = Harness::new();
     let pointee = h.int;

@@ -106,11 +106,12 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, callback) in module.callback_bridges.iter() {
         out.push_str(&format!(
-            "  callback cb{} @{} -> @{} function_type{}\n",
+            "  callback cb{} @{} -> @{} function_type{} id={}\n",
             id.into_raw().into_u32(),
             module.functions[callback.source].symbol,
             module.functions[callback.bridge_function].symbol,
-            callback.signature.into_raw().into_u32()
+            callback.signature.into_raw().into_u32(),
+            callback.identity().callable_record().id(),
         ));
     }
     for (id, family) in module.foreign_callback_families.iter() {

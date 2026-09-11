@@ -43,6 +43,9 @@ pub use closure_environment::*;
 mod function_bridge;
 pub use function_bridge::*;
 
+mod static_callback_bridge;
+pub use static_callback_bridge::*;
+
 mod coroutine_shape;
 pub use coroutine_shape::*;
 

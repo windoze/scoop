@@ -504,11 +504,10 @@ impl BodyLowerer<'_> {
             hir::ExprKind::SizeOf(ty) => smir::ExprKind::SizeOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::AlignOf(ty) => smir::ExprKind::AlignOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::FunctionAddress(function) => {
-                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
+                let hir::TypeKind::FunPtr(signature) = self.module.types[expr.ty].kind else {
                     unreachable!("FunctionAddress has a FunPtr type")
                 };
-                let callback =
-                    self.ensure_callback_bridge(self.function_map[function], signature, expr.span);
+                let callback = self.ensure_callback_bridge(*function, signature, expr.span);
                 smir::ExprKind::FunctionAddress { callback }
             }
             hir::ExprKind::ForeignCallbackRegister {

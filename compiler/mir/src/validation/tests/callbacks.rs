@@ -1,14 +1,14 @@
 use super::*;
 
 use scoop_identity::{
-    CallableApplicationKey, CallableInstantiationOwner, CallableMaterializationContext,
-    CallableOwner, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
-    CallbackRegistrationKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
-    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
-    ExactTypeKey, GeneratedCallableKey, LexicalCallableParent, OdrGroupId, OdrMemberDiscriminator,
-    OdrMemberKey, OdrMemberRole, PackagePath, PersistentCallableApplicationId,
-    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFunctionId,
-    PersistentGeneratedCallableId, SignatureCallableShape, SignatureTypeKey,
+    CallableApplicationKey, CallableInstantiationOwner, CallableMaterialization,
+    CallableMaterializationContext, CallableOwner, CallableTemplateOwner, CallbackApplicationKey,
+    CallbackMode, CallbackParameterIndex, CallbackRegistrationKey, CanonicalIdentifier,
+    CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain,
+    Effect, ExactCallableSignature, ExactTypeKey, GeneratedCallableKey, LexicalCallableParent,
+    OdrGroupId, OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole, PackagePath,
+    PersistentCallableApplicationId, PersistentCallbackApplicationId, PersistentExactTypeId,
+    PersistentFunctionId, PersistentGeneratedCallableId, SignatureCallableShape, SignatureTypeKey,
     SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
     SpecializationKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
@@ -22,7 +22,7 @@ fn unit_variant(name: &str) -> VariantDef {
     }
 }
 
-fn callback_owner() -> PersistentFunctionId {
+fn named_callback_owner(name: &str) -> PersistentFunctionId {
     let site = SourceDeclarationSite::new(
         ConeIdentity::CORE,
         PackagePath::root(),
@@ -32,12 +32,23 @@ fn callback_owner() -> PersistentFunctionId {
     .unwrap();
     PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
         site,
-        CanonicalIdentifier::new("callbackOwner").unwrap(),
+        CanonicalIdentifier::new(name).unwrap(),
         0,
         None,
         Vec::new(),
     ))
     .unwrap()
+}
+
+fn callback_owner() -> PersistentFunctionId {
+    named_callback_owner("callbackOwner")
+}
+
+fn source_materialization(name: &str) -> CallableMaterialization {
+    CallableMaterialization::new(
+        CallableTemplateOwner::Function(named_callback_owner(name)),
+        CallableMaterializationContext::NoSubstitution,
+    )
 }
 
 fn callback_application_with_context(
@@ -76,6 +87,95 @@ fn exact_callback_signature() -> ExactCallableSignature {
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
     let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit)).unwrap();
     ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit)
+}
+
+fn static_callback_module() -> (Module, CallbackBridgeId) {
+    let (mut module, _) = module_with_variants(Vec::new());
+    register_test_exact_type(&mut module, &Type::Unit);
+    let signature = module.function_types.alloc(FunctionType {
+        is_suspend: false,
+        parameter_types: Vec::new(),
+        return_type: Type::Unit,
+    });
+    let bridge_function = module.functions.alloc(Function {
+        gc_effect: GcEffect::NoGc,
+        name: "static callback bridge".to_string(),
+        symbol: "scoop.static.callback.bridge".to_string(),
+        params: Vec::new(),
+        return_ty: Type::Unit,
+        body: Body::unreachable(Arena::new()),
+    });
+    module.top_level.push(bridge_function);
+    let materialization = source_materialization("staticCallbackSource");
+    module.meta.source_callable_materializations =
+        SourceCallableMaterializations::checked(vec![SourceCallableMaterialization::new(
+            module.entry,
+            materialization,
+        )])
+        .unwrap();
+    let bridge = module.callback_bridges.alloc(
+        CallbackBridge::new(
+            module.entry,
+            signature,
+            bridge_function,
+            materialization,
+            exact_callback_signature(),
+            None,
+        )
+        .unwrap(),
+    );
+    (module, bridge)
+}
+
+#[test]
+fn static_callback_bridge_has_one_canonical_source_identity() {
+    let (module, _) = static_callback_module();
+
+    module.validate().unwrap();
+}
+
+#[test]
+fn static_callback_bridge_must_name_its_source_materialization() {
+    let (mut module, bridge) = static_callback_module();
+    let source = module.callback_bridges[bridge].source;
+    let signature = module.callback_bridges[bridge].signature;
+    let bridge_function = module.callback_bridges[bridge].bridge_function;
+    module.callback_bridges[bridge] = CallbackBridge::new(
+        source,
+        signature,
+        bridge_function,
+        source_materialization("differentStaticCallbackSource"),
+        exact_callback_signature(),
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        module.validate().unwrap_err(),
+        MirValidationError {
+            location: MirValidationLocation::CallbackBridge { bridge },
+            kind: MirValidationErrorKind::InvalidCallbackBridge {
+                reason: "the callback bridge identifies a different source materialization",
+            },
+        }
+    );
+}
+
+#[test]
+fn static_callback_bridge_requires_the_exact_storage_abi() {
+    let (mut module, bridge) = static_callback_module();
+    let function = module.callback_bridges[bridge].bridge_function;
+    module.functions[function].gc_effect = GcEffect::Managed;
+
+    assert_eq!(
+        module.validate().unwrap_err(),
+        MirValidationError {
+            location: MirValidationLocation::CallbackBridge { bridge },
+            kind: MirValidationErrorKind::InvalidCallbackBridge {
+                reason: "the generated callback function does not implement the storage ABI",
+            },
+        }
+    );
 }
 
 fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeId) {

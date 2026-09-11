@@ -1654,8 +1654,8 @@ Module
   extern ef20 verifyWrittenTls @verify_written_tls() -> UInt8 <abi=c no-gc lib=fixture_native>
   extern ef21 applyU16 @apply_u16(UInt16, FunPtr<(UInt16) -> UInt16>) -> UInt16 <abi=c no-gc lib=fixture_native>
   extern ef22 verifyWidthsCallback @verify_widths_callback(FunPtr<(FixedWidths) -> FixedWidths>) -> UInt8 <abi=c no-gc lib=fixture_native>
-  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn12:incrementU16 -> @scoop_callback_bridge_0 function_type0
-  callback cb1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn15:roundTripWidths -> @scoop_callback_bridge_1 function_type1
+  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn12:incrementU16 -> @scoop_callback_bridge_0 function_type0 id=c158899ce91a5d7cffd2632c2949039a027d669586637609bd2766c5d5a1d684
+  callback cb1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn15:roundTripWidths -> @scoop_callback_bridge_1 function_type1 id=26900b96ce5bed54a1ed2f5e8fc0a6545e3e62a21591ef82d6a116de1b92b7d5
   struct FixedWidths (signed8: Int8, signed16: Int16, signed32: Int, signed64: Long, unsigned8: UInt8, unsigned16: UInt16, unsigned32: UInt, unsigned64: ULong) <c-layout aligned=natural packed=natural>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   enum Option$S

@@ -1188,7 +1188,7 @@ Module
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   extern ef10 malloc @malloc(ULong) -> Ptr<Unit> <abi=c no-gc>
   extern ef11 free @free(Ptr<Unit>) -> Unit <abi=c no-gc>
-  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:increment -> @scoop_callback_bridge_0 function_type0
+  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:increment -> @scoop_callback_bridge_0 function_type0 id=375a865eccdac40aeecb274331c61448c4a6edb14382b76de23af0f981c8cb12
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct Slot (value: Int)
   enum Option$S

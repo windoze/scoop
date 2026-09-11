@@ -4,7 +4,7 @@ mod constants;
 pub use constants::MirConstantImageError;
 use constants::validate_constant_images;
 mod callbacks;
-use callbacks::validate_foreign_callback_metadata;
+use callbacks::{validate_foreign_callback_metadata, validate_static_callback_metadata};
 mod function_adapters;
 use function_adapters::validate_function_adapter_metadata;
 mod function_bridges;
@@ -59,6 +59,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidForeignCallbackBridge {
+        reason: &'static str,
+    },
+    InvalidCallbackBridge {
         reason: &'static str,
     },
     InvalidForeignCallbackExpression {
@@ -202,6 +205,9 @@ pub enum MirValidationLocation {
     ForeignCallbackBridge {
         bridge: ForeignCallbackBridgeId,
     },
+    CallbackBridge {
+        bridge: CallbackBridgeId,
+    },
     FunctionAdapter {
         adapter: ClosureAdapterId,
     },
@@ -306,6 +312,11 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR foreign callback bridge {}: ",
                 bridge.into_raw().into_u32()
             )?,
+            MirValidationLocation::CallbackBridge { bridge } => write!(
+                formatter,
+                "invalid MIR callback bridge {}: ",
+                bridge.into_raw().into_u32()
+            )?,
             MirValidationLocation::FunctionAdapter { adapter } => write!(
                 formatter,
                 "invalid MIR function adapter {}: ",
@@ -369,6 +380,7 @@ impl std::fmt::Display for MirValidationError {
             ),
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
+            | MirValidationErrorKind::InvalidCallbackBridge { reason }
             | MirValidationErrorKind::InvalidForeignCallbackExpression { reason }
             | MirValidationErrorKind::InvalidFunctionAdapter { reason }
             | MirValidationErrorKind::InvalidFunctionBridge { reason }
@@ -566,6 +578,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_enum_metadata(module)?;
     validate_coroutine_metadata(module)?;
     validate_foreign_callback_metadata(module)?;
+    validate_static_callback_metadata(module)?;
     validate_closure_environment_metadata(module)?;
     validate_function_adapter_metadata(module)?;
     validate_function_bridge_metadata(module)?;
@@ -826,6 +839,19 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                     field: *field,
                     expected: definition.ty.clone(),
                     actual: expr.ty.clone(),
+                });
+            }
+        }
+        ExprKind::FunctionAddress { callback } => {
+            if callback.into_raw().into_u32() as usize >= module.callback_bridges.len() {
+                return Err(MirValidationErrorKind::InvalidCallbackBridge {
+                    reason: "function address references an invalid callback bridge",
+                });
+            }
+            let callback = &module.callback_bridges[*callback];
+            if expr.ty != Type::FunPtr(callback.signature) {
+                return Err(MirValidationErrorKind::InvalidCallbackBridge {
+                    reason: "function address result does not match the callback signature",
                 });
             }
         }

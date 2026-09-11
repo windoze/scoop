@@ -2575,7 +2575,7 @@ Module
   extern ef28 prepareGlobals @m22_prepare_globals() -> Unit <abi=c no-gc lib=fixture_native>
   extern ef29 cleanupGlobals @m22_cleanup_globals() -> Unit <abi=c no-gc lib=fixture_native>
   extern ef30 globalsMatch @m22_globals_match(Ptr<Unit>, Ptr<NativeCell>, Option$PUX<Ptr<Unit>>, Option$PD10_NativeCellXX<Ptr<NativeCell>>, FunPtr<(Int) -> Int>, Option$NI32RI32X<FunPtr<(Int) -> Int>>) -> Boolean <abi=c no-gc lib=fixture_native>
-  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn14:scoopIncrement -> @scoop_callback_bridge_0 function_type0
+  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn14:scoopIncrement -> @scoop_callback_bridge_0 function_type0 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
   struct NativeCell (value: Int) <c-layout aligned=natural packed=natural>
   struct PointerBundle (opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option$PUX<Ptr<Unit>>, optionalCell: Option$PD10_NativeCellXX<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option$NI32RI32X<FunPtr<(Int) -> Int>>) <c-layout aligned=natural packed=natural>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)

@@ -100,6 +100,7 @@ pub struct CallbackBridge {
     pub signature: FunctionTypeId,
     /// NoGC storage-ABI entry called by the generated C trampoline.
     pub bridge_function: FunctionId,
+    pub(crate) identity: StaticCallbackBridgeIdentity,
 }
 
 /// Managed storage adapter for one foreign callback registration. Its

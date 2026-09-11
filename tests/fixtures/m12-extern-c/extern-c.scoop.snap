@@ -1432,9 +1432,9 @@ Module
   extern ef18 nativeApplyPair @native_apply_pair(NativePair, FunPtr<(NativePair) -> NativePair>) -> NativePair <abi=c no-gc lib=fixture_native>
   extern ef19 nativeApplyOptional @native_apply_optional(Int, Option$NI32RI32X<FunPtr<(Int) -> Int>>) -> Int <abi=c no-gc lib=fixture_native>
   extern ef20 nativeRoundTripEnvelope @native_round_trip_envelope(NativeEnvelope, FunPtr<(NativeEnvelope) -> NativeEnvelope>) -> NativeEnvelope <abi=c no-gc lib=fixture_native>
-  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:transform.I32 -> @scoop_callback_bridge_0 function_type0
-  callback cb1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:transform.D36_$local$u0:p0:r6:structn10:NativePairX -> @scoop_callback_bridge_1 function_type1
-  callback cb2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:transform.D40_$local$u0:p0:r6:structn14:NativeEnvelopeX -> @scoop_callback_bridge_2 function_type2
+  callback cb0 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:transform.I32 -> @scoop_callback_bridge_0 function_type0 id=593bc3f77b66deeff4d846cbd9a19ab0caa59156b1b3d96d5d009caf45c6f118
+  callback cb1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:transform.D36_$local$u0:p0:r6:structn10:NativePairX -> @scoop_callback_bridge_1 function_type1 id=6f62a3059d651ad5948413d28607d00b69a7bdfb7161cab3661404779579222a
+  callback cb2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:transform.D40_$local$u0:p0:r6:structn14:NativeEnvelopeX -> @scoop_callback_bridge_2 function_type2 id=e28aac1219ff3d0ba2e91ab37f756109ff126489d867cb85946a4b3bb3afcfd0
   struct NativePair (left: Int, right: Int) <c-layout aligned=natural packed=natural>
   struct NativeEnvelope (tag: Boolean, packed: NativePacked, tail: ULong) <c-layout aligned=16 packed=natural>
   struct NativePacked (flag: Boolean, value: Int) <c-layout aligned=8 packed=1>
