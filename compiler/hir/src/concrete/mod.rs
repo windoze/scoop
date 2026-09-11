@@ -37,6 +37,9 @@ pub use exact_types::*;
 mod local_values;
 pub use local_values::*;
 
+mod dispatch_slots;
+pub use dispatch_slots::*;
+
 mod callable_applications;
 pub use callable_applications::*;
 

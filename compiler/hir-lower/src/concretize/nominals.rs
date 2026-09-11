@@ -1,6 +1,51 @@
 use super::*;
 
 impl Concretizer<'_> {
+    pub(super) fn build_dispatch_slot_identities(&self) -> concrete::DispatchSlotIdentities {
+        let mut virtual_slots = vec![None; self.virtual_method_by_source.len()];
+        for (source, target) in &self.virtual_method_by_source {
+            let position = target.into_raw() as usize;
+            assert!(
+                virtual_slots[position]
+                    .replace(self.source.dispatch_slot_identities[*source].clone())
+                    .is_none(),
+                "each LocalConcrete virtual family has one Export HIR origin"
+            );
+        }
+        let virtual_slots = virtual_slots
+            .into_iter()
+            .map(|slot| slot.expect("LocalConcrete virtual family ids are contiguous"))
+            .collect();
+
+        let mut interface_slots = self
+            .interfaces
+            .iter()
+            .map(|(_, interface)| vec![None; interface.methods.len()])
+            .collect::<Vec<_>>();
+        for ((interface, source), slot) in &self.interface_slot_by_source {
+            let interface_index = interface.into_raw().into_u32() as usize;
+            let slot_index = slot.into_raw() as usize;
+            assert!(
+                interface_slots[interface_index][slot_index]
+                    .replace(self.source.dispatch_slot_identities[*source].clone())
+                    .is_none(),
+                "each LocalConcrete interface slot has one Export HIR origin"
+            );
+        }
+        let interface_slots = interface_slots
+            .into_iter()
+            .map(|slots| {
+                slots
+                    .into_iter()
+                    .map(|slot| slot.expect("LocalConcrete interface slot ids are contiguous"))
+                    .collect()
+            })
+            .collect();
+
+        concrete::DispatchSlotIdentities::checked(virtual_slots, interface_slots, &self.interfaces)
+            .expect("validated Export HIR dispatch identities survive concretization")
+    }
+
     pub(super) fn ensure_struct(
         &mut self,
         source_id: export::StructId,

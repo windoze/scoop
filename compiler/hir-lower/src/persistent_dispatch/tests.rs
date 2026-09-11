@@ -122,6 +122,17 @@ fn function_named(module: &hir::Module, name: &str) -> hir::FunctionId {
         .unwrap_or_else(|| panic!("missing function `{name}`"))
 }
 
+fn concrete_function_named(
+    module: &hir::LocalConcreteHir,
+    name: &str,
+) -> hir::concrete::FunctionId {
+    module
+        .functions
+        .iter()
+        .find_map(|(id, function)| (function.name == name).then_some(id))
+        .unwrap_or_else(|| panic!("missing concrete function `{name}`"))
+}
+
 fn plain_function_record(
     module: &hir::Module,
     function: hir::FunctionId,
@@ -161,6 +172,23 @@ fn virtual_override_family_uses_the_root_declaration_identity() {
     assert_eq!(
         module.dispatch_slot_identities[family].key(),
         &DispatchSlotKey::virtual_method(plain_function_record(module, base).id())
+    );
+    let concrete_base = concrete_function_named(&output.local, "Base.value");
+    let hir::concrete::MethodDispatch::Virtual(concrete_family) = output.local.functions
+        [concrete_base]
+        .method
+        .expect("concrete base method metadata")
+        .dispatch
+    else {
+        panic!("the concrete base method must retain its virtual family")
+    };
+    assert_eq!(
+        output
+            .local
+            .dispatch_slot_identities
+            .virtual_slot(concrete_family)
+            .id(),
+        module.dispatch_slot_identities[family].id()
     );
 
     let stable = virtual_fixture(true);
@@ -234,6 +262,32 @@ fn interface_function_and_property_accessors_have_distinct_typed_slots() {
     identities.sort();
     identities.dedup();
     assert_eq!(identities.len(), 3);
+
+    let local_contract = output
+        .local
+        .interfaces
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Contract")
+        .expect("concrete Contract interface")
+        .0;
+    let local_identities = output
+        .local
+        .dispatch_slot_identities
+        .interface_slots(local_contract)
+        .map(|(_, record)| record.id())
+        .collect::<Vec<_>>();
+    assert_eq!(local_identities, identities_for_contract(module, contract));
+}
+
+fn identities_for_contract(
+    module: &hir::Module,
+    contract: &hir::InterfaceDecl,
+) -> Vec<scoop_identity::PersistentDispatchSlotId> {
+    contract
+        .methods
+        .iter()
+        .map(|member| module.dispatch_slot_identities[*member].id())
+        .collect()
 }
 
 #[test]

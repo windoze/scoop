@@ -621,6 +621,7 @@ impl<'a> Concretizer<'a> {
                 intrinsic_core: &intrinsic_type_core,
             })
             .expect("validated concretization produces a total exact-type identity relation");
+        let dispatch_slot_identities = self.build_dispatch_slot_identities();
         let identities = self.build_callable_identities(&exact_type_identities);
         let callable_references = finish_callable_references(
             self.callable_reference_slots,
@@ -658,6 +659,7 @@ impl<'a> Concretizer<'a> {
             types: self.types,
             exact_type_identities,
             local_value_identities,
+            dispatch_slot_identities,
             callable_applications: identities.callable_applications,
             callback_applications: identities.callback_applications,
             function_types: self.function_types,

@@ -9,6 +9,9 @@ pub struct Module {
     /// Total persistent identity relation for every callable-local value in
     /// this fully materialized graph.
     pub local_value_identities: LocalValueIdentities,
+    /// Total mapping from LocalConcrete virtual/interface slot ids to their
+    /// declaration-level persistent identities.
+    pub dispatch_slot_identities: DispatchSlotIdentities,
     /// Canonical application identities referenced by callable
     /// materializations in this local graph.
     pub callable_applications: CallableApplicationIdentities,
