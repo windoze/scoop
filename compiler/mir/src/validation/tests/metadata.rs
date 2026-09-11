@@ -301,7 +301,12 @@ fn module_validation_rejects_stale_option_core_metadata() {
         variant_def("Some", vec![value.clone()]),
         variant_def("None", Vec::new()),
     ]);
-    module.enums[enum_id].type_arguments = vec![value];
+    module.enums[enum_id].type_arguments = vec![value.clone()];
+    replace_test_exact_type(
+        &mut module,
+        &Type::Enum(enum_id, Vec::new()),
+        &Type::Enum(enum_id, vec![value]),
+    );
     let (some_payload, none) = checked_pair(&module, enum_id);
     module.option_core.push(
         OptionCore::checked(&module.enums, some_payload, none).expect("valid Option metadata"),

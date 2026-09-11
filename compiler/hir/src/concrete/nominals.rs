@@ -70,6 +70,8 @@ pub struct SingletonPublishedRoot {
 #[derive(Debug, Clone)]
 pub struct StructDef {
     pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this physical declaration.
+    pub canonical_type: TypeId,
     pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
@@ -108,6 +110,8 @@ impl StructDef {
 #[derive(Debug, Clone)]
 pub struct EnumDef {
     pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this exact enum application.
+    pub canonical_type: TypeId,
     pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
@@ -288,6 +292,8 @@ impl StructFieldRef {
 #[derive(Debug, Clone)]
 pub struct ClassDef {
     pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this physical declaration.
+    pub canonical_type: TypeId,
     pub modifier: ClassModifier,
     pub link_stem: NominalLinkStem,
     pub name: String,
@@ -417,6 +423,8 @@ pub enum IntrinsicTypeRepresentation {
 #[derive(Debug, Clone)]
 pub struct InterfaceDef {
     pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this exact interface application.
+    pub canonical_type: TypeId,
     pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
@@ -577,6 +585,7 @@ mod tests {
         let mut enums = Arena::new();
         let enumeration = enums.alloc(EnumDef {
             origin: nominal_identity("Option", SourceNominalKind::Enum, 1),
+            canonical_type: ty,
             link_stem: NominalLinkStem::from_session_local_encoding("Option".to_string()),
             name: "Option".to_string(),
             owner: None,
@@ -636,6 +645,7 @@ mod tests {
         enums[enumeration].variants.pop();
         let other = enums.alloc(EnumDef {
             origin: nominal_identity("Other", SourceNominalKind::Enum, 0),
+            canonical_type: ty,
             link_stem: NominalLinkStem::from_session_local_encoding("Other".to_string()),
             name: "Other".to_string(),
             owner: None,
@@ -657,6 +667,7 @@ mod tests {
         let mut structs = Arena::new();
         let declared = structs.alloc(StructDef {
             origin: nominal_identity("Record", SourceNominalKind::Struct, 0),
+            canonical_type: ty,
             link_stem: NominalLinkStem::from_session_local_encoding("Record".to_string()),
             name: "Record".to_string(),
             owner: None,

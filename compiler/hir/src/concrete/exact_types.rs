@@ -192,25 +192,48 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             TypeKind::Integer(kind) => {
                 let owner = self.inputs.intrinsic_core.integers.owner(kind);
                 self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let identity = self.inputs.structs[owner].origin.clone();
+                let declaration = &self.inputs.structs[owner];
+                self.require_canonical_nominal(
+                    ty,
+                    declaration.canonical_type,
+                    ExactTypeRelation::IntrinsicNominalOwner,
+                )?;
+                let identity = declaration.origin.clone();
                 self.nominal_key(ty, identity, &[])?
             }
             TypeKind::Boolean => {
                 let owner = self.inputs.intrinsic_core.boolean;
                 self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let identity = self.inputs.structs[owner].origin.clone();
+                let declaration = &self.inputs.structs[owner];
+                self.require_canonical_nominal(
+                    ty,
+                    declaration.canonical_type,
+                    ExactTypeRelation::IntrinsicNominalOwner,
+                )?;
+                let identity = declaration.origin.clone();
                 self.nominal_key(ty, identity, &[])?
             }
             TypeKind::String => {
                 let owner = self.inputs.intrinsic_core.string;
                 self.require_class(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let identity = self.inputs.classes[owner].origin.clone();
+                let declaration = &self.inputs.classes[owner];
+                self.require_canonical_nominal(
+                    ty,
+                    declaration.canonical_type,
+                    ExactTypeRelation::IntrinsicNominalOwner,
+                )?;
+                let identity = declaration.origin.clone();
                 self.nominal_key(ty, identity, &[])?
             }
             TypeKind::Any => ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
             TypeKind::Struct(id) => {
                 self.require_struct(Some(ty), ExactTypeRelation::Struct, id)?;
                 let declaration = &self.inputs.structs[id];
+                self.require_canonical_nominal(
+                    ty,
+                    declaration.canonical_type,
+                    ExactTypeRelation::Struct,
+                )?;
                 let identity = declaration.origin.clone();
                 let arguments = declaration.type_arguments.clone();
                 self.nominal_key(ty, identity, &arguments)?
@@ -218,6 +241,11 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             TypeKind::Enum(id) => {
                 self.require_enum(ty, id)?;
                 let declaration = &self.inputs.enums[id];
+                self.require_canonical_nominal(
+                    ty,
+                    declaration.canonical_type,
+                    ExactTypeRelation::Enum,
+                )?;
                 let identity = declaration.origin.clone();
                 let arguments = declaration.type_arguments.clone();
                 self.nominal_key(ty, identity, &arguments)?
@@ -225,6 +253,11 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             TypeKind::Class(id) => {
                 self.require_class(Some(ty), ExactTypeRelation::Class, id)?;
                 let declaration = &self.inputs.classes[id];
+                self.require_canonical_nominal(
+                    ty,
+                    declaration.canonical_type,
+                    ExactTypeRelation::Class,
+                )?;
                 if let Some(identity) = self.object_by_backing_class.get(&id).cloned() {
                     let arguments = declaration.type_arguments.clone();
                     self.nominal_key(ty, identity, &arguments)?
@@ -237,6 +270,11 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             TypeKind::Interface(id) => {
                 self.require_interface(ty, id)?;
                 let declaration = &self.inputs.interfaces[id];
+                self.require_canonical_nominal(
+                    ty,
+                    declaration.canonical_type,
+                    ExactTypeRelation::Interface,
+                )?;
                 let identity = declaration.origin.clone();
                 let arguments = declaration.type_arguments.clone();
                 self.nominal_key(ty, identity, &arguments)?
@@ -388,6 +426,22 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
         id: TypeId,
     ) -> Result<usize, ExactTypeIdentityError> {
         require_reference(self.inputs.types, parent, relation, id)
+    }
+
+    fn require_canonical_nominal(
+        &self,
+        ty: TypeId,
+        canonical: TypeId,
+        relation: ExactTypeRelation,
+    ) -> Result<(), ExactTypeIdentityError> {
+        if canonical != ty {
+            return Err(ExactTypeIdentityError::NonCanonicalNominalType {
+                ty: raw_index(ty),
+                relation,
+                canonical: raw_index(canonical),
+            });
+        }
+        Ok(())
     }
 
     fn require_struct(

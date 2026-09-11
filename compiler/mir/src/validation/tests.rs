@@ -155,6 +155,26 @@ fn install_generated_exact_types(module: &mut Module) {
             boxed.identity().generated_type_record(),
         );
     }
+    let generated_types = entries
+        .iter()
+        .filter_map(|entry| match entry.location() {
+            GeneratedExactTypeLocation::Closure(_) => None,
+            GeneratedExactTypeLocation::Class(id) => Some(Type::Class(id)),
+            GeneratedExactTypeLocation::Enum(id) => {
+                Some(Type::Enum(id, module.enums[id].type_arguments.clone()))
+            }
+        })
+        .collect::<Vec<_>>();
+    module.meta.source_exact_types = SourceExactTypeIdentities::checked(
+        module
+            .meta
+            .source_exact_types
+            .iter()
+            .filter(|identity| !generated_types.contains(identity.ty()))
+            .cloned()
+            .collect(),
+    )
+    .unwrap();
     module.meta.generated_exact_types = GeneratedExactTypeIdentities::checked(entries).unwrap();
 }
 
@@ -370,6 +390,19 @@ fn register_test_exact_type(module: &mut Module, ty: &Type) {
     module.meta.source_exact_types = SourceExactTypeIdentities::checked(entries).unwrap();
 }
 
+fn replace_test_exact_type(module: &mut Module, old: &Type, new: &Type) {
+    let mut entries = module
+        .meta
+        .source_exact_types
+        .iter()
+        .filter(|identity| identity.ty() != old)
+        .cloned()
+        .collect::<Vec<_>>();
+    entries
+        .push(SourceExactTypeIdentity::checked(new.clone(), test_exact_type(new), None).unwrap());
+    module.meta.source_exact_types = SourceExactTypeIdentities::checked(entries).unwrap();
+}
+
 fn test_step_identity(ty: &Type) -> CoroutineStepIdentity {
     CoroutineStepIdentity::new(&test_exact_type(ty), None).unwrap()
 }
@@ -518,6 +551,7 @@ fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
         meta: MirMeta::default(),
     };
     register_test_exact_type(&mut module, &Type::Unit);
+    register_test_exact_type(&mut module, &Type::Enum(enum_id, Vec::new()));
     let source = SourceCallableMaterialization::new(
         entry,
         test_source_materialization_named("validationEntry"),
@@ -638,6 +672,7 @@ fn module_with_declared_struct(fields: Vec<Type>) -> (Module, StructId) {
                 .collect(),
         },
     });
+    register_test_exact_type(&mut module, &Type::Struct(struct_id));
     (module, struct_id)
 }
 
@@ -809,6 +844,7 @@ fn raw_struct_construction_validation_rejects_unknown_and_intrinsic_targets() {
 
     module.structs[struct_id].representation =
         StructRepresentation::Intrinsic(IntrinsicTypeRepresentation::Boolean);
+    replace_test_exact_type(&mut module, &Type::Struct(struct_id), &Type::Boolean);
     set_return_expression(
         &mut module,
         Expr::new(
@@ -1434,6 +1470,7 @@ fn validation_rejects_wrong_enum_and_test_result_type() {
         gc_free: true,
         variants: vec![variant_def("Only", Vec::new())],
     });
+    register_test_exact_type(&mut module, &Type::Enum(other, Vec::new()));
     let variant = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
     let mut locals = Arena::new();
     let value = enum_local(&mut locals, "value", other);

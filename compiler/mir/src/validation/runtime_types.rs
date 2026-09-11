@@ -3,6 +3,8 @@ use super::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirRuntimeTypeLocation {
     Function(FunctionTypeId),
+    Struct(StructId),
+    Enum(EnumId),
     Class(ClassId),
     Interface(InterfaceId),
     Closure(ClosureClassId),
@@ -12,6 +14,8 @@ impl std::fmt::Display for MirRuntimeTypeLocation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Function(id) => write!(formatter, "function type {}", id.into_raw().into_u32()),
+            Self::Struct(id) => write!(formatter, "struct {}", id.into_raw().into_u32()),
+            Self::Enum(id) => write!(formatter, "enum {}", id.into_raw().into_u32()),
             Self::Class(id) => write!(formatter, "class {}", id.into_raw().into_u32()),
             Self::Interface(id) => write!(formatter, "interface {}", id.into_raw().into_u32()),
             Self::Closure(id) => write!(formatter, "closure class {}", id.into_raw().into_u32()),
@@ -37,6 +41,24 @@ pub(super) fn validate_runtime_type_metadata(module: &Module) -> Result<(), MirV
             MirRuntimeTypeLocation::Interface(id),
             Type::Interface(id),
         )?;
+    }
+    for (id, definition) in module.structs.iter() {
+        require_source(
+            module,
+            MirRuntimeTypeLocation::Struct(id),
+            definition.physical_type(id),
+        )?;
+    }
+    for (id, definition) in module.enums.iter() {
+        let location = MirRuntimeTypeLocation::Enum(id);
+        let ty = Type::Enum(id, definition.type_arguments.clone());
+        let has_source = module.meta.source_exact_types.get(&ty).is_some();
+        let has_generated = module
+            .meta
+            .generated_exact_types
+            .get(GeneratedExactTypeLocation::Enum(id))
+            .is_some();
+        require_exactly_one(location, has_source, has_generated)?;
     }
     for (id, class) in module.classes.iter() {
         let location = MirRuntimeTypeLocation::Class(id);

@@ -64,7 +64,7 @@ pub(crate) fn layouts(
 
     let mut layouts = Arena::new();
     for (id, def) in module.structs.iter() {
-        let ty = struct_type(id, def);
+        let ty = def.physical_type(id);
         layouts.alloc(struct_layout(
             context,
             module,
@@ -152,25 +152,6 @@ pub(crate) fn layouts(
                 .expect("LocalConcreteHir supplies the typed intrinsic String representation"),
         },
     )
-}
-
-fn struct_type(id: mir::StructId, def: &mir::StructDef) -> mir::Type {
-    match &def.representation {
-        mir::StructRepresentation::Declared { .. } => mir::Type::Struct(id),
-        mir::StructRepresentation::Intrinsic(representation) => match representation {
-            mir::IntrinsicTypeRepresentation::Integer(kind) => mir::Type::Integer(*kind),
-            mir::IntrinsicTypeRepresentation::Boolean => mir::Type::Boolean,
-            mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
-                mir::Type::Ptr(Box::new(pointee.clone()))
-            }
-            mir::IntrinsicTypeRepresentation::FunPtr { signature } => mir::Type::FunPtr(*signature),
-            mir::IntrinsicTypeRepresentation::String
-            | mir::IntrinsicTypeRepresentation::Array { .. }
-            | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
-                unreachable!("the registry fixes intrinsic declaration targets")
-            }
-        },
-    }
 }
 
 fn struct_layout_identity(

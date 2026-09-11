@@ -302,6 +302,16 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
             .collect(),
         concrete.module().exact_type_identities[reference_function_type.return_type].id(),
     );
+    let callback_core = concrete.module().foreign_callback_core;
+    let expected_callback_protocol_exact_types = [
+        callback_core.modes.enumeration(),
+        callback_core.states.enumeration(),
+        callback_core.failure_result.enumeration(),
+    ]
+    .map(|enumeration| {
+        concrete.module().exact_type_identities[concrete.module().enums[enumeration].canonical_type]
+            .id()
+    });
     let module = crate::lower(&concrete);
     let reference_invoke = module
         .functions
@@ -339,6 +349,32 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     assert_eq!(bridge.application(), expected_application);
     let family = module.foreign_callback_families[bridge.family];
     assert_eq!(family.callback, module.structs.iter().next().unwrap().0);
+    let callback_protocol_types = [
+        family.modes.enum_id(),
+        family.states.enum_id(),
+        family.failure_result.enum_id(),
+    ]
+    .map(|enumeration| {
+        mir::Type::Enum(
+            enumeration,
+            module.enums[enumeration].type_arguments.clone(),
+        )
+    });
+    for (ty, expected) in callback_protocol_types
+        .iter()
+        .zip(expected_callback_protocol_exact_types)
+    {
+        assert_eq!(
+            module
+                .meta
+                .source_exact_types
+                .get(ty)
+                .expect("foreign callback protocol type crosses into MIR")
+                .identity_record()
+                .id(),
+            expected
+        );
+    }
     assert_eq!(
         module.enums[family.states.enum_id()].name,
         "ForeignCallbackState"

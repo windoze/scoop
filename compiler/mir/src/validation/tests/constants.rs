@@ -87,6 +87,7 @@ fn struct_global_validation_rejects_an_inexact_field_arity() {
             }],
         },
     });
+    register_test_exact_type(&mut module, &Type::Struct(structure));
     let global = encoded_global(
         &mut module,
         Type::Struct(structure),
@@ -161,6 +162,7 @@ fn enum_unit_global_validation_checks_exact_type_payload_and_reference() {
         gc_free: true,
         variants: vec![variant_def("Empty", Vec::new())],
     });
+    register_test_exact_type(&mut module, &Type::Enum(other, Vec::new()));
     let other_empty = MirVariantRef::new(&module.enums, other, 0).unwrap();
     *global_payload_mut(&mut module, global) = MirConstantImage::EnumUnit {
         variant: other_empty,
@@ -238,6 +240,8 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
             }],
         },
     });
+    register_test_exact_type(&mut module, &Type::Struct(inner));
+    register_test_exact_type(&mut module, &Type::Struct(outer));
     let global = encoded_global(
         &mut module,
         Type::Struct(outer),

@@ -211,6 +211,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
             ],
         },
     });
+    register_test_exact_type(&mut module, &Type::Struct(callback));
     let throwable = module.classes.alloc(ClassDef {
         link_stem: nominal_link_stem(),
         type_arguments: Vec::new(),
@@ -255,6 +256,12 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
             unit_variant("None"),
         ],
     });
+    register_test_exact_type(&mut module, &Type::Enum(mode, Vec::new()));
+    register_test_exact_type(&mut module, &Type::Enum(state, Vec::new()));
+    register_test_exact_type(
+        &mut module,
+        &Type::Enum(failure, vec![Type::Class(throwable)]),
+    );
     let modes = ForeignCallbackModes::checked(
         &module.enums,
         MirVariantRef::new(&module.enums, mode, 0).unwrap(),

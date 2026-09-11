@@ -77,8 +77,39 @@ impl Concretizer<'_> {
             },
             _ => unreachable!("ExportHir declaration and application representations agree"),
         };
-        let id = self.structs.alloc(concrete::StructDef {
+        let id = concrete::StructId::from_raw(
+            u32::try_from(self.structs.len())
+                .expect("concrete struct ids fit in u32")
+                .into(),
+        );
+        let (type_kind, initially_gc_free) = match &representation {
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Integer(kind),
+                ..
+            } => (concrete::TypeKind::Integer(*kind), true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Boolean,
+                ..
+            } => (concrete::TypeKind::Boolean, true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Ptr { pointee },
+                ..
+            } => (concrete::TypeKind::Ptr(*pointee), true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::FunPtr { signature },
+                ..
+            } => (concrete::TypeKind::FunPtr(*signature), true),
+            concrete::StructRepresentation::Declared { .. } => {
+                (concrete::TypeKind::Struct(id), false)
+            }
+            concrete::StructRepresentation::Intrinsic { .. } => {
+                unreachable!("the registry fixes intrinsic declaration targets")
+            }
+        };
+        let ty = self.intern_type(type_kind, initially_gc_free);
+        let allocated = self.structs.alloc(concrete::StructDef {
             origin: self.source.nominal_identities[source_id].clone(),
+            canonical_type: ty,
             link_stem: source.link_stem.clone(),
             name,
             owner: self.lower_nominal_owner(source.owner),
@@ -90,32 +121,9 @@ impl Concretizer<'_> {
             methods: Vec::new(),
             span: source.span,
         });
+        assert_eq!(allocated, id);
         self.struct_by_key.insert(key, id);
         self.struct_source.insert(id, source_id);
-        let ty = match self.structs[id].representation {
-            concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::Integer(kind),
-                ..
-            } => self.intern_type(concrete::TypeKind::Integer(kind), true),
-            concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::Boolean,
-                ..
-            } => self.intern_type(concrete::TypeKind::Boolean, true),
-            concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::Ptr { pointee },
-                ..
-            } => self.intern_type(concrete::TypeKind::Ptr(pointee), true),
-            concrete::StructRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::FunPtr { signature },
-                ..
-            } => self.intern_type(concrete::TypeKind::FunPtr(signature), true),
-            concrete::StructRepresentation::Declared { .. } => {
-                self.intern_type(concrete::TypeKind::Struct(id), false)
-            }
-            concrete::StructRepresentation::Intrinsic { .. } => {
-                unreachable!("the registry fixes intrinsic declaration targets")
-            }
-        };
         self.struct_type.insert(id, ty);
         if matches!(
             source.representation,
@@ -267,8 +275,15 @@ impl Concretizer<'_> {
         assert_eq!(source.type_params.len(), arguments.len());
         let declaration_name = self.source_nominal_name(&source.name, source.owner);
         let name = self.instance_name(&declaration_name, &arguments);
-        let id = self.enums.alloc(concrete::EnumDef {
+        let id = concrete::EnumId::from_raw(
+            u32::try_from(self.enums.len())
+                .expect("concrete enum ids fit in u32")
+                .into(),
+        );
+        let ty = self.intern_type(concrete::TypeKind::Enum(id), false);
+        let allocated = self.enums.alloc(concrete::EnumDef {
             origin: self.source.nominal_identities[source_id].clone(),
+            canonical_type: ty,
             link_stem: source.link_stem.clone(),
             name,
             owner: self.lower_nominal_owner(source.owner),
@@ -280,9 +295,9 @@ impl Concretizer<'_> {
             methods: Vec::new(),
             span: source.span,
         });
+        assert_eq!(allocated, id);
         self.enum_by_key.insert(key, id);
         self.enum_source.insert(id, source_id);
-        let ty = self.intern_type(concrete::TypeKind::Enum(id), false);
         self.enum_type.insert(id, ty);
         let variants: Vec<_> = source
             .variants
@@ -339,8 +354,15 @@ impl Concretizer<'_> {
         assert_eq!(source.type_params.len(), arguments.len());
         let declaration_name = self.source_nominal_name(&source.name, source.owner);
         let name = self.instance_name(&declaration_name, &arguments);
-        let id = self.interfaces.alloc(concrete::InterfaceDef {
+        let id = concrete::InterfaceId::from_raw(
+            u32::try_from(self.interfaces.len())
+                .expect("concrete interface ids fit in u32")
+                .into(),
+        );
+        let ty = self.intern_type(concrete::TypeKind::Interface(id), false);
+        let allocated = self.interfaces.alloc(concrete::InterfaceDef {
             origin: self.source.nominal_identities[source_id].clone(),
+            canonical_type: ty,
             link_stem: source.link_stem.clone(),
             name,
             owner: self.lower_nominal_owner(source.owner),
@@ -349,8 +371,8 @@ impl Concretizer<'_> {
             methods: Vec::new(),
             span: source.span,
         });
+        assert_eq!(allocated, id);
         self.interface_by_key.insert(key, id);
-        let ty = self.intern_type(concrete::TypeKind::Interface(id), false);
         self.interface_type.insert(id, ty);
         let method_instances = self.interface_method_instances(source.self_application, &arguments);
         let methods = method_instances

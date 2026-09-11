@@ -265,6 +265,26 @@ pub enum StructRepresentation {
 }
 
 impl StructDef {
+    /// MIR type whose physical layout is defined by this declaration.
+    pub fn physical_type(&self, id: StructId) -> Type {
+        match &self.representation {
+            StructRepresentation::Declared { .. } => Type::Struct(id),
+            StructRepresentation::Intrinsic(representation) => match representation {
+                IntrinsicTypeRepresentation::Integer(kind) => Type::Integer(*kind),
+                IntrinsicTypeRepresentation::Boolean => Type::Boolean,
+                IntrinsicTypeRepresentation::Ptr { pointee } => {
+                    Type::Ptr(Box::new(pointee.clone()))
+                }
+                IntrinsicTypeRepresentation::FunPtr { signature } => Type::FunPtr(*signature),
+                IntrinsicTypeRepresentation::String
+                | IntrinsicTypeRepresentation::Array { .. }
+                | IntrinsicTypeRepresentation::MutableArray { .. } => {
+                    unreachable!("the MIR intrinsic registry fixes physical declaration kinds")
+                }
+            },
+        }
+    }
+
     pub fn declared_fields(&self) -> &[Field] {
         match &self.representation {
             StructRepresentation::Declared { fields, .. } => fields,

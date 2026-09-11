@@ -30,8 +30,31 @@ impl Concretizer<'_> {
             },
             _ => unreachable!("ExportHir declaration and application representations agree"),
         };
-        let id = self.classes.alloc(concrete::ClassDef {
+        let id = concrete::ClassId::from_raw(
+            u32::try_from(self.classes.len())
+                .expect("concrete class ids fit in u32")
+                .into(),
+        );
+        let type_kind = match &representation {
+            concrete::ClassRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::String,
+                ..
+            } => concrete::TypeKind::String,
+            concrete::ClassRepresentation::Declared { .. }
+            | concrete::ClassRepresentation::Intrinsic {
+                application:
+                    concrete::IntrinsicTypeRepresentation::Array { .. }
+                    | concrete::IntrinsicTypeRepresentation::MutableArray { .. },
+                ..
+            } => concrete::TypeKind::Class(id),
+            concrete::ClassRepresentation::Intrinsic { .. } => {
+                unreachable!("the registry fixes intrinsic declaration targets")
+            }
+        };
+        let ty = self.intern_type(type_kind, false);
+        let allocated = self.classes.alloc(concrete::ClassDef {
             origin: self.source.nominal_identities[source_id].clone(),
+            canonical_type: ty,
             modifier: source.modifier,
             link_stem: source.link_stem.clone(),
             name: self.instance_name(
@@ -46,24 +69,9 @@ impl Concretizer<'_> {
             methods: Vec::new(),
             span: source.span,
         });
+        assert_eq!(allocated, id);
         self.class_by_key.insert(key, id);
         self.class_source.insert(id, source_id);
-        let ty = match self.classes[id].representation {
-            concrete::ClassRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::String,
-                ..
-            } => self.intern_type(concrete::TypeKind::String, false),
-            concrete::ClassRepresentation::Declared { .. }
-            | concrete::ClassRepresentation::Intrinsic {
-                application:
-                    concrete::IntrinsicTypeRepresentation::Array { .. }
-                    | concrete::IntrinsicTypeRepresentation::MutableArray { .. },
-                ..
-            } => self.intern_type(concrete::TypeKind::Class(id), false),
-            concrete::ClassRepresentation::Intrinsic { .. } => {
-                unreachable!("the registry fixes intrinsic declaration targets")
-            }
-        };
         self.class_type.insert(id, ty);
 
         // Reserve every initializer before lowering any body. `this` cycles

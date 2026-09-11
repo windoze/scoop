@@ -20,13 +20,17 @@ impl BodyLowerer<'_> {
             core.states.enumeration(),
             core.failure_result.enumeration(),
         ] {
-            self.enums.get_or_create(
-                &types,
+            let lowered = types.lower(
+                self.module.enums[enumeration].canonical_type,
                 self.source_exact_types,
+                self.enums,
                 self.structs,
                 self.interfaces,
                 self.shell,
-                enumeration,
+            );
+            assert!(
+                matches!(lowered, mir::Type::Enum(id, _) if self.enums.hir_ids[&id] == enumeration),
+                "the canonical callback protocol type retains its physical enum"
             );
         }
         let reusable = self.enums.lower_variant_ref(core.modes.reusable());

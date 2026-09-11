@@ -108,6 +108,14 @@ impl Lowerer {
                 .type_arguments
                 .clone_from(&arguments);
             self.shell.structs[mir_id].type_arguments = arguments;
+            types.lower(
+                declaration.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
         }
         for (hir_id, declaration) in module.classes.iter() {
             let types = Types {
@@ -132,6 +140,14 @@ impl Lowerer {
             let mir_id = self.class_map[&hir_id];
             self.classes[mir_id].type_arguments.clone_from(&arguments);
             self.shell.classes[mir_id].type_arguments = arguments;
+            types.lower(
+                declaration.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
         }
     }
 
@@ -179,22 +195,18 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let arguments = decl
-                .type_arguments
-                .iter()
-                .map(|argument| {
-                    types.lower(
-                        *argument,
-                        &mut self.source_exact_types,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect();
-            self.interfaces
-                .get_or_create(module, &mut self.shell, hir_id, arguments);
+            let lowered = types.lower(
+                decl.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            assert!(
+                matches!(lowered, mir::Type::Interface(id) if self.interfaces.source(id).0 == hir_id),
+                "the canonical interface type retains its physical declaration"
+            );
         }
     }
 

@@ -39,6 +39,11 @@ pub enum ExactTypeIdentityError {
     DuplicateObjectBackingClass {
         class: u32,
     },
+    NonCanonicalNominalType {
+        ty: u32,
+        relation: ExactTypeRelation,
+        canonical: u32,
+    },
     Cycle {
         ty: u32,
     },
@@ -89,6 +94,14 @@ impl fmt::Display for ExactTypeIdentityError {
             Self::DuplicateObjectBackingClass { class } => {
                 write!(formatter, "class {class} backs more than one source object")
             }
+            Self::NonCanonicalNominalType {
+                ty,
+                relation,
+                canonical,
+            } => write!(
+                formatter,
+                "type {ty} is a {relation}, but its declaration names type {canonical} as canonical"
+            ),
             Self::Cycle { ty } => write!(formatter, "type {ty} recursively contains itself"),
             Self::MissingIdentity { ty } => write!(formatter, "type {ty} has no exact identity"),
             Self::EmptyTuple { ty } => write!(formatter, "type {ty} is an empty tuple"),
