@@ -377,6 +377,9 @@ fn transform_function(
 
     let (wrapper_params, wrapper_locals, wrapper_param_map, wrapper_completion) =
         wrapper_params(&old_params);
+    lowerer
+        .source_local_values
+        .remap_coroutine_function(function_id, driver, &wrapper_param_map);
     lowerer.functions[function_id].params = wrapper_params;
     lowerer.functions[function_id].body = wrapper_body(
         frame_class,
