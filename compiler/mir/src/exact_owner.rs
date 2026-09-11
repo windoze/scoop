@@ -116,6 +116,15 @@ impl ExactOwnerRoot {
             Self::Structural(root) => Some(root.member_record()),
         }
     }
+
+    /// The ODR group first created by MIR for this root. Nominal-application
+    /// groups are HIR-owned and therefore deliberately excluded.
+    pub const fn mir_odr_group_record(&self) -> Option<&OdrGroupRecord> {
+        match self {
+            Self::Structural(root) => Some(root.group_record()),
+            Self::SourceNominal(_) | Self::NominalApplication(_) => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -248,6 +257,7 @@ mod tests {
             ExactOwnerRoot::SourceNominal(CoreBuiltinNominal::Unit.identity_record().id())
         );
         assert_eq!(root.member_record(), None);
+        assert_eq!(root.mir_odr_group_record(), None);
     }
 
     #[test]
@@ -269,6 +279,7 @@ mod tests {
             generated_member(),
         )
         .unwrap();
+        assert_eq!(root.mir_odr_group_record(), None);
         let ExactOwnerRoot::NominalApplication(root) = root else {
             panic!("nominal applications use their existing ODR group")
         };
@@ -287,6 +298,16 @@ mod tests {
         let root =
             ExactOwnerRoot::structural(&exact, OdrMemberRole::GeneratedNominal, generated_member())
                 .unwrap();
+        assert_eq!(
+            root.mir_odr_group_record().map(CborIdentityRecord::id),
+            Some(
+                CborIdentityRecord::from_key(SpecializationKey::StructuralType {
+                    exact_type: exact.id()
+                })
+                .unwrap()
+                .id()
+            )
+        );
         let ExactOwnerRoot::Structural(root) = root else {
             panic!("function shapes use a structural ODR group")
         };

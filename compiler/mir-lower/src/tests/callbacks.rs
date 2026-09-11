@@ -163,7 +163,44 @@ fn nonzero_ulong_pointer_conversion_keeps_its_proof_in_mir() {
 #[test]
 fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     let mut h = Harness::new();
-    let callback = h.strukt("Callback", &[]);
+    let int = h.int;
+    let unit = h.unit;
+    let managed_canonical_type = hir::TypeId::from_raw(
+        u32::try_from(h.types.len())
+            .expect("fixture type id fits in u32")
+            .into(),
+    );
+    let function_type = h.function_types.alloc(hir::FunctionType {
+        canonical_type: managed_canonical_type,
+        is_suspend: false,
+        parameter_types: vec![int, int],
+        return_type: int,
+    });
+    assert_eq!(
+        h.types.alloc(hir::Type::Function(function_type)),
+        managed_canonical_type
+    );
+    let native_canonical_type = hir::TypeId::from_raw(
+        u32::try_from(h.types.len())
+            .expect("fixture type id fits in u32")
+            .into(),
+    );
+    let native_function_type = h.function_types.alloc(hir::FunctionType {
+        canonical_type: native_canonical_type,
+        is_suspend: false,
+        parameter_types: vec![int, int, int],
+        return_type: int,
+    });
+    assert_eq!(
+        h.types.alloc(hir::Type::Function(native_function_type)),
+        native_canonical_type
+    );
+    let function_pointer = h.types.alloc(hir::Type::FunPtr(native_function_type));
+    let context_pointer = h.types.alloc(hir::Type::Ptr(unit));
+    let callback = h.strukt(
+        "Callback",
+        &[("function", function_pointer), ("context", context_pointer)],
+    );
     let callback_ty = h.struct_ty(callback);
     let mut target_locals = Arena::new();
     let first = target_locals.alloc(local("first", h.int));
@@ -184,42 +221,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     let executable = h.finish(main);
     let entry = executable.entry();
     let mut source = executable.into_module();
-    let int = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
     source.foreign_callback_core.callback = callback;
-
-    let canonical_type = hir::TypeId::from_raw(
-        u32::try_from(source.types.len())
-            .expect("type id fits u32")
-            .into(),
-    );
-    let function_type = source.function_types.alloc(hir::FunctionType {
-        canonical_type,
-        is_suspend: false,
-        parameter_types: vec![int, int],
-        return_type: int,
-    });
-    assert_eq!(
-        source.types.alloc(hir::Type::Function(function_type)),
-        canonical_type
-    );
-    let native_canonical_type = hir::TypeId::from_raw(
-        u32::try_from(source.types.len())
-            .expect("type id fits u32")
-            .into(),
-    );
-    let native_function_type = source.function_types.alloc(hir::FunctionType {
-        canonical_type: native_canonical_type,
-        is_suspend: false,
-        parameter_types: vec![int, int, int],
-        return_type: int,
-    });
-    assert_eq!(
-        source
-            .types
-            .alloc(hir::Type::Function(native_function_type)),
-        native_canonical_type
-    );
-    source.type_identities = rebuild_type_identities(&source);
     let definition_path = scoop_identity::StructuralDefinitionPath::from_first(
         scoop_identity::StructuralPathSegment::new(
             scoop_identity::StructuralDefinitionSiteRole::CallableConversion,
@@ -263,7 +265,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
             registration,
             closure: Box::new(expr(
                 hir::ExprKind::CallableReference(reference),
-                canonical_type,
+                managed_canonical_type,
             )),
         },
         callback_ty,
@@ -415,6 +417,10 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         .map(callback_argument_offset)
         .collect::<Vec<_>>();
     assert_eq!(offsets, [0, 1]);
+
+    let foundation = assert_mir_foundation_projection(&module);
+    assert_eq!(foundation.callback_applications, 1);
+    assert_eq!(foundation.callback_application_records, 1);
 
     let dump = mir::dump(&module);
     assert!(dump.contains("-> machine<foreign-callback-status>"));

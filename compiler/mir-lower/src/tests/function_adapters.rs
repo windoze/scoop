@@ -100,6 +100,10 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
         }
     );
     assert_eq!(module.validate(), Ok(()));
+    let foundation = assert_mir_foundation_projection(&module);
+    assert!(foundation.fields >= 1);
+    assert!(foundation.odr_groups >= 1);
+    assert!(foundation.odr_members >= 2);
 
     let class = adapter.class();
     module.closure_classes[class].captures[0].ty = mir::Type::Any;

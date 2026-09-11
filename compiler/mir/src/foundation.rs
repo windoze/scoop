@@ -20,6 +20,7 @@ use crate::{
 
 mod wire;
 pub use wire::ValidatedMirFoundationWire;
+mod projection;
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type GeneratedCallableRecord =
@@ -66,6 +67,23 @@ impl CanonicalMirFoundation {
             callback_application_records: Vec::new(),
             odr_groups: Vec::new(),
             odr_members: Vec::new(),
+        }
+    }
+
+    pub fn counts(&self) -> MirFoundationCounts {
+        MirFoundationCounts {
+            exact_types: self.exact_types.len(),
+            generated_callables: self.generated_callables.len(),
+            generated_types: self.generated_types.len(),
+            fields: self.fields.len(),
+            enum_variants: self.enum_variants.len(),
+            enum_variant_fields: self.enum_variant_fields.len(),
+            callable_signatures: self.callable_signatures.len(),
+            local_values: self.local_values.len(),
+            callback_applications: self.callback_applications.len(),
+            callback_application_records: self.callback_application_records.len(),
+            odr_groups: self.odr_groups.len(),
+            odr_members: self.odr_members.len(),
         }
     }
 
@@ -212,6 +230,22 @@ impl CanonicalMirFoundation {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MirFoundationCounts {
+    pub exact_types: usize,
+    pub generated_callables: usize,
+    pub generated_types: usize,
+    pub fields: usize,
+    pub enum_variants: usize,
+    pub enum_variant_fields: usize,
+    pub callable_signatures: usize,
+    pub local_values: usize,
+    pub callback_applications: usize,
+    pub callback_application_records: usize,
+    pub odr_groups: usize,
+    pub odr_members: usize,
+}
+
 impl WireEncode for CanonicalMirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(12)?;
@@ -261,9 +295,14 @@ impl MirFoundationTable {
 
 #[derive(Debug)]
 pub enum MirFoundationBuildError {
+    InvalidModule(Box<crate::MirValidationError>),
     ExactTypeOrder(StableIdentityOrderError<PersistentExactTypeId>),
     GeneratedCallableOrder(StableIdentityOrderError<PersistentGeneratedCallableId>),
     DuplicateIdentity {
+        table: MirFoundationTable,
+        identity: [u8; 32],
+    },
+    IdentityCollision {
         table: MirFoundationTable,
         identity: [u8; 32],
     },
@@ -276,11 +315,18 @@ pub enum MirFoundationBuildError {
 impl fmt::Display for MirFoundationBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidModule(error) => error.fmt(formatter),
             Self::ExactTypeOrder(error) => error.fmt(formatter),
             Self::GeneratedCallableOrder(error) => error.fmt(formatter),
             Self::DuplicateIdentity { table, identity } => write!(
                 formatter,
                 "duplicate {} identity {}",
+                table.name(),
+                HexIdentity(identity)
+            ),
+            Self::IdentityCollision { table, identity } => write!(
+                formatter,
+                "conflicting {} identity {}",
                 table.name(),
                 HexIdentity(identity)
             ),

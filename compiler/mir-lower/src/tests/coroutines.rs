@@ -517,6 +517,11 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         }
     }
 
+    let foundation = assert_mir_foundation_projection(&module);
+    assert!(foundation.fields >= 1);
+    assert!(foundation.enum_variants >= 2);
+    assert!(foundation.enum_variant_fields >= 1);
+
     let dump = mir::dump(&module);
     assert!(dump.contains("atomic_store_release kind=coroutine-frame-state"));
     assert!(dump.contains("atomic_store_release kind=coroutine-adapter-state"));

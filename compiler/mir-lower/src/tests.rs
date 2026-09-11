@@ -35,6 +35,43 @@ fn lower(module: &hir::LegacyExecutableExportHir) -> mir::Module {
     module
 }
 
+fn assert_mir_foundation_projection(module: &mir::Module) -> mir::MirFoundationCounts {
+    let foundation = mir::CanonicalMirFoundation::from_module(module)
+        .expect("valid lowered MIR has a complete canonical identity foundation");
+    let counts = foundation.counts();
+    assert_eq!(counts.exact_types, module.meta.generated_exact_types.len());
+    assert_eq!(
+        counts.generated_callables,
+        module.meta.generated_callables.len()
+    );
+    assert_eq!(
+        counts.generated_types,
+        module.meta.generated_exact_types.len()
+    );
+    assert_eq!(
+        counts.callable_signatures,
+        module.meta.callable_signatures.len()
+    );
+    assert_eq!(
+        counts.callback_applications,
+        module.foreign_callback_bridges.len()
+    );
+    assert_eq!(
+        counts.callback_application_records,
+        module.foreign_callback_bridges.len()
+    );
+    let mir_local_values = module
+        .meta
+        .local_values
+        .iter()
+        .filter(|entry| entry.authority() == mir::LocalValueIdentityAuthority::Mir)
+        .map(|entry| entry.identity_record().id())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    assert_eq!(counts.local_values, mir_local_values);
+    counts
+}
+
 fn legacy_executable(
     module: hir::Module,
     entry: hir::FunctionId,
