@@ -113,7 +113,8 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
             )],
         },
     );
-    let module = lower(&h.finish(main));
+    let export = h.finish(main);
+    let module = lower(&export);
 
     let boxed_meta = module
         .meta
@@ -128,6 +129,47 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(record.slots.len(), 1);
     let thunk_symbol = slot_fn(&module, &record.slots[0]);
+    assert_eq!(module.meta.boxing_adjusts.len(), 1);
+    let adjust = &module.meta.boxing_adjusts[0];
+    assert_eq!(adjust.boxed(), boxed_meta.class());
+    assert_eq!(adjust.interface(), record.interface);
+    assert_eq!(adjust.slot(), 0);
+    let mir::TableSlot::Function(thunk_id) = record.slots[0] else {
+        panic!("boxed itable slots are generated functions")
+    };
+    assert_eq!(adjust.function(), thunk_id);
+    let source_member = export.module().interfaces[iface].methods[0];
+    let expected_slot = &export.module().dispatch_slot_identities[source_member];
+    assert_eq!(adjust.identity().slot_record(), expected_slot);
+    let payload_exact = module
+        .meta
+        .source_exact_types
+        .get(boxed_meta.payload())
+        .unwrap()
+        .identity_record()
+        .id();
+    let interface_exact = module
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Interface(record.interface))
+        .unwrap()
+        .identity_record()
+        .id();
+    assert!(matches!(
+        adjust.identity().callable_record().key(),
+        scoop_identity::GeneratedCallableKey::BoxingAdjust {
+            slot,
+            payload,
+            interface,
+        } if *slot == expected_slot.id()
+            && *payload == payload_exact
+            && *interface == interface_exact
+    ));
+    assert_eq!(
+        adjust.identity().signature_record().signature().receiver(),
+        scoop_identity::OptionalExactOwner::Present(interface_exact)
+    );
+    assert_eq!(module.validate(), Ok(()));
     let payload = mir::encode_type(&module, boxed_meta.payload()).unwrap();
     let interface = mir::encode_type(&module, &mir::Type::Interface(record.interface)).unwrap();
     assert_eq!(
@@ -157,6 +199,45 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(call.args.len(), 1);
     assert!(matches!(&call.args[0].kind, mir::ExprKind::Unbox(operand)
             if matches!(operand.kind, mir::ExprKind::Local(local) if local == thunk.params[0].local)));
+}
+
+#[test]
+fn every_boxed_itable_slot_requires_one_persistent_adjust_identity() {
+    let mut h = Harness::new();
+    let int = h.int;
+    let iface = h.interface("Describable", &["describe"]);
+    let iface_ty = h.interface_ty(iface);
+    let s = h.strukt_with("S", &[("x", int)], &[iface]);
+    let s_ty = h.struct_ty(s);
+    let _describe = empty_method(&mut h, "S", "describe", s_ty);
+    let mut locals = Arena::new();
+    let value = locals.alloc(local("value", iface_ty));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![val_decl(
+                value,
+                expr(
+                    hir::ExprKind::Box(Box::new(struct_init(&h, s_ty, vec![int_lit(&h, 1)]))),
+                    iface_ty,
+                ),
+            )],
+        },
+    );
+    let mut module = lower(&h.finish(main));
+    assert_eq!(module.meta.boxing_adjusts.len(), 1);
+    module.meta.boxing_adjusts.clear();
+
+    assert!(matches!(
+        module.validate(),
+        Err(mir::MirValidationError {
+            location: mir::MirValidationLocation::BoxingAdjust { adjust: 0 },
+            kind: mir::MirValidationErrorKind::InvalidBoxingAdjust {
+                reason: "a boxed itable slot has no persistent adjust identity"
+            }
+        })
+    ));
 }
 
 #[test]

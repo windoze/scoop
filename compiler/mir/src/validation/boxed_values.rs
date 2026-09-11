@@ -1,7 +1,9 @@
 use std::collections::HashSet;
 
 use scoop_identity::{
-    FieldIdentityKey, GeneratedNominalKey, OdrMemberDiscriminator, OdrMemberRole, SpecializationKey,
+    CallableOdrMemberId, CallableOwner, DispatchRole, ExactTypeKey, FieldIdentityKey,
+    GeneratedCallableKey, GeneratedNominalKey, OdrMemberDiscriminator, OdrMemberRole,
+    OptionalExactOwner, SpecializationKey,
 };
 
 use super::*;
@@ -46,6 +48,199 @@ pub(super) fn validate_boxed_value_metadata(module: &Module) -> Result<(), MirVa
         validate_class(module, location, boxed)?;
     }
     Ok(())
+}
+
+pub(super) fn validate_boxing_adjust_metadata(module: &Module) -> Result<(), MirValidationError> {
+    let mut locations = HashSet::new();
+    let mut functions = HashSet::new();
+    for (index, adjust) in module.meta.boxing_adjusts.iter().enumerate() {
+        let location = MirValidationLocation::BoxingAdjust {
+            adjust: index as u32,
+        };
+        if BoxingAdjust::checked(
+            &module.functions,
+            &module.classes,
+            &module.interfaces,
+            adjust.location(),
+            adjust.identity().clone(),
+        )
+        .is_none()
+        {
+            return invalid_adjust(
+                location,
+                "the physical itable slot does not match the adjust",
+            );
+        }
+        if !locations.insert((adjust.boxed(), adjust.interface(), adjust.slot())) {
+            return invalid_adjust(location, "the same boxed itable slot has multiple adjusts");
+        }
+        if !functions.insert(adjust.function()) {
+            return invalid_adjust(
+                location,
+                "the same function implements multiple boxing adjusts",
+            );
+        }
+        let Some(boxed) = module
+            .meta
+            .boxed_types
+            .iter()
+            .find(|boxed| boxed.class() == adjust.boxed())
+        else {
+            return invalid_adjust(location, "the adjust class is not a materialized value box");
+        };
+        let Some(payload) = module.meta.source_exact_types.get(boxed.payload()) else {
+            return invalid_adjust(location, "the boxed payload has no source exact identity");
+        };
+        let Some(interface) = module
+            .meta
+            .source_exact_types
+            .get(&Type::Interface(adjust.interface()))
+        else {
+            return invalid_adjust(
+                location,
+                "the itable interface has no source exact identity",
+            );
+        };
+        if !matches!(
+            interface.identity_record().key(),
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
+        ) {
+            return invalid_adjust(
+                location,
+                "the itable interface is not an exact nominal type",
+            );
+        }
+        let identity = adjust.identity();
+        if identity.slot_record().key().role() != DispatchRole::InterfaceMethod {
+            return invalid_adjust(location, "the adjust does not implement an interface slot");
+        }
+        let GeneratedCallableKey::BoxingAdjust {
+            slot,
+            payload: key_payload,
+            interface: key_interface,
+        } = identity.callable_record().key()
+        else {
+            return invalid_adjust(location, "the generated callable is not a boxing adjust");
+        };
+        if *slot != identity.slot_record().id()
+            || *key_payload != payload.identity_record().id()
+            || *key_interface != interface.identity_record().id()
+        {
+            return invalid_adjust(
+                location,
+                "the generated callable key does not match its slot and exact types",
+            );
+        }
+        let expected_root = ExactOwnerRoot::for_member(
+            payload.identity_record(),
+            payload.nominal_specialization(),
+            OdrMemberRole::DispatchAdapter,
+            OdrMemberDiscriminator::GeneratedCallable(identity.callable_record().id()),
+        )
+        .map_err(|_| adjust_error(location, "the boxing adjust has an invalid payload root"))?;
+        if identity.root() != &expected_root {
+            return invalid_adjust(location, "the boxing adjust has a different payload root");
+        }
+        let expected_subject = match expected_root.member_record() {
+            Some(member) => {
+                CallableSignatureSubject::odr(CallableOdrMemberId::from_key(member.key()).map_err(
+                    |_| adjust_error(location, "the boxing adjust has a non-callable ODR member"),
+                )?)
+            }
+            None => CallableSignatureSubject::strong(CallableOwner::Generated(
+                identity.callable_record().id(),
+            )),
+        };
+        let signature = identity.signature_record();
+        if signature.subject() != expected_subject {
+            return invalid_adjust(
+                location,
+                "the signature subject does not match the payload root",
+            );
+        }
+        if signature.signature().receiver()
+            != OptionalExactOwner::Present(interface.identity_record().id())
+        {
+            return invalid_adjust(
+                location,
+                "the signature receiver does not match the interface",
+            );
+        }
+        if signature
+            .signature()
+            .parameters()
+            .iter()
+            .copied()
+            .chain(std::iter::once(signature.signature().result()))
+            .any(|exact| {
+                module
+                    .meta
+                    .source_exact_types
+                    .get_by_identity(exact)
+                    .is_none()
+            })
+        {
+            return invalid_adjust(location, "the signature references an unknown exact type");
+        }
+    }
+
+    for boxed in &module.meta.boxed_types {
+        let class = &module.classes[boxed.class()];
+        for table in &class.itables {
+            if !class.interfaces.contains(&table.interface) {
+                return invalid_adjust(
+                    next_adjust_location(module),
+                    "a boxed itable is absent from the class interface list",
+                );
+            }
+            for (slot, entry) in table.slots.iter().enumerate() {
+                let TableSlot::Function(function) = entry else {
+                    return invalid_adjust(
+                        next_adjust_location(module),
+                        "a boxed itable slot is not implemented by a generated function",
+                    );
+                };
+                let Ok(slot) = u32::try_from(slot) else {
+                    return invalid_adjust(
+                        next_adjust_location(module),
+                        "a boxed itable has more slots than the identity model can represent",
+                    );
+                };
+                if !module.meta.boxing_adjusts.iter().any(|adjust| {
+                    adjust.boxed() == boxed.class()
+                        && adjust.interface() == table.interface
+                        && adjust.slot() == slot
+                        && adjust.function() == *function
+                }) {
+                    return invalid_adjust(
+                        next_adjust_location(module),
+                        "a boxed itable slot has no persistent adjust identity",
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn next_adjust_location(module: &Module) -> MirValidationLocation {
+    MirValidationLocation::BoxingAdjust {
+        adjust: module.meta.boxing_adjusts.len() as u32,
+    }
+}
+
+fn invalid_adjust<T>(
+    location: MirValidationLocation,
+    reason: &'static str,
+) -> Result<T, MirValidationError> {
+    Err(adjust_error(location, reason))
+}
+
+fn adjust_error(location: MirValidationLocation, reason: &'static str) -> MirValidationError {
+    MirValidationError {
+        location,
+        kind: MirValidationErrorKind::InvalidBoxingAdjust { reason },
+    }
 }
 
 fn validate_root(

@@ -274,6 +274,7 @@ impl Lowerer {
                 closure_adapters: self.closure_adapters,
                 dynamic_closure_adapters: self.dynamic_closure_adapters,
                 boxed_types,
+                boxing_adjusts: self.boxing_adjusts,
                 ..mir::MirMeta::default()
             },
         }

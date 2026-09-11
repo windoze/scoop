@@ -46,6 +46,9 @@ pub use coroutine_support::*;
 mod boxed_value;
 pub use boxed_value::*;
 
+mod boxing_adjust;
+pub use boxing_adjust::*;
+
 mod identity_metadata;
 pub use identity_metadata::*;
 

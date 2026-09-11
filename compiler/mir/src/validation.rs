@@ -8,7 +8,7 @@ use callbacks::validate_foreign_callback_metadata;
 mod function_adapters;
 use function_adapters::validate_function_adapter_metadata;
 mod boxed_values;
-use boxed_values::validate_boxed_value_metadata;
+use boxed_values::{validate_boxed_value_metadata, validate_boxing_adjust_metadata};
 mod metadata;
 use metadata::{
     validate_enum_metadata, validate_source_callable_materializations,
@@ -64,6 +64,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidBoxedValue {
+        reason: &'static str,
+    },
+    InvalidBoxingAdjust {
         reason: &'static str,
     },
     InvalidConstantImage {
@@ -195,6 +198,9 @@ pub enum MirValidationLocation {
     BoxedValue {
         boxed: u32,
     },
+    BoxingAdjust {
+        adjust: u32,
+    },
     FunctionBlock {
         function: FunctionId,
         block: BlockId,
@@ -294,6 +300,9 @@ impl std::fmt::Display for MirValidationError {
             MirValidationLocation::BoxedValue { boxed } => {
                 write!(formatter, "invalid MIR boxed value {boxed}: ")?
             }
+            MirValidationLocation::BoxingAdjust { adjust } => {
+                write!(formatter, "invalid MIR boxing adjust {adjust}: ")?
+            }
             MirValidationLocation::FunctionBlock { function, block } => write!(
                 formatter,
                 "invalid MIR in function {}, block {}: ",
@@ -337,7 +346,8 @@ impl std::fmt::Display for MirValidationError {
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
             | MirValidationErrorKind::InvalidForeignCallbackExpression { reason }
             | MirValidationErrorKind::InvalidFunctionAdapter { reason }
-            | MirValidationErrorKind::InvalidBoxedValue { reason } => formatter.write_str(reason),
+            | MirValidationErrorKind::InvalidBoxedValue { reason }
+            | MirValidationErrorKind::InvalidBoxingAdjust { reason } => formatter.write_str(reason),
             MirValidationErrorKind::InvalidConstantImage {
                 path,
                 expected,
@@ -530,6 +540,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_foreign_callback_metadata(module)?;
     validate_function_adapter_metadata(module)?;
     validate_boxed_value_metadata(module)?;
+    validate_boxing_adjust_metadata(module)?;
     validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
         validate_body(module, function_id, &function.body)?;

@@ -197,6 +197,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         dynamic_adapter_by_target: HashMap::new(),
         function_bridge_targets: Vec::new(),
         finalized_function_bridges: HashSet::new(),
+        boxing_adjusts: Vec::new(),
     }
     .run(module)
 }
@@ -282,6 +283,9 @@ struct Lowerer {
     dynamic_adapter_by_target: HashMap<mir::FunctionTypeId, mir::DynamicClosureAdapterId>,
     function_bridge_targets: Vec<mir::FunctionTypeId>,
     finalized_function_bridges: HashSet<(mir::ClosureClassId, mir::FunctionTypeId)>,
+    /// Persistent identity and exact physical itable location of every box
+    /// adjust thunk.
+    boxing_adjusts: Vec<mir::BoxingAdjust>,
 }
 
 mod body;

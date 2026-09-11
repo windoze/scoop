@@ -23,14 +23,33 @@ impl Lowerer {
                 .map(|(index, _)| index)
                 .collect();
             let mut slots = Vec::new();
+            let mut identities = Vec::new();
             for index in method_indices {
-                let thunk = self.build_thunk(module, &payload, &encoded, iface, index);
+                let (thunk, identity) = self.build_thunk(module, &payload, &encoded, iface, index);
                 slots.push(mir::TableSlot::Function(thunk));
+                identities.push((index, thunk, identity));
             }
             self.classes[class_id].itables.push(mir::ItableRecord {
                 interface: iface,
                 slots,
             });
+            for (slot, function, identity) in identities {
+                self.boxing_adjusts.push(
+                    mir::BoxingAdjust::checked(
+                        &self.functions,
+                        &self.classes,
+                        &self.interfaces.defs,
+                        mir::BoxingAdjustLocation::new(
+                            class_id,
+                            iface,
+                            u32::try_from(slot).expect("interface method indices fit in u32"),
+                            function,
+                        ),
+                        identity,
+                    )
+                    .expect("a generated boxing adjust occupies its exact itable slot"),
+                );
+            }
         }
     }
 
@@ -50,7 +69,7 @@ impl Lowerer {
         encoded: &str,
         iface: mir::InterfaceId,
         method_index: usize,
-    ) -> mir::FunctionId {
+    ) -> (mir::FunctionId, mir::BoxingAdjustIdentity) {
         let (hir_iface, _) = self.interfaces.source(iface);
         let signature = &module.interfaces[hir_iface].methods[method_index];
         let types = Types {
@@ -102,6 +121,42 @@ impl Lowerer {
             &mut self.interfaces,
             &mut self.shell,
         );
+        let payload_source = self
+            .source_exact_types
+            .get(payload)
+            .expect("boxed payloads retain their local-concrete exact identity");
+        let interface_source = self
+            .source_exact_types
+            .get(&mir::Type::Interface(iface))
+            .expect("boxed interfaces retain their local-concrete exact identity");
+        let exact_signature = hir::ExactCallableSignature::new(
+            if signature.is_suspend {
+                hir::Effect::Suspend
+            } else {
+                hir::Effect::Ordinary
+            },
+            Some(interface_source.identity_record().id()),
+            signature
+                .params
+                .iter()
+                .map(|parameter| module.exact_type_identities[parameter.ty].id())
+                .collect(),
+            module.exact_type_identities[signature.return_ty].id(),
+        );
+        let slot = module.dispatch_slot_identities.interface_slot(
+            hir_iface,
+            hir::InterfaceMethodSlot::from_raw(
+                u32::try_from(method_index).expect("interface method indices fit in u32"),
+            ),
+        );
+        let identity = mir::BoxingAdjustIdentity::new(
+            payload_source.identity_record(),
+            payload_source.nominal_specialization(),
+            slot,
+            interface_source.identity_record(),
+            exact_signature,
+        )
+        .expect("validated interface slots and exact types form one boxing-adjust identity");
         let implementations = self
             .value_interface_implementations(module, payload)
             .to_vec();
@@ -271,7 +326,7 @@ impl Lowerer {
                 instance: None,
             });
         }
-        id
+        (id, identity)
     }
 
     pub(crate) fn value_interfaces(
