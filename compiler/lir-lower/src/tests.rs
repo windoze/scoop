@@ -358,7 +358,7 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
             bridges: Vec::new(),
         });
         let identity =
-            mir::ClosureEnvironmentIdentity::for_lambda(materialization, Vec::new()).unwrap();
+            mir::ClosureEnvironmentIdentity::for_lambda(materialization, Vec::new(), None).unwrap();
         source.meta.closure_environments.push(
             mir::ClosureEnvironment::checked(class, &source.closure_classes[class], identity)
                 .unwrap(),

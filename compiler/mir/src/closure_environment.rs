@@ -3,16 +3,20 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableMaterialization, CborIdentityRecord, ClosureEnvironmentRole, FieldIdentityError,
-    FieldIdentityKey, GeneratedNominalIdentityError, GeneratedNominalKey, LocalValueKey,
-    PersistentFieldId, PersistentLocalValueId, PersistentTypeId,
+    CallableMaterialization, CallableMaterializationContext, CborIdentityRecord,
+    ClosureEnvironmentRole, FieldIdentityError, FieldIdentityKey, GeneratedNominalIdentityError,
+    GeneratedNominalKey, LocalValueKey, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
+    OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentFieldId, PersistentLocalValueId,
+    PersistentTypeId,
 };
+use scoop_wire::HashError;
 
 use crate::{ClosureClass, ClosureClassId};
 
 type GeneratedTypeRecord = CborIdentityRecord<PersistentTypeId, GeneratedNominalKey>;
 type LocalValueRecord = CborIdentityRecord<PersistentLocalValueId, LocalValueKey>;
 type FieldRecord = CborIdentityRecord<PersistentFieldId, FieldIdentityKey>;
+type OdrMemberRecord = CborIdentityRecord<OdrMemberId, OdrMemberKey>;
 
 /// Semantic source of one physical closure-environment field.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -52,35 +56,58 @@ impl ClosureFieldIdentity {
 pub struct ClosureEnvironmentIdentity {
     generated_type: GeneratedTypeRecord,
     fields: Vec<ClosureFieldIdentity>,
+    odr_member: Option<OdrMemberRecord>,
 }
 
 impl ClosureEnvironmentIdentity {
     pub fn for_lambda(
         callable: CallableMaterialization,
         inputs: Vec<(ClosureFieldSource, LocalValueRecord)>,
+        odr_group: Option<OdrGroupId>,
     ) -> Result<Self, ClosureEnvironmentIdentityError> {
-        Self::new(callable, ClosureEnvironmentRole::Lambda, inputs)
+        Self::new(callable, ClosureEnvironmentRole::Lambda, inputs, odr_group)
     }
 
     pub fn for_anonymous_function(
         callable: CallableMaterialization,
         inputs: Vec<(ClosureFieldSource, LocalValueRecord)>,
+        odr_group: Option<OdrGroupId>,
     ) -> Result<Self, ClosureEnvironmentIdentityError> {
-        Self::new(callable, ClosureEnvironmentRole::AnonymousFunction, inputs)
+        Self::new(
+            callable,
+            ClosureEnvironmentRole::AnonymousFunction,
+            inputs,
+            odr_group,
+        )
     }
 
     pub fn for_callable_reference(
         callable: CallableMaterialization,
         inputs: Vec<(ClosureFieldSource, LocalValueRecord)>,
+        odr_group: Option<OdrGroupId>,
     ) -> Result<Self, ClosureEnvironmentIdentityError> {
-        Self::new(callable, ClosureEnvironmentRole::CallableReference, inputs)
+        Self::new(
+            callable,
+            ClosureEnvironmentRole::CallableReference,
+            inputs,
+            odr_group,
+        )
     }
 
     pub fn new(
         callable: CallableMaterialization,
         role: ClosureEnvironmentRole,
         inputs: Vec<(ClosureFieldSource, LocalValueRecord)>,
+        odr_group: Option<OdrGroupId>,
     ) -> Result<Self, ClosureEnvironmentIdentityError> {
+        match (callable.context(), odr_group) {
+            (CallableMaterializationContext::NoSubstitution, Some(_)) => {
+                return Err(ClosureEnvironmentIdentityError::UnexpectedOdrGroup);
+            }
+            (CallableMaterializationContext::NoSubstitution, None) => {}
+            (_, None) => return Err(ClosureEnvironmentIdentityError::MissingOdrGroup),
+            (_, Some(_)) => {}
+        }
         let mut sources = inputs.iter().map(|(source, _)| *source).collect::<Vec<_>>();
         sources.sort_unstable();
         if sources.windows(2).any(|pair| pair[0] == pair[1]) {
@@ -154,9 +181,22 @@ impl ClosureEnvironmentIdentity {
         {
             return Err(ClosureEnvironmentIdentityError::DuplicateValue);
         }
+        let odr_member = odr_group
+            .map(|group| {
+                let key = OdrMemberKey::new(
+                    group,
+                    OdrMemberRole::GeneratedNominal,
+                    OdrMemberDiscriminator::GeneratedNominal(generated_type.id()),
+                )
+                .map_err(ClosureEnvironmentIdentityError::OdrMember)?;
+                CborIdentityRecord::from_key(key)
+                    .map_err(ClosureEnvironmentIdentityError::OdrMemberRecord)
+            })
+            .transpose()?;
         Ok(Self {
             generated_type,
             fields,
+            odr_member,
         })
     }
 
@@ -181,6 +221,10 @@ impl ClosureEnvironmentIdentity {
 
     pub fn fields(&self) -> &[ClosureFieldIdentity] {
         &self.fields
+    }
+
+    pub const fn odr_member_record(&self) -> Option<&OdrMemberRecord> {
+        self.odr_member.as_ref()
     }
 
     pub fn physical_index(&self, source: ClosureFieldSource) -> Option<u32> {
@@ -218,6 +262,8 @@ impl ClosureEnvironment {
 
 #[derive(Debug)]
 pub enum ClosureEnvironmentIdentityError {
+    MissingOdrGroup,
+    UnexpectedOdrGroup,
     DuplicateSource,
     DuplicateValue,
     NonContiguousCaptures,
@@ -225,11 +271,19 @@ pub enum ClosureEnvironmentIdentityError {
     MaterializationContextMismatch,
     GeneratedType(GeneratedNominalIdentityError),
     Field(FieldIdentityError),
+    OdrMember(OdrMemberIdentityError),
+    OdrMemberRecord(HashError),
 }
 
 impl fmt::Display for ClosureEnvironmentIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingOdrGroup => {
+                formatter.write_str("a specialized closure environment requires an ODR group")
+            }
+            Self::UnexpectedOdrGroup => {
+                formatter.write_str("a parameter-free closure environment cannot have an ODR group")
+            }
             Self::DuplicateSource => formatter.write_str("closure field source is duplicated"),
             Self::DuplicateValue => {
                 formatter.write_str("closure captures the same persistent value more than once")
@@ -244,6 +298,8 @@ impl fmt::Display for ClosureEnvironmentIdentityError {
             ),
             Self::GeneratedType(error) => error.fmt(formatter),
             Self::Field(error) => error.fmt(formatter),
+            Self::OdrMember(error) => error.fmt(formatter),
+            Self::OdrMemberRecord(error) => error.fmt(formatter),
         }
     }
 }
@@ -257,7 +313,7 @@ mod tests {
         CallableTemplateOwner, CanonicalIdentifier, ConeIdentity, DeclarationScope,
         DefinitionOwnerChain, GeneratedCallableKey, LexicalCallableParent, LexicalCallableRole,
         LocalValueSelector, PackagePath, PersistentCallableApplicationId, PersistentFunctionId,
-        SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+        SourceDeclarationKey, SourceDeclarationSite, SpecializationKey, StructuralDefinitionPath,
         StructuralDefinitionSiteRole, StructuralPathSegment,
     };
 
@@ -346,6 +402,7 @@ mod tests {
                     second.clone(),
                 ),
             ],
+            None,
         )
         .unwrap();
 
@@ -393,6 +450,7 @@ mod tests {
                     capture,
                 ),
             ],
+            None,
         )
         .unwrap();
 
@@ -414,9 +472,12 @@ mod tests {
     #[test]
     fn closure_fields_reject_a_different_materialization_context() {
         let owner = source_function("applicationOwner");
-        let application = PersistentCallableApplicationId::from_key(
-            &CallableApplicationKey::for_function(owner, CallableInstantiationOwner::NoOwner),
-        )
+        let application_key =
+            CallableApplicationKey::for_function(owner, CallableInstantiationOwner::NoOwner);
+        let application = PersistentCallableApplicationId::from_key(&application_key).unwrap();
+        let group = OdrGroupId::from_key(&SpecializationKey::Callable {
+            application: application_key,
+        })
         .unwrap();
         let identity = ClosureEnvironmentIdentity::for_lambda(
             lambda_materialization(CallableMaterializationContext::Application(application)),
@@ -426,11 +487,64 @@ mod tests {
                 },
                 value(CallableMaterializationContext::NoSubstitution, 0),
             )],
+            Some(group),
         );
 
         assert!(matches!(
             identity,
             Err(ClosureEnvironmentIdentityError::MaterializationContextMismatch)
+        ));
+    }
+
+    #[test]
+    fn specialized_environment_is_a_generated_nominal_member_of_its_group() {
+        let owner = source_function("specializedClosureOwner");
+        let application_key =
+            CallableApplicationKey::for_function(owner, CallableInstantiationOwner::NoOwner);
+        let application = PersistentCallableApplicationId::from_key(&application_key).unwrap();
+        let group = OdrGroupId::from_key(&SpecializationKey::Callable {
+            application: application_key,
+        })
+        .unwrap();
+        let callable =
+            lambda_materialization(CallableMaterializationContext::Application(application));
+        let identity =
+            ClosureEnvironmentIdentity::for_lambda(callable, Vec::new(), Some(group)).unwrap();
+        let member = identity.odr_member_record().unwrap();
+
+        assert_eq!(member.key().group(), group);
+        assert_eq!(member.key().role(), OdrMemberRole::GeneratedNominal);
+        assert_eq!(
+            member.key().discriminator(),
+            &OdrMemberDiscriminator::GeneratedNominal(identity.generated_type_record().id())
+        );
+    }
+
+    #[test]
+    fn environment_requires_exactly_the_materialization_group_shape() {
+        let strong = lambda_materialization(CallableMaterializationContext::NoSubstitution);
+        let unrelated = OdrGroupId::from_key(&SpecializationKey::Callable {
+            application: CallableApplicationKey::for_function(
+                source_function("unrelatedClosureOwner"),
+                CallableInstantiationOwner::NoOwner,
+            ),
+        })
+        .unwrap();
+        assert!(matches!(
+            ClosureEnvironmentIdentity::for_lambda(strong, Vec::new(), Some(unrelated)),
+            Err(ClosureEnvironmentIdentityError::UnexpectedOdrGroup)
+        ));
+
+        let application_key = CallableApplicationKey::for_function(
+            source_function("missingClosureGroupOwner"),
+            CallableInstantiationOwner::NoOwner,
+        );
+        let application = PersistentCallableApplicationId::from_key(&application_key).unwrap();
+        let specialized =
+            lambda_materialization(CallableMaterializationContext::Application(application));
+        assert!(matches!(
+            ClosureEnvironmentIdentity::for_lambda(specialized, Vec::new(), None),
+            Err(ClosureEnvironmentIdentityError::MissingOdrGroup)
         ));
     }
 
@@ -443,6 +557,7 @@ mod tests {
                 ClosureFieldSource::CallableReferenceReceiver,
                 value(context, 0),
             )],
+            None,
         );
 
         assert!(matches!(

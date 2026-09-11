@@ -48,6 +48,10 @@ impl Lowerer {
                         )
                     })
                     .collect(),
+                materialization_odr_group(
+                    module,
+                    module.functions[lambda.function].materialization,
+                ),
             )
             .expect("LocalConcrete lambda captures have complete persistent identities");
             let captures = order_closure_fields(&identity, semantic_fields);
@@ -127,6 +131,10 @@ impl Lowerer {
                         )
                     })
                     .collect(),
+                materialization_odr_group(
+                    module,
+                    module.functions[anonymous.function].materialization,
+                ),
             )
             .expect("LocalConcrete anonymous captures have complete persistent identities");
             let captures = order_closure_fields(&identity, semantic_fields);
@@ -245,6 +253,7 @@ impl Lowerer {
             let identity = mir::ClosureEnvironmentIdentity::for_callable_reference(
                 *reference.identity.materialization(),
                 identity_inputs,
+                materialization_odr_group(module, *reference.identity.materialization()),
             )
             .expect("LocalConcrete callable-reference fields have persistent identities");
             let capture_fields = order_closure_fields(&identity, semantic_fields);

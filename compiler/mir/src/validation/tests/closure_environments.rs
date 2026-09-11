@@ -89,7 +89,7 @@ pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, Cl
             (ClosureFieldSource::Capture { declaration_index }, value)
         })
         .collect();
-    let identity = ClosureEnvironmentIdentity::for_lambda(callable, inputs).unwrap();
+    let identity = ClosureEnvironmentIdentity::for_lambda(callable, inputs, None).unwrap();
     let captures = identity
         .fields()
         .iter()

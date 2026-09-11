@@ -56,13 +56,17 @@ pub(super) fn validate_closure_environment_metadata(
                 "the source closure invoke function does not exist",
             );
         }
-        if module
+        let Some(source) = module
             .meta
             .source_callable_materializations
             .get(invoke.function)
-            .map(|source| source.materialization())
-            != Some(environment.identity().callable())
-        {
+        else {
+            return invalid(
+                location,
+                "the source closure invoke has no callable materialization",
+            );
+        };
+        if source.materialization() != environment.identity().callable() {
             return invalid(
                 location,
                 "the environment owner is not the closure invoke materialization",
@@ -115,6 +119,9 @@ pub(super) fn validate_closure_environment_metadata(
                 .iter()
                 .map(|field| (field.source(), field.value_record().clone()))
                 .collect(),
+            source
+                .odr_member_record()
+                .map(|member| member.key().group()),
         )
         .map_err(|_| closure_error(location, "the closure identity bundle is inconsistent"))?;
         if &rebuilt != identity {
