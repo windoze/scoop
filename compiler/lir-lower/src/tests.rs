@@ -152,19 +152,16 @@ fn register_boxed_source_nominal(
         SourceDeclarationKey::nominal(site, CanonicalIdentifier::new(name).unwrap(), kind, 0);
     let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
     let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap();
-    let source_exact_type =
-        mir::SourceExactTypeIdentity::checked(payload.clone(), exact.clone(), None).unwrap();
 
     let mut exact_types = module
         .meta
         .source_exact_types
         .iter()
-        .filter(|entry| entry.ty() != &mir::Type::Class(class))
+        .filter(|entry| entry.ty() != &mir::Type::Class(class) && entry.ty() != &payload)
         .cloned()
         .collect::<Vec<_>>();
-    if !exact_types.iter().any(|entry| entry.ty() == &payload) {
-        exact_types.push(source_exact_type);
-    }
+    exact_types
+        .push(mir::SourceExactTypeIdentity::checked(payload.clone(), exact.clone(), None).unwrap());
     module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(exact_types).unwrap();
     module
         .meta

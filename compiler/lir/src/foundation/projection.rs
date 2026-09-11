@@ -10,6 +10,14 @@ impl CanonicalLirFoundation {
     /// safepoint semantics from local arena ids.
     pub fn from_module(module: &Module) -> Result<Self, LirFoundationBuildError> {
         let mut foundation = Self::from_functions(&module.functions)?;
+        foundation.set_layouts(
+            module
+                .meta
+                .layouts
+                .iter()
+                .map(|(_, layout)| layout.identity.identity_record().clone())
+                .collect(),
+        )?;
         foundation.set_runtime_types(
             module
                 .meta

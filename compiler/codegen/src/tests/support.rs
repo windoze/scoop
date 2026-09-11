@@ -42,6 +42,22 @@ pub(super) fn callable_body_at(source: &str, line: u32) -> scoop_lir::CallableBo
 }
 
 pub(super) fn runtime_type(name: &str) -> scoop_lir::RuntimeTypeMappingRecord {
+    scoop_lir::RuntimeTypeMappingRecord::new(test_exact_type(name)).unwrap()
+}
+
+pub(super) fn layout_identity(
+    name: &str,
+    role: scoop_identity::RepresentationRole,
+) -> scoop_lir::LayoutIdentityRecord {
+    scoop_lir::LayoutIdentityRecord::new(
+        test_exact_type(name),
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        role,
+    )
+    .unwrap()
+}
+
+fn test_exact_type(name: &str) -> PersistentExactTypeId {
     let identifier = format!(
         "test{}",
         name.as_bytes()
@@ -63,8 +79,7 @@ pub(super) fn runtime_type(name: &str) -> scoop_lir::RuntimeTypeMappingRecord {
         0,
     );
     let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
-    let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap();
-    scoop_lir::RuntimeTypeMappingRecord::new(exact).unwrap()
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap()
 }
 
 pub(super) fn test_safepoints(
@@ -376,6 +391,7 @@ pub(super) fn plain_scoop_signature(
 pub(super) fn string_metadata() -> LirMeta {
     let mut layouts = Arena::new();
     let string_layout = layouts.alloc(Layout {
+        identity: layout_identity("String", scoop_identity::RepresentationRole::ManagedObject),
         name: "String".to_string(),
         size: 24,
         align: 8,

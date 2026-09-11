@@ -195,7 +195,24 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         ),
     });
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(&builder.finish(main));
+    let source = builder.finish(main);
+    let data_type = mir::Type::Ptr(Box::new(mir::Type::Integer(mir::IntegerKind::UNSIGNED_16)));
+    let code_type = mir::Type::FunPtr(signature);
+    let data_exact = source
+        .meta
+        .source_exact_types
+        .get(&data_type)
+        .expect("raw pointer layout has an exact identity")
+        .identity_record()
+        .id();
+    let code_exact = source
+        .meta
+        .source_exact_types
+        .get(&code_type)
+        .expect("native function pointer layout has an exact identity")
+        .identity_record()
+        .id();
+    let module = lower(&source);
     let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
 
     let data_representation = lir::IntrinsicTypeRepresentation::Ptr {
@@ -216,12 +233,20 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         lir::StructRepresentation::Intrinsic(code_representation.clone())
     );
 
-    for (name, kind, representation) in [
-        ("Ptr<UInt16>", lir::PointerKind::Raw, data_representation),
+    for (name, kind, representation, exact, role) in [
+        (
+            "Ptr<UInt16>",
+            lir::PointerKind::Raw,
+            data_representation,
+            data_exact,
+            scoop_identity::RepresentationRole::ManagedValue,
+        ),
         (
             "FunPtr<(Int8, Ptr<Unit>) -> Unit>",
             lir::PointerKind::Code,
             code_representation,
+            code_exact,
+            scoop_identity::RepresentationRole::NativeFunctionPointer,
         ),
     ] {
         let layout = layout_values(&module)
@@ -230,6 +255,11 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         let expected = context.pointer_layout(kind);
         assert_eq!((layout.size, layout.align), (expected.size, expected.align));
         assert_eq!(layout.kind, lir::LayoutKind::Intrinsic(representation),);
+        assert_eq!(
+            layout.identity,
+            lir::LayoutIdentityRecord::new(exact, lir::LirTargetProfile::DARWIN_AARCH64, role,)
+                .unwrap()
+        );
     }
 }
 

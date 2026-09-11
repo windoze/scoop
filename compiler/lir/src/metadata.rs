@@ -360,6 +360,11 @@ pub struct ItableRecord {
 
 #[derive(Debug)]
 pub struct Layout {
+    /// Persistent identity of this exact physical representation. The key
+    /// binds the semantic exact type, selected target profile and closed
+    /// representation role; consumers never reconstruct it from the display
+    /// name, arena position or coincidentally equal size/alignment.
+    pub identity: LayoutIdentityRecord,
     pub name: String,
     pub size: u64,
     pub align: u64,
@@ -367,6 +372,78 @@ pub struct Layout {
     pub c_layout: Option<LirCLayoutContract>,
     pub interior_mutable: bool,
     pub kind: LayoutKind,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct LayoutIdentityRecord {
+    record: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentLayoutId,
+        scoop_identity::LayoutKey,
+    >,
+}
+
+impl LayoutIdentityRecord {
+    pub fn new(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+        role: scoop_identity::RepresentationRole,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let key = scoop_identity::LayoutKey::new(exact_type, target_profile.wire_id(), role);
+        scoop_identity::CborIdentityRecord::from_key(key).map(|record| Self { record })
+    }
+
+    pub fn managed_value(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::ManagedValue,
+        )
+    }
+
+    pub fn managed_object(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::ManagedObject,
+        )
+    }
+
+    pub fn c_value(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::CValue,
+        )
+    }
+
+    pub fn native_function_pointer(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::NativeFunctionPointer,
+        )
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentLayoutId,
+        scoop_identity::LayoutKey,
+    > {
+        &self.record
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

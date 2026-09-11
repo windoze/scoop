@@ -7,6 +7,7 @@ pub(crate) fn aggregate_layout(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
+    identity: lir::LayoutIdentityRecord,
     name: String,
     fields: &[mir::Type],
 ) -> lir::Layout {
@@ -14,6 +15,7 @@ pub(crate) fn aggregate_layout(
     let (offsets, size, align) = aggregate_shape(context, module, &enum_shape, fields);
     let scan = scan_fields(context, module, enums, fields, &offsets, 0);
     lir::Layout {
+        identity,
         name,
         size,
         align,
@@ -38,6 +40,7 @@ pub(crate) fn struct_layout(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
+    identity: lir::LayoutIdentityRecord,
     definition: &mir::StructDef,
 ) -> lir::Layout {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
@@ -86,6 +89,7 @@ pub(crate) fn struct_layout(
             }
         };
         return lir::Layout {
+            identity,
             name: definition.name.clone(),
             size,
             align,
@@ -112,6 +116,7 @@ pub(crate) fn struct_layout(
     let offsets: Vec<_> = fields.iter().map(|field| field.offset).collect();
     let scan = scan_fields(context, module, enums, &field_types, &offsets, 0);
     lir::Layout {
+        identity,
         name: definition.name.clone(),
         size,
         align,
@@ -128,12 +133,14 @@ pub(crate) fn enum_layout(
     context: &LoweringContext,
     enums: &lir::EnumDefs,
     id: mir::EnumId,
+    identity: lir::LayoutIdentityRecord,
     def: &mir::EnumDef,
 ) -> lir::Layout {
     match &enums[enum_def_id(id)].repr {
         lir::EnumRepr::Niche { .. } => {
             let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
             lir::Layout {
+                identity,
                 name: def.name.clone(),
                 size,
                 align,
@@ -148,6 +155,7 @@ pub(crate) fn enum_layout(
         lir::EnumRepr::Tagged { .. } => {
             let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
             lir::Layout {
+                identity,
                 name: def.name.clone(),
                 size,
                 align,

@@ -58,7 +58,15 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     locals.alloc(local("values", outer_array));
     locals.alloc(local("wrapped", wrapped_array));
     let main = b.main(locals, vec![]);
-    let module = lower(&b.finish(main));
+    let source = b.finish(main);
+    let outer_exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Struct(outer))
+        .expect("C-layout struct has an exact identity")
+        .identity_record()
+        .id();
+    let module = lower(&source);
 
     let inner_def = &module.structs[struct_def_id(inner)];
     assert_eq!((inner_def.size, inner_def.align), (8, 8));
@@ -123,6 +131,11 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     let outer_layout = layout_values(&module)
         .find(|layout| layout.name == "Outer")
         .expect("Outer layout");
+    assert_eq!(
+        outer_layout.identity,
+        lir::LayoutIdentityRecord::c_value(outer_exact, lir::LirTargetProfile::DARWIN_AARCH64,)
+            .unwrap()
+    );
     assert_eq!((outer_layout.size, outer_layout.align), (16, 16));
     assert_eq!(
         outer_layout.fields,

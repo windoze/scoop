@@ -68,14 +68,12 @@ fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
 #[test]
 fn option_of_code_pointer_records_code_niche_provenance() {
     let mut builder = Builder::new();
-    let main = builder.main(Arena::new(), Vec::new());
-    let mut mir_module = builder.finish(main);
-    let signature = mir_module.function_types.alloc(mir::FunctionType {
+    let signature = builder.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: mir::Type::Unit,
     });
-    let option = mir_module.enums.alloc(mir::EnumDef {
+    let option = builder.enums.alloc(mir::EnumDef {
         link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
         name: "Option$F".to_string(),
         type_arguments: Vec::new(),
@@ -96,6 +94,8 @@ fn option_of_code_pointer_records_code_niche_provenance() {
             },
         ],
     });
+    let main = builder.main(Arena::new(), Vec::new());
+    let mir_module = builder.finish(main);
 
     let module = lower(&mir_module);
 

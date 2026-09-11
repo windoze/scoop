@@ -265,28 +265,15 @@ pub(crate) fn class_type_descriptor(
 }
 
 fn runtime_type(module: &mir::Module, ty: &mir::Type) -> lir::RuntimeTypeMappingRecord {
-    if let Some(identity) = module.meta.source_exact_types.get(ty) {
-        return lir::RuntimeTypeMappingRecord::new(identity.identity_record().id())
-            .expect("validated source exact type must derive a nonzero runtime id");
-    }
-    let location = match ty {
-        mir::Type::Class(id) => mir::GeneratedExactTypeLocation::Class(*id),
-        mir::Type::Enum(id, _) => mir::GeneratedExactTypeLocation::Enum(*id),
-        _ => panic!("validated MIR is missing the source exact identity for {ty:?}"),
-    };
-    generated_runtime_type(module, location)
+    lir::RuntimeTypeMappingRecord::new(exact_type_record(module, ty).id())
+        .expect("validated exact type must derive a nonzero runtime id")
 }
 
 fn generated_runtime_type(
     module: &mir::Module,
     location: mir::GeneratedExactTypeLocation,
 ) -> lir::RuntimeTypeMappingRecord {
-    let identity = module
-        .meta
-        .generated_exact_types
-        .get(location)
-        .unwrap_or_else(|| panic!("validated MIR is missing exact identity for {location:?}"));
-    lir::RuntimeTypeMappingRecord::new(identity.exact_record().id())
+    lir::RuntimeTypeMappingRecord::new(generated_exact_type_record(module, location).id())
         .expect("validated generated exact type must derive a nonzero runtime id")
 }
 

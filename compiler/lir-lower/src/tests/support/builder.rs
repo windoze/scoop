@@ -410,6 +410,44 @@ impl Builder {
         });
         let mut exact_types = Vec::new();
         test_exact_type(&self.function_types, &mir::Type::String, &mut exact_types);
+        for (id, structure) in self.structs.iter() {
+            let ty = match &structure.representation {
+                mir::StructRepresentation::Declared { .. } => mir::Type::Struct(id),
+                mir::StructRepresentation::Intrinsic(representation) => match representation {
+                    mir::IntrinsicTypeRepresentation::Integer(kind) => mir::Type::Integer(*kind),
+                    mir::IntrinsicTypeRepresentation::Boolean => mir::Type::Boolean,
+                    mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+                        mir::Type::Ptr(Box::new(pointee.clone()))
+                    }
+                    mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
+                        mir::Type::FunPtr(*signature)
+                    }
+                    mir::IntrinsicTypeRepresentation::String
+                    | mir::IntrinsicTypeRepresentation::Array { .. }
+                    | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
+                        unreachable!("the test registry fixes intrinsic declaration targets")
+                    }
+                },
+            };
+            test_exact_type(&self.function_types, &ty, &mut exact_types);
+            if let mir::StructRepresentation::Declared { fields, .. } = &structure.representation {
+                for field in fields {
+                    test_tuple_layout_type(&self.function_types, &field.ty, &mut exact_types);
+                }
+            }
+        }
+        for (id, enumeration) in self.enums.iter() {
+            test_exact_type(
+                &self.function_types,
+                &mir::Type::Enum(id, enumeration.type_arguments.clone()),
+                &mut exact_types,
+            );
+            for variant in &enumeration.variants {
+                for field in &variant.fields {
+                    test_tuple_layout_type(&self.function_types, &field.ty, &mut exact_types);
+                }
+            }
+        }
         for (id, _) in self.interfaces.iter() {
             test_exact_type(
                 &self.function_types,
@@ -428,10 +466,18 @@ impl Builder {
                     &mut exact_types,
                 );
             }
+            if let mir::ClassRepresentation::Declared { fields, .. } = &class.representation {
+                for field in fields {
+                    test_tuple_layout_type(&self.function_types, &field.ty, &mut exact_types);
+                }
+            }
         }
         let mut source_callables = Vec::new();
         for (declaration_index, &function_id) in self.top_level.iter().enumerate() {
             let function = &self.functions[function_id];
+            for (_, local) in function.body.locals.iter() {
+                test_tuple_layout_type(&self.function_types, &local.ty, &mut exact_types);
+            }
             let parameters = function
                 .params
                 .iter()
@@ -505,6 +551,16 @@ impl Builder {
                 ..mir::MirMeta::default()
             },
         }
+    }
+}
+
+fn test_tuple_layout_type(
+    function_types: &Arena<mir::FunctionType>,
+    ty: &mir::Type,
+    entries: &mut Vec<mir::SourceExactTypeIdentity>,
+) {
+    if matches!(ty, mir::Type::Tuple(_)) {
+        test_exact_type(function_types, ty, entries);
     }
 }
 

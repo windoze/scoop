@@ -615,6 +615,32 @@ fn runtime_type_validation_rejects_two_descriptors_for_one_exact_type() {
 }
 
 #[test]
+fn layout_validation_rejects_two_physical_layouts_for_one_identity() {
+    let mut module = values_module();
+    let identity = module
+        .meta
+        .layouts
+        .iter()
+        .next()
+        .expect("values fixture has the String layout")
+        .1
+        .identity
+        .clone();
+    module.meta.layouts.alloc(Layout {
+        identity,
+        name: "DuplicateString".to_string(),
+        size: 24,
+        align: 8,
+        fields: Vec::new(),
+        c_layout: None,
+        interior_mutable: false,
+        kind: LayoutKind::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::String),
+    });
+
+    assert_module_validation_error(&module, "duplicate layout identity");
+}
+
+#[test]
 fn safepoint_validation_rejects_a_role_that_disagrees_with_the_instruction() {
     let mut module = managed_poll_test_module();
     let function = &mut module.functions[0];

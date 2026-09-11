@@ -36,14 +36,17 @@ fn odr_callable_subject_becomes_the_exact_odr_body_identity() {
 #[test]
 fn lowers_hello_world() {
     let source = hello_world();
-    let string_runtime_type = lir::RuntimeTypeMappingRecord::new(
-        source
-            .meta
-            .source_exact_types
-            .get(&mir::Type::String)
-            .expect("hello-world String exact identity")
-            .identity_record()
-            .id(),
+    let string_exact_type = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::String)
+        .expect("hello-world String exact identity")
+        .identity_record()
+        .id();
+    let string_runtime_type = lir::RuntimeTypeMappingRecord::new(string_exact_type).unwrap();
+    let string_layout_identity = lir::LayoutIdentityRecord::managed_object(
+        string_exact_type,
+        lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
     let expected_callable_bodies = source
@@ -94,6 +97,7 @@ fn lowers_hello_world() {
     // or descriptor that codegen has to rediscover by name.
     let string_layout = &module.meta.layouts[module.meta.well_known_layouts.string];
     let string_descriptor = descriptor(&module, module.meta.well_known_type_descriptors.string);
+    assert_eq!(string_layout.identity, string_layout_identity);
     assert_eq!(
         string_layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)

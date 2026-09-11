@@ -75,6 +75,7 @@ pub(crate) fn class_definition_layout(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
+    identity: lir::LayoutIdentityRecord,
     def: &mir::ClassDef,
 ) -> lir::Layout {
     match &def.representation {
@@ -82,6 +83,7 @@ pub(crate) fn class_definition_layout(
             let (size, align, scan) = class_layout(context, module, enums, def);
             let offsets = class_shape(context, module, enums, def).0;
             lir::Layout {
+                identity,
                 name: def.name.clone(),
                 size,
                 align,
@@ -127,6 +129,7 @@ pub(crate) fn class_definition_layout(
                 }
             };
             lir::Layout {
+                identity,
                 name: def.name.clone(),
                 size,
                 align,

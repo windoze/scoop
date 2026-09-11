@@ -63,17 +63,37 @@ pub(crate) fn layouts(
     }
 
     let mut layouts = Arena::new();
-    for (_, def) in module.structs.iter() {
-        layouts.alloc(struct_layout(context, module, enums, def));
+    for (id, def) in module.structs.iter() {
+        let ty = struct_type(id, def);
+        layouts.alloc(struct_layout(
+            context,
+            module,
+            enums,
+            struct_layout_identity(context, module, &ty, def),
+            def,
+        ));
     }
     for (id, def) in module.enums.iter() {
-        layouts.alloc(enum_layout(context, enums, id, def));
+        let ty = mir::Type::Enum(id, def.type_arguments.clone());
+        layouts.alloc(enum_layout(
+            context,
+            enums,
+            id,
+            managed_value_layout_identity(context, module, &ty),
+            def,
+        ));
     }
     let mut string = None;
-    for (_, def) in module.classes.iter() {
+    for (id, def) in module.classes.iter() {
         match def.representation {
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
-                let layout = class_definition_layout(context, module, enums, def);
+                let layout = class_definition_layout(
+                    context,
+                    module,
+                    enums,
+                    managed_object_layout_identity(context, module, &mir::Type::String),
+                    def,
+                );
                 assert!(
                     string.replace(layouts.alloc(layout)).is_none(),
                     "one typed String representation"
@@ -84,13 +104,25 @@ pub(crate) fn layouts(
                 | mir::IntrinsicTypeRepresentation::MutableArray { .. },
             ) => {}
             _ => {
-                layouts.alloc(class_definition_layout(context, module, enums, def));
+                layouts.alloc(class_definition_layout(
+                    context,
+                    module,
+                    enums,
+                    managed_object_layout_identity(context, module, &mir::Type::Class(id)),
+                    def,
+                ));
             }
         }
     }
-    for (_, def) in module.closure_classes.iter() {
+    for (id, def) in module.closure_classes.iter() {
         let (_, size, align, scan) = closure_shape(context, module, enums, def);
         layouts.alloc(lir::Layout {
+            identity: lir::LayoutIdentityRecord::managed_object(
+                generated_exact_type_record(module, mir::GeneratedExactTypeLocation::Closure(id))
+                    .id(),
+                context.target_profile(),
+            )
+            .expect("validated exact type and target must derive a layout identity"),
             name: def.name.clone(),
             size,
             align,
@@ -107,6 +139,7 @@ pub(crate) fn layouts(
                 context,
                 module,
                 enums,
+                managed_value_layout_identity(context, module, ty),
                 mir::type_name(module, ty),
                 elements,
             ));
@@ -119,4 +152,70 @@ pub(crate) fn layouts(
                 .expect("LocalConcreteHir supplies the typed intrinsic String representation"),
         },
     )
+}
+
+fn struct_type(id: mir::StructId, def: &mir::StructDef) -> mir::Type {
+    match &def.representation {
+        mir::StructRepresentation::Declared { .. } => mir::Type::Struct(id),
+        mir::StructRepresentation::Intrinsic(representation) => match representation {
+            mir::IntrinsicTypeRepresentation::Integer(kind) => mir::Type::Integer(*kind),
+            mir::IntrinsicTypeRepresentation::Boolean => mir::Type::Boolean,
+            mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+                mir::Type::Ptr(Box::new(pointee.clone()))
+            }
+            mir::IntrinsicTypeRepresentation::FunPtr { signature } => mir::Type::FunPtr(*signature),
+            mir::IntrinsicTypeRepresentation::String
+            | mir::IntrinsicTypeRepresentation::Array { .. }
+            | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
+                unreachable!("the registry fixes intrinsic declaration targets")
+            }
+        },
+    }
+}
+
+fn struct_layout_identity(
+    context: &LoweringContext,
+    module: &mir::Module,
+    ty: &mir::Type,
+    def: &mir::StructDef,
+) -> lir::LayoutIdentityRecord {
+    let exact_type = exact_type_record(module, ty).id();
+    let target_profile = context.target_profile();
+    match &def.representation {
+        mir::StructRepresentation::Declared {
+            c_layout: Some(_), ..
+        } => lir::LayoutIdentityRecord::c_value(exact_type, target_profile),
+        mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::FunPtr {
+            ..
+        }) => lir::LayoutIdentityRecord::native_function_pointer(exact_type, target_profile),
+        mir::StructRepresentation::Declared { c_layout: None, .. }
+        | mir::StructRepresentation::Intrinsic(_) => {
+            lir::LayoutIdentityRecord::managed_value(exact_type, target_profile)
+        }
+    }
+    .expect("validated exact type and target must derive a layout identity")
+}
+
+fn managed_value_layout_identity(
+    context: &LoweringContext,
+    module: &mir::Module,
+    ty: &mir::Type,
+) -> lir::LayoutIdentityRecord {
+    lir::LayoutIdentityRecord::managed_value(
+        exact_type_record(module, ty).id(),
+        context.target_profile(),
+    )
+    .expect("validated exact type and target must derive a layout identity")
+}
+
+fn managed_object_layout_identity(
+    context: &LoweringContext,
+    module: &mir::Module,
+    ty: &mir::Type,
+) -> lir::LayoutIdentityRecord {
+    lir::LayoutIdentityRecord::managed_object(
+        exact_type_record(module, ty).id(),
+        context.target_profile(),
+    )
+    .expect("validated exact type and target must derive a layout identity")
 }
