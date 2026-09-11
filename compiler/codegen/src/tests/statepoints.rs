@@ -35,12 +35,21 @@ fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
 #[test]
 fn emits_complete_image_root_and_immortal_tables() {
     let mut module = values_module();
+    let storage_identity = static_storage_identity("managedGlobal");
+    let storage_symbol = storage_identity.symbol().to_string();
+    let immortal_symbols = module
+        .globals
+        .iter()
+        .filter_map(|(_, global)| match &global.init {
+            GlobalInit::StringConst { identity, .. } => Some(identity.symbol().to_string()),
+            GlobalInit::CString { .. } | GlobalInit::Storage { .. } => None,
+        })
+        .collect::<Vec<_>>();
     module.globals.alloc(Global {
-        symbol: "scoop.global.managed".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
-            identity: static_storage_identity("managedGlobal"),
+            identity: storage_identity,
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),
@@ -51,15 +60,15 @@ fn emits_complete_image_root_and_immortal_tables() {
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains(
-            "@scoop.global.managed.global_refs = private constant [2 x i64] [i64 1, i64 0]"
-        ),
+        ir.contains(&format!(
+            "@\"{storage_symbol}.global_refs\" = private constant [2 x i64] [i64 1, i64 0]"
+        )),
         "managed global scan is missing:\n{ir}"
     );
     assert!(
         ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }]")
-            && ir.contains("ptr @scoop.global.managed")
-            && ir.contains("ptr @scoop.global.managed.global_refs"),
+            && ir.contains(&format!("ptr @\"{storage_symbol}\""))
+            && ir.contains(&format!("ptr @\"{storage_symbol}.global_refs\"")),
         "managed global descriptor table is incomplete:\n{ir}"
     );
     assert!(
@@ -68,8 +77,14 @@ fn emits_complete_image_root_and_immortal_tables() {
     );
     assert!(
         ir.contains("@scoop_image_immortal_objects = constant [2 x { ptr, i64, ptr }]")
-            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.0 to ptr)")
-            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.1 to ptr)")
+            && ir.contains(&format!(
+                "ptr addrspacecast (ptr addrspace(1) @\"{}\" to ptr)",
+                immortal_symbols[0]
+            ))
+            && ir.contains(&format!(
+                "ptr addrspacecast (ptr addrspace(1) @\"{}\" to ptr)",
+                immortal_symbols[1]
+            ))
             && ir.contains("ptr @scoop_td_String"),
         "immortal object descriptor table is incomplete:\n{ir}"
     );
@@ -99,12 +114,13 @@ fn emits_addressable_zero_count_image_tables() {
 #[test]
 fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
     let mut module = values_module();
+    let identity = static_storage_identity("managedTls");
+    let symbol = identity.symbol().to_string();
     module.globals.alloc(Global {
-        symbol: "scoop.tls.managed".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
-            identity: static_storage_identity("managedTls"),
+            identity,
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),
@@ -117,9 +133,9 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("managed TLS requires per-thread image-root registration");
     assert!(
-        error
-            .0
-            .contains("thread-local global `@scoop.tls.managed` contains managed references"),
+        error.0.contains(&format!(
+            "thread-local global `@{symbol}` contains managed references"
+        )),
         "unexpected error: {error}"
     );
 }

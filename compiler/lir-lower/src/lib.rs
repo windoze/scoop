@@ -147,7 +147,6 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     let mut string_global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
     for (id, string) in module.strings.iter() {
         let global = globals.alloc(lir::Global {
-            symbol: string.symbol.clone(),
             address_kind: lir::PointerKind::Managed,
             scan: lir::RefScan::None,
             init: lir::GlobalInit::StringConst {

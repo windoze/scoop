@@ -26,7 +26,6 @@ pub(super) fn lower_globals(
         let storage = match &global.storage {
             mir::GlobalStorage::Managed { initial_state } => {
                 let lir_id = globals.alloc(lir::Global {
-                    symbol: global.symbol.clone(),
                     address_kind: lir::PointerKind::Raw,
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
@@ -53,7 +52,6 @@ pub(super) fn lower_globals(
                 initial_state,
             } => {
                 let lir_id = globals.alloc(lir::Global {
-                    symbol: global.symbol.clone(),
                     address_kind: lir::PointerKind::Raw,
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {

@@ -194,7 +194,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 else {
                     return Err(CodegenError(format!(
                         "global load @{} targets non-storage global `{}`",
-                        function.symbol, self.globals_arena[*global].symbol
+                        function.symbol,
+                        self.globals_arena[*global].symbol()
                     )));
                 };
                 let out_ty = &function.temps[*out].ty;
@@ -203,7 +204,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         "global load @{} has result type {}, but `{}` stores {}",
                         function.symbol,
                         out_ty.dump(),
-                        self.globals_arena[*global].symbol,
+                        self.globals_arena[*global].symbol(),
                         storage_ty.dump()
                     )));
                 }
@@ -226,7 +227,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 else {
                     return Err(CodegenError(format!(
                         "global store @{} targets non-storage global `{}`",
-                        function.symbol, self.globals_arena[*global].symbol
+                        function.symbol,
+                        self.globals_arena[*global].symbol()
                     )));
                 };
                 let value_ty = function.value_ty(self.globals_arena, *value);
@@ -235,7 +237,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         "global store @{} has value type {}, but `{}` stores {}",
                         function.symbol,
                         value_ty.dump(),
-                        self.globals_arena[*global].symbol,
+                        self.globals_arena[*global].symbol(),
                         storage_ty.dump()
                     )));
                 }
@@ -250,7 +252,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let GlobalInit::Storage { ty, .. } = &global_def.init else {
                     return Err(CodegenError(format!(
                         "global_address @{} targets non-storage global `{}`",
-                        function.symbol, global_def.symbol
+                        function.symbol,
+                        global_def.symbol()
                     )));
                 };
                 if function.temps[*out].ty != scoop_lir::RAW_PTR
@@ -260,7 +263,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     return Err(CodegenError(format!(
                         "global_address @{} cannot expose global `{}` of type {} as a raw pointer",
                         function.symbol,
-                        global_def.symbol,
+                        global_def.symbol(),
                         ty.dump()
                     )));
                 }

@@ -78,8 +78,8 @@ fn if_else_becomes_basic_blocks() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = "ok"
-  global @scoop.str.1 = "ng"
+  global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "ok"
+  global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "ng"
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   fun @scoop_main() -> void
   block entry
@@ -283,10 +283,10 @@ fn and_short_circuits_through_blocks() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = "a"
-  global @scoop.str.1 = "b"
-  global @scoop.str.2 = "c"
-  global @scoop.str.3 = "d"
+  global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "a"
+  global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "b"
+  global @scoop$1$io$c65f5ca6a0fa7e88edfdc899205b08b99869e7e0201f6abfc7beb0a4272e7367 = "c"
+  global @scoop$1$io$9b97af2e165f9e07e3561b053a25d214a03b3373b11117b29503110b70fb23ea = "d"
   extern ef0 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
   fun @scoop_main() -> void
     local %0 $call.1: i1

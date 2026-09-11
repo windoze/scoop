@@ -691,9 +691,8 @@ fn layout_validation_rejects_two_physical_layouts_for_one_identity() {
 #[test]
 fn static_storage_validation_rejects_two_globals_for_one_identity() {
     let mut module = values_module();
-    for symbol in ["scoop.duplicate.storage.1", "scoop.duplicate.storage.2"] {
+    for _ in 0..2 {
         module.globals.alloc(Global {
-            symbol: symbol.to_string(),
             address_kind: PointerKind::Raw,
             scan: RefScan::None,
             init: GlobalInit::Storage {

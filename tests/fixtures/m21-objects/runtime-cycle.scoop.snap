@@ -7608,22 +7608,22 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "\n"
-  global @scoop.str.5 = "unwrap on None"
-  global @scoop.str.6 = "invalid cast"
-  global @scoop.str.7 = "arithmetic error"
-  global @scoop.str.8 = "array index out of bounds"
-  global @scoop.str.9 = "illegal state"
-  global @scoop.singleton.$local$u0:p0:O7:n4:Leftr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:O8:n5:Rightr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.1 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:O7:n4:Leftr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:O7:n4:Leftr9:singletonn0: failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
-  init1 $local$u0:p0:O8:n5:Rightr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:O8:n5:Rightr9:singletonn0: failure=@scoop.init.failure.1 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[]
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$ss$027d635b5e1b3960d068ec1a285ce5a169c02501ab71f9fc432375d61c8c70b8 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$f8058d0bb0c715ce24720bc5463c60d2ea22ddabae1f242b70f3676822f14a9d : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$958fbf1f8f5dd1109057522c6fa38de7c9a0ce4d460340b64f07689046a5c4d7 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$add8c08487582399e33122bb05c389234096b883aa5bc28e9ed36fff0dc85cf6 : ptr<managed> scan=refs[0]
+  init0 $local$u0:p0:O7:n4:Leftr9:singletonn0: lazy storage=@scoop$1$ss$027d635b5e1b3960d068ec1a285ce5a169c02501ab71f9fc432375d61c8c70b8 failure=@scoop$1$ss$958fbf1f8f5dd1109057522c6fa38de7c9a0ce4d460340b64f07689046a5c4d7 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
+  init1 $local$u0:p0:O8:n5:Rightr9:singletonn0: lazy storage=@scoop$1$ss$f8058d0bb0c715ce24720bc5463c60d2ea22ddabae1f242b70f3676822f14a9d failure=@scoop$1$ss$add8c08487582399e33122bb05c389234096b883aa5bc28e9ed36fff0dc85cf6 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

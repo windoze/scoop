@@ -868,13 +868,32 @@ impl NonEmptyRefScan {
 
 #[derive(Debug)]
 pub struct Global {
-    pub symbol: String,
     /// Provenance of the address produced by `Value::Global`.
     pub address_kind: PointerKind,
     /// Complete recursive scan program for the writable global storage.
     /// Immortal object and C-string globals explicitly carry `None`.
     pub scan: RefScan,
     pub init: GlobalInit,
+}
+
+impl Global {
+    pub fn symbol(&self) -> &str {
+        match &self.init {
+            GlobalInit::StringConst { identity, .. } => identity.symbol(),
+            GlobalInit::CString { symbol, .. } => symbol,
+            GlobalInit::Storage { identity, .. } => identity.symbol(),
+        }
+    }
+
+    pub const fn persistent_symbol_request(
+        &self,
+    ) -> Option<scoop_identity::PersistentSymbolRequest> {
+        match &self.init {
+            GlobalInit::StringConst { identity, .. } => Some(identity.symbol_request()),
+            GlobalInit::Storage { identity, .. } => Some(identity.symbol_request()),
+            GlobalInit::CString { .. } => None,
+        }
+    }
 }
 
 /// An enum definition with its representation fixed by lir-lower.
@@ -1219,7 +1238,7 @@ pub enum GlobalInit {
         value: String,
     },
     /// A NUL-terminated C string (e.g. trap messages).
-    CString(String),
+    CString { symbol: String, value: String },
     Storage {
         /// Persistent semantic identity of this compiler-owned writable
         /// storage. Native extern globals are represented separately and do
@@ -1238,6 +1257,7 @@ pub struct ImmortalObjectIdentity {
         scoop_identity::ImmortalObjectKey,
     >,
     materialization: MaterializationIdentity,
+    symbol: MaterializedSymbol,
 }
 
 impl ImmortalObjectIdentity {
@@ -1247,9 +1267,15 @@ impl ImmortalObjectIdentity {
     ) -> Result<Self, scoop_wire::HashError> {
         let record = scoop_identity::CborIdentityRecord::from_key(key)?;
         let materialization = root.immortal_object(record.id())?;
+        let symbol = materialization
+            .symbol(scoop_identity::PersistentSymbolKey::ImmortalObject(
+                record.id(),
+            ))
+            .expect("immortal-object symbols admit their materialization linkage");
         Ok(Self {
             record,
             materialization,
+            symbol,
         })
     }
 
@@ -1283,6 +1309,14 @@ impl ImmortalObjectIdentity {
     > {
         self.materialization.odr_member_record()
     }
+
+    pub const fn symbol_request(&self) -> scoop_identity::PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -1292,6 +1326,7 @@ pub struct StaticStorageIdentity {
         scoop_identity::StaticStorageKey,
     >,
     materialization: MaterializationIdentity,
+    symbol: MaterializedSymbol,
 }
 
 impl StaticStorageIdentity {
@@ -1301,9 +1336,15 @@ impl StaticStorageIdentity {
     ) -> Result<Self, scoop_wire::HashError> {
         let record = scoop_identity::CborIdentityRecord::from_key(key)?;
         let materialization = root.static_storage(record.id())?;
+        let symbol = materialization
+            .symbol(scoop_identity::PersistentSymbolKey::StaticStorage(
+                record.id(),
+            ))
+            .expect("static-storage symbols admit their materialization linkage");
         Ok(Self {
             record,
             materialization,
+            symbol,
         })
     }
 
@@ -1386,6 +1427,14 @@ impl StaticStorageIdentity {
         >,
     > {
         self.materialization.odr_member_record()
+    }
+
+    pub const fn symbol_request(&self) -> scoop_identity::PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
     }
 }
 

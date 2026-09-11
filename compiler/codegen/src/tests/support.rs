@@ -125,6 +125,45 @@ pub(super) fn static_storage_identity(name: &str) -> scoop_lir::StaticStorageIde
     .unwrap()
 }
 
+pub(super) fn odr_static_storage_identity(name: &str) -> scoop_lir::StaticStorageIdentity {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::extension_property(
+        site,
+        CanonicalIdentifier::new(&format!("test{name}")).unwrap(),
+        1,
+        SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+    );
+    let property =
+        scoop_identity::PersistentExtensionPropertyId::from_source_declaration(&declaration)
+            .unwrap();
+    let receiver_arguments = scoop_identity::NonEmptyVec::from_first(test_exact_type(name), []);
+    let unit = scoop_identity::PersistentInitializationUnitId::from_key(
+        &InitializationUnitKey::GenericDelegatedExtensionApplication {
+            property,
+            receiver_arguments: receiver_arguments.clone(),
+        },
+    )
+    .unwrap();
+    let group = scoop_identity::OdrGroupId::from_key(
+        &scoop_identity::SpecializationKey::DelegatedProperty {
+            origin: property,
+            receiver_arguments,
+        },
+    )
+    .unwrap();
+    scoop_lir::StaticStorageIdentity::initialization_failure_root(
+        unit,
+        scoop_lir::MaterializationRoot::prior_stage_odr(group),
+    )
+    .unwrap()
+}
+
 pub(super) fn immortal_string_identity(name: &str) -> scoop_lir::ImmortalObjectIdentity {
     let site = SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,
@@ -568,7 +607,6 @@ pub(super) fn array_type(
 pub(super) fn values_module() -> Module {
     let mut globals = Arena::default();
     let hello = globals.alloc(Global {
-        symbol: "scoop.string.0".to_string(),
         address_kind: PointerKind::Managed,
         scan: RefScan::None,
         init: GlobalInit::StringConst {
@@ -577,7 +615,6 @@ pub(super) fn values_module() -> Module {
         },
     });
     let world = globals.alloc(Global {
-        symbol: "scoop.string.1".to_string(),
         address_kind: PointerKind::Managed,
         scan: RefScan::None,
         init: GlobalInit::StringConst {

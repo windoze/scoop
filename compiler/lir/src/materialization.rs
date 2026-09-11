@@ -1,9 +1,11 @@
 //! Persistent ownership of physical entities first introduced by LIR.
 
 use scoop_identity::{
-    CborIdentityRecord, OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberKey,
-    OdrMemberRole, PersistentExactTypeId, SpecializationKey,
+    CborIdentityRecord, MangledSymbol, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
+    OdrMemberKey, OdrMemberRole, PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey,
+    SpecializationKey,
 };
+pub use scoop_identity::{LinkageClass, PersistentSymbolRequest};
 
 type OdrGroupRecord = CborIdentityRecord<OdrGroupId, SpecializationKey>;
 type OdrMemberRecord = CborIdentityRecord<OdrMemberId, OdrMemberKey>;
@@ -160,6 +162,17 @@ impl OdrGroupProvenance {
 }
 
 impl MaterializationIdentity {
+    pub(crate) fn symbol(
+        &self,
+        key: PersistentSymbolKey,
+    ) -> Result<MaterializedSymbol, PersistentSymbolError> {
+        let linkage = match &self.0 {
+            MaterializationIdentityKind::ConeOwned => LinkageClass::ConeStrong,
+            MaterializationIdentityKind::OdrOwned(_) => LinkageClass::OdrWeak,
+        };
+        MaterializedSymbol::new(key, linkage)
+    }
+
     fn sibling(
         &self,
         role: OdrMemberRole,
@@ -208,6 +221,30 @@ impl MaterializationIdentity {
             MaterializationIdentityKind::ConeOwned => None,
             MaterializationIdentityKind::OdrOwned(identity) => Some(&identity.member),
         }
+    }
+}
+
+/// A linker symbol whose spelling and linkage are inseparable from its
+/// persistent semantic owner.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MaterializedSymbol {
+    request: PersistentSymbolRequest,
+    symbol: MangledSymbol,
+}
+
+impl MaterializedSymbol {
+    fn new(key: PersistentSymbolKey, linkage: LinkageClass) -> Result<Self, PersistentSymbolError> {
+        let request = PersistentSymbolRequest::new(key, linkage)?;
+        let symbol = request.symbol();
+        Ok(Self { request, symbol })
+    }
+
+    pub const fn request(&self) -> PersistentSymbolRequest {
+        self.request
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.symbol.as_str()
     }
 }
 

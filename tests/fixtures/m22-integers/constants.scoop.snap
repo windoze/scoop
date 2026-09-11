@@ -7527,20 +7527,20 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "\n"
-  global @scoop.str.5 = "\n"
-  global @scoop.str.6 = "\n"
-  global @scoop.str.7 = "\n"
-  global @scoop.str.8 = "unwrap on None"
-  global @scoop.str.9 = "invalid cast"
-  global @scoop.str.10 = "arithmetic error"
-  global @scoop.str.11 = "array index out of bounds"
-  global @scoop.str.12 = "illegal state"
-  global @scoop.global.$local$u0:p0:r6:globaln19:STATIC_MAX_UNSIGNED : i64 scan=none
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$9bf5b69b14734a2c5b24769df51a4a3ffd956fee793eb4f669316e8b7f27a70b = "\n"
+  global @scoop$1$io$a5a3680d0fdcbed6faeae366b53ae2edd939e0286dc97c1590d970b83354fa3b = "\n"
+  global @scoop$1$io$c47511d4c99020ef89439b70bd36c3af0d1196472925970153b12236be2bb658 = "\n"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$ss$81f7fbb7b5b9a78cde3a63cf6d822749113290e141cd04cc75b9a71077523e35 : i64 scan=none
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

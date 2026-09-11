@@ -8234,37 +8234,37 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "managed-initializer"
-  global @scoop.str.5 = "zulu"
-  global @scoop.str.6 = "alpha"
-  global @scoop.str.7 = "zed"
-  global @scoop.str.8 = "beta"
-  global @scoop.str.9 = "\n"
-  global @scoop.str.10 = "\n"
-  global @scoop.str.11 = "unwrap on None"
-  global @scoop.str.12 = "invalid cast"
-  global @scoop.str.13 = "arithmetic error"
-  global @scoop.str.14 = "array index out of bounds"
-  global @scoop.str.15 = "illegal state"
-  global @scoop.global.$local$u0:p0:r6:globaln9:zuluOrder : i32 scan=none
-  global @scoop.global.$local$u0:p0:r6:globaln5:alpha : i32 scan=none
-  global @scoop.global.$local$u0:p0:r6:globaln4:text : ptr<managed> scan=refs[0]
-  global @scoop.global.$local$u0:p0:r6:globaln3:zed : i32 scan=none
-  global @scoop.global.$local$u0:p0:r6:globaln9:betaOrder : i32 scan=none
-  global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.1 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.2 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.3 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.4 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:r9:top-leveln9:zuluOrder storage=@scoop.global.$local$u0:p0:r6:globaln9:zuluOrder failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
-  init1 $local$u0:p0:r9:top-leveln5:alpha storage=@scoop.global.$local$u0:p0:r6:globaln5:alpha failure=@scoop.init.failure.1 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[3]
-  init2 $local$u0:p0:r9:top-leveln4:text storage=@scoop.global.$local$u0:p0:r6:globaln4:text failure=@scoop.init.failure.2 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2 deps=[]
-  init3 $local$u0:p0:r9:top-leveln3:zed storage=@scoop.global.$local$u0:p0:r6:globaln3:zed failure=@scoop.init.failure.3 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3 deps=[]
-  init4 $local$u0:p0:r9:top-leveln9:betaOrder storage=@scoop.global.$local$u0:p0:r6:globaln9:betaOrder failure=@scoop.init.failure.4 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4 deps=[]
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$e6e2f00ea7ce909217aa14768c6376bcc1a5517f37390b43287de45d7d989561 = "managed-initializer"
+  global @scoop$1$io$d2ebe4a7a5f22aa7b889a455e10014994737e7c9cacc040f167bf8990c1372bb = "zulu"
+  global @scoop$1$io$7b8eecb8018b0bf3fae5ce98c0706f7a856fd0c6cee0056365b5daab1a56ecb5 = "alpha"
+  global @scoop$1$io$e9dbb8fd7d58e85bcfb5b55e1c0c2ab609bbf114ae94749d7a7d5db83449b224 = "zed"
+  global @scoop$1$io$7fe56026adbcb6348b876bb04e25a379d28abc69e7bd04fd2c938a7c6e841b19 = "beta"
+  global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$ss$25f89effa8e9791536d2084ce808fe3829b82326a4ea88d6afe143f5c9e92a5d : i32 scan=none
+  global @scoop$1$ss$36c1cf1052c1c1f2a50e02c11669416d215f474b85963a5799c0b7a9dd70e84d : i32 scan=none
+  global @scoop$1$ss$49f191f3c24d8d1babedfa6a4ff1d5c6135e2adca013b1562f95b6e93fcaade7 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$689ff807b95beb27858dcbe31d2054d970bc8754b1bb5212e527b5bbb61efee0 : i32 scan=none
+  global @scoop$1$ss$e469d93091d53a5f628ad44d41ccb361e9448781523ea0d028cabc2b48a1ec4f : i32 scan=none
+  global @scoop$1$ss$87e9fe1661588da0777630ff52dd4a8184cdb9a73c4620c8d115dc8b2fcd9e65 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$05a93c7714c8607c8523dd3bba1e422f3272b307c5ef6e87bf219e8ff8813f87 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$b3c031dc0cf9c9be5512ef437ec738c6ec0e0a1293cada04400fd1b50274d176 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$65b2ac6523dd891342406f83cb6331a7e72ce8cf3b23ceb64f2acf5351a7f5ca : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$81a3a76ed16adf014ca753e5f3f40aef9783bd79774e6162ef03c912644d4a68 : ptr<managed> scan=refs[0]
+  init0 $local$u0:p0:r9:top-leveln9:zuluOrder storage=@scoop$1$ss$25f89effa8e9791536d2084ce808fe3829b82326a4ea88d6afe143f5c9e92a5d failure=@scoop$1$ss$87e9fe1661588da0777630ff52dd4a8184cdb9a73c4620c8d115dc8b2fcd9e65 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
+  init1 $local$u0:p0:r9:top-leveln5:alpha storage=@scoop$1$ss$36c1cf1052c1c1f2a50e02c11669416d215f474b85963a5799c0b7a9dd70e84d failure=@scoop$1$ss$05a93c7714c8607c8523dd3bba1e422f3272b307c5ef6e87bf219e8ff8813f87 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[3]
+  init2 $local$u0:p0:r9:top-leveln4:text storage=@scoop$1$ss$49f191f3c24d8d1babedfa6a4ff1d5c6135e2adca013b1562f95b6e93fcaade7 failure=@scoop$1$ss$b3c031dc0cf9c9be5512ef437ec738c6ec0e0a1293cada04400fd1b50274d176 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2 deps=[]
+  init3 $local$u0:p0:r9:top-leveln3:zed storage=@scoop$1$ss$689ff807b95beb27858dcbe31d2054d970bc8754b1bb5212e527b5bbb61efee0 failure=@scoop$1$ss$65b2ac6523dd891342406f83cb6331a7e72ce8cf3b23ceb64f2acf5351a7f5ca initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3 deps=[]
+  init4 $local$u0:p0:r9:top-leveln9:betaOrder storage=@scoop$1$ss$e469d93091d53a5f628ad44d41ccb361e9448781523ea0d028cabc2b48a1ec4f failure=@scoop$1$ss$81a3a76ed16adf014ca753e5f3f40aef9783bd79774e6162ef03c912644d4a68 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

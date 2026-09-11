@@ -336,7 +336,7 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
         if contains_machine_scalar(&module.structs, &module.enums, ty) {
             return Err(CodegenError(format!(
                 "storage global `{}` has internal machine-scalar type {}",
-                global.symbol,
+                global.symbol(),
                 ty.dump()
             )));
         }

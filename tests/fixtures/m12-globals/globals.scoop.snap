@@ -7830,21 +7830,21 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "\n"
-  global @scoop.str.5 = "unwrap on None"
-  global @scoop.str.6 = "invalid cast"
-  global @scoop.str.7 = "arithmetic error"
-  global @scoop.str.8 = "array index out of bounds"
-  global @scoop.str.9 = "illegal state"
-  global @scoop.global.$local$u0:p0:r6:globaln12:scoopCounter : i32 scan=none
-  thread_local @scoop.global.$local$u0:p0:r6:globaln15:scoopTlsCounter : i32 scan=none
-  global @scoop.global.$local$u0:p0:r6:globaln4:pair : struct0 scan=none
-  global @scoop.global.$local$u0:p0:r6:globaln12:emptyPointer : enum0 scan=none
-  global @scoop.global.$local$u0:p0:r6:globaln13:emptyCallback : enum1 scan=none
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$ss$576058dcbe3e6aa260a60fe40fdb14dac25ad103753842abaf480a440266a9f3 : i32 scan=none
+  thread_local @scoop$1$ss$855003b5f87736aa930e28650c2d8c8d1d00f6b160f532f0452d3487943817cb : i32 scan=none
+  global @scoop$1$ss$9f6a6a9b23025f58255814d6688e7100578eb3e460628399eae5134230de1b7a : struct0 scan=none
+  global @scoop$1$ss$5dc39799be71846257131c2c271a8975294ac1ca3e4c5f517d4e0af1d3c3c14e : enum0 scan=none
+  global @scoop$1$ss$140ddae19168bb93095a283f1cab7c72c74aaa523cc2fe07a508ae9c8e27430e : enum1 scan=none
   native_global0 $local$u0:p0:r6:globaln13:nativeCounter @native_counter : i32 c=Int mutable(get=ng-get0,set=ng-set0,address=ng-address0)
   native_global1 $local$u0:p0:r6:globaln16:nativeTlsCounter @native_tls_counter : i32 c=Int mutable(get=ng-get1,set=ng-set1,address=ng-address1) thread_local
   native_global2 $local$u0:p0:r6:globaln11:nativeLimit @native_limit : i32 c=Int readonly(get=ng-get2,address=ng-address2)

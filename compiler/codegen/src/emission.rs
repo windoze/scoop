@@ -175,7 +175,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
     for (_, global) in module.globals.iter() {
         match &global.init {
-            GlobalInit::StringConst { value, .. } => {
+            GlobalInit::StringConst { identity, value } => {
                 // { ptr td, i64 gc_word, i64 len, [N x i8] data }
                 // (runtime spec 2.4; the 16-byte header is M9).
                 let bytes = value.as_bytes();
@@ -189,7 +189,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
                     false,
                 );
                 let llvm_global =
-                    llvm.add_global(ty, Some(managed_address_space.inkwell()), &global.symbol);
+                    llvm.add_global(ty, Some(managed_address_space.inkwell()), global.symbol());
                 llvm_global.set_constant(true);
                 llvm_global.set_initializer(&context.const_struct(
                     &[
@@ -200,24 +200,25 @@ pub(crate) fn emit_llvm_module<'ctx>(
                     ],
                     false,
                 ));
+                apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
                 globals.push(Some(llvm_global));
             }
-            GlobalInit::CString(value) => {
+            GlobalInit::CString { value, .. } => {
                 // [N+1 x i8] c"...\00" (e.g. trap messages); private,
                 // only referenced from within the module.
                 let bytes = value.as_bytes();
                 let ty = i8_ty.array_type(bytes.len() as u32 + 1);
-                let llvm_global = llvm.add_global(ty, None, &global.symbol);
+                let llvm_global = llvm.add_global(ty, None, global.symbol());
                 llvm_global.set_constant(true);
                 llvm_global.set_linkage(inkwell::module::Linkage::Private);
                 llvm_global.set_initializer(&context.const_string(bytes, true));
                 globals.push(Some(llvm_global));
             }
             GlobalInit::Storage {
+                identity,
                 ty: lir_ty,
                 initial_state,
                 thread_local,
-                ..
             } => {
                 let ty = basic_ty(
                     context,
@@ -238,9 +239,10 @@ pub(crate) fn emit_llvm_module<'ctx>(
                         payload,
                     )?,
                 };
-                let llvm_global = llvm.add_global(ty, None, &global.symbol);
+                let llvm_global = llvm.add_global(ty, None, global.symbol());
                 llvm_global.set_initializer(&value);
                 llvm_global.set_thread_local(*thread_local);
+                apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
                 globals.push(Some(llvm_global));
             }
         }
@@ -323,4 +325,29 @@ pub(crate) fn emit_llvm_module<'ctx>(
         emit_function(context, &llvm, &builder, &module_ctx, function)?;
     }
     Ok(llvm)
+}
+
+fn apply_persistent_linkage(
+    global: &GlobalValue<'_>,
+    request: scoop_lir::PersistentSymbolRequest,
+) -> Result<(), CodegenError> {
+    use inkwell::GlobalVisibility;
+    use inkwell::module::Linkage;
+    use scoop_lir::LinkageClass;
+
+    match request.linkage() {
+        LinkageClass::ConeStrong => global.set_linkage(Linkage::External),
+        LinkageClass::TemplateSupportHidden => {
+            global.set_linkage(Linkage::External);
+            global.set_visibility(GlobalVisibility::Hidden);
+        }
+        LinkageClass::OdrWeak => global.set_linkage(Linkage::WeakODR),
+        LinkageClass::RuntimeAbi => {
+            return Err(CodegenError(format!(
+                "persistent symbol `{}` cannot use runtime ABI linkage",
+                request.symbol()
+            )));
+        }
+    }
+    Ok(())
 }

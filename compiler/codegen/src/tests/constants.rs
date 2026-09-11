@@ -1,17 +1,21 @@
 use super::*;
 
 fn add_encoded_global(module: &mut Module, symbol: &str, ty: LirType, payload: LirConstantImage) {
+    let identity = static_storage_identity(symbol);
     module.globals.alloc(Global {
-        symbol: symbol.to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
-            identity: static_storage_identity(symbol),
+            identity,
             ty,
             initial_state: LirStaticInitialState::EncodedStaticValue { payload },
             thread_local: false,
         },
     });
+}
+
+fn encoded_global_symbol(name: &str) -> String {
+    static_storage_identity(name).symbol().to_string()
 }
 
 fn constant_validation_error(module: &Module) -> CodegenError {
@@ -32,7 +36,10 @@ fn global_constant_preflight_rejects_an_inexact_root_type() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@wrong_root_type` constant value: Boolean constant does not match storage type i64"
+        format!(
+            "storage global `@{}` constant value: Boolean constant does not match storage type i64",
+            encoded_global_symbol("wrong_root_type")
+        )
     );
 }
 
@@ -93,7 +100,10 @@ fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@nested_leaf` constant value.field[0].field[0]: Boolean constant does not match storage type i64"
+        format!(
+            "storage global `@{}` constant value.field[0].field[0]: Boolean constant does not match storage type i64",
+            encoded_global_symbol("nested_leaf")
+        )
     );
 }
 
@@ -113,7 +123,10 @@ fn global_constant_preflight_rejects_a_wrong_enum_unit_owner() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@wrong_enum_owner` constant value: enum unit constant for e0 does not match storage type enum1"
+        format!(
+            "storage global `@{}` constant value: enum unit constant for e0 does not match storage type enum1",
+            encoded_global_symbol("wrong_enum_owner")
+        )
     );
 }
 
@@ -135,7 +148,10 @@ fn global_constant_preflight_rejects_a_payload_variant_as_a_unit() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@payload_as_unit` constant value: a payload enum variant cannot be encoded as a unit constant"
+        format!(
+            "storage global `@{}` constant value: a payload enum variant cannot be encoded as a unit constant",
+            encoded_global_symbol("payload_as_unit")
+        )
     );
 }
 
@@ -193,7 +209,10 @@ fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@foreign_enum_unit` constant value.field[0] carries invalid enum0 variant 3 reference"
+        format!(
+            "storage global `@{}` constant value.field[0] carries invalid enum0 variant 3 reference",
+            encoded_global_symbol("foreign_enum_unit")
+        )
     );
 }
 
@@ -214,6 +233,9 @@ fn global_constant_preflight_rejects_referenced_global_provenance_mismatch() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@wrong_global_provenance` constant value: global pointer constant declares managed provenance but referenced global `@scoop.trap.0` has raw provenance"
+        format!(
+            "storage global `@{}` constant value: global pointer constant declares managed provenance but referenced global `@scoop.trap.0` has raw provenance",
+            encoded_global_symbol("wrong_global_provenance")
+        )
     );
 }

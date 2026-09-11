@@ -459,6 +459,7 @@ pub enum LirFoundationBuildError {
         expected: [u8; 32],
         actual: [u8; 32],
     },
+    SymbolRequest(scoop_identity::PersistentSymbolError),
 }
 
 impl fmt::Display for LirFoundationBuildError {
@@ -516,6 +517,7 @@ impl fmt::Display for LirFoundationBuildError {
                 HexIdentity(actual),
                 HexIdentity(expected)
             ),
+            Self::SymbolRequest(error) => error.fmt(formatter),
         }
     }
 }

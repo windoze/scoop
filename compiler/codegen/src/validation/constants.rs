@@ -66,7 +66,7 @@ fn validate_constant_image(
                     format!(
                         "global pointer constant declares {} provenance but referenced global `@{}` has {} provenance",
                         kind.dump(),
-                        target.symbol,
+                        target.symbol(),
                         target.address_kind.dump()
                     ),
                 ));
@@ -74,7 +74,7 @@ fn validate_constant_image(
             Ok(())
         }
         LirConstantImage::EnumUnit { variant } => {
-            let owner = format!("storage global `@{}` constant {path}", global.symbol);
+            let owner = format!("storage global `@{}` constant {path}", global.symbol());
             super::validate_variant_ref(module, *variant, &owner)?;
             let enum_id = variant.definition();
             require_exact_type(global, path, expected, &LirType::Enum(enum_id), || {
@@ -183,6 +183,6 @@ fn require_exact_type(
 fn constant_error(global: &Global, path: &str, detail: impl std::fmt::Display) -> CodegenError {
     CodegenError(format!(
         "storage global `@{}` constant {path}: {detail}",
-        global.symbol
+        global.symbol()
     ))
 }

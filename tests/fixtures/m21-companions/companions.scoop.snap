@@ -9612,49 +9612,49 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "before-box"
-  global @scoop.str.5 = "after-independent-construction"
-  global @scoop.str.6 = "\n"
-  global @scoop.str.7 = "\n"
-  global @scoop.str.8 = "\n"
-  global @scoop.str.9 = "unwrap on None"
-  global @scoop.str.10 = "invalid cast"
-  global @scoop.str.11 = "arithmetic error"
-  global @scoop.str.12 = "array index out of bounds"
-  global @scoop.str.13 = "illegal state"
-  global @scoop.str.14 = "box-companion"
-  global @scoop.str.15 = "independent-companion"
-  global @scoop.singleton.$local$u0:p0:O14:n10:ObjectHostr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.1 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.2 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.3 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.4 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.5 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.6 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.7 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.8 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:O14:n10:ObjectHostr9:singletonn0: failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
-  init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0: failure=@scoop.init.failure.1 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[]
-  init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0: failure=@scoop.init.failure.2 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2 deps=[]
-  init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0: failure=@scoop.init.failure.3 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3 deps=[]
-  init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0: failure=@scoop.init.failure.4 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4 deps=[]
-  init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0: failure=@scoop.init.failure.5 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:5 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:5 deps=[]
-  init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0: failure=@scoop.init.failure.6 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:6 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:6 deps=[]
-  init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0: failure=@scoop.init.failure.7 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:7 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:7 deps=[]
-  init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0: failure=@scoop.init.failure.8 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:8 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:8 deps=[]
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "before-box"
+  global @scoop$1$io$ee4c324db03d8bf90f722b315f9952a1a46fda3a19956d6a5e5bf22ed40db64a = "after-independent-construction"
+  global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$f0fefd5ee848e76be5b8c0e31b49e0950fab7b3c446de18d43af30a7d8ec6681 = "\n"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$io$f92c2c506972cdfc8bee024785231df51070371f814e2482d444dbfdb1538f16 = "box-companion"
+  global @scoop$1$io$a6e6d5df573a2e5e9d18f734ed9381d8150ba18d64ae40c1b917af260dbee867 = "independent-companion"
+  global @scoop$1$ss$d7ec3266d16e90da301630e8c5f61de0b506754b530192ce841171c33eb8086f : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$e0d49fdd31ec3a1417fb9a87e89356aae7d83c2d08b7573e828698e7e79c1dc6 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$fbb7ce00d30a42e3e22784e56421f8c68d69814297e0b53889fd1aa18297bad5 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$77e5cd0f8d8ab5845acbdf864c961176d7852ada01a6725939cba00eb1703df3 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$55827a0896a12bf813fa3a4cf793899dca0d6d47ce213a5aaa91924cc5c0f213 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$c51ad47889a6a05aeeaa05d4071c326396b317ae0ddf77cb16a246495b3a1b07 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$e37bd95a687fd50ae57277466ba7cd88a742d6282c658471ce3b3a6a56393a16 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$c9421c7c4457c2455e3aec33398a4b82507ba6c6ea77a9ae7086ee6f87a4e3b5 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$d5e995ada7245fda2662ffb770dc96fa71ec656b58822953efd6c06aad87dcc9 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9de9c9c037dcae1d67d4517d980034a6ac627ce2f3f7070cb71c035c7952ee0b : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$ca6a4030b247267622b342d591efc842ee60ba360a03a4cc509f40bdd7dd19d8 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$cf9d02b81d15fb7fff66603daf6386d93b11b02bcafc87e241fb432b0fa4c005 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$798dd50faebb6d03a686e42e5fd8165880b801aa214b33b3eaa9ce93bbf4b724 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$47e635078d3117a0b0973494900a645c13601497eefcc1372f96f0cecd4c9e93 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$eeb7fa40bc4b549688c2254aaea76f60d396c384178e4ad4eb193958878c8789 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$165974d60e06d234e609d471d36e2bdd92f905704b79f2d4b38eda1b891f6838 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$cabd8c32cedf238d204951da06841fcebbde207d50a815e7bee629d1fd199ac7 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$5692bcf99be14638ab56d773fa7c3b773ef4f5d0e8358eae730df6b2f389a4fe : ptr<managed> scan=refs[0]
+  init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0: lazy storage=@scoop$1$ss$d7ec3266d16e90da301630e8c5f61de0b506754b530192ce841171c33eb8086f failure=@scoop$1$ss$9de9c9c037dcae1d67d4517d980034a6ac627ce2f3f7070cb71c035c7952ee0b initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
+  init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0: lazy storage=@scoop$1$ss$e0d49fdd31ec3a1417fb9a87e89356aae7d83c2d08b7573e828698e7e79c1dc6 failure=@scoop$1$ss$ca6a4030b247267622b342d591efc842ee60ba360a03a4cc509f40bdd7dd19d8 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[]
+  init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0: lazy storage=@scoop$1$ss$fbb7ce00d30a42e3e22784e56421f8c68d69814297e0b53889fd1aa18297bad5 failure=@scoop$1$ss$cf9d02b81d15fb7fff66603daf6386d93b11b02bcafc87e241fb432b0fa4c005 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:2 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:2 deps=[]
+  init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0: lazy storage=@scoop$1$ss$77e5cd0f8d8ab5845acbdf864c961176d7852ada01a6725939cba00eb1703df3 failure=@scoop$1$ss$798dd50faebb6d03a686e42e5fd8165880b801aa214b33b3eaa9ce93bbf4b724 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:3 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:3 deps=[]
+  init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0: lazy storage=@scoop$1$ss$55827a0896a12bf813fa3a4cf793899dca0d6d47ce213a5aaa91924cc5c0f213 failure=@scoop$1$ss$47e635078d3117a0b0973494900a645c13601497eefcc1372f96f0cecd4c9e93 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:4 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:4 deps=[]
+  init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0: lazy storage=@scoop$1$ss$c51ad47889a6a05aeeaa05d4071c326396b317ae0ddf77cb16a246495b3a1b07 failure=@scoop$1$ss$eeb7fa40bc4b549688c2254aaea76f60d396c384178e4ad4eb193958878c8789 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:5 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:5 deps=[]
+  init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0: lazy storage=@scoop$1$ss$e37bd95a687fd50ae57277466ba7cd88a742d6282c658471ce3b3a6a56393a16 failure=@scoop$1$ss$165974d60e06d234e609d471d36e2bdd92f905704b79f2d4b38eda1b891f6838 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:6 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:6 deps=[]
+  init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0: lazy storage=@scoop$1$ss$c9421c7c4457c2455e3aec33398a4b82507ba6c6ea77a9ae7086ee6f87a4e3b5 failure=@scoop$1$ss$cabd8c32cedf238d204951da06841fcebbde207d50a815e7bee629d1fd199ac7 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:7 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:7 deps=[]
+  init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0: lazy storage=@scoop$1$ss$d5e995ada7245fda2662ffb770dc96fa71ec656b58822953efd6c06aad87dcc9 failure=@scoop$1$ss$5692bcf99be14638ab56d773fa7c3b773ef4f5d0e8358eae730df6b2f389a4fe initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:8 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:8 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

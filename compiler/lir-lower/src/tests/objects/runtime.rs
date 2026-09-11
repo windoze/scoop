@@ -68,7 +68,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
         module
             .globals
             .iter()
-            .all(|(_, global)| !global.symbol.starts_with("scoop_td_")),
+            .all(|(_, global)| !global.symbol().starts_with("scoop_td_")),
         "TypeDescriptors must never be represented by ordinary globals"
     );
 

@@ -70,6 +70,7 @@ impl CanonicalLirFoundation {
                 .collect(),
         )?;
         foundation.project_global_identities(&module.globals)?;
+        foundation.project_global_symbols(&module.globals)?;
         foundation.set_runtime_types(
             module
                 .meta
@@ -140,7 +141,7 @@ impl CanonicalLirFoundation {
                         identity.odr_member_record(),
                     )?;
                 }
-                crate::GlobalInit::CString(_) => {}
+                crate::GlobalInit::CString { .. } => {}
             }
         }
         self.set_odr_groups(groups.into_values().collect())?;
@@ -158,7 +159,9 @@ impl CanonicalLirFoundation {
                     crate::GlobalInit::Storage { identity, .. } => {
                         Some(identity.identity_record().clone())
                     }
-                    crate::GlobalInit::StringConst { .. } | crate::GlobalInit::CString(_) => None,
+                    crate::GlobalInit::StringConst { .. } | crate::GlobalInit::CString { .. } => {
+                        None
+                    }
                 })
                 .collect(),
         )?;
@@ -169,10 +172,25 @@ impl CanonicalLirFoundation {
                     crate::GlobalInit::StringConst { identity, .. } => {
                         Some(identity.identity_record().clone())
                     }
-                    crate::GlobalInit::CString(_) | crate::GlobalInit::Storage { .. } => None,
+                    crate::GlobalInit::CString { .. } | crate::GlobalInit::Storage { .. } => None,
                 })
                 .collect(),
         )
+    }
+
+    fn project_global_symbols(
+        &mut self,
+        globals: &la_arena::Arena<crate::Global>,
+    ) -> Result<(), LirFoundationBuildError> {
+        let requests = globals
+            .iter()
+            .filter_map(|(_, global)| global.persistent_symbol_request())
+            .collect();
+        self.set_symbol_requests(
+            scoop_identity::PersistentSymbolRequestTable::new(requests)
+                .map_err(LirFoundationBuildError::SymbolRequest)?,
+        );
+        Ok(())
     }
 
     fn from_functions(functions: &[Function]) -> Result<Self, LirFoundationBuildError> {
@@ -467,7 +485,6 @@ mod tests {
         let object = ImmortalObjectIdentity::from_key(object_key, root).unwrap();
         let mut globals = Arena::new();
         globals.alloc(Global {
-            symbol: "storage".to_string(),
             address_kind: PointerKind::Raw,
             scan: RefScan::References(vec![0]),
             init: GlobalInit::Storage {
@@ -478,7 +495,6 @@ mod tests {
             },
         });
         globals.alloc(Global {
-            symbol: "string".to_string(),
             address_kind: PointerKind::Managed,
             scan: RefScan::None,
             init: GlobalInit::StringConst {
@@ -495,6 +511,7 @@ mod tests {
                 globals.iter().map(|(_, global)| global),
             )
             .unwrap();
+        foundation.project_global_symbols(&globals).unwrap();
 
         assert!(foundation.odr_groups.is_empty());
         assert_eq!(foundation.odr_members.len(), 2);
@@ -515,6 +532,14 @@ mod tests {
                 .odr_members
                 .iter()
                 .any(|member| member.key().role() == OdrMemberRole::ImmortalObject)
+        );
+        assert_eq!(foundation.symbol_requests.requests().len(), 2);
+        assert!(
+            foundation
+                .symbol_requests
+                .requests()
+                .iter()
+                .all(|request| request.linkage() == scoop_identity::LinkageClass::OdrWeak)
         );
     }
 
@@ -614,7 +639,6 @@ mod tests {
         let expected = identity.identity_record().clone();
         let mut globals = Arena::new();
         globals.alloc(Global {
-            symbol: "scoop.str.0".to_string(),
             address_kind: PointerKind::Managed,
             scan: RefScan::None,
             init: GlobalInit::StringConst {
@@ -625,10 +649,22 @@ mod tests {
 
         let mut foundation = CanonicalLirFoundation::empty();
         foundation.project_global_identities(&globals).unwrap();
+        foundation.project_global_symbols(&globals).unwrap();
 
         assert_eq!(foundation.immortal_objects, vec![expected]);
         assert!(foundation.static_storages.is_empty());
         assert_eq!(foundation.immortal_objects[0].key(), &key);
+        assert_eq!(foundation.symbol_requests.requests().len(), 1);
+        assert_eq!(
+            foundation.symbol_requests.requests()[0].linkage(),
+            scoop_identity::LinkageClass::ConeStrong
+        );
+        assert_eq!(
+            foundation.symbol_requests.requests()[0].key(),
+            scoop_identity::PersistentSymbolKey::ImmortalObject(
+                foundation.immortal_objects[0].id()
+            )
+        );
     }
 
     fn function(callable_body: CallableBodyIdentity, safepoints: SafepointIdentities) -> Function {

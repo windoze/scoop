@@ -42,7 +42,7 @@ pub(super) fn emit<'ctx>(
         let emitted = emitted.ok_or_else(|| {
             CodegenError(format!(
                 "global `@{}` has no emitted LLVM storage",
-                source.symbol
+                source.symbol()
             ))
         })?;
         match &source.init {
@@ -63,7 +63,7 @@ pub(super) fn emit<'ctx>(
                     ),
                 );
             }
-            GlobalInit::CString(_) => {
+            GlobalInit::CString { .. } => {
                 require_global_shape(source, PointerKind::Raw, true)?;
             }
             GlobalInit::Storage { thread_local, .. } => {
@@ -74,19 +74,19 @@ pub(super) fn emit<'ctx>(
                 if *thread_local {
                     return Err(CodegenError(format!(
                         "thread-local global `@{}` contains managed references; per-thread image roots are not supported",
-                        source.symbol
+                        source.symbol()
                     )));
                 }
                 let scan = emit_ref_scan(
                     context,
                     llvm,
-                    &format!("{}.global_refs", source.symbol),
+                    &format!("{}.global_refs", source.symbol()),
                     &source.scan,
                 )
                 .ok_or_else(|| {
                     CodegenError(format!(
                         "global `@{}` carries a non-canonical empty RefScan",
-                        source.symbol
+                        source.symbol()
                     ))
                 })?;
                 managed.push(
@@ -123,13 +123,14 @@ fn require_global_shape(
     if global.address_kind != address_kind {
         return Err(CodegenError(format!(
             "global `@{}` has {:?} address provenance, expected {address_kind:?}",
-            global.symbol, global.address_kind
+            global.symbol(),
+            global.address_kind
         )));
     }
     if require_no_scan && !matches!(global.scan, RefScan::None) {
         return Err(CodegenError(format!(
             "non-storage global `@{}` must carry RefScan::None",
-            global.symbol
+            global.symbol()
         )));
     }
     Ok(())

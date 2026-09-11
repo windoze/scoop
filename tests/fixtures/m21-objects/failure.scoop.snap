@@ -7674,21 +7674,21 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "\n"
-  global @scoop.str.5 = "\n"
-  global @scoop.str.6 = "unwrap on None"
-  global @scoop.str.7 = "invalid cast"
-  global @scoop.str.8 = "arithmetic error"
-  global @scoop.str.9 = "array index out of bounds"
-  global @scoop.str.10 = "illegal state"
-  global @scoop.global.$local$u0:p0:r6:globaln8:attempts : i32 scan=none
-  global @scoop.singleton.$local$u0:p0:O9:n6:Brokenr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:O9:n6:Brokenr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:O9:n6:Brokenr9:singletonn0: failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$f0fefd5ee848e76be5b8c0e31b49e0950fab7b3c446de18d43af30a7d8ec6681 = "\n"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$ss$6094763f7397ab01ee3999145ee8c2d4a5c8dd3019aba8b4137351b3ffe83998 : i32 scan=none
+  global @scoop$1$ss$506b76c86b45156bbbbb69a8586860d61e1d524922b8576b269d47e86d278a06 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$8c2ee257874e679cbd27ba7cc338faaaa0fe4e42a7d98bb5d5101d19d5624c81 : ptr<managed> scan=refs[0]
+  init0 $local$u0:p0:O9:n6:Brokenr9:singletonn0: lazy storage=@scoop$1$ss$506b76c86b45156bbbbb69a8586860d61e1d524922b8576b269d47e86d278a06 failure=@scoop$1$ss$8c2ee257874e679cbd27ba7cc338faaaa0fe4e42a7d98bb5d5101d19d5624c81 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

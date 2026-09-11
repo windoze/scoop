@@ -1,10 +1,43 @@
 use super::*;
 
 #[test]
+fn storage_global_linkage_follows_its_materialization_root() {
+    let mut module = values_module();
+    let cone_identity = static_storage_identity("coneStorage");
+    let cone_symbol = cone_identity.symbol().to_string();
+    let odr_identity = odr_static_storage_identity("odrStorage");
+    let odr_symbol = odr_identity.symbol().to_string();
+
+    for identity in [cone_identity, odr_identity] {
+        module.globals.alloc(Global {
+            address_kind: PointerKind::Raw,
+            scan: RefScan::None,
+            init: GlobalInit::Storage {
+                identity,
+                ty: LirType::I64,
+                initial_state: LirStaticInitialState::EncodedStaticValue {
+                    payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
+                },
+                thread_local: false,
+            },
+        });
+    }
+
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains(&format!("@\"{cone_symbol}\" = global i64 0")),
+        "Cone-owned storage must be a strong definition:\n{ir}"
+    );
+    assert!(
+        ir.contains(&format!("@\"{odr_symbol}\" = weak_odr global i64 0")),
+        "ODR-owned storage must be a coalescible definition:\n{ir}"
+    );
+}
+
+#[test]
 fn emits_typed_initialization_descriptors_in_stable_key_order() {
     let mut module = values_module();
     let storage = module.globals.alloc(Global {
-        symbol: "scoop.init.storage".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
@@ -15,7 +48,6 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         },
     });
     let failure = module.globals.alloc(Global {
-        symbol: "scoop.init.failure".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
@@ -26,7 +58,6 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         },
     });
     let second_storage = module.globals.alloc(Global {
-        symbol: "scoop.init.storage.2".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
@@ -37,7 +68,6 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         },
     });
     let second_failure = module.globals.alloc(Global {
-        symbol: "scoop.init.failure.2".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
@@ -107,12 +137,13 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
 #[test]
 fn storage_global_rejects_machine_scalar_type() {
     let mut module = values_module();
+    let identity = static_storage_identity("machineGlobal");
+    let symbol = identity.symbol().to_string();
     module.globals.alloc(Global {
-        symbol: "scoop.machine.global".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
-            identity: static_storage_identity("machineGlobal"),
+            identity,
             ty: LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -124,7 +155,7 @@ fn storage_global_rejects_machine_scalar_type() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("compiler-only scalar domains must not acquire global storage");
     assert!(
-        error.0.contains("storage global `scoop.machine.global`")
+        error.0.contains(&format!("storage global `{symbol}`"))
             && error.0.contains("machine<initialization-outcome>"),
         "unexpected error: {error}"
     );

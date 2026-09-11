@@ -117,7 +117,7 @@ fn class_allocation_and_initializer_store_fields() {
     // those byte offsets.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = "x"
+  global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "x"
   fun @scoop.init.Point.$c0(ptr<managed>, i32, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param2:ptr<managed>@0]

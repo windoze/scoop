@@ -7382,18 +7382,18 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "unwrap on None"
-  global @scoop.str.5 = "invalid cast"
-  global @scoop.str.6 = "arithmetic error"
-  global @scoop.str.7 = "array index out of bounds"
-  global @scoop.str.8 = "illegal state"
-  global @scoop.global.$local$u0:p0:r6:globaln12:runtimeValue : i32 scan=none
-  global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:r9:top-leveln12:runtimeValue storage=@scoop.global.$local$u0:p0:r6:globaln12:runtimeValue failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$ss$05eefd23bfbb1d45ec5c4cf5df662f70752c4f1e143ce97b431c04ff4c8ca0b4 : i32 scan=none
+  global @scoop$1$ss$b9bd3b50794c92a1ff1b32acc764283d924a86e91ad6bc83f56eeb1a452b2718 : ptr<managed> scan=refs[0]
+  init0 $local$u0:p0:r9:top-leveln12:runtimeValue storage=@scoop$1$ss$05eefd23bfbb1d45ec5c4cf5df662f70752c4f1e143ce97b431c04ff4c8ca0b4 failure=@scoop$1$ss$b9bd3b50794c92a1ff1b32acc764283d924a86e91ad6bc83f56eeb1a452b2718 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

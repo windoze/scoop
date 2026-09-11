@@ -12,10 +12,10 @@ pub fn dump(module: &Module) -> String {
     for (_, global) in module.globals.iter() {
         match &global.init {
             GlobalInit::StringConst { value, .. } => {
-                out.push_str(&format!("  global @{} = {:?}\n", global.symbol, value));
+                out.push_str(&format!("  global @{} = {:?}\n", global.symbol(), value));
             }
-            GlobalInit::CString(value) => {
-                out.push_str(&format!("  global @{} = c{:?}\n", global.symbol, value));
+            GlobalInit::CString { value, .. } => {
+                out.push_str(&format!("  global @{} = c{:?}\n", global.symbol(), value));
             }
             GlobalInit::Storage {
                 ty, thread_local, ..
@@ -26,7 +26,7 @@ pub fn dump(module: &Module) -> String {
                 } else {
                     "global"
                 },
-                global.symbol,
+                global.symbol(),
                 ty.dump(),
                 global.scan.dump()
             )),
@@ -44,8 +44,8 @@ pub fn dump(module: &Module) -> String {
             "  init{} {}{schedule} storage=@{} failure=@{} initializer=@{} ensure=@{} deps=[{}]\n",
             id.into_raw().into_u32(),
             unit.stable_key,
-            module.globals[unit.kind.storage()].symbol,
-            module.globals[unit.failure_root].symbol,
+            module.globals[unit.kind.storage()].symbol(),
+            module.globals[unit.failure_root].symbol(),
             initializer,
             ensure,
             unit.dependencies

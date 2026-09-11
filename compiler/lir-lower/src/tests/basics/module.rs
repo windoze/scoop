@@ -72,26 +72,38 @@ fn lowers_hello_world() {
         .collect::<Vec<_>>();
     let module = lower(&source);
 
-    // Globals: one per MIR string constant, same symbol and value.
+    let expected_global_symbols = expected_immortal_objects
+        .iter()
+        .map(|record| {
+            scoop_identity::MangledSymbol::from_key(
+                &scoop_identity::PersistentSymbolKey::ImmortalObject(record.id()),
+            )
+        })
+        .collect::<Vec<_>>();
+    // Globals: one per MIR string constant, with a persistent symbol and the
+    // unchanged source value.
     let globals: Vec<(&str, &str)> = module
         .globals
         .iter()
         .map(|(_, g)| match &g.init {
-            lir::GlobalInit::StringConst { value, .. } => (g.symbol.as_str(), value.as_str()),
-            lir::GlobalInit::CString(value) => (g.symbol.as_str(), value.as_str()),
+            lir::GlobalInit::StringConst { value, .. } => (g.symbol(), value.as_str()),
+            lir::GlobalInit::CString { value, .. } => (g.symbol(), value.as_str()),
             lir::GlobalInit::Storage { .. } => unreachable!("hello has no storage globals"),
         })
         .collect();
     assert_eq!(
         globals,
-        [("scoop.str.0", "hello, world"), ("scoop.str.1", "!")]
+        [
+            (expected_global_symbols[0].as_str(), "hello, world"),
+            (expected_global_symbols[1].as_str(), "!"),
+        ]
     );
     let immortal_objects = module
         .globals
         .iter()
         .filter_map(|(_, global)| match &global.init {
             lir::GlobalInit::StringConst { identity, .. } => Some(identity.identity_record()),
-            lir::GlobalInit::CString(_) | lir::GlobalInit::Storage { .. } => None,
+            lir::GlobalInit::CString { .. } | lir::GlobalInit::Storage { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -150,8 +162,8 @@ fn lowers_hello_world() {
     // Golden dump locks the output structure.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = "hello, world"
-  global @scoop.str.1 = "!"
+  global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "hello, world"
+  global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "!"
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
@@ -235,50 +247,45 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
         .expect("string constant");
     assert_eq!(string_constant.scan, lir::RefScan::None);
 
-    let managed = module
-        .globals
-        .iter()
-        .map(|(_, global)| global)
-        .find(|global| global.symbol == "scoop.global.managedRoot")
-        .expect("managed storage global");
-    assert_eq!(managed.scan, lir::RefScan::References(vec![0]));
-    let storage_identity = |symbol: &str| {
+    let expected_backing = lir::StaticStorageIdentity::property_backing(
+        backing_owner,
+        lir::MaterializationRoot::cone_owned(),
+    )
+    .unwrap();
+    let expected_delegate = lir::StaticStorageIdentity::property_delegate(
+        delegate_owner,
+        lir::MaterializationRoot::cone_owned(),
+    )
+    .unwrap();
+    let expected_singleton = lir::StaticStorageIdentity::singleton_published_root(
+        singleton_owner,
+        lir::MaterializationRoot::cone_owned(),
+    )
+    .unwrap();
+    let storage_global = |expected: &lir::StaticStorageIdentity| {
         let global = module
             .globals
             .iter()
             .map(|(_, global)| global)
-            .find(|global| global.symbol == symbol)
-            .unwrap_or_else(|| panic!("missing storage global {symbol}"));
+            .find(|global| {
+                matches!(
+                    &global.init,
+                    lir::GlobalInit::Storage { identity, .. } if identity == expected
+                )
+            })
+            .expect("missing storage global");
         let lir::GlobalInit::Storage { identity, .. } = &global.init else {
-            panic!("{symbol} is not a storage global")
+            unreachable!("the search accepted only storage globals")
         };
-        identity
+        (global, identity)
     };
-    assert_eq!(
-        storage_identity("scoop.global.managedRoot"),
-        &lir::StaticStorageIdentity::property_backing(
-            backing_owner,
-            lir::MaterializationRoot::cone_owned(),
-        )
-        .unwrap()
-    );
-    assert_eq!(
-        storage_identity("scoop.global.managedDelegate"),
-        &lir::StaticStorageIdentity::property_delegate(
-            delegate_owner,
-            lir::MaterializationRoot::cone_owned(),
-        )
-        .unwrap()
-    );
-    assert_eq!(
-        storage_identity("scoop.global.singletonRoot"),
-        &lir::StaticStorageIdentity::singleton_published_root(
-            singleton_owner,
-            lir::MaterializationRoot::cone_owned(),
-        )
-        .unwrap()
-    );
-    assert!(
-        lir::dump(&module).contains("global @scoop.global.managedRoot : ptr<managed> scan=refs[0]")
-    );
+    let (managed, backing_identity) = storage_global(&expected_backing);
+    assert_eq!(managed.scan, lir::RefScan::References(vec![0]));
+    assert_eq!(backing_identity, &expected_backing);
+    assert_eq!(storage_global(&expected_delegate).1, &expected_delegate);
+    assert_eq!(storage_global(&expected_singleton).1, &expected_singleton);
+    assert!(lir::dump(&module).contains(&format!(
+        "global @{} : ptr<managed> scan=refs[0]",
+        expected_backing.symbol()
+    )));
 }

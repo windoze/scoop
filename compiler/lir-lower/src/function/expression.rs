@@ -1072,10 +1072,12 @@ impl<'a> FunctionLowerer<'a> {
         let symbol = format!("scoop.cstr.{}", *self.cstr_count);
         *self.cstr_count += 1;
         let global = self.globals.alloc(lir::Global {
-            symbol,
             address_kind: lir::PointerKind::Raw,
             scan: lir::RefScan::None,
-            init: lir::GlobalInit::CString(message.to_string()),
+            init: lir::GlobalInit::CString {
+                symbol,
+                value: message.to_string(),
+            },
         });
         let block = self.new_block("unwrap.trap");
         // Fill the trap block out of line; the caller seals the

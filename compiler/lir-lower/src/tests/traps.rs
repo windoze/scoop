@@ -128,7 +128,7 @@ fn trap_calls_branch_to_a_shared_trap_block() {
     // Both `!!` share the one trap block of the function.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = "unwrap on None (function f)"
+  global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "unwrap on None (function f)"
   global @scoop.cstr.0 = c"unwrap on None (function f)"
   enum Option$I tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop.f(indirect<enum0 size=16 align=8 scan=none>) -> i32

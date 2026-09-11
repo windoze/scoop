@@ -19,10 +19,12 @@ fn enum_module_with(
 ) -> Module {
     let mut globals = Arena::default();
     let trap_message = globals.alloc(Global {
-        symbol: "scoop.trap.0".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
-        init: GlobalInit::CString("unwrap on None".to_string()),
+        init: GlobalInit::CString {
+            symbol: "scoop.trap.0".to_string(),
+            value: "unwrap on None".to_string(),
+        },
     });
     let mut enums = scoop_lir::EnumDefs::default();
     // Dot/Circle share the pure-value slot at 8; Rect owns a
@@ -688,15 +690,14 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
             _ => panic!("niche fixture must project its payload"),
         };
         assert_eq!(function.temps[field].ty, LirType::Ptr(kind.pointer_kind()));
+        let identity =
+            static_storage_identity(&format!("qualified{}Niche", kind.pointer_kind().dump()));
+        let symbol = identity.symbol().to_string();
         module.globals.alloc(Global {
-            symbol: format!("qualified_{}_niche", kind.pointer_kind().dump()),
             address_kind: PointerKind::Raw,
             scan: RefScan::None,
             init: GlobalInit::Storage {
-                identity: static_storage_identity(&format!(
-                    "qualified{}Niche",
-                    kind.pointer_kind().dump()
-                )),
+                identity,
                 ty: LirType::Enum(option),
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::EnumUnit { variant: none },
@@ -706,10 +707,7 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
         });
 
         let ir = ir_of(&module);
-        assert!(
-            ir.contains(&format!("@qualified_{}_niche", kind.pointer_kind().dump())),
-            "{ir}"
-        );
+        assert!(ir.contains(&format!("@\"{symbol}\"")), "{ir}");
     }
 }
 
@@ -792,7 +790,6 @@ fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
     );
     let option = module.enums.iter().nth(1).expect("niche enum").0;
     module.globals.alloc(Global {
-        symbol: "crossed_niche_null".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {

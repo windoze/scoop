@@ -8311,33 +8311,33 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "illegal argument"
-  global @scoop.str.1 = "illegal argument"
-  global @scoop.str.2 = "illegal argument"
-  global @scoop.str.3 = "illegal argument"
-  global @scoop.str.4 = "\n"
-  global @scoop.str.5 = "provide-delegate"
-  global @scoop.str.6 = "base-argument"
-  global @scoop.str.7 = "property-initializer"
-  global @scoop.str.8 = "ready"
-  global @scoop.str.9 = "before-outer"
-  global @scoop.str.10 = "\n"
-  global @scoop.str.11 = "\n"
-  global @scoop.str.12 = "registry"
-  global @scoop.str.13 = "unwrap on None"
-  global @scoop.str.14 = "invalid cast"
-  global @scoop.str.15 = "arithmetic error"
-  global @scoop.str.16 = "array index out of bounds"
-  global @scoop.str.17 = "illegal state"
-  global @scoop.str.18 = "base-initializer"
-  global @scoop.str.19 = "object-initializer"
-  global @scoop.str.20 = "nested-initializer"
-  global @scoop.singleton.$local$u0:p0:O11:n8:Registryr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.singleton.$local$u0:p0:O11:n8:RegistryO9:n6:Nestedr9:singletonn0: : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.0 : ptr<managed> scan=refs[0]
-  global @scoop.init.failure.1 : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:O11:n8:Registryr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:O11:n8:Registryr9:singletonn0: failure=@scoop.init.failure.0 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
-  init1 $local$u0:p0:O11:n8:RegistryO9:n6:Nestedr9:singletonn0: lazy storage=@scoop.singleton.$local$u0:p0:O11:n8:RegistryO9:n6:Nestedr9:singletonn0: failure=@scoop.init.failure.1 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[]
+  global @scoop$1$io$1c3cd4cabedf1747d9e667f3442b26b0e86daa287412e3987b840a0432a85b65 = "illegal argument"
+  global @scoop$1$io$baa02a595f945a34520d3368dbe596178a24ef296475838f1b25a06f1ec18f68 = "illegal argument"
+  global @scoop$1$io$c02ee698939a1bc8847c1b9ddaaeb9cfcc9533015d8f76f444f4293edcec487a = "illegal argument"
+  global @scoop$1$io$6daa6d9320ba54ec1c4944f3856534e022f965fa47510b7ba47f517e4d3a5390 = "illegal argument"
+  global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
+  global @scoop$1$io$a448a2636ae780e54a866636e9dd532d2682dac4f6f15ddbaa7b8e345886ef24 = "provide-delegate"
+  global @scoop$1$io$12a4695d0a6a2e9ab48c0ee3ae4fe5622d9d0d6e4cd820c2607c2e2399ff33d8 = "base-argument"
+  global @scoop$1$io$87db8ccbe96b3dae826f1f177993e442a39a6735cf55c7ff1e3df9c0328cc376 = "property-initializer"
+  global @scoop$1$io$9919ccc08bd2ac3bd7d04759430ba52dd62393d2b3e76ca4ecc598c7a89ee035 = "ready"
+  global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "before-outer"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$f0fefd5ee848e76be5b8c0e31b49e0950fab7b3c446de18d43af30a7d8ec6681 = "\n"
+  global @scoop$1$io$2383c9c642eaee9a7f1cb1b8f8160f90784168740cf8de444497a1da04012701 = "registry"
+  global @scoop$1$io$fbe3d00abfc0c0487973c944ce468b9345b1bbdfa5f281a6c43d1ab7dc0c8c6d = "unwrap on None"
+  global @scoop$1$io$8a6ff22fe6c91e0be831272df8e45bef585b9ee81bf9638e02868c04309b2d8c = "invalid cast"
+  global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
+  global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
+  global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
+  global @scoop$1$io$172791548763f9ccf94ace832b55922f88ca6cabcd069155768d3c53770ca3c9 = "base-initializer"
+  global @scoop$1$io$d2d58360b4c0ba2e473602afa0e423b8eb77f44b598ef7a6fbabb2f783953d84 = "object-initializer"
+  global @scoop$1$io$640856159e90d2bf35d42c4a9a0f324e3e401425705ab5c1c0243f579d65f344 = "nested-initializer"
+  global @scoop$1$ss$8694e82fd17aaf7ebccc8d7f4fa432c2fd073f9889e7a40fcb2070182c09a526 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$2a857ae40136c05116ab02d4a95023a6985a2a66cd49fd832da41d853fe03778 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$de7f70272967652cd83dcf3b1c95a7f966af8c4d7e6b5643dd70c4581a9231a4 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$6b5867b4ee06edc7116406133f791ffa04ab6513a5e3b45108bb58f785cc2b99 : ptr<managed> scan=refs[0]
+  init0 $local$u0:p0:O11:n8:Registryr9:singletonn0: lazy storage=@scoop$1$ss$8694e82fd17aaf7ebccc8d7f4fa432c2fd073f9889e7a40fcb2070182c09a526 failure=@scoop$1$ss$de7f70272967652cd83dcf3b1c95a7f966af8c4d7e6b5643dd70c4581a9231a4 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:0 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:0 deps=[]
+  init1 $local$u0:p0:O11:n8:RegistryO9:n6:Nestedr9:singletonn0: lazy storage=@scoop$1$ss$2a857ae40136c05116ab02d4a95023a6985a2a66cd49fd832da41d853fe03778 failure=@scoop$1$ss$6b5867b4ee06edc7116406133f791ffa04ab6513a5e3b45108bb58f785cc2b99 initializer=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr9:init-bodyn1:1 ensure=@scoop.$local$u0:p0:c64:00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6f10:main.scoopr11:init-ensuren1:1 deps=[]
   enum Option$S niche(kind=managed,payload_variant=0)
   enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
