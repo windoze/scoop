@@ -3,14 +3,16 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
-    CborIdentityRecord, CoroutineAdapterRole, FieldIdentityError, FieldIdentityKey,
-    GeneratedCallableIdentityError, GeneratedCallableKey, GeneratedNominalIdentityError,
-    GeneratedNominalKey, OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError,
-    OdrMemberKey, OdrMemberRole, PersistentFieldId, PersistentGeneratedCallableId,
-    PersistentTypeId, StructuralDefinitionPath,
+    CallableMaterialization, CallableMaterializationContext, CallableOdrMemberId, CallableOwner,
+    CallableTemplateOwner, CborIdentityRecord, CoroutineAdapterRole, Effect,
+    ExactCallableSignature, FieldIdentityError, FieldIdentityKey, GeneratedCallableIdentityError,
+    GeneratedCallableKey, GeneratedNominalIdentityError, GeneratedNominalKey, OdrGroupId,
+    OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole,
+    PersistentFieldId, PersistentGeneratedCallableId, PersistentTypeId, StructuralDefinitionPath,
 };
 use scoop_wire::HashError;
+
+use crate::{CallableSignatureRecord, CallableSignatureSubject};
 
 type GeneratedCallableRecord =
     CborIdentityRecord<PersistentGeneratedCallableId, GeneratedCallableKey>;
@@ -50,6 +52,7 @@ impl ContinuationAdapterStorageIdentity {
 pub struct CoroutineAdapterCallableIdentity {
     callable: GeneratedCallableRecord,
     odr_member: Option<OdrMemberRecord>,
+    signature: CallableSignatureRecord,
 }
 
 impl CoroutineAdapterCallableIdentity {
@@ -59,6 +62,10 @@ impl CoroutineAdapterCallableIdentity {
 
     pub const fn odr_member_record(&self) -> Option<&OdrMemberRecord> {
         self.odr_member.as_ref()
+    }
+
+    pub const fn signature_record(&self) -> &CallableSignatureRecord {
+        &self.signature
     }
 
     pub const fn materialization(&self) -> CallableMaterialization {
@@ -87,25 +94,58 @@ impl ContinuationAdapterIdentity {
     pub fn direct(
         source: CallableMaterialization,
         suspension_site: StructuralDefinitionPath,
+        success_signature: ExactCallableSignature,
+        failure_signature: ExactCallableSignature,
         odr_group: Option<OdrGroupId>,
     ) -> Result<Self, ContinuationAdapterIdentityError> {
-        Self::new(source, suspension_site, false, odr_group)
+        Self::new(
+            source,
+            suspension_site,
+            success_signature,
+            failure_signature,
+            false,
+            odr_group,
+        )
     }
 
     pub fn latched(
         source: CallableMaterialization,
         suspension_site: StructuralDefinitionPath,
+        success_signature: ExactCallableSignature,
+        failure_signature: ExactCallableSignature,
         odr_group: Option<OdrGroupId>,
     ) -> Result<Self, ContinuationAdapterIdentityError> {
-        Self::new(source, suspension_site, true, odr_group)
+        Self::new(
+            source,
+            suspension_site,
+            success_signature,
+            failure_signature,
+            true,
+            odr_group,
+        )
     }
 
     fn new(
         source: CallableMaterialization,
         suspension_site: StructuralDefinitionPath,
+        success_signature: ExactCallableSignature,
+        failure_signature: ExactCallableSignature,
         latched: bool,
         odr_group: Option<OdrGroupId>,
     ) -> Result<Self, ContinuationAdapterIdentityError> {
+        if success_signature.effect() != Effect::Ordinary
+            || !success_signature.receiver().is_present()
+            || success_signature.parameters().len() != 1
+        {
+            return Err(ContinuationAdapterIdentityError::InvalidSuccessSignature);
+        }
+        if failure_signature.effect() != Effect::Ordinary
+            || failure_signature.receiver() != success_signature.receiver()
+            || failure_signature.parameters().len() != 1
+            || failure_signature.result() != success_signature.result()
+        {
+            return Err(ContinuationAdapterIdentityError::InvalidFailureSignature);
+        }
         if source.context() != CallableMaterializationContext::NoSubstitution && odr_group.is_none()
         {
             return Err(ContinuationAdapterIdentityError::MissingOdrGroup);
@@ -138,12 +178,14 @@ impl ContinuationAdapterIdentity {
             source,
             suspension_site.clone(),
             CoroutineAdapterRole::Success,
+            success_signature,
             odr_group,
         )?;
         let failure = callable(
             source,
             suspension_site.clone(),
             CoroutineAdapterRole::Failure,
+            failure_signature,
             odr_group,
         )?;
         let odr_member = odr_group
@@ -216,6 +258,7 @@ fn callable(
     source: CallableMaterialization,
     suspension_site: StructuralDefinitionPath,
     role: CoroutineAdapterRole,
+    signature: ExactCallableSignature,
     odr_group: Option<OdrGroupId>,
 ) -> Result<CoroutineAdapterCallableIdentity, ContinuationAdapterIdentityError> {
     let callable = CborIdentityRecord::from_key(GeneratedCallableKey::CoroutineAdapter {
@@ -233,9 +276,17 @@ fn callable(
             )
         })
         .transpose()?;
+    let subject = match &odr_member {
+        Some(member) => CallableSignatureSubject::odr(
+            CallableOdrMemberId::from_key(member.key())
+                .map_err(ContinuationAdapterIdentityError::OdrMember)?,
+        ),
+        None => CallableSignatureSubject::strong(CallableOwner::Generated(callable.id())),
+    };
     Ok(CoroutineAdapterCallableIdentity {
         callable,
         odr_member,
+        signature: CallableSignatureRecord::new(subject, signature),
     })
 }
 
@@ -251,6 +302,8 @@ fn member(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ContinuationAdapterIdentityError {
+    InvalidSuccessSignature,
+    InvalidFailureSignature,
     MissingOdrGroup,
     GeneratedType(GeneratedNominalIdentityError),
     GeneratedCallable(GeneratedCallableIdentityError),
@@ -262,6 +315,12 @@ pub enum ContinuationAdapterIdentityError {
 impl fmt::Display for ContinuationAdapterIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidSuccessSignature => formatter.write_str(
+                "continuation adapter success must be an ordinary one-parameter method",
+            ),
+            Self::InvalidFailureSignature => formatter.write_str(
+                "continuation adapter failure must share the success receiver and result with one parameter",
+            ),
             Self::MissingOdrGroup => formatter.write_str(
                 "a specialized coroutine source requires an ODR group for its continuation adapter",
             ),
@@ -280,8 +339,8 @@ impl std::error::Error for ContinuationAdapterIdentityError {}
 mod tests {
     use scoop_identity::{
         CallableApplicationKey, CallableInstantiationOwner, CanonicalIdentifier, ConeIdentity,
-        DeclarationScope, DefinitionOwnerChain, PackagePath, PersistentFunctionId,
-        SourceDeclarationKey, SourceDeclarationSite, SpecializationKey,
+        CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, ExactTypeKey, PackagePath,
+        PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite, SpecializationKey,
         StructuralDefinitionSiteRole, StructuralPathSegment,
     };
 
@@ -319,11 +378,33 @@ mod tests {
         )
     }
 
+    fn signatures() -> (ExactCallableSignature, ExactCallableSignature) {
+        let exact = |nominal| {
+            CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal))
+                .unwrap()
+                .id()
+        };
+        let receiver = exact(CoreBuiltinNominal::Any.identity_record().id());
+        let unit = exact(CoreBuiltinNominal::Unit.identity_record().id());
+        (
+            ExactCallableSignature::new(Effect::Ordinary, Some(receiver), vec![unit], unit),
+            ExactCallableSignature::new(Effect::Ordinary, Some(receiver), vec![receiver], unit),
+        )
+    }
+
     #[test]
     fn direct_adapter_has_one_environment_and_two_callable_identities() {
         let source = source();
         let site = suspension_site(2);
-        let identity = ContinuationAdapterIdentity::direct(source, site.clone(), None).unwrap();
+        let (success, failure) = signatures();
+        let identity = ContinuationAdapterIdentity::direct(
+            source,
+            site.clone(),
+            success.clone(),
+            failure.clone(),
+            None,
+        )
+        .unwrap();
 
         assert_eq!(
             identity.generated_type_record().key(),
@@ -353,12 +434,26 @@ mod tests {
             &ContinuationAdapterStorageIdentity::Direct
         );
         assert_eq!(identity.odr_member_record(), None);
+        assert_eq!(identity.success().signature_record().signature(), &success);
+        assert_eq!(identity.failure().signature_record().signature(), &failure);
+        assert!(matches!(
+            identity.success().signature_record().subject(),
+            CallableSignatureSubject::Strong(CallableOwner::Generated(id))
+                if id == identity.success().callable_record().id()
+        ));
     }
 
     #[test]
     fn latched_adapter_has_both_latch_field_identities() {
-        let identity =
-            ContinuationAdapterIdentity::latched(source(), suspension_site(0), None).unwrap();
+        let (success, failure) = signatures();
+        let identity = ContinuationAdapterIdentity::latched(
+            source(),
+            suspension_site(0),
+            success,
+            failure,
+            None,
+        )
+        .unwrap();
 
         let ContinuationAdapterStorageIdentity::Latched { result, failure } = identity.storage()
         else {
@@ -373,6 +468,41 @@ mod tests {
             failure.key(),
             &FieldIdentityKey::coroutine_adapter_failure(identity.generated_type_record().key())
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn adapter_rejects_non_protocol_callback_signatures() {
+        let (success, failure) = signatures();
+        assert_eq!(
+            ContinuationAdapterIdentity::direct(
+                source(),
+                suspension_site(0),
+                ExactCallableSignature::new(
+                    Effect::Suspend,
+                    success.receiver().into_option(),
+                    success.parameters().to_vec(),
+                    success.result(),
+                ),
+                failure.clone(),
+                None,
+            ),
+            Err(ContinuationAdapterIdentityError::InvalidSuccessSignature)
+        );
+        assert_eq!(
+            ContinuationAdapterIdentity::direct(
+                source(),
+                suspension_site(0),
+                success,
+                ExactCallableSignature::new(
+                    Effect::Ordinary,
+                    None,
+                    failure.parameters().to_vec(),
+                    failure.result(),
+                ),
+                None,
+            ),
+            Err(ContinuationAdapterIdentityError::InvalidFailureSignature)
         );
     }
 
@@ -394,8 +524,15 @@ mod tests {
             CallableTemplateOwner::Function(source_function()),
             CallableMaterializationContext::Application(application),
         );
-        let identity =
-            ContinuationAdapterIdentity::direct(source, suspension_site(0), Some(group)).unwrap();
+        let (success, failure) = signatures();
+        let identity = ContinuationAdapterIdentity::direct(
+            source,
+            suspension_site(0),
+            success,
+            failure,
+            Some(group),
+        )
+        .unwrap();
         let members = [
             identity.odr_member_record().unwrap(),
             identity.success().odr_member_record().unwrap(),
@@ -408,5 +545,9 @@ mod tests {
         assert_eq!(members[2].key().role(), OdrMemberRole::CallableBody);
         assert_ne!(members[0].id(), members[1].id());
         assert_ne!(members[1].id(), members[2].id());
+        assert!(matches!(
+            identity.success().signature_record().subject(),
+            CallableSignatureSubject::Odr(subject) if subject.member() == members[1].id()
+        ));
     }
 }

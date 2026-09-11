@@ -338,6 +338,7 @@ impl Lowerer {
                     .root()
                     .member_record()
                     .map(|member| member.key().group()),
+                logical_signature: identity.signature_record().signature().clone(),
                 source_return: return_ty,
                 instance: None,
             });

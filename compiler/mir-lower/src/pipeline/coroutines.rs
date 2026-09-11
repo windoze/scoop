@@ -46,6 +46,7 @@ impl Lowerer {
                 function: source.function,
                 source: source.materialization,
                 source_odr_group: source.odr_group,
+                logical_signature: source.logical_signature,
                 source_return: source.source_return,
                 step,
                 lowering: mir::CoroutineLowering::Immediate,

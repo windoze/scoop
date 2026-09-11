@@ -69,21 +69,7 @@ impl SourceCallableRegistry {
         source: hir::CallableReferenceId,
     ) {
         let reference = &module.callable_references[source];
-        let function_type = &module.function_types[reference.function_type];
-        let signature = hir::ExactCallableSignature::new(
-            if function_type.is_suspend {
-                hir::Effect::Suspend
-            } else {
-                hir::Effect::Ordinary
-            },
-            None,
-            function_type
-                .parameter_types
-                .iter()
-                .map(|parameter| module.exact_type_identities[*parameter].id())
-                .collect(),
-            module.exact_type_identities[function_type.return_type].id(),
-        );
+        let signature = exact_function_type_signature(module, reference.function_type);
         self.record(
             module,
             function,
@@ -135,19 +121,31 @@ impl SourceCallableRegistry {
         types
     }
 
-    pub(super) fn get(
-        &self,
-        function: mir::FunctionId,
-    ) -> Option<&mir::SourceCallableMaterialization> {
-        self.entries
-            .iter()
-            .find(|entry| entry.function() == function)
-    }
-
     pub(super) fn finish(self) -> mir::SourceCallableMaterializations {
         mir::SourceCallableMaterializations::checked(self.entries)
             .expect("MIR lowering records every source callable exactly once")
     }
+}
+
+pub(super) fn exact_function_type_signature(
+    module: &hir::Module,
+    function_type: hir::FunctionTypeId,
+) -> hir::ExactCallableSignature {
+    let function_type = &module.function_types[function_type];
+    hir::ExactCallableSignature::new(
+        if function_type.is_suspend {
+            hir::Effect::Suspend
+        } else {
+            hir::Effect::Ordinary
+        },
+        None,
+        function_type
+            .parameter_types
+            .iter()
+            .map(|parameter| module.exact_type_identities[*parameter].id())
+            .collect(),
+        module.exact_type_identities[function_type.return_type].id(),
+    )
 }
 
 pub(super) fn exact_function_signature(

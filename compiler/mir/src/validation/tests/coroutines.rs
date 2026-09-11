@@ -24,6 +24,14 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         vtable: Vec::new(),
         itables: Vec::new(),
     });
+    let continuation = module.interfaces.alloc(InterfaceDef {
+        link_stem: nominal_link_stem(),
+        name: "Continuation".to_string(),
+        type_arguments: vec![result.clone()],
+        methods: Vec::new(),
+    });
+    register_test_exact_type(&mut module, &Type::Interface(continuation));
+    register_test_exact_type(&mut module, &Type::Unit);
     let adapter = module.classes.alloc(ClassDef {
         link_stem: nominal_link_stem(),
         type_arguments: Vec::new(),
@@ -33,7 +41,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
             fields: Vec::new(),
             base_class: None,
         },
-        interfaces: Vec::new(),
+        interfaces: vec![continuation],
         vtable: Vec::new(),
         itables: Vec::new(),
     });
@@ -102,6 +110,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         function: wrapper,
         source,
         source_odr_group: None,
+        logical_signature: source_signature.clone(),
         source_return: result.clone(),
         step,
         lowering: CoroutineLowering::Immediate,
@@ -200,6 +209,14 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         adapter,
         Type::Class(throwable),
     );
+    module.interfaces[continuation].methods = vec![resume, resume_failure];
+    module.classes[adapter].itables = vec![ItableRecord {
+        interface: continuation,
+        slots: vec![
+            TableSlot::Function(resume),
+            TableSlot::Function(resume_failure),
+        ],
+    }];
     let mut locals = Arena::new();
     let frame_local = locals.alloc(Local {
         name: "$frame".to_string(),
@@ -336,7 +353,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         .alloc(CoroutineResumePoint::new(
             frame,
             CoroutineSuspendStateId::new(1).unwrap(),
-            result,
+            result.clone(),
             adapter,
             resume,
             resume_failure,
@@ -350,18 +367,27 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
                 failure_value,
                 None,
             ),
-            ContinuationAdapterIdentity::direct(
-                source,
-                scoop_identity::StructuralDefinitionPath::from_first(
-                    scoop_identity::StructuralPathSegment::new(
-                        scoop_identity::StructuralDefinitionSiteRole::CoroutineTransform,
-                        0,
+            {
+                let (success_signature, failure_signature) = test_continuation_signatures(
+                    &result,
+                    &Type::Interface(continuation),
+                    &Type::Class(throwable),
+                );
+                ContinuationAdapterIdentity::direct(
+                    source,
+                    scoop_identity::StructuralDefinitionPath::from_first(
+                        scoop_identity::StructuralPathSegment::new(
+                            scoop_identity::StructuralDefinitionSiteRole::CoroutineTransform,
+                            0,
+                        ),
+                        [],
                     ),
-                    [],
-                ),
-                None,
-            )
-            .unwrap(),
+                    success_signature,
+                    failure_signature,
+                    None,
+                )
+                .unwrap()
+            },
         ));
     module.meta.coroutine_functions[coroutine].lowering = CoroutineLowering::StateMachine {
         frame,
@@ -528,6 +554,18 @@ fn continuation_adapter_identity_must_name_its_coroutine_source() {
         ContinuationAdapterIdentity::direct(
             test_source_materialization_named("otherSource"),
             point.identity().suspension_site().clone(),
+            point
+                .identity()
+                .success()
+                .signature_record()
+                .signature()
+                .clone(),
+            point
+                .identity()
+                .failure()
+                .signature_record()
+                .signature()
+                .clone(),
             None,
         )
         .unwrap(),
@@ -538,7 +576,56 @@ fn continuation_adapter_identity_must_name_its_coroutine_source() {
         fixture.module.validate(),
         Err(MirValidationError {
             kind: MirValidationErrorKind::InvalidCoroutineMetadata {
-                reason: "continuation-adapter identity does not match its exact source and suspension site"
+                reason: "continuation-adapter identity does not match its exact source, suspension site, and logical signatures"
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn continuation_adapter_identity_must_retain_its_protocol_signatures() {
+    let mut fixture = coroutine_fixture(false);
+    let (point_id, point) = fixture
+        .module
+        .meta
+        .coroutine_resume_points
+        .iter()
+        .next()
+        .unwrap();
+    let success = point.identity().success().signature_record().signature();
+    let failure = point.identity().failure().signature_record().signature();
+    let replacement = CoroutineResumePoint::new(
+        point.frame(),
+        point.site(),
+        point.result().clone(),
+        point.adapter(),
+        point.resume(),
+        point.resume_with_exception(),
+        point.parents().to_vec(),
+        point.success(),
+        point.failure(),
+        ContinuationAdapterIdentity::direct(
+            point.identity().source(),
+            point.identity().suspension_site().clone(),
+            scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                success.receiver().into_option(),
+                failure.parameters().to_vec(),
+                success.result(),
+            ),
+            failure.clone(),
+            None,
+        )
+        .unwrap(),
+    );
+    fixture.module.meta.coroutine_resume_points[point_id] = replacement;
+
+    assert!(matches!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "continuation-adapter identity does not match its exact source, suspension site, and logical signatures"
             },
             ..
         })
@@ -646,6 +733,34 @@ fn driver_identity_must_retain_the_source_logical_signature() {
         Err(MirValidationError {
             kind: MirValidationErrorKind::InvalidCoroutineMetadata {
                 reason: "coroutine driver identity does not match its exact source materialization"
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn coroutine_source_must_retain_a_complete_suspend_signature() {
+    let mut fixture = coroutine_fixture(false);
+    let (_, coroutine) = fixture
+        .module
+        .meta
+        .coroutine_functions
+        .iter_mut()
+        .next()
+        .unwrap();
+    coroutine.logical_signature = scoop_identity::ExactCallableSignature::new(
+        scoop_identity::Effect::Ordinary,
+        None,
+        Vec::new(),
+        test_exact_type(&coroutine.source_return).id(),
+    );
+
+    assert!(matches!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "coroutine source has no exact suspend logical signature"
             },
             ..
         })

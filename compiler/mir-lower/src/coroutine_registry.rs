@@ -9,6 +9,7 @@ pub(super) struct SuspendSource {
     pub(super) function: mir::FunctionId,
     pub(super) materialization: hir::CallableMaterialization,
     pub(super) odr_group: Option<hir::OdrGroupId>,
+    pub(super) logical_signature: hir::ExactCallableSignature,
     pub(super) source_return: mir::Type,
     pub(super) instance: Option<mir::MonomorphizedFunctionId>,
 }

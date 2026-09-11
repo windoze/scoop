@@ -258,6 +258,7 @@ impl BodyLowerer<'_> {
                 function,
                 materialization: identity.materialization(),
                 odr_group: Some(identity.odr_group_record().id()),
+                logical_signature: identity.callable_signature_record().signature().clone(),
                 source_return: self.shell.function_types[target].return_type.clone(),
                 instance: None,
             });
@@ -421,6 +422,7 @@ impl BodyLowerer<'_> {
                 function,
                 materialization: identity.materialization(),
                 odr_group: Some(identity.odr_group_record().id()),
+                logical_signature: identity.callable_signature_record().signature().clone(),
                 source_return: signature.return_type,
                 instance: None,
             });

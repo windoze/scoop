@@ -480,6 +480,40 @@ fn validate_coroutine_function(
         return Err(error(location, "coroutine refers to an unknown callable"));
     };
     validate_coroutine_source(module, coroutine, location)?;
+    if coroutine.logical_signature.effect() != scoop_identity::Effect::Suspend
+        || source_exact_type(module, &coroutine.source_return)
+            != Some(coroutine.logical_signature.result())
+        || coroutine
+            .logical_signature
+            .receiver()
+            .into_option()
+            .into_iter()
+            .chain(coroutine.logical_signature.parameters().iter().copied())
+            .chain(std::iter::once(coroutine.logical_signature.result()))
+            .any(|exact| {
+                module
+                    .meta
+                    .source_exact_types
+                    .get_by_identity(exact)
+                    .is_none()
+            })
+    {
+        return Err(error(
+            location,
+            "coroutine source has no exact suspend logical signature",
+        ));
+    }
+    if module
+        .meta
+        .source_callable_materializations
+        .get(coroutine.function)
+        .is_some_and(|source| source.signature_record().signature() != &coroutine.logical_signature)
+    {
+        return Err(error(
+            location,
+            "coroutine logical signature does not match its source callable materialization",
+        ));
+    }
     let Some(step) = arena_get(&module.meta.coroutine_steps, coroutine.step) else {
         return Err(error(
             location,
@@ -514,18 +548,10 @@ fn validate_coroutine_function(
     let Some(driver_function) = arena_get(&module.functions, *driver) else {
         return Err(error(location, "state machine refers to an unknown driver"));
     };
-    let source_signature = module
-        .meta
-        .source_callable_materializations
-        .get(coroutine.function)
-        .expect("the coroutine source materialization was validated")
-        .signature_record()
-        .signature()
-        .clone();
     let rebuilt_identity = CoroutineDriverIdentity::new(
         coroutine.source,
         coroutine.source_odr_group,
-        source_signature,
+        coroutine.logical_signature.clone(),
     )
     .map_err(|_| {
         error(
@@ -729,15 +755,29 @@ fn validate_resume_point(
             "resume point refers to an unknown adapter class",
         ));
     };
+    let failure = arena_get(&module.meta.coroutine_failure_values, frame.failure())
+        .expect("validated frame failure id remains in bounds");
+    let Some((success_signature, failure_signature)) =
+        continuation_adapter_signatures(module, adapter, point.result(), failure.throwable())
+    else {
+        return Err(error(
+            location,
+            "continuation adapter has no complete exact protocol signatures",
+        ));
+    };
     let rebuilt_identity = match point.identity().storage() {
         ContinuationAdapterStorageIdentity::Direct => ContinuationAdapterIdentity::direct(
             coroutine.source,
             point.identity().suspension_site().clone(),
+            success_signature,
+            failure_signature,
             coroutine.source_odr_group,
         ),
         ContinuationAdapterStorageIdentity::Latched { .. } => ContinuationAdapterIdentity::latched(
             coroutine.source,
             point.identity().suspension_site().clone(),
+            success_signature,
+            failure_signature,
             coroutine.source_odr_group,
         ),
     }
@@ -750,7 +790,7 @@ fn validate_resume_point(
     if &rebuilt_identity != point.identity() {
         return Err(error(
             location,
-            "continuation-adapter identity does not match its exact source and suspension site",
+            "continuation-adapter identity does not match its exact source, suspension site, and logical signatures",
         ));
     }
     validate_adapter_fields(module, adapter, point, frame, location)?;
@@ -766,8 +806,6 @@ fn validate_resume_point(
             "resume point refers to an unknown failure callback",
         ));
     };
-    let failure = arena_get(&module.meta.coroutine_failure_values, frame.failure())
-        .expect("validated frame failure id remains in bounds");
     if point.failure().exception() != frame.failure() {
         return Err(error(
             location,
@@ -850,6 +888,38 @@ fn validate_resume_point(
         ));
     }
     Ok(())
+}
+
+fn continuation_adapter_signatures(
+    module: &Module,
+    adapter: &ClassDef,
+    result: &Type,
+    throwable: ClassId,
+) -> Option<(
+    scoop_identity::ExactCallableSignature,
+    scoop_identity::ExactCallableSignature,
+)> {
+    let [continuation] = adapter.interfaces.as_slice() else {
+        return None;
+    };
+    let receiver = source_exact_type(module, &Type::Interface(*continuation))?;
+    let result = source_exact_type(module, result)?;
+    let throwable = source_exact_type(module, &Type::Class(throwable))?;
+    let unit = source_exact_type(module, &Type::Unit)?;
+    Some((
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            Some(receiver),
+            vec![result],
+            unit,
+        ),
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            Some(receiver),
+            vec![throwable],
+            unit,
+        ),
+    ))
 }
 
 fn validate_adapter_fields(

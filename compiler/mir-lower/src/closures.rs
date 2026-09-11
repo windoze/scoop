@@ -412,6 +412,10 @@ impl Lowerer {
                     function,
                     materialization,
                     odr_group: materialization_odr_group(module, materialization),
+                    logical_signature: exact_function_type_signature(
+                        module,
+                        reference.function_type,
+                    ),
                     source_return: signature.return_type,
                     instance: None,
                 });

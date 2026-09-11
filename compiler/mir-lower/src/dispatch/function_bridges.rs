@@ -174,6 +174,7 @@ impl Lowerer {
                 odr_group: identity
                     .odr_member_record()
                     .map(|member| member.key().group()),
+                logical_signature: identity.signature_record().signature().clone(),
                 source_return: target_signature.return_type,
                 instance: None,
             });

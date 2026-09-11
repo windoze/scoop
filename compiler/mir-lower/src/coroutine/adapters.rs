@@ -62,10 +62,28 @@ pub(super) fn generate_adapter(
             ty: failure.slot_ty.clone(),
         });
     }
+    let success_signature =
+        crate::source_callables::exact_function_signature(module, protocol.continuation_resume);
+    let failure_signature = crate::source_callables::exact_function_signature(
+        module,
+        protocol.continuation_resume_with_exception,
+    );
     let identity = if safe_latches.is_some() {
-        mir::ContinuationAdapterIdentity::latched(source, suspension_site, source_odr_group)
+        mir::ContinuationAdapterIdentity::latched(
+            source,
+            suspension_site,
+            success_signature,
+            failure_signature,
+            source_odr_group,
+        )
     } else {
-        mir::ContinuationAdapterIdentity::direct(source, suspension_site, source_odr_group)
+        mir::ContinuationAdapterIdentity::direct(
+            source,
+            suspension_site,
+            success_signature,
+            failure_signature,
+            source_odr_group,
+        )
     }
     .expect("a suspension site has one persistent continuation-adapter identity");
     let class = generated_class(

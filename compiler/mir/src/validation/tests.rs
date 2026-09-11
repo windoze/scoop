@@ -227,11 +227,21 @@ fn test_continuation_shell_identity(
     receiver: &Type,
     failure: &Type,
 ) -> ContinuationShellIdentity {
+    let (success, failure) = test_continuation_signatures(result, receiver, failure);
+    ContinuationShellIdentity::new(&test_exact_type(result), None, success, failure).unwrap()
+}
+
+fn test_continuation_signatures(
+    result: &Type,
+    receiver: &Type,
+    failure: &Type,
+) -> (
+    scoop_identity::ExactCallableSignature,
+    scoop_identity::ExactCallableSignature,
+) {
     let receiver = test_exact_type(receiver).id();
     let unit = test_exact_type(&Type::Unit).id();
-    ContinuationShellIdentity::new(
-        &test_exact_type(result),
-        None,
+    (
         scoop_identity::ExactCallableSignature::new(
             scoop_identity::Effect::Ordinary,
             Some(receiver),
@@ -245,7 +255,6 @@ fn test_continuation_shell_identity(
             unit,
         ),
     )
-    .unwrap()
 }
 
 fn test_coroutine_start_identity(

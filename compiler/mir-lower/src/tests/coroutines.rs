@@ -241,6 +241,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         driver_identity.signature_record().signature(),
         source_signature.signature()
     );
+    assert_eq!(&caller.logical_signature, source_signature.signature());
     assert!(matches!(
         driver_identity.signature_record().subject(),
         mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(id))
@@ -468,6 +469,23 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
             ..
         }
     ));
+    let continuation = module.classes[point.adapter()].interfaces[0];
+    let success_signature = identity.success().signature_record().signature();
+    assert_eq!(
+        success_signature.receiver(),
+        scoop_identity::OptionalExactOwner::Present(exact(&mir::Type::Interface(continuation)))
+    );
+    assert_eq!(success_signature.parameters(), &[exact(point.result())]);
+    assert_eq!(success_signature.result(), exact(&mir::Type::Unit));
+    let failure_signature = identity.failure().signature_record().signature();
+    assert_eq!(failure_signature.receiver(), success_signature.receiver());
+    assert_eq!(
+        failure_signature.parameters(),
+        &[exact(
+            &module.functions[point.resume_with_exception()].params[1].ty
+        )]
+    );
+    assert_eq!(failure_signature.result(), success_signature.result());
     assert_eq!(module.classes[point.adapter()].interfaces.len(), 1);
     assert_eq!(module.classes[point.adapter()].declared_fields().len(), 2);
     assert_eq!(

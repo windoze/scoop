@@ -158,6 +158,7 @@ impl Lowerer {
                         module,
                         module.functions[hir_id].materialization,
                     ),
+                    logical_signature: exact_function_signature(module, hir_id),
                     source_return: return_ty.clone(),
                     instance: self.instances.get(hir_id),
                 });
@@ -208,6 +209,7 @@ impl Lowerer {
                         module,
                         module.functions[hir_id].materialization,
                     ),
+                    logical_signature: exact_function_signature(module, hir_id),
                     source_return: return_ty,
                     instance: self.instances.get(hir_id),
                 });

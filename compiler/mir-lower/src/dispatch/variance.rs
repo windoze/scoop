@@ -210,6 +210,7 @@ impl Lowerer {
                 function,
                 materialization: identity.materialization(),
                 odr_group: Some(identity.odr_group_record().id()),
+                logical_signature: identity.callable_signature_record().signature().clone(),
                 source_return: target_signature.return_type,
                 instance: None,
             });
