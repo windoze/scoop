@@ -126,6 +126,7 @@ mod persistent_export_bindings;
 mod persistent_fields;
 mod persistent_functions;
 mod persistent_initialization_units;
+mod persistent_local_bindings;
 mod persistent_native_contracts;
 mod persistent_nominals;
 mod persistent_object_values;

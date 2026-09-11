@@ -37,6 +37,10 @@ pub struct Module {
     /// Direct public package bindings derived from the typed declaration
     /// surface. Member declarations remain reachable through their owners.
     pub export_binding_identities: HirExportBindingIdentities,
+    /// Persistent current-Cone declaration/import bindings consumed by the
+    /// identity foundation. These ids never replace request-local body
+    /// `BindingId` values.
+    pub local_binding_identities: HirLocalBindingIdentities,
     /// Persistent slot identities for every class virtual family and direct
     /// interface member. Overrides keep the slot of their family root.
     pub dispatch_slot_identities: HirDispatchSlotIdentities,

@@ -3,7 +3,7 @@
 use crate::{aliases::SourceTypeAliasId, namespace::PackageId};
 use scoop_ast as ast;
 use scoop_hir as hir;
-use scoop_identity::SourceIdentity;
+use scoop_identity::{LocalBindingRole, SourceIdentity};
 use std::collections::{BTreeMap, HashMap};
 
 mod collect;
@@ -87,6 +87,7 @@ pub(crate) struct ImportSyntaxOrigin {
 #[derive(Debug, Clone)]
 pub(crate) struct ResolvedExactImport {
     pub(crate) local_name: String,
+    pub(crate) source_role: LocalBindingRole,
     pub(crate) targets: ast::NonEmptyVec<ImportedBinding>,
     pub(crate) origin: ImportSyntaxOrigin,
 }

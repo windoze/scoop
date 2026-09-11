@@ -158,6 +158,11 @@ impl CurrentUnitImports {
                                     .text
                                     .clone()
                             }),
+                        source_role: if alias.is_some() {
+                            scoop_identity::LocalBindingRole::AliasImport
+                        } else {
+                            scoop_identity::LocalBindingRole::ExactImport
+                        },
                         targets: ast::NonEmptyVec::new(first, accessible.collect()),
                         origin: ImportSyntaxOrigin {
                             source: source_identity.clone(),

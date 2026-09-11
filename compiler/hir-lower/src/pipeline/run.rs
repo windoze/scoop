@@ -741,6 +741,23 @@ impl Lowerer {
                 )]);
             }
         };
+        let local_binding_identities = match crate::persistent_local_bindings::build(
+            &self,
+            &nominal_identities,
+            &object_value_identities,
+            &function_identities,
+            &property_identities,
+            &type_alias_identities,
+            &enum_member_identities,
+            &source_context_identities,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -755,6 +772,7 @@ impl Lowerer {
             function_identities,
             callback_registration_identities,
             export_binding_identities,
+            local_binding_identities,
             dispatch_slot_identities,
             source_context_identities,
             source_native_contracts,

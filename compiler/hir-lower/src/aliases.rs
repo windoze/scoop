@@ -25,6 +25,10 @@ enum TypeAliasResolution {
     Unresolved,
     Resolving,
     Resolved(hir::TypeId),
+    Published {
+        target: hir::TypeId,
+        declaration: hir::ExportTypeAliasId,
+    },
     Failed,
 }
 
@@ -125,7 +129,8 @@ impl Lowerer {
         reference_span: ast::Span,
     ) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
-            TypeAliasResolution::Resolved(target) => return Some(target),
+            TypeAliasResolution::Resolved(target)
+            | TypeAliasResolution::Published { target, .. } => return Some(target),
             TypeAliasResolution::Failed => return None,
             TypeAliasResolution::Resolving => {
                 let cycle_start = self
@@ -217,12 +222,16 @@ impl Lowerer {
                 alias.origin.span,
                 &format!("typealias `{}`", alias.name),
             );
-            self.type_aliases.alloc(hir::TypeAliasDecl {
+            let declaration = self.type_aliases.alloc(hir::TypeAliasDecl {
                 name: alias.name,
                 access,
                 target,
                 origin: alias.origin,
             });
+            self.source_type_aliases[id].resolution = TypeAliasResolution::Published {
+                target,
+                declaration,
+            };
         }
         self.current_file = previous_file;
     }
@@ -321,9 +330,23 @@ impl Lowerer {
 
     pub(crate) fn resolved_type_alias_target(&self, id: SourceTypeAliasId) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
-            TypeAliasResolution::Resolved(target) => Some(target),
+            TypeAliasResolution::Resolved(target)
+            | TypeAliasResolution::Published { target, .. } => Some(target),
             TypeAliasResolution::Unresolved
             | TypeAliasResolution::Resolving
+            | TypeAliasResolution::Failed => None,
+        }
+    }
+
+    pub(crate) fn published_type_alias(
+        &self,
+        id: SourceTypeAliasId,
+    ) -> Option<hir::ExportTypeAliasId> {
+        match self.source_type_aliases[id].resolution {
+            TypeAliasResolution::Published { declaration, .. } => Some(declaration),
+            TypeAliasResolution::Unresolved
+            | TypeAliasResolution::Resolving
+            | TypeAliasResolution::Resolved(_)
             | TypeAliasResolution::Failed => None,
         }
     }

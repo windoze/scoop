@@ -96,6 +96,9 @@ pub use persistent_dispatch::*;
 mod persistent_export_bindings;
 pub use persistent_export_bindings::*;
 
+mod persistent_local_bindings;
+pub use persistent_local_bindings::*;
+
 mod persistent_source_contexts;
 pub use persistent_source_contexts::*;
 

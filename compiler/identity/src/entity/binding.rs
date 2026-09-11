@@ -343,6 +343,30 @@ impl LocalBindingKey {
     pub fn source(&self) -> &SourceIdentity {
         &self.source
     }
+
+    pub fn package(&self) -> &PackagePath {
+        &self.package
+    }
+
+    pub const fn namespace(&self) -> BindingNamespace {
+        self.namespace
+    }
+
+    pub fn local_name(&self) -> &CanonicalIdentifier {
+        &self.local_name
+    }
+
+    pub const fn target(&self) -> BindableEntity {
+        self.target
+    }
+
+    pub const fn binding_role(&self) -> BindingRole {
+        self.binding_role
+    }
+
+    pub const fn source_role(&self) -> LocalBindingRole {
+        self.source_role
+    }
 }
 
 impl WireEncode for LocalBindingKey {

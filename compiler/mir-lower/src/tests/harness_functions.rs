@@ -900,6 +900,7 @@ impl Harness {
             function_identities,
             callback_registration_identities,
             export_binding_identities,
+            local_binding_identities: hir::HirLocalBindingIdentities::default(),
             dispatch_slot_identities,
             source_context_identities,
             source_native_contracts,
