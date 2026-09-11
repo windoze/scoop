@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::LocalValueLocation;
+use super::{CaptureOwnerLocation, LocalValueLocation};
 
 #[derive(Debug)]
 pub enum LocalValueIdentityError {
@@ -22,6 +22,11 @@ pub enum LocalValueIdentityError {
     },
     MissingCapturedValue {
         local_function: u32,
+        capture: u32,
+        binding: u32,
+    },
+    MissingClosureCapture {
+        owner: CaptureOwnerLocation,
         capture: u32,
         binding: u32,
     },
@@ -71,6 +76,14 @@ impl fmt::Display for LocalValueIdentityError {
             } => write!(
                 formatter,
                 "local function {local_function} capture {capture} references missing binding {binding}"
+            ),
+            Self::MissingClosureCapture {
+                owner,
+                capture,
+                binding,
+            } => write!(
+                formatter,
+                "closure {owner:?} capture {capture} references missing or ambiguous binding {binding}"
             ),
             Self::MissingFunctionLocal { function, local } => write!(
                 formatter,

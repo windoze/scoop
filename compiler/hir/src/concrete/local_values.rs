@@ -6,10 +6,10 @@ use scoop_identity::{
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::{
-    BindingId, CallableApplicationIdentities, CallableReference, CallableReferenceId,
-    CallableReferenceTarget, ClassConstructor, ClassConstructorId, ClassConstructorKind, Function,
-    FunctionId, FunctionKind, LocalFunction, LocalId, StructConstructor, StructConstructorId,
-    StructConstructorKind,
+    AnonymousFunction, AnonymousFunctionId, BindingId, CallableApplicationIdentities,
+    CallableReference, CallableReferenceId, CallableReferenceTarget, Capture, ClassConstructor,
+    ClassConstructorId, ClassConstructorKind, Function, FunctionId, FunctionKind, Lambda, LambdaId,
+    LocalFunction, LocalId, StructConstructor, StructConstructorId, StructConstructorKind,
 };
 
 mod error;
@@ -21,6 +21,8 @@ pub type LocalValueIdentityRecord = CborIdentityRecord<PersistentLocalValueId, L
 pub struct LocalValueIdentityInputs<'a> {
     pub callable_applications: &'a CallableApplicationIdentities,
     pub functions: &'a Arena<Function>,
+    pub lambdas: &'a Arena<Lambda>,
+    pub anonymous_functions: &'a Arena<AnonymousFunction>,
     pub local_functions: &'a Arena<LocalFunction>,
     pub callable_references: &'a Arena<CallableReference>,
     pub class_constructors: &'a Arena<ClassConstructor>,
@@ -34,6 +36,9 @@ pub struct LocalValueIdentityInputs<'a> {
 pub struct LocalValueIdentities {
     records: Vec<LocalValueIdentityRecord>,
     function_locals: Vec<Vec<PersistentLocalValueId>>,
+    lambda_captures: Vec<Vec<PersistentLocalValueId>>,
+    anonymous_function_captures: Vec<Vec<PersistentLocalValueId>>,
+    callable_reference_captures: Vec<Vec<PersistentLocalValueId>>,
     callable_references: Vec<CallableReferenceLocalValue>,
     class_constructors: Vec<ClassConstructorLocalValues>,
     struct_constructors: Vec<StructConstructorLocalValues>,
@@ -112,6 +117,26 @@ impl LocalValueIdentities {
         }
     }
 
+    pub fn lambda_capture(&self, lambda: LambdaId, capture: usize) -> &LocalValueIdentityRecord {
+        self.capture_record(self.lambda_captures[arena_index(lambda)][capture])
+    }
+
+    pub fn anonymous_function_capture(
+        &self,
+        function: AnonymousFunctionId,
+        capture: usize,
+    ) -> &LocalValueIdentityRecord {
+        self.capture_record(self.anonymous_function_captures[arena_index(function)][capture])
+    }
+
+    pub fn callable_reference_capture(
+        &self,
+        reference: CallableReferenceId,
+        capture: usize,
+    ) -> &LocalValueIdentityRecord {
+        self.capture_record(self.callable_reference_captures[arena_index(reference)][capture])
+    }
+
     pub fn class_parameter(
         &self,
         constructor: ClassConstructorId,
@@ -179,6 +204,18 @@ impl LocalValueIdentities {
             }
         }
     }
+
+    fn capture_record(&self, identity: PersistentLocalValueId) -> &LocalValueIdentityRecord {
+        self.record(identity)
+            .expect("the total capture relation references a canonical local-value record")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CaptureOwnerLocation {
+    Lambda(u32),
+    AnonymousFunction(u32),
+    CallableReference(u32),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -268,6 +305,47 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             function_locals[arena_index(*function)][arena_index(*local)] = Some(identity);
         }
 
+        let lambda_captures = self
+            .inputs
+            .lambdas
+            .iter()
+            .map(|(lambda, declaration)| {
+                self.collect_captures(
+                    self.inputs.functions[declaration.function]
+                        .materialization
+                        .context(),
+                    &declaration.captures,
+                    CaptureOwnerLocation::Lambda(raw_arena_index(lambda)),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let anonymous_function_captures = self
+            .inputs
+            .anonymous_functions
+            .iter()
+            .map(|(function, declaration)| {
+                self.collect_captures(
+                    self.inputs.functions[declaration.function]
+                        .materialization
+                        .context(),
+                    &declaration.captures,
+                    CaptureOwnerLocation::AnonymousFunction(raw_arena_index(function)),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let callable_reference_captures = self
+            .inputs
+            .callable_references
+            .iter()
+            .map(|(reference, declaration)| {
+                self.collect_captures(
+                    declaration.identity.materialization().context(),
+                    &declaration.captures,
+                    CaptureOwnerLocation::CallableReference(raw_arena_index(reference)),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
         let function_locals = function_locals
             .into_iter()
             .enumerate()
@@ -292,6 +370,9 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                 .map(|(record, _)| record)
                 .collect(),
             function_locals,
+            lambda_captures,
+            anonymous_function_captures,
+            callable_reference_captures,
             callable_references,
             class_constructors,
             struct_constructors,
@@ -511,6 +592,26 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                 let identity = self.record(owner, local.selector.clone(), location)?;
                 self.bind(owner.context(), local.binding, identity);
                 Ok(identity)
+            })
+            .collect()
+    }
+
+    fn collect_captures(
+        &self,
+        context: CallableMaterializationContext,
+        captures: &[Capture],
+        owner: CaptureOwnerLocation,
+    ) -> Result<Vec<PersistentLocalValueId>, LocalValueIdentityError> {
+        captures
+            .iter()
+            .enumerate()
+            .map(|(capture, declaration)| {
+                self.find_captured_value(context, declaration.binding)
+                    .ok_or(LocalValueIdentityError::MissingClosureCapture {
+                        owner,
+                        capture: capture as u32,
+                        binding: declaration.binding.into_raw(),
+                    })
             })
             .collect()
     }

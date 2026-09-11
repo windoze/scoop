@@ -648,6 +648,8 @@ impl<'a> Concretizer<'a> {
             concrete::LocalValueIdentities::from_callables(concrete::LocalValueIdentityInputs {
                 callable_applications: &identities.callable_applications,
                 functions: &functions,
+                lambdas: &self.lambdas,
+                anonymous_functions: &self.anonymous_functions,
                 local_functions: &self.local_functions,
                 callable_references: &callable_references,
                 class_constructors: &class_constructors,

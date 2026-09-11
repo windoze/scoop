@@ -42,6 +42,27 @@ fn reference(receiver: Option<Expr>, name: &str) -> Expr {
     }
 }
 
+fn lambda(tail: Expr) -> Expr {
+    Expr::Lambda {
+        id: ast::LambdaId(0),
+        is_suspend: false,
+        parameters: None,
+        body: block(vec![stmt(tail)]),
+        span: sp(),
+    }
+}
+
+fn anonymous(tail: Expr) -> Expr {
+    Expr::AnonymousFunction {
+        id: ast::AnonymousFunctionId(0),
+        is_suspend: false,
+        params: Vec::new(),
+        return_ty: Some(ty_named("Int")),
+        body: block(vec![ret(Some(tail))]),
+        span: sp(),
+    }
+}
+
 #[test]
 fn generic_applications_give_the_same_template_local_distinct_persistent_values() {
     let output = lower_user_output(file(vec![
@@ -148,6 +169,92 @@ fn local_function_capture_parameter_reuses_the_captured_value_identity() {
         lifted.materialization.context(),
         main.materialization.context(),
         "lexical capture aliases must remain in the enclosing materialization context"
+    );
+}
+
+#[test]
+fn nested_lambda_captures_resolve_to_the_original_persistent_value() {
+    let nested_type = ty_function(
+        false,
+        Vec::new(),
+        ty_function(false, Vec::new(), ty_named("Int")),
+    );
+    let output = lower_user_output(file(vec![
+        fun_expr(
+            "make",
+            Vec::new(),
+            vec![("base", ty_named("Int"))],
+            Some(nested_type),
+            lambda(lambda(var("base"))),
+        ),
+        fun("main", Vec::new()),
+    ]))
+    .expect("nested captures retain one source value identity");
+    let module = &output.local;
+    let (make_id, make) = concrete_function(module, "make");
+    let source = module
+        .local_value_identities
+        .function_local(make_id, make.params[0].local);
+    assert_eq!(module.lambdas.len(), 2);
+
+    for (lambda, declaration) in module.lambdas.iter() {
+        assert_eq!(declaration.captures.len(), 1);
+        let captured = module.local_value_identities.lambda_capture(lambda, 0);
+        assert_eq!(captured.id(), source.id());
+        assert_eq!(captured.key(), source.key());
+    }
+}
+
+#[test]
+fn anonymous_and_callable_reference_captures_share_the_source_identity() {
+    let operation_type = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
+    let output = lower_user_output(file(vec![fun(
+        "main",
+        vec![
+            val("base", int_lit(40)),
+            val_ty(
+                "anonymous",
+                Some(ty_function(false, Vec::new(), ty_named("Int"))),
+                anonymous(var("base")),
+            ),
+            local_fun_sig(
+                "add",
+                Vec::new(),
+                vec![("value", ty_named("Int"))],
+                Some(ty_named("Int")),
+                vec![ret(Some(binary(
+                    ast::BinOp::Add,
+                    var("base"),
+                    var("value"),
+                )))],
+            ),
+            val_ty("reference", Some(operation_type), reference(None, "add")),
+        ],
+    )]))
+    .expect("anonymous and callable-reference captures materialize together");
+    let module = &output.local;
+    let (main_id, main) = concrete_function(module, "main");
+    let (base, _) = concrete_local_by_name(concrete_body(main), "base");
+    let source = module.local_value_identities.function_local(main_id, base);
+
+    let (anonymous, declaration) = module.anonymous_functions.iter().next().unwrap();
+    assert_eq!(declaration.captures.len(), 1);
+    assert_eq!(
+        module
+            .local_value_identities
+            .anonymous_function_capture(anonymous, 0)
+            .id(),
+        source.id()
+    );
+
+    let (reference, declaration) = module.callable_references.iter().next().unwrap();
+    assert_eq!(declaration.captures.len(), 1);
+    assert_eq!(
+        module
+            .local_value_identities
+            .callable_reference_capture(reference, 0)
+            .id(),
+        source.id()
     );
 }
 
