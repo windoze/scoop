@@ -66,6 +66,33 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
     ));
     // Value type receiver: direct.
     assert!(matches!(call_kind(2), mir::CallKind::Direct));
+
+    let (method_id, method) = module
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "C.describe")
+        .expect("the class method is lowered");
+    let source = module
+        .meta
+        .source_callable_materializations
+        .get(method_id)
+        .expect("the class method has one source callable identity");
+    let receiver = module
+        .meta
+        .source_exact_types
+        .get(&method.params[0].ty)
+        .expect("the concrete class receiver has one exact identity")
+        .identity_record()
+        .id();
+    let signature = source.signature_record().signature();
+    assert_eq!(
+        signature.receiver(),
+        scoop_identity::OptionalExactOwner::Present(receiver)
+    );
+    assert!(
+        signature.parameters().is_empty(),
+        "the physical receiver must not be duplicated in logical parameters"
+    );
 }
 
 #[test]

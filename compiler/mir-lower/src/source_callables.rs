@@ -18,22 +18,7 @@ impl SourceCallableRegistry {
         source: hir::FunctionId,
     ) {
         let declaration = &module.functions[source];
-        let signature = hir::ExactCallableSignature::new(
-            if declaration.is_suspend {
-                hir::Effect::Suspend
-            } else {
-                hir::Effect::Ordinary
-            },
-            declaration
-                .method
-                .map(|method| module.exact_type_identities[method.owner].id()),
-            declaration
-                .params
-                .iter()
-                .map(|parameter| module.exact_type_identities[parameter.ty].id())
-                .collect(),
-            module.exact_type_identities[declaration.return_ty].id(),
-        );
+        let signature = exact_function_signature(module, source);
         self.record(module, function, declaration.materialization, signature);
     }
 
@@ -154,6 +139,41 @@ impl SourceCallableRegistry {
         mir::SourceCallableMaterializations::checked(self.entries)
             .expect("MIR lowering records every source callable exactly once")
     }
+}
+
+pub(super) fn exact_function_signature(
+    module: &hir::Module,
+    function: hir::FunctionId,
+) -> hir::ExactCallableSignature {
+    let declaration = &module.functions[function];
+    let parameters = if let Some(method) = declaration.method {
+        let (receiver, parameters) = declaration
+            .params
+            .split_first()
+            .expect("a LocalConcrete method has one physical receiver parameter");
+        assert_eq!(
+            receiver.ty, method.owner,
+            "a LocalConcrete method receiver matches its exact owner",
+        );
+        parameters
+    } else {
+        declaration.params.as_slice()
+    };
+    hir::ExactCallableSignature::new(
+        if declaration.is_suspend {
+            hir::Effect::Suspend
+        } else {
+            hir::Effect::Ordinary
+        },
+        declaration
+            .method
+            .map(|method| module.exact_type_identities[method.owner].id()),
+        parameters
+            .iter()
+            .map(|parameter| module.exact_type_identities[parameter.ty].id())
+            .collect(),
+        module.exact_type_identities[declaration.return_ty].id(),
+    )
 }
 
 fn exact_class(module: &hir::Module, class: hir::ClassId) -> hir::PersistentExactTypeId {

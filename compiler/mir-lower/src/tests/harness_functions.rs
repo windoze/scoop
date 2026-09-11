@@ -100,6 +100,7 @@ impl Harness {
             [self.interfaces[continuation].self_application]
             .canonical_type;
         let mut resume_locals = Arena::new();
+        let resume_receiver = resume_locals.alloc(local("this", continuation_ty));
         let resume_value = resume_locals.alloc(local("value", t));
         let continuation_resume = self.functions.alloc(hir::Function {
             link_stem: callable_link_stem("Continuation.resume"),
@@ -109,7 +110,10 @@ impl Harness {
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
-            params: vec![param("value", t, resume_value)],
+            params: vec![
+                param("this", continuation_ty, resume_receiver),
+                param("value", t, resume_value),
+            ],
             return_ty: self.unit,
             attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(hir::Body {
@@ -124,6 +128,7 @@ impl Harness {
             span: SPAN,
         });
         let mut failure_locals = Arena::new();
+        let failure_receiver = failure_locals.alloc(local("this", continuation_ty));
         let failure = failure_locals.alloc(local("exception", throwable_ty));
         let continuation_resume_with_exception = self.functions.alloc(hir::Function {
             link_stem: callable_link_stem("Continuation.resumeWithException"),
@@ -133,7 +138,10 @@ impl Harness {
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
-            params: vec![param("exception", throwable_ty, failure)],
+            params: vec![
+                param("this", continuation_ty, failure_receiver),
+                param("exception", throwable_ty, failure),
+            ],
             return_ty: self.unit,
             attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(hir::Body {
@@ -197,6 +205,8 @@ impl Harness {
         let suspend_task_ty = self.interface_applications
             [self.interfaces[suspend_task].self_application]
             .canonical_type;
+        let mut run_locals = Arena::new();
+        let run_receiver = run_locals.alloc(local("this", suspend_task_ty));
         let suspend_task_run = self.functions.alloc(hir::Function {
             link_stem: callable_link_stem("SuspendTask.run"),
             name: "SuspendTask.run".to_string(),
@@ -205,11 +215,11 @@ impl Harness {
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: true,
             modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
+            params: vec![param("this", suspend_task_ty, run_receiver)],
             return_ty: t,
             attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(hir::Body {
-                locals: Arena::new(),
+                locals: run_locals,
                 statements: Vec::new(),
             }),
             method: Some(hir::Method {
@@ -237,6 +247,8 @@ impl Harness {
         let suspend_registration_ty = self.interface_applications
             [self.interfaces[suspend_registration].self_application]
             .canonical_type;
+        let mut register_locals = Arena::new();
+        let register_receiver = register_locals.alloc(local("this", suspend_registration_ty));
         let suspend_registration_register = self.functions.alloc(hir::Function {
             link_stem: callable_link_stem("SuspendRegistration.register"),
             name: "SuspendRegistration.register".to_string(),
@@ -245,11 +257,11 @@ impl Harness {
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
+            params: vec![param("this", suspend_registration_ty, register_receiver)],
             return_ty: self.unit,
             attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(hir::Body {
-                locals: Arena::new(),
+                locals: register_locals,
                 statements: Vec::new(),
             }),
             method: Some(hir::Method {
