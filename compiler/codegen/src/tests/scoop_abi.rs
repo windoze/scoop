@@ -29,7 +29,6 @@ fn aggregate_identity(symbol: &str, gc_effect: GcEffect) -> Function {
     Function {
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
-        symbol: symbol.to_string(),
         gc_effect,
         signature: aggregate_signature(),
         call_targets: CallTargets::default(),
@@ -117,7 +116,6 @@ fn ordinary_caller(symbol: &str, gc_effect: GcEffect, protocol: TestCallProtocol
     Function {
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
-        symbol: symbol.to_string(),
         gc_effect,
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
         call_targets,
@@ -188,7 +186,6 @@ fn invoke_caller() -> Function {
     Function {
         callable_body: callable_body("scoop.aggregate_invoke_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
-        symbol: "scoop.aggregate_invoke_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
         call_targets,
@@ -231,7 +228,6 @@ fn aggregate_dispatch_caller() -> Function {
     Function {
         callable_body: callable_body("scoop.aggregate_dispatch_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
-        symbol: "scoop.aggregate_dispatch_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![METADATA_PTR], LirType::Void),
         call_targets,
@@ -275,7 +271,7 @@ fn aggregate_abi_module() -> Module {
             invoke_caller(),
             aggregate_dispatch_caller(),
         ],
-        entry_symbol: "scoop.aggregate_invoke_caller".to_string(),
+        entry: managed_function_ref(4),
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -394,7 +390,6 @@ fn native_aggregate_module() -> Module {
     let caller = Function {
         callable_body: callable_body("scoop.native_aggregate_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
-        symbol: "scoop.native_aggregate_caller".to_string(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
         call_targets,
@@ -416,7 +411,7 @@ fn native_aggregate_module() -> Module {
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         functions: vec![caller],
-        entry_symbol: "scoop.native_aggregate_caller".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -442,18 +437,18 @@ fn aggregate_abi_attributes_survive_definitions_calls_and_statepoint_rewrite() {
         .expect("emit aggregate ABI module");
     llvm.verify().expect("valid pre-RS4GC aggregate ABI module");
     let before = llvm.print_to_string().to_string();
+    let no_gc = llvm_function_symbol(&module.functions[0]);
+    let managed = llvm_function_symbol(&module.functions[2]);
 
     assert!(
         before.lines().any(|line| {
-            line.contains("define void @scoop.aggregate_no_gc")
-                && has_ordered_aggregate_attributes(line)
+            line.contains(&format!("define void {no_gc}")) && has_ordered_aggregate_attributes(line)
         }),
         "callee definition lost the exact sret/byval/align ABI:\n{before}"
     );
     assert!(
         before.lines().any(|line| {
-            line.contains("call void @scoop.aggregate_no_gc")
-                && has_ordered_aggregate_attributes(line)
+            line.contains(&format!("call void {no_gc}")) && has_ordered_aggregate_attributes(line)
         }),
         "ordinary call site lost the exact sret/byval/align ABI:\n{before}"
     );
@@ -461,15 +456,14 @@ fn aggregate_abi_attributes_survive_definitions_calls_and_statepoint_rewrite() {
         before.lines().any(|line| {
             line.contains("invoke token")
                 && line.contains("gc.statepoint")
-                && line.contains("@scoop.aggregate_managed")
+                && line.contains(&managed)
                 && has_ordered_aggregate_attributes(line)
         }),
         "explicit managed statepoint did not offset the wrapped sret/byval attributes:\n{before}"
     );
     assert!(
         before.lines().any(|line| {
-            line.contains("call void @scoop.aggregate_managed")
-                && has_ordered_aggregate_attributes(line)
+            line.contains(&format!("call void {managed}")) && has_ordered_aggregate_attributes(line)
         }),
         "ordinary managed call lost its pre-RS4GC sret/byval attributes:\n{before}"
     );
@@ -491,7 +485,7 @@ fn aggregate_abi_attributes_survive_definitions_calls_and_statepoint_rewrite() {
         after.lines().any(|line| {
             line.contains("invoke token")
                 && line.contains("gc.statepoint")
-                && line.contains("@scoop.aggregate_managed")
+                && line.contains(&managed)
                 && has_ordered_aggregate_attributes(line)
         }),
         "RS4GC dropped or reordered the wrapped sret/byval attributes:\n{after}"
@@ -500,7 +494,7 @@ fn aggregate_abi_attributes_survive_definitions_calls_and_statepoint_rewrite() {
         after.lines().any(|line| {
             line.contains("call token")
                 && line.contains("gc.statepoint")
-                && line.contains("@scoop.aggregate_managed")
+                && line.contains(&managed)
                 && has_ordered_aggregate_attributes(line)
         }),
         "RS4GC dropped or reordered ordinary managed sret/byval attributes:\n{after}"

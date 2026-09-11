@@ -195,9 +195,6 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         &enums,
         &string_global_map,
     );
-    let callback_bridges = lower_callback_bridges(module, &structs, &enums);
-    let foreign_callback_families = lower_foreign_callback_families(module, &enums);
-    let foreign_callback_bridges = lower_foreign_callback_bridges(module, &structs, &enums);
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
         .top_level
@@ -214,6 +211,10 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             (*id, reference)
         })
         .collect::<HashMap<_, _>>();
+    let callback_bridges = lower_callback_bridges(module, &structs, &enums, &local_function_map);
+    let foreign_callback_families = lower_foreign_callback_families(module, &enums);
+    let foreign_callback_bridges =
+        lower_foreign_callback_bridges(module, &structs, &enums, &local_function_map);
     let initialization_units =
         lower_initialization_units(module, &storage_globals, &local_function_map);
     let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) = type_descriptors(
@@ -281,7 +282,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         callback_bridges,
         foreign_callback_families,
         foreign_callback_bridges,
-        entry_symbol: module.functions[module.entry].symbol.clone(),
+        entry: local_function_map[&module.entry],
         meta: lir::LirMeta {
             target_profile: context.target_profile(),
             well_known_layouts,

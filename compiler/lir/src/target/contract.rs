@@ -49,9 +49,35 @@ pub enum NativeSymbolNormalization {
     MachOExternalUnderscore,
 }
 
+impl NativeSymbolNormalization {
+    /// Normalize a canonical compiler-generated logical symbol to the bytes
+    /// used by the target object format. Unlike ordinary C identifiers, a C
+    /// `asm` label names these bytes directly and therefore must consume this
+    /// target projection explicitly.
+    pub fn compiler_generated_object_symbol(self, logical_symbol: &str) -> String {
+        match self {
+            Self::MachOExternalUnderscore => format!("_{logical_symbol}"),
+        }
+    }
+}
+
 impl WireEncode for NativeSymbolNormalization {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NativeSymbolNormalization;
+
+    #[test]
+    fn macho_normalizes_compiler_generated_symbols_for_raw_asm_labels() {
+        assert_eq!(
+            NativeSymbolNormalization::MachOExternalUnderscore
+                .compiler_generated_object_symbol("scoop$1$cb$abc"),
+            "_scoop$1$cb$abc"
+        );
     }
 }
 

@@ -21,7 +21,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let alloca = builder.build_alloca(ty, name).map_err(|e| {
             CodegenError(format!(
                 "alloca {name} @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })?;
         builder.position_at_end(current);
@@ -53,7 +53,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if validation::contains_machine_scalar(self.structs, self.enums, source_ty) {
             return Err(CodegenError(format!(
                 "root source in @{} cannot contain an internal machine scalar",
-                self.function.symbol
+                self.function.symbol()
             )));
         }
         match source {
@@ -386,7 +386,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             let descriptor = emit_ref_scan(
                 context,
                 self.llvm,
-                &format!("{}.invoke.{index}.root.{root_index}", self.function.symbol),
+                &format!(
+                    "{}.invoke.{index}.root.{root_index}",
+                    self.function.symbol()
+                ),
                 root.scan.as_ref_scan(),
             )
             .expect("exceptional roots always carry a non-empty scan");

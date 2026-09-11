@@ -229,7 +229,6 @@ fn native_calls_publish_roots_transition_and_reload() {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "safe_root".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: safe_targets,
         locals: Arena::default(),
@@ -281,7 +280,6 @@ fn native_calls_publish_roots_transition_and_reload() {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "borrowed_result".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: borrowed_targets,
         locals: borrowed_locals,
@@ -302,7 +300,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![safe, borrowed_function],
-        entry_symbol: "safe_root".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -396,7 +394,6 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "continuation_atomics".to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], state_ty),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -404,7 +401,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
             blocks,
             entry,
         }],
-        entry_symbol: "continuation_atomics".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     };
 

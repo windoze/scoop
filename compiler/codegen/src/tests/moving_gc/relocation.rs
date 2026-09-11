@@ -54,7 +54,6 @@ fn managed_live_plan_produces_as1_relocation() {
             callable_body: callable_body("scoop.live_root"),
             safepoints: test_safepoints("scoop.live_root", &blocks, entry),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop.live_root".to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
             call_targets: targets,
             locals: Arena::default(),
@@ -62,7 +61,7 @@ fn managed_live_plan_produces_as1_relocation() {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop.live_root".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     };
     let ir = rewritten_ir_of(&module);
@@ -90,7 +89,6 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.invoke_target".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -179,7 +177,6 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         callable_body: callable_body("scoop.invoke_caller"),
         safepoints: test_safepoints("scoop.invoke_caller", &blocks, entry),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.invoke_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: targets,
         locals: Arena::default(),
@@ -199,7 +196,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![callee, caller],
-        entry_symbol: "scoop.invoke_caller".to_string(),
+        entry: managed_function_ref(1),
         meta: string_metadata(),
     };
 

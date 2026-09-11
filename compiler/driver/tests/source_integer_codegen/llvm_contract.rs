@@ -46,15 +46,15 @@ fn blocks(function: &str) -> HashMap<String, String> {
 pub(super) fn assert_contract(
     lir: &scoop_lir::Module,
     llvm: &str,
-    mir_function: &scoop_mir::Function,
+    callable_body: scoop_identity::PersistentCallableBodyId,
     case: IntegerCase,
 ) {
     let function = lir
         .functions
         .iter()
-        .find(|function| function.symbol == mir_function.symbol)
+        .find(|function| function.callable_body.id() == callable_body)
         .unwrap_or_else(|| panic!("{} reaches LIR", case.function));
-    let function_ir = function_text(llvm, &function.symbol);
+    let function_ir = function_text(llvm, function.symbol());
     let block_ir = blocks(function_ir);
     let (expected_div, expected_rem) = match case.lir_kind.signedness() {
         scoop_lir::IntegerSignedness::Signed => ("sdiv", "srem"),

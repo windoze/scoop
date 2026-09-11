@@ -1,6 +1,11 @@
 use super::*;
 
-pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut String) {
+pub(super) fn dump_instruction(
+    module: &Module,
+    function: &Function,
+    instruction: &Instruction,
+    buf: &mut String,
+) {
     match instruction {
         Instruction::BinOp { out, op, lhs, rhs } => buf.push_str(&format!(
             "    t{} = {:?} {}, {} : {}\n",
@@ -277,10 +282,15 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             value_name(*replacement),
             function.temps[*out].ty.dump()
         )),
-        Instruction::FunctionAddress { out, symbol } => buf.push_str(&format!(
+        Instruction::FunctionAddress { out, target } => buf.push_str(&format!(
             "    t{} = function_address @{} : ptr\n",
             out.into_raw(),
-            symbol
+            match target {
+                FunctionAddressTarget::Local(reference) =>
+                    module.functions[reference.declaration().into_u32() as usize].symbol(),
+                FunctionAddressTarget::CallbackTrampoline(bridge) =>
+                    &module.callback_bridges[*bridge].trampoline_symbol,
+            }
         )),
         Instruction::ForeignCallbackRegister {
             out,

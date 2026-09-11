@@ -4,13 +4,17 @@ pub(super) fn lower_callback_bridges(
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> Arena<lir::CallbackBridge> {
     let mut callbacks = Arena::new();
     for (id, callback) in module.callback_bridges.iter() {
         let signature = &module.function_types[callback.signature];
+        let lir::LocalFunctionRef::NoGc(bridge) = local_functions[&callback.bridge_function] else {
+            unreachable!("validated static callback bridges are NoGC")
+        };
         callbacks.alloc(lir::CallbackBridge {
             source_name: module.functions[callback.source].name.clone(),
-            bridge_symbol: module.functions[callback.bridge_function].symbol.clone(),
+            bridge,
             trampoline_symbol: format!("scoop_c_callback_{}", id.into_raw().into_u32()),
             params: signature
                 .parameter_types
@@ -27,6 +31,7 @@ pub(super) fn lower_foreign_callback_bridges(
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> Arena<lir::ForeignCallbackBridge> {
     let mut bridges = Arena::new();
     let mut shared_trampolines: HashMap<(mir::FunctionTypeId, u32), (String, String)> =
@@ -47,10 +52,14 @@ pub(super) fn lower_foreign_callback_bridges(
                 shared_trampolines.insert(key, symbols.clone());
                 symbols
             };
+        let lir::LocalFunctionRef::Managed(adapter_function) = local_functions[&adapter.function]
+        else {
+            unreachable!("validated foreign callback adapters are managed")
+        };
         bridges.alloc(lir::ForeignCallbackBridge {
             application: bridge.application(),
             family: lir::ForeignCallbackFamilyId::from_raw(bridge.family.into_raw()),
-            adapter_symbol: module.functions[adapter.function].symbol.clone(),
+            adapter: adapter_function,
             trampoline_symbol,
             signature_symbol,
             params: signature

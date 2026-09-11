@@ -77,7 +77,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
     // td)`. Both checks share one typed descriptor reference.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 a: ptr<managed>
     local %1 v: struct0
     local %2 chk: i1
@@ -107,7 +107,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout S size=4 align=4 refs=[]
   layout box$D1_SX size=24 align=8 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 
@@ -202,7 +202,7 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 v: ptr<managed>
     local %1 $call.1: i64
     local %2 h: struct0
@@ -248,6 +248,6 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout PinnedPtr$S size=8 align=8 refs=[]
   layout GcHandle$S size=8 align=8 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }

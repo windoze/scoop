@@ -17,6 +17,35 @@ fn emits_non_empty_object_file() {
 }
 
 #[test]
+fn callable_identity_controls_function_symbol_and_linkage() {
+    let mut module = values_module();
+    module.functions[0].callable_body = odr_callable_body("shared_function");
+    refresh_test_safepoints(&mut module.functions[0]);
+    let function = &module.functions[0];
+
+    let ir = ir_of(&module);
+
+    assert!(
+        ir.contains(&format!("define weak_odr void @\"{}\"", function.symbol())),
+        "{ir}"
+    );
+}
+
+#[test]
+fn executable_entry_shim_calls_the_typed_persistent_body() {
+    let module = values_module();
+    let entry = &module.functions[module.entry.declaration().into_u32() as usize];
+
+    let ir = render_llvm_ir(&module, host_profile()).expect("render executable module");
+
+    assert!(ir.contains("define void @scoop_main()"), "{ir}");
+    assert!(
+        ir.contains(&format!("musttail call void @\"{}\"()", entry.symbol())),
+        "{ir}"
+    );
+}
+
+#[test]
 fn emits_unsigned_division_remainder_and_three_way_comparisons() {
     let mut module = values_module();
     let function = &mut module.functions[0];
@@ -389,7 +418,6 @@ fn local_call_signature_cannot_relabel_machine_result_as_i64() {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "machine_adapter".to_string(),
         signature: plain_scoop_signature(vec![], machine_result),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -421,7 +449,7 @@ fn local_call_signature_cannot_relabel_machine_result_as_i64() {
         .expect_err("a local call must use its declaration's logical result domain");
     assert!(
         error.0.contains("typed local call")
-            && error.0.contains("machine_adapter")
+            && error.0.contains(module.functions[1].symbol())
             && error.0.contains("machine<foreign-callback-status>"),
         "unexpected error: {error}"
     );
@@ -586,7 +614,6 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "machine_dispatch_adapter".to_string(),
         signature: plain_scoop_signature(
             vec![],
             LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
@@ -615,10 +642,10 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("dispatch metadata must not expose a machine-scalar local function");
     assert!(
-        error
-            .0
-            .contains("dispatches to local function @machine_dispatch_adapter")
-            && error.0.contains("machine scalar"),
+        error.0.contains(&format!(
+            "dispatches to local function @{}",
+            module.functions[function_id.into_u32() as usize].symbol()
+        )) && error.0.contains("machine scalar"),
         "unexpected error: {error}"
     );
 }

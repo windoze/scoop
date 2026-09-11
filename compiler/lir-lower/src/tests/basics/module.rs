@@ -27,9 +27,12 @@ fn odr_callable_subject_becomes_the_exact_odr_body_identity() {
         )])
         .unwrap();
 
+    let body = crate::callable_body_identity(&module, function);
+    assert_eq!(body, expected_callable_body(subject));
+    assert_eq!(body.symbol_request().linkage(), lir::LinkageClass::OdrWeak);
     assert_eq!(
-        crate::callable_body_identity(&module, function),
-        expected_callable_body(subject)
+        body.symbol_request().key(),
+        scoop_identity::PersistentSymbolKey::CallableBody(body.id())
     );
 }
 
@@ -111,10 +114,14 @@ fn lowers_hello_world() {
         expected_immortal_objects.iter().collect::<Vec<_>>()
     );
 
-    // Functions keep their mangled symbols; the entry symbol is the
-    // fixed `scoop_main`.
-    let symbols: Vec<&str> = module.functions.iter().map(|f| f.symbol.as_str()).collect();
-    assert_eq!(symbols, ["scoop.helper", mir::ENTRY_SYMBOL]);
+    let symbols: Vec<&str> = module.functions.iter().map(lir::Function::symbol).collect();
+    assert_eq!(
+        symbols,
+        expected_callable_bodies
+            .iter()
+            .map(lir::CallableBodyIdentity::symbol)
+            .collect::<Vec<_>>()
+    );
     assert_eq!(
         module
             .functions
@@ -123,7 +130,7 @@ fn lowers_hello_world() {
             .collect::<Vec<_>>(),
         expected_callable_bodies.iter().collect::<Vec<_>>()
     );
-    assert_eq!(module.entry_symbol, mir::ENTRY_SYMBOL);
+    assert_eq!(module.entry.declaration().into_u32(), 1);
 
     // The source declaration's typed intrinsic identity survives through
     // MIR and LIR. String metadata is a required singleton, not a layout
@@ -165,13 +172,13 @@ Module
   global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "hello, world"
   global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "!"
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
-  fun @scoop.helper() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[] sig=void0 (ptr<managed>) extern0(global1)
     t0 = aggregate () : {}
     ret
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[] sig=void0 (ptr<managed>) extern0(global0)
@@ -189,7 +196,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }
 

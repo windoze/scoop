@@ -44,7 +44,7 @@ impl<'a> AbiMetadataValidator<'a> {
         for function in &self.module.functions {
             self.validate_scoop_signature(
                 &function.signature,
-                &format!("function @{}", function.symbol),
+                &format!("function @{}", function.symbol()),
             )?;
             self.validate_call_signatures(function)?;
         }
@@ -66,7 +66,7 @@ impl<'a> AbiMetadataValidator<'a> {
                 signature.arguments(),
                 &format!(
                     "function @{} void call signature {}",
-                    function.symbol,
+                    function.symbol(),
                     id.into_raw()
                 ),
             )?;
@@ -74,7 +74,7 @@ impl<'a> AbiMetadataValidator<'a> {
         for (id, signature) in targets.elided_zst_signatures.iter() {
             let owner = format!(
                 "function @{} elided-ZST call signature {}",
-                function.symbol,
+                function.symbol(),
                 id.into_raw()
             );
             self.validate_arguments(signature.arguments(), &owner)?;
@@ -83,7 +83,7 @@ impl<'a> AbiMetadataValidator<'a> {
         for (id, signature) in targets.direct_signatures.iter() {
             let owner = format!(
                 "function @{} direct call signature {}",
-                function.symbol,
+                function.symbol(),
                 id.into_raw()
             );
             self.validate_arguments(signature.arguments(), &owner)?;
@@ -98,7 +98,7 @@ impl<'a> AbiMetadataValidator<'a> {
         for (id, signature) in targets.indirect_result_signatures.iter() {
             let owner = format!(
                 "function @{} indirect-result call signature {}",
-                function.symbol,
+                function.symbol(),
                 id.into_raw()
             );
             self.validate_arguments(signature.arguments(), &owner)?;
@@ -997,13 +997,13 @@ fn checked_call_view<'a, Destination: Copy>(
     let invalid_target = |convention: &str, index: usize| {
         CodegenError(format!(
             "typed call @{} references invalid {convention} target {index}",
-            function.symbol
+            function.symbol()
         ))
     };
     let invalid_signature = |convention: &str, index: usize| {
         CodegenError(format!(
             "typed call @{} references invalid {convention} signature {index}",
-            function.symbol
+            function.symbol()
         ))
     };
 
@@ -1282,7 +1282,7 @@ fn validate_destination(
                     format!(
                         "{} protocol does not match @{}'s {:?} effect",
                         protocol.name(),
-                        declaration.symbol,
+                        declaration.symbol(),
                         declaration.gc_effect
                     ),
                 ));
@@ -1291,7 +1291,7 @@ fn validate_destination(
                 function,
                 call,
                 &declaration.signature,
-                &format!("typed local call to @{}", declaration.symbol),
+                &format!("typed local call to @{}", declaration.symbol()),
             )
         }
         scoop_lir::CallDestination::Extern(id) => {
@@ -1689,11 +1689,11 @@ const fn argument_convention(argument: &scoop_lir::AbiArgument) -> &'static str 
 }
 
 fn call_error(function: &Function, detail: impl std::fmt::Display) -> CodegenError {
-    CodegenError(format!("typed call @{}: {detail}", function.symbol))
+    CodegenError(format!("typed call @{}: {detail}", function.symbol()))
 }
 
 fn managed_poll_error(function: &Function, detail: impl std::fmt::Display) -> CodegenError {
-    CodegenError(format!("managed poll @{}: {detail}", function.symbol))
+    CodegenError(format!("managed poll @{}: {detail}", function.symbol()))
 }
 
 #[cfg(test)]
@@ -1702,6 +1702,7 @@ mod tests {
     use la_arena::Arena;
 
     fn module_with_types(structs: StructDefs, enums: EnumDefs) -> Module {
+        let mut local_functions = scoop_lir::LocalFunctionIdentities::default();
         Module {
             globals: Arena::new(),
             initialization_units: Arena::new(),
@@ -1714,7 +1715,7 @@ mod tests {
             callback_bridges: Arena::new(),
             foreign_callback_families: Arena::new(),
             foreign_callback_bridges: Arena::new(),
-            entry_symbol: String::new(),
+            entry: scoop_lir::LocalFunctionRef::Managed(local_functions.alloc_managed()),
             meta: scoop_lir::LirMeta {
                 target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
                 well_known_layouts: scoop_lir::WellKnownLayouts {

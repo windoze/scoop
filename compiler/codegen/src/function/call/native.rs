@@ -39,7 +39,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             let descriptor = emit_ref_scan(
                 context,
                 self.llvm,
-                &format!("{}.native.{call_index}.root.{index}", self.function.symbol),
+                &format!(
+                    "{}.native.{call_index}.root.{index}",
+                    self.function.symbol()
+                ),
                 root.scan.as_ref_scan(),
             )
             .expect("LIR caller roots always carry a non-empty scan");
@@ -49,7 +52,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             let descriptor = emit_ref_scan(
                 context,
                 self.llvm,
-                &format!("{}.native.{call_index}.result", self.function.symbol),
+                &format!("{}.native.{call_index}.result", self.function.symbol()),
                 scan,
             )
             .expect("a native result root always carries a non-empty scan");

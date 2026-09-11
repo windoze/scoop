@@ -137,7 +137,6 @@ fn barrier_module() -> Module {
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], LirType::Void),
             call_targets,
             locals: Arena::default(),
@@ -145,7 +144,7 @@ fn barrier_module() -> Module {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        entry: managed_function_ref(0),
         meta,
     };
     refresh_module_safepoints(&mut module);
@@ -168,6 +167,7 @@ fn functions_carry_the_gc_strategy_and_poll_safepoints() {
 fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
     let mut module = barrier_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
+    module.entry = no_gc_function_ref(0);
     for (_, block) in module.functions[0].blocks.iter_mut() {
         block.instructions.retain(|instruction| {
             !matches!(

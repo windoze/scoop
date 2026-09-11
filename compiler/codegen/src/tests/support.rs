@@ -37,6 +37,89 @@ pub(super) fn callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
     scoop_lir::CallableBodyIdentity::for_function(function).unwrap()
 }
 
+pub(super) fn odr_callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
+    let exact_type = test_exact_type(&format!("odr{symbol}"));
+    let generated = scoop_identity::CborIdentityRecord::from_key(
+        scoop_identity::GeneratedCallableKey::CoroutineStart { result: exact_type },
+    )
+    .unwrap();
+    let group =
+        scoop_identity::OdrGroupId::from_key(&scoop_identity::SpecializationKey::StructuralType {
+            exact_type,
+        })
+        .unwrap();
+    let member_key = scoop_identity::OdrMemberKey::new(
+        group,
+        scoop_identity::OdrMemberRole::CallableBody,
+        scoop_identity::OdrMemberDiscriminator::GeneratedCallable(generated.id()),
+    )
+    .unwrap();
+    let member = scoop_identity::CallableOdrMemberId::from_key(&member_key).unwrap();
+    scoop_lir::CallableBodyIdentity::for_odr_member(member).unwrap()
+}
+
+pub(super) fn local_function_ref(index: usize, effect: GcEffect) -> scoop_lir::LocalFunctionRef {
+    let mut identities = scoop_lir::LocalFunctionIdentities::default();
+    for _ in 0..index {
+        identities.alloc_managed();
+    }
+    match effect {
+        GcEffect::Managed => scoop_lir::LocalFunctionRef::Managed(identities.alloc_managed()),
+        GcEffect::NoGc => scoop_lir::LocalFunctionRef::NoGc(identities.alloc_no_gc()),
+    }
+}
+
+pub(super) fn managed_function_ref(index: usize) -> scoop_lir::LocalFunctionRef {
+    scoop_lir::LocalFunctionRef::Managed(managed_local_function_ref(index))
+}
+
+pub(super) fn no_gc_function_ref(index: usize) -> scoop_lir::LocalFunctionRef {
+    scoop_lir::LocalFunctionRef::NoGc(no_gc_local_function_ref(index))
+}
+
+pub(super) fn managed_local_function_ref(index: usize) -> scoop_lir::ManagedLocalFunctionRef {
+    let scoop_lir::LocalFunctionRef::Managed(reference) =
+        local_function_ref(index, GcEffect::Managed)
+    else {
+        unreachable!()
+    };
+    reference
+}
+
+pub(super) fn no_gc_local_function_ref(index: usize) -> scoop_lir::NoGcLocalFunctionRef {
+    let scoop_lir::LocalFunctionRef::NoGc(reference) = local_function_ref(index, GcEffect::NoGc)
+    else {
+        unreachable!()
+    };
+    reference
+}
+
+pub(super) fn append_executable_entry(module: &mut Module, identity_seed: &str) {
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+    let index = module.functions.len();
+    module.functions.push(Function {
+        callable_body: callable_body(identity_seed),
+        safepoints: scoop_lir::SafepointIdentities::default(),
+        gc_effect: GcEffect::Managed,
+        signature: plain_scoop_signature(Vec::new(), LirType::Void),
+        call_targets: CallTargets::default(),
+        locals: Arena::default(),
+        temps: Arena::default(),
+        blocks,
+        entry,
+    });
+    module.entry = managed_function_ref(index);
+}
+
+pub(super) fn llvm_function_symbol(function: &Function) -> String {
+    format!("@\"{}\"", function.symbol())
+}
+
 pub(super) fn callable_body_at(source: &str, line: u32) -> scoop_lir::CallableBodyIdentity {
     callable_body(&format!("{source}:{line}"))
 }
@@ -777,7 +860,6 @@ pub(super) fn values_module() -> Module {
             callable_body: callable_body("scoop_main"),
             safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets,
             locals,
@@ -785,7 +867,7 @@ pub(super) fn values_module() -> Module {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     }
 }

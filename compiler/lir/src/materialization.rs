@@ -233,7 +233,10 @@ pub(crate) struct MaterializedSymbol {
 }
 
 impl MaterializedSymbol {
-    fn new(key: PersistentSymbolKey, linkage: LinkageClass) -> Result<Self, PersistentSymbolError> {
+    pub(crate) fn new(
+        key: PersistentSymbolKey,
+        linkage: LinkageClass,
+    ) -> Result<Self, PersistentSymbolError> {
         let request = PersistentSymbolRequest::new(key, linkage)?;
         let symbol = request.symbol();
         Ok(Self { request, symbol })

@@ -27,6 +27,7 @@ struct FnEmitter<'a, 'ctx> {
     extern_functions: &'a ExternFunctions,
     native_globals: &'a Arena<NativeGlobal>,
     native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
+    callback_bridges: &'a Arena<scoop_lir::CallbackBridge>,
     foreign_callback_families: &'a Arena<scoop_lir::ForeignCallbackFamily>,
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
@@ -179,7 +180,7 @@ pub(super) fn emit_function<'ctx>(
 ) -> Result<(), CodegenError> {
     // Pre-declared in the first pass (see `emit_object`).
     let llvm_function = llvm
-        .get_function(&function.symbol)
+        .get_function(function.symbol())
         .expect("function declared in the first pass");
 
     // A function containing a landing pad needs Scoop's closed-profile
@@ -242,7 +243,7 @@ pub(super) fn emit_function<'ctx>(
             emit_ref_scan(
                 context,
                 llvm,
-                &format!("{}.root_scan.{}", function.symbol, id.into_raw()),
+                &format!("{}.root_scan.{}", function.symbol(), id.into_raw()),
                 scan,
             )
             .unwrap_or_else(|| ptr_ty(context).const_null())
@@ -265,6 +266,7 @@ pub(super) fn emit_function<'ctx>(
         extern_functions: module_ctx.extern_functions,
         native_globals: module_ctx.native_globals,
         native_global_bridges: module_ctx.native_global_bridges,
+        callback_bridges: module_ctx.callback_bridges,
         foreign_callback_families: module_ctx.foreign_callback_families,
         foreign_callback_bridges: module_ctx.foreign_callback_bridges,
         globals_arena: module_ctx.globals_arena,
@@ -339,7 +341,8 @@ pub(super) fn emit_function<'ctx>(
             if is_invoke && index + 1 != block.instructions.len() {
                 return Err(CodegenError(format!(
                     "invoke @{}: must be the last instruction of block {}",
-                    function.symbol, block.name
+                    function.symbol(),
+                    block.name
                 )));
             }
             if matches!(
@@ -349,7 +352,8 @@ pub(super) fn emit_function<'ctx>(
             {
                 return Err(CodegenError(format!(
                     "landing pad @{}: must be the first instruction of block {}",
-                    function.symbol, block.name
+                    function.symbol(),
+                    block.name
                 )));
             }
             emitter.instruction(instruction)?;
@@ -370,7 +374,8 @@ pub(super) fn emit_function<'ctx>(
                 _ => {
                     return Err(CodegenError(format!(
                         "invoke block @{}:{}: terminator must be `br` to the invoke's normal target",
-                        function.symbol, block.name
+                        function.symbol(),
+                        block.name
                     )));
                 }
             }
@@ -414,7 +419,7 @@ pub(super) fn emit_function<'ctx>(
                         if &actual != expected {
                             return Err(CodegenError(format!(
                                 "ret @{} has value type {}, but function returns {}",
-                                function.symbol,
+                                function.symbol(),
                                 actual.dump(),
                                 expected.dump()
                             )));
@@ -423,14 +428,14 @@ pub(super) fn emit_function<'ctx>(
                     (None, Some(expected)) => {
                         return Err(CodegenError(format!(
                             "ret @{} has no value, but function returns {}",
-                            function.symbol,
+                            function.symbol(),
                             expected.dump()
                         )));
                     }
                     (Some(_), None) => {
                         return Err(CodegenError(format!(
                             "ret @{} has a value, but function returns void",
-                            function.symbol
+                            function.symbol()
                         )));
                     }
                     (None, None) => {}
@@ -438,15 +443,15 @@ pub(super) fn emit_function<'ctx>(
 
                 match function.signature.result() {
                     scoop_lir::AbiReturn::UnitVoid | scoop_lir::AbiReturn::ElidedZst(_) => {
-                        builder
-                            .build_return(None)
-                            .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                        builder.build_return(None).map_err(|e| {
+                            CodegenError(format!("ret @{}: {e}", function.symbol()))
+                        })?;
                     }
                     scoop_lir::AbiReturn::Direct(_) => {
                         let value = emitter.value(value.expect("direct result was validated"))?;
-                        builder
-                            .build_return(Some(&value))
-                            .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                        builder.build_return(Some(&value)).map_err(|e| {
+                            CodegenError(format!("ret @{}: {e}", function.symbol()))
+                        })?;
                     }
                     scoop_lir::AbiReturn::Indirect(_) => {
                         let value = emitter.value(value.expect("indirect result was validated"))?;
@@ -454,11 +459,11 @@ pub(super) fn emit_function<'ctx>(
                             .return_slot
                             .expect("indirect-result function has its sret parameter");
                         builder.build_store(slot, value).map_err(|e| {
-                            CodegenError(format!("ret slot @{}: {e}", function.symbol))
+                            CodegenError(format!("ret slot @{}: {e}", function.symbol()))
                         })?;
-                        builder
-                            .build_return(None)
-                            .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                        builder.build_return(None).map_err(|e| {
+                            CodegenError(format!("ret @{}: {e}", function.symbol()))
+                        })?;
                     }
                 }
             }
@@ -467,19 +472,19 @@ pub(super) fn emit_function<'ctx>(
                 if exception_ty != LirType::ExceptionRecord {
                     return Err(CodegenError(format!(
                         "resume @{} requires exception_record, got {}",
-                        function.symbol,
+                        function.symbol(),
                         exception_ty.dump()
                     )));
                 }
                 let exception = emitter.value(*exception)?;
                 builder
                     .build_resume(exception)
-                    .map_err(|e| CodegenError(format!("resume @{}: {e}", function.symbol)))?;
+                    .map_err(|e| CodegenError(format!("resume @{}: {e}", function.symbol())))?;
             }
             Terminator::Unreachable => {
-                builder
-                    .build_unreachable()
-                    .map_err(|e| CodegenError(format!("unreachable @{}: {e}", function.symbol)))?;
+                builder.build_unreachable().map_err(|e| {
+                    CodegenError(format!("unreachable @{}: {e}", function.symbol()))
+                })?;
             }
         }
     }

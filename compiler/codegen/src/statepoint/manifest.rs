@@ -57,12 +57,12 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
     let mut functions = BTreeMap::new();
     for function in &module.functions {
         if functions
-            .insert(function.symbol.clone(), function.gc_effect)
+            .insert(function.symbol().to_string(), function.gc_effect)
             .is_some()
         {
             return Err(CodegenError(format!(
                 "duplicate LIR function symbol `{}` in statepoint manifest",
-                function.symbol
+                function.symbol()
             )));
         }
         for (_, block) in function.blocks.iter() {
@@ -117,7 +117,7 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                     .ok_or_else(|| {
                         CodegenError(format!(
                             "LIR function `{}` references missing safepoint site {}",
-                            function.symbol,
+                            function.symbol(),
                             safepoint.into_u32()
                         ))
                     })?
@@ -125,13 +125,13 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                 if function.gc_effect == GcEffect::NoGc {
                     return Err(CodegenError(format!(
                         "NoGc LIR function `{}` contains safepoint {}",
-                        function.symbol,
+                        function.symbol(),
                         safepoint.get()
                     )));
                 }
                 insert_expectation(
                     &mut sites,
-                    &function.symbol,
+                    function.symbol(),
                     &block.name,
                     safepoint,
                     expectation,

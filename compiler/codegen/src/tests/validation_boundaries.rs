@@ -74,6 +74,7 @@ fn assert_validation_error<T>(
 }
 
 fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) {
+    let expected = resolve_function_markers(module, expected);
     let profile = host_profile();
     let output = std::env::temp_dir().join(format!(
         "scoop_codegen_{fixture}_preflight_test_{}.o",
@@ -83,7 +84,7 @@ fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) 
 
     assert_validation_error(
         std::panic::catch_unwind(|| emit_object(module, &output, profile)),
-        expected,
+        &expected,
     );
     assert!(
         !output.exists(),
@@ -91,23 +92,37 @@ fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) 
     );
     assert_validation_error(
         std::panic::catch_unwind(|| render_llvm_ir(module, profile)),
-        expected,
+        &expected,
     );
     assert_validation_error(
         std::panic::catch_unwind(|| c_bridge_source(module)),
-        expected,
+        &expected,
     );
     assert_validation_error(
         std::panic::catch_unwind(|| c_layout_assertions(module)),
-        expected,
+        &expected,
     );
 }
 
 fn assert_module_validation_error(module: &Module, expected: &str) {
+    let expected = resolve_function_markers(module, expected);
     assert_validation_error(
         std::panic::catch_unwind(|| crate::validation::validate_module(module)),
-        expected,
+        &expected,
     );
+}
+
+fn resolve_function_markers(module: &Module, expected: &str) -> String {
+    module
+        .functions
+        .iter()
+        .enumerate()
+        .fold(expected.to_string(), |text, (index, function)| {
+            text.replace(
+                &format!("{{function:{index}}}"),
+                &format!("@{}", function.symbol()),
+            )
+        })
 }
 
 #[test]
@@ -115,7 +130,7 @@ fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
     let module = module_with_invalid_invoke_unwind();
     assert_public_entries_reject(
         &module,
-        "variant control-flow validation in @scoop.eh_test reached invalid block 99",
+        "variant control-flow validation in {function:2} reached invalid block 99",
         "eh_edge",
     );
 }
@@ -125,7 +140,7 @@ fn root_plan_validation_rejects_nonterminal_invoke_before_indexing_its_edges() {
     let module = module_with_nonterminal_invoke_and_invalid_edges();
     assert_public_entries_reject(
         &module,
-        "invoke @scoop.eh_test: must be the last instruction of block entry",
+        "invoke {function:2}: must be the last instruction of block entry",
         "nonterminal_invoke",
     );
 }
@@ -184,10 +199,9 @@ fn callback_adapter(symbol: &str) -> Function {
         },
     });
     Function {
-        callable_body: callable_body_at(file!(), line!()),
+        callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: symbol.to_string(),
         signature: plain_scoop_signature(
             vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
             LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
@@ -214,13 +228,14 @@ fn malformed_callback_registration(corruption: CallbackRegistrationCorruption) -
     let callback = module.foreign_callback_families[family].callback;
     let mode = module.foreign_callback_families[family].modes.reusable();
     let adapter_symbol = "scoop.invalid_id_callback_adapter";
+    let adapter_index = module.functions.len();
     module.functions.push(callback_adapter(adapter_symbol));
     let bridge = module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
             application: callback_application(0),
             family,
-            adapter_symbol: adapter_symbol.to_string(),
+            adapter: managed_local_function_ref(adapter_index),
             trampoline_symbol: "scoop.invalid_id_callback_trampoline".to_string(),
             signature_symbol: "scoop.invalid_id_callback_signature".to_string(),
             params: vec![scoop_lir::CType::DataPointer {
@@ -316,14 +331,14 @@ fn public_codegen_entries_reject_invalid_typed_instruction_ids_without_panicking
     let module = module_with_invalid_enum_wrap_output();
     assert_public_entries_reject(
         &module,
-        "enum_wrap result references invalid temporary t99 in @scoop.tagged",
+        "enum_wrap result references invalid temporary t99 in {function:0}",
         "enum_result_id",
     );
 
     let module = module_with_invalid_callback_state_output();
     assert_public_entries_reject(
         &module,
-        "foreign callback state result references invalid temporary t99 in @scoop_main",
+        "foreign callback state result references invalid temporary t99 in {function:0}",
         "callback_result_id",
     );
 }
@@ -333,19 +348,19 @@ fn enum_wrap_rejects_every_out_of_bounds_value_reference_before_type_lookup() {
     let cases = [
         (
             Value::Local(scoop_lir::LocalId::from_raw(99.into())),
-            "enum_wrap field 0 references invalid local 99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid local 99 in {function:0}",
         ),
         (
             Value::Param(99),
-            "enum_wrap field 0 references invalid parameter 99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid parameter 99 in {function:0}",
         ),
         (
             Value::Temp(invalid_temp()),
-            "enum_wrap field 0 references invalid temporary t99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid temporary t99 in {function:0}",
         ),
         (
             Value::Global(scoop_lir::GlobalId::from_raw(99.into())),
-            "enum_wrap field 0 references invalid global 99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid global 99 in {function:0}",
         ),
     ];
 
@@ -377,7 +392,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_test result references invalid temporary t99 in @scoop.tagged",
+        "variant_test result references invalid temporary t99 in {function:0}",
     );
 
     let mut module = enum_module();
@@ -394,7 +409,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_test operand references invalid parameter 99 in @scoop.tagged",
+        "variant_test operand references invalid parameter 99 in {function:0}",
     );
 
     let mut module = enum_module();
@@ -414,7 +429,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_payload_project result references invalid temporary t99 in @scoop.tagged",
+        "variant_payload_project result references invalid temporary t99 in {function:0}",
     );
 
     let mut module = enum_module();
@@ -435,7 +450,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_payload_project operand references invalid temporary t99 in @scoop.tagged",
+        "variant_payload_project operand references invalid temporary t99 in {function:0}",
     );
 }
 
@@ -444,19 +459,19 @@ fn callback_instructions_reject_invalid_result_and_operand_ids() {
     for (corruption, expected) in [
         (
             CallbackRegistrationCorruption::Result,
-            "foreign callback registration result references invalid temporary t99 in @scoop_main",
+            "foreign callback registration result references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackRegistrationCorruption::ClosureParameter,
-            "foreign callback registration closure references invalid parameter 99 in @scoop_main",
+            "foreign callback registration closure references invalid parameter 99 in {function:0}",
         ),
         (
             CallbackRegistrationCorruption::ClosureTemporary,
-            "foreign callback registration closure references invalid temporary t99 in @scoop_main",
+            "foreign callback registration closure references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackRegistrationCorruption::ClosureGlobal,
-            "foreign callback registration closure references invalid global 99 in @scoop_main",
+            "foreign callback registration closure references invalid global 99 in {function:0}",
         ),
     ] {
         let module = malformed_callback_registration(corruption);
@@ -466,19 +481,19 @@ fn callback_instructions_reject_invalid_result_and_operand_ids() {
     for (corruption, expected) in [
         (
             CallbackOperationCorruption::Result,
-            "foreign callback state result references invalid temporary t99 in @scoop_main",
+            "foreign callback state result references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackOperationCorruption::CallbackParameter,
-            "foreign callback operation callback references invalid parameter 99 in @scoop_main",
+            "foreign callback operation callback references invalid parameter 99 in {function:0}",
         ),
         (
             CallbackOperationCorruption::CallbackTemporary,
-            "foreign callback operation callback references invalid temporary t99 in @scoop_main",
+            "foreign callback operation callback references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackOperationCorruption::CallbackGlobal,
-            "foreign callback operation callback references invalid global 99 in @scoop_main",
+            "foreign callback operation callback references invalid global 99 in {function:0}",
         ),
     ] {
         let module = malformed_callback_operation(corruption);
@@ -489,7 +504,7 @@ fn callback_instructions_reject_invalid_result_and_operand_ids() {
 fn root_plan_test_module(
     functions: Vec<Function>,
     extern_functions: scoop_lir::ExternFunctions,
-    entry_symbol: &str,
+    entry_index: usize,
 ) -> Module {
     let mut module = Module {
         globals: Arena::new(),
@@ -503,7 +518,7 @@ fn root_plan_test_module(
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         functions,
-        entry_symbol: entry_symbol.to_string(),
+        entry: managed_function_ref(entry_index),
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -541,7 +556,6 @@ fn managed_poll_test_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.managed_poll_validation".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
         call_targets,
         locals: Arena::new(),
@@ -549,11 +563,7 @@ fn managed_poll_test_module() -> Module {
         blocks,
         entry,
     };
-    root_plan_test_module(
-        vec![function],
-        scoop_lir::ExternFunctions::default(),
-        "scoop.managed_poll_validation",
-    )
+    root_plan_test_module(vec![function], scoop_lir::ExternFunctions::default(), 0)
 }
 
 fn managed_poll_reference(function: &Function) -> scoop_lir::SafepointSiteRef {
@@ -825,7 +835,6 @@ fn managed_indirect_argument_root_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_indirect_callee".to_string(),
         signature: callee_signature,
         call_targets: CallTargets::default(),
         locals: Arena::new(),
@@ -881,7 +890,6 @@ fn managed_indirect_argument_root_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_indirect_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
         call_targets: targets,
         locals,
@@ -892,7 +900,7 @@ fn managed_indirect_argument_root_module() -> Module {
     root_plan_test_module(
         vec![callee, caller],
         scoop_lir::ExternFunctions::default(),
-        "scoop.root_plan_indirect_caller",
+        1,
     )
 }
 
@@ -938,7 +946,6 @@ fn native_borrowed_root_module(scan: RefScan) -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_borrowed_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: targets,
         locals: Arena::new(),
@@ -946,11 +953,7 @@ fn native_borrowed_root_module(scan: RefScan) -> Module {
         blocks,
         entry,
     };
-    root_plan_test_module(
-        vec![caller],
-        extern_functions,
-        "scoop.root_plan_borrowed_caller",
-    )
+    root_plan_test_module(vec![caller], extern_functions, 0)
 }
 
 fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
@@ -964,7 +967,6 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_invoke_callee".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::new(),
@@ -1025,7 +1027,6 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_invoke_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: targets,
         locals: Arena::new(),
@@ -1036,7 +1037,7 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
     root_plan_test_module(
         vec![callee, caller],
         scoop_lir::ExternFunctions::default(),
-        "scoop.root_plan_invoke_caller",
+        1,
     )
 }
 
@@ -1078,7 +1079,7 @@ fn root_plan_validation_rejects_omitted_managed_poll_root() {
 
     assert_module_validation_error(
         &module,
-        "managed poll root plan in @scoop.managed_poll_validation block0 instruction 0 root plan has 0 entries, expected 1 complete entries",
+        "managed poll root plan in {function:0} block0 instruction 0 root plan has 0 entries, expected 1 complete entries",
     );
 }
 
@@ -1094,7 +1095,7 @@ fn scoop_abi_validation_rejects_invalid_managed_poll_target() {
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: references invalid managed-void target 99",
+        "managed poll {function:0}: references invalid managed-void target 99",
     );
 }
 
@@ -1111,7 +1112,7 @@ fn scoop_abi_validation_rejects_non_safepoint_managed_poll_target() {
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: target is not the managed safepoint runtime function",
+        "managed poll {function:0}: target is not the managed safepoint runtime function",
     );
 }
 
@@ -1137,7 +1138,7 @@ fn scoop_abi_validation_rejects_noncanonical_managed_poll_signature() {
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: target must use the exact `cdecl () -> void` safepoint ABI",
+        "managed poll {function:0}: target must use the exact `cdecl () -> void` safepoint ABI",
     );
 }
 
@@ -1145,9 +1146,10 @@ fn scoop_abi_validation_rejects_noncanonical_managed_poll_signature() {
 fn scoop_abi_validation_rejects_managed_poll_in_no_gc_function() {
     let mut module = managed_poll_test_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
+    module.entry = no_gc_function_ref(0);
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: is only valid in a managed function",
+        "managed poll {function:0}: is only valid in a managed function",
     );
 }

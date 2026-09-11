@@ -208,7 +208,7 @@ pub(super) fn integer_compare_expr(
 
 pub(super) fn call_symbol(module: &lir::Module, destination: lir::CallDestination) -> &str {
     match destination {
-        lir::CallDestination::Local(id) => &module.functions[id.into_u32() as usize].symbol,
+        lir::CallDestination::Local(id) => module.functions[id.into_u32() as usize].symbol(),
         lir::CallDestination::Runtime(runtime) => runtime.symbol(),
         lir::CallDestination::Extern(id) => &module.extern_functions[id].native_symbol,
         lir::CallDestination::Dispatch { .. } => panic!("dispatch calls have no symbol"),

@@ -114,7 +114,7 @@ fn array_nodes_become_array_instructions() {
     // instruction references its complete typed metadata record.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 a: ptr<managed>
     local %1 x: i32
     local %2 n: i64
@@ -143,7 +143,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 

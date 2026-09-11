@@ -17,6 +17,7 @@ use variants::validate_variant_primitives;
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     scoop_lir::CanonicalLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("invalid LIR identity foundation: {error}")))?;
+    executable_entry(module)?;
     validate_niche_representations(module)?;
     validate_scoop_abi(module)?;
     validate_constant_images(module)?;
@@ -29,6 +30,43 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_foreign_callbacks(module)?;
     validate_safepoint_identities(module)?;
     validate_call_root_plans(module)
+}
+
+fn executable_entry(module: &Module) -> Result<&Function, CodegenError> {
+    let (declaration, expected_effect) = match module.entry {
+        scoop_lir::LocalFunctionRef::Managed(reference) => {
+            (reference.declaration(), GcEffect::Managed)
+        }
+        scoop_lir::LocalFunctionRef::NoGc(reference) => (reference.declaration(), GcEffect::NoGc),
+    };
+    let index = declaration.into_u32() as usize;
+    let function = module.functions.get(index).ok_or_else(|| {
+        CodegenError(format!(
+            "module has invalid executable entry function id {index}"
+        ))
+    })?;
+    if function.gc_effect != expected_effect {
+        return Err(CodegenError(format!(
+            "executable entry @{} has {:?} body but {:?} typed reference",
+            function.symbol(),
+            function.gc_effect,
+            expected_effect
+        )));
+    }
+    Ok(function)
+}
+
+pub(crate) fn validate_executable_entry(module: &Module) -> Result<(), CodegenError> {
+    let function = executable_entry(module)?;
+    if !function.signature.arguments().is_empty()
+        || !matches!(function.signature.result(), scoop_lir::AbiReturn::UnitVoid)
+    {
+        return Err(CodegenError(format!(
+            "executable entry @{} must have signature () -> Unit",
+            function.symbol()
+        )));
+    }
+    Ok(())
 }
 
 fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenError> {
@@ -94,7 +132,7 @@ fn checked_temp_type<'a>(
     if index >= function.temps.len() {
         return Err(CodegenError(format!(
             "{owner} references invalid temporary t{index} in @{}",
-            function.symbol
+            function.symbol()
         )));
     }
     Ok(&function.temps[temp].ty)
@@ -109,7 +147,7 @@ fn checked_value_type(
     let invalid = |kind: &str, index: usize| {
         CodegenError(format!(
             "{owner} references invalid {kind} {index} in @{}",
-            function.symbol
+            function.symbol()
         ))
     };
     match value {
@@ -257,7 +295,8 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
         {
             return Err(CodegenError(format!(
                 "type descriptor `{}` dispatches to local function @{} whose signature exposes an internal machine scalar",
-                descriptor.name, function.symbol
+                descriptor.name,
+                function.symbol()
             )));
         }
         Ok(())
@@ -297,7 +336,7 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
             {
                 return Err(CodegenError(format!(
                     "function @{} {owner} embeds an internal machine scalar in {}",
-                    function.symbol,
+                    function.symbol(),
                     ty.dump()
                 )));
             }
@@ -467,6 +506,20 @@ fn validate_c_abi(module: &Module) -> Result<(), CodegenError> {
         })?;
     }
     for (_, callback) in module.callback_bridges.iter() {
+        let bridge_index = callback.bridge.declaration().into_u32() as usize;
+        let Some(bridge) = module.functions.get(bridge_index) else {
+            return Err(CodegenError(format!(
+                "static callback `{}` has invalid NoGC bridge id {bridge_index}",
+                callback.source_name
+            )));
+        };
+        if bridge.gc_effect != GcEffect::NoGc {
+            return Err(CodegenError(format!(
+                "static callback `{}` bridge @{} must be NoGC",
+                callback.source_name,
+                bridge.symbol()
+            )));
+        }
         for parameter in &callback.params {
             validate_c_type(module, parameter, false, &mut HashSet::new())?;
         }
@@ -509,7 +562,7 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
         if has_machine {
             return Err(CodegenError(format!(
                 "dispatch signature in @{} exposes an internal machine scalar without an authoritative dynamic-slot declaration",
-                function.symbol
+                function.symbol()
             )));
         }
         Ok(())
@@ -978,22 +1031,13 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
             }
         }
 
-        let mut matches = module
-            .functions
-            .iter()
-            .filter(|function| function.symbol == bridge.adapter_symbol);
-        let Some(adapter) = matches.next() else {
+        let adapter_index = bridge.adapter.declaration().into_u32() as usize;
+        let Some(adapter) = module.functions.get(adapter_index) else {
             return Err(CodegenError(format!(
-                "foreign callback adapter @{} is not a module function",
-                bridge.adapter_symbol
+                "foreign callback bridge {} has invalid managed adapter id {adapter_index}",
+                id.into_raw()
             )));
         };
-        if matches.next().is_some() {
-            return Err(CodegenError(format!(
-                "foreign callback adapter symbol @{} is not unique",
-                bridge.adapter_symbol
-            )));
-        }
         let adapter_params_match = adapter.signature.arguments().len() == expected_params.len()
             && adapter
                 .signature
@@ -1014,7 +1058,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
         {
             return Err(CodegenError(format!(
                 "foreign callback adapter @{} must be managed (ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>",
-                bridge.adapter_symbol
+                adapter.symbol()
             )));
         }
     }
@@ -1023,6 +1067,49 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
         for (_, block) in function.blocks.iter() {
             for instruction in &block.instructions {
                 match instruction {
+                    Instruction::FunctionAddress { out, target } => {
+                        if checked_temp_type(function, *out, "function address result")?
+                            != &scoop_lir::CODE_PTR
+                        {
+                            return Err(CodegenError(format!(
+                                "function address @{} must produce ptr<code>",
+                                function.symbol()
+                            )));
+                        }
+                        match target {
+                            scoop_lir::FunctionAddressTarget::Local(reference) => {
+                                let index = reference.declaration().into_u32() as usize;
+                                let Some(target) = module.functions.get(index) else {
+                                    return Err(CodegenError(format!(
+                                        "function address @{} references invalid local function id {index}",
+                                        function.symbol()
+                                    )));
+                                };
+                                let expected = match reference {
+                                    scoop_lir::LocalFunctionRef::Managed(_) => GcEffect::Managed,
+                                    scoop_lir::LocalFunctionRef::NoGc(_) => GcEffect::NoGc,
+                                };
+                                if target.gc_effect != expected {
+                                    return Err(CodegenError(format!(
+                                        "function address @{} has an effect-mismatched local target @{}",
+                                        function.symbol(),
+                                        target.symbol()
+                                    )));
+                                }
+                            }
+                            scoop_lir::FunctionAddressTarget::CallbackTrampoline(bridge)
+                                if bridge.into_raw().into_u32() as usize
+                                    >= module.callback_bridges.len() =>
+                            {
+                                return Err(CodegenError(format!(
+                                    "function address @{} references invalid callback trampoline {}",
+                                    function.symbol(),
+                                    bridge.into_raw()
+                                )));
+                            }
+                            scoop_lir::FunctionAddressTarget::CallbackTrampoline(_) => {}
+                        }
+                    }
                     Instruction::ForeignCallbackRegister {
                         out,
                         bridge,
@@ -1033,7 +1120,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                         {
                             return Err(CodegenError(format!(
                                 "foreign callback registration @{} references invalid bridge {}",
-                                function.symbol,
+                                function.symbol(),
                                 bridge.into_raw()
                             )));
                         }
@@ -1041,7 +1128,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                         let family = foreign_callback_family(
                             module,
                             bridge.family,
-                            &format!("foreign callback registration @{}", function.symbol),
+                            &format!("foreign callback registration @{}", function.symbol()),
                         )?;
                         let closure_ty = checked_value_type(
                             module,
@@ -1059,7 +1146,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                         {
                             return Err(CodegenError(format!(
                                 "foreign callback registration @{} for family {} requires a managed closure and exact callback struct {}, got closure {} and result {}",
-                                function.symbol,
+                                function.symbol(),
                                 bridge.family.into_raw(),
                                 family.callback.into_raw(),
                                 closure_ty.dump(),
@@ -1072,7 +1159,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                         let family = foreign_callback_family(
                             module,
                             family_id,
-                            &format!("foreign callback operation @{}", function.symbol),
+                            &format!("foreign callback operation @{}", function.symbol()),
                         )?;
                         let callback_ty = checked_value_type(
                             module,
@@ -1083,7 +1170,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                         if callback_ty != LirType::Struct(family.callback) {
                             return Err(CodegenError(format!(
                                 "foreign callback operation @{} for family {} requires exact callback struct {}, got {}",
-                                function.symbol,
+                                function.symbol(),
                                 family_id.into_raw(),
                                 family.callback.into_raw(),
                                 callback_ty.dump()
@@ -1107,7 +1194,7 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
                         if !result_valid {
                             return Err(CodegenError(format!(
                                 "foreign callback operation @{} for family {} has a non-protocol result type",
-                                function.symbol,
+                                function.symbol(),
                                 family_id.into_raw()
                             )));
                         }

@@ -100,8 +100,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .ok_or_else(|| {
                         CodegenError(format!("invalid local function id {}", id.into_u32()))
                     })?
-                    .symbol
-                    .as_str();
+                    .symbol();
                 let function = self.llvm.get_function(symbol).ok_or_else(|| {
                     CodegenError(format!(
                         "typed local target `{symbol}` was not declared in the module pass"
@@ -159,7 +158,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .ok_or_else(|| {
                 CodegenError(format!(
                     "typed dispatch @{} refers to an invalid slot declaration",
-                    self.function.symbol
+                    self.function.symbol()
                 ))
             })?;
         let table_ty = self.function.value_ty(self.globals_arena, table);
@@ -172,7 +171,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             return Err(CodegenError(format!(
                 "typed {:?} dispatch @{} requires table {}, got {}",
                 slot.kind,
-                self.function.symbol,
+                self.function.symbol(),
                 expected_table_ty.dump(),
                 table_ty.dump()
             )));

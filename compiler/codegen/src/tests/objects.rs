@@ -19,7 +19,6 @@ pub(super) fn classes_module() -> Module {
             callable_body: callable_body(symbol),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: symbol.to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -88,7 +87,6 @@ pub(super) fn classes_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], MANAGED_PTR),
         call_targets,
         locals: Arena::default(),
@@ -161,10 +159,11 @@ pub(super) fn classes_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
-        entry_symbol: "scoop_main".to_string(),
+        entry: managed_function_ref(2),
         meta,
     };
     refresh_module_safepoints(&mut module);
+    append_executable_entry(&mut module, "classes-executable-entry");
     module
 }
 
@@ -222,7 +221,6 @@ pub(super) fn heap_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "Point.describe".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -391,7 +389,6 @@ pub(super) fn heap_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![], LirType::Void),
         call_targets,
         locals,
@@ -412,7 +409,7 @@ pub(super) fn heap_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe, main],
-        entry_symbol: "scoop_main".to_string(),
+        entry: managed_function_ref(1),
         meta,
     };
     refresh_module_safepoints(&mut module);

@@ -24,7 +24,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     other => {
                         return Err(CodegenError(format!(
                             "aggregate construction @{} has non-aggregate result type {}",
-                            function.symbol,
+                            function.symbol(),
                             other.dump()
                         )));
                     }
@@ -32,7 +32,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if elements.len() != expected_elements.len() {
                     return Err(CodegenError(format!(
                         "aggregate construction @{} has {} elements, expected {}",
-                        function.symbol,
+                        function.symbol(),
                         elements.len(),
                         expected_elements.len()
                     )));
@@ -44,7 +44,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     if actual != *expected {
                         return Err(CodegenError(format!(
                             "aggregate construction @{} element {} has type {}, expected {}",
-                            function.symbol,
+                            function.symbol(),
                             index,
                             actual.dump(),
                             expected.dump()
@@ -80,7 +80,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             .map_err(|e| {
                                 CodegenError(format!(
                                     "insert C-layout field @{symbol}: {e}",
-                                    symbol = function.symbol
+                                    symbol = function.symbol()
                                 ))
                             })?
                             .into_struct_value();
@@ -90,7 +90,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|e| {
                             CodegenError(format!(
                                 "insert C-layout payload @{symbol}: {e}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?
                         .into_struct_value()
@@ -107,7 +107,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             .map_err(|e| {
                                 CodegenError(format!(
                                     "insertvalue @{symbol}: {e}",
-                                    symbol = function.symbol
+                                    symbol = function.symbol()
                                 ))
                             })?
                             .into_struct_value();
@@ -131,7 +131,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .ok_or_else(|| {
                     CodegenError(format!(
                         "aggregate extraction @{} has invalid index {} for {}",
-                        function.symbol,
+                        function.symbol(),
                         index,
                         aggregate_ty.dump()
                     ))
@@ -140,7 +140,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if out_ty != &expected {
                     return Err(CodegenError(format!(
                         "aggregate extraction @{} produces {}, expected {}",
-                        function.symbol,
+                        function.symbol(),
                         out_ty.dump(),
                         expected.dump()
                     )));
@@ -154,7 +154,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|e| {
                             CodegenError(format!(
                                 "extract C-layout payload @{symbol}: {e}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?
                         .into_struct_value();
@@ -169,7 +169,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|e| {
                             CodegenError(format!(
                                 "extract C-layout field @{symbol}: {e}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?
                 } else {
@@ -178,7 +178,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|e| {
                             CodegenError(format!(
                                 "extractvalue @{symbol}: {e}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?
                 };

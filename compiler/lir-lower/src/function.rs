@@ -238,7 +238,6 @@ pub(super) fn lower_function<'a>(
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,
             },
-            symbol: function.symbol.clone(),
             signature: signature.clone(),
             call_targets: lowerer.call_targets,
             safepoints: lir::SafepointIdentities::default(),

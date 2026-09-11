@@ -17,7 +17,6 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: symbol.to_string(),
         signature: plain_scoop_signature(
             vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
             LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
@@ -28,6 +27,28 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
         blocks,
         entry,
     }
+}
+
+fn static_callback_bridge(module: &mut Module, symbol: &str) -> scoop_lir::NoGcLocalFunctionRef {
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+    let index = module.functions.len();
+    module.functions.push(Function {
+        callable_body: callable_body(symbol),
+        safepoints: scoop_lir::SafepointIdentities::default(),
+        gc_effect: GcEffect::NoGc,
+        signature: plain_scoop_signature(Vec::new(), LirType::Void),
+        call_targets: CallTargets::default(),
+        locals: Arena::default(),
+        temps: Arena::default(),
+        blocks,
+        entry,
+    });
+    no_gc_local_function_ref(index)
 }
 
 fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
@@ -238,12 +259,16 @@ fn add_foreign_callback_bridge(
     let application = callback_application(
         u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32"),
     );
+    let adapter_index = module.functions.len();
+    module
+        .functions
+        .push(foreign_callback_adapter(fixture.adapter));
     module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
             application,
             family,
-            adapter_symbol: fixture.adapter.to_string(),
+            adapter: managed_local_function_ref(adapter_index),
             trampoline_symbol: fixture.trampoline.to_string(),
             signature_symbol: fixture.signature.to_string(),
             params: fixture.params,
@@ -251,9 +276,6 @@ fn add_foreign_callback_bridge(
             context_index: fixture.context_index,
             mode: module.foreign_callback_families[family].modes.reusable(),
         });
-    module
-        .functions
-        .push(foreign_callback_adapter(fixture.adapter));
 }
 
 #[test]
@@ -432,7 +454,6 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -440,7 +461,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        entry: managed_function_ref(0),
         meta,
     };
     refresh_module_safepoints(&mut module);
@@ -508,9 +529,10 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             return_type: c_value(scoop_lir::CType::Struct(outer)),
         },
     });
+    let static_bridge = static_callback_bridge(&mut module, "scoop_callback_bridge_0");
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
-        bridge_symbol: "scoop_callback_bridge_0".to_string(),
+        bridge: static_bridge,
         trampoline_symbol: "scoop_c_callback_0".to_string(),
         params: vec![scoop_lir::CType::Struct(outer)],
         return_type: c_value(scoop_lir::CType::Struct(outer)),
@@ -530,12 +552,14 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         let application = callback_application(
             u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32"),
         );
+        let adapter_index = module.functions.len();
+        module.functions.push(foreign_callback_adapter(adapter));
         module
             .foreign_callback_bridges
             .alloc(scoop_lir::ForeignCallbackBridge {
                 application,
                 family: foreign_callback_family,
-                adapter_symbol: adapter.to_string(),
+                adapter: managed_local_function_ref(adapter_index),
                 trampoline_symbol: "scoop_foreign_callback_0".to_string(),
                 signature_symbol: "scoop_foreign_callback_signature_0".to_string(),
                 params: vec![
@@ -546,17 +570,32 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 context_index: 1,
                 mode,
             });
-        module.functions.push(foreign_callback_adapter(adapter));
     }
     let bridge = c_bridge_source(&module)
         .expect("C bridge")
         .expect("C extern needs a bridge");
+    let callback_bridge_symbol = module.functions[module
+        .callback_bridges
+        .iter()
+        .next()
+        .expect("callback bridge")
+        .1
+        .bridge
+        .declaration()
+        .into_u32() as usize]
+        .symbol();
+    let callback_bridge_object_symbol = module
+        .meta
+        .target_profile
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol(callback_bridge_symbol);
     assert!(bridge.contains("extern scoop_c_layout_1 native_swap(scoop_c_layout_1);"));
     assert!(bridge.contains("void scoop_c_bridge_0(void *result, const void *arg0)"));
     assert!(bridge.contains("memcpy(result, &native_result, sizeof(native_result));"));
-    assert!(
-        bridge.contains("extern void scoop_callback_bridge_0(void *result, const void *arg0);")
-    );
+    assert!(bridge.contains(&format!(
+        "extern void scoop_callback_bridge_0(void *result, const void *arg0) __asm__(\"{callback_bridge_object_symbol}\");"
+    )));
     assert!(bridge.contains("scoop_c_layout_1 scoop_c_callback_0(scoop_c_layout_1 arg0)"));
     assert!(bridge.contains("scoop_callback_bridge_0(&result, &arg0);"));
     assert_eq!(
@@ -1312,9 +1351,10 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
 #[test]
 fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     let mut module = values_module();
+    let signed_bridge = static_callback_bridge(&mut module, "signed_narrow_bridge");
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "signedNarrow".to_string(),
-        bridge_symbol: "signed_narrow_bridge".to_string(),
+        bridge: signed_bridge,
         trampoline_symbol: "signed_narrow".to_string(),
         params: vec![
             scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
@@ -1329,16 +1369,18 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
         ],
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_8)),
     });
+    let unsigned_bridge = static_callback_bridge(&mut module, "unsigned_narrow_bridge");
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "unsignedNarrow".to_string(),
-        bridge_symbol: "unsigned_narrow_bridge".to_string(),
+        bridge: unsigned_bridge,
         trampoline_symbol: "unsigned_narrow".to_string(),
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::UNSIGNED_16)),
     });
+    let bool_bridge = static_callback_bridge(&mut module, "bool_narrow_bridge");
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "boolNarrow".to_string(),
-        bridge_symbol: "bool_narrow_bridge".to_string(),
+        bridge: bool_bridge,
         trampoline_symbol: "bool_narrow".to_string(),
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Boolean),
@@ -1420,7 +1462,7 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
         .alloc(scoop_lir::ForeignCallbackBridge {
             application: callback_application(0),
             family,
-            adapter_symbol: "scoop_main".to_string(),
+            adapter: managed_local_function_ref(0),
             trampoline_symbol: "foreign_callback".to_string(),
             signature_symbol: "foreign_callback_signature".to_string(),
             params: vec![c_opaque_pointer()],
@@ -1432,8 +1474,10 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
     let error = c_bridge_source(&module)
         .expect_err("foreign callback bridge must point at an exact managed adapter");
     assert!(
-        error.0.contains("foreign callback adapter @scoop_main")
-            && error.0.contains("machine<foreign-callback-status>"),
+        error.0.contains(&format!(
+            "foreign callback adapter @{}",
+            module.functions[0].symbol()
+        )) && error.0.contains("machine<foreign-callback-status>"),
         "unexpected error: {error}"
     );
 }

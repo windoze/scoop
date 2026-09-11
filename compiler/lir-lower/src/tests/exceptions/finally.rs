@@ -186,19 +186,19 @@ fn return_inside_try_runs_finally_before_returning() {
     // finally copy still runs before the return.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop.helper() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop.handled() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop.cleanup() -> void
+  fun @scoop$1$cb$bf6cfaf71a9a7fbc42690a582257c2f479b94a120f839f3af0395e5a8990d370() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop.f() -> i32
+  fun @scoop$1$cb$f944e169dc6c5f9c8e5ca489206ad78fabde6b6926cb0c8408d7e15d16eaa0bd() -> i32
     local %0 $return.1: i32
     local %1 $sc.1: exception_record
     local %2 $sc.2: ptr<raw>
@@ -213,7 +213,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn2()
     t5 = aggregate () : {}
     ret local0
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$e45a777f304bed09d4fbc294f091313dd5a64c3b2660b61a78f1f3cac5e407c4() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
@@ -227,6 +227,6 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$e45a777f304bed09d4fbc294f091313dd5a64c3b2660b61a78f1f3cac5e407c4
 "###);
 }

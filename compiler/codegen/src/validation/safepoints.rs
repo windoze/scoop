@@ -26,34 +26,34 @@ fn validate_function(
             if function.gc_effect == GcEffect::NoGc {
                 return Err(CodegenError(format!(
                     "NoGc LIR function `{}` contains a safepoint",
-                    function.symbol
+                    function.symbol()
                 )));
             }
             if !references.insert(reference) {
                 return Err(CodegenError(format!(
                     "LIR function `{}` reuses safepoint reference {}",
-                    function.symbol,
+                    function.symbol(),
                     reference.into_u32()
                 )));
             }
             let identity = function.safepoints.get(reference).ok_or_else(|| {
                 CodegenError(format!(
                     "LIR function `{}` references missing safepoint site {}",
-                    function.symbol,
+                    function.symbol(),
                     reference.into_u32()
                 ))
             })?;
             if identity.owner() != function.callable_body.id() {
                 return Err(CodegenError(format!(
                     "LIR function `{}` safepoint site {} belongs to another callable body",
-                    function.symbol,
+                    function.symbol(),
                     reference.into_u32()
                 )));
             }
             if identity.role() != expected_role {
                 return Err(CodegenError(format!(
                     "LIR function `{}` safepoint site {} has role {:?}, expected {:?}",
-                    function.symbol,
+                    function.symbol(),
                     reference.into_u32(),
                     identity.role(),
                     expected_role
@@ -63,13 +63,14 @@ fn validate_function(
             let expected_ordinal = u32::try_from(*next_ordinal).map_err(|_| {
                 CodegenError(format!(
                     "LIR function `{}` has more than u32::MAX {:?} safepoints",
-                    function.symbol, expected_role
+                    function.symbol(),
+                    expected_role
                 ))
             })?;
             if identity.ordinal() != expected_ordinal {
                 return Err(CodegenError(format!(
                     "LIR function `{}` safepoint site {} has {:?} ordinal {}, expected {}",
-                    function.symbol,
+                    function.symbol(),
                     reference.into_u32(),
                     expected_role,
                     identity.ordinal(),
@@ -79,10 +80,11 @@ fn validate_function(
             *next_ordinal = next_ordinal.checked_add(1).ok_or_else(|| {
                 CodegenError(format!(
                     "LIR function `{}` has more than usize::MAX {:?} safepoints",
-                    function.symbol, expected_role
+                    function.symbol(),
+                    expected_role
                 ))
             })?;
-            let location = format!("{}:{}", function.symbol, reference.into_u32());
+            let location = format!("{}:{}", function.symbol(), reference.into_u32());
             if let Some(first) = persistent_sites.insert(identity.site_id(), location.clone()) {
                 return Err(CodegenError(format!(
                     "persistent safepoint site {} is defined by both `{first}` and `{location}`",
@@ -104,7 +106,7 @@ fn validate_function(
     if references.len() != function.safepoints.len() {
         return Err(CodegenError(format!(
             "LIR function `{}` has {} referenced safepoints but {} identity records",
-            function.symbol,
+            function.symbol(),
             references.len(),
             function.safepoints.len()
         )));
@@ -123,7 +125,7 @@ fn canonical_reverse_postorder(
         if index >= function.blocks.len() {
             return Err(CodegenError(format!(
                 "LIR function `{}` reaches invalid block {} while ordering safepoints",
-                function.symbol,
+                function.symbol(),
                 block.into_raw()
             )));
         }
@@ -146,7 +148,7 @@ fn canonical_reverse_postorder(
     if let Some(first) = visited.iter().position(|reachable| !reachable) {
         return Err(CodegenError(format!(
             "LIR function `{}` contains unreachable block {first} during safepoint validation",
-            function.symbol
+            function.symbol()
         )));
     }
     postorder.reverse();
@@ -163,14 +165,16 @@ fn semantic_successors(
     {
         return Err(CodegenError(format!(
             "invoke @{}: must be the last instruction of block {}",
-            function.symbol, block.name
+            function.symbol(),
+            block.name
         )));
     }
     if let Some(Instruction::Invoke { site }) = block.instructions.last() {
         if !matches!(block.terminator, Terminator::Br(target) if target == site.normal()) {
             return Err(CodegenError(format!(
                 "invoke block @{}:{}: terminator must be `br` to the invoke's normal target",
-                function.symbol, block.name
+                function.symbol(),
+                block.name
             )));
         }
         return Ok(vec![site.normal(), site.unwind()]);

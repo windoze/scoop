@@ -89,7 +89,6 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -97,7 +96,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        entry: managed_function_ref(0),
         meta,
     };
     refresh_module_safepoints(&mut module);

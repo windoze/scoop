@@ -61,12 +61,12 @@ fn function_signatures_params_and_calls() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop.add(i32, i32) -> i32
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(i32, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = integer_Add<Int> param0, param1 : i32
     ret t0
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
     local %0 r: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -83,7 +83,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }
 
@@ -198,13 +198,13 @@ fn return_inside_a_branch_seals_its_block() {
     // removed; the `return` seals the remaining then block.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop.f(i32) -> i32
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @if.then.1
   block if.then.1
     ret param0
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
@@ -218,6 +218,6 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }

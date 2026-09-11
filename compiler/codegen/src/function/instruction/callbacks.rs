@@ -9,17 +9,26 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         let function = self.function;
         match instruction {
-            Instruction::FunctionAddress { out, symbol } => {
+            Instruction::FunctionAddress { out, target } => {
                 if function.temps[*out].ty != scoop_lir::CODE_PTR {
                     return Err(CodegenError(format!(
                         "function_address @{} must produce ptr<code>",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
+                let symbol = match target {
+                    scoop_lir::FunctionAddressTarget::Local(reference) => {
+                        self.functions[reference.declaration().into_u32() as usize].symbol()
+                    }
+                    scoop_lir::FunctionAddressTarget::CallbackTrampoline(bridge) => {
+                        &self.callback_bridges[*bridge].trampoline_symbol
+                    }
+                };
                 let function_value = self.llvm.get_function(symbol).ok_or_else(|| {
                     CodegenError(format!(
                         "function_address @{}: unknown function @{}",
-                        function.symbol, symbol
+                        function.symbol(),
+                        symbol
                     ))
                 })?;
                 self.temps.insert(
@@ -41,7 +50,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "foreign callback registration @{} requires a managed closure and its exact nominal callback result, got closure {} and result {}",
-                        function.symbol,
+                        function.symbol(),
                         closure_ty.dump(),
                         out_ty.dump()
                     )));
@@ -49,11 +58,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let closure = self.value(*closure)?.into_pointer_value();
                 let adapter = self
                     .llvm
-                    .get_function(&bridge.adapter_symbol)
+                    .get_function(
+                        self.functions[bridge.adapter.declaration().into_u32() as usize].symbol(),
+                    )
                     .ok_or_else(|| {
                         CodegenError(format!(
                             "foreign callback adapter @{} was not emitted",
-                            bridge.adapter_symbol
+                            self.functions[bridge.adapter.declaration().into_u32() as usize]
+                                .symbol()
                         ))
                     })?
                     .as_global_value()

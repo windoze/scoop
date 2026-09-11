@@ -19,7 +19,6 @@ pub(super) fn exceptions_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.thrower".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -40,7 +39,6 @@ pub(super) fn exceptions_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.may_throw".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::I64),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -188,7 +186,6 @@ pub(super) fn exceptions_module() -> Module {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.eh_test".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR], LirType::I64),
         call_targets,
         locals: Arena::default(),
@@ -209,10 +206,11 @@ pub(super) fn exceptions_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![thrower, may_throw, eh_test],
-        entry_symbol: "scoop.eh_test".to_string(),
+        entry: managed_function_ref(2),
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
+    append_executable_entry(&mut module, "exceptions-executable-entry");
     module
 }
 
@@ -247,13 +245,14 @@ fn darwin_aarch64_eh_artifacts_are_qualified_at_o0_and_o2() {
     let expected_safepoints =
         statepoint::expectations(&module).expect("complete safepoint manifest");
     let expected_eh = artifact::eh_expectations(&module).expect("complete EH manifest");
+    let eh_symbol = module.functions[2].symbol();
     assert_eq!(expected_eh.function_count(), 1);
     assert_eq!(
-        expected_eh.action_count("scoop.eh_test", artifact::EhActionKind::CatchAll),
+        expected_eh.action_count(eh_symbol, artifact::EhActionKind::CatchAll),
         2
     );
     assert_eq!(
-        expected_eh.action_count("scoop.eh_test", artifact::EhActionKind::Cleanup),
+        expected_eh.action_count(eh_symbol, artifact::EhActionKind::Cleanup),
         1
     );
 

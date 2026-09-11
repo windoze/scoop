@@ -43,15 +43,15 @@ fn try_catch_lowers_to_invoke_landingpad_and_rethrow() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop.helper() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop.handled() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$bf6cfaf71a9a7fbc42690a582257c2f479b94a120f839f3af0395e5a8990d370() -> void
     local %0 e: ptr<managed>
     local %1 $sc.1: exception_record
     local %2 $sc.2: ptr<raw>
@@ -118,7 +118,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$bf6cfaf71a9a7fbc42690a582257c2f479b94a120f839f3af0395e5a8990d370
 "###);
 }
 
@@ -187,11 +187,7 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
         body,
     );
     let module = lower(&b.finish(main));
-    let main = module
-        .functions
-        .iter()
-        .find(|function| function.symbol == mir::ENTRY_SYMBOL)
-        .expect("main function");
+    let main = &module.functions[module.entry.declaration().into_u32() as usize];
     let roots = main
         .blocks
         .iter()

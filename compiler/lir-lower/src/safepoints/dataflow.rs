@@ -286,7 +286,6 @@ mod tests {
         let function = lir::Function {
             callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,
-            symbol: "scoop.dataflow.variant".to_string(),
             signature: lir::ScoopAbiSignature::new(
                 vec![lir::AbiArgument::Indirect(
                     lir::AbiValue::new(

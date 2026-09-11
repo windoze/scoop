@@ -83,7 +83,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         .map_err(|e| {
             CodegenError(format!(
                 "gep {name} @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })
     }
@@ -101,7 +101,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let error = |e: inkwell::builder::BuilderError| {
             CodegenError(format!(
                 "card mark @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         };
         // The card table is a runtime POINTER VARIABLE (`extern
@@ -170,7 +170,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         {
             return Err(CodegenError(format!(
                 "managed poll @{} has a non-safepoint target",
-                self.function.symbol
+                self.function.symbol()
             )));
         }
         let safepoint = self.safepoint_id(site.safepoint);
@@ -183,7 +183,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let call = self.builder.build_call(poll, &[], "").map_err(|e| {
             CodegenError(format!(
                 "safepoint poll @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })?;
         self.apply_safepoint_id(call, safepoint);
@@ -213,7 +213,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         .map_err(|e| {
             CodegenError(format!(
                 "tag gep @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })
     }
@@ -239,7 +239,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         .map_err(|e| {
             CodegenError(format!(
                 "enum field gep @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })
     }

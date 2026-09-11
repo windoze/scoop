@@ -68,7 +68,7 @@ fn validate_function_shapes(
                 if !definitions.insert(output) {
                     return Err(CodegenError(format!(
                         "function @{} defines temporary t{} more than once",
-                        function.symbol,
+                        function.symbol(),
                         output.into_raw()
                     )));
                 }
@@ -102,7 +102,7 @@ fn validate_function_shapes(
                     if operand_ty != expected {
                         return Err(CodegenError(format!(
                             "variant_test @{} expects {}, got {}",
-                            function.symbol,
+                            function.symbol(),
                             expected.dump(),
                             operand_ty.dump()
                         )));
@@ -112,7 +112,7 @@ fn validate_function_shapes(
                     if result_ty != &LirType::I1 {
                         return Err(CodegenError(format!(
                             "variant_test @{} result is {}, expected i1",
-                            function.symbol,
+                            function.symbol(),
                             result_ty.dump()
                         )));
                     }
@@ -149,7 +149,7 @@ fn validate_enum_wrap(
     if actual_result != &expected_result {
         return Err(CodegenError(format!(
             "enum_wrap @{} result is {}, expected {}",
-            function.symbol,
+            function.symbol(),
             actual_result.dump(),
             expected_result.dump()
         )));
@@ -169,7 +169,7 @@ fn validate_enum_wrap(
     if fields.len() != expected_fields.len() {
         return Err(CodegenError(format!(
             "enum_wrap @{} variant {} has {} fields, expected {}",
-            function.symbol,
+            function.symbol(),
             variant.index(),
             fields.len(),
             expected_fields.len()
@@ -185,7 +185,7 @@ fn validate_enum_wrap(
         if actual != expected {
             return Err(CodegenError(format!(
                 "enum_wrap @{} field {} has type {}, expected {}",
-                function.symbol,
+                function.symbol(),
                 index,
                 actual.dump(),
                 expected.dump()
@@ -208,7 +208,7 @@ fn validate_projection_shape(
     if !module.enums.contains_variant_field(field) {
         return Err(CodegenError(format!(
             "variant_payload_project @{} carries invalid field {} for enum{} variant {}",
-            function.symbol,
+            function.symbol(),
             field.index(),
             field.definition().into_raw(),
             variant.index()
@@ -220,7 +220,7 @@ fn validate_projection_shape(
     if operand_ty != expected_operand {
         return Err(CodegenError(format!(
             "variant_payload_project @{} expects {}, got {}",
-            function.symbol,
+            function.symbol(),
             expected_operand.dump(),
             operand_ty.dump()
         )));
@@ -241,7 +241,7 @@ fn validate_projection_shape(
         };
         return Err(CodegenError(format!(
             "variant_payload_project @{} {detail}",
-            function.symbol
+            function.symbol()
         )));
     }
     Ok(())
@@ -258,7 +258,7 @@ fn validate_stable_operand(
     ) {
         return Err(CodegenError(format!(
             "{instruction} @{} requires a stable Param/Local/Temp enum value identity",
-            function.symbol
+            function.symbol()
         )));
     }
     Ok(())
@@ -273,7 +273,7 @@ fn validate_variant_ref(
     super::validate_variant_ref(
         module,
         variant,
-        &format!("{instruction} @{}", function.symbol),
+        &format!("{instruction} @{}", function.symbol()),
     )
 }
 
@@ -291,7 +291,7 @@ fn validate_projection_dominance(
         if value >= count {
             return Err(CodegenError(format!(
                 "variant control-flow validation in @{} reached invalid block {}",
-                function.symbol,
+                function.symbol(),
                 id.into_raw()
             )));
         }
@@ -402,7 +402,7 @@ fn validate_projection_dominance(
                 if !knowledge.facts.contains(&required) {
                     return Err(CodegenError(format!(
                         "variant_payload_project @{} for enum{} variant {} is not dominated by a matching VariantTest true edge for the same operand",
-                        function.symbol,
+                        function.symbol(),
                         field.definition().into_raw(),
                         field.variant().index()
                     )));

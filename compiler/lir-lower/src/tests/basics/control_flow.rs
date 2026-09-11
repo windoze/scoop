@@ -81,7 +81,7 @@ Module
   global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "ok"
   global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "ng"
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @if.then.1
@@ -101,7 +101,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 
@@ -177,7 +177,7 @@ fn while_becomes_basic_blocks() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 n: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -203,7 +203,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 
@@ -288,7 +288,7 @@ Module
   global @scoop$1$io$c65f5ca6a0fa7e88edfdc899205b08b99869e7e0201f6abfc7beb0a4272e7367 = "c"
   global @scoop$1$io$9b97af2e165f9e07e3561b053a25d214a03b3373b11117b29503110b70fb23ea = "d"
   extern ef0 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 $call.1: i1
     local %1 $call.2: i1
     local %2 b: i1
@@ -317,7 +317,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 
@@ -385,7 +385,7 @@ fn or_short_circuits_through_blocks() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 x: i1
     local %1 y: i1
     local %2 b: i1
@@ -412,7 +412,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 
@@ -589,11 +589,7 @@ fn loop_header_poll_carries_live_managed_root() {
     let module = lower(&b.finish(function));
     lir::CanonicalLirFoundation::from_module(&module)
         .expect("lowered callable and safepoint identities must project canonically");
-    let function = module
-        .functions
-        .iter()
-        .find(|function| function.symbol == "scoop.loopLiveRoot")
-        .expect("loop-root test function");
+    let function = &module.functions[module.entry.declaration().into_u32() as usize];
     let header = function
         .blocks
         .values()

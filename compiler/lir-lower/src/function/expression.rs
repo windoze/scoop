@@ -91,11 +91,12 @@ impl<'a> FunctionLowerer<'a> {
                     ],
                 );
                 let invoke_function = self.module.closure_invoke_functions[def.invoke].function;
-                let invoke_symbol = self.module.functions[invoke_function].symbol.clone();
                 let invoke = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
                     out: invoke,
-                    symbol: invoke_symbol,
+                    target: lir::FunctionAddressTarget::Local(
+                        self.local_function_map[&invoke_function],
+                    ),
                 });
                 let (invoke_offset, _) = self.context.closure_prefix();
                 self.store_at_offset(
@@ -457,7 +458,9 @@ impl<'a> FunctionLowerer<'a> {
                 let out = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
                     out,
-                    symbol: format!("scoop_c_callback_{}", callback.into_raw().into_u32()),
+                    target: lir::FunctionAddressTarget::CallbackTrampoline(
+                        lir::CallbackBridgeId::from_raw(callback.into_raw()),
+                    ),
                 });
                 lir::Value::Temp(out)
             }

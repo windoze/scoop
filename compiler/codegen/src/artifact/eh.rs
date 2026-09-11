@@ -93,10 +93,10 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
     let mut symbols = BTreeSet::new();
     let mut managed_safepoints = BTreeSet::new();
     for function in &module.functions {
-        if !symbols.insert(function.symbol.as_str()) {
+        if !symbols.insert(function.symbol()) {
             return Err(CodegenError(format!(
                 "duplicate LIR function symbol `{}` in EH manifest",
-                function.symbol
+                function.symbol()
             )));
         }
         let mut expectation = ExpectedEhFunction::default();
@@ -112,7 +112,9 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
                     _ => {
                         return Err(CodegenError(format!(
                             "invoke @{} block `{}` unwinds to `{}`, which does not begin with an EH pad",
-                            function.symbol, block.name, unwind.name
+                            function.symbol(),
+                            block.name,
+                            unwind.name
                         )));
                     }
                 };
@@ -129,7 +131,9 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
                 if pad_count != 1 {
                     return Err(CodegenError(format!(
                         "invoke @{} block `{}` unwind destination `{}` contains {pad_count} EH pads",
-                        function.symbol, block.name, unwind.name
+                        function.symbol(),
+                        block.name,
+                        unwind.name
                     )));
                 }
                 let safepoint = match site {
@@ -140,7 +144,7 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
                             .ok_or_else(|| {
                                 CodegenError(format!(
                                     "managed invoke in `{}` references missing safepoint site {}",
-                                    function.symbol,
+                                    function.symbol(),
                                     site.safepoint.into_u32()
                                 ))
                             })?
@@ -163,7 +167,7 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
             }
         }
         if !expectation.invokes.is_empty() {
-            functions.insert(function.symbol.clone(), expectation);
+            functions.insert(function.symbol().to_string(), expectation);
         }
     }
     Ok(ExpectedEh { functions })

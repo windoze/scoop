@@ -188,7 +188,6 @@ fn enum_module_with(
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.tagged".to_string(),
         signature: scoop_signature(
             &scoop_lir::StructDefs::default(),
             &enums,
@@ -277,7 +276,6 @@ fn enum_module_with(
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.niche".to_string(),
         signature: scoop_signature(
             &scoop_lir::StructDefs::default(),
             &enums,
@@ -312,7 +310,6 @@ fn enum_module_with(
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.trap_on_none".to_string(),
         signature: plain_scoop_signature(vec![], LirType::Void),
         call_targets: trap_targets,
         locals: Arena::default(),
@@ -344,7 +341,6 @@ fn enum_module_with(
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.produce_shape".to_string(),
         signature: scoop_signature(
             &scoop_lir::StructDefs::default(),
             &enums,
@@ -397,7 +393,6 @@ fn enum_module_with(
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.consume_shape".to_string(),
         signature: plain_scoop_signature(vec![], enum_tag_ty.clone()),
         call_targets: consume_targets,
         locals: consume_locals,
@@ -448,7 +443,6 @@ fn enum_module_with(
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.consume_shape_indirect".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR], enum_tag_ty),
         call_targets: indirect_targets,
         locals: indirect_locals,
@@ -476,10 +470,11 @@ fn enum_module_with(
             consume,
             consume_indirect,
         ],
-        entry_symbol: "scoop.tagged".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
+    append_executable_entry(&mut module, "enum-executable-entry");
     module
 }
 
@@ -642,7 +637,10 @@ fn tagged_enum_metadata_rejects_recursive_machine_scalar_payload() {
         RefScan::References(vec![0]),
         LirType::Aggregate(vec![LirType::MachineScalar(MachineScalarKind::EnumTag)]),
     );
+    let executable_entry = module.functions.pop().expect("test executable entry");
     module.functions.clear();
+    module.functions.push(executable_entry);
+    module.entry = managed_function_ref(0);
 
     let error = enum_codegen_error(&module);
     assert!(

@@ -73,10 +73,9 @@ fn append_variant_projection_function(
     };
     let index = module.functions.len();
     module.functions.push(Function {
-        callable_body: callable_body_at(file!(), line!()),
+        callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: symbol.to_string(),
         signature,
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -116,10 +115,9 @@ fn append_variant_test_function(
     });
     let index = module.functions.len();
     module.functions.push(Function {
-        callable_body: callable_body_at(file!(), line!()),
+        callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: symbol.to_string(),
         signature,
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -194,7 +192,7 @@ fn variant_primitives_emit_managed_raw_and_code_niche_provenance() {
             .enums
             .variant_field_ref(payload, 0)
             .expect("niche carrier field");
-        append_variant_projection_function(
+        let projection = append_variant_projection_function(
             &mut module,
             &format!("scoop.variant.niche.{}", kind.pointer_kind().dump()),
             LirType::Enum(option),
@@ -216,14 +214,17 @@ fn variant_primitives_emit_managed_raw_and_code_niche_provenance() {
         );
         if kind == scoop_lir::NichePointerKind::Managed {
             assert!(
-                ir.contains("define ptr addrspace(1) @scoop.variant.niche.managed"),
+                ir.contains(&format!(
+                    "define ptr addrspace(1) {}",
+                    llvm_function_symbol(&module.functions[projection])
+                )),
                 "managed niche projection lost AS1 provenance:\n{ir}"
             );
         } else {
             assert!(
                 ir.contains(&format!(
-                    "define ptr @scoop.variant.niche.{}",
-                    kind.pointer_kind().dump()
+                    "define ptr {}",
+                    llvm_function_symbol(&module.functions[projection])
                 )),
                 "raw/code niche projection lost its AS0 carrier:\n{ir}"
             );
@@ -532,7 +533,6 @@ fn redefining_a_tested_temp_invalidates_variant_dominance_fact() {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: "scoop.variant.redefined_temp".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::I64),
         call_targets: CallTargets::default(),
         locals: Arena::default(),

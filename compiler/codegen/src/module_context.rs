@@ -10,6 +10,7 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) extern_functions: &'a ExternFunctions,
     pub(crate) native_globals: &'a Arena<NativeGlobal>,
     pub(crate) native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
+    pub(crate) callback_bridges: &'a Arena<scoop_lir::CallbackBridge>,
     pub(crate) foreign_callback_families: &'a Arena<scoop_lir::ForeignCallbackFamily>,
     pub(crate) foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     pub(crate) globals_arena: &'a Arena<Global>,

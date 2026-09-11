@@ -15,7 +15,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if input_ty != LirType::I64 || *output_ty != scoop_lir::RAW_PTR {
                     return Err(CodegenError(format!(
                         "ulong_to_ptr @{} requires ULong/i64 -> ptr<raw>, got {} -> {}",
-                        function.symbol,
+                        function.symbol(),
                         input_ty.dump(),
                         output_ty.dump()
                     )));
@@ -23,7 +23,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let value = self.value(*value)?.into_int_value();
                 let result = builder
                     .build_int_to_ptr(value, ptr_ty(context), "raw_ptr")
-                    .map_err(|e| CodegenError(format!("inttoptr @{}: {e}", function.symbol)))?;
+                    .map_err(|e| CodegenError(format!("inttoptr @{}: {e}", function.symbol())))?;
                 self.temps.insert(*out, result.into());
             }
             Instruction::PtrToULong { out, value } => {
@@ -32,7 +32,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if input_ty != scoop_lir::RAW_PTR || *output_ty != LirType::I64 {
                     return Err(CodegenError(format!(
                         "ptr_to_ulong @{} requires ptr<raw> -> ULong/i64, got {} -> {}",
-                        function.symbol,
+                        function.symbol(),
                         input_ty.dump(),
                         output_ty.dump()
                     )));
@@ -41,12 +41,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if value.get_type().get_address_space() == self.managed_address_space.inkwell() {
                     return Err(CodegenError(format!(
                         "managed pointer cannot be lowered by PtrToULong in @{}",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
                 let result = builder
                     .build_ptr_to_int(value, context.i64_type(), "raw_uint")
-                    .map_err(|e| CodegenError(format!("ptrtoint @{}: {e}", function.symbol)))?;
+                    .map_err(|e| CodegenError(format!("ptrtoint @{}: {e}", function.symbol())))?;
                 self.temps.insert(*out, result.into());
             }
             Instruction::RawLoad {
@@ -61,7 +61,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "raw_load @{} requires a raw pointer and cannot produce {}, got pointer {}",
-                        function.symbol,
+                        function.symbol(),
                         out_ty.dump(),
                         pointer_ty.dump()
                     )));
@@ -76,13 +76,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?;
                 let value = builder
                     .build_load(ty, pointer, "raw_load")
-                    .map_err(|e| CodegenError(format!("raw load @{}: {e}", function.symbol)))?;
+                    .map_err(|e| CodegenError(format!("raw load @{}: {e}", function.symbol())))?;
                 value
                     .as_instruction_value()
                     .expect("a non-constant load is an instruction")
                     .set_alignment(*align as u32)
                     .map_err(|e| {
-                        CodegenError(format!("raw load alignment @{}: {e}", function.symbol))
+                        CodegenError(format!("raw load alignment @{}: {e}", function.symbol()))
                     })?;
                 self.temps.insert(*out, value);
             }
@@ -98,7 +98,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "raw_store @{} requires a raw pointer and cannot consume {}, got pointer {}",
-                        function.symbol,
+                        function.symbol(),
                         value_ty.dump(),
                         pointer_ty.dump()
                     )));
@@ -106,9 +106,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let pointer = self.value(*pointer)?.into_pointer_value();
                 let store = builder
                     .build_store(pointer, self.value(*value)?)
-                    .map_err(|e| CodegenError(format!("raw store @{}: {e}", function.symbol)))?;
+                    .map_err(|e| CodegenError(format!("raw store @{}: {e}", function.symbol())))?;
                 store.set_alignment(*align as u32).map_err(|e| {
-                    CodegenError(format!("raw store alignment @{}: {e}", function.symbol))
+                    CodegenError(format!("raw store alignment @{}: {e}", function.symbol()))
                 })?;
             }
             Instruction::PtrOffset {
@@ -123,7 +123,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if pointer_ty != scoop_lir::RAW_PTR || *out_ty != scoop_lir::RAW_PTR {
                     return Err(CodegenError(format!(
                         "ptr_offset @{} requires ptr<raw> -> ptr<raw>, got {} -> {}",
-                        function.symbol,
+                        function.symbol(),
                         pointer_ty.dump(),
                         out_ty.dump()
                     )));
@@ -137,7 +137,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     _ => {
                         return Err(CodegenError(format!(
                             "ptr_offset @{} has invalid element offset type {}",
-                            function.symbol,
+                            function.symbol(),
                             offset_ty.dump()
                         )));
                     }
@@ -153,7 +153,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|e| {
                             CodegenError(format!(
                                 "raw pointer offset scale @{}: {e}",
-                                function.symbol
+                                function.symbol()
                             ))
                         })?;
                 }
@@ -163,7 +163,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|e| {
                             CodegenError(format!(
                                 "raw pointer offset negate @{}: {e}",
-                                function.symbol
+                                function.symbol()
                             ))
                         })?;
                 }
@@ -172,7 +172,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let result = unsafe {
                     builder.build_gep(context.i8_type(), pointer, &[bytes], "raw_offset")
                 }
-                .map_err(|e| CodegenError(format!("raw gep @{}: {e}", function.symbol)))?;
+                .map_err(|e| CodegenError(format!("raw gep @{}: {e}", function.symbol())))?;
                 self.temps.insert(*out, result.into());
             }
             Instruction::LocalAddress { out, local } => {
@@ -182,7 +182,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "local_address @{} cannot expose {} as a raw pointer",
-                        function.symbol,
+                        function.symbol(),
                         local_ty.dump()
                     )));
                 }
@@ -194,7 +194,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 else {
                     return Err(CodegenError(format!(
                         "global load @{} targets non-storage global `{}`",
-                        function.symbol,
+                        function.symbol(),
                         self.globals_arena[*global].symbol()
                     )));
                 };
@@ -202,7 +202,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if out_ty != storage_ty {
                     return Err(CodegenError(format!(
                         "global load @{} has result type {}, but `{}` stores {}",
-                        function.symbol,
+                        function.symbol(),
                         out_ty.dump(),
                         self.globals_arena[*global].symbol(),
                         storage_ty.dump()
@@ -227,7 +227,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 else {
                     return Err(CodegenError(format!(
                         "global store @{} targets non-storage global `{}`",
-                        function.symbol,
+                        function.symbol(),
                         self.globals_arena[*global].symbol()
                     )));
                 };
@@ -235,7 +235,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if &value_ty != storage_ty {
                     return Err(CodegenError(format!(
                         "global store @{} has value type {}, but `{}` stores {}",
-                        function.symbol,
+                        function.symbol(),
                         value_ty.dump(),
                         self.globals_arena[*global].symbol(),
                         storage_ty.dump()
@@ -252,7 +252,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let GlobalInit::Storage { ty, .. } = &global_def.init else {
                     return Err(CodegenError(format!(
                         "global_address @{} targets non-storage global `{}`",
-                        function.symbol,
+                        function.symbol(),
                         global_def.symbol()
                     )));
                 };
@@ -262,7 +262,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "global_address @{} cannot expose global `{}` of type {} as a raw pointer",
-                        function.symbol,
+                        function.symbol(),
                         global_def.symbol(),
                         ty.dump()
                     )));
@@ -283,7 +283,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if function.temps[*out].ty != storage_type {
                     return Err(CodegenError(format!(
                         "native global load @{} has result type {}, but `{}` stores {}",
-                        function.symbol,
+                        function.symbol(),
                         function.temps[*out].ty.dump(),
                         native.source_name,
                         storage_type.dump()
@@ -328,7 +328,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if value_ty != storage_type {
                     return Err(CodegenError(format!(
                         "native global store @{} has value type {}, but `{}` stores {}",
-                        function.symbol,
+                        function.symbol(),
                         value_ty.dump(),
                         native.source_name,
                         storage_type.dump()
@@ -379,7 +379,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "native_global_address @{} cannot expose `{}` of type {}",
-                        function.symbol,
+                        function.symbol(),
                         native.source_name,
                         storage_type.dump()
                     )));
@@ -410,7 +410,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if value_ty != function.locals[*local].ty {
                     return Err(CodegenError(format!(
                         "store @{} has value type {}, but %{} stores {}",
-                        function.symbol,
+                        function.symbol(),
                         value_ty.dump(),
                         function.locals[*local].name,
                         function.locals[*local].ty.dump()

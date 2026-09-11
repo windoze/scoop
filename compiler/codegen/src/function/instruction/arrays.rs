@@ -29,7 +29,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "array_alloc @{} has an invalid result or internal machine-scalar element type",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
                 for (index, element_value) in elements.iter().enumerate() {
@@ -37,7 +37,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     if actual != element_lir_ty {
                         return Err(CodegenError(format!(
                             "array_alloc @{} element {} has type {}, expected {}",
-                            function.symbol,
+                            function.symbol(),
                             index,
                             actual.dump(),
                             element_lir_ty.dump()
@@ -65,7 +65,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let element_count = u64::try_from(elements.len()).map_err(|_| {
                     CodegenError(format!(
                         "array_alloc @{} element count does not fit the runtime size word",
-                        function.symbol
+                        function.symbol()
                     ))
                 })?;
                 let total = element_count
@@ -74,7 +74,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .ok_or_else(|| {
                         CodegenError(format!(
                             "array_alloc @{} allocation size overflows the runtime size word",
-                            function.symbol
+                            function.symbol()
                         ))
                     })?;
                 let array = self.managed_alloc_value(
@@ -89,7 +89,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "array size @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 for (index, element_value) in elements.iter().enumerate() {
@@ -104,7 +104,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|e| {
                             CodegenError(format!(
                                 "array element @{symbol}: {e}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?;
                 }
@@ -127,7 +127,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "array_assembly @{} has an invalid result or internal machine-scalar element type",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
                 for (index, part) in parts.iter().enumerate() {
@@ -137,7 +137,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             if actual != array_metadata.element {
                                 return Err(CodegenError(format!(
                                     "array_assembly @{} element part {} has type {}, expected {}",
-                                    function.symbol,
+                                    function.symbol(),
                                     index,
                                     actual.dump(),
                                     array_metadata.element.dump()
@@ -150,7 +150,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         {
                             return Err(CodegenError(format!(
                                 "array_assembly @{} copy part {} is not a managed array",
-                                function.symbol, index
+                                function.symbol(),
+                                index
                             )));
                         }
                         scoop_lir::ArrayAssemblyPart::CopyArray(_) => {}
@@ -185,7 +186,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|error| {
                             CodegenError(format!(
                                 "load array assembly source size @{symbol}: {error}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?
                         .into_int_value();
@@ -194,7 +195,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|error| {
                             CodegenError(format!(
                                 "sum array assembly size @{symbol}: {error}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?;
                     let overflow = builder
@@ -207,7 +208,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|error| {
                             CodegenError(format!(
                                 "check array assembly size sum @{symbol}: {error}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?;
                     self.array_size_check(overflow, &format!("assembly.size.sum.ok.{part_index}"))?;
@@ -221,7 +222,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|error| {
                             CodegenError(format!(
                                 "check array assembly Long size limit @{symbol}: {error}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?;
                     self.array_size_check(
@@ -243,7 +244,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map_err(|error| {
                             CodegenError(format!(
                                 "check array assembly allocation size @{symbol}: {error}",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?;
                     self.array_size_check(overflow, "assembly.size.bytes.ok")?;
@@ -264,7 +265,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|error| {
                         CodegenError(format!(
                             "compute array assembly allocation @{symbol}: {error}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 let safepoint = self.safepoint_id(*safepoint);
@@ -275,7 +276,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 builder.build_store(size_ptr, total).map_err(|error| {
                     CodegenError(format!(
                         "store array assembly size @{symbol}: {error}",
-                        symbol = function.symbol
+                        symbol = function.symbol()
                     ))
                 })?;
 
@@ -294,7 +295,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "store array assembly element @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             destination_index = builder
@@ -306,7 +307,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "advance array assembly destination @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                         }
@@ -318,7 +319,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "load array assembly copy size @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?
                                 .into_int_value();
@@ -342,7 +343,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "enter array assembly copy @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             builder.position_at_end(condition);
@@ -350,7 +351,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 |error| {
                                     CodegenError(format!(
                                         "build array assembly copy index @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 },
                             )?;
@@ -366,7 +367,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "check array assembly copy @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             builder
@@ -374,7 +375,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "branch array assembly copy @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             builder.position_at_end(body);
@@ -389,7 +390,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "load array assembly element @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             let destination = builder
@@ -401,7 +402,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "index array assembly destination @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             let destination = self.element_ptr(
@@ -413,7 +414,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             builder.build_store(destination, copied).map_err(|error| {
                                 CodegenError(format!(
                                     "store array assembly copied element @{symbol}: {error}",
-                                    symbol = function.symbol
+                                    symbol = function.symbol()
                                 ))
                             })?;
                             let next = builder
@@ -425,7 +426,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "advance array assembly copy @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             builder
@@ -433,7 +434,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "continue array assembly copy @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                             index.add_incoming(&[(&next, body)]);
@@ -447,7 +448,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .map_err(|error| {
                                     CodegenError(format!(
                                         "advance copied array destination @{symbol}: {error}",
-                                        symbol = function.symbol
+                                        symbol = function.symbol()
                                     ))
                                 })?;
                         }
@@ -461,7 +462,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "array_len @{} requires ptr<managed> -> i64",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
                 let array = self.value(*operand)?.into_pointer_value();
@@ -472,7 +473,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "array_len @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*out, size);
@@ -493,7 +494,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "array_get @{} requires ptr<managed>[i64] -> {}, got {}[{}] -> {}",
-                        function.symbol,
+                        function.symbol(),
                         array_metadata.element.dump(),
                         array_ty.dump(),
                         index_ty.dump(),
@@ -517,7 +518,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "array_get @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*out, value);
@@ -538,7 +539,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "array_set @{} requires ptr<managed>[i64] = {}, got {}[{}] = {}",
-                        function.symbol,
+                        function.symbol(),
                         array_metadata.element.dump(),
                         array_ty.dump(),
                         index_ty.dump(),
@@ -561,7 +562,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "array_set @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 // M9 write barrier: mark the stored-to address's card
@@ -586,7 +587,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "array_clone @{} requires a machine-scalar-free managed array -> managed array",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
                 let safepoint = self.safepoint_id(*safepoint);
@@ -622,7 +623,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "array_clone @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.apply_safepoint_id(call, safepoint);

@@ -131,7 +131,7 @@ Module
   global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "unwrap on None (function f)"
   global @scoop.cstr.0 = c"unwrap on None (function f)"
   enum Option$I tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop.f(indirect<enum0 size=16 align=8 scan=none>) -> i32
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(indirect<enum0 size=16 align=8 scan=none>) -> i32
     local %0 $uw.1: i32
     local %1 $uw.2: i32
   block entry
@@ -161,7 +161,7 @@ Module
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
@@ -176,6 +176,6 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option$I size=16 align=8 enum-scan=none
-  entry @scoop_main
+  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }

@@ -118,13 +118,13 @@ fn class_allocation_and_initializer_store_fields() {
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "x"
-  fun @scoop.init.Point.$c0(ptr<managed>, i32, ptr<managed>) -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(ptr<managed>, i32, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param2:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
     local %0 p: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -145,7 +145,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Point size=32 align=8 refs=[24]
-  entry @scoop_main
+  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }
 

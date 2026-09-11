@@ -92,14 +92,26 @@ fun {function}(lhs: {ty}, rhs: {ty}, count: Long): {ty} {{
 fn source_integer_division_reaches_only_guarded_llvm_blocks() {
     let (mir, lir, llvm) = pipeline::lower_program(&integer_program());
     for case in INTEGER_CASES {
-        let function = mir
+        let (function_id, function) = mir
             .functions
             .iter()
-            .map(|(_, function)| function)
-            .find(|function| function.name == case.function)
+            .find(|(_, function)| function.name == case.function)
             .unwrap_or_else(|| panic!("{} reaches MIR", case.function));
+        let subject = mir
+            .meta
+            .callable_signature_subject(function_id)
+            .unwrap_or_else(|| panic!("{} has a callable identity", case.function));
+        let scoop_mir::CallableSignatureSubject::Strong(scoop_mir::CallableOwner::Function(
+            source_function,
+        )) = subject
+        else {
+            panic!("{} is a strong source function", case.function);
+        };
+        let callable_body = scoop_lir::CallableBodyIdentity::for_function(source_function)
+            .expect("source function has a callable body identity")
+            .id();
         assert_eq!(function.return_ty, scoop_mir::Type::Integer(case.mir_kind));
         mir_contract::assert_contract(function, case);
-        llvm_contract::assert_contract(&lir, &llvm, function, case);
+        llvm_contract::assert_contract(&lir, &llvm, callable_body, case);
     }
 }

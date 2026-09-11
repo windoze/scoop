@@ -52,7 +52,10 @@ fn prepare_llvm_module<'ctx>(
     profile: TargetProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
+    validation::validate_executable_entry(module)?;
     let llvm = emit_llvm_module(context, module, machine, profile)?;
+    let builder = context.create_builder();
+    emit_executable_entry_shim(context, &llvm, &builder, module)?;
 
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
@@ -279,6 +282,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
         extern_functions: &module.extern_functions,
         native_globals: &module.native_globals,
         native_global_bridges: &module.native_global_bridges,
+        callback_bridges: &module.callback_bridges,
         foreign_callback_families: &module.foreign_callback_families,
         foreign_callback_bridges: &module.foreign_callback_bridges,
         globals_arena: &module.globals,

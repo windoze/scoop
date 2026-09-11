@@ -2,14 +2,13 @@ use super::*;
 use scoop_lir::LirIntegerConstant;
 
 fn module_with_functions(functions: Vec<Function>) -> Module {
-    let entry_symbol = functions
+    let entry_effect = functions
         .first()
         .expect("integer test module has a function")
-        .symbol
-        .clone();
+        .gc_effect;
     let mut module = values_module();
     module.functions = functions;
-    module.entry_symbol = entry_symbol;
+    module.entry = local_function_ref(0, entry_effect);
     module
 }
 
@@ -26,7 +25,6 @@ fn constant_function(symbol: &str, constant: LirIntegerConstant) -> Function {
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: symbol.to_string(),
         signature: plain_scoop_signature(Vec::new(), constant.scalar_type()),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -56,7 +54,6 @@ fn instruction_module(
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: "integer_test".to_string(),
         signature: plain_scoop_signature(params, LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -92,9 +89,12 @@ fn emits_all_eight_integer_kinds_with_exact_llvm_scalars_and_constants() {
             .collect(),
     );
     let ir = ir_of(&module);
-    for (symbol, _, llvm_ty, value) in cases {
+    for ((symbol, _, llvm_ty, value), function) in cases.into_iter().zip(&module.functions) {
         assert!(
-            ir.contains(&format!("define {llvm_ty} @{symbol}()")),
+            ir.contains(&format!(
+                "define {llvm_ty} {}()",
+                llvm_function_symbol(function)
+            )),
             "missing exact scalar signature for {symbol}:\n{ir}"
         );
         assert!(

@@ -124,7 +124,16 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             address, global.native_symbol
         ));
     }
-    for (_, callback) in module.callback_bridges.iter() {
+    for (id, callback) in module.callback_bridges.iter() {
+        let bridge_symbol =
+            module.functions[callback.bridge.declaration().into_u32() as usize].symbol();
+        let bridge_object_symbol = module
+            .meta
+            .target_profile
+            .contract()
+            .native_symbol_normalization()
+            .compiler_generated_object_symbol(bridge_symbol);
+        let bridge_name = format!("scoop_callback_bridge_{}", id.into_raw().into_u32());
         let has_result = !callback.return_type.is_void();
         let mut storage_params = Vec::new();
         if has_result {
@@ -141,9 +150,10 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             storage_params.push("void".to_string());
         }
         out.push_str(&format!(
-            "extern void {}({});\n",
-            callback.bridge_symbol,
-            storage_params.join(", ")
+            "extern void {}({}) __asm__(\"{}\");\n",
+            bridge_name,
+            storage_params.join(", "),
+            bridge_object_symbol
         ));
 
         let callback_params = if callback.params.is_empty() {
@@ -171,7 +181,7 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         storage_args.extend((0..callback.params.len()).map(|index| format!("&arg{index}")));
         out.push_str(&format!(
             "  {}({});\n",
-            callback.bridge_symbol,
+            bridge_name,
             storage_args.join(", ")
         ));
         if has_result {

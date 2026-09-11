@@ -46,7 +46,7 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
     assert_eq!(site.result(), lir::TypedCallResult::Void);
     assert_eq!(
         call_symbol(&module, site.destination(&function.call_targets)),
-        "scoop.helper"
+        module.functions[0].symbol()
     );
     let lir::Instruction::MakeAggregate { out, elements } = instructions[3] else {
         panic!("a void call's Unit value must be an empty aggregate")
@@ -117,7 +117,6 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     let function = lir::Function {
         callable_body: test_callable_body("null_provenance"),
         gc_effect: lir::GcEffect::NoGc,
-        symbol: "null_provenance".to_string(),
         signature: lir::ScoopAbiSignature::new(
             Vec::new(),
             lir::AbiReturn::UnitVoid,

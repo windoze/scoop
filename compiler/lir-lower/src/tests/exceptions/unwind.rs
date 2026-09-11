@@ -54,12 +54,12 @@ fn throw_outside_try_is_a_throw_instruction() {
     // the block; the callee stays a plain call.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop.makeError() -> ptr<managed>
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
     ret t0
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -79,7 +79,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
-  entry @scoop_main
+  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }
 
@@ -114,11 +114,7 @@ fn throw_inside_try_invokes_to_the_own_landingpad() {
     let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
     let module = lower(&b.finish(main));
 
-    let function = module
-        .functions
-        .iter()
-        .find(|f| f.symbol == mir::ENTRY_SYMBOL)
-        .expect("the entry function");
+    let function = &module.functions[module.entry.declaration().into_u32() as usize];
     // The explicit MIR entry jumps into the try body. That block
     // ends with the invoke; its unwind target starts with the
     // landingpad.
@@ -295,11 +291,7 @@ fn nested_trys_unwind_to_their_own_pads() {
     let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
     let module = lower(&b.finish(main));
 
-    let function = module
-        .functions
-        .iter()
-        .find(|f| f.symbol == mir::ENTRY_SYMBOL)
-        .expect("the entry function");
+    let function = &module.functions[module.entry.declaration().into_u32() as usize];
     // The outer primary pad has no incoming exceptional edge after the
     // nested lowering is complete, so final LIR removes it. The inner
     // primary pad remains, as do both handler cleanup pads.
@@ -349,7 +341,7 @@ fn nested_trys_unwind_to_their_own_pads() {
             .map(|(_, u)| *u)
             .unwrap_or_else(|| panic!("{symbol} must be invoked"))
     };
-    assert_eq!(unwind_of("scoop.a"), pads[0]);
-    assert_eq!(unwind_of("scoop.b"), handler_pads[1]);
-    assert_eq!(unwind_of("scoop.c"), handler_pads[0]);
+    assert_eq!(unwind_of(module.functions[0].symbol()), pads[0]);
+    assert_eq!(unwind_of(module.functions[1].symbol()), handler_pads[1]);
+    assert_eq!(unwind_of(module.functions[2].symbol()), handler_pads[0]);
 }

@@ -11,7 +11,7 @@ fn option_of_string_uses_the_niche_representation() {
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   enum Option$S niche(kind=managed,payload_variant=0)
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 o: enum0
     local %1 t: machine<enum-tag>
     local %2 p: ptr<managed>
@@ -38,7 +38,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 
@@ -117,7 +117,7 @@ fn option_of_int_uses_the_tagged_representation() {
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   enum Option$I tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 o: enum0
     local %1 t: machine<enum-tag>
     local %2 p: i32
@@ -144,7 +144,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option$I size=16 align=8 enum-scan=none
-  entry @scoop_main
+  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 

@@ -34,8 +34,8 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, unit) in module.initialization_units.iter() {
         let initializer =
-            &module.functions[unit.initializer.declaration().into_u32() as usize].symbol;
-        let ensure = &module.functions[unit.ensure.declaration().into_u32() as usize].symbol;
+            module.functions[unit.initializer.declaration().into_u32() as usize].symbol();
+        let ensure = module.functions[unit.ensure.declaration().into_u32() as usize].symbol();
         let schedule = match unit.schedule {
             InitializationSchedule::EagerStartup => "",
             InitializationSchedule::LazyAccess => " lazy",
@@ -213,7 +213,7 @@ pub fn dump(module: &Module) -> String {
             "  callback cb{} {} @{} -> @{} c=({})->{}\n",
             id.into_raw(),
             callback.source_name,
-            callback.bridge_symbol,
+            module.functions[callback.bridge.declaration().into_u32() as usize].symbol(),
             callback.trampoline_symbol,
             params,
             callback.return_type.dump(),
@@ -251,7 +251,7 @@ pub fn dump(module: &Module) -> String {
             "  foreign_callback_bridge fcb{} family=fcf{} @{} -> @{} signature=@{} context={} mode={} c=({})->{}\n",
             id.into_raw(),
             bridge.family.into_raw(),
-            bridge.adapter_symbol,
+            module.functions[bridge.adapter.declaration().into_u32() as usize].symbol(),
             bridge.trampoline_symbol,
             bridge.signature_symbol,
             bridge.context_index,
@@ -269,7 +269,7 @@ pub fn dump(module: &Module) -> String {
             .collect::<Vec<_>>();
         out.push_str(&format!(
             "  fun @{}({}) -> {}{}\n",
-            function.symbol,
+            function.symbol(),
             params.join(", "),
             abi_return_name(function.signature.result()),
             if function.gc_effect == GcEffect::NoGc {
@@ -290,7 +290,7 @@ pub fn dump(module: &Module) -> String {
             let _ = block_id;
             out.push_str(&format!("  block {}\n", block.name));
             for instruction in &block.instructions {
-                dump_instruction(function, instruction, &mut out);
+                dump_instruction(module, function, instruction, &mut out);
             }
             match &block.terminator {
                 Terminator::Br(target) => {
@@ -498,6 +498,7 @@ pub fn dump(module: &Module) -> String {
             ));
         }
     }
-    out.push_str(&format!("  entry @{}\n", module.entry_symbol));
+    let entry = &module.functions[module.entry.declaration().into_u32() as usize];
+    out.push_str(&format!("  entry @{}\n", entry.symbol()));
     out
 }

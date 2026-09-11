@@ -205,7 +205,6 @@ fn arrays_module() -> Module {
             callable_body: callable_body("scoop_main"),
             safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals,
@@ -213,7 +212,7 @@ fn arrays_module() -> Module {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        entry: managed_function_ref(0),
         meta,
     }
 }

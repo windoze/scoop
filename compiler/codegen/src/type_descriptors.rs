@@ -277,8 +277,7 @@ fn slot_fn_ptr<'ctx>(
         CallableRef::Local(id) => functions
             .get(id.into_u32() as usize)
             .ok_or_else(|| CodegenError(format!("invalid local callable id {id:?}")))?
-            .symbol
-            .as_str(),
+            .symbol(),
         CallableRef::Runtime(function) => function.symbol(),
         CallableRef::External(id) => external_callables[id].symbol.as_str(),
     };

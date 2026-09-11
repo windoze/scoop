@@ -92,13 +92,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if is_native && invoke.is_some() {
             return Err(CodegenError(format!(
                 "typed call @{}: native calls cannot unwind through managed code",
-                self.function.symbol
+                self.function.symbol()
             )));
         }
         if call.args().len() != params.len() {
             return Err(CodegenError(format!(
                 "typed call @{}: signature has {} parameters but call has {} arguments",
-                self.function.symbol,
+                self.function.symbol(),
                 params.len(),
                 call.args().len()
             )));
@@ -123,7 +123,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             if !convention_matches || &argument_ty != parameter.logical_storage_type() {
                 return Err(CodegenError(format!(
                     "typed call @{}: argument {} convention/type does not match {}",
-                    self.function.symbol,
+                    self.function.symbol(),
                     index,
                     parameter.logical_storage_type().dump()
                 )));
@@ -148,7 +148,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if carries_c_argument_storage && !is_c_extern {
             return Err(CodegenError(format!(
                 "typed call @{} uses a C argument-storage address outside a C extern call",
-                self.function.symbol
+                self.function.symbol()
             )));
         }
 
@@ -157,7 +157,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let declaration = self.functions.get(id.into_u32() as usize).ok_or_else(|| {
                     CodegenError(format!(
                         "typed local call @{} has invalid function id {}",
-                        self.function.symbol,
+                        self.function.symbol(),
                         id.into_u32()
                     ))
                 })?;
@@ -172,7 +172,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "typed local call @{} ABI does not match `{}`",
-                        self.function.symbol, declaration.symbol
+                        self.function.symbol(),
+                        declaration.symbol()
                     )));
                 }
                 let expected_effect = match &protocol {
@@ -183,14 +184,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. } => {
                         return Err(CodegenError(format!(
                             "typed local call @{} cannot use a native transition protocol",
-                            self.function.symbol
+                            self.function.symbol()
                         )));
                     }
                 };
                 if declaration.gc_effect != expected_effect {
                     return Err(CodegenError(format!(
                         "typed local call @{} protocol does not match the GC effect of `{}`",
-                        self.function.symbol, declaration.symbol
+                        self.function.symbol(),
+                        declaration.symbol()
                     )));
                 }
             }
@@ -213,14 +215,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 else {
                                     return Err(CodegenError(format!(
                                         "typed C extern call @{}: argument {} is not an exact C argument-storage address",
-                                        self.function.symbol, index
+                                        self.function.symbol(),
+                                        index
                                     )));
                                 };
                                 let local_index = arena_index(storage.local());
                                 if local_index >= self.function.locals.len() {
                                     return Err(CodegenError(format!(
                                         "typed C extern call @{}: argument {} refers to invalid storage local{}",
-                                        self.function.symbol, index, local_index
+                                        self.function.symbol(),
+                                        index,
+                                        local_index
                                     )));
                                 }
                                 let actual = &self.function.locals[storage.local()].ty;
@@ -228,7 +233,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 if actual != &expected {
                                     return Err(CodegenError(format!(
                                         "typed C extern call @{}: argument {} storage local{} has type {}, expected exact C storage {}",
-                                        self.function.symbol,
+                                        self.function.symbol(),
                                         index,
                                         local_index,
                                         actual.dump(),
@@ -278,7 +283,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if !params_match || !result_matches || !protocol_matches {
                     return Err(CodegenError(format!(
                         "typed extern call @{} ABI does not match the declaration of `{}`",
-                        self.function.symbol, declaration.source_name
+                        self.function.symbol(),
+                        declaration.source_name
                     )));
                 }
             }
@@ -393,7 +399,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             if !params_match || !result_matches || !protocol_matches {
                 return Err(CodegenError(format!(
                     "typed runtime call @{} has a signature or protocol outside the closed runtime ABI for `{}`",
-                    self.function.symbol,
+                    self.function.symbol(),
                     runtime.symbol()
                 )));
             }
@@ -405,7 +411,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if &self.function.temps[*out].ty != value.storage_type() {
                     return Err(CodegenError(format!(
                         "typed call @{}: elided ZST result temp does not match its signature",
-                        self.function.symbol
+                        self.function.symbol()
                     )));
                 }
             }
@@ -413,7 +419,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if &self.function.temps[*out].ty != value.storage_type() {
                     return Err(CodegenError(format!(
                         "typed call @{}: direct result temp does not match its signature",
-                        self.function.symbol
+                        self.function.symbol()
                     )));
                 }
             }
@@ -421,7 +427,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if &self.function.locals[*storage].ty != value.storage_type() {
                     return Err(CodegenError(format!(
                         "typed call @{}: result storage does not match its signature",
-                        self.function.symbol
+                        self.function.symbol()
                     )));
                 }
             }
@@ -447,19 +453,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             let TypedCallResult::Direct { out, .. } = result else {
                 return Err(CodegenError(format!(
                     "typed allocation @{} must have a direct result",
-                    self.function.symbol
+                    self.function.symbol()
                 )));
             };
             let CallProtocol::Managed { safepoint, live: _ } = &protocol else {
                 return Err(CodegenError(format!(
                     "typed allocation @{} is not a managed call",
-                    self.function.symbol
+                    self.function.symbol()
                 )));
             };
             if invoke.is_some() {
                 return Err(CodegenError(format!(
                     "typed allocation @{} cannot carry unwind edges",
-                    self.function.symbol
+                    self.function.symbol()
                 )));
             }
             let logical_args = call
@@ -491,7 +497,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if result_scan(&result) != &RefScan::None {
                     return Err(CodegenError(format!(
                         "native-safe call @{} has a managed result",
-                        self.function.symbol
+                        self.function.symbol()
                     )));
                 }
                 Some((NativeTransitionKind::Safe, roots.as_slice(), None))
@@ -639,7 +645,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     ValueKind::Instruction(_) => {
                         return Err(CodegenError(format!(
                             "typed native call @{} produced no direct value",
-                            self.function.symbol
+                            self.function.symbol()
                         )));
                     }
                 },
@@ -692,7 +698,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     ValueKind::Instruction(_) => {
                         return Err(CodegenError(format!(
                             "typed call @{} produced no direct value",
-                            self.function.symbol
+                            self.function.symbol()
                         )));
                     }
                 },
@@ -784,7 +790,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | CallProtocol::NativeBorrowed { .. } => {
                 return Err(CodegenError(format!(
                     "non-invoke protocol reached invoke emission in @{}",
-                    self.function.symbol
+                    self.function.symbol()
                 )));
             }
         };
@@ -903,7 +909,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let value = direct_value.ok_or_else(|| {
                     CodegenError(format!(
                         "typed invoke @{} produced no direct result",
-                        self.function.symbol
+                        self.function.symbol()
                     ))
                 })?;
                 self.temps.insert(*out, value);

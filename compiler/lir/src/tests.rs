@@ -630,7 +630,6 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
     let function = super::Function {
         callable_body: callable_body("logical_params"),
         gc_effect: GcEffect::NoGc,
-        symbol: "logical_params".to_string(),
         signature,
         call_targets: CallTargets::default(),
         safepoints: super::SafepointIdentities::default(),

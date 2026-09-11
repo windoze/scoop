@@ -132,7 +132,6 @@ fn closure_abi_module() -> Module {
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop.closure_abi".to_string(),
             signature: plain_scoop_signature(
                 vec![
                     MANAGED_PTR,
@@ -148,7 +147,7 @@ fn closure_abi_module() -> Module {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop.closure_abi".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -265,7 +264,6 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: "scoop.zst_identity".to_string(),
         signature: plain_scoop_signature(vec![zst.clone()], zst.clone()),
         call_targets: CallTargets::default(),
         locals: callee_locals,
@@ -304,7 +302,6 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: "scoop.zst_caller".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
         call_targets,
         locals: Arena::default(),
@@ -329,14 +326,15 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![callee, caller],
-        entry_symbol: "scoop.zst_caller".to_string(),
+        entry: no_gc_function_ref(1),
         meta: string_metadata(),
     };
 
     let ir = ir_of(&module);
+    let callee_symbol = llvm_function_symbol(&module.functions[0]);
     assert!(
-        ir.contains("define void @scoop.zst_identity()")
-            && ir.contains("call void @scoop.zst_identity()"),
+        ir.contains(&format!("define void {callee_symbol}()"))
+            && ir.contains(&format!("call void {callee_symbol}()")),
         "elided ZST parameters and results must occupy no physical ABI slots:\n{ir}"
     );
     assert!(

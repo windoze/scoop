@@ -25,7 +25,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 ) {
                     return Err(CodegenError(format!(
                         "heap_load @{} requires a managed/metadata object and cannot produce a machine scalar; got object {}",
-                        function.symbol,
+                        function.symbol(),
                         object_ty.dump()
                     )));
                 }
@@ -44,7 +44,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "heap load @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*out, element);
@@ -64,7 +64,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "machine_heap_load @{} must read one aligned managed field of its declared machine state {:?}",
-                        function.symbol, kind
+                        function.symbol(),
+                        kind
                     )));
                 }
                 let name = format!("t{}", out.into_raw().into_u32());
@@ -75,7 +76,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "machine heap load @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*out, element);
@@ -89,7 +90,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if *offset < 16 || *offset % 8 != 0 {
                     return Err(CodegenError(format!(
                         "atomic_load @{symbol}: offset {offset} is not an aligned object field",
-                        symbol = function.symbol,
+                        symbol = function.symbol(),
                         offset = *offset
                     )));
                 }
@@ -99,7 +100,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "atomic_load @{} must produce its declared 64-bit machine state {:?}",
-                        function.symbol, kind
+                        function.symbol(),
+                        kind
                     )));
                 }
                 let name = format!("t{}", out.into_raw().into_u32());
@@ -117,7 +119,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "atomic load @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 element
@@ -127,7 +129,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "atomic load ordering @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*out, element);
@@ -141,7 +143,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if *offset < 16 {
                     return Err(CodegenError(format!(
                         "heap_store @{symbol}: offset {offset} is inside the object header",
-                        symbol = function.symbol,
+                        symbol = function.symbol(),
                         offset = *offset
                     )));
                 }
@@ -152,7 +154,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "heap_store @{} requires a managed object and cannot consume {}, got object {}",
-                        function.symbol,
+                        function.symbol(),
                         value_ty.dump(),
                         object_ty.dump()
                     )));
@@ -164,7 +166,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "heap_store @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 // M9 write barrier: mark the stored-to address's card.
@@ -185,7 +187,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "machine_heap_store @{} must write one aligned managed field of its declared machine state {:?}",
-                        function.symbol, kind
+                        function.symbol(),
+                        kind
                     )));
                 }
                 let object = self.value(*object)?.into_pointer_value();
@@ -195,7 +198,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "machine heap store @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.card_mark(field_ptr)?;
@@ -209,7 +212,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if *offset < 16 || *offset % 8 != 0 {
                     return Err(CodegenError(format!(
                         "atomic_store @{symbol}: offset {offset} is not an aligned object field",
-                        symbol = function.symbol,
+                        symbol = function.symbol(),
                         offset = *offset
                     )));
                 }
@@ -220,7 +223,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "atomic_store @{} must consume its declared 64-bit machine state {:?}",
-                        function.symbol, kind
+                        function.symbol(),
+                        kind
                     )));
                 }
                 let object = self.value(*object)?.into_pointer_value();
@@ -230,7 +234,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "atomic store @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 store
@@ -238,7 +242,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "atomic store ordering @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
             }
@@ -253,7 +257,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if *offset < 16 || *offset % 8 != 0 {
                     return Err(CodegenError(format!(
                         "atomic_cmpxchg @{symbol}: offset {offset} is not an aligned object field",
-                        symbol = function.symbol,
+                        symbol = function.symbol(),
                         offset = *offset
                     )));
                 }
@@ -266,7 +270,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "atomic_cmpxchg @{} must use one declared 64-bit machine state {:?}",
-                        function.symbol, kind
+                        function.symbol(),
+                        kind
                     )));
                 }
                 let object = self.value(*object)?.into_pointer_value();
@@ -282,7 +287,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "atomic cmpxchg @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 let old = builder
@@ -290,7 +295,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "atomic cmpxchg result @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*out, old);

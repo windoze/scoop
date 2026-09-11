@@ -53,7 +53,7 @@ fn validate_function(module: &Module, function: &Function) -> Result<(), Codegen
             if arena_index(*successor) >= block_count {
                 return Err(CodegenError(format!(
                     "call root-plan validation in @{} reached invalid block {}",
-                    function.symbol,
+                    function.symbol(),
                     successor.into_raw()
                 )));
             }
@@ -145,14 +145,15 @@ fn validate_invoke_shape(
         if index + 1 != block.instructions.len() {
             return Err(CodegenError(format!(
                 "invoke @{}: must be the last instruction of block {}",
-                function.symbol, block.name
+                function.symbol(),
+                block.name
             )));
         }
         for successor in [site.normal(), site.unwind()] {
             if arena_index(successor) >= block_count {
                 return Err(CodegenError(format!(
                     "call root-plan validation in @{} reached invalid block {}",
-                    function.symbol,
+                    function.symbol(),
                     successor.into_raw()
                 )));
             }
@@ -162,7 +163,8 @@ fn validate_invoke_shape(
             _ => {
                 return Err(CodegenError(format!(
                     "invoke block @{}:{}: terminator must be `br` to the invoke's normal target",
-                    function.symbol, block.name
+                    function.symbol(),
+                    block.name
                 )));
             }
         }
@@ -400,7 +402,7 @@ fn live_value_type<'a>(
             .ok_or_else(|| {
                 CodegenError(format!(
                     "{owner} references invalid root parameter {index} in @{}",
-                    function.symbol
+                    function.symbol()
                 ))
             }),
         LiveValue::Local(id) => {
@@ -408,7 +410,7 @@ fn live_value_type<'a>(
             if index >= function.locals.len() {
                 return Err(CodegenError(format!(
                     "{owner} references invalid root local {index} in @{}",
-                    function.symbol
+                    function.symbol()
                 )));
             }
             Ok(&function.locals[id].ty)
@@ -418,7 +420,7 @@ fn live_value_type<'a>(
             if index >= function.temps.len() {
                 return Err(CodegenError(format!(
                     "{owner} references invalid root temporary t{index} in @{}",
-                    function.symbol
+                    function.symbol()
                 )));
             }
             Ok(&function.temps[id].ty)
@@ -481,7 +483,7 @@ fn site_owner(
 ) -> String {
     format!(
         "{protocol} root plan in @{} block{} instruction {instruction}",
-        function.symbol,
+        function.symbol(),
         block.into_raw()
     )
 }

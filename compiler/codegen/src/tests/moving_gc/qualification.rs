@@ -41,7 +41,6 @@ fn stackmap_qualification_module() -> Module {
             callable_body: callable_body(symbol),
             safepoints: test_safepoints(symbol, &blocks, entry),
             gc_effect: GcEffect::Managed,
-            symbol: symbol.to_string(),
             signature: plain_scoop_signature(params, return_ty),
             call_targets,
             locals: Arena::default(),
@@ -97,12 +96,16 @@ fn stackmap_qualification_module() -> Module {
                 Some(Value::Param(0)),
             ),
         ],
-        entry_symbol: "scoop_qualification_zero".to_string(),
+        entry: managed_function_ref(0),
         meta: string_metadata(),
     }
 }
 
-fn assert_aarch64_frame_disassembly(object: &std::path::Path, optimization: &str) {
+fn assert_aarch64_frame_disassembly(
+    object: &std::path::Path,
+    optimization: &str,
+    functions: &[Function],
+) {
     let output = std::process::Command::new("otool")
         .arg("-tvV")
         .arg(object)
@@ -114,13 +117,12 @@ fn assert_aarch64_frame_disassembly(object: &std::path::Path, optimization: &str
         String::from_utf8_lossy(&output.stderr)
     );
     let disassembly = String::from_utf8_lossy(&output.stdout);
-    for symbol in [
-        "_scoop_qualification_zero:",
-        "_scoop_qualification_one:",
-        "_scoop_qualification_many:",
-    ] {
+    for symbol in functions[..3]
+        .iter()
+        .map(|function| format!("_{}:", function.symbol()))
+    {
         let start = disassembly
-            .find(symbol)
+            .find(&symbol)
             .unwrap_or_else(|| panic!("{optimization}: missing {symbol}:\n{disassembly}"));
         let body = &disassembly[start..];
         let end = body[1..]
@@ -194,7 +196,7 @@ fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
         profile
             .verify_object(&output, &expected, &expected_eh)
             .unwrap_or_else(|error| panic!("{name}: {error}"));
-        assert_aarch64_frame_disassembly(&output, name);
+        assert_aarch64_frame_disassembly(&output, name, &module.functions);
         std::fs::remove_file(&output).ok();
     }
 }

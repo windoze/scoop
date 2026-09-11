@@ -142,12 +142,12 @@ fn function_pointer<'ctx>(
             "initialization descriptor references unavailable function {index}"
         ))
     })?;
-    llvm.get_function(&declaration.symbol)
+    llvm.get_function(declaration.symbol())
         .map(|function| function.as_global_value().as_pointer_value())
         .ok_or_else(|| {
             CodegenError(format!(
                 "initialization function `{}` was not declared",
-                declaration.symbol
+                declaration.symbol()
             ))
         })
 }

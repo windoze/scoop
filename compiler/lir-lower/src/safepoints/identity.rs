@@ -217,7 +217,6 @@ mod tests {
         let mut function = lir::Function {
             callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,
-            symbol: "safepoint_identity_test".to_string(),
             signature: lir::ScoopAbiSignature::new(
                 Vec::new(),
                 lir::AbiReturn::UnitVoid,

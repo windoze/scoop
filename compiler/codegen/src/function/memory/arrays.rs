@@ -28,7 +28,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         unsafe { self.builder.build_gep(element_ty, base, &[index], name) }.map_err(|e| {
             CodegenError(format!(
                 "element gep @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })
     }
@@ -47,7 +47,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| {
                 CodegenError(format!(
                     "array size check @{symbol}: {error}",
-                    symbol = self.function.symbol
+                    symbol = self.function.symbol()
                 ))
             })?;
         self.builder.position_at_end(continuation);
@@ -71,7 +71,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|e| {
                 CodegenError(format!(
                     "bounds check @{symbol}: {e}",
-                    symbol = self.function.symbol
+                    symbol = self.function.symbol()
                 ))
             })?
             .into_int_value();
@@ -80,7 +80,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|e| {
                 CodegenError(format!(
                     "bounds check @{symbol}: {e}",
-                    symbol = self.function.symbol
+                    symbol = self.function.symbol()
                 ))
             })?;
         let ok_block = self
@@ -92,7 +92,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|e| {
                 CodegenError(format!(
                     "bounds check @{symbol}: {e}",
-                    symbol = self.function.symbol
+                    symbol = self.function.symbol()
                 ))
             })?;
         builder.position_at_end(ok_block);
@@ -135,13 +135,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|e| {
                 CodegenError(format!(
                     "bounds trap @{symbol}: {e}",
-                    symbol = self.function.symbol
+                    symbol = self.function.symbol()
                 ))
             })?;
         builder.build_unreachable().map_err(|e| {
             CodegenError(format!(
                 "bounds trap @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })?;
         builder.position_at_end(current);
@@ -180,13 +180,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| {
                 CodegenError(format!(
                     "array size trap @{symbol}: {error}",
-                    symbol = self.function.symbol
+                    symbol = self.function.symbol()
                 ))
             })?;
         builder.build_unreachable().map_err(|error| {
             CodegenError(format!(
                 "array size trap @{symbol}: {error}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })?;
         builder.position_at_end(current);

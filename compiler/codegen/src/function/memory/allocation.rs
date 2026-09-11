@@ -18,7 +18,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let [descriptor, requested_size] = args else {
             return Err(CodegenError(format!(
                 "scoop_rt_alloc @{}: expected descriptor and size",
-                self.function.symbol
+                self.function.symbol()
             )));
         };
         let descriptor = self.value(*descriptor)?.into_pointer_value();

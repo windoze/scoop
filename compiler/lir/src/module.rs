@@ -26,8 +26,9 @@ pub struct Module {
     /// NoGC static callback bridges at the type level.
     pub foreign_callback_families: Arena<ForeignCallbackFamily>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
-    /// Symbol of the entry function (`scoop_main`).
-    pub entry_symbol: String,
+    /// Effect-refined identity of the Scoop entry body. The fixed native
+    /// executable entry shim is emitted separately and is not a Scoop body.
+    pub entry: LocalFunctionRef,
     pub meta: LirMeta,
 }
 
@@ -73,7 +74,7 @@ pub enum InitializationSchedule {
 #[derive(Debug)]
 pub struct CallbackBridge {
     pub source_name: String,
-    pub bridge_symbol: String,
+    pub bridge: NoGcLocalFunctionRef,
     pub trampoline_symbol: String,
     pub params: Vec<CType>,
     pub return_type: CReturnType,
@@ -254,7 +255,7 @@ pub struct ForeignCallbackBridge {
     /// Persistent identity shared with the managed adapter materialization.
     pub application: scoop_identity::PersistentCallbackApplicationId,
     pub family: ForeignCallbackFamilyId,
-    pub adapter_symbol: String,
+    pub adapter: ManagedLocalFunctionRef,
     pub trampoline_symbol: String,
     pub signature_symbol: String,
     pub params: Vec<CType>,

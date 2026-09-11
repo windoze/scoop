@@ -230,7 +230,7 @@ pub enum Instruction {
     /// pointer. It is metadata, not a managed reference.
     FunctionAddress {
         out: TempId,
-        symbol: String,
+        target: FunctionAddressTarget,
     },
     ForeignCallbackRegister {
         out: TempId,
@@ -407,6 +407,12 @@ pub enum Instruction {
         operand: Value,
         field: LirVariantFieldRef,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FunctionAddressTarget {
+    Local(LocalFunctionRef),
+    CallbackTrampoline(CallbackBridgeId),
 }
 
 impl Instruction {

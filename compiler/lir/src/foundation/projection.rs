@@ -182,9 +182,16 @@ impl CanonicalLirFoundation {
         &mut self,
         globals: &la_arena::Arena<crate::Global>,
     ) -> Result<(), LirFoundationBuildError> {
-        let requests = globals
+        let requests = self
+            .symbol_requests
+            .requests()
             .iter()
-            .filter_map(|(_, global)| global.persistent_symbol_request())
+            .copied()
+            .chain(
+                globals
+                    .iter()
+                    .filter_map(|(_, global)| global.persistent_symbol_request()),
+            )
             .collect();
         self.set_symbol_requests(
             scoop_identity::PersistentSymbolRequestTable::new(requests)
@@ -201,10 +208,12 @@ impl CanonicalLirFoundation {
             .sum();
         let mut safepoint_sites = Vec::with_capacity(safepoint_count);
         let mut safepoints = Vec::with_capacity(safepoint_count);
+        let mut symbol_requests = Vec::with_capacity(functions.len());
 
         for (function_index, function) in functions.iter().enumerate() {
             let callable_body = function.callable_body.id();
             callable_bodies.push(function.callable_body.identity_record().clone());
+            symbol_requests.push(function.callable_body.symbol_request());
             for identity in function.safepoints.iter() {
                 if identity.owner() != callable_body {
                     return Err(LirFoundationBuildError::SafepointOwnerMismatch {
@@ -223,6 +232,10 @@ impl CanonicalLirFoundation {
         foundation.set_callable_bodies(callable_bodies)?;
         foundation.set_safepoint_sites(safepoint_sites)?;
         foundation.set_safepoints(safepoints)?;
+        foundation.set_symbol_requests(
+            scoop_identity::PersistentSymbolRequestTable::new(symbol_requests)
+                .map_err(LirFoundationBuildError::SymbolRequest)?,
+        );
         Ok(foundation)
     }
 }
@@ -568,6 +581,24 @@ mod tests {
         assert_eq!(foundation.callable_bodies.len(), 2);
         assert_eq!(foundation.safepoint_sites.len(), 2);
         assert_eq!(foundation.safepoints.len(), 2);
+        assert_eq!(foundation.symbol_requests.requests().len(), 2);
+        assert!(
+            foundation
+                .symbol_requests
+                .requests()
+                .iter()
+                .all(|request| request.linkage() == scoop_identity::LinkageClass::ConeStrong)
+        );
+        assert!(
+            foundation
+                .symbol_requests
+                .requests()
+                .iter()
+                .all(|request| matches!(
+                    request.key(),
+                    scoop_identity::PersistentSymbolKey::CallableBody(_)
+                ))
+        );
         let mut expected = vec![first_site, second_site];
         expected.sort_by_key(SafepointIdentity::site_id);
         for ((site, mapping), identity) in foundation
@@ -677,7 +708,6 @@ mod tests {
         Function {
             callable_body,
             gc_effect: GcEffect::Managed,
-            symbol: "projection_test".to_string(),
             signature: ScoopAbiSignature::new(
                 Vec::new(),
                 AbiReturn::UnitVoid,

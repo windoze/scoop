@@ -3,6 +3,7 @@ use super::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallableBodyIdentity {
     record: scoop_identity::RuntimeIdentityRecord<scoop_identity::PersistentCallableBodyId>,
+    symbol: MaterializedSymbol,
 }
 
 impl CallableBodyIdentity {
@@ -37,7 +38,10 @@ impl CallableBodyIdentity {
     pub fn for_odr_member(
         member: scoop_identity::CallableOdrMemberId,
     ) -> Result<Self, CallableBodyIdentityBuildError> {
-        Self::from_key(scoop_identity::CallableBodyKey::odr(member))
+        Self::from_key(
+            scoop_identity::CallableBodyKey::odr(member),
+            LinkageClass::OdrWeak,
+        )
     }
 
     pub const fn id(&self) -> scoop_identity::PersistentCallableBodyId {
@@ -50,17 +54,35 @@ impl CallableBodyIdentity {
         &self.record
     }
 
+    pub const fn symbol_request(&self) -> PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
+
     fn strong(
         owner: scoop_identity::StrongCallableDefinitionOwner,
     ) -> Result<Self, CallableBodyIdentityBuildError> {
-        Self::from_key(scoop_identity::CallableBodyKey::strong(owner))
+        Self::from_key(
+            scoop_identity::CallableBodyKey::strong(owner),
+            LinkageClass::ConeStrong,
+        )
     }
 
     fn from_key(
         key: scoop_identity::CallableBodyKey,
+        linkage: LinkageClass,
     ) -> Result<Self, CallableBodyIdentityBuildError> {
+        let record = scoop_identity::RuntimeIdentityRecord::from_key(&key)?;
         Ok(Self {
-            record: scoop_identity::RuntimeIdentityRecord::from_key(&key)?,
+            symbol: MaterializedSymbol::new(
+                scoop_identity::PersistentSymbolKey::CallableBody(record.id()),
+                linkage,
+            )
+            .expect("the closed callable-body key/linkage pair is valid"),
+            record,
         })
     }
 }
@@ -90,7 +112,6 @@ pub struct Function {
     /// Whether codegen must attach the GC strategy. Polls are explicit LIR
     /// instructions with their own typed root plans.
     pub gc_effect: GcEffect,
-    pub symbol: String,
     /// The sole logical and physical Scoop ABI signature for this definition.
     /// Arguments remain addressable by logical source index (`Value::Param`).
     pub signature: ScoopAbiSignature,
@@ -107,6 +128,10 @@ pub struct Function {
 }
 
 impl Function {
+    pub fn symbol(&self) -> &str {
+        self.callable_body.symbol()
+    }
+
     /// The type of a value in this function.
     pub fn value_ty(&self, globals: &Arena<Global>, value: Value) -> LirType {
         match value {
