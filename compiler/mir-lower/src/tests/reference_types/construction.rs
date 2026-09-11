@@ -71,12 +71,12 @@ fn class_initializers_chain_on_one_exact_allocation() {
     ));
     let receiver = module
         .meta
-        .source_local_values
+        .local_values
         .get(point_initializer.0, point_initializer.1.params[0].local)
         .expect("the initializer receiver keeps its LocalConcrete value identity");
     let parameter = module
         .meta
-        .source_local_values
+        .local_values
         .get(point_initializer.0, point_initializer.1.params[1].local)
         .expect("the initializer parameter keeps its LocalConcrete value identity");
     assert!(matches!(

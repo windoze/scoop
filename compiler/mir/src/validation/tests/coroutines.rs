@@ -155,6 +155,9 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         )
         .unwrap(),
     );
+    let saved_identity = test_local_value(source, 0);
+    let frame_identity =
+        CoroutineFrameIdentity::new(source, vec![saved_identity.clone()], None).unwrap();
     let frame = module.meta.coroutine_frames.alloc(
         CoroutineFrame::checked(
             &module.classes,
@@ -166,6 +169,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
             completion_field,
             vec![saved_value],
             failure_value,
+            frame_identity,
         )
         .unwrap(),
     );
@@ -186,6 +190,11 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let state_local = locals.alloc(Local {
         name: "$state".to_string(),
         ty: Type::MachineScalar(MachineScalarKind::CoroutineFrameState),
+        mutable: false,
+    });
+    let saved_local = locals.alloc(Local {
+        name: "$saved".to_string(),
+        ty: result.clone(),
         mutable: false,
     });
     let mut blocks = Arena::new();
@@ -283,6 +292,20 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         return_ty: Type::Enum(step_enum, Vec::new()),
         body,
     });
+    module.meta.local_values = LocalValueIdentities::checked(
+        module
+            .meta
+            .local_values
+            .iter()
+            .cloned()
+            .chain(std::iter::once(LocalValueIdentity::new(
+                driver,
+                saved_local,
+                saved_identity,
+            )))
+            .collect(),
+    )
+    .unwrap();
     let parent = if continue_parent {
         CoroutinePendingTransfer::Continue(CoroutineLoopHeaderTarget::new(post))
     } else {
@@ -478,6 +501,22 @@ fn driver_identity_must_name_the_exact_coroutine_source() {
         Err(MirValidationError {
             kind: MirValidationErrorKind::InvalidCoroutineMetadata {
                 reason: "coroutine driver identity does not match its exact source materialization"
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn frame_saved_identity_must_name_one_driver_local() {
+    let mut fixture = coroutine_fixture(false);
+    fixture.module.meta.local_values = LocalValueIdentities::default();
+
+    assert!(matches!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "each saved field identity must name exactly one local in its coroutine driver"
             },
             ..
         })

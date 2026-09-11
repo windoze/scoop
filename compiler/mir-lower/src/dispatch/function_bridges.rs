@@ -136,7 +136,8 @@ impl Lowerer {
         let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target))
             .expect("function bridge targets are source-level MIR types");
         let name = format!("function_bridge.{source_name}.{target_name}");
-        let body = cfg::lower(
+        let identity = self.function_bridge_identity(module, class, target_identity);
+        let lowered = cfg::lower(
             smir::Body {
                 locals,
                 statements,
@@ -151,10 +152,19 @@ impl Lowerer {
             name,
             params,
             return_ty: target_signature.return_type.clone(),
-            body,
+            body: lowered.body,
         });
+        self.local_values.record_generated_dispatch_parameters(
+            function,
+            identity.materialization(),
+            &self.functions[function].params,
+        );
+        self.local_values.record_generated(
+            function,
+            identity.materialization(),
+            &lowered.generated_values,
+        );
         self.top_level.push(function);
-        let identity = self.function_bridge_identity(module, class, target_identity);
         if target_signature.is_suspend {
             self.suspend_sources.push(SuspendSource {
                 function,

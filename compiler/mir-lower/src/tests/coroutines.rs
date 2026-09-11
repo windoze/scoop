@@ -247,6 +247,12 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         mir::ExactOwnerRoot::SourceNominal(_)
     ));
     let frame = &module.meta.coroutine_frames[*frame];
+    assert_eq!(frame.identity().source(), caller.source);
+    assert!(matches!(
+        frame.identity().generated_type_record().key(),
+        scoop_identity::GeneratedNominalKey::CoroutineFrame { source_callable }
+            if *source_callable == caller.source
+    ));
     let fields = module.classes[frame.class()].declared_fields();
     assert_eq!(fields[0].name, "state");
     assert_eq!(
@@ -254,6 +260,29 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState)
     );
     assert_eq!(fields[1].name, "completion");
+    for (index, saved) in frame.identity().saved_fields().iter().enumerate() {
+        assert_eq!(
+            fields[index + 2].name,
+            format!(
+                "local${}",
+                module.functions[*driver]
+                    .body
+                    .locals
+                    .iter()
+                    .find_map(|(local_id, local)| {
+                        module
+                            .meta
+                            .local_values
+                            .get(*driver, local_id)
+                            .filter(|identity| {
+                                identity.identity_record().id() == saved.value_record().id()
+                            })
+                            .map(|_| local.name.as_str())
+                    })
+                    .expect("saved field has one persistent local")
+            )
+        );
+    }
     assert_eq!(
         fields
             .iter()

@@ -132,7 +132,31 @@ fn transform_function(
         }
     }
     let mut saved: Vec<_> = saved.into_iter().collect();
-    saved.sort_by_key(|local| raw(*local));
+    let saved_identity_by_local = saved
+        .iter()
+        .map(|local| {
+            (
+                *local,
+                lowerer
+                    .local_values
+                    .get(function_id, *local)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "coroutine-saved local `{}` has no persistent value identity",
+                            body.locals[*local].name
+                        )
+                    })
+                    .clone(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let frame_identity = mir::CoroutineFrameIdentity::new(
+        source_materialization,
+        saved_identity_by_local.values().cloned().collect(),
+        source_odr_group,
+    )
+    .expect("a coroutine frame has one persistent generated identity");
+    saved.sort_by_key(|local| saved_identity_by_local[local].id());
 
     let mut frame_fields = vec![
         mir::Field {
@@ -248,6 +272,7 @@ fn transform_function(
         completion_field,
         saved_values,
         failure_value,
+        frame_identity,
     )
     .expect("the generated coroutine frame has disjoint typed field roles");
     let frame = lowerer.coroutines.frames.alloc(frame_metadata);
@@ -383,7 +408,7 @@ fn transform_function(
     let (wrapper_params, wrapper_locals, wrapper_param_map, wrapper_completion) =
         wrapper_params(&old_params);
     lowerer
-        .source_local_values
+        .local_values
         .remap_coroutine_function(function_id, driver, &wrapper_param_map);
     lowerer.functions[function_id].params = wrapper_params;
     lowerer.functions[function_id].body = wrapper_body(

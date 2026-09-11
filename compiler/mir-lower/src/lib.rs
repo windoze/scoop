@@ -112,21 +112,21 @@ mod dispatch;
 mod globals;
 mod initialization;
 mod instances;
+mod local_values;
 mod lowering_support;
 mod members;
 mod nominals;
 mod pipeline;
 mod singletons;
 mod source_callables;
-mod source_local_values;
 mod structured;
 mod symbols;
 mod types;
 
 use globals::*;
+use local_values::*;
 use lowering_support::*;
 use source_callables::*;
-use source_local_values::*;
 use symbols::*;
 
 use coroutine_registry::{CoroutineRegistry, SuspendSource};
@@ -181,7 +181,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         overloaded_link_stems: overloaded_link_stems(module),
         source_exact_types: SourceExactTypeRegistry::default(),
         source_callables: SourceCallableRegistry::default(),
-        source_local_values: SourceLocalValueRegistry::default(),
+        local_values: LocalValueRegistry::default(),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -265,8 +265,8 @@ struct Lowerer {
     source_exact_types: SourceExactTypeRegistry,
     /// Typed MIR locations of callables transposed from LocalConcrete HIR.
     source_callables: SourceCallableRegistry,
-    /// Typed MIR locations of values transposed from LocalConcrete HIR.
-    source_local_values: SourceLocalValueRegistry,
+    /// Typed MIR locations of transposed and MIR-generated semantic values.
+    local_values: LocalValueRegistry,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,
@@ -332,6 +332,16 @@ fn materialization_odr_group(
             )
         }
     }
+}
+
+fn finish_cfg_body(
+    local_values: &mut LocalValueRegistry,
+    function: mir::FunctionId,
+    owner: hir::CallableMaterialization,
+    lowered: cfg::LoweredBody,
+) -> mir::Body {
+    local_values.record_generated(function, owner, &lowered.generated_values);
+    lowered.body
 }
 
 mod body;

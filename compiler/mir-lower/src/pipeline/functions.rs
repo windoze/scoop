@@ -29,8 +29,9 @@ impl Lowerer {
         BodyLowerer {
             module,
             source_exact_types: &mut self.source_exact_types,
-            source_local_values: &mut self.source_local_values,
+            local_values: &mut self.local_values,
             current_function: mir_id,
+            current_materialization: function.materialization,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,

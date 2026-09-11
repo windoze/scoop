@@ -2,6 +2,7 @@
 
 use la_arena::Arena;
 use scoop_ast::Span;
+use scoop_hir::concrete::{StructuralDefinitionSiteRole, SyntheticLocalRole};
 use scoop_mir as mir;
 
 use crate::structured as smir;
@@ -186,11 +187,22 @@ impl PendingTransfer {
     }
 }
 
+pub(crate) struct LoweredBody {
+    pub(crate) body: mir::Body,
+    pub(crate) generated_values: Vec<GeneratedLocalValue>,
+}
+
+pub(crate) struct GeneratedLocalValue {
+    pub(crate) local: mir::LocalId,
+    pub(crate) site_role: StructuralDefinitionSiteRole,
+    pub(crate) role: SyntheticLocalRole,
+}
+
 pub(crate) fn lower(
     body: smir::Body,
     return_ty: mir::Type,
     enums: &Arena<mir::EnumDef>,
-) -> mir::Body {
+) -> LoweredBody {
     let smir::Body {
         locals,
         statements,
@@ -211,6 +223,7 @@ pub(crate) fn lower(
         current_sealed: false,
         block_count: 0,
         hidden_count: 0,
+        generated_values: Vec::new(),
         return_ty,
         try_stack: Vec::new(),
         unwind_scope_count: 0,
@@ -237,11 +250,14 @@ pub(crate) fn lower(
             && lowerer.active_pending.0.is_empty(),
         "structured control scopes are balanced before MIR CFG construction completes"
     );
-    mir::Body {
-        locals: lowerer.locals,
-        blocks: lowerer.blocks,
-        entry: lowerer.entry,
-        loop_header_polls: lowerer.loop_header_polls,
+    LoweredBody {
+        body: mir::Body {
+            locals: lowerer.locals,
+            blocks: lowerer.blocks,
+            entry: lowerer.entry,
+            loop_header_polls: lowerer.loop_header_polls,
+        },
+        generated_values: lowerer.generated_values,
     }
 }
 
@@ -253,6 +269,7 @@ struct CfgLowerer<'a> {
     current_sealed: bool,
     block_count: usize,
     hidden_count: usize,
+    generated_values: Vec<GeneratedLocalValue>,
     return_ty: mir::Type,
     try_stack: Vec<UnwindTarget>,
     unwind_scope_count: u32,

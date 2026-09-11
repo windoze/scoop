@@ -358,9 +358,10 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, frame) in module.meta.coroutine_frames.iter() {
         out.push_str(&format!(
-            "  coroutine_frame cr{} {} owner=cf{} state=field{} completion=field{} saved=[{}] failure=cx{}\n",
+            "  coroutine_frame cr{} {} id={} owner=cf{} state=field{} completion=field{} saved=[{}] failure=cx{}\n",
             id.into_raw().into_u32(),
             module.classes[frame.class()].name,
+            frame.identity().generated_type_record().id(),
             frame.owner().into_raw().into_u32(),
             frame.state().field_index(),
             frame.completion().field_index(),

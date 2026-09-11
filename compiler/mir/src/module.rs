@@ -595,10 +595,10 @@ pub struct MirMeta {
     /// materializations transposed into MIR. MIR-generated callables retain
     /// their identities in transform-owned metadata instead.
     pub source_callable_materializations: SourceCallableMaterializations,
-    /// Complete typed locations of LocalConcrete HIR values transposed into
-    /// MIR. The identity records remain HIR-owned and are not emitted as
-    /// MIR-first foundation entries.
-    pub source_local_values: SourceLocalValueIdentities,
+    /// Complete typed locations of persistent semantic values. This includes
+    /// values transposed from LocalConcrete HIR and synthetic locals introduced
+    /// by MIR CFG construction.
+    pub local_values: LocalValueIdentities,
     /// Persistent generated-type and physical field identities for every
     /// source lambda, anonymous function, and callable-reference closure.
     pub closure_environments: Vec<ClosureEnvironment>,
@@ -1101,6 +1101,7 @@ pub struct CoroutineFrame {
     completion: CoroutineFrameFieldRef,
     saved_values: Vec<CoroutineSavedValueId>,
     failure: CoroutineFailureValueId,
+    identity: Box<CoroutineFrameIdentity>,
 }
 
 impl CoroutineFrame {
@@ -1115,6 +1116,7 @@ impl CoroutineFrame {
         completion: CoroutineFrameFieldRef,
         saved_values: Vec<CoroutineSavedValueId>,
         failure: CoroutineFailureValueId,
+        identity: CoroutineFrameIdentity,
     ) -> Option<Self> {
         if state.class() != class
             || completion.class() != class
@@ -1140,6 +1142,20 @@ impl CoroutineFrame {
         if fields.windows(2).any(|pair| pair[0] == pair[1]) {
             return None;
         }
+        if identity.saved_fields().len() != saved_values.len()
+            || state.field_index() != 0
+            || completion.field_index() != 1
+            || saved_values.iter().enumerate().any(|(index, value)| {
+                arena_get(saved, *value).is_none_or(|metadata| {
+                    metadata.field().field_index()
+                        != u32::try_from(index).ok().unwrap_or(u32::MAX) + 2
+                })
+            })
+            || failure_metadata.field().field_index()
+                != u32::try_from(saved_values.len()).ok()?.checked_add(2)?
+        {
+            return None;
+        }
         Some(Self {
             class,
             owner,
@@ -1147,6 +1163,7 @@ impl CoroutineFrame {
             completion,
             saved_values,
             failure,
+            identity: Box::new(identity),
         })
     }
 
@@ -1172,6 +1189,10 @@ impl CoroutineFrame {
 
     pub const fn failure(&self) -> CoroutineFailureValueId {
         self.failure
+    }
+
+    pub const fn identity(&self) -> &CoroutineFrameIdentity {
+        &self.identity
     }
 
     pub fn owns_saved_value(&self, value: CoroutineSavedValueId) -> bool {

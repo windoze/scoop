@@ -62,7 +62,7 @@ impl Lowerer {
         });
         self.source_callables.record(id, function.materialization);
         for (local, source) in source_params {
-            self.source_local_values.record(
+            self.local_values.record(
                 id,
                 local,
                 module.local_value_identities.function_local(hir_id, source),
@@ -272,8 +272,9 @@ impl Lowerer {
         let mut lowerer = BodyLowerer {
             module,
             source_exact_types: &mut self.source_exact_types,
-            source_local_values: &mut self.source_local_values,
+            local_values: &mut self.local_values,
             current_function: self.ctors[&constructor_id],
+            current_materialization: constructor.materialization,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -334,7 +335,7 @@ impl Lowerer {
             ty: receiver_ty.clone(),
             mutable: false,
         });
-        lowerer.source_local_values.record(
+        lowerer.local_values.record(
             lowerer.current_function,
             receiver,
             module.local_value_identities.class_receiver(constructor_id),
@@ -352,7 +353,7 @@ impl Lowerer {
                 ty: ty.clone(),
                 mutable: false,
             });
-            lowerer.source_local_values.record(
+            lowerer.local_values.record(
                 lowerer.current_function,
                 local,
                 module
@@ -393,8 +394,9 @@ impl Lowerer {
         let mut lowerer = BodyLowerer {
             module,
             source_exact_types: &mut self.source_exact_types,
-            source_local_values: &mut self.source_local_values,
+            local_values: &mut self.local_values,
             current_function: self.struct_ctors[&constructor_id],
+            current_materialization: constructor.materialization,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -459,7 +461,7 @@ impl Lowerer {
                 ty: ty.clone(),
                 mutable: false,
             });
-            lowerer.source_local_values.record(
+            lowerer.local_values.record(
                 lowerer.current_function,
                 local,
                 module
@@ -507,7 +509,7 @@ impl Lowerer {
                     ty: return_ty.clone(),
                     mutable: false,
                 });
-                lowerer.source_local_values.record(
+                lowerer.local_values.record(
                     lowerer.current_function,
                     receiver,
                     module

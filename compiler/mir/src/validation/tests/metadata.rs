@@ -47,7 +47,7 @@ fn module_validation_rejects_source_callable_locations_outside_the_function_grap
     );
 }
 
-fn source_local_record() -> SourceLocalValueRecord {
+fn local_value_record() -> LocalValueIdentityRecord {
     let site = scoop_identity::SourceDeclarationSite::new(
         scoop_identity::ConeIdentity::SINGLE_FILE,
         scoop_identity::PackagePath::root(),
@@ -77,43 +77,41 @@ fn source_local_record() -> SourceLocalValueRecord {
 }
 
 #[test]
-fn module_validation_rejects_source_value_locations_outside_the_function_graph() {
+fn module_validation_rejects_value_locations_outside_the_function_graph() {
     let (mut module, _) = module_with_variants(Vec::new());
     let missing_function = FunctionId::from_raw(7_u32.into());
     let local = LocalId::from_raw(0_u32.into());
-    module.meta.source_local_values =
-        SourceLocalValueIdentities::checked(vec![SourceLocalValueIdentity::new(
-            missing_function,
-            local,
-            source_local_record(),
-        )])
-        .unwrap();
+    module.meta.local_values = LocalValueIdentities::checked(vec![LocalValueIdentity::new(
+        missing_function,
+        local,
+        local_value_record(),
+    )])
+    .unwrap();
     assert_eq!(
         module.validate(),
         Err(MirValidationError {
-            location: MirValidationLocation::SourceLocalValue {
+            location: MirValidationLocation::LocalValue {
                 function: missing_function,
                 local,
             },
-            kind: MirValidationErrorKind::InvalidSourceLocalValue {
+            kind: MirValidationErrorKind::InvalidLocalValue {
                 reason: "the owning function does not exist",
             },
         })
     );
 
     let function = module.entry;
-    module.meta.source_local_values =
-        SourceLocalValueIdentities::checked(vec![SourceLocalValueIdentity::new(
-            function,
-            local,
-            source_local_record(),
-        )])
-        .unwrap();
+    module.meta.local_values = LocalValueIdentities::checked(vec![LocalValueIdentity::new(
+        function,
+        local,
+        local_value_record(),
+    )])
+    .unwrap();
     assert_eq!(
         module.validate(),
         Err(MirValidationError {
-            location: MirValidationLocation::SourceLocalValue { function, local },
-            kind: MirValidationErrorKind::InvalidSourceLocalValue {
+            location: MirValidationLocation::LocalValue { function, local },
+            kind: MirValidationErrorKind::InvalidLocalValue {
                 reason: "the local does not exist in the owning function body",
             },
         })

@@ -384,19 +384,29 @@ impl Lowerer {
                     span: reference.span,
                 });
             }
-            let body = cfg::lower(
-                smir::Body {
-                    locals,
-                    statements,
-                    coroutine_eh: None,
-                },
-                signature.return_type.clone(),
-                &self.enums.defs,
+            let materialization = *reference.identity.materialization();
+            self.local_values.record_generated_dispatch_parameters(
+                function,
+                materialization,
+                &params,
+            );
+            let body = finish_cfg_body(
+                &mut self.local_values,
+                function,
+                materialization,
+                cfg::lower(
+                    smir::Body {
+                        locals,
+                        statements,
+                        coroutine_eh: None,
+                    },
+                    signature.return_type.clone(),
+                    &self.enums.defs,
+                ),
             );
             self.functions[function].params = params;
             self.functions[function].body = body;
             if signature.is_suspend {
-                let materialization = *reference.identity.materialization();
                 self.suspend_sources.push(SuspendSource {
                     function,
                     materialization,

@@ -20,18 +20,16 @@ pub(super) fn validate_source_callable_materializations(
     Ok(())
 }
 
-pub(super) fn validate_source_local_value_metadata(
-    module: &Module,
-) -> Result<(), MirValidationError> {
-    for entry in module.meta.source_local_values.iter() {
-        let location = MirValidationLocation::SourceLocalValue {
+pub(super) fn validate_local_value_metadata(module: &Module) -> Result<(), MirValidationError> {
+    for entry in module.meta.local_values.iter() {
+        let location = MirValidationLocation::LocalValue {
             function: entry.function(),
             local: entry.local(),
         };
         let Some(function) = arena_get(&module.functions, entry.function()) else {
             return Err(MirValidationError {
                 location,
-                kind: MirValidationErrorKind::InvalidSourceLocalValue {
+                kind: MirValidationErrorKind::InvalidLocalValue {
                     reason: "the owning function does not exist",
                 },
             });
@@ -39,7 +37,7 @@ pub(super) fn validate_source_local_value_metadata(
         if arena_get(&function.body.locals, entry.local()).is_none() {
             return Err(MirValidationError {
                 location,
-                kind: MirValidationErrorKind::InvalidSourceLocalValue {
+                kind: MirValidationErrorKind::InvalidLocalValue {
                     reason: "the local does not exist in the owning function body",
                 },
             });

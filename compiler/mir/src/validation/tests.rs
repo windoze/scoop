@@ -137,6 +137,17 @@ fn test_source_materialization_named(name: &str) -> scoop_identity::CallableMate
     )
 }
 
+fn test_local_value(
+    owner: scoop_identity::CallableMaterialization,
+    declaration_index: u32,
+) -> LocalValueIdentityRecord {
+    scoop_identity::CborIdentityRecord::from_key(scoop_identity::LocalValueKey::new(
+        owner,
+        scoop_identity::LocalValueSelector::Parameter { declaration_index },
+    ))
+    .unwrap()
+}
+
 fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {

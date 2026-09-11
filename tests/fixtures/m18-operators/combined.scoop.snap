@@ -7390,15 +7390,15 @@ Module
       field_set 2
         Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64
         Local $frame
+        Type CoroutineSlot$I32
+        VariantConstruct CoroutineSlot$I32 v0
+      field_set 3
+        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64
+        Local $frame
         Type CoroutineSlot$C37_$local$u0:p0:r5:classn12:OperatorGateX
         VariantConstruct CoroutineSlot$C37_$local$u0:p0:r5:classn12:OperatorGateX v1
           Type OperatorGate
           Local gate
-      field_set 3
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64
-        Local $frame
-        Type CoroutineSlot$I32
-        VariantConstruct CoroutineSlot$I32 v0
       field_set 4
         Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64
         Local $frame
@@ -9893,7 +9893,7 @@ Module
         Type Int
         EnumField v1 f0
           Type CoroutineSlot$I32
-          FieldAccess 3
+          FieldAccess 2
             Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64
             Local $frame
       goto bb1
@@ -9910,7 +9910,7 @@ Module
         Type OperatorGate
         EnumField v1 f0
           Type CoroutineSlot$C37_$local$u0:p0:r5:classn12:OperatorGateX
-          FieldAccess 2
+          FieldAccess 3
             Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
@@ -10013,7 +10013,7 @@ Module
       end_catch
       goto bb3
     bb5 valid unwind bb4
-      field_set 3
+      field_set 2
         Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64
         FieldAccess 0
           Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64$1
@@ -10298,14 +10298,14 @@ Module
   coroutine_saved cv2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a4173796e634e756d62657272383a66756e6374696f6e71383a6f7264696e6172796e343a706c7573244333315f246c6f63616c2475303a70303a72353a636c6173736e373a5061796c6f6164582473757370656e64 field=4 slot=cl1 value=Int
   coroutine_saved cv3 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4f70657261746f725461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl3 value=OperatorTask
   coroutine_saved cv4 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4f70657261746f725461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl0 value=AsyncNumber$C7_PayloadX
-  coroutine_saved cv5 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 field=2 slot=cl4 value=OperatorGate
-  coroutine_saved cv6 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 field=3 slot=cl1 value=Int
+  coroutine_saved cv5 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 field=2 slot=cl1 value=Int
+  coroutine_saved cv6 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 field=3 slot=cl4 value=OperatorGate
   coroutine_failure cx0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a4173796e634e756d62657272383a66756e6374696f6e71383a6f7264696e6172796e343a706c7573244333315f246c6f63616c2475303a70303a72353a636c6173736e373a5061796c6f6164582473757370656e64 field=5 slot=cl2 throwable=Throwable
   coroutine_failure cx1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4f70657261746f725461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=4 slot=cl2 throwable=Throwable
   coroutine_failure cx2 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 field=4 slot=cl2 throwable=Throwable
-  coroutine_frame cr0 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a4173796e634e756d62657272383a66756e6374696f6e71383a6f7264696e6172796e343a706c7573244333315f246c6f63616c2475303a70303a72353a636c6173736e373a5061796c6f6164582473757370656e64 owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2] failure=cx0
-  coroutine_frame cr1 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4f70657261746f725461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 owner=cf1 state=field0 completion=field1 saved=[cv3,cv4] failure=cx1
-  coroutine_frame cr2 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 owner=cf2 state=field0 completion=field1 saved=[cv5,cv6] failure=cx2
+  coroutine_frame cr0 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a4173796e634e756d62657272383a66756e6374696f6e71383a6f7264696e6172796e343a706c7573244333315f246c6f63616c2475303a70303a72353a636c6173736e373a5061796c6f6164582473757370656e64 id=6e435e1c75ca1b0155d39507033259d2792d1aefe15cba566d2b05c2c4d405da owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2] failure=cx0
+  coroutine_frame cr1 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4f70657261746f725461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 id=8207d2e3e841804fcb2047a1bc974cb1165c6c2b0cf0fc18aabe48067bac6515 owner=cf1 state=field0 completion=field1 saved=[cv3,cv4] failure=cx1
+  coroutine_frame cr2 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 id=f3796bc3278fb3839ec7c4c97de2febd0d90a3995eabbc02288514e04710b247 owner=cf2 state=field0 completion=field1 saved=[cv5,cv6] failure=cx2
   coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a4173796e634e756d62657272383a66756e6374696f6e71383a6f7264696e6172796e343a706c7573244333315f246c6f63616c2475303a70303a72353a636c6173736e373a5061796c6f6164582473757370656e64$1 resume=@scoop.$local$u0:p0:C15:n11:AsyncNumberr8:functionq8:ordinaryn4:plus$C31_$local$u0:p0:r5:classn7:PayloadX$suspend$resume$1 failure=@scoop.$local$u0:p0:C15:n11:AsyncNumberr8:functionq8:ordinaryn4:plus$C31_$local$u0:p0:r5:classn7:PayloadX$suspend$resume_exception$1
     success suspended.1 -> Fallthrough(bb3)
       entry=bb9
@@ -13870,10 +13870,10 @@ Module
     store t0 -> local0
     machine_heap_store coroutine-frame-state local0 +16 machine<coroutine-frame-state>(CoroutineFrameState(Initial))
     heap_store local0 +24 param1
-    t1 = enum_wrap e13 v1 (param0) : enum13
+    t1 = enum_wrap e10 v0 () : enum10
     heap_store local0 +32 t1
-    t2 = enum_wrap e10 v0 () : enum10
-    heap_store local0 +40 t2
+    t2 = enum_wrap e13 v1 (param0) : enum13
+    heap_store local0 +48 t2
     t3 = enum_wrap e11 v0 () : enum11
     heap_store local0 +56 t3
     call managed-indirect-target0 sp137 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum8 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn116(local0, machine<coroutine-frame-state>(CoroutineFrameState(Initial)))
@@ -15263,7 +15263,7 @@ Module
     t43 = MachineEq(CoroutineAdapterState) local10, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
     cbr t43 then @coroutine.registration_claim_frame.1 else @coroutine.registration_wait.1
   block coroutine.resume.1
-    t44 = heap_load param0 +40 : enum10
+    t44 = heap_load param0 +32 : enum10
     t45 = enum_field e10 v1 f0 t44 : i32
     store t45 -> local6
     br @coroutine.post.1
@@ -15273,7 +15273,7 @@ Module
     throw t47
     unreachable
   block coroutine.initial
-    t48 = heap_load param0 +32 : enum13
+    t48 = heap_load param0 +48 : enum13
     t49 = enum_field e13 v1 f0 t48 : ptr<managed>
     store t49 -> local0
     atomic_store release coroutine-frame-state param0 +16 machine<coroutine-frame-state>(CoroutineFrameState(Running))
@@ -15351,7 +15351,7 @@ Module
   block valid
     t19 = heap_load param0 +16 : ptr<managed>
     t20 = enum_wrap e10 v1 (param1) : enum10
-    heap_store t19 +40 t20
+    heap_store t19 +32 t20
     atomic_store release coroutine-adapter-state param0 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     t21 = heap_load param0 +16 : ptr<managed>
     invoke managed-indirect-target0 sp254 roots=[param0:normal+unwind, t21:argument] local8 = sig=indirect0 (sret enum8 size=16 align=8 scan=none, ptr<managed>, machine<coroutine-frame-state>) local-fn116(t21, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))) normal @invoke.normal.1 unwind @body_failure
@@ -15578,7 +15578,7 @@ Module
   layout CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331353a6e31313a4173796e634e756d62657272383a66756e6374696f6e71383a6f7264696e6172796e343a706c7573244333315f246c6f63616c2475303a70303a72353a636c6173736e373a5061796c6f6164582473757370656e64$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4f70657261746f725461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 size=56 align=8 refs=[24, 32, 40, 48]
   layout CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331363a6e31323a4f70657261746f725461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1 size=32 align=8 refs=[16]
-  layout CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 size=64 align=8 refs=[24, 32, 56]
+  layout CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64 size=64 align=8 refs=[24, 48, 56]
   layout CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a72383a66756e6374696f6e71383a6f7264696e6172796e31333a61776169744f70657261746f722473757370656e64$1 size=56 align=8 refs=[16, 48]
   layout $Closure$lambda0 size=40 align=8 refs=[24, 32]
   entry @scoop_main

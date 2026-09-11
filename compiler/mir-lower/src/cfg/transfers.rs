@@ -20,7 +20,14 @@ impl<'a> CfgLowerer<'a> {
             .coroutine_eh
             .as_ref()
             .map(|mode| mode.throwable.clone());
-        let managed_exception = throwable.map(|ty| self.new_hidden("coroutine_exception", ty));
+        let managed_exception = throwable.map(|ty| {
+            self.new_hidden(
+                "coroutine_exception",
+                StructuralDefinitionSiteRole::CoroutineTransform,
+                SyntheticLocalRole::CoroutineProtocol,
+                ty,
+            )
+        });
         UnwindTarget {
             owner,
             pad,
@@ -51,7 +58,12 @@ impl<'a> CfgLowerer<'a> {
         if self.normal_cleanups.is_empty() {
             return ReturnPayload::Value(value);
         }
-        let local = self.new_hidden("return", self.return_ty.clone());
+        let local = self.new_hidden(
+            "return",
+            StructuralDefinitionSiteRole::SyntheticValue,
+            SyntheticLocalRole::Temporary,
+            self.return_ty.clone(),
+        );
         self.push(mir::StatementKind::ValDecl { local, init: value }, span);
         ReturnPayload::Value(mir::Expr::new(
             self.return_ty.clone(),

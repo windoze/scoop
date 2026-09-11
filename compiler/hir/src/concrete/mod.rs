@@ -10,11 +10,12 @@ pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
     CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CallbackMode,
     CborIdentityRecord, Effect, ExactCallableSignature, GeneratedCallableKey,
-    InitializationUnitKey, LexicalCallableParent, NonEmptyVec, OdrGroupId, OdrMemberDiscriminator,
-    OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole,
-    PersistentCallableApplicationId, PersistentCallbackApplicationId, PersistentExactTypeId,
-    PersistentGeneratedCallableId, PersistentInitializationUnitId, PersistentLocalValueId,
-    SpecializationKey, StructuralDefinitionPath,
+    InitializationUnitKey, LexicalCallableParent, LocalValueKey, LocalValueSelector, NonEmptyVec,
+    OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
+    OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
+    PersistentExactTypeId, PersistentGeneratedCallableId, PersistentInitializationUnitId,
+    PersistentLocalValueId, SpecializationKey, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment, SyntheticLocalRole,
 };
 
 pub use super::{

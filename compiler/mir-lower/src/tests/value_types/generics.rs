@@ -112,12 +112,12 @@ fn monomorphizes_generic_functions() {
 
     let int_value = module
         .meta
-        .source_local_values
+        .local_values
         .get(module.top_level[1], int_instance.params[0].local)
         .expect("the Int parameter keeps its LocalConcrete value identity");
     let string_value = module
         .meta
-        .source_local_values
+        .local_values
         .get(module.top_level[2], string_instance.params[0].local)
         .expect("the String parameter keeps its LocalConcrete value identity");
     assert_ne!(

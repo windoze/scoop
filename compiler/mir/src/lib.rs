@@ -34,8 +34,8 @@ pub use source_exact_types::*;
 mod source_callable_materializations;
 pub use source_callable_materializations::*;
 
-mod source_local_values;
-pub use source_local_values::*;
+mod local_values;
+pub use local_values::*;
 
 mod closure_environment;
 pub use closure_environment::*;

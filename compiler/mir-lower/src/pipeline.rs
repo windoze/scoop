@@ -143,7 +143,12 @@ impl Lowerer {
             } else {
                 self.lower_user_function(module, hir_id, mir_id)
             };
-            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
+            let body = finish_cfg_body(
+                &mut self.local_values,
+                mir_id,
+                module.functions[hir_id].materialization,
+                cfg::lower(body, return_ty.clone(), &self.enums.defs),
+            );
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
                     function: mir_id,
@@ -163,7 +168,12 @@ impl Lowerer {
         }
         for (constructor_id, mir_id) in ctor_functions {
             let (params, return_ty, body) = self.lower_ctor(module, constructor_id);
-            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
+            let body = finish_cfg_body(
+                &mut self.local_values,
+                mir_id,
+                module.class_constructors[constructor_id].materialization,
+                cfg::lower(body, return_ty.clone(), &self.enums.defs),
+            );
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -171,7 +181,12 @@ impl Lowerer {
         }
         for (constructor_id, mir_id) in struct_ctor_functions {
             let (params, return_ty, body) = self.lower_struct_ctor(module, constructor_id);
-            let body = cfg::lower(body, return_ty.clone(), &self.enums.defs);
+            let body = finish_cfg_body(
+                &mut self.local_values,
+                mir_id,
+                module.struct_constructors[constructor_id].materialization,
+                cfg::lower(body, return_ty.clone(), &self.enums.defs),
+            );
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -270,7 +285,7 @@ impl Lowerer {
             meta: mir::MirMeta {
                 source_exact_types: self.source_exact_types.finish(),
                 source_callable_materializations: self.source_callables.finish(),
-                source_local_values: self.source_local_values.finish(),
+                local_values: self.local_values.finish(),
                 closure_environments: self.closure_environments,
                 function_bridges: self.function_bridges,
                 instances: self.instances.meta,

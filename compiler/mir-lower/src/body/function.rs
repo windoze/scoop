@@ -91,7 +91,7 @@ impl BodyLowerer<'_> {
                 mutable: local.mutable,
             });
             self.local_map.insert(hir_id, mir_id);
-            self.source_local_values
+            self.local_values
                 .record(self.current_function, mir_id, &identity);
         }
     }
@@ -215,11 +215,19 @@ impl BodyLowerer<'_> {
         mutable: bool,
     ) -> mir::LocalId {
         self.hidden_count += 1;
-        self.locals.alloc(mir::Local {
+        let local = self.locals.alloc(mir::Local {
             name: format!("${prefix}.{}", self.hidden_count),
             ty,
             mutable,
-        })
+        });
+        self.local_values.record_generated_local(
+            self.current_function,
+            local,
+            self.current_materialization,
+            hir::StructuralDefinitionSiteRole::SyntheticValue,
+            hir::SyntheticLocalRole::Temporary,
+        );
+        local
     }
 
     /// Emit the queued prelude statements (the trap tests of `!!`)

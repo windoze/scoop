@@ -11,12 +11,19 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
     let mut saved_owners = vec![0_u32; module.meta.coroutine_saved_values.len()];
     let mut failure_owners = vec![0_u32; module.meta.coroutine_failure_values.len()];
     let mut frame_classes = HashSet::new();
+    let mut frame_identities = HashSet::new();
     for (frame_id, frame) in module.meta.coroutine_frames.iter() {
         validate_frame(module, frame_id, frame)?;
         if !frame_classes.insert(frame.class()) {
             return Err(error(
                 MirValidationLocation::CoroutineFrame { frame: frame_id },
                 "a generated frame class cannot be shared by two coroutine frames",
+            ));
+        }
+        if !frame_identities.insert(frame.identity().generated_type_record().id()) {
+            return Err(error(
+                MirValidationLocation::CoroutineFrame { frame: frame_id },
+                "a coroutine frame identity must be uniquely materialized",
             ));
         }
         for value in frame.saved_values() {
@@ -262,11 +269,67 @@ fn validate_frame(
     frame: &CoroutineFrame,
 ) -> Result<(), MirValidationError> {
     let location = MirValidationLocation::CoroutineFrame { frame: frame_id };
-    if arena_get(&module.meta.coroutine_functions, frame.owner()).is_none() {
+    let Some(coroutine) = arena_get(&module.meta.coroutine_functions, frame.owner()) else {
         return Err(error(
             location,
             "frame refers to an unknown coroutine owner",
         ));
+    };
+    let rebuilt_identity = CoroutineFrameIdentity::new(
+        coroutine.source,
+        frame
+            .identity()
+            .saved_fields()
+            .iter()
+            .map(|field| field.value_record().clone())
+            .collect(),
+        coroutine.source_odr_group,
+    )
+    .map_err(|_| {
+        error(
+            location,
+            "coroutine source cannot form its canonical frame identity",
+        )
+    })?;
+    if &rebuilt_identity != frame.identity() {
+        return Err(error(
+            location,
+            "coroutine frame identity does not match its exact source and saved values",
+        ));
+    }
+    let CoroutineLowering::StateMachine {
+        frame: owner_frame,
+        driver,
+        ..
+    } = &coroutine.lowering
+    else {
+        return Err(error(
+            location,
+            "a coroutine frame owner must have state-machine lowering",
+        ));
+    };
+    if *owner_frame != frame_id {
+        return Err(error(
+            location,
+            "coroutine frame owner refers to a different frame",
+        ));
+    }
+    for saved in frame.identity().saved_fields() {
+        let matching = module
+            .meta
+            .local_values
+            .iter()
+            .filter(|value| {
+                value.function() == *driver
+                    && value.identity_record().id() == saved.value_record().id()
+            })
+            .count();
+        if matching != 1 {
+            return Err(error(
+                location,
+                "each saved field identity must name exactly one local in its coroutine driver",
+            ));
+        }
     }
     if CoroutineFrame::checked(
         &module.classes,
@@ -278,6 +341,7 @@ fn validate_frame(
         frame.completion(),
         frame.saved_values().to_vec(),
         frame.failure(),
+        frame.identity().clone(),
     )
     .is_none()
     {

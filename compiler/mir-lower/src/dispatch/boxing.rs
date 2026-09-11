@@ -298,7 +298,7 @@ impl Lowerer {
         } else {
             format!("scoop.thunk.{encoded}.{iface_identity}.{}", signature.name)
         };
-        let body = cfg::lower(
+        let lowered = cfg::lower(
             smir::Body {
                 locals,
                 statements: vec![smir::Statement {
@@ -316,8 +316,18 @@ impl Lowerer {
             name,
             params,
             return_ty: return_ty.clone(),
-            body,
+            body: lowered.body,
         });
+        self.local_values.record_generated_dispatch_parameters(
+            id,
+            identity.materialization(),
+            &self.functions[id].params,
+        );
+        self.local_values.record_generated(
+            id,
+            identity.materialization(),
+            &lowered.generated_values,
+        );
         self.top_level.push(id);
         if signature.is_suspend {
             self.suspend_sources.push(SuspendSource {
