@@ -86,8 +86,16 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         return_ty: Type::Enum(step_enum, Vec::new()),
         body: Body::unreachable(wrapper_locals),
     });
+    let source = test_source_materialization();
+    module.meta.source_callable_materializations =
+        SourceCallableMaterializations::checked(vec![SourceCallableMaterialization::new(
+            wrapper, source,
+        )])
+        .unwrap();
     let coroutine = module.meta.coroutine_functions.alloc(CoroutineFunction {
         function: wrapper,
+        source,
+        source_odr_group: None,
         source_return: result.clone(),
         step,
         lowering: CoroutineLowering::Immediate,
@@ -304,6 +312,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     module.meta.coroutine_functions[coroutine].lowering = CoroutineLowering::StateMachine {
         frame,
         driver,
+        driver_identity: Box::new(CoroutineDriverIdentity::new(source, None).unwrap()),
         resume_points: vec![point],
     };
     CoroutineFixture {
@@ -441,6 +450,38 @@ fn final_validation_rejects_a_transient_pending_call_context() {
             kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
         })
     );
+}
+
+#[test]
+fn driver_identity_must_name_the_exact_coroutine_source() {
+    let mut fixture = coroutine_fixture(false);
+    let (_, coroutine) = fixture
+        .module
+        .meta
+        .coroutine_functions
+        .iter_mut()
+        .next()
+        .unwrap();
+    let CoroutineLowering::StateMachine {
+        driver_identity, ..
+    } = &mut coroutine.lowering
+    else {
+        unreachable!()
+    };
+    *driver_identity = Box::new(
+        CoroutineDriverIdentity::new(test_source_materialization_named("otherSource"), None)
+            .unwrap(),
+    );
+
+    assert!(matches!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "coroutine driver identity does not match its exact source materialization"
+            },
+            ..
+        })
+    ));
 }
 
 #[test]

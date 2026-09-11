@@ -192,8 +192,11 @@ impl Lowerer {
             &self.enums.defs,
         );
         if target_signature.is_suspend {
+            let identity = self.closure_adapters[adapter].identity();
             self.suspend_sources.push(SuspendSource {
                 function,
+                materialization: identity.materialization(),
+                odr_group: Some(identity.odr_group_record().id()),
                 source_return: target_signature.return_type,
                 instance: None,
             });

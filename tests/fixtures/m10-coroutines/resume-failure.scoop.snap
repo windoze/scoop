@@ -9277,8 +9277,8 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C14:n10:CaughtTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C14:n10:CaughtTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp0]
-  coroutine_fn cf1 @scoop.$local$u0:p0:C16:n12:UncaughtTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C16:n12:UncaughtTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp1]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C14:n10:CaughtTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C14:n10:CaughtTaskr8:functionq8:ordinaryn3:run$suspend$drive id=94e6b1707c84a0a6ec5e6b1e14712dfe5f248326744cc0be950d7fea5f8f6b61 resumes=[cp0]
+  coroutine_fn cf1 @scoop.$local$u0:p0:C16:n12:UncaughtTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C16:n12:UncaughtTaskr8:functionq8:ordinaryn3:run$suspend$drive id=53c2a9e4f468717a345e665e5457df7331a5f5116b70c5cc006247d4eec9dcf7 resumes=[cp1]
   coroutine_fn cf2 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 <- println

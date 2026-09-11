@@ -147,6 +147,11 @@ impl Lowerer {
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
                     function: mir_id,
+                    materialization: module.functions[hir_id].materialization,
+                    odr_group: materialization_odr_group(
+                        module,
+                        module.functions[hir_id].materialization,
+                    ),
                     source_return: return_ty.clone(),
                     instance: self.instances.get(hir_id),
                 });
@@ -180,6 +185,11 @@ impl Lowerer {
                 let return_ty = self.functions[self.function_map[&hir_id]].return_ty.clone();
                 self.suspend_sources.push(SuspendSource {
                     function: self.function_map[&hir_id],
+                    materialization: module.functions[hir_id].materialization,
+                    odr_group: materialization_odr_group(
+                        module,
+                        module.functions[hir_id].materialization,
+                    ),
                     source_return: return_ty,
                     instance: self.instances.get(hir_id),
                 });

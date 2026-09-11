@@ -3,7 +3,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableAdapterEnvironmentKey, CallableOdrMemberId, CborIdentityRecord, ExactCallableSignature,
+    CallableAdapterEnvironmentKey, CallableMaterialization, CallableMaterializationContext,
+    CallableOdrMemberId, CallableTemplateOwner, CborIdentityRecord, ExactCallableSignature,
     ExactTypeKey, FieldIdentityError, FieldIdentityKey, GeneratedCallableIdentityError,
     GeneratedCallableKey, GeneratedNominalIdentityError, GeneratedNominalKey, OdrGroupId,
     OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole,
@@ -160,6 +161,13 @@ impl FunctionAdapterIdentity {
 
     pub const fn callable_signature_record(&self) -> &CallableSignatureRecord {
         &self.callable_signature
+    }
+
+    pub const fn materialization(&self) -> CallableMaterialization {
+        CallableMaterialization::new(
+            CallableTemplateOwner::Generated(self.callable.id()),
+            CallableMaterializationContext::NoSubstitution,
+        )
     }
 }
 

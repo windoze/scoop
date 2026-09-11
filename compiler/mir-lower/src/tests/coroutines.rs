@@ -209,12 +209,19 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let mir::CoroutineLowering::StateMachine {
         frame,
         driver,
+        driver_identity,
         resume_points,
     } = &caller.lowering
     else {
         panic!("a suspend call requires a state machine")
     };
     assert_eq!(resume_points.len(), 1);
+    assert_eq!(driver_identity.source(), caller.source);
+    assert!(matches!(
+        driver_identity.callable_record().key(),
+        scoop_identity::GeneratedCallableKey::CoroutineDriver { source_callable }
+            if *source_callable == caller.source
+    ));
     let shells = module
         .meta
         .continuation_shells

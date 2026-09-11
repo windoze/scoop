@@ -8903,7 +8903,7 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:ForeignTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:ForeignTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp0]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:ForeignTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:ForeignTaskr8:functionq8:ordinaryn3:run$suspend$drive id=c2f36129491e43c3eb6a68d7a229ac2bbcea00ae931920d384175b40704e7d6a resumes=[cp0]
   coroutine_fn cf1 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 <- println

@@ -44,6 +44,7 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
     let mut frame_owners = vec![0_u32; module.meta.coroutine_frames.len()];
     let mut point_owners = vec![0_u32; module.meta.coroutine_resume_points.len()];
     let mut drivers = HashSet::new();
+    let mut driver_identities = HashSet::new();
     for (coroutine_id, coroutine) in module.meta.coroutine_functions.iter() {
         if !callables.insert(coroutine.function) {
             return Err(error(
@@ -53,7 +54,12 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
                 "a suspend callable cannot be owned by two coroutine records",
             ));
         }
-        if let CoroutineLowering::StateMachine { driver, .. } = &coroutine.lowering {
+        if let CoroutineLowering::StateMachine {
+            driver,
+            driver_identity,
+            ..
+        } = &coroutine.lowering
+        {
             if coroutine.function == *driver
                 || !drivers.insert(*driver)
                 || !callables.insert(*driver)
@@ -63,6 +69,14 @@ pub(super) fn validate_coroutine_metadata(module: &Module) -> Result<(), MirVali
                         coroutine: coroutine_id,
                     },
                     "a coroutine driver must be distinct and uniquely owned",
+                ));
+            }
+            if !driver_identities.insert(driver_identity.callable_record().id()) {
+                return Err(error(
+                    MirValidationLocation::CoroutineFunction {
+                        coroutine: coroutine_id,
+                    },
+                    "a coroutine driver identity must be uniquely materialized",
                 ));
             }
         }
@@ -309,6 +323,7 @@ fn validate_coroutine_function(
     let Some(function) = arena_get(&module.functions, coroutine.function) else {
         return Err(error(location, "coroutine refers to an unknown callable"));
     };
+    validate_coroutine_source(module, coroutine, location)?;
     let Some(step) = arena_get(&module.meta.coroutine_steps, coroutine.step) else {
         return Err(error(
             location,
@@ -327,6 +342,7 @@ fn validate_coroutine_function(
     let CoroutineLowering::StateMachine {
         frame,
         driver,
+        driver_identity,
         resume_points,
     } = &coroutine.lowering
     else {
@@ -342,6 +358,21 @@ fn validate_coroutine_function(
     let Some(driver_function) = arena_get(&module.functions, *driver) else {
         return Err(error(location, "state machine refers to an unknown driver"));
     };
+    let rebuilt_identity =
+        CoroutineDriverIdentity::new(coroutine.source, coroutine.source_odr_group).map_err(
+            |_| {
+                error(
+                    location,
+                    "coroutine source cannot form its canonical driver identity",
+                )
+            },
+        )?;
+    if &rebuilt_identity != driver_identity.as_ref() {
+        return Err(error(
+            location,
+            "coroutine driver identity does not match its exact source materialization",
+        ));
+    }
     let [frame_parameter, state_parameter] = driver_function.params.as_slice() else {
         return Err(error(
             location,
@@ -425,6 +456,87 @@ fn validate_coroutine_function(
         resume_points,
         module,
     )
+}
+
+fn validate_coroutine_source(
+    module: &Module,
+    coroutine: &CoroutineFunction,
+    location: MirValidationLocation,
+) -> Result<(), MirValidationError> {
+    let mut candidates = Vec::new();
+    if let Some(source) = module
+        .meta
+        .source_callable_materializations
+        .get(coroutine.function)
+    {
+        let group = match source.materialization().context() {
+            scoop_identity::CallableMaterializationContext::NoSubstitution => None,
+            scoop_identity::CallableMaterializationContext::Application(_)
+            | scoop_identity::CallableMaterializationContext::InitializationApplication(_) => {
+                coroutine.source_odr_group
+            }
+        };
+        candidates.push((source.materialization(), group));
+    }
+    for (_, adapter) in module.meta.closure_adapters.iter() {
+        if closure_invoke_function(module, adapter.class()) == Some(coroutine.function) {
+            candidates.push((
+                adapter.identity().materialization(),
+                Some(adapter.identity().odr_group_record().id()),
+            ));
+        }
+    }
+    for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        if closure_invoke_function(module, adapter.class()) == Some(coroutine.function) {
+            candidates.push((
+                adapter.identity().materialization(),
+                Some(adapter.identity().odr_group_record().id()),
+            ));
+        }
+    }
+    for bridge in &module.meta.function_bridges {
+        if bridge.function() == coroutine.function {
+            candidates.push((
+                bridge.identity().materialization(),
+                bridge
+                    .identity()
+                    .odr_member_record()
+                    .map(|member| member.key().group()),
+            ));
+        }
+    }
+    for adjust in &module.meta.boxing_adjusts {
+        if adjust.function() == coroutine.function {
+            candidates.push((
+                adjust.identity().materialization(),
+                adjust
+                    .identity()
+                    .root()
+                    .member_record()
+                    .map(|member| member.key().group()),
+            ));
+        }
+    }
+
+    let [(materialization, group)] = candidates.as_slice() else {
+        return Err(error(
+            location,
+            "a coroutine source must have exactly one typed callable identity",
+        ));
+    };
+    if *materialization != coroutine.source || *group != coroutine.source_odr_group {
+        return Err(error(
+            location,
+            "coroutine source identity or materialization root does not match its callable",
+        ));
+    }
+    Ok(())
+}
+
+fn closure_invoke_function(module: &Module, class: ClosureClassId) -> Option<FunctionId> {
+    let class = arena_get(&module.closure_classes, class)?;
+    let invoke = arena_get(&module.closure_invoke_functions, class.invoke)?;
+    Some(invoke.function)
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -10207,9 +10207,9 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C16:n12:AsyncSafeBoxr8:functionq8:ordinaryn5:apply$C36_$local$u0:p0:r5:classn11:SafePayloadX$suspend source_return=String step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C16:n12:AsyncSafeBoxr8:functionq8:ordinaryn5:apply$C36_$local$u0:p0:r5:classn11:SafePayloadX$suspend$drive resumes=[cp0]
-  coroutine_fn cf1 @scoop.$local$u0:p0:C11:n8:SafeTaskr8:functionq8:ordinaryn3:run$suspend source_return=String step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C11:n8:SafeTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp1]
-  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitSafe$suspend source_return=Int step=cs1 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitSafe$suspend$drive resumes=[cp2]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C16:n12:AsyncSafeBoxr8:functionq8:ordinaryn5:apply$C36_$local$u0:p0:r5:classn11:SafePayloadX$suspend source_return=String step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C16:n12:AsyncSafeBoxr8:functionq8:ordinaryn5:apply$C36_$local$u0:p0:r5:classn11:SafePayloadX$suspend$drive id=076083e32cc8f901e4d45f39cecf0735316679184bf76030b9434524c91097c1 resumes=[cp0]
+  coroutine_fn cf1 @scoop.$local$u0:p0:C11:n8:SafeTaskr8:functionq8:ordinaryn3:run$suspend source_return=String step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C11:n8:SafeTaskr8:functionq8:ordinaryn3:run$suspend$drive id=34339cb16983a81377a25e88270b01a87cba5146b041b6f164444e6142c822b9 resumes=[cp1]
+  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitSafe$suspend source_return=Int step=cs1 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitSafe$suspend$drive id=fb9284d9f6d81fcf091e8cf70e66dfe33d1f3e08e297c55c7abb38db121c4187 resumes=[cp2]
   coroutine_fn cf3 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs1 immediate
   coroutine_fn cf4 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$S$suspend source_return=String step=cs0 immediate
   instance @scoop.$local$u0:p0:C16:n12:AsyncSafeBoxr8:functionq8:ordinaryn5:apply$C36_$local$u0:p0:r5:classn11:SafePayloadX$suspend <- AsyncSafeBox.apply

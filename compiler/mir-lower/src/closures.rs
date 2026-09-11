@@ -396,8 +396,11 @@ impl Lowerer {
             self.functions[function].params = params;
             self.functions[function].body = body;
             if signature.is_suspend {
+                let materialization = *reference.identity.materialization();
                 self.suspend_sources.push(SuspendSource {
                     function,
+                    materialization,
+                    odr_group: materialization_odr_group(module, materialization),
                     source_return: signature.return_type,
                     instance: None,
                 });

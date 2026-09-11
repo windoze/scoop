@@ -9985,8 +9985,8 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C11:n8:CopyTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C11:n8:CopyTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp1,cp0]
-  coroutine_fn cf1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitNode$suspend source_return=Node step=cs1 frame=cr1 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitNode$suspend$drive resumes=[cp2]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C11:n8:CopyTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C11:n8:CopyTaskr8:functionq8:ordinaryn3:run$suspend$drive id=f230bb2500842d4a0141a8acef77f137cf3a6ec93113bd187af92be05ee041bc resumes=[cp1,cp0]
+  coroutine_fn cf1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitNode$suspend source_return=Node step=cs1 frame=cr1 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn9:awaitNode$suspend$drive id=8d4926e429080f0cadae2226de89e9eeeb8983387f89e02405aca8760a109f7c resumes=[cp2]
   coroutine_fn cf2 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf3 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$C28_$local$u0:p0:r5:classn4:NodeX$suspend source_return=Node step=cs1 immediate
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println

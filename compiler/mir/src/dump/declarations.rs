@@ -428,11 +428,13 @@ pub fn dump(module: &Module) -> String {
             CoroutineLowering::StateMachine {
                 frame,
                 driver,
+                driver_identity,
                 resume_points,
             } => format!(
-                " frame=cr{} driver=@{} resumes=[{}]",
+                " frame=cr{} driver=@{} id={} resumes=[{}]",
                 frame.into_raw().into_u32(),
                 module.functions[*driver].symbol,
+                driver_identity.callable_record().id(),
                 resume_points
                     .iter()
                     .map(|id| format!("cp{}", id.into_raw().into_u32()))

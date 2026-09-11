@@ -240,8 +240,11 @@ impl BodyLowerer<'_> {
             &self.enums.defs,
         );
         if target_signature.is_suspend {
+            let identity = self.closure_adapters[adapter].identity();
             self.suspend_sources.push(SuspendSource {
                 function,
+                materialization: identity.materialization(),
+                odr_group: Some(identity.odr_group_record().id()),
                 source_return: self.shell.function_types[target].return_type.clone(),
                 instance: None,
             });
@@ -385,8 +388,11 @@ impl BodyLowerer<'_> {
             &self.enums.defs,
         );
         if signature.is_suspend {
+            let identity = self.dynamic_closure_adapters[adapter].identity();
             self.suspend_sources.push(SuspendSource {
                 function,
+                materialization: identity.materialization(),
+                odr_group: Some(identity.odr_group_record().id()),
                 source_return: signature.return_type,
                 instance: None,
             });

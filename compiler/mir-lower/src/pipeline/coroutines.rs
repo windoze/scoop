@@ -44,6 +44,8 @@ impl Lowerer {
             }
             self.coroutines.functions.alloc(mir::CoroutineFunction {
                 function: source.function,
+                source: source.materialization,
+                source_odr_group: source.odr_group,
                 source_return: source.source_return,
                 step,
                 lowering: mir::CoroutineLowering::Immediate,

@@ -11443,10 +11443,10 @@ Module
       entry=bb32
     failure resume_failure.1 -> ManagedThrow(cx3, unwind=bb1)
       entry=bb33
-  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:WaitingTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:WaitingTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp0]
-  coroutine_fn cf1 @scoop.$local$u0:p0:C23:n19:ResumeThenThrowTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C23:n19:ResumeThenThrowTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp1]
-  coroutine_fn cf2 @scoop.$local$u0:p0:C21:n17:SaveThenThrowTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.$local$u0:p0:C21:n17:SaveThenThrowTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp2]
-  coroutine_fn cf3 @scoop.$local$u0:p0:C26:n22:SynchronousFailureTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr3 driver=@scoop.$local$u0:p0:C26:n22:SynchronousFailureTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp3]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:WaitingTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:WaitingTaskr8:functionq8:ordinaryn3:run$suspend$drive id=eb0950ae7d98cfa4e9cc2e4efe26f700984b2c07e77412cb04203778c3515785 resumes=[cp0]
+  coroutine_fn cf1 @scoop.$local$u0:p0:C23:n19:ResumeThenThrowTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C23:n19:ResumeThenThrowTaskr8:functionq8:ordinaryn3:run$suspend$drive id=31a3a9b49bf81369e00f87b60aac5cf7b750f67ff05d71dda557efbc5fc14bdf resumes=[cp1]
+  coroutine_fn cf2 @scoop.$local$u0:p0:C21:n17:SaveThenThrowTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.$local$u0:p0:C21:n17:SaveThenThrowTaskr8:functionq8:ordinaryn3:run$suspend$drive id=32d7d4a319890eb149a18bb6b10c4bde764539830c8488d517b84fe84251bc3e resumes=[cp2]
+  coroutine_fn cf3 @scoop.$local$u0:p0:C26:n22:SynchronousFailureTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr3 driver=@scoop.$local$u0:p0:C26:n22:SynchronousFailureTaskr8:functionq8:ordinaryn3:run$suspend$drive id=1e387d904490536b715e7bd15321df0594964dd9d399b87e1e4fe6d54a23011d resumes=[cp3]
   coroutine_fn cf4 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 <- println

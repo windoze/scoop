@@ -10478,9 +10478,9 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:DefaultTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:DefaultTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp1,cp0]
-  coroutine_fn cf1 @scoop.$local$u0:p0:C16:n12:ExplicitTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C16:n12:ExplicitTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp3,cp2]
-  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn12:awaitDefault$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn12:awaitDefault$suspend$drive resumes=[cp4]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:DefaultTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:DefaultTaskr8:functionq8:ordinaryn3:run$suspend$drive id=f9dbbd232d05ced7600c41b4501778c7f91f9594167a4088ce455aab8b84e791 resumes=[cp1,cp0]
+  coroutine_fn cf1 @scoop.$local$u0:p0:C16:n12:ExplicitTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C16:n12:ExplicitTaskr8:functionq8:ordinaryn3:run$suspend$drive id=54c670e3b13cd9b371414e94956221c8935ab26f9fa38f3ccab4bba5fa0aa9c5 resumes=[cp3,cp2]
+  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn12:awaitDefault$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn12:awaitDefault$suspend$drive id=89de8aeeaab6bcfbc4fcad2d6560dd2e28efeb4b72f96ef9c1732059a5d2bdb3 resumes=[cp4]
   coroutine_fn cf3 @scoop.$local$u0:p0:r8:functionq8:ordinaryn9:calculate$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf4 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
   instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println

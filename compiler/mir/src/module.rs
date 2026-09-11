@@ -712,6 +712,8 @@ impl BoxedType {
 #[derive(Debug)]
 pub struct CoroutineFunction {
     pub function: FunctionId,
+    pub source: scoop_identity::CallableMaterialization,
+    pub source_odr_group: Option<scoop_identity::OdrGroupId>,
     pub source_return: Type,
     pub step: CoroutineStepId,
     pub lowering: CoroutineLowering,
@@ -723,6 +725,7 @@ pub enum CoroutineLowering {
     StateMachine {
         frame: CoroutineFrameId,
         driver: FunctionId,
+        driver_identity: Box<CoroutineDriverIdentity>,
         resume_points: Vec<CoroutineResumePointId>,
     },
 }

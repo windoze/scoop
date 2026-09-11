@@ -154,14 +154,18 @@ impl Lowerer {
             body,
         });
         self.top_level.push(function);
+        let identity = self.function_bridge_identity(module, class, target_identity);
         if target_signature.is_suspend {
             self.suspend_sources.push(SuspendSource {
                 function,
+                materialization: identity.materialization(),
+                odr_group: identity
+                    .odr_member_record()
+                    .map(|member| member.key().group()),
                 source_return: target_signature.return_type,
                 instance: None,
             });
         }
-        let identity = self.function_bridge_identity(module, class, target_identity);
         (function, identity)
     }
 

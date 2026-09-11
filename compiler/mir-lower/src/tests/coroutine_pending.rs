@@ -53,6 +53,7 @@ fn state_machine<'a>(
         frame,
         driver,
         resume_points,
+        ..
     } = &coroutine.lowering
     else {
         panic!("`{name}` must lower to a state machine")

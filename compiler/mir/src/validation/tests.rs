@@ -110,6 +110,33 @@ fn test_coroutine_start_identity(ty: &Type) -> CoroutineStartIdentity {
     CoroutineStartIdentity::new(&test_exact_type(ty), None).unwrap()
 }
 
+fn test_source_materialization() -> scoop_identity::CallableMaterialization {
+    test_source_materialization_named("coroutineSource")
+}
+
+fn test_source_materialization_named(name: &str) -> scoop_identity::CallableMaterialization {
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new(name).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    scoop_identity::CallableMaterialization::new(
+        scoop_identity::CallableTemplateOwner::Function(
+            scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap(),
+        ),
+        scoop_identity::CallableMaterializationContext::NoSubstitution,
+    )
+}
+
 fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {

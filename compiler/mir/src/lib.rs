@@ -52,6 +52,9 @@ pub use coroutine_shape::*;
 mod coroutine_support;
 pub use coroutine_support::*;
 
+mod coroutine_state_machine;
+pub use coroutine_state_machine::*;
+
 mod boxed_value;
 pub use boxed_value::*;
 

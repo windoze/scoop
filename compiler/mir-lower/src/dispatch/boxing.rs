@@ -322,6 +322,11 @@ impl Lowerer {
         if signature.is_suspend {
             self.suspend_sources.push(SuspendSource {
                 function: id,
+                materialization: identity.materialization(),
+                odr_group: identity
+                    .root()
+                    .member_record()
+                    .map(|member| member.key().group()),
                 source_return: return_ty,
                 instance: None,
             });

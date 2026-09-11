@@ -297,6 +297,43 @@ struct Lowerer {
     boxing_adjusts: Vec<mir::BoxingAdjust>,
 }
 
+fn materialization_odr_group(
+    module: &hir::Module,
+    materialization: hir::CallableMaterialization,
+) -> Option<hir::OdrGroupId> {
+    match materialization.context() {
+        hir::CallableMaterializationContext::NoSubstitution => None,
+        hir::CallableMaterializationContext::Application(application) => Some(
+            module
+                .callable_applications
+                .odr(application)
+                .expect("a callable materialization references its application")
+                .group(),
+        ),
+        hir::CallableMaterializationContext::InitializationApplication(unit) => {
+            let unit = module
+                .initialization_units
+                .iter()
+                .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
+                .expect("an initialization materialization references its unit");
+            let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
+                property,
+                receiver_arguments,
+            } = unit.identity.key()
+            else {
+                panic!("an initialization materialization belongs to a generic delegated extension")
+            };
+            Some(
+                hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
+                    origin: *property,
+                    receiver_arguments: receiver_arguments.clone(),
+                })
+                .expect("a delegated-property ODR group identity is hashable"),
+            )
+        }
+    }
+}
+
 mod body;
 
 use body::BodyLowerer;

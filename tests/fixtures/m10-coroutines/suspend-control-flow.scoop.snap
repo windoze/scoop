@@ -15700,10 +15700,10 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx3, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:ControlTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:ControlTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp8,cp7,cp6,cp5,cp4,cp3,cp2,cp1,cp0]
-  coroutine_fn cf1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:waitForInt$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn10:waitForInt$suspend$drive resumes=[cp9]
-  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn14:waitForBoolean$suspend source_return=Boolean step=cs1 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn14:waitForBoolean$suspend$drive resumes=[cp10]
-  coroutine_fn cf3 @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:waitForChoice$suspend source_return=Choice step=cs2 frame=cr3 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn13:waitForChoice$suspend$drive resumes=[cp11]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C15:n11:ControlTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C15:n11:ControlTaskr8:functionq8:ordinaryn3:run$suspend$drive id=3877d8af52d619f49d7cd3325913396bbe7ff2da80f5e52b7a2c08044019c2b9 resumes=[cp8,cp7,cp6,cp5,cp4,cp3,cp2,cp1,cp0]
+  coroutine_fn cf1 @scoop.$local$u0:p0:r8:functionq8:ordinaryn10:waitForInt$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn10:waitForInt$suspend$drive id=e6ed67276516b08f63e7d12926ab8d5528debbfa8d75e571fd95554e17051794 resumes=[cp9]
+  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn14:waitForBoolean$suspend source_return=Boolean step=cs1 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn14:waitForBoolean$suspend$drive id=a6eb294c7c8176b2154434dd38ab87778a8d97258c63df99ec8072893933bd48 resumes=[cp10]
+  coroutine_fn cf3 @scoop.$local$u0:p0:r8:functionq8:ordinaryn13:waitForChoice$suspend source_return=Choice step=cs2 frame=cr3 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn13:waitForChoice$suspend$drive id=d4187c94ac6a1393b51a798e22cbca88fa2c64739ef28902555c5a68860d4b1b resumes=[cp11]
   coroutine_fn cf4 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf5 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$B$suspend source_return=Boolean step=cs1 immediate
   coroutine_fn cf6 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$E29_$local$u0:p0:r4:enumn6:ChoiceX$suspend source_return=Choice step=cs2 immediate

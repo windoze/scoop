@@ -9999,9 +9999,9 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C16:n12:AsyncInvokerr8:functionq8:ordinaryn6:invoke$C38_$local$u0:p0:r5:classn13:InvokePayloadX$suspend source_return=String step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C16:n12:AsyncInvokerr8:functionq8:ordinaryn6:invoke$C38_$local$u0:p0:r5:classn13:InvokePayloadX$suspend$drive resumes=[cp0]
-  coroutine_fn cf1 @scoop.$local$u0:p0:C14:n10:InvokeTaskr8:functionq8:ordinaryn3:run$suspend source_return=String step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C14:n10:InvokeTaskr8:functionq8:ordinaryn3:run$suspend$drive resumes=[cp1]
-  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn11:awaitInvoke$suspend source_return=Int step=cs1 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn11:awaitInvoke$suspend$drive resumes=[cp2]
+  coroutine_fn cf0 @scoop.$local$u0:p0:C16:n12:AsyncInvokerr8:functionq8:ordinaryn6:invoke$C38_$local$u0:p0:r5:classn13:InvokePayloadX$suspend source_return=String step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C16:n12:AsyncInvokerr8:functionq8:ordinaryn6:invoke$C38_$local$u0:p0:r5:classn13:InvokePayloadX$suspend$drive id=eab8ce8b32aa6f339c4c3ff92f42f97fde55b5f08e0aefdc29c9472e55ec616d resumes=[cp0]
+  coroutine_fn cf1 @scoop.$local$u0:p0:C14:n10:InvokeTaskr8:functionq8:ordinaryn3:run$suspend source_return=String step=cs0 frame=cr1 driver=@scoop.$local$u0:p0:C14:n10:InvokeTaskr8:functionq8:ordinaryn3:run$suspend$drive id=15b5bc810e7024c8b3053832314e05ed94f056d890fb4d25e4814e5f72aae1be resumes=[cp1]
+  coroutine_fn cf2 @scoop.$local$u0:p0:r8:functionq8:ordinaryn11:awaitInvoke$suspend source_return=Int step=cs1 frame=cr2 driver=@scoop.$local$u0:p0:r8:functionq8:ordinaryn11:awaitInvoke$suspend$drive id=3e61c41f03c503cc11ea7662572e1234a38f9a6b92462e0a87d933537d488bcf resumes=[cp2]
   coroutine_fn cf3 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs1 immediate
   coroutine_fn cf4 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$S$suspend source_return=String step=cs0 immediate
   instance @scoop.$local$u0:p0:C16:n12:AsyncInvokerr8:functionq8:ordinaryn6:invoke$C38_$local$u0:p0:r5:classn13:InvokePayloadX$suspend <- AsyncInvoker.invoke
