@@ -15,7 +15,8 @@ use scoop_ast::Span;
 
 pub use scoop_identity::{
     CallableOwner, ImmortalObjectKey, ImmortalObjectOwner, OdrGroupId, PersistentExactTypeId,
-    PropertyOwner, StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    PersistentInitializationUnitId, PropertyOwner, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 mod symbols;

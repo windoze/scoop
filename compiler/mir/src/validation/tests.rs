@@ -12,7 +12,7 @@ fn nominal_link_stem() -> NominalLinkStem {
     NominalLinkStem::from_session_local_encoding("$mir-validation-test$nominal".to_string())
 }
 
-fn test_static_storage_owner(name: &str) -> StaticStorageOwner {
+fn test_property(name: &str) -> scoop_identity::PersistentPropertyId {
     let site = scoop_identity::SourceDeclarationSite::new(
         scoop_identity::ConeIdentity::SINGLE_FILE,
         scoop_identity::PackagePath::root(),
@@ -24,9 +24,13 @@ fn test_static_storage_owner(name: &str) -> StaticStorageOwner {
         site,
         scoop_identity::CanonicalIdentifier::new(name).unwrap(),
     );
-    let property =
-        scoop_identity::PersistentPropertyId::from_source_declaration(&declaration).unwrap();
-    StaticStorageOwner::PropertyBacking(scoop_identity::PropertyOwner::Property(property))
+    scoop_identity::PersistentPropertyId::from_source_declaration(&declaration).unwrap()
+}
+
+fn test_static_storage_owner(name: &str) -> StaticStorageOwner {
+    StaticStorageOwner::PropertyBacking(scoop_identity::PropertyOwner::Property(test_property(
+        name,
+    )))
 }
 
 fn variant_def(name: &str, fields: Vec<Type>) -> VariantDef {
@@ -503,8 +507,23 @@ fn test_source_materialization_named(name: &str) -> scoop_identity::CallableMate
 }
 
 fn test_string_identity(owner: &str, ordinal: u32) -> scoop_identity::ImmortalObjectKey {
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::property(
+        site,
+        scoop_identity::CanonicalIdentifier::new(owner).unwrap(),
+    );
+    let property =
+        scoop_identity::PersistentPropertyId::from_source_declaration(&declaration).unwrap();
     scoop_identity::ImmortalObjectKey::string_constant(
-        scoop_identity::ImmortalObjectOwner::Callable(test_source_materialization_named(owner)),
+        scoop_identity::ImmortalObjectOwner::Property(scoop_identity::PropertyOwner::Property(
+            property,
+        )),
         scoop_identity::StructuralDefinitionPath::from_first(
             scoop_identity::StructuralPathSegment::new(
                 scoop_identity::StructuralDefinitionSiteRole::StringConstant,
@@ -787,6 +806,70 @@ fn string_constants_must_have_unique_immortal_object_identities() {
         Err(MirValidationError {
             location: MirValidationLocation::StringConstant { string: duplicate },
             kind: MirValidationErrorKind::DuplicateImmortalObjectIdentity { previous: first },
+        })
+    );
+}
+
+#[test]
+fn string_constant_callable_owner_must_exist() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let string = module.strings.alloc(StringConst {
+        identity: scoop_identity::ImmortalObjectKey::string_constant(
+            scoop_identity::ImmortalObjectOwner::Callable(test_source_materialization_named(
+                "missingOwner",
+            )),
+            scoop_identity::StructuralDefinitionPath::from_first(
+                scoop_identity::StructuralPathSegment::new(
+                    scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                    0,
+                ),
+                [],
+            ),
+        ),
+        value: "text".to_string(),
+        symbol: "scoop.str.0".to_string(),
+    });
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::StringConstant { string },
+            kind: MirValidationErrorKind::InvalidImmortalObjectOwner {
+                reason: "the callable materialization does not exist",
+            },
+        })
+    );
+}
+
+#[test]
+fn string_constant_initialization_unit_owner_must_exist() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let owner = scoop_identity::PersistentInitializationUnitId::from_key(
+        &scoop_identity::InitializationUnitKey::TopLevelProperty(test_property("missingOwner")),
+    )
+    .unwrap();
+    let string = module.strings.alloc(StringConst {
+        identity: scoop_identity::ImmortalObjectKey::string_constant(
+            scoop_identity::ImmortalObjectOwner::InitializationUnit(owner),
+            scoop_identity::StructuralDefinitionPath::from_first(
+                scoop_identity::StructuralPathSegment::new(
+                    scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                    0,
+                ),
+                [],
+            ),
+        ),
+        value: "text".to_string(),
+        symbol: "scoop.str.0".to_string(),
+    });
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::StringConstant { string },
+            kind: MirValidationErrorKind::InvalidImmortalObjectOwner {
+                reason: "the initialization unit does not exist",
+            },
         })
     );
 }

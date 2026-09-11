@@ -118,9 +118,10 @@ pub(super) fn static_storage_identity(name: &str) -> scoop_lir::StaticStorageIde
         CanonicalIdentifier::new(&format!("test{name}")).unwrap(),
     );
     let property = PersistentPropertyId::from_source_declaration(&declaration).unwrap();
-    scoop_lir::StaticStorageIdentity::property_backing(scoop_identity::PropertyOwner::Property(
-        property,
-    ))
+    scoop_lir::StaticStorageIdentity::property_backing(
+        scoop_identity::PropertyOwner::Property(property),
+        scoop_lir::MaterializationRoot::cone_owned(),
+    )
     .unwrap()
 }
 
@@ -150,9 +151,10 @@ pub(super) fn immortal_string_identity(name: &str) -> scoop_lir::ImmortalObjectI
         StructuralPathSegment::new(StructuralDefinitionSiteRole::StringConstant, 0),
         [],
     );
-    scoop_lir::ImmortalObjectIdentity::from_key(scoop_identity::ImmortalObjectKey::string_constant(
-        owner, path,
-    ))
+    scoop_lir::ImmortalObjectIdentity::from_key(
+        scoop_identity::ImmortalObjectKey::string_constant(owner, path),
+        scoop_lir::MaterializationRoot::cone_owned(),
+    )
     .unwrap()
 }
 

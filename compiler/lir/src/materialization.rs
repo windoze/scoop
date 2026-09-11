@@ -104,6 +104,26 @@ impl MaterializationRoot {
             OdrMemberDiscriminator::ExactType(exact_type),
         )
     }
+
+    pub(crate) fn static_storage(
+        &self,
+        storage: scoop_identity::PersistentStaticStorageId,
+    ) -> Result<MaterializationIdentity, scoop_wire::HashError> {
+        self.materialization(
+            OdrMemberRole::StaticStorage,
+            OdrMemberDiscriminator::StaticStorage(storage),
+        )
+    }
+
+    pub(crate) fn immortal_object(
+        &self,
+        object: scoop_identity::PersistentImmortalObjectId,
+    ) -> Result<MaterializationIdentity, scoop_wire::HashError> {
+        self.materialization(
+            OdrMemberRole::ImmortalObject,
+            OdrMemberDiscriminator::ImmortalObject(object),
+        )
+    }
 }
 
 /// Persistent ownership relation for one physical LIR entity.

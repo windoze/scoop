@@ -1,6 +1,6 @@
 use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{CallableMaterialization, NonEmptyVec, StructuralDefinitionPath};
+use super::{CallableMaterialization, NonEmptyVec, SpecializationKey, StructuralDefinitionPath};
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentExactTypeId, PersistentExtensionPropertyId, PersistentInitializationUnitId,
@@ -48,6 +48,24 @@ impl WireEncode for InitializationUnitKey {
                 }
                 Ok(())
             }
+        }
+    }
+}
+
+impl InitializationUnitKey {
+    pub fn specialization_key(&self) -> Option<SpecializationKey> {
+        match self {
+            Self::GenericDelegatedExtensionApplication {
+                property,
+                receiver_arguments,
+            } => Some(SpecializationKey::DelegatedProperty {
+                origin: *property,
+                receiver_arguments: receiver_arguments.clone(),
+            }),
+            Self::TopLevelProperty(_)
+            | Self::ExtensionProperty(_)
+            | Self::Object(_)
+            | Self::Companion(_) => None,
         }
     }
 }
@@ -191,6 +209,7 @@ mod tests {
         CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
         ConeIdentity, NonEmptyVec, PersistentExactTypeId, PersistentExtensionPropertyId,
         PersistentFunctionId, PersistentInitializationUnitId, PersistentLocalValueId,
+        SpecializationKey,
     };
 
     #[test]
@@ -210,6 +229,13 @@ mod tests {
                 .unwrap()
                 .to_string(),
             "f28e76568ebc7b2d2a62f0da0b448e368f80458985f60738a758d4dc043587d4"
+        );
+        assert_eq!(
+            key.specialization_key(),
+            Some(SpecializationKey::DelegatedProperty {
+                origin: property,
+                receiver_arguments: NonEmptyVec::from_first(exact, []),
+            })
         );
     }
 

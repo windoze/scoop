@@ -1237,11 +1237,20 @@ pub struct ImmortalObjectIdentity {
         scoop_identity::PersistentImmortalObjectId,
         scoop_identity::ImmortalObjectKey,
     >,
+    materialization: MaterializationIdentity,
 }
 
 impl ImmortalObjectIdentity {
-    pub fn from_key(key: scoop_identity::ImmortalObjectKey) -> Result<Self, scoop_wire::HashError> {
-        scoop_identity::CborIdentityRecord::from_key(key).map(|record| Self { record })
+    pub fn from_key(
+        key: scoop_identity::ImmortalObjectKey,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let record = scoop_identity::CborIdentityRecord::from_key(key)?;
+        let materialization = root.immortal_object(record.id())?;
+        Ok(Self {
+            record,
+            materialization,
+        })
     }
 
     pub const fn identity_record(
@@ -1252,6 +1261,28 @@ impl ImmortalObjectIdentity {
     > {
         &self.record
     }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -1260,45 +1291,70 @@ pub struct StaticStorageIdentity {
         scoop_identity::PersistentStaticStorageId,
         scoop_identity::StaticStorageKey,
     >,
+    materialization: MaterializationIdentity,
 }
 
 impl StaticStorageIdentity {
-    fn new(key: scoop_identity::StaticStorageKey) -> Result<Self, scoop_wire::HashError> {
-        scoop_identity::CborIdentityRecord::from_key(key).map(|record| Self { record })
+    fn new(
+        key: scoop_identity::StaticStorageKey,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let record = scoop_identity::CborIdentityRecord::from_key(key)?;
+        let materialization = root.static_storage(record.id())?;
+        Ok(Self {
+            record,
+            materialization,
+        })
     }
 
     pub fn property_backing(
         owner: scoop_identity::PropertyOwner,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
-        Self::new(scoop_identity::StaticStorageKey::property_backing(owner))
+        Self::new(
+            scoop_identity::StaticStorageKey::property_backing(owner),
+            root,
+        )
     }
 
     pub fn property_delegate(
         owner: scoop_identity::PropertyOwner,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
-        Self::new(scoop_identity::StaticStorageKey::property_delegate(owner))
+        Self::new(
+            scoop_identity::StaticStorageKey::property_delegate(owner),
+            root,
+        )
     }
 
     pub fn static_place_for_property(
         owner: scoop_identity::PropertyOwner,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
-        Self::new(scoop_identity::StaticStorageKey::static_place_for_property(
-            owner,
-        ))
+        Self::new(
+            scoop_identity::StaticStorageKey::static_place_for_property(owner),
+            root,
+        )
     }
 
     pub fn singleton_published_root(
         owner: scoop_identity::PersistentTypeId,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
-        Self::new(scoop_identity::StaticStorageKey::singleton_published_root(
-            owner,
-        ))
+        Self::new(
+            scoop_identity::StaticStorageKey::singleton_published_root(owner),
+            root,
+        )
     }
 
     pub fn initialization_failure_root(
         unit: scoop_identity::PersistentInitializationUnitId,
+        root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
-        Self::new(scoop_identity::StaticStorageKey::initialization_failure_root(unit))
+        Self::new(
+            scoop_identity::StaticStorageKey::initialization_failure_root(unit),
+            root,
+        )
     }
 
     pub const fn identity_record(
@@ -1308,6 +1364,28 @@ impl StaticStorageIdentity {
         scoop_identity::StaticStorageKey,
     > {
         &self.record
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
     }
 }
 

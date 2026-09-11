@@ -77,6 +77,9 @@ pub enum MirValidationErrorKind {
     DuplicateImmortalObjectIdentity {
         previous: StringConstId,
     },
+    InvalidImmortalObjectOwner {
+        reason: &'static str,
+    },
     InvalidCallableFunction {
         reason: &'static str,
     },
@@ -460,6 +463,9 @@ impl std::fmt::Display for MirValidationError {
                 "duplicates the immortal-object identity of string constant {}",
                 previous.into_raw().into_u32()
             ),
+            MirValidationErrorKind::InvalidImmortalObjectOwner { reason } => {
+                formatter.write_str(reason)
+            }
             MirValidationErrorKind::InvalidCallableFunction { reason } => {
                 formatter.write_str(reason)
             }

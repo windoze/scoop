@@ -52,6 +52,7 @@ impl CanonicalLirFoundation {
                 .type_descriptors
                 .iter()
                 .map(|(_, descriptor)| descriptor),
+            module.globals.iter().map(|(_, global)| global),
         )?;
         foundation.set_dispatch_tables(
             module
@@ -80,10 +81,11 @@ impl CanonicalLirFoundation {
         Ok(foundation)
     }
 
-    fn project_materializations<'identity, 'descriptor>(
+    fn project_materializations<'identity, 'descriptor, 'global>(
         &mut self,
         identities: impl IntoIterator<Item = &'identity crate::LayoutIdentity>,
         descriptors: impl IntoIterator<Item = &'descriptor crate::TypeDescriptor>,
+        globals: impl IntoIterator<Item = &'global crate::Global>,
     ) -> Result<(), LirFoundationBuildError> {
         let mut groups = BTreeMap::new();
         let mut members = BTreeMap::new();
@@ -118,6 +120,27 @@ impl CanonicalLirFoundation {
                     itable.lir_odr_group_record(),
                     itable.odr_member_record(),
                 )?;
+            }
+        }
+        for global in globals {
+            match &global.init {
+                crate::GlobalInit::Storage { identity, .. } => {
+                    insert_materialization_records(
+                        &mut groups,
+                        &mut members,
+                        identity.lir_odr_group_record(),
+                        identity.odr_member_record(),
+                    )?;
+                }
+                crate::GlobalInit::StringConst { identity, .. } => {
+                    insert_materialization_records(
+                        &mut groups,
+                        &mut members,
+                        identity.lir_odr_group_record(),
+                        identity.odr_member_record(),
+                    )?;
+                }
+                crate::GlobalInit::CString(_) => {}
             }
         }
         self.set_odr_groups(groups.into_values().collect())?;
@@ -229,18 +252,21 @@ mod tests {
     use scoop_identity::{
         CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
         CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
-        DefinitionOwnerChain, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, NonEmptyVec,
-        OdrMemberRole, PackagePath, PersistentExactTypeId, PersistentFunctionId, SafepointSiteRole,
-        SourceDeclarationKey, SourceDeclarationSite, SpecializationKey, StructuralDefinitionPath,
-        StructuralDefinitionSiteRole, StructuralPathSegment,
+        DefinitionOwnerChain, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner,
+        InitializationUnitKey, NonEmptyVec, OdrMemberRole, PackagePath, PersistentExactTypeId,
+        PersistentExtensionPropertyId, PersistentFunctionId, PersistentInitializationUnitId,
+        SafepointSiteRole, SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite,
+        SpecializationKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+        StructuralPathSegment,
     };
 
     use super::*;
     use crate::{
         AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention, GcEffect,
-        Global, GlobalInit, ImmortalObjectIdentity, ItableRecord, LayoutIdentity, LirTargetProfile,
-        MaterializationRoot, PointerKind, RefScan, RuntimeTypeMappingRecord, SafepointIdentities,
-        SafepointIdentity, SafepointSiteRef, ScoopAbiSignature, Terminator, TypeDescriptor,
+        Global, GlobalInit, ImmortalObjectIdentity, ItableRecord, LayoutIdentity,
+        LirStaticInitialState, LirTargetProfile, MANAGED_PTR, MaterializationRoot, PointerKind,
+        RefScan, RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity,
+        SafepointSiteRef, ScoopAbiSignature, StaticStorageIdentity, Terminator, TypeDescriptor,
         TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VtableRecord,
     };
 
@@ -285,7 +311,7 @@ mod tests {
         let mut foundation = CanonicalLirFoundation::empty();
 
         foundation
-            .project_materializations(&identities, std::iter::empty())
+            .project_materializations(&identities, std::iter::empty(), std::iter::empty())
             .unwrap();
 
         assert_eq!(foundation.odr_groups.len(), 1);
@@ -376,6 +402,7 @@ mod tests {
             .project_materializations(
                 std::iter::empty(),
                 descriptors.iter().map(|(_, descriptor)| descriptor),
+                std::iter::empty(),
             )
             .unwrap();
 
@@ -402,6 +429,92 @@ mod tests {
                 .odr_members
                 .iter()
                 .all(|member| member.key().group() == foundation.odr_groups[0].id())
+        );
+    }
+
+    #[test]
+    fn inherited_delegated_globals_emit_members_without_reemitting_the_group() {
+        let receiver = exact_tuple(0);
+        let declaration = SourceDeclarationKey::extension_property(
+            source_site(),
+            CanonicalIdentifier::new("memoized").unwrap(),
+            1,
+            SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+        );
+        let property =
+            PersistentExtensionPropertyId::from_source_declaration(&declaration).unwrap();
+        let receiver_arguments = NonEmptyVec::from_first(receiver, []);
+        let unit_key = InitializationUnitKey::GenericDelegatedExtensionApplication {
+            property,
+            receiver_arguments: receiver_arguments.clone(),
+        };
+        let unit = PersistentInitializationUnitId::from_key(&unit_key).unwrap();
+        let group = OdrGroupId::from_key(&SpecializationKey::DelegatedProperty {
+            origin: property,
+            receiver_arguments,
+        })
+        .unwrap();
+        let root = MaterializationRoot::prior_stage_odr(group);
+        let storage =
+            StaticStorageIdentity::initialization_failure_root(unit, root.clone()).unwrap();
+        let object_key = ImmortalObjectKey::string_constant(
+            ImmortalObjectOwner::InitializationUnit(unit),
+            StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::StringConstant, 0),
+                [],
+            ),
+        );
+        let object = ImmortalObjectIdentity::from_key(object_key, root).unwrap();
+        let mut globals = Arena::new();
+        globals.alloc(Global {
+            symbol: "storage".to_string(),
+            address_kind: PointerKind::Raw,
+            scan: RefScan::References(vec![0]),
+            init: GlobalInit::Storage {
+                identity: storage,
+                ty: MANAGED_PTR,
+                initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
+                thread_local: false,
+            },
+        });
+        globals.alloc(Global {
+            symbol: "string".to_string(),
+            address_kind: PointerKind::Managed,
+            scan: RefScan::None,
+            init: GlobalInit::StringConst {
+                identity: object,
+                value: "text".to_string(),
+            },
+        });
+        let mut foundation = CanonicalLirFoundation::empty();
+
+        foundation
+            .project_materializations(
+                std::iter::empty(),
+                std::iter::empty(),
+                globals.iter().map(|(_, global)| global),
+            )
+            .unwrap();
+
+        assert!(foundation.odr_groups.is_empty());
+        assert_eq!(foundation.odr_members.len(), 2);
+        assert!(
+            foundation
+                .odr_members
+                .iter()
+                .all(|member| member.key().group() == group)
+        );
+        assert!(
+            foundation
+                .odr_members
+                .iter()
+                .any(|member| member.key().role() == OdrMemberRole::StaticStorage)
+        );
+        assert!(
+            foundation
+                .odr_members
+                .iter()
+                .any(|member| member.key().role() == OdrMemberRole::ImmortalObject)
         );
     }
 
@@ -495,7 +608,9 @@ mod tests {
                 [],
             ),
         );
-        let identity = ImmortalObjectIdentity::from_key(key.clone()).unwrap();
+        let identity =
+            ImmortalObjectIdentity::from_key(key.clone(), MaterializationRoot::cone_owned())
+                .unwrap();
         let expected = identity.identity_record().clone();
         let mut globals = Arena::new();
         globals.alloc(Global {
@@ -558,20 +673,23 @@ mod tests {
     }
 
     fn function_id(name: &str) -> PersistentFunctionId {
-        let site = SourceDeclarationSite::new(
-            ConeIdentity::SINGLE_FILE,
-            PackagePath::root(),
-            DefinitionOwnerChain::top_level(),
-            DeclarationScope::ConeWide,
-        )
-        .unwrap();
         let declaration = SourceDeclarationKey::function(
-            site,
+            source_site(),
             CanonicalIdentifier::new(name).unwrap(),
             0,
             None,
             Vec::new(),
         );
         PersistentFunctionId::from_source_declaration(&declaration).unwrap()
+    }
+
+    fn source_site() -> SourceDeclarationSite {
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap()
     }
 }

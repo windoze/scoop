@@ -362,6 +362,10 @@ impl ImmortalObjectKey {
             path,
         }
     }
+
+    pub const fn owner(&self) -> ImmortalObjectOwner {
+        self.owner
+    }
 }
 
 impl WireEncode for ImmortalObjectKey {

@@ -178,6 +178,15 @@ impl SourceCallableMaterializations {
             .map(|index| &self.entries[index])
     }
 
+    pub fn get_by_materialization(
+        &self,
+        materialization: CallableMaterialization,
+    ) -> Option<&SourceCallableMaterialization> {
+        self.entries
+            .iter()
+            .find(|entry| entry.materialization == materialization)
+    }
+
     pub fn iter(&self) -> impl ExactSizeIterator<Item = &SourceCallableMaterialization> {
         self.entries.iter()
     }

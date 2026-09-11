@@ -151,8 +151,11 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             address_kind: lir::PointerKind::Managed,
             scan: lir::RefScan::None,
             init: lir::GlobalInit::StringConst {
-                identity: lir::ImmortalObjectIdentity::from_key(string.identity.clone())
-                    .expect("validated MIR string identities have canonical CBOR records"),
+                identity: lir::ImmortalObjectIdentity::from_key(
+                    string.identity.clone(),
+                    identity_roots.for_immortal_object(&string.identity),
+                )
+                .expect("validated MIR string identities have canonical CBOR records"),
                 value: string.value.clone(),
             },
         });
@@ -186,6 +189,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         lower_extern_functions(&context, module, &structs, &enums);
     let (storage_globals, native_globals, native_global_bridges) = lower_globals(
         &context,
+        &identity_roots,
         module,
         &mut globals,
         &structs,

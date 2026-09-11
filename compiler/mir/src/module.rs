@@ -469,6 +469,18 @@ pub struct InitializationUnit {
     pub cycle_exception: MessageClassConstructor,
 }
 
+impl InitializationUnit {
+    pub fn odr_group_id(
+        &self,
+    ) -> Result<Option<scoop_identity::OdrGroupId>, scoop_wire::HashError> {
+        self.identity
+            .key()
+            .specialization_key()
+            .map(|key| scoop_identity::OdrGroupId::from_key(&key))
+            .transpose()
+    }
+}
+
 pub type InitializationUnitIdentityRecord = scoop_identity::CborIdentityRecord<
     scoop_identity::PersistentInitializationUnitId,
     scoop_identity::InitializationUnitKey,

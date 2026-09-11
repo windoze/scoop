@@ -8,6 +8,7 @@ pub(super) enum StorageGlobal {
 
 pub(super) fn lower_globals(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     globals: &mut Arena<lir::Global>,
     structs: &lir::StructDefs,
@@ -29,7 +30,13 @@ pub(super) fn lower_globals(
                     address_kind: lir::PointerKind::Raw,
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
-                        identity: static_storage_identity(context, module, enums, global),
+                        identity: static_storage_identity(
+                            context,
+                            identity_roots,
+                            module,
+                            enums,
+                            global,
+                        ),
                         ty: lir_type(&global.ty),
                         initial_state: lower_static_initial_state(
                             initial_state,
@@ -50,7 +57,13 @@ pub(super) fn lower_globals(
                     address_kind: lir::PointerKind::Raw,
                     scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
-                        identity: static_storage_identity(context, module, enums, global),
+                        identity: static_storage_identity(
+                            context,
+                            identity_roots,
+                            module,
+                            enums,
+                            global,
+                        ),
                         ty: lir_type(&global.ty),
                         initial_state: lower_static_initial_state(
                             initial_state,
@@ -101,30 +114,32 @@ pub(super) fn lower_globals(
 
 fn static_storage_identity(
     context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     enums: &lir::EnumDefs,
     global: &mir::Global,
 ) -> lir::StaticStorageIdentity {
     let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
     let zero_sized = size_align(context, module, &enum_shape, &global.ty).0 == 0;
+    let root = identity_roots.for_static_storage(global.storage_owner);
     let identity = match global.storage_owner {
         mir::StaticStorageOwner::PropertyBacking(owner) if zero_sized => {
-            lir::StaticStorageIdentity::static_place_for_property(owner)
+            lir::StaticStorageIdentity::static_place_for_property(owner, root)
         }
         mir::StaticStorageOwner::PropertyDelegate(owner) if zero_sized => {
-            lir::StaticStorageIdentity::static_place_for_property(owner)
+            lir::StaticStorageIdentity::static_place_for_property(owner, root)
         }
         mir::StaticStorageOwner::PropertyBacking(owner) => {
-            lir::StaticStorageIdentity::property_backing(owner)
+            lir::StaticStorageIdentity::property_backing(owner, root)
         }
         mir::StaticStorageOwner::PropertyDelegate(owner) => {
-            lir::StaticStorageIdentity::property_delegate(owner)
+            lir::StaticStorageIdentity::property_delegate(owner, root)
         }
         mir::StaticStorageOwner::SingletonPublishedRoot(owner) => {
-            lir::StaticStorageIdentity::singleton_published_root(owner)
+            lir::StaticStorageIdentity::singleton_published_root(owner, root)
         }
         mir::StaticStorageOwner::InitializationFailureRoot(unit) => {
-            lir::StaticStorageIdentity::initialization_failure_root(unit)
+            lir::StaticStorageIdentity::initialization_failure_root(unit, root)
         }
     };
     identity.expect("validated static storage owner must derive a persistent identity")

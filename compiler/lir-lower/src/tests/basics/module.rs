@@ -256,15 +256,27 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
     };
     assert_eq!(
         storage_identity("scoop.global.managedRoot"),
-        &lir::StaticStorageIdentity::property_backing(backing_owner).unwrap()
+        &lir::StaticStorageIdentity::property_backing(
+            backing_owner,
+            lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap()
     );
     assert_eq!(
         storage_identity("scoop.global.managedDelegate"),
-        &lir::StaticStorageIdentity::property_delegate(delegate_owner).unwrap()
+        &lir::StaticStorageIdentity::property_delegate(
+            delegate_owner,
+            lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap()
     );
     assert_eq!(
         storage_identity("scoop.global.singletonRoot"),
-        &lir::StaticStorageIdentity::singleton_published_root(singleton_owner).unwrap()
+        &lir::StaticStorageIdentity::singleton_published_root(
+            singleton_owner,
+            lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap()
     );
     assert!(
         lir::dump(&module).contains("global @scoop.global.managedRoot : ptr<managed> scan=refs[0]")

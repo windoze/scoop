@@ -346,7 +346,11 @@ fn initialization_display_name_survives_lir_lowering() {
     };
     assert_eq!(
         storage_identity,
-        &lir::StaticStorageIdentity::static_place_for_property(storage_owner).unwrap()
+        &lir::StaticStorageIdentity::static_place_for_property(
+            storage_owner,
+            lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap()
     );
     let lir::GlobalInit::Storage {
         identity: failure_identity,
@@ -357,7 +361,11 @@ fn initialization_display_name_survives_lir_lowering() {
     };
     assert_eq!(
         failure_identity,
-        &lir::StaticStorageIdentity::initialization_failure_root(persistent_unit).unwrap()
+        &lir::StaticStorageIdentity::initialization_failure_root(
+            persistent_unit,
+            lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap()
     );
 }
 
