@@ -11,6 +11,40 @@ pub(super) const LONG: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_6
 pub(super) const UINT: mir::Type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_32);
 pub(super) const ULONG: mir::Type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_64);
 
+pub(super) fn property_owner(name: &str) -> scoop_identity::PropertyOwner {
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::property(
+        site,
+        scoop_identity::CanonicalIdentifier::new(name).unwrap(),
+    );
+    let property =
+        scoop_identity::PersistentPropertyId::from_source_declaration(&declaration).unwrap();
+    scoop_identity::PropertyOwner::Property(property)
+}
+
+pub(super) fn persistent_type(name: &str) -> scoop_identity::PersistentTypeId {
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::nominal(
+        site,
+        scoop_identity::CanonicalIdentifier::new(name).unwrap(),
+        scoop_identity::SourceNominalKind::Class,
+        0,
+    );
+    scoop_identity::PersistentTypeId::from_source_declaration(&declaration).unwrap()
+}
+
 pub(super) fn int_expr(value: i32) -> mir::Expr {
     mir::Expr::integer(mir::MirIntegerConstant::Signed32(value as u32))
 }

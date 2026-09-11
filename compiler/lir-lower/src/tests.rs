@@ -274,9 +274,13 @@ fn initialization_display_name_survives_lir_lowering() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
     let mut source = builder.finish(main);
+    let unit_identity = initialization_unit_identity();
+    let persistent_unit = unit_identity.id();
+    let storage_owner = property_owner("value");
     let storage = source.globals.alloc(mir::Global {
         name: "value".to_string(),
         symbol: "scoop.init.storage".to_string(),
+        storage_owner: mir::StaticStorageOwner::PropertyBacking(storage_owner),
         ty: mir::Type::Unit,
         mutable: false,
         storage: mir::GlobalStorage::Managed {
@@ -286,6 +290,7 @@ fn initialization_display_name_survives_lir_lowering() {
     let failure_global = source.globals.alloc(mir::Global {
         name: "$init.failure".to_string(),
         symbol: "scoop.init.failure".to_string(),
+        storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(persistent_unit),
         ty: mir::Type::String,
         mutable: true,
         storage: mir::GlobalStorage::Managed {
@@ -299,7 +304,7 @@ fn initialization_display_name_survives_lir_lowering() {
             global: failure_global,
         });
     let unit = source.initialization_units.alloc(mir::InitializationUnit {
-        identity: initialization_unit_identity(),
+        identity: unit_identity,
         stable_key: "$local$opaque-value".to_string(),
         display_name: "top-level:value".to_string(),
         schedule: mir::InitializationSchedule::EagerStartup,
@@ -317,15 +322,34 @@ fn initialization_display_name_survives_lir_lowering() {
     assert_eq!(unit, unit_id);
 
     let module = lower(&source);
+    let lowered_unit =
+        &module.initialization_units[lir::InitializationUnitId::from_raw(unit_id.into_raw())];
+    assert_eq!(lowered_unit.display_name, "top-level:value");
     assert_eq!(
-        module.initialization_units[lir::InitializationUnitId::from_raw(unit_id.into_raw())]
-            .display_name,
-        "top-level:value"
-    );
-    assert_eq!(
-        module.initialization_units[lir::InitializationUnitId::from_raw(unit_id.into_raw())]
-            .identity,
+        lowered_unit.identity,
         source.initialization_units[unit].identity
+    );
+    let lir::GlobalInit::Storage {
+        identity: storage_identity,
+        ..
+    } = &module.globals[lowered_unit.kind.storage()].init
+    else {
+        panic!("initialization storage must remain a storage global")
+    };
+    assert_eq!(
+        storage_identity,
+        &lir::StaticStorageIdentity::static_place_for_property(storage_owner).unwrap()
+    );
+    let lir::GlobalInit::Storage {
+        identity: failure_identity,
+        ..
+    } = &module.globals[lowered_unit.failure_root].init
+    else {
+        panic!("initialization failure root must remain a storage global")
+    };
+    assert_eq!(
+        failure_identity,
+        &lir::StaticStorageIdentity::initialization_failure_root(persistent_unit).unwrap()
     );
 }
 

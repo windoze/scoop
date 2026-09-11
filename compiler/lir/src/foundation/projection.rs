@@ -55,6 +55,18 @@ impl CanonicalLirFoundation {
                 })
                 .collect(),
         )?;
+        foundation.set_static_storages(
+            module
+                .globals
+                .iter()
+                .filter_map(|(_, global)| match &global.init {
+                    crate::GlobalInit::Storage { identity, .. } => {
+                        Some(identity.identity_record().clone())
+                    }
+                    crate::GlobalInit::StringConst(_) | crate::GlobalInit::CString(_) => None,
+                })
+                .collect(),
+        )?;
         foundation.set_runtime_types(
             module
                 .meta

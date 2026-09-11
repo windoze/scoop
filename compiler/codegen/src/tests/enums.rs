@@ -693,6 +693,10 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
             address_kind: PointerKind::Raw,
             scan: RefScan::None,
             init: GlobalInit::Storage {
+                identity: static_storage_identity(&format!(
+                    "qualified{}Niche",
+                    kind.pointer_kind().dump()
+                )),
                 ty: LirType::Enum(option),
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::EnumUnit { variant: none },
@@ -792,6 +796,7 @@ fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
+            identity: static_storage_identity("crossedNicheNull"),
             ty: LirType::Enum(option),
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Code),

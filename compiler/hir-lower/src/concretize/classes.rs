@@ -540,14 +540,50 @@ impl Concretizer<'_> {
         for (source_id, source) in self.source.globals.iter() {
             let ty = self.lower_type(source.ty, &[]);
             let storage = self.lower_global_storage(&source.storage);
+            let storage_owner = self.property_storage_owner(source_id, source);
             let id = self.globals.alloc(concrete::Global {
                 name: source.name.clone(),
+                storage_owner,
                 ty,
                 mutable: source.mutable,
                 storage,
                 span: source.span,
             });
             self.global_map.insert(source_id, id);
+        }
+    }
+
+    fn property_storage_owner(
+        &self,
+        global_id: export::GlobalId,
+        global: &export::Global,
+    ) -> concrete::PropertyStorageOwner {
+        let property = &self.source.properties[global.property];
+        let owner = self.source.property_identities[global.property].property_owner();
+        match &property.representation {
+            export::PropertyRepresentation::Stored(export::StoredProperty {
+                backing: export::PropertyBacking::TopLevelGlobal { storage, .. },
+            }) if *storage == global_id => concrete::PropertyStorageOwner::Backing(owner),
+            export::PropertyRepresentation::Delegated { storage }
+                if matches!(
+                    self.source.delegate_storages[*storage].location,
+                    export::DelegateStorageLocation::ManagedGlobal(id) if id == global_id
+                ) =>
+            {
+                concrete::PropertyStorageOwner::Delegate(owner)
+            }
+            export::PropertyRepresentation::NativeStorage { storage } if *storage == global_id => {
+                concrete::PropertyStorageOwner::Backing(owner)
+            }
+            export::PropertyRepresentation::Stored(_)
+            | export::PropertyRepresentation::AccessorOnly
+            | export::PropertyRepresentation::Delegated { .. }
+            | export::PropertyRepresentation::Const { .. }
+            | export::PropertyRepresentation::NativeStorage { .. } => {
+                unreachable!(
+                    "validated Export HIR binds every global to its physical property role"
+                )
+            }
         }
     }
 

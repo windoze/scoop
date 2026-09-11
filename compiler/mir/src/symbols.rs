@@ -263,6 +263,23 @@ mod tests {
         NominalLinkStem::from_session_local_encoding(value.to_string())
     }
 
+    fn static_storage_owner(name: &str) -> StaticStorageOwner {
+        let site = scoop_identity::SourceDeclarationSite::new(
+            scoop_identity::ConeIdentity::SINGLE_FILE,
+            scoop_identity::PackagePath::root(),
+            scoop_identity::DefinitionOwnerChain::top_level(),
+            scoop_identity::DeclarationScope::ConeWide,
+        )
+        .unwrap();
+        let declaration = scoop_identity::SourceDeclarationKey::property(
+            site,
+            scoop_identity::CanonicalIdentifier::new(name).unwrap(),
+        );
+        let property =
+            scoop_identity::PersistentPropertyId::from_source_declaration(&declaration).unwrap();
+        StaticStorageOwner::PropertyBacking(scoop_identity::PropertyOwner::Property(property))
+    }
+
     fn class(module: &mut Module, display: &str, stem: &str, arguments: Vec<Type>) -> ClassId {
         module.classes.alloc(ClassDef {
             modifier: ClassModifier::Final,
@@ -453,6 +470,7 @@ mod tests {
         module.globals.alloc(Global {
             name: "maximum".to_string(),
             symbol: "scoop.global.maximum".to_string(),
+            storage_owner: static_storage_owner("maximum"),
             ty: Type::Integer(IntegerKind::UNSIGNED_64),
             mutable: false,
             storage: GlobalStorage::Local {

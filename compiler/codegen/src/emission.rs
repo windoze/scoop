@@ -217,6 +217,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
                 ty: lir_ty,
                 initial_state,
                 thread_local,
+                ..
             } => {
                 let ty = basic_ty(
                     context,

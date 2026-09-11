@@ -483,10 +483,19 @@ pub struct Field {
 #[derive(Debug, Clone)]
 pub struct Global {
     pub name: String,
+    /// Persistent property owner and physical storage role retained across
+    /// concretization. MIR/LIR must not reconstruct either from `name`.
+    pub storage_owner: PropertyStorageOwner,
     pub ty: TypeId,
     pub mutable: bool,
     pub storage: GlobalStorage,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropertyStorageOwner {
+    Backing(scoop_identity::PropertyOwner),
+    Delegate(scoop_identity::PropertyOwner),
 }
 
 #[derive(Debug, Clone)]

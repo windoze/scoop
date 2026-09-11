@@ -98,6 +98,9 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
 
     let source = legacy_executable(source, entry);
     let expected_identity = source.initialization_unit_identities[initialization].clone();
+    let expected_singleton_owner = source.nominal_identities[object]
+        .concrete_type_id()
+        .expect("test object has a concrete nominal identity");
     let module = lower(&source);
     let declaration = &module.objects[mir::ObjectId::from_raw(0_u32.into())];
     let singleton = &module.singleton_values[mir::SingletonValueId::from_raw(0_u32.into())];
@@ -119,6 +122,17 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     assert_eq!(
         module.globals[root.global].symbol,
         "scoop.singleton.Registry"
+    );
+    assert_eq!(
+        module.globals[root.global].storage_owner,
+        mir::StaticStorageOwner::SingletonPublishedRoot(expected_singleton_owner)
+    );
+    assert_eq!(
+        module.globals[module.initialization_failure_roots
+            [module.initialization_units[singleton.initialization].failure_root]
+            .global]
+            .storage_owner,
+        mir::StaticStorageOwner::InitializationFailureRoot(expected_identity.id())
     );
     assert!(matches!(
         module.initialization_units[singleton.initialization].kind,

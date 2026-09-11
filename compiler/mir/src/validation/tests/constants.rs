@@ -4,6 +4,7 @@ fn encoded_global(module: &mut Module, ty: Type, payload: MirConstantImage) -> G
     module.globals.alloc(Global {
         name: "constant".to_string(),
         symbol: "scoop.constant".to_string(),
+        storage_owner: test_static_storage_owner("constant"),
         ty,
         mutable: false,
         storage: GlobalStorage::Local {

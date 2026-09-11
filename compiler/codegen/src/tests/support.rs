@@ -95,6 +95,25 @@ pub(super) fn itable(
     .unwrap()
 }
 
+pub(super) fn static_storage_identity(name: &str) -> scoop_lir::StaticStorageIdentity {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::property(
+        site,
+        CanonicalIdentifier::new(&format!("test{name}")).unwrap(),
+    );
+    let property = PersistentPropertyId::from_source_declaration(&declaration).unwrap();
+    scoop_lir::StaticStorageIdentity::property_backing(scoop_identity::PropertyOwner::Property(
+        property,
+    ))
+    .unwrap()
+}
+
 fn test_exact_type(name: &str) -> PersistentExactTypeId {
     let identifier = format!(
         "test{}",

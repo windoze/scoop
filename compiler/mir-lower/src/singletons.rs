@@ -23,6 +23,11 @@ impl Lowerer {
         }
 
         for (source_id, source) in module.singleton_published_roots.iter() {
+            let value = &module.singleton_values[source.value];
+            let owner = module.objects[value.declaration]
+                .origin
+                .concrete_type_id()
+                .expect("a materialized singleton has a concrete nominal identity");
             let ty = {
                 let types = Types {
                     module,
@@ -41,6 +46,7 @@ impl Lowerer {
             let global = self.globals.alloc(mir::Global {
                 name: format!("$singleton${}", source.link_name),
                 symbol: mir::mangle_singleton_root(&source.link_name),
+                storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(owner),
                 ty,
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {

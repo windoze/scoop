@@ -8,11 +8,14 @@ impl Lowerer {
         }
         let throwable_ty =
             mir::Type::Class(self.class_map[&module.exception_core.throwable.class()]);
-        for (source_id, _) in module.initialization_failure_roots.iter() {
+        for (source_id, source) in module.initialization_failure_roots.iter() {
             let raw = source_id.into_raw().into_u32();
             let global = self.globals.alloc(mir::Global {
                 name: format!("$init$failure${raw}"),
                 symbol: format!("scoop.init.failure.{raw}"),
+                storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(
+                    module.initialization_units[source.unit].identity.id(),
+                ),
                 ty: throwable_ty.clone(),
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {
@@ -232,9 +235,18 @@ impl Lowerer {
                     thread_local: *thread_local,
                 },
             };
+            let storage_owner = match global.storage_owner {
+                hir::PropertyStorageOwner::Backing(owner) => {
+                    mir::StaticStorageOwner::PropertyBacking(owner)
+                }
+                hir::PropertyStorageOwner::Delegate(owner) => {
+                    mir::StaticStorageOwner::PropertyDelegate(owner)
+                }
+            };
             let id = self.globals.alloc(mir::Global {
                 name: global.name.clone(),
                 symbol: mir::mangle_global(&global.name),
+                storage_owner,
                 ty,
                 mutable: global.mutable,
                 storage,

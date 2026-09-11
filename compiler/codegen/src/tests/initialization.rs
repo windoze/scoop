@@ -8,6 +8,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
+            identity: static_storage_identity("initStorage"),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -18,6 +19,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
+            identity: static_storage_identity("initFailure"),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -28,6 +30,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
+            identity: static_storage_identity("secondInitStorage"),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -38,6 +41,7 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
+            identity: static_storage_identity("secondInitFailure"),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -108,6 +112,7 @@ fn storage_global_rejects_machine_scalar_type() {
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
+            identity: static_storage_identity("machineGlobal"),
             ty: LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,

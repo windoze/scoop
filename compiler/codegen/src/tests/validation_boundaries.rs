@@ -688,6 +688,28 @@ fn layout_validation_rejects_two_physical_layouts_for_one_identity() {
 }
 
 #[test]
+fn static_storage_validation_rejects_two_globals_for_one_identity() {
+    let mut module = values_module();
+    for symbol in ["scoop.duplicate.storage.1", "scoop.duplicate.storage.2"] {
+        module.globals.alloc(Global {
+            symbol: symbol.to_string(),
+            address_kind: PointerKind::Raw,
+            scan: RefScan::None,
+            init: GlobalInit::Storage {
+                identity: static_storage_identity("duplicateStorage"),
+                ty: LirType::I64,
+                initial_state: LirStaticInitialState::EncodedStaticValue {
+                    payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
+                },
+                thread_local: false,
+            },
+        });
+    }
+
+    assert_module_validation_error(&module, "duplicate static storage identity");
+}
+
+#[test]
 fn safepoint_validation_rejects_a_role_that_disagrees_with_the_instruction() {
     let mut module = managed_poll_test_module();
     let function = &mut module.functions[0];

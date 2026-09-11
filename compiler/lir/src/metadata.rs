@@ -1062,10 +1062,71 @@ pub enum GlobalInit {
     /// A NUL-terminated C string (e.g. trap messages).
     CString(String),
     Storage {
+        /// Persistent semantic identity of this compiler-owned writable
+        /// storage. Native extern globals are represented separately and do
+        /// not fabricate one.
+        identity: StaticStorageIdentity,
         ty: LirType,
         initial_state: LirStaticInitialState,
         thread_local: bool,
     },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StaticStorageIdentity {
+    record: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentStaticStorageId,
+        scoop_identity::StaticStorageKey,
+    >,
+}
+
+impl StaticStorageIdentity {
+    fn new(key: scoop_identity::StaticStorageKey) -> Result<Self, scoop_wire::HashError> {
+        scoop_identity::CborIdentityRecord::from_key(key).map(|record| Self { record })
+    }
+
+    pub fn property_backing(
+        owner: scoop_identity::PropertyOwner,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(scoop_identity::StaticStorageKey::property_backing(owner))
+    }
+
+    pub fn property_delegate(
+        owner: scoop_identity::PropertyOwner,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(scoop_identity::StaticStorageKey::property_delegate(owner))
+    }
+
+    pub fn static_place_for_property(
+        owner: scoop_identity::PropertyOwner,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(scoop_identity::StaticStorageKey::static_place_for_property(
+            owner,
+        ))
+    }
+
+    pub fn singleton_published_root(
+        owner: scoop_identity::PersistentTypeId,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(scoop_identity::StaticStorageKey::singleton_published_root(
+            owner,
+        ))
+    }
+
+    pub fn initialization_failure_root(
+        unit: scoop_identity::PersistentInitializationUnitId,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(scoop_identity::StaticStorageKey::initialization_failure_root(unit))
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentStaticStorageId,
+        scoop_identity::StaticStorageKey,
+    > {
+        &self.record
+    }
 }
 
 #[derive(Debug)]

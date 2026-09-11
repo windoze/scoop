@@ -161,13 +161,41 @@ Module
 fn globals_carry_complete_scans_from_their_concrete_storage_types() {
     let mut module = hello_world();
     let (initial_string, _) = module.strings.iter().next().expect("hello-world string");
+    let backing_owner = property_owner("managedRoot");
     module.globals.alloc(mir::Global {
         name: "managedRoot".to_string(),
         symbol: "scoop.global.managedRoot".to_string(),
+        storage_owner: mir::StaticStorageOwner::PropertyBacking(backing_owner),
         ty: mir::Type::String,
         mutable: true,
         storage: mir::GlobalStorage::Local {
             thread_local: false,
+            initial_state: mir::MirStaticInitialState::EncodedStaticValue {
+                payload: mir::MirConstantImage::String(initial_string),
+            },
+        },
+    });
+    let delegate_owner = property_owner("managedDelegate");
+    module.globals.alloc(mir::Global {
+        name: "managedDelegate".to_string(),
+        symbol: "scoop.global.managedDelegate".to_string(),
+        storage_owner: mir::StaticStorageOwner::PropertyDelegate(delegate_owner),
+        ty: mir::Type::String,
+        mutable: false,
+        storage: mir::GlobalStorage::Managed {
+            initial_state: mir::MirStaticInitialState::EncodedStaticValue {
+                payload: mir::MirConstantImage::String(initial_string),
+            },
+        },
+    });
+    let singleton_owner = persistent_type("TestSingleton");
+    module.globals.alloc(mir::Global {
+        name: "singletonRoot".to_string(),
+        symbol: "scoop.global.singletonRoot".to_string(),
+        storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(singleton_owner),
+        ty: mir::Type::String,
+        mutable: true,
+        storage: mir::GlobalStorage::Managed {
             initial_state: mir::MirStaticInitialState::EncodedStaticValue {
                 payload: mir::MirConstantImage::String(initial_string),
             },
@@ -190,6 +218,30 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
         .find(|global| global.symbol == "scoop.global.managedRoot")
         .expect("managed storage global");
     assert_eq!(managed.scan, lir::RefScan::References(vec![0]));
+    let storage_identity = |symbol: &str| {
+        let global = module
+            .globals
+            .iter()
+            .map(|(_, global)| global)
+            .find(|global| global.symbol == symbol)
+            .unwrap_or_else(|| panic!("missing storage global {symbol}"));
+        let lir::GlobalInit::Storage { identity, .. } = &global.init else {
+            panic!("{symbol} is not a storage global")
+        };
+        identity
+    };
+    assert_eq!(
+        storage_identity("scoop.global.managedRoot"),
+        &lir::StaticStorageIdentity::property_backing(backing_owner).unwrap()
+    );
+    assert_eq!(
+        storage_identity("scoop.global.managedDelegate"),
+        &lir::StaticStorageIdentity::property_delegate(delegate_owner).unwrap()
+    );
+    assert_eq!(
+        storage_identity("scoop.global.singletonRoot"),
+        &lir::StaticStorageIdentity::singleton_published_root(singleton_owner).unwrap()
+    );
     assert!(
         lir::dump(&module).contains("global @scoop.global.managedRoot : ptr<managed> scan=refs[0]")
     );

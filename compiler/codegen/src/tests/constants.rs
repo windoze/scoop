@@ -6,6 +6,7 @@ fn add_encoded_global(module: &mut Module, symbol: &str, ty: LirType, payload: L
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
+            identity: static_storage_identity(symbol),
             ty,
             initial_state: LirStaticInitialState::EncodedStaticValue { payload },
             thread_local: false,

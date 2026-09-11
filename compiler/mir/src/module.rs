@@ -439,9 +439,20 @@ impl ForeignCallbackOperation {
 pub struct Global {
     pub name: String,
     pub symbol: String,
+    /// Semantic owner used by LIR to derive the one persistent static-storage
+    /// identity appropriate for the final physical layout.
+    pub storage_owner: StaticStorageOwner,
     pub ty: Type,
     pub mutable: bool,
     pub storage: GlobalStorage,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StaticStorageOwner {
+    PropertyBacking(scoop_identity::PropertyOwner),
+    PropertyDelegate(scoop_identity::PropertyOwner),
+    SingletonPublishedRoot(scoop_identity::PersistentTypeId),
+    InitializationFailureRoot(scoop_identity::PersistentInitializationUnitId),
 }
 
 #[derive(Debug)]

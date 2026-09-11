@@ -599,9 +599,17 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
         ("noneInt", option_int, int_none),
         ("noneString", option_string, string_none),
     ] {
-        export.globals.alloc(hir::Global {
+        let global = hir::GlobalId::from_raw((export.globals.len() as u32).into());
+        let property = hir::PropertyId::from_raw((export.properties.len() as u32).into());
+        let getter = export.property_getters.alloc(hir::PropertyGetter {
+            access: hir::DeclarationAccess::public(),
+            implementation: hir::PropertyAccessorImplementation::Storage,
+            attributes: hir::FunctionAttributes::default(),
+            span: SPAN,
+        });
+        let actual_global = export.globals.alloc(hir::Global {
             name: name.to_string(),
-            property: hir::PropertyId::from_raw(0.into()),
+            property,
             ty,
             mutable: false,
             storage: hir::GlobalStorage::Managed {
@@ -611,7 +619,38 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             },
             span: SPAN,
         });
+        assert_eq!(actual_global, global);
+        let actual_property = export.properties.alloc(hir::Property {
+            owner: hir::PropertyOwner::TopLevel,
+            name: name.to_string(),
+            access: hir::DeclarationAccess::public(),
+            modifier: hir::MethodModifier::Final,
+            is_override: false,
+            overrides: Vec::new(),
+            override_access: Vec::new(),
+            ty,
+            capability: hir::PropertyCapability::ReadOnly { getter },
+            representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                backing: hir::PropertyBacking::TopLevelGlobal {
+                    storage: global,
+                    initialization: hir::TopLevelInitialization::Image,
+                },
+            }),
+            span: SPAN,
+        });
+        assert_eq!(actual_property, property);
     }
+    export.property_identities = crate::tests::harness_nominals::test_property_identities(
+        &export.properties,
+        &export.extension_properties,
+    );
+    export.property_accessor_identities =
+        crate::tests::harness_nominals::test_property_accessor_identities(
+            &export.properties,
+            &export.property_identities,
+            &export.property_getters,
+            &export.property_setters,
+        );
 
     let export = legacy_executable(export, entry);
     let concrete = scoop_hir_lower::concretize_legacy_export(&export);
@@ -638,9 +677,12 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             concrete.enums[*enum_id].variants[variant.variant().into_raw() as usize].name,
             "None"
         );
-        *variant
+        let hir::concrete::PropertyStorageOwner::Backing(owner) = global.storage_owner else {
+            panic!("stored global keeps its persistent property backing owner")
+        };
+        (*variant, owner)
     });
-    assert_ne!(concrete_refs[0], concrete_refs[1]);
+    assert_ne!(concrete_refs[0].0, concrete_refs[1].0);
 
     let module = crate::lower(&concrete);
     let mir_refs = ["noneInt", "noneString"].map(|name| {
@@ -666,6 +708,17 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
         assert_eq!(variant.definition(&module.enums).unwrap().name, "None");
         *variant
     });
+    for (name, (_, owner)) in ["noneInt", "noneString"].into_iter().zip(concrete_refs) {
+        let global = module
+            .globals
+            .iter()
+            .find_map(|(_, global)| (global.name == name).then_some(global))
+            .expect("MIR global");
+        assert_eq!(
+            global.storage_owner,
+            mir::StaticStorageOwner::PropertyBacking(owner)
+        );
+    }
     assert_ne!(mir_refs[0], mir_refs[1]);
     assert_eq!(
         module.enums[mir_refs[0].enum_id()].type_arguments,
