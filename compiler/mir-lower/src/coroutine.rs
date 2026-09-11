@@ -96,6 +96,13 @@ fn transform_function(
     let source_materialization = coroutine_meta.source;
     let source_odr_group = coroutine_meta.source_odr_group;
     let source_return = coroutine_meta.source_return.clone();
+    let source_signature = lowerer
+        .source_callables
+        .get(function_id)
+        .expect("a coroutine source has one callable materialization")
+        .signature_record()
+        .signature()
+        .clone();
     let step_ty = lowerer.functions[function_id].return_ty.clone();
     let (source_name, source_symbol, old_params, mut body) = {
         let function = &mut lowerer.functions[function_id];
@@ -287,9 +294,12 @@ fn transform_function(
         body: mir::Body::unreachable(Arena::new()),
     });
     lowerer.top_level.push(driver);
-    let driver_identity =
-        mir::CoroutineDriverIdentity::new(source_materialization, source_odr_group)
-            .expect("a coroutine source has one persistent driver identity");
+    let driver_identity = mir::CoroutineDriverIdentity::new(
+        source_materialization,
+        source_odr_group,
+        source_signature,
+    )
+    .expect("a coroutine source has one persistent driver identity");
     let frame_local = body.locals.alloc(mir::Local {
         name: "$frame".to_string(),
         ty: mir::Type::Class(frame_class),

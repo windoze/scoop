@@ -514,15 +514,25 @@ fn validate_coroutine_function(
     let Some(driver_function) = arena_get(&module.functions, *driver) else {
         return Err(error(location, "state machine refers to an unknown driver"));
     };
-    let rebuilt_identity =
-        CoroutineDriverIdentity::new(coroutine.source, coroutine.source_odr_group).map_err(
-            |_| {
-                error(
-                    location,
-                    "coroutine source cannot form its canonical driver identity",
-                )
-            },
-        )?;
+    let source_signature = module
+        .meta
+        .source_callable_materializations
+        .get(coroutine.function)
+        .expect("the coroutine source materialization was validated")
+        .signature_record()
+        .signature()
+        .clone();
+    let rebuilt_identity = CoroutineDriverIdentity::new(
+        coroutine.source,
+        coroutine.source_odr_group,
+        source_signature,
+    )
+    .map_err(|_| {
+        error(
+            location,
+            "coroutine source cannot form its canonical driver identity",
+        )
+    })?;
     if &rebuilt_identity != driver_identity.as_ref() {
         return Err(error(
             location,

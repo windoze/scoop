@@ -231,6 +231,21 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         generated.identity_record(),
         driver_identity.callable_record()
     );
+    let source_signature = module
+        .meta
+        .source_callable_materializations
+        .get(caller.function)
+        .expect("the coroutine source retains its callable signature")
+        .signature_record();
+    assert_eq!(
+        driver_identity.signature_record().signature(),
+        source_signature.signature()
+    );
+    assert!(matches!(
+        driver_identity.signature_record().subject(),
+        mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(id))
+            if id == driver_identity.callable_record().id()
+    ));
     let shells = module
         .meta
         .continuation_shells

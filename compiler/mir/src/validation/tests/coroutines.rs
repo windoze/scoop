@@ -87,19 +87,15 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         body: Body::unreachable(wrapper_locals),
     });
     let source = test_source_materialization();
+    let source_signature = scoop_identity::ExactCallableSignature::new(
+        scoop_identity::Effect::Suspend,
+        None,
+        Vec::new(),
+        test_exact_type(&result).id(),
+    );
     module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
-        SourceCallableMaterialization::new(
-            wrapper,
-            source,
-            scoop_identity::ExactCallableSignature::new(
-                scoop_identity::Effect::Suspend,
-                None,
-                Vec::new(),
-                test_exact_type(&result).id(),
-            ),
-            None,
-        )
-        .unwrap(),
+        SourceCallableMaterialization::new(wrapper, source, source_signature.clone(), None)
+            .unwrap(),
     ])
     .unwrap();
     let coroutine = module.meta.coroutine_functions.alloc(CoroutineFunction {
@@ -370,7 +366,9 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     module.meta.coroutine_functions[coroutine].lowering = CoroutineLowering::StateMachine {
         frame,
         driver,
-        driver_identity: Box::new(CoroutineDriverIdentity::new(source, None).unwrap()),
+        driver_identity: Box::new(
+            CoroutineDriverIdentity::new(source, None, source_signature).unwrap(),
+        ),
         resume_points: vec![point],
     };
     install_generated_exact_types(&mut module);
@@ -595,10 +593,53 @@ fn driver_identity_must_name_the_exact_coroutine_source() {
     else {
         unreachable!()
     };
-    *driver_identity = Box::new(
-        CoroutineDriverIdentity::new(test_source_materialization_named("otherSource"), None)
-            .unwrap(),
-    );
+    let signature = driver_identity.signature_record().signature().clone();
+    **driver_identity = CoroutineDriverIdentity::new(
+        test_source_materialization_named("otherSource"),
+        None,
+        signature,
+    )
+    .unwrap();
+
+    assert!(matches!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            kind: MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "coroutine driver identity does not match its exact source materialization"
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn driver_identity_must_retain_the_source_logical_signature() {
+    let mut fixture = coroutine_fixture(false);
+    let (_, coroutine) = fixture
+        .module
+        .meta
+        .coroutine_functions
+        .iter_mut()
+        .next()
+        .unwrap();
+    let CoroutineLowering::StateMachine {
+        driver_identity, ..
+    } = &mut coroutine.lowering
+    else {
+        unreachable!()
+    };
+    let source_signature = driver_identity.signature_record().signature();
+    **driver_identity = CoroutineDriverIdentity::new(
+        coroutine.source,
+        coroutine.source_odr_group,
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Suspend,
+            source_signature.receiver().into_option(),
+            vec![source_signature.result()],
+            source_signature.result(),
+        ),
+    )
+    .unwrap();
 
     assert!(matches!(
         fixture.module.validate(),

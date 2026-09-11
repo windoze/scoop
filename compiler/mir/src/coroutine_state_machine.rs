@@ -3,14 +3,16 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
-    CborIdentityRecord, FieldIdentityError, FieldIdentityKey, GeneratedCallableIdentityError,
-    GeneratedCallableKey, GeneratedNominalIdentityError, GeneratedNominalKey, LocalValueKey,
-    OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
-    OdrMemberRole, PersistentFieldId, PersistentGeneratedCallableId, PersistentLocalValueId,
-    PersistentTypeId,
+    CallableMaterialization, CallableMaterializationContext, CallableOdrMemberId, CallableOwner,
+    CallableTemplateOwner, CborIdentityRecord, Effect, ExactCallableSignature, FieldIdentityError,
+    FieldIdentityKey, GeneratedCallableIdentityError, GeneratedCallableKey,
+    GeneratedNominalIdentityError, GeneratedNominalKey, LocalValueKey, OdrGroupId,
+    OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole,
+    PersistentFieldId, PersistentGeneratedCallableId, PersistentLocalValueId, PersistentTypeId,
 };
 use scoop_wire::HashError;
+
+use crate::{CallableSignatureRecord, CallableSignatureSubject};
 
 type GeneratedCallableRecord =
     CborIdentityRecord<PersistentGeneratedCallableId, GeneratedCallableKey>;
@@ -26,13 +28,18 @@ pub struct CoroutineDriverIdentity {
     source: CallableMaterialization,
     callable: GeneratedCallableRecord,
     odr_member: Option<OdrMemberRecord>,
+    signature: CallableSignatureRecord,
 }
 
 impl CoroutineDriverIdentity {
     pub fn new(
         source: CallableMaterialization,
         odr_group: Option<OdrGroupId>,
+        signature: ExactCallableSignature,
     ) -> Result<Self, CoroutineDriverIdentityError> {
+        if signature.effect() != Effect::Suspend {
+            return Err(CoroutineDriverIdentityError::ExpectedSuspendSignature);
+        }
         if source.context() != CallableMaterializationContext::NoSubstitution && odr_group.is_none()
         {
             return Err(CoroutineDriverIdentityError::MissingOdrGroup);
@@ -53,10 +60,18 @@ impl CoroutineDriverIdentity {
                     .map_err(CoroutineDriverIdentityError::OdrMemberRecord)
             })
             .transpose()?;
+        let subject = match &odr_member {
+            Some(member) => CallableSignatureSubject::odr(
+                CallableOdrMemberId::from_key(member.key())
+                    .map_err(CoroutineDriverIdentityError::OdrMember)?,
+            ),
+            None => CallableSignatureSubject::strong(CallableOwner::Generated(callable.id())),
+        };
         Ok(Self {
             source,
             callable,
             odr_member,
+            signature: CallableSignatureRecord::new(subject, signature),
         })
     }
 
@@ -72,6 +87,10 @@ impl CoroutineDriverIdentity {
         self.odr_member.as_ref()
     }
 
+    pub const fn signature_record(&self) -> &CallableSignatureRecord {
+        &self.signature
+    }
+
     pub const fn materialization(&self) -> CallableMaterialization {
         CallableMaterialization::new(
             CallableTemplateOwner::Generated(self.callable.id()),
@@ -82,6 +101,7 @@ impl CoroutineDriverIdentity {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CoroutineDriverIdentityError {
+    ExpectedSuspendSignature,
     MissingOdrGroup,
     GeneratedCallable(GeneratedCallableIdentityError),
     OdrMember(OdrMemberIdentityError),
@@ -91,6 +111,9 @@ pub enum CoroutineDriverIdentityError {
 impl fmt::Display for CoroutineDriverIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ExpectedSuspendSignature => {
+                formatter.write_str("a coroutine driver requires a suspend logical signature")
+            }
             Self::MissingOdrGroup => formatter
                 .write_str("a specialized coroutine source requires an ODR group for its driver"),
             Self::GeneratedCallable(error) => error.fmt(formatter),
@@ -279,8 +302,9 @@ impl std::error::Error for CoroutineFrameIdentityError {}
 mod tests {
     use scoop_identity::{
         CallableApplicationKey, CallableInstantiationOwner, CanonicalIdentifier, ConeIdentity,
-        DeclarationScope, DefinitionOwnerChain, LocalValueSelector, PackagePath,
-        PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite, SpecializationKey,
+        CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
+        LocalValueSelector, PackagePath, PersistentFunctionId, SourceDeclarationKey,
+        SourceDeclarationSite, SpecializationKey,
     };
 
     use super::*;
@@ -311,13 +335,23 @@ mod tests {
         .unwrap()
     }
 
+    fn suspend_signature() -> ExactCallableSignature {
+        let unit = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap()
+        .id();
+        ExactCallableSignature::new(Effect::Suspend, None, Vec::new(), unit)
+    }
+
     #[test]
     fn parameter_free_source_has_one_strong_driver() {
         let source = CallableMaterialization::new(
             CallableTemplateOwner::Function(source_function()),
             CallableMaterializationContext::NoSubstitution,
         );
-        let identity = CoroutineDriverIdentity::new(source, None).unwrap();
+        let signature = suspend_signature();
+        let identity = CoroutineDriverIdentity::new(source, None, signature.clone()).unwrap();
 
         assert_eq!(
             identity.callable_record().key(),
@@ -326,6 +360,12 @@ mod tests {
             }
         );
         assert_eq!(identity.odr_member_record(), None);
+        assert_eq!(identity.signature_record().signature(), &signature);
+        assert!(matches!(
+            identity.signature_record().subject(),
+            CallableSignatureSubject::Strong(CallableOwner::Generated(id))
+                if id == identity.callable_record().id()
+        ));
     }
 
     #[test]
@@ -346,7 +386,8 @@ mod tests {
             CallableTemplateOwner::Function(source_function()),
             CallableMaterializationContext::Application(application),
         );
-        let identity = CoroutineDriverIdentity::new(source, Some(group)).unwrap();
+        let identity =
+            CoroutineDriverIdentity::new(source, Some(group), suspend_signature()).unwrap();
         let member = identity.odr_member_record().unwrap();
 
         assert_eq!(member.key().group(), group);
@@ -355,6 +396,10 @@ mod tests {
             member.key().discriminator(),
             &OdrMemberDiscriminator::GeneratedCallable(identity.callable_record().id())
         );
+        assert!(matches!(
+            identity.signature_record().subject(),
+            CallableSignatureSubject::Odr(subject) if subject.member() == member.id()
+        ));
     }
 
     #[test]
@@ -371,8 +416,26 @@ mod tests {
         );
 
         assert_eq!(
-            CoroutineDriverIdentity::new(source, None),
+            CoroutineDriverIdentity::new(source, None, suspend_signature()),
             Err(CoroutineDriverIdentityError::MissingOdrGroup)
+        );
+    }
+
+    #[test]
+    fn driver_rejects_an_ordinary_logical_signature() {
+        let source = CallableMaterialization::new(
+            CallableTemplateOwner::Function(source_function()),
+            CallableMaterializationContext::NoSubstitution,
+        );
+        let result = suspend_signature().result();
+
+        assert_eq!(
+            CoroutineDriverIdentity::new(
+                source,
+                None,
+                ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), result),
+            ),
+            Err(CoroutineDriverIdentityError::ExpectedSuspendSignature)
         );
     }
 

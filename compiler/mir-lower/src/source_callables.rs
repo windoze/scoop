@@ -135,6 +135,15 @@ impl SourceCallableRegistry {
         types
     }
 
+    pub(super) fn get(
+        &self,
+        function: mir::FunctionId,
+    ) -> Option<&mir::SourceCallableMaterialization> {
+        self.entries
+            .iter()
+            .find(|entry| entry.function() == function)
+    }
+
     pub(super) fn finish(self) -> mir::SourceCallableMaterializations {
         mir::SourceCallableMaterializations::checked(self.entries)
             .expect("MIR lowering records every source callable exactly once")
