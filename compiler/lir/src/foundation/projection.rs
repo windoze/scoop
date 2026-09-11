@@ -55,18 +55,7 @@ impl CanonicalLirFoundation {
                 })
                 .collect(),
         )?;
-        foundation.set_static_storages(
-            module
-                .globals
-                .iter()
-                .filter_map(|(_, global)| match &global.init {
-                    crate::GlobalInit::Storage { identity, .. } => {
-                        Some(identity.identity_record().clone())
-                    }
-                    crate::GlobalInit::StringConst(_) | crate::GlobalInit::CString(_) => None,
-                })
-                .collect(),
-        )?;
+        foundation.project_global_identities(&module.globals)?;
         foundation.set_runtime_types(
             module
                 .meta
@@ -76,6 +65,34 @@ impl CanonicalLirFoundation {
                 .collect(),
         )?;
         Ok(foundation)
+    }
+
+    fn project_global_identities(
+        &mut self,
+        globals: &la_arena::Arena<crate::Global>,
+    ) -> Result<(), LirFoundationBuildError> {
+        self.set_static_storages(
+            globals
+                .iter()
+                .filter_map(|(_, global)| match &global.init {
+                    crate::GlobalInit::Storage { identity, .. } => {
+                        Some(identity.identity_record().clone())
+                    }
+                    crate::GlobalInit::StringConst { .. } | crate::GlobalInit::CString(_) => None,
+                })
+                .collect(),
+        )?;
+        self.set_immortal_objects(
+            globals
+                .iter()
+                .filter_map(|(_, global)| match &global.init {
+                    crate::GlobalInit::StringConst { identity, .. } => {
+                        Some(identity.identity_record().clone())
+                    }
+                    crate::GlobalInit::CString(_) | crate::GlobalInit::Storage { .. } => None,
+                })
+                .collect(),
+        )
     }
 
     fn from_functions(functions: &[Function]) -> Result<Self, LirFoundationBuildError> {
@@ -116,14 +133,18 @@ impl CanonicalLirFoundation {
 mod tests {
     use la_arena::Arena;
     use scoop_identity::{
-        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, PackagePath,
-        PersistentFunctionId, SafepointSiteRole, SourceDeclarationKey, SourceDeclarationSite,
+        CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
+        ImmortalObjectKey, ImmortalObjectOwner, PackagePath, PersistentFunctionId,
+        SafepointSiteRole, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+        StructuralDefinitionSiteRole, StructuralPathSegment,
     };
 
     use super::*;
     use crate::{
         AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention, GcEffect,
-        SafepointIdentities, SafepointIdentity, SafepointSiteRef, ScoopAbiSignature, Terminator,
+        Global, GlobalInit, ImmortalObjectIdentity, PointerKind, RefScan, SafepointIdentities,
+        SafepointIdentity, SafepointSiteRef, ScoopAbiSignature, Terminator,
     };
 
     #[test]
@@ -203,6 +224,40 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn projects_immortal_string_object_identities_from_globals() {
+        let owner = ImmortalObjectOwner::Callable(CallableMaterialization::new(
+            CallableTemplateOwner::Function(function_id("stringOwner")),
+            CallableMaterializationContext::NoSubstitution,
+        ));
+        let key = ImmortalObjectKey::string_constant(
+            owner,
+            StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::StringConstant, 0),
+                [],
+            ),
+        );
+        let identity = ImmortalObjectIdentity::from_key(key.clone()).unwrap();
+        let expected = identity.identity_record().clone();
+        let mut globals = Arena::new();
+        globals.alloc(Global {
+            symbol: "scoop.str.0".to_string(),
+            address_kind: PointerKind::Managed,
+            scan: RefScan::None,
+            init: GlobalInit::StringConst {
+                identity: identity.clone(),
+                value: "text".to_string(),
+            },
+        });
+
+        let mut foundation = CanonicalLirFoundation::empty();
+        foundation.project_global_identities(&globals).unwrap();
+
+        assert_eq!(foundation.immortal_objects, vec![expected]);
+        assert!(foundation.static_storages.is_empty());
+        assert_eq!(foundation.immortal_objects[0].key(), &key);
+    }
+
     fn function(callable_body: CallableBodyIdentity, safepoints: SafepointIdentities) -> Function {
         let mut blocks = Arena::new();
         let entry = blocks.alloc(BasicBlock {
@@ -229,6 +284,10 @@ mod tests {
     }
 
     fn callable_body(name: &str) -> CallableBodyIdentity {
+        CallableBodyIdentity::for_function(function_id(name)).unwrap()
+    }
+
+    fn function_id(name: &str) -> PersistentFunctionId {
         let site = SourceDeclarationSite::new(
             ConeIdentity::SINGLE_FILE,
             PackagePath::root(),
@@ -243,7 +302,6 @@ mod tests {
             None,
             Vec::new(),
         );
-        let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
-        CallableBodyIdentity::for_function(function).unwrap()
+        PersistentFunctionId::from_source_declaration(&declaration).unwrap()
     }
 }

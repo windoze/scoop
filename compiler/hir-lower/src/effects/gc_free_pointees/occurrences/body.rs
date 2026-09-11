@@ -356,7 +356,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
 
     use hir::ExprKind;
     match &expression.kind {
-        ExprKind::StringLiteral(_)
+        ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral

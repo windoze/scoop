@@ -312,7 +312,7 @@ fn patch_local_function_call_expr(
             }
             patch_local_function_call_expr(value, target, target_captures);
         }
-        hir::ExprKind::StringLiteral(_)
+        hir::ExprKind::StringLiteral { .. }
         | hir::ExprKind::IntegerLiteral(_)
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral

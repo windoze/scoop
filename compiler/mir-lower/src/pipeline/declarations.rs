@@ -202,6 +202,10 @@ impl Lowerer {
                 &mut self.interfaces,
                 &mut self.shell,
             );
+            let property_owner = match global.storage_owner {
+                hir::PropertyStorageOwner::Backing(owner)
+                | hir::PropertyStorageOwner::Delegate(owner) => owner,
+            };
             let storage = match &global.storage {
                 hir::GlobalStorage::Managed { state } => mir::GlobalStorage::Managed {
                     initial_state: lower_managed_static_state(
@@ -210,6 +214,7 @@ impl Lowerer {
                         &self.structs.defs,
                         &self.enums,
                         &mut self.strings,
+                        property_owner,
                     ),
                 },
                 hir::GlobalStorage::Local {
@@ -223,6 +228,7 @@ impl Lowerer {
                         &self.structs.defs,
                         &self.enums,
                         &mut self.strings,
+                        property_owner,
                     ),
                 },
                 hir::GlobalStorage::Extern {

@@ -25,6 +25,8 @@ pub use runtime_types::MirRuntimeTypeLocation;
 use runtime_types::validate_runtime_type_metadata;
 mod generated_callables;
 use generated_callables::validate_generated_callable_metadata;
+mod immortal_objects;
+use immortal_objects::validate_immortal_objects;
 
 mod callable_functions;
 use callable_functions::validate_callable_functions;
@@ -71,6 +73,9 @@ pub enum MirValidationErrorKind {
     },
     InvalidGeneratedCallable {
         reason: &'static str,
+    },
+    DuplicateImmortalObjectIdentity {
+        previous: StringConstId,
     },
     InvalidCallableFunction {
         reason: &'static str,
@@ -214,6 +219,9 @@ pub enum MirValidationLocation {
     GeneratedCallable {
         entry: u32,
     },
+    StringConstant {
+        string: StringConstId,
+    },
     CallableFunction {
         function: FunctionId,
     },
@@ -323,6 +331,11 @@ impl std::fmt::Display for MirValidationError {
             MirValidationLocation::GeneratedCallable { entry } => write!(
                 formatter,
                 "invalid MIR generated callable metadata {entry}: "
+            )?,
+            MirValidationLocation::StringConstant { string } => write!(
+                formatter,
+                "invalid MIR string constant {}: ",
+                string.into_raw().into_u32()
             )?,
             MirValidationLocation::CallableFunction { function } => write!(
                 formatter,
@@ -442,6 +455,11 @@ impl std::fmt::Display for MirValidationError {
             MirValidationErrorKind::InvalidGeneratedCallable { reason } => {
                 formatter.write_str(reason)
             }
+            MirValidationErrorKind::DuplicateImmortalObjectIdentity { previous } => write!(
+                formatter,
+                "duplicates the immortal-object identity of string constant {}",
+                previous.into_raw().into_u32()
+            ),
             MirValidationErrorKind::InvalidCallableFunction { reason } => {
                 formatter.write_str(reason)
             }
@@ -663,6 +681,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_generated_exact_type_metadata(module)?;
     validate_runtime_type_metadata(module)?;
     validate_generated_callable_metadata(module)?;
+    validate_immortal_objects(module)?;
     validate_callable_functions(module)?;
     validate_callable_signature_metadata(module)?;
     validate_constant_images(module)?;

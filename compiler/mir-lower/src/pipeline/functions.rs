@@ -7,6 +7,7 @@ impl Lowerer {
         module: &hir::Module,
         hir_id: hir::FunctionId,
         mir_id: mir::FunctionId,
+        string_owner: mir::ImmortalObjectOwner,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
         let function = &module.functions[hir_id];
         let hir::FunctionKind::User(body) = &function.kind else {
@@ -32,6 +33,8 @@ impl Lowerer {
             local_values: &mut self.local_values,
             current_function: mir_id,
             current_materialization: function.materialization,
+            current_string_owner: string_owner,
+            next_string_ordinal: 0,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,

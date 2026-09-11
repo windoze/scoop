@@ -494,6 +494,19 @@ fn test_source_materialization_named(name: &str) -> scoop_identity::CallableMate
     )
 }
 
+fn test_string_identity(owner: &str, ordinal: u32) -> scoop_identity::ImmortalObjectKey {
+    scoop_identity::ImmortalObjectKey::string_constant(
+        scoop_identity::ImmortalObjectOwner::Callable(test_source_materialization_named(owner)),
+        scoop_identity::StructuralDefinitionPath::from_first(
+            scoop_identity::StructuralPathSegment::new(
+                scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                ordinal,
+            ),
+            [],
+        ),
+    )
+}
+
 fn test_local_value(
     owner: scoop_identity::CallableMaterialization,
     declaration_index: u32,
@@ -744,6 +757,30 @@ fn loop_header_poll_target_may_be_detached_and_noncyclic() {
         vec![LoopHeaderPollTarget::new(detached)];
 
     assert_eq!(module.validate(), Ok(()));
+}
+
+#[test]
+fn string_constants_must_have_unique_immortal_object_identities() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    let identity = test_string_identity("stringOwner", 0);
+    let first = module.strings.alloc(StringConst {
+        identity: identity.clone(),
+        value: "same".to_string(),
+        symbol: "scoop.str.0".to_string(),
+    });
+    let duplicate = module.strings.alloc(StringConst {
+        identity,
+        value: "same".to_string(),
+        symbol: "scoop.str.1".to_string(),
+    });
+
+    assert_eq!(
+        module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::StringConstant { string: duplicate },
+            kind: MirValidationErrorKind::DuplicateImmortalObjectIdentity { previous: first },
+        })
+    );
 }
 
 #[test]

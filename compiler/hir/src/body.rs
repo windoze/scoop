@@ -219,7 +219,10 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
-    StringLiteral(String),
+    StringLiteral {
+        value: String,
+        owner: StringConstantOwner<PropertyId>,
+    },
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     UnitLiteral,
@@ -451,6 +454,18 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+/// Semantic owner selected before a string constant reaches MIR.
+///
+/// Ordinary expression literals are completed with the concrete callable (or
+/// initialization unit) that materializes their body. A folded property
+/// constant instead retains the property declaration that owns its one
+/// canonical immutable object, independent of how many use sites inline it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StringConstantOwner<P> {
+    CurrentDefinition,
+    Property(P),
 }
 
 #[derive(Debug, Clone)]

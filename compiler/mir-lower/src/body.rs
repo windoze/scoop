@@ -16,6 +16,8 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) local_values: &'a mut LocalValueRegistry,
     pub(super) current_function: mir::FunctionId,
     pub(super) current_materialization: hir::CallableMaterialization,
+    pub(super) current_string_owner: mir::ImmortalObjectOwner,
+    pub(super) next_string_ordinal: u32,
     pub(super) struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     pub(super) class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     pub(super) interfaces: &'a mut InterfaceRegistry,
@@ -44,7 +46,7 @@ pub(super) struct BodyLowerer<'a> {
     /// Local-concrete constructor callable -> MIR function.
     pub(super) ctors: &'a HashMap<hir::ClassConstructorId, mir::FunctionId>,
     pub(super) struct_ctors: &'a HashMap<hir::StructConstructorId, mir::FunctionId>,
-    pub(super) strings: &'a mut Arena<mir::StringConst>,
+    pub(super) strings: &'a mut StringRegistry,
     pub(super) functions: &'a mut Arena<mir::Function>,
     pub(super) top_level: &'a mut Vec<mir::FunctionId>,
     pub(super) instances: &'a mut InstanceRegistry,
@@ -102,6 +104,18 @@ pub(super) struct BodyLowerer<'a> {
     /// declared `suspend`: a suspend declaration with no suspend call needs no
     /// coroutine-specific EH materialization.
     pub(super) contains_suspend_call: bool,
+}
+
+impl BodyLowerer<'_> {
+    pub(super) fn intern_current_string(&mut self, value: String) -> mir::StringConstId {
+        let ordinal = self.next_string_ordinal;
+        self.next_string_ordinal = self
+            .next_string_ordinal
+            .checked_add(1)
+            .expect("one string-constant owner has at most u32::MAX direct children");
+        self.strings
+            .intern(self.current_string_owner, ordinal, value)
+    }
 }
 
 /// A step from a pattern subject down to a nested field.

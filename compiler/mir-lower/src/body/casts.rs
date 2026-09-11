@@ -238,13 +238,8 @@ impl BodyLowerer<'_> {
         smir::Expr::local(result, option_ty)
     }
 
-    /// A trap message string constant (`scoop.str.N`, numbered in
-    /// order of appearance like the literal constants).
+    /// A trap message string constant owned by the body that emits it.
     pub(super) fn trap_message(&mut self, message: String) -> mir::StringConstId {
-        let symbol = format!("scoop.str.{}", self.strings.len());
-        self.strings.alloc(mir::StringConst {
-            value: message,
-            symbol,
-        })
+        self.intern_current_string(message)
     }
 }

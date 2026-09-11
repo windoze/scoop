@@ -26,7 +26,7 @@ pub use super::{
     IntegerTypeCore, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId,
     IntrinsicTypeDeclaration, IntrinsicTypeKind, MethodModifier, NoGcIntegerOperation,
     NominalLinkStem, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind, Safety,
-    StructAttributes, UnOp,
+    StringConstantOwner, StructAttributes, UnOp,
 };
 
 mod types;

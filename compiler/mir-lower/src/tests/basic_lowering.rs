@@ -1,8 +1,31 @@
 use super::*;
 
+fn string_identity(
+    owner: scoop_identity::CallableMaterialization,
+    ordinal: u32,
+) -> mir::ImmortalObjectKey {
+    mir::ImmortalObjectKey::string_constant(
+        mir::ImmortalObjectOwner::Callable(owner),
+        mir::StructuralDefinitionPath::from_first(
+            mir::StructuralPathSegment::new(
+                mir::StructuralDefinitionSiteRole::StringConstant,
+                ordinal,
+            ),
+            [],
+        ),
+    )
+}
+
 #[test]
 fn lowers_hello_world() {
-    let module = lower(&hello_world());
+    let source = hello_world();
+    let concrete = scoop_hir_lower::concretize_legacy_export(&source);
+    let expected_string_identities = [
+        string_identity(concrete.functions[concrete.top_level[1]].materialization, 0),
+        string_identity(concrete.functions[concrete.top_level[2]].materialization, 0),
+        string_identity(concrete.functions[concrete.entry()].materialization, 0),
+    ];
+    let module = lower(&source);
 
     // Intrinsics are excluded from `top_level`; declaration order
     // kept: the two core overloads the test uses, then the user
@@ -33,6 +56,14 @@ fn lowers_hello_world() {
             ("!", "scoop.str.1"),
             ("hello, world", "scoop.str.2")
         ]
+    );
+    assert_eq!(
+        module
+            .strings
+            .iter()
+            .map(|(_, string)| &string.identity)
+            .collect::<Vec<_>>(),
+        expected_string_identities.iter().collect::<Vec<_>>()
     );
 
     // M2 meta exists but is empty.
@@ -97,7 +128,10 @@ fn repeated_literals_get_separate_constants_deterministically() {
             kind: hir::ExprKind::Call {
                 callee: hir::Callable::Function(println),
                 args: vec![hir::Expr {
-                    kind: hir::ExprKind::StringLiteral("hello, world".to_string()),
+                    kind: hir::ExprKind::StringLiteral {
+                        value: "hello, world".to_string(),
+                        owner: hir::StringConstantOwner::CurrentDefinition,
+                    },
                     ty: string,
                     span: SPAN,
                     origin: expression_origin(),

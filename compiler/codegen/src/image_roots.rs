@@ -46,7 +46,7 @@ pub(super) fn emit<'ctx>(
             ))
         })?;
         match &source.init {
-            GlobalInit::StringConst(_) => {
+            GlobalInit::StringConst { .. } => {
                 require_global_shape(source, PointerKind::Managed, true)?;
                 let object_size = target_data.get_store_size(&emitted.get_value_type());
                 immortal.push(

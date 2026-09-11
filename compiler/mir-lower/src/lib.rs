@@ -119,6 +119,7 @@ mod nominals;
 mod pipeline;
 mod singletons;
 mod source_callables;
+mod strings;
 mod structured;
 mod symbols;
 mod types;
@@ -127,6 +128,7 @@ use globals::*;
 use local_values::*;
 use lowering_support::*;
 use source_callables::*;
+use strings::StringRegistry;
 use symbols::*;
 
 use coroutine_registry::{CoroutineRegistry, SuspendSource};
@@ -164,7 +166,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         foreign_callback_bridges: Arena::new(),
         foreign_callback_by_application: HashMap::new(),
         top_level: Vec::new(),
-        strings: Arena::new(),
+        strings: StringRegistry::default(),
         structs: StructRegistry::default(),
         struct_map: HashMap::new(),
         classes: Arena::new(),
@@ -230,7 +232,7 @@ struct Lowerer {
         HashMap<hir::PersistentCallbackApplicationId, mir::ForeignCallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
-    strings: Arena<mir::StringConst>,
+    strings: StringRegistry,
     /// MIR struct definitions transposed from local-concrete HIR.
     structs: StructRegistry,
     /// Local-concrete HIR struct -> MIR struct.

@@ -1444,6 +1444,8 @@ pub struct DispatchTable {
 
 #[derive(Debug)]
 pub struct StringConst {
+    /// Canonical, arena-independent identity seed for this immutable object.
+    pub identity: ImmortalObjectKey,
     pub value: String,
     /// Mangled global symbol, e.g. `scoop.str.0`.
     pub symbol: String,

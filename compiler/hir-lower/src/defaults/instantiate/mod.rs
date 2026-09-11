@@ -422,7 +422,10 @@ impl Lowerer {
             return value;
         }
         let kind = match &source.kind {
-            hir::ExprKind::StringLiteral(value) => hir::ExprKind::StringLiteral(value.clone()),
+            hir::ExprKind::StringLiteral { value, owner } => hir::ExprKind::StringLiteral {
+                value: value.clone(),
+                owner: *owner,
+            },
             hir::ExprKind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral(*value),
             hir::ExprKind::BoolLiteral(value) => hir::ExprKind::BoolLiteral(*value),
             hir::ExprKind::UnitLiteral => hir::ExprKind::UnitLiteral,

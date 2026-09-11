@@ -61,6 +61,14 @@ fn lowers_hello_world() {
             )
         })
         .collect::<Vec<_>>();
+    let expected_immortal_objects = source
+        .strings
+        .iter()
+        .map(|(_, string)| {
+            CborIdentityRecord::from_key(string.identity.clone())
+                .expect("MIR string identity has canonical CBOR")
+        })
+        .collect::<Vec<_>>();
     let module = lower(&source);
 
     // Globals: one per MIR string constant, same symbol and value.
@@ -68,7 +76,7 @@ fn lowers_hello_world() {
         .globals
         .iter()
         .map(|(_, g)| match &g.init {
-            lir::GlobalInit::StringConst(value) => (g.symbol.as_str(), value.as_str()),
+            lir::GlobalInit::StringConst { value, .. } => (g.symbol.as_str(), value.as_str()),
             lir::GlobalInit::CString(value) => (g.symbol.as_str(), value.as_str()),
             lir::GlobalInit::Storage { .. } => unreachable!("hello has no storage globals"),
         })
@@ -76,6 +84,18 @@ fn lowers_hello_world() {
     assert_eq!(
         globals,
         [("scoop.str.0", "hello, world"), ("scoop.str.1", "!")]
+    );
+    let immortal_objects = module
+        .globals
+        .iter()
+        .filter_map(|(_, global)| match &global.init {
+            lir::GlobalInit::StringConst { identity, .. } => Some(identity.identity_record()),
+            lir::GlobalInit::CString(_) | lir::GlobalInit::Storage { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        immortal_objects,
+        expected_immortal_objects.iter().collect::<Vec<_>>()
     );
 
     // Functions keep their mangled symbols; the entry symbol is the
@@ -207,7 +227,7 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
         .globals
         .iter()
         .map(|(_, global)| global)
-        .find(|global| matches!(global.init, lir::GlobalInit::StringConst(_)))
+        .find(|global| matches!(global.init, lir::GlobalInit::StringConst { .. }))
         .expect("string constant");
     assert_eq!(string_constant.scan, lir::RefScan::None);
 

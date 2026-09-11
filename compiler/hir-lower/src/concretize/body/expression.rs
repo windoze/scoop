@@ -13,9 +13,19 @@ impl Concretizer<'_> {
             return location;
         }
         let kind = match &source.kind {
-            export::ExprKind::StringLiteral(value) => {
-                concrete::ExprKind::StringLiteral(value.clone())
-            }
+            export::ExprKind::StringLiteral { value, owner } => concrete::ExprKind::StringLiteral {
+                value: value.clone(),
+                owner: match *owner {
+                    export::StringConstantOwner::CurrentDefinition => {
+                        export::StringConstantOwner::CurrentDefinition
+                    }
+                    export::StringConstantOwner::Property(property) => {
+                        export::StringConstantOwner::Property(
+                            self.source.property_identities[property].property_owner(),
+                        )
+                    }
+                },
+            },
             export::ExprKind::IntegerLiteral(value) => concrete::ExprKind::IntegerLiteral(*value),
             export::ExprKind::BoolLiteral(value) => concrete::ExprKind::BoolLiteral(*value),
             export::ExprKind::UnitLiteral => concrete::ExprKind::UnitLiteral,
@@ -616,7 +626,13 @@ impl Concretizer<'_> {
             kind: concrete::ExprKind::StructInit {
                 struct_id: location,
                 args: vec![
-                    literal(concrete::ExprKind::StringLiteral(file_name), string_type),
+                    literal(
+                        concrete::ExprKind::StringLiteral {
+                            value: file_name,
+                            owner: export::StringConstantOwner::CurrentDefinition,
+                        },
+                        string_type,
+                    ),
                     literal(
                         concrete::ExprKind::IntegerLiteral(export::HirIntegerConstant::Signed64(
                             line as u64,
@@ -630,10 +646,19 @@ impl Concretizer<'_> {
                         long_type,
                     ),
                     literal(
-                        concrete::ExprKind::StringLiteral(function_name),
+                        concrete::ExprKind::StringLiteral {
+                            value: function_name,
+                            owner: export::StringConstantOwner::CurrentDefinition,
+                        },
                         string_type,
                     ),
-                    literal(concrete::ExprKind::StringLiteral(type_name), string_type),
+                    literal(
+                        concrete::ExprKind::StringLiteral {
+                            value: type_name,
+                            owner: export::StringConstantOwner::CurrentDefinition,
+                        },
+                        string_type,
+                    ),
                 ],
             },
             ty,

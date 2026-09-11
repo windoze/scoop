@@ -471,7 +471,13 @@ fn bool_lit(h: &Harness, value: bool) -> hir::Expr {
 }
 
 fn str_lit(h: &Harness, value: &str) -> hir::Expr {
-    expr(hir::ExprKind::StringLiteral(value.to_string()), h.string)
+    expr(
+        hir::ExprKind::StringLiteral {
+            value: value.to_string(),
+            owner: hir::StringConstantOwner::CurrentDefinition,
+        },
+        h.string,
+    )
 }
 
 fn local_ref(id: hir::LocalId, ty: hir::TypeId) -> hir::Expr {

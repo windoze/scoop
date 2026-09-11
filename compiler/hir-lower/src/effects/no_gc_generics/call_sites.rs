@@ -377,7 +377,7 @@ impl Lowerer {
             }
         };
         match &expr.kind {
-            ExprKind::StringLiteral(_)
+            ExprKind::StringLiteral { .. }
             | ExprKind::IntegerLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral

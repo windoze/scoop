@@ -94,8 +94,20 @@ impl Builder {
     }
 
     pub(in crate::tests) fn string(&mut self, value: &str) -> mir::StringConstId {
+        let ordinal = u32::try_from(self.strings.len()).expect("test string count fits u32");
+        let identity = mir::ImmortalObjectKey::string_constant(
+            mir::ImmortalObjectOwner::Property(property_owner("testStringConstants")),
+            mir::StructuralDefinitionPath::from_first(
+                mir::StructuralPathSegment::new(
+                    mir::StructuralDefinitionSiteRole::StringConstant,
+                    ordinal,
+                ),
+                [],
+            ),
+        );
         let symbol = format!("scoop.str.{}", self.strings.len());
         self.strings.alloc(mir::StringConst {
+            identity,
             value: value.to_string(),
             symbol,
         })

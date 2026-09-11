@@ -177,7 +177,7 @@ impl Lowerer {
         use hir::ExprKind;
         self.collect_no_gc_type_violations(expr.ty, expr.span, out, requirements);
         match &expr.kind {
-            ExprKind::StringLiteral(_) => out.push((
+            ExprKind::StringLiteral { .. } => out.push((
                 expr.span,
                 "string literals are not allowed in `@NoGC` code".to_string(),
             )),

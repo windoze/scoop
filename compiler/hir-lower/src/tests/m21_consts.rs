@@ -178,9 +178,17 @@ fn const_properties_fold_forward_references_and_disappear_at_read_sites() {
         function_result(user_function(&module, "readAnswer")).kind,
         hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(42))
     ));
+    let (label, _) = module
+        .properties
+        .iter()
+        .find(|(_, property)| property.name == "label")
+        .expect("label const property");
     assert!(matches!(
         &function_result(user_function(&module, "readLabel")).kind,
-        hir::ExprKind::StringLiteral(value) if value == "forty-two"
+        hir::ExprKind::StringLiteral {
+            value,
+            owner: hir::StringConstantOwner::Property(owner),
+        } if value == "forty-two" && *owner == label
     ));
     assert!(matches!(
         function_result(user_function(&module, "readValid")).kind,

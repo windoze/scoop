@@ -352,7 +352,13 @@ impl Harness {
                     expr_stmt(call_typed(write, vec![local_ref(message, string)], unit)),
                     expr_stmt(call_typed(
                         write,
-                        vec![expr(hir::ExprKind::StringLiteral("\n".to_string()), string)],
+                        vec![expr(
+                            hir::ExprKind::StringLiteral {
+                                value: "\n".to_string(),
+                                owner: hir::StringConstantOwner::CurrentDefinition,
+                            },
+                            string,
+                        )],
                         unit,
                     )),
                 ],

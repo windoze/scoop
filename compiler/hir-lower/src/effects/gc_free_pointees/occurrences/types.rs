@@ -478,7 +478,7 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::InitializingStructFieldAccess { application, .. } => {
             out.push(lowerer.struct_applications[*application].canonical_type);
         }
-        ExprKind::StringLiteral(_)
+        ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral

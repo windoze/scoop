@@ -114,6 +114,38 @@ pub(super) fn static_storage_identity(name: &str) -> scoop_lir::StaticStorageIde
     .unwrap()
 }
 
+pub(super) fn immortal_string_identity(name: &str) -> scoop_lir::ImmortalObjectIdentity {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new(&format!("string{name}")).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    let owner = scoop_identity::ImmortalObjectOwner::Callable(
+        scoop_identity::CallableMaterialization::new(
+            scoop_identity::CallableTemplateOwner::Function(function),
+            scoop_identity::CallableMaterializationContext::NoSubstitution,
+        ),
+    );
+    let path = StructuralDefinitionPath::from_first(
+        StructuralPathSegment::new(StructuralDefinitionSiteRole::StringConstant, 0),
+        [],
+    );
+    scoop_lir::ImmortalObjectIdentity::from_key(scoop_identity::ImmortalObjectKey::string_constant(
+        owner, path,
+    ))
+    .unwrap()
+}
+
 fn test_exact_type(name: &str) -> PersistentExactTypeId {
     let identifier = format!(
         "test{}",
@@ -527,13 +559,19 @@ pub(super) fn values_module() -> Module {
         symbol: "scoop.string.0".to_string(),
         address_kind: PointerKind::Managed,
         scan: RefScan::None,
-        init: GlobalInit::StringConst("hello, ".to_string()),
+        init: GlobalInit::StringConst {
+            identity: immortal_string_identity("hello"),
+            value: "hello, ".to_string(),
+        },
     });
     let world = globals.alloc(Global {
         symbol: "scoop.string.1".to_string(),
         address_kind: PointerKind::Managed,
         scan: RefScan::None,
-        init: GlobalInit::StringConst("world".to_string()),
+        init: GlobalInit::StringConst {
+            identity: immortal_string_identity("world"),
+            value: "world".to_string(),
+        },
     });
 
     let mut locals = Arena::default();

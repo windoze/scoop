@@ -285,7 +285,7 @@ fn expression_references_any_inner(
                     }
             },
         ),
-        ExprKind::StringLiteral(_)
+        ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral

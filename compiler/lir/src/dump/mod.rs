@@ -11,7 +11,7 @@ pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (_, global) in module.globals.iter() {
         match &global.init {
-            GlobalInit::StringConst(value) => {
+            GlobalInit::StringConst { value, .. } => {
                 out.push_str(&format!("  global @{} = {:?}\n", global.symbol, value));
             }
             GlobalInit::CString(value) => {

@@ -23,14 +23,17 @@ impl BodyLowerer<'_> {
             );
         }
         let kind = match &expr.kind {
-            hir::ExprKind::StringLiteral(value) => {
-                // One global constant per literal occurrence, numbered
-                // in order of appearance (deterministic).
-                let symbol = format!("scoop.str.{}", self.strings.len());
-                let id = self.strings.alloc(mir::StringConst {
-                    value: value.clone(),
-                    symbol,
-                });
+            hir::ExprKind::StringLiteral { value, owner } => {
+                let id = match *owner {
+                    hir::StringConstantOwner::CurrentDefinition => {
+                        self.intern_current_string(value.clone())
+                    }
+                    hir::StringConstantOwner::Property(property) => self.strings.intern(
+                        mir::ImmortalObjectOwner::Property(property),
+                        0,
+                        value.clone(),
+                    ),
+                };
                 smir::ExprKind::StringConst(id)
             }
             hir::ExprKind::IntegerLiteral(value) => {

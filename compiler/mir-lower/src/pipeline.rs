@@ -131,6 +131,18 @@ impl Lowerer {
             struct_ctor_functions.push((constructor_id, id));
         }
         self.lower_initialization_units(module);
+        let mut initialization_string_owners = HashMap::new();
+        for (_, unit) in module.initialization_units.iter() {
+            let owner = mir::ImmortalObjectOwner::InitializationUnit(unit.identity.id());
+            for function in [unit.initializer, unit.ensure] {
+                assert!(
+                    initialization_string_owners
+                        .insert(function, owner)
+                        .is_none(),
+                    "one concrete function cannot materialize multiple initialization units"
+                );
+            }
+        }
         let ensure_units = self
             .initialization_units
             .iter()
@@ -141,7 +153,13 @@ impl Lowerer {
             let (params, return_ty, body) = if let Some(&unit) = ensure_units.get(&mir_id) {
                 self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
             } else {
-                self.lower_user_function(module, hir_id, mir_id)
+                let string_owner = initialization_string_owners
+                    .get(&hir_id)
+                    .copied()
+                    .unwrap_or(mir::ImmortalObjectOwner::Callable(
+                        module.functions[hir_id].materialization,
+                    ));
+                self.lower_user_function(module, hir_id, mir_id, string_owner)
             };
             let body = finish_cfg_body(
                 &mut self.local_values,
@@ -299,7 +317,7 @@ impl Lowerer {
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
             top_level: self.top_level,
-            strings: self.strings,
+            strings: self.strings.finish(),
             structs: self.structs.defs,
             enums: self.enums.defs,
             classes: self.classes,

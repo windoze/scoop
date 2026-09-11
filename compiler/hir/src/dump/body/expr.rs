@@ -10,7 +10,7 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
     match &expr.kind {
-        ExprKind::StringLiteral(value) => {
+        ExprKind::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?} : {ty}\n"));
         }
         ExprKind::IntegerLiteral(value) => {

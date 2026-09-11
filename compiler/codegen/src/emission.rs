@@ -175,7 +175,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
     for (_, global) in module.globals.iter() {
         match &global.init {
-            GlobalInit::StringConst(value) => {
+            GlobalInit::StringConst { value, .. } => {
                 // { ptr td, i64 gc_word, i64 len, [N x i8] data }
                 // (runtime spec 2.4; the 16-byte header is M9).
                 let bytes = value.as_bytes();

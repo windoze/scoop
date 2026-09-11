@@ -1058,7 +1058,10 @@ pub struct EnumFieldRepr {
 #[derive(Debug)]
 pub enum GlobalInit {
     /// A `ScoopString` constant: header points at `STRING_TD_SYMBOL`.
-    StringConst(String),
+    StringConst {
+        identity: ImmortalObjectIdentity,
+        value: String,
+    },
     /// A NUL-terminated C string (e.g. trap messages).
     CString(String),
     Storage {
@@ -1070,6 +1073,29 @@ pub enum GlobalInit {
         initial_state: LirStaticInitialState,
         thread_local: bool,
     },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ImmortalObjectIdentity {
+    record: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentImmortalObjectId,
+        scoop_identity::ImmortalObjectKey,
+    >,
+}
+
+impl ImmortalObjectIdentity {
+    pub fn from_key(key: scoop_identity::ImmortalObjectKey) -> Result<Self, scoop_wire::HashError> {
+        scoop_identity::CborIdentityRecord::from_key(key).map(|record| Self { record })
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentImmortalObjectId,
+        scoop_identity::ImmortalObjectKey,
+    > {
+        &self.record
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

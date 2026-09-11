@@ -176,7 +176,10 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
-    StringLiteral(String),
+    StringLiteral {
+        value: String,
+        owner: StringConstantOwner<scoop_identity::PropertyOwner>,
+    },
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     UnitLiteral,

@@ -328,11 +328,16 @@ fn location_fields(expr: &hir::concrete::Expr) -> Option<(&str, i64, i64, &str, 
         return None;
     };
     let (
-        hir::concrete::ExprKind::StringLiteral(file),
+        hir::concrete::ExprKind::StringLiteral { value: file, .. },
         hir::concrete::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed64(line)),
         hir::concrete::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed64(column)),
-        hir::concrete::ExprKind::StringLiteral(function_name),
-        hir::concrete::ExprKind::StringLiteral(type_name),
+        hir::concrete::ExprKind::StringLiteral {
+            value: function_name,
+            ..
+        },
+        hir::concrete::ExprKind::StringLiteral {
+            value: type_name, ..
+        },
     ) = (
         &file.kind,
         &line.kind,

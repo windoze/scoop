@@ -399,7 +399,7 @@ fn string_pattern_value(pattern: &hir::Pattern) -> Option<&str> {
     let hir::Pattern::Literal { value, .. } = pattern else {
         return None;
     };
-    let hir::ExprKind::StringLiteral(value) = &value.kind else {
+    let hir::ExprKind::StringLiteral { value, .. } = &value.kind else {
         return None;
     };
     Some(value)
@@ -413,7 +413,7 @@ fn literal_matches_type(pattern: &hir::Pattern, ty: &Type) -> bool {
         (&value.kind, ty),
         (hir::ExprKind::BoolLiteral(_), Type::Boolean)
             | (hir::ExprKind::UnitLiteral, Type::Unit)
-            | (hir::ExprKind::StringLiteral(_), Type::String)
+            | (hir::ExprKind::StringLiteral { .. }, Type::String)
             | (hir::ExprKind::IntegerLiteral(_), Type::Integer(_))
     )
 }

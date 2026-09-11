@@ -146,7 +146,11 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             symbol: string.symbol.clone(),
             address_kind: lir::PointerKind::Managed,
             scan: lir::RefScan::None,
-            init: lir::GlobalInit::StringConst(string.value.clone()),
+            init: lir::GlobalInit::StringConst {
+                identity: lir::ImmortalObjectIdentity::from_key(string.identity.clone())
+                    .expect("validated MIR string identities have canonical CBOR records"),
+                value: string.value.clone(),
+            },
         });
         string_global_map.insert(id, global);
     }

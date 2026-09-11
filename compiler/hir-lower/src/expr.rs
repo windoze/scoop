@@ -211,7 +211,10 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let lowered = match expr {
             ast::Expr::StringLiteral { value, span } => Some(hir::Expr {
-                kind: ExprKind::StringLiteral(value.clone()),
+                kind: ExprKind::StringLiteral {
+                    value: value.clone(),
+                    owner: hir::StringConstantOwner::CurrentDefinition,
+                },
                 ty: self.string,
                 span: *span,
                 origin: self.expression_origin(*span),

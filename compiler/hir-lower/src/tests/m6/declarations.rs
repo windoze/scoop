@@ -133,7 +133,7 @@ fn class_and_interface_structure() {
         statement.kind,
         hir::StatementKind::ValDecl {
             init: hir::Expr {
-                kind: hir::ExprKind::StringLiteral(_),
+                kind: hir::ExprKind::StringLiteral { .. },
                 ..
             },
             ..
