@@ -117,7 +117,7 @@ pub(crate) fn layouts(
     for (id, def) in module.closure_classes.iter() {
         let (_, size, align, scan) = closure_shape(context, module, enums, def);
         layouts.alloc(lir::Layout {
-            identity: lir::LayoutIdentityRecord::managed_object(
+            identity: lir::LayoutIdentity::managed_object(
                 generated_exact_type_record(module, mir::GeneratedExactTypeLocation::Closure(id))
                     .id(),
                 context.target_profile(),
@@ -178,19 +178,19 @@ fn struct_layout_identity(
     module: &mir::Module,
     ty: &mir::Type,
     def: &mir::StructDef,
-) -> lir::LayoutIdentityRecord {
+) -> lir::LayoutIdentity {
     let exact_type = exact_type_record(module, ty).id();
     let target_profile = context.target_profile();
     match &def.representation {
         mir::StructRepresentation::Declared {
             c_layout: Some(_), ..
-        } => lir::LayoutIdentityRecord::c_value(exact_type, target_profile),
+        } => lir::LayoutIdentity::c_value(exact_type, target_profile),
         mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::FunPtr {
             ..
-        }) => lir::LayoutIdentityRecord::native_function_pointer(exact_type, target_profile),
+        }) => lir::LayoutIdentity::native_function_pointer(exact_type, target_profile),
         mir::StructRepresentation::Declared { c_layout: None, .. }
         | mir::StructRepresentation::Intrinsic(_) => {
-            lir::LayoutIdentityRecord::managed_value(exact_type, target_profile)
+            lir::LayoutIdentity::managed_value(exact_type, target_profile)
         }
     }
     .expect("validated exact type and target must derive a layout identity")
@@ -200,20 +200,17 @@ fn managed_value_layout_identity(
     context: &LoweringContext,
     module: &mir::Module,
     ty: &mir::Type,
-) -> lir::LayoutIdentityRecord {
-    lir::LayoutIdentityRecord::managed_value(
-        exact_type_record(module, ty).id(),
-        context.target_profile(),
-    )
-    .expect("validated exact type and target must derive a layout identity")
+) -> lir::LayoutIdentity {
+    lir::LayoutIdentity::managed_value(exact_type_record(module, ty).id(), context.target_profile())
+        .expect("validated exact type and target must derive a layout identity")
 }
 
 fn managed_object_layout_identity(
     context: &LoweringContext,
     module: &mir::Module,
     ty: &mir::Type,
-) -> lir::LayoutIdentityRecord {
-    lir::LayoutIdentityRecord::managed_object(
+) -> lir::LayoutIdentity {
+    lir::LayoutIdentity::managed_object(
         exact_type_record(module, ty).id(),
         context.target_profile(),
     )

@@ -133,8 +133,7 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
         .expect("Outer layout");
     assert_eq!(
         outer_layout.identity,
-        lir::LayoutIdentityRecord::c_value(outer_exact, lir::LirTargetProfile::DARWIN_AARCH64,)
-            .unwrap()
+        lir::LayoutIdentity::c_value(outer_exact, lir::LirTargetProfile::DARWIN_AARCH64,).unwrap()
     );
     assert_eq!((outer_layout.size, outer_layout.align), (16, 16));
     assert_eq!(

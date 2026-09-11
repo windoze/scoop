@@ -48,11 +48,30 @@ pub(super) fn runtime_type(name: &str) -> scoop_lir::RuntimeTypeMappingRecord {
 pub(super) fn layout_identity(
     name: &str,
     role: scoop_identity::RepresentationRole,
-) -> scoop_lir::LayoutIdentityRecord {
-    scoop_lir::LayoutIdentityRecord::new(
+) -> scoop_lir::LayoutIdentity {
+    let exact_type = test_exact_type(name);
+    let target = scoop_lir::LirTargetProfile::DARWIN_AARCH64;
+    match role {
+        scoop_identity::RepresentationRole::ManagedValue => {
+            scoop_lir::LayoutIdentity::managed_value(exact_type, target)
+        }
+        scoop_identity::RepresentationRole::ManagedObject => {
+            scoop_lir::LayoutIdentity::managed_object(exact_type, target)
+        }
+        scoop_identity::RepresentationRole::CValue => {
+            scoop_lir::LayoutIdentity::c_value(exact_type, target)
+        }
+        scoop_identity::RepresentationRole::NativeFunctionPointer => {
+            scoop_lir::LayoutIdentity::native_function_pointer(exact_type, target)
+        }
+    }
+    .unwrap()
+}
+
+pub(super) fn array_layout_identity(name: &str) -> scoop_lir::LayoutIdentity {
+    scoop_lir::LayoutIdentity::managed_array(
         test_exact_type(name),
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        role,
     )
     .unwrap()
 }
@@ -452,6 +471,7 @@ pub(super) fn array_type(
         itables: Vec::new(),
     });
     meta.arrays.alloc(ArrayType {
+        identity: array_layout_identity(name),
         kind,
         element,
         element_size,

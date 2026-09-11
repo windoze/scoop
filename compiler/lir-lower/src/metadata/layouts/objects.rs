@@ -75,7 +75,7 @@ pub(crate) fn class_definition_layout(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-    identity: lir::LayoutIdentityRecord,
+    identity: lir::LayoutIdentity,
     def: &mir::ClassDef,
 ) -> lir::Layout {
     match &def.representation {

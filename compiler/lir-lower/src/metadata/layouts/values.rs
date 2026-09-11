@@ -7,7 +7,7 @@ pub(crate) fn aggregate_layout(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-    identity: lir::LayoutIdentityRecord,
+    identity: lir::LayoutIdentity,
     name: String,
     fields: &[mir::Type],
 ) -> lir::Layout {
@@ -40,7 +40,7 @@ pub(crate) fn struct_layout(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-    identity: lir::LayoutIdentityRecord,
+    identity: lir::LayoutIdentity,
     definition: &mir::StructDef,
 ) -> lir::Layout {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
@@ -133,7 +133,7 @@ pub(crate) fn enum_layout(
     context: &LoweringContext,
     enums: &lir::EnumDefs,
     id: mir::EnumId,
-    identity: lir::LayoutIdentityRecord,
+    identity: lir::LayoutIdentity,
     def: &mir::EnumDef,
 ) -> lir::Layout {
     match &enums[enum_def_id(id)].repr {

@@ -255,11 +255,23 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         let expected = context.pointer_layout(kind);
         assert_eq!((layout.size, layout.align), (expected.size, expected.align));
         assert_eq!(layout.kind, lir::LayoutKind::Intrinsic(representation),);
-        assert_eq!(
-            layout.identity,
-            lir::LayoutIdentityRecord::new(exact, lir::LirTargetProfile::DARWIN_AARCH64, role,)
-                .unwrap()
-        );
+        let identity = match role {
+            scoop_identity::RepresentationRole::ManagedValue => {
+                lir::LayoutIdentity::managed_value(exact, lir::LirTargetProfile::DARWIN_AARCH64)
+            }
+            scoop_identity::RepresentationRole::NativeFunctionPointer => {
+                lir::LayoutIdentity::native_function_pointer(
+                    exact,
+                    lir::LirTargetProfile::DARWIN_AARCH64,
+                )
+            }
+            scoop_identity::RepresentationRole::ManagedObject
+            | scoop_identity::RepresentationRole::CValue => {
+                unreachable!("the fixture contains only compiler pointer layouts")
+            }
+        }
+        .unwrap();
+        assert_eq!(layout.identity, identity);
     }
 }
 

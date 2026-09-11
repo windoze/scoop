@@ -15,7 +15,29 @@ impl CanonicalLirFoundation {
                 .meta
                 .layouts
                 .iter()
-                .map(|(_, layout)| layout.identity.identity_record().clone())
+                .map(|(_, layout)| layout.identity.layout_record().clone())
+                .chain(
+                    module
+                        .meta
+                        .arrays
+                        .iter()
+                        .map(|(_, array)| array.identity.layout_record().clone()),
+                )
+                .collect(),
+        )?;
+        foundation.set_scans(
+            module
+                .meta
+                .layouts
+                .iter()
+                .map(|(_, layout)| layout.identity.scan_record().clone())
+                .chain(
+                    module
+                        .meta
+                        .arrays
+                        .iter()
+                        .map(|(_, array)| array.identity.scan_record().clone()),
+                )
                 .collect(),
         )?;
         foundation.set_runtime_types(

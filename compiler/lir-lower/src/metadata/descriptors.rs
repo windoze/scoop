@@ -305,6 +305,11 @@ pub(crate) fn array_types(
         };
         let (element_size, element_align, _) = class_layout(context, module, enums, class);
         let id = arrays.alloc(lir::ArrayType {
+            identity: lir::LayoutIdentity::managed_array(
+                exact_type_record(module, &mir::Type::Class(class_id)).id(),
+                context.target_profile(),
+            )
+            .expect("validated array exact type and target must derive layout identities"),
             kind,
             element: lir_type(element),
             element_size,

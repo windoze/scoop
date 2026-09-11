@@ -44,7 +44,7 @@ fn lowers_hello_world() {
         .identity_record()
         .id();
     let string_runtime_type = lir::RuntimeTypeMappingRecord::new(string_exact_type).unwrap();
-    let string_layout_identity = lir::LayoutIdentityRecord::managed_object(
+    let string_layout_identity = lir::LayoutIdentity::managed_object(
         string_exact_type,
         lir::LirTargetProfile::DARWIN_AARCH64,
     )

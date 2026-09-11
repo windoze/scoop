@@ -71,7 +71,33 @@ fn array_nodes_become_array_instructions() {
             }),
         ],
     );
-    let module = lower(&b.finish(main));
+    let source = b.finish(main);
+    let array_exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Class(array_class))
+        .expect("Array<Int> has an exact identity")
+        .identity_record()
+        .id();
+    let mutable_exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Class(mutable_class))
+        .expect("MutableArray<Int> has an exact identity")
+        .identity_record()
+        .id();
+    let module = lower(&source);
+
+    assert_eq!(
+        array_metadata(&module, "Array<Int>").identity,
+        lir::LayoutIdentity::managed_array(array_exact, lir::LirTargetProfile::DARWIN_AARCH64,)
+            .unwrap()
+    );
+    assert_eq!(
+        array_metadata(&module, "MutableArray<Int>").identity,
+        lir::LayoutIdentity::managed_array(mutable_exact, lir::LirTargetProfile::DARWIN_AARCH64,)
+            .unwrap()
+    );
 
     // Both nominal applications have managed-pointer storage, while every
     // instruction references its complete typed metadata record.

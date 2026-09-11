@@ -283,6 +283,11 @@ pub enum ArrayKind {
 /// recomputed from LLVM ABI queries in codegen.
 #[derive(Debug)]
 pub struct ArrayType {
+    /// Persistent managed-object layout and array-element scan identities for
+    /// this exact intrinsic array application. Variable-size array layout
+    /// payload remains in this typed record instead of masquerading as a
+    /// fixed-size [`Layout`].
+    pub identity: LayoutIdentity,
     pub kind: ArrayKind,
     pub element: LirType,
     pub element_size: u64,
@@ -364,7 +369,7 @@ pub struct Layout {
     /// binds the semantic exact type, selected target profile and closed
     /// representation role; consumers never reconstruct it from the display
     /// name, arena position or coincidentally equal size/alignment.
-    pub identity: LayoutIdentityRecord,
+    pub identity: LayoutIdentity,
     pub name: String,
     pub size: u64,
     pub align: u64,
@@ -374,22 +379,38 @@ pub struct Layout {
     pub kind: LayoutKind,
 }
 
+/// Complete persistent identity bundle for one physical layout and its
+/// top-level scan program. Constructors close the representation/scan-role
+/// matrix so a layout cannot carry a scan identity for another role.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct LayoutIdentityRecord {
-    record: scoop_identity::CborIdentityRecord<
+pub struct LayoutIdentity {
+    layout: scoop_identity::CborIdentityRecord<
         scoop_identity::PersistentLayoutId,
         scoop_identity::LayoutKey,
     >,
+    scan: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentScanId,
+        scoop_identity::ScanKey,
+    >,
 }
 
-impl LayoutIdentityRecord {
-    pub fn new(
+impl LayoutIdentity {
+    fn new(
         exact_type: scoop_identity::PersistentExactTypeId,
         target_profile: LirTargetProfile,
-        role: scoop_identity::RepresentationRole,
+        representation: scoop_identity::RepresentationRole,
+        scan_role: scoop_identity::ScanRole,
     ) -> Result<Self, scoop_wire::HashError> {
-        let key = scoop_identity::LayoutKey::new(exact_type, target_profile.wire_id(), role);
-        scoop_identity::CborIdentityRecord::from_key(key).map(|record| Self { record })
+        let layout = scoop_identity::CborIdentityRecord::from_key(scoop_identity::LayoutKey::new(
+            exact_type,
+            target_profile.wire_id(),
+            representation,
+        ))?;
+        let scan = scoop_identity::CborIdentityRecord::from_key(scoop_identity::ScanKey::new(
+            layout.id(),
+            scan_role,
+        ))?;
+        Ok(Self { layout, scan })
     }
 
     pub fn managed_value(
@@ -400,6 +421,7 @@ impl LayoutIdentityRecord {
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::ManagedValue,
+            scoop_identity::ScanRole::InlineValue,
         )
     }
 
@@ -411,6 +433,7 @@ impl LayoutIdentityRecord {
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::ManagedObject,
+            scoop_identity::ScanRole::ManagedObject,
         )
     }
 
@@ -422,6 +445,7 @@ impl LayoutIdentityRecord {
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::CValue,
+            scoop_identity::ScanRole::InlineValue,
         )
     }
 
@@ -433,16 +457,38 @@ impl LayoutIdentityRecord {
             exact_type,
             target_profile,
             scoop_identity::RepresentationRole::NativeFunctionPointer,
+            scoop_identity::ScanRole::InlineValue,
         )
     }
 
-    pub const fn identity_record(
+    pub fn managed_array(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::ManagedObject,
+            scoop_identity::ScanRole::ArrayElement,
+        )
+    }
+
+    pub const fn layout_record(
         &self,
     ) -> &scoop_identity::CborIdentityRecord<
         scoop_identity::PersistentLayoutId,
         scoop_identity::LayoutKey,
     > {
-        &self.record
+        &self.layout
+    }
+
+    pub const fn scan_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentScanId,
+        scoop_identity::ScanKey,
+    > {
+        &self.scan
     }
 }
 
