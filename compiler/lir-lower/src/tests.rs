@@ -160,6 +160,22 @@ fn install_generated_exact_types(module: &mut mir::Module) {
         mir::GeneratedExactTypeIdentities::checked(entries).unwrap();
 }
 
+fn install_callable_signatures(module: &mut mir::Module) {
+    let mut entries = module
+        .meta
+        .source_callable_materializations
+        .iter()
+        .map(|source| source.signature_record().clone())
+        .collect::<Vec<_>>();
+    entries.extend(module.foreign_callback_bridges.iter().map(|(_, bridge)| {
+        mir::CallableSignatureRecord::new(
+            bridge.application_record.managed_adapter(),
+            bridge.application_record.managed_signature().clone(),
+        )
+    }));
+    module.meta.callable_signatures = mir::MirCallableSignatures::checked(entries).unwrap();
+}
+
 fn initialization_unit_identity() -> mir::InitializationUnitIdentityRecord {
     let site = SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,
@@ -351,6 +367,7 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
     source.meta.source_callable_materializations =
         mir::SourceCallableMaterializations::checked(source_callables).unwrap();
     install_generated_exact_types(&mut source);
+    install_callable_signatures(&mut source);
     let expected = [
         mir::encode_type(&source, &mir::Type::Class(class_a)).unwrap(),
         mir::encode_type(&source, &mir::Type::Class(class_b)).unwrap(),
@@ -757,6 +774,14 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     let application_identity = callback_application();
     let application = application_identity.id();
     let exact_signature = exact_callback_signature();
+    let unit_exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))
+    .unwrap();
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(vec![
+        mir::SourceExactTypeIdentity::checked(mir::Type::Unit, unit_exact, None).unwrap(),
+    ])
+    .unwrap();
     let adapter = module.foreign_callback_adapters.alloc(
         mir::ForeignCallbackAdapter::checked(
             main,
@@ -791,6 +816,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             module.foreign_callback_adapters[adapter].identity_record(),
         )])
         .unwrap();
+    install_callable_signatures(&mut module);
 
     let lowered = lower(&module);
     assert_eq!(

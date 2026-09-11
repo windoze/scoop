@@ -740,6 +740,59 @@ fn driver_identity_must_retain_the_source_logical_signature() {
 }
 
 #[test]
+fn callable_signature_relation_must_be_complete() {
+    let mut fixture = coroutine_fixture(false);
+    fixture.module.meta.callable_signatures = MirCallableSignatures::default();
+
+    assert_eq!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::CallableSignature { entry: 0 },
+            kind: MirValidationErrorKind::InvalidCallableSignature {
+                reason: "the relation is missing a callable signature",
+            },
+        })
+    );
+}
+
+#[test]
+fn callable_signature_relation_must_match_transform_metadata() {
+    let mut fixture = coroutine_fixture(false);
+    let mut records = fixture
+        .module
+        .meta
+        .callable_signatures
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    let first = &records[0];
+    let signature = first.signature();
+    records[0] = CallableSignatureRecord::new(
+        first.subject(),
+        scoop_identity::ExactCallableSignature::new(
+            match signature.effect() {
+                scoop_identity::Effect::Ordinary => scoop_identity::Effect::Suspend,
+                scoop_identity::Effect::Suspend => scoop_identity::Effect::Ordinary,
+            },
+            signature.receiver().into_option(),
+            signature.parameters().to_vec(),
+            signature.result(),
+        ),
+    );
+    fixture.module.meta.callable_signatures = MirCallableSignatures::checked(records).unwrap();
+
+    assert_eq!(
+        fixture.module.validate(),
+        Err(MirValidationError {
+            location: MirValidationLocation::CallableSignature { entry: 0 },
+            kind: MirValidationErrorKind::InvalidCallableSignature {
+                reason: "the relation records a different signature for the callable subject",
+            },
+        })
+    );
+}
+
+#[test]
 fn coroutine_source_must_retain_a_complete_suspend_signature() {
     let mut fixture = coroutine_fixture(false);
     let (_, coroutine) = fixture

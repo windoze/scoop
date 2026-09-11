@@ -13,7 +13,10 @@ use scoop_identity::{
 };
 use scoop_wire::{Encoder, WireEncode};
 
-use crate::{CallableSignatureRecord, CallbackApplicationRecord};
+use crate::{
+    CallableSignatureRecord, CallbackApplicationRecord, MirCallableSignatureRelationError,
+    MirCallableSignatures,
+};
 
 mod wire;
 pub use wire::ValidatedMirFoundationWire;
@@ -133,21 +136,18 @@ impl CanonicalMirFoundation {
 
     pub fn set_callable_signatures(
         &mut self,
-        mut records: Vec<CallableSignatureRecord>,
+        records: Vec<CallableSignatureRecord>,
     ) -> Result<(), MirFoundationBuildError> {
-        records.sort_by(|left, right| left.subject().compare_sort_key(right.subject()));
-        if let Some(pair) = records.windows(2).find(|pair| {
-            pair[0]
-                .subject()
-                .compare_sort_key(pair[1].subject())
-                .is_eq()
-        }) {
-            return Err(MirFoundationBuildError::DuplicateCallableSignature {
-                subject_tag: pair[0].subject().kind_tag(),
-                subject: pair[0].subject().raw_id(),
-            });
-        }
-        self.callable_signatures = records;
+        self.callable_signatures = MirCallableSignatures::checked(records)
+            .map_err(|error| match error {
+                MirCallableSignatureRelationError::DuplicateSubject { subject, .. } => {
+                    MirFoundationBuildError::DuplicateCallableSignature {
+                        subject_tag: subject.kind_tag(),
+                        subject: subject.raw_id(),
+                    }
+                }
+            })?
+            .into_records();
         Ok(())
     }
 

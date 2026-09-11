@@ -110,6 +110,7 @@ pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, Cl
         ClosureEnvironment::checked(class, &module.closure_classes[class], identity).unwrap(),
     );
     install_generated_exact_types(&mut module);
+    install_callable_signatures(&mut module);
     (module, class)
 }
 

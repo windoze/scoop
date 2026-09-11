@@ -331,6 +331,7 @@ impl Lowerer {
             },
         };
         output.meta.generated_callables = generated_callables(&output);
+        output.meta.callable_signatures = callable_signatures(&output);
         output
     }
 
@@ -457,6 +458,59 @@ fn generated_callables(module: &mir::Module) -> mir::MirGeneratedCallableIdentit
 
     mir::MirGeneratedCallableIdentities::checked(entries)
         .expect("MIR-generated callable functions and identities are globally unique")
+}
+
+fn callable_signatures(module: &mir::Module) -> mir::MirCallableSignatures {
+    let mut entries = Vec::new();
+    let mut register = |record: &mir::CallableSignatureRecord| entries.push(record.clone());
+
+    for source in module.meta.source_callable_materializations.iter() {
+        register(source.signature_record());
+    }
+    for (_, bridge) in module.callback_bridges.iter() {
+        register(bridge.identity().signature_record());
+    }
+    for (_, bridge) in module.foreign_callback_bridges.iter() {
+        let record = mir::CallableSignatureRecord::new(
+            bridge.application_record.managed_adapter(),
+            bridge.application_record.managed_signature().clone(),
+        );
+        register(&record);
+    }
+    for (_, adapter) in module.meta.closure_adapters.iter() {
+        register(adapter.identity().callable_signature_record());
+    }
+    for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        register(adapter.identity().callable_signature_record());
+    }
+    for bridge in &module.meta.function_bridges {
+        register(bridge.identity().signature_record());
+    }
+    for (_, coroutine) in module.meta.coroutine_functions.iter() {
+        if let mir::CoroutineLowering::StateMachine {
+            driver_identity, ..
+        } = &coroutine.lowering
+        {
+            register(driver_identity.signature_record());
+        }
+    }
+    for shell in &module.meta.continuation_shells {
+        register(shell.identity().success_signature_record());
+        register(shell.identity().failure_signature_record());
+    }
+    for start in &module.meta.coroutine_starts {
+        register(start.identity().signature_record());
+    }
+    for (_, point) in module.meta.coroutine_resume_points.iter() {
+        register(point.identity().success().signature_record());
+        register(point.identity().failure().signature_record());
+    }
+    for adjust in &module.meta.boxing_adjusts {
+        register(adjust.identity().signature_record());
+    }
+
+    mir::MirCallableSignatures::checked(entries)
+        .expect("MIR callable signature subjects are globally unique")
 }
 
 fn closure_invoke_function(module: &mir::Module, class: mir::ClosureClassId) -> mir::FunctionId {

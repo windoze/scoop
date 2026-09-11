@@ -598,6 +598,9 @@ pub struct MirMeta {
     /// MIR transforms. HIR-created callable identities remain in the source
     /// callable materialization relation.
     pub generated_callables: MirGeneratedCallableIdentities,
+    /// Complete managed signatures of all source and MIR-generated callable
+    /// implementations, uniquely keyed by their strong or ODR subject.
+    pub callable_signatures: MirCallableSignatures,
     /// Complete typed locations of LocalConcrete HIR callable
     /// materializations transposed into MIR. MIR-generated callables retain
     /// their identities in transform-owned metadata instead.

@@ -22,6 +22,8 @@ mod generated_exact_types;
 use generated_exact_types::validate_generated_exact_type_metadata;
 mod generated_callables;
 use generated_callables::validate_generated_callable_metadata;
+mod callable_signatures;
+use callable_signatures::validate_callable_signature_metadata;
 mod coroutines;
 use coroutines::validate_coroutine_metadata;
 
@@ -59,6 +61,9 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     InvalidGeneratedCallable {
+        reason: &'static str,
+    },
+    InvalidCallableSignature {
         reason: &'static str,
     },
     InvalidCoroutineMetadata {
@@ -194,6 +199,9 @@ pub enum MirValidationLocation {
     GeneratedCallable {
         entry: u32,
     },
+    CallableSignature {
+        entry: u32,
+    },
     ContinuationShell {
         shell: u32,
     },
@@ -293,6 +301,10 @@ impl std::fmt::Display for MirValidationError {
             MirValidationLocation::GeneratedCallable { entry } => write!(
                 formatter,
                 "invalid MIR generated callable metadata {entry}: "
+            )?,
+            MirValidationLocation::CallableSignature { entry } => write!(
+                formatter,
+                "invalid MIR callable signature metadata {entry}: "
             )?,
             MirValidationLocation::ContinuationShell { shell } => write!(
                 formatter,
@@ -398,6 +410,9 @@ impl std::fmt::Display for MirValidationError {
                 formatter.write_str(reason)
             }
             MirValidationErrorKind::InvalidGeneratedCallable { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidCallableSignature { reason } => {
                 formatter.write_str(reason)
             }
             MirValidationErrorKind::InvalidCoroutineMetadata { reason } => {
@@ -614,6 +629,7 @@ pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
     validate_boxing_adjust_metadata(module)?;
     validate_generated_exact_type_metadata(module)?;
     validate_generated_callable_metadata(module)?;
+    validate_callable_signature_metadata(module)?;
     validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
         validate_body(module, function_id, &function.body)?;
