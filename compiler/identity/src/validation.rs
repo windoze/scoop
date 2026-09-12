@@ -1091,3 +1091,6 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod property_tests;

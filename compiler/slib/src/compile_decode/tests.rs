@@ -28,6 +28,8 @@ use crate::{
     MirFingerprint, ProducerRecord, SlibDiagnostic, SlibErrorCode,
 };
 
+mod property_tests;
+
 #[test]
 fn graph_decodes_identity_checks_and_structurally_validates_all_foundation_layers() {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
