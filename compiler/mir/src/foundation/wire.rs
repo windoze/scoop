@@ -4,7 +4,8 @@ use scoop_identity::{
     DecodedCallbackApplicationKey, DecodedCborIdentityRecord, DecodedEnumVariantFieldKey,
     DecodedEnumVariantIdentityKey, DecodedExactTypeKey, DecodedFieldIdentityKey,
     DecodedGeneratedCallableKey, DecodedGeneratedNominalKey, DecodedLocalValueKey,
-    DecodedOdrMemberKey, DecodedSpecializationKey,
+    DecodedOdrMemberKey, DecodedSpecializationKey, IdentityLayer, IdentityValidationError,
+    PendingIdentityValidation,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -63,6 +64,65 @@ impl WireEncode for DecodedMirFoundation {
 impl WireDecode for DecodedMirFoundation {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         DecodedMirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
+    }
+}
+
+impl DecodedMirFoundation {
+    /// Registers every MIR-owned identity before cross-layer resolution.
+    pub fn register_identities(
+        &self,
+        validation: &mut PendingIdentityValidation,
+    ) -> Result<(), IdentityValidationError> {
+        macro_rules! register_tables {
+            ($($table:ident),+ $(,)?) => {
+                $(for record in &self.decoded.$table {
+                    validation.register(IdentityLayer::Mir, record)?;
+                })+
+            };
+        }
+
+        register_tables!(
+            exact_types,
+            generated_callables,
+            generated_types,
+            fields,
+            enum_variants,
+            enum_variant_fields,
+            local_values,
+            callback_applications,
+            odr_groups,
+            odr_members,
+        );
+        Ok(())
+    }
+
+    /// Resolves every MIR-owned identity after all layers registered their
+    /// candidates and HIR identities supplied the earlier-layer keys.
+    pub fn resolve_identities(
+        &self,
+        validation: &mut PendingIdentityValidation,
+    ) -> Result<(), IdentityValidationError> {
+        macro_rules! resolve_tables {
+            ($($table:ident),+ $(,)?) => {
+                $(for record in &self.decoded.$table {
+                    validation.resolve(record)?;
+                })+
+            };
+        }
+
+        resolve_tables!(
+            exact_types,
+            generated_callables,
+            generated_types,
+            local_values,
+            odr_groups,
+            odr_members,
+        );
+        // Generated member keys reconstruct their nominal owners.
+        resolve_tables!(fields, enum_variants, enum_variant_fields);
+        // Applications reconstruct the HIR registration key.
+        resolve_tables!(callback_applications);
+        Ok(())
     }
 }
 
@@ -128,6 +188,7 @@ fn encode_table_field<T: WireEncode>(
 
 #[cfg(test)]
 mod tests {
+    use scoop_identity::{CborIdentityRecord, CoreBuiltinNominal, ExactTypeKey};
     use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
     use super::*;
@@ -151,6 +212,32 @@ mod tests {
         assert!(decoded.callback_application_records.is_empty());
         assert!(decoded.odr_groups.is_empty());
         assert!(decoded.odr_members.is_empty());
+    }
+
+    #[test]
+    fn registers_and_resolves_a_mir_identity_delta() {
+        let nominal = CoreBuiltinNominal::Unit.identity_record().id();
+        let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap();
+        let mut canonical = CanonicalMirFoundation::empty();
+        canonical.set_exact_types(vec![record.clone()]).unwrap();
+        let decoded = decode_canonical::<DecodedMirFoundation>(
+            &encode(&canonical).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let mut validation = PendingIdentityValidation::new();
+        validation.register_authority(nominal).unwrap();
+
+        decoded.register_identities(&mut validation).unwrap();
+        decoded.resolve_identities(&mut validation).unwrap();
+
+        let graph = validation.finish().unwrap();
+        assert_eq!(
+            graph
+                .records::<PersistentExactTypeId, ExactTypeKey>(IdentityLayer::Mir)
+                .unwrap(),
+            vec![record]
+        );
     }
 
     #[test]
