@@ -244,7 +244,7 @@ fn compile_recomputes_a_target_native_function_contract() {
 }
 
 #[test]
-fn native_boundary_lookup_indexes_have_inclusive_heap_boundaries() {
+fn native_boundary_validation_heap_cost_has_inclusive_boundaries() {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
     let expected = {

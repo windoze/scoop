@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
 
@@ -113,74 +113,91 @@ fn validate_source_closure(
             &WirePath::root().field(9),
         )
         .map_err(NativeBoundaryCompileError::Identity)?;
-
-    let mut required = BTreeSet::new();
-    for source in foundations.hir.source_native_contracts() {
-        collect_source_contract(source.contract(), &mut required);
-    }
-    for registration in callback_registrations {
-        collect_c_signature(registration.key().source_signature(), &mut required);
-        collect_optional_signature_type(
-            registration.key().managed_signature().receiver(),
-            &mut required,
-        );
-        for parameter in registration.key().managed_signature().parameters() {
-            collect_signature_type(parameter, &mut required);
-        }
-        collect_signature_type(
-            registration.key().managed_signature().result(),
-            &mut required,
-        );
-    }
-
-    let mut visited_callable_applications = BTreeSet::new();
-    let mut visited_exact_types = BTreeSet::new();
-    for application in callback_applications {
-        collect_materialization_context(
-            application.key().context(),
-            &exact_types,
-            &callable_applications,
-            &initialization_units,
-            &mut required,
-            &mut visited_callable_applications,
-            &mut visited_exact_types,
-        )?;
-    }
-
     let definitions = index_records(
         foundations.hir.native_boundary_types(),
         scoop_hir::NativeBoundaryTypeDefinitionRecord::owner,
         meter,
         &WirePath::root().field(30),
     )?;
-    let mut expanded = BTreeSet::new();
-    while let Some(owner) = required.pop_first() {
-        if !expanded.insert(owner) {
-            continue;
+
+    let mut closure = SourceClosureState::new(meter);
+    for source in foundations.hir.source_native_contracts() {
+        collect_source_contract(source.contract(), &mut closure, &WirePath::root().field(26))?;
+    }
+    for registration in callback_registrations {
+        let path = WirePath::root().field(25);
+        collect_c_signature(registration.key().source_signature(), &mut closure, &path)?;
+        collect_optional_signature_type(
+            registration.key().managed_signature().receiver(),
+            &mut closure,
+            &path,
+        )?;
+        for parameter in registration.key().managed_signature().parameters() {
+            collect_signature_type(parameter, &mut closure, &path, 1)?;
         }
-        let definition = definitions
-            .get(&owner)
-            .ok_or(NativeBoundaryCompileError::ClosureRequired { owner })?;
+        collect_signature_type(
+            registration.key().managed_signature().result(),
+            &mut closure,
+            &path,
+            1,
+        )?;
+    }
+
+    for application in callback_applications {
+        collect_materialization_context(
+            application.key().context(),
+            &exact_types,
+            &callable_applications,
+            &initialization_units,
+            &mut closure,
+        )?;
+    }
+
+    let mut next_owner = 0;
+    while let Some(owner) = closure.required_owners.get(next_owner).copied() {
+        next_owner += 1;
+        let Some(definition) = definitions.get(&owner) else {
+            continue;
+        };
         match definition.shape() {
             scoop_hir::NativeBoundaryNominalShape::Reference => {}
             scoop_hir::NativeBoundaryNominalShape::Struct { fields, .. } => {
                 for field in fields {
-                    collect_signature_type(field.ty(), &mut required);
+                    collect_signature_type(
+                        field.ty(),
+                        &mut closure,
+                        &WirePath::root().field(30),
+                        1,
+                    )?;
                 }
             }
             scoop_hir::NativeBoundaryNominalShape::Enum { variants } => {
                 for variant in variants {
                     for field in variant.fields() {
-                        collect_signature_type(field.ty(), &mut required);
+                        collect_signature_type(
+                            field.ty(),
+                            &mut closure,
+                            &WirePath::root().field(30),
+                            1,
+                        )?;
                     }
                 }
             }
         }
     }
+    if let Some(owner) = closure
+        .required_owners
+        .iter()
+        .copied()
+        .filter(|owner| !definitions.contains_key(owner))
+        .min()
+    {
+        return Err(NativeBoundaryCompileError::ClosureRequired { owner });
+    }
     if let Some(owner) = definitions
         .keys()
         .copied()
-        .filter(|owner| !expanded.contains(owner))
+        .filter(|owner| !closure.required_owner_set.contains(owner))
         .min()
     {
         return Err(NativeBoundaryCompileError::UnrelatedDefinition { owner });
@@ -230,74 +247,211 @@ where
     Ok(index)
 }
 
+struct SourceClosureState<'meter> {
+    meter: &'meter mut BudgetMeter,
+    required_owners: Vec<NativeBoundaryNominalOwner>,
+    required_owner_set: HashSet<NativeBoundaryNominalOwner>,
+    callable_heights: HashMap<PersistentCallableApplicationId, u64>,
+    initialization_heights: HashMap<PersistentInitializationUnitId, u64>,
+    exact_heights: HashMap<PersistentExactTypeId, u64>,
+}
+
+impl<'meter> SourceClosureState<'meter> {
+    fn new(meter: &'meter mut BudgetMeter) -> Self {
+        Self {
+            meter,
+            required_owners: Vec::new(),
+            required_owner_set: HashSet::new(),
+            callable_heights: HashMap::new(),
+            initialization_heights: HashMap::new(),
+            exact_heights: HashMap::new(),
+        }
+    }
+
+    fn require_owner(
+        &mut self,
+        owner: NativeBoundaryNominalOwner,
+        path: &WirePath,
+    ) -> Result<(), NativeBoundaryCompileError> {
+        if self.required_owner_set.contains(&owner) {
+            return Ok(());
+        }
+        self.meter
+            .try_reserve_set_slots(&mut self.required_owner_set, 1, path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
+        self.meter
+            .try_reserve_collection_slots(&mut self.required_owners, 1, path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
+        self.required_owner_set.insert(owner);
+        self.required_owners.push(owner);
+        Ok(())
+    }
+
+    fn cache_callable_height(
+        &mut self,
+        application: PersistentCallableApplicationId,
+        height: u64,
+        path: &WirePath,
+    ) -> Result<(), NativeBoundaryCompileError> {
+        Self::cache_height(
+            self.meter,
+            &mut self.callable_heights,
+            application,
+            height,
+            path,
+        )
+    }
+
+    fn cache_initialization_height(
+        &mut self,
+        unit: PersistentInitializationUnitId,
+        height: u64,
+        path: &WirePath,
+    ) -> Result<(), NativeBoundaryCompileError> {
+        Self::cache_height(
+            self.meter,
+            &mut self.initialization_heights,
+            unit,
+            height,
+            path,
+        )
+    }
+
+    fn cache_exact_height(
+        &mut self,
+        exact: PersistentExactTypeId,
+        height: u64,
+        path: &WirePath,
+    ) -> Result<(), NativeBoundaryCompileError> {
+        Self::cache_height(self.meter, &mut self.exact_heights, exact, height, path)
+    }
+
+    fn cache_height<K>(
+        meter: &mut BudgetMeter,
+        heights: &mut HashMap<K, u64>,
+        key: K,
+        height: u64,
+        path: &WirePath,
+    ) -> Result<(), NativeBoundaryCompileError>
+    where
+        K: Copy + Eq + Hash,
+    {
+        meter
+            .try_reserve_map_slots(heights, 1, path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
+        heights.insert(key, height);
+        Ok(())
+    }
+
+    fn charge_relation(&mut self, path: &WirePath) -> Result<(), NativeBoundaryCompileError> {
+        self.meter
+            .charge_edges(1, path)
+            .map_err(NativeBoundaryCompileError::Resource)
+    }
+
+    fn check_depth(&self, depth: u64, path: &WirePath) -> Result<(), NativeBoundaryCompileError> {
+        self.meter
+            .check_semantic_depth(depth, path)
+            .map_err(NativeBoundaryCompileError::Resource)
+    }
+
+    fn check_subtree_depth(
+        &self,
+        depth: u64,
+        height: u64,
+        path: &WirePath,
+    ) -> Result<(), NativeBoundaryCompileError> {
+        let deepest = depth.checked_add(height.saturating_sub(1)).ok_or_else(|| {
+            NativeBoundaryCompileError::Resource(WireError::new(
+                scoop_wire::WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ))
+        })?;
+        self.check_depth(deepest, path)
+    }
+}
+
 fn collect_source_contract(
     contract: &SourceNativeExternalContract,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-) {
+    state: &mut SourceClosureState<'_>,
+    path: &WirePath,
+) -> Result<(), NativeBoundaryCompileError> {
     match contract {
         SourceNativeExternalContract::Function { abi, .. } => match abi {
-            SourceExternFunctionAbi::C(signature) => collect_c_signature(signature, required),
+            SourceExternFunctionAbi::C(signature) => collect_c_signature(signature, state, path)?,
             SourceExternFunctionAbi::Scoop { signature, .. } => {
-                collect_scoop_signature(signature, required);
+                collect_scoop_signature(signature, state, path)?;
             }
         },
         SourceNativeExternalContract::ReadOnlyData { storage, .. }
         | SourceNativeExternalContract::MutableData { storage, .. }
         | SourceNativeExternalContract::ReadOnlyTls { storage, .. }
         | SourceNativeExternalContract::MutableTls { storage, .. } => {
-            collect_signature_type(storage, required);
+            collect_signature_type(storage, state, path, 1)?;
         }
     }
+    Ok(())
 }
 
 fn collect_c_signature(
     signature: &SourceCAbiFunctionSignature,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-) {
+    state: &mut SourceClosureState<'_>,
+    path: &WirePath,
+) -> Result<(), NativeBoundaryCompileError> {
     for parameter in signature.parameters() {
-        collect_signature_type(parameter, required);
+        collect_signature_type(parameter, state, path, 1)?;
     }
     if let SourceCAbiReturn::Value(result) = signature.result() {
-        collect_signature_type(result, required);
+        collect_signature_type(result, state, path, 1)?;
     }
+    Ok(())
 }
 
 fn collect_scoop_signature(
     signature: &SourceScoopAbiFunctionSignature,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-) {
+    state: &mut SourceClosureState<'_>,
+    path: &WirePath,
+) -> Result<(), NativeBoundaryCompileError> {
     for parameter in signature.parameters() {
-        collect_signature_type(parameter, required);
+        collect_signature_type(parameter, state, path, 1)?;
     }
-    collect_signature_type(signature.result(), required);
+    collect_signature_type(signature.result(), state, path, 1)
 }
 
 fn collect_optional_signature_type(
     ty: &OptionalSignatureType,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-) {
+    state: &mut SourceClosureState<'_>,
+    path: &WirePath,
+) -> Result<(), NativeBoundaryCompileError> {
     if let OptionalSignatureType::Present(ty) = ty {
-        collect_signature_type(ty, required);
+        collect_signature_type(ty, state, path, 1)?;
     }
+    Ok(())
 }
 
 fn collect_signature_type(
     ty: &SignatureTypeKey,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-) {
+    state: &mut SourceClosureState<'_>,
+    path: &WirePath,
+    depth: u64,
+) -> Result<(), NativeBoundaryCompileError> {
+    state.check_depth(depth, path)?;
     match ty {
         SignatureTypeKey::Nominal(owner) => {
-            required.insert(NativeBoundaryNominalOwner::Concrete(*owner));
+            state.charge_relation(path)?;
+            state.require_owner(NativeBoundaryNominalOwner::Concrete(*owner), path)?;
         }
         SignatureTypeKey::NominalApplication { origin, arguments } => {
-            required.insert(NativeBoundaryNominalOwner::GenericTemplate(*origin));
+            state.charge_relation(path)?;
+            state.require_owner(NativeBoundaryNominalOwner::GenericTemplate(*origin), path)?;
             for argument in arguments.as_slice() {
-                collect_signature_type(argument, required);
+                collect_signature_type(argument, state, path, depth + 1)?;
             }
         }
         SignatureTypeKey::Tuple(elements) => {
             for element in elements.as_slice() {
-                collect_signature_type(element, required);
+                collect_signature_type(element, state, path, depth + 1)?;
             }
         }
         SignatureTypeKey::Function {
@@ -307,13 +461,16 @@ fn collect_signature_type(
             parameters, result, ..
         } => {
             for parameter in parameters {
-                collect_signature_type(parameter, required);
+                collect_signature_type(parameter, state, path, depth + 1)?;
             }
-            collect_signature_type(result, required);
+            collect_signature_type(result, state, path, depth + 1)?;
         }
-        SignatureTypeKey::RawPointer(pointee) => collect_signature_type(pointee, required),
+        SignatureTypeKey::RawPointer(pointee) => {
+            collect_signature_type(pointee, state, path, depth + 1)?;
+        }
         SignatureTypeKey::Binder { .. } => {}
     }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -322,29 +479,28 @@ fn collect_materialization_context(
     exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
     callable_applications: &HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
     initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-    visited_callable_applications: &mut BTreeSet<PersistentCallableApplicationId>,
-    visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
+    state: &mut SourceClosureState<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
     match context {
         CallableMaterializationContext::NoSubstitution => Ok(()),
-        CallableMaterializationContext::Application(application) => collect_callable_application(
-            application,
-            exact_types,
-            callable_applications,
-            initialization_units,
-            required,
-            visited_callable_applications,
-            visited_exact_types,
-        ),
-        CallableMaterializationContext::InitializationApplication(unit) => {
-            collect_initialization_application(
-                unit,
+        CallableMaterializationContext::Application(application) => {
+            let path = WirePath::root().field(17);
+            state.charge_relation(&path)?;
+            collect_callable_application(
+                application,
                 exact_types,
+                callable_applications,
                 initialization_units,
-                required,
-                visited_exact_types,
-            )
+                state,
+                1,
+            )?;
+            Ok(())
+        }
+        CallableMaterializationContext::InitializationApplication(unit) => {
+            let path = WirePath::root().field(21);
+            state.charge_relation(&path)?;
+            collect_initialization_application(unit, exact_types, initialization_units, state, 1)?;
+            Ok(())
         }
     }
 }
@@ -355,99 +511,152 @@ fn collect_callable_application(
     exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
     callable_applications: &HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
     initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-    visited_callable_applications: &mut BTreeSet<PersistentCallableApplicationId>,
-    visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
-) -> Result<(), NativeBoundaryCompileError> {
-    if !visited_callable_applications.insert(application) {
-        return Ok(());
+    state: &mut SourceClosureState<'_>,
+    depth: u64,
+) -> Result<u64, NativeBoundaryCompileError> {
+    let path = WirePath::root().field(17);
+    if let Some(height) = state.callable_heights.get(&application).copied() {
+        state.check_subtree_depth(depth, height, &path)?;
+        return Ok(height);
     }
+    state.check_depth(depth, &path)?;
     let key = callable_applications
         .get(&application)
         .ok_or(NativeBoundaryCompileError::MissingCallableApplication { application })?;
+    let mut height = 1;
     match key.instantiation_owner() {
         CallableInstantiationOwner::NoOwner => {}
         CallableInstantiationOwner::ExactNominalOwner(owner) => {
-            collect_exact_type(owner, exact_types, required, visited_exact_types)?
+            state.charge_relation(&path)?;
+            let child = collect_exact_type(owner, exact_types, state, depth + 1)?;
+            height = height.max(child + 1);
         }
         CallableInstantiationOwner::EnclosingCallableApplication(enclosing) => {
-            collect_callable_application(
+            state.charge_relation(&path)?;
+            let child = collect_callable_application(
                 enclosing,
                 exact_types,
                 callable_applications,
                 initialization_units,
-                required,
-                visited_callable_applications,
-                visited_exact_types,
+                state,
+                depth + 1,
             )?;
+            height = height.max(child + 1);
         }
         CallableInstantiationOwner::EnclosingInitializationApplication(unit) => {
-            collect_initialization_application(
+            state.charge_relation(&path)?;
+            let child = collect_initialization_application(
                 unit,
                 exact_types,
                 initialization_units,
-                required,
-                visited_exact_types,
+                state,
+                depth + 1,
             )?;
+            height = height.max(child + 1);
         }
     }
     if let CallableArguments::Arguments(arguments) = key.callable_arguments() {
         for argument in arguments.as_slice() {
-            collect_exact_type(*argument, exact_types, required, visited_exact_types)?;
+            state.charge_relation(&path)?;
+            let child = collect_exact_type(*argument, exact_types, state, depth + 1)?;
+            height = height.max(child + 1);
         }
     }
-    Ok(())
+    state.cache_callable_height(application, height, &path)?;
+    Ok(height)
 }
 
 fn collect_initialization_application(
     unit: PersistentInitializationUnitId,
     exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
     initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-    visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
-) -> Result<(), NativeBoundaryCompileError> {
+    state: &mut SourceClosureState<'_>,
+    depth: u64,
+) -> Result<u64, NativeBoundaryCompileError> {
+    let path = WirePath::root().field(21);
+    if let Some(height) = state.initialization_heights.get(&unit).copied() {
+        state.check_subtree_depth(depth, height, &path)?;
+        return Ok(height);
+    }
+    state.check_depth(depth, &path)?;
     let key = initialization_units
         .get(&unit)
         .ok_or(NativeBoundaryCompileError::MissingInitializationUnit { unit })?;
+    let mut height = 1;
     if let InitializationUnitKey::GenericDelegatedExtensionApplication {
         receiver_arguments, ..
     } = key
     {
         for argument in receiver_arguments.as_slice() {
-            collect_exact_type(*argument, exact_types, required, visited_exact_types)?;
+            state.charge_relation(&path)?;
+            let child = collect_exact_type(*argument, exact_types, state, depth + 1)?;
+            height = height.max(child + 1);
         }
     }
-    Ok(())
+    state.cache_initialization_height(unit, height, &path)?;
+    Ok(height)
 }
 
 fn collect_exact_type(
     exact: PersistentExactTypeId,
     exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
-    visited: &mut BTreeSet<PersistentExactTypeId>,
-) -> Result<(), NativeBoundaryCompileError> {
-    if !visited.insert(exact) {
-        return Ok(());
+    state: &mut SourceClosureState<'_>,
+    depth: u64,
+) -> Result<u64, NativeBoundaryCompileError> {
+    let path = WirePath::root().field(15);
+    if let Some(height) = state.exact_heights.get(&exact).copied() {
+        state.check_subtree_depth(depth, height, &path)?;
+        return Ok(height);
     }
+    state.check_depth(depth, &path)?;
     let key = exact_types
         .get(&exact)
         .ok_or(NativeBoundaryCompileError::MissingExactType { exact })?;
+    let mut height = 1;
     match key {
         ExactTypeKey::Nominal(owner) => {
-            required.insert(NativeBoundaryNominalOwner::Concrete(*owner));
+            state.charge_relation(&path)?;
+            state.require_owner(NativeBoundaryNominalOwner::Concrete(*owner), &path)?;
         }
-        ExactTypeKey::NominalApplication { origin, .. } => {
-            required.insert(NativeBoundaryNominalOwner::GenericTemplate(*origin));
+        ExactTypeKey::NominalApplication { origin, arguments } => {
+            state.charge_relation(&path)?;
+            state.require_owner(NativeBoundaryNominalOwner::GenericTemplate(*origin), &path)?;
+            for dependency in arguments.as_slice() {
+                state.charge_relation(&path)?;
+                let child = collect_exact_type(*dependency, exact_types, state, depth + 1)?;
+                height = height.max(child + 1);
+            }
         }
-        ExactTypeKey::Tuple(_)
-        | ExactTypeKey::Function { .. }
-        | ExactTypeKey::RawPointer(_)
-        | ExactTypeKey::NativeFunctionPointer { .. } => {}
+        ExactTypeKey::Tuple(elements) => {
+            for dependency in elements.as_slice() {
+                state.charge_relation(&path)?;
+                let child = collect_exact_type(*dependency, exact_types, state, depth + 1)?;
+                height = height.max(child + 1);
+            }
+        }
+        ExactTypeKey::Function {
+            parameters, result, ..
+        }
+        | ExactTypeKey::NativeFunctionPointer {
+            parameters, result, ..
+        } => {
+            for dependency in parameters {
+                state.charge_relation(&path)?;
+                let child = collect_exact_type(*dependency, exact_types, state, depth + 1)?;
+                height = height.max(child + 1);
+            }
+            state.charge_relation(&path)?;
+            let child = collect_exact_type(*result, exact_types, state, depth + 1)?;
+            height = height.max(child + 1);
+        }
+        ExactTypeKey::RawPointer(pointee) => {
+            state.charge_relation(&path)?;
+            let child = collect_exact_type(*pointee, exact_types, state, depth + 1)?;
+            height = height.max(child + 1);
+        }
     }
-    for dependency in key.exact_type_dependencies() {
-        collect_exact_type(dependency, exact_types, required, visited)?;
-    }
-    Ok(())
+    state.cache_exact_height(exact, height, &path)?;
+    Ok(height)
 }
 
 #[derive(Debug)]
@@ -512,5 +721,158 @@ impl std::error::Error for NativeBoundaryCompileError {
             Self::Target(error) => Some(error),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use scoop_identity::CoreBuiltinNominal;
+    use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
+
+    use super::*;
+
+    #[test]
+    fn required_owner_queue_has_inclusive_heap_boundaries() {
+        let ty = SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id());
+        let path = WirePath::root().field(26);
+
+        for (limit, accepted) in [(79, false), (80, true), (81, true)] {
+            let mut meter = BudgetMeter::new(DecodeLimits {
+                logical_heap_bytes: limit,
+                ..DecodeLimits::default()
+            });
+            let result = {
+                let mut state = SourceClosureState::new(&mut meter);
+                collect_signature_type(&ty, &mut state, &path, 1)
+            };
+            assert_eq!(result.is_ok(), accepted);
+            if accepted {
+                assert_eq!(meter.usage().logical_heap_bytes, 80);
+                assert_eq!(meter.usage().decoded_edges, 1);
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(NativeBoundaryCompileError::Resource(ref error))
+                        if error.kind() == &WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::LogicalHeapBytes,
+                            limit: 79,
+                            observed: 80,
+                        }
+                ));
+            }
+        }
+
+        for (limit, accepted) in [(0, false), (1, true), (2, true)] {
+            let mut meter = BudgetMeter::new(DecodeLimits {
+                decoded_edges: limit,
+                ..DecodeLimits::default()
+            });
+            let result = {
+                let mut state = SourceClosureState::new(&mut meter);
+                collect_signature_type(&ty, &mut state, &path, 1)
+            };
+            assert_eq!(result.is_ok(), accepted);
+            if accepted {
+                assert_eq!(meter.usage().decoded_edges, 1);
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(NativeBoundaryCompileError::Resource(ref error))
+                        if error.kind() == &WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::DecodedEdges,
+                            limit: 0,
+                            observed: 1,
+                        }
+                ));
+            }
+        }
+    }
+
+    #[test]
+    fn signature_walk_has_inclusive_semantic_depth_boundaries() {
+        let ty = SignatureTypeKey::RawPointer(Box::new(SignatureTypeKey::RawPointer(Box::new(
+            SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+        ))));
+        let path = WirePath::root().field(26);
+
+        for (limit, accepted) in [(2, false), (3, true), (4, true)] {
+            let mut meter = BudgetMeter::new(DecodeLimits {
+                semantic_recursion: limit,
+                ..DecodeLimits::default()
+            });
+            let result = {
+                let mut state = SourceClosureState::new(&mut meter);
+                collect_signature_type(&ty, &mut state, &path, 1)
+            };
+            assert_eq!(result.is_ok(), accepted);
+            if !accepted {
+                assert!(matches!(
+                    result,
+                    Err(NativeBoundaryCompileError::Resource(ref error))
+                        if error.kind() == &WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::SemanticRecursion,
+                            limit: 2,
+                            observed: 3,
+                        }
+                ));
+            }
+        }
+    }
+
+    #[test]
+    fn exact_type_height_cache_is_metered_and_rechecks_deeper_uses() {
+        let unit = CoreBuiltinNominal::Unit.identity_record().id();
+        let leaf = CborIdentityRecord::from_key(ExactTypeKey::Nominal(unit)).unwrap();
+        let parent = CborIdentityRecord::from_key(ExactTypeKey::RawPointer(leaf.id())).unwrap();
+        let leaf_id = leaf.id();
+        let parent_id = parent.id();
+        let exact_types =
+            HashMap::from([(leaf_id, leaf.into_key()), (parent_id, parent.into_key())]);
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            semantic_recursion: 1,
+            ..DecodeLimits::default()
+        });
+        let error = {
+            let mut state = SourceClosureState::new(&mut meter);
+            assert_eq!(
+                collect_exact_type(leaf_id, &exact_types, &mut state, 1).unwrap(),
+                1
+            );
+            assert_eq!(state.exact_heights.len(), 1);
+            collect_exact_type(parent_id, &exact_types, &mut state, 1).unwrap_err()
+        };
+
+        assert!(matches!(
+            error,
+            NativeBoundaryCompileError::Resource(ref error)
+                if error.kind() == &WireErrorKind::LimitExceeded {
+                    resource: ResourceKind::SemanticRecursion,
+                    limit: 1,
+                    observed: 2,
+                }
+        ));
+    }
+
+    #[test]
+    fn exact_type_height_cache_avoids_duplicate_relation_charges() {
+        let unit = CoreBuiltinNominal::Unit.identity_record().id();
+        let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(unit)).unwrap();
+        let exact = record.id();
+        let exact_types = HashMap::from([(exact, record.into_key())]);
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        {
+            let mut state = SourceClosureState::new(&mut meter);
+            assert_eq!(
+                collect_exact_type(exact, &exact_types, &mut state, 1).unwrap(),
+                1
+            );
+            assert_eq!(
+                collect_exact_type(exact, &exact_types, &mut state, 2).unwrap(),
+                1
+            );
+        }
+
+        assert_eq!(meter.usage().decoded_edges, 1);
+        assert_eq!(meter.usage().logical_heap_bytes, 112);
     }
 }
