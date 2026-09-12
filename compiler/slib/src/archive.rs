@@ -420,6 +420,14 @@ impl<'input> DecodedArchive<'input> {
     pub fn member_ids(&self) -> impl ExactSizeIterator<Item = SlibMemberId> + '_ {
         self.members.iter().map(|(id, _)| *id)
     }
+
+    pub(crate) fn member(&self, id: SlibMemberId) -> Option<&'input [u8]> {
+        let index = self
+            .members
+            .binary_search_by_key(&id, |(member, _)| *member)
+            .ok()?;
+        Some(&self.input[self.members[index].1.clone()])
+    }
 }
 
 fn read_member(

@@ -79,7 +79,7 @@ pub struct DecodeUsage {
 }
 
 /// A deterministic, injectable meter shared by all decoders for an artifact.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct BudgetMeter {
     limits: DecodeLimits,
     usage: DecodeUsage,
@@ -97,7 +97,7 @@ impl BudgetMeter {
         self.limits
     }
 
-    pub fn usage(&self) -> DecodeUsage {
+    pub const fn usage(&self) -> DecodeUsage {
         self.usage
     }
 

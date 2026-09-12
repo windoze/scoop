@@ -87,7 +87,7 @@ pub struct DecodedSlibEnvelope<'input> {
     archive: DecodedArchive<'input>,
     manifest: BootstrapManifest,
     target_selection: ValidatedLirTargetSelection,
-    decode_usage: DecodeUsage,
+    meter: BudgetMeter,
 }
 
 impl<'input> DecodedSlibEnvelope<'input> {
@@ -111,12 +111,12 @@ impl<'input> DecodedSlibEnvelope<'input> {
             archive,
             manifest,
             target_selection: selection,
-            decode_usage: meter.usage(),
+            meter,
         })
     }
 
     pub const fn decode_usage(&self) -> DecodeUsage {
-        self.decode_usage
+        self.meter.usage()
     }
 
     pub(crate) const fn manifest(&self) -> &BootstrapManifest {
@@ -125,6 +125,14 @@ impl<'input> DecodedSlibEnvelope<'input> {
 
     pub(crate) const fn target_selection(&self) -> ValidatedLirTargetSelection {
         self.target_selection
+    }
+
+    pub(crate) fn member(&self, id: SlibMemberId) -> Option<&'input [u8]> {
+        self.archive.member(id)
+    }
+
+    pub(crate) fn meter_mut(&mut self) -> &mut BudgetMeter {
+        &mut self.meter
     }
 }
 

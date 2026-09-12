@@ -186,12 +186,17 @@ impl<'input> DecodedMetadataEnvelope<'input> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedMetadataSection<'input> {
+    location: MetadataLocation,
     capability: CapabilityId,
     required_for: MemberPurposeSet,
     payload: &'input [u8],
 }
 
 impl<'input> DecodedMetadataSection<'input> {
+    pub const fn location(&self) -> MetadataLocation {
+        self.location
+    }
+
     pub const fn capability(&self) -> &CapabilityId {
         &self.capability
     }
@@ -301,6 +306,7 @@ impl<'input> UnvalidatedMetadataSection<'input> {
         validate_section(location, &capability, required_for, self.payload.len())
             .map_err(MetadataSectionValidationError::Section)?;
         Ok(DecodedMetadataSection {
+            location,
             capability,
             required_for,
             payload: self.payload,

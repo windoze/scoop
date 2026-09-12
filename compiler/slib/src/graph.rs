@@ -12,7 +12,7 @@ use crate::{ArtifactFingerprint, ConeKind, ConeSourceForm, DecodedSlibEnvelope, 
 /// acyclic graph, or satisfy any Compile or Link capability.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ValidatedGraphArtifact<'input> {
-    envelope: DecodedSlibEnvelope<'input>,
+    pub(crate) envelope: DecodedSlibEnvelope<'input>,
 }
 
 impl<'input> DecodedSlibEnvelope<'input> {

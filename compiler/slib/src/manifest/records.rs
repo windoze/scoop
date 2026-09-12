@@ -457,6 +457,10 @@ impl BootstrapManifest {
         &self.cone
     }
 
+    pub const fn compatibility(&self) -> &CompatibilityRecord {
+        &self.compatibility
+    }
+
     pub fn direct_dependencies(&self) -> &[DependencyRecord] {
         &self.direct_dependencies
     }

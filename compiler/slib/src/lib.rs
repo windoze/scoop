@@ -24,6 +24,9 @@ pub use envelope::*;
 mod graph;
 pub use graph::*;
 
+mod compile_decode;
+pub use compile_decode::*;
+
 mod metadata;
 pub use metadata::*;
 

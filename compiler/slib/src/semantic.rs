@@ -4,9 +4,10 @@ use scoop_identity::{CapabilityId, ConeIdentity};
 use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use crate::{
-    CompatibilityRecord, DependencyRecord, HirFingerprint, LirFingerprint, MetadataLocation,
-    MetadataSection, MirFingerprint, SemanticFingerprintRecord, hir_identity_foundation_capability,
-    lir_identity_foundation_capability, mir_identity_foundation_capability,
+    CompatibilityRecord, DecodedMetadataSection, DependencyRecord, HirFingerprint, LirFingerprint,
+    MetadataLocation, MetadataSection, MirFingerprint, SemanticFingerprintRecord,
+    hir_identity_foundation_capability, lir_identity_foundation_capability,
+    mir_identity_foundation_capability,
 };
 
 const HIR_SEMANTIC_DOMAIN: &str = "scoop-hir-semantic-v1";
@@ -91,28 +92,79 @@ impl SemanticFingerprintRecord {
         mir: &MetadataSection,
         lir: &MetadataSection,
     ) -> Result<Self, SemanticFingerprintError> {
-        validate_foundation_section(FoundationLayer::Hir, hir)?;
-        validate_foundation_section(FoundationLayer::Mir, mir)?;
-        validate_foundation_section(FoundationLayer::Lir, lir)?;
-        let dependencies = SortedDependencies::new(direct_dependencies)?;
+        identity_foundation_fingerprints(compatibility, direct_dependencies, hir, mir, lir)
+    }
 
-        let hir =
-            calculate_layer_fingerprint(FoundationLayer::Hir, compatibility, hir, &dependencies)?;
-        let mir =
-            calculate_layer_fingerprint(FoundationLayer::Mir, compatibility, mir, &dependencies)?;
-        let lir =
-            calculate_layer_fingerprint(FoundationLayer::Lir, compatibility, lir, &dependencies)?;
-        Ok(Self::from_foundation_digests(
-            HirFingerprint::from_array(*hir.as_array()),
-            MirFingerprint::from_array(*mir.as_array()),
-            LirFingerprint::from_array(*lir.as_array()),
-        ))
+    pub(crate) fn decoded_identity_foundation(
+        compatibility: &CompatibilityRecord,
+        direct_dependencies: &[DependencyRecord],
+        hir: &DecodedMetadataSection<'_>,
+        mir: &DecodedMetadataSection<'_>,
+        lir: &DecodedMetadataSection<'_>,
+    ) -> Result<Self, SemanticFingerprintError> {
+        identity_foundation_fingerprints(compatibility, direct_dependencies, hir, mir, lir)
     }
 }
 
-fn validate_foundation_section(
+fn identity_foundation_fingerprints<S: FoundationSection>(
+    compatibility: &CompatibilityRecord,
+    direct_dependencies: &[DependencyRecord],
+    hir: &S,
+    mir: &S,
+    lir: &S,
+) -> Result<SemanticFingerprintRecord, SemanticFingerprintError> {
+    validate_foundation_section(FoundationLayer::Hir, hir)?;
+    validate_foundation_section(FoundationLayer::Mir, mir)?;
+    validate_foundation_section(FoundationLayer::Lir, lir)?;
+    let dependencies = SortedDependencies::new(direct_dependencies)?;
+
+    let hir = calculate_layer_fingerprint(FoundationLayer::Hir, compatibility, hir, &dependencies)?;
+    let mir = calculate_layer_fingerprint(FoundationLayer::Mir, compatibility, mir, &dependencies)?;
+    let lir = calculate_layer_fingerprint(FoundationLayer::Lir, compatibility, lir, &dependencies)?;
+    Ok(SemanticFingerprintRecord::from_foundation_digests(
+        HirFingerprint::from_array(*hir.as_array()),
+        MirFingerprint::from_array(*mir.as_array()),
+        LirFingerprint::from_array(*lir.as_array()),
+    ))
+}
+
+trait FoundationSection {
+    fn location(&self) -> MetadataLocation;
+    fn capability(&self) -> &CapabilityId;
+    fn payload(&self) -> &[u8];
+}
+
+impl FoundationSection for MetadataSection {
+    fn location(&self) -> MetadataLocation {
+        self.location()
+    }
+
+    fn capability(&self) -> &CapabilityId {
+        self.capability()
+    }
+
+    fn payload(&self) -> &[u8] {
+        self.payload()
+    }
+}
+
+impl FoundationSection for DecodedMetadataSection<'_> {
+    fn location(&self) -> MetadataLocation {
+        self.location()
+    }
+
+    fn capability(&self) -> &CapabilityId {
+        self.capability()
+    }
+
+    fn payload(&self) -> &[u8] {
+        self.payload()
+    }
+}
+
+fn validate_foundation_section<S: FoundationSection>(
     layer: FoundationLayer,
-    section: &MetadataSection,
+    section: &S,
 ) -> Result<(), SemanticFingerprintError> {
     let expected = match layer {
         FoundationLayer::Hir => hir_identity_foundation_capability(),
@@ -125,10 +177,10 @@ fn validate_foundation_section(
     Ok(())
 }
 
-fn calculate_layer_fingerprint(
+fn calculate_layer_fingerprint<S: FoundationSection>(
     layer: FoundationLayer,
     compatibility: &CompatibilityRecord,
-    section: &MetadataSection,
+    section: &S,
     dependencies: &SortedDependencies<'_>,
 ) -> Result<scoop_wire::Digest256, SemanticFingerprintError> {
     let input = LayerFingerprintInput {
