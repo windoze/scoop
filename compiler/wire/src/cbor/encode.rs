@@ -30,6 +30,12 @@ impl Encoder {
         }
     }
 
+    fn with_length_counter() -> Self {
+        Self {
+            inner: minicbor::Encoder::new(EncodingSink::Length(0)),
+        }
+    }
+
     pub fn unsigned(&mut self, value: u64) -> Result<(), EncodeError> {
         self.inner.u64(value).map_err(EncodeError::from)?;
         Ok(())
@@ -79,7 +85,17 @@ pub fn encode(value: &impl WireEncode) -> Result<Vec<u8>, EncodeError> {
     value.encode(&mut encoder)?;
     match encoder.into_sink() {
         EncodingSink::Bytes(output) => Ok(output.bytes),
-        EncodingSink::Hash(_) => Err(EncodeError::OutputSinkMismatch),
+        EncodingSink::Hash(_) | EncodingSink::Length(_) => Err(EncodeError::OutputSinkMismatch),
+    }
+}
+
+/// Returns the exact canonical output length without allocating output bytes.
+pub fn encoded_length(value: &impl WireEncode) -> Result<u64, EncodeError> {
+    let mut encoder = Encoder::with_length_counter();
+    value.encode(&mut encoder)?;
+    match encoder.into_sink() {
+        EncodingSink::Length(length) => Ok(length),
+        EncodingSink::Bytes(_) | EncodingSink::Hash(_) => Err(EncodeError::OutputSinkMismatch),
     }
 }
 
@@ -91,7 +107,7 @@ pub(crate) fn encode_with_limit(
     value.encode(&mut encoder)?;
     match encoder.into_sink() {
         EncodingSink::Bytes(output) => Ok(output.bytes),
-        EncodingSink::Hash(_) => Err(EncodeError::OutputSinkMismatch),
+        EncodingSink::Hash(_) | EncodingSink::Length(_) => Err(EncodeError::OutputSinkMismatch),
     }
 }
 
@@ -103,7 +119,7 @@ pub(crate) fn encode_into_hasher(
     value.encode(&mut encoder)?;
     match encoder.into_sink() {
         EncodingSink::Hash(hasher) => Ok(hasher),
-        EncodingSink::Bytes(_) => Err(EncodeError::OutputSinkMismatch),
+        EncodingSink::Bytes(_) | EncodingSink::Length(_) => Err(EncodeError::OutputSinkMismatch),
     }
 }
 
@@ -149,6 +165,7 @@ struct FallibleVec {
 enum EncodingSink {
     Bytes(FallibleVec),
     Hash(Sha256),
+    Length(u64),
 }
 
 impl minicbor::encode::Write for EncodingSink {
@@ -159,6 +176,13 @@ impl minicbor::encode::Write for EncodingSink {
             Self::Bytes(output) => output.write_all(bytes),
             Self::Hash(hasher) => {
                 hasher.update(bytes);
+                Ok(())
+            }
+            Self::Length(length) => {
+                let written = u64::try_from(bytes.len()).map_err(|_| OutputError::LengthLimit)?;
+                *length = length
+                    .checked_add(written)
+                    .ok_or(OutputError::LengthLimit)?;
                 Ok(())
             }
         }

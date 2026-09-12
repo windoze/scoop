@@ -2,7 +2,7 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-use crate::cbor::{Decoder, Encoder, WireDecode, WireEncode, encode_into_hasher};
+use crate::cbor::{Decoder, Encoder, WireDecode, WireEncode, encode_into_hasher, encoded_length};
 use crate::runtime::{RuntimeEncode, encode_runtime};
 use crate::{WireError, WireErrorKind};
 
@@ -107,6 +107,32 @@ pub fn domain_separated_cbor_hash(
     Ok(Digest256(hasher.finalize().into()))
 }
 
+/// Returns the exact number of bytes fed to SHA-256 by
+/// [`domain_separated_cbor_hash`].
+pub fn domain_separated_cbor_hash_stream_length(
+    domain: &str,
+    value: &impl WireEncode,
+) -> Result<u64, HashError> {
+    let payload_length = encoded_length(value).map_err(|_| HashError::CborEncoding)?;
+    domain_separated_hash_stream_length(domain, payload_length)
+}
+
+/// Returns the exact length of a domain-separated hash stream with a payload
+/// of `payload_length` bytes.
+pub fn domain_separated_hash_stream_length(
+    domain: &str,
+    payload_length: u64,
+) -> Result<u64, HashError> {
+    if !domain.is_ascii() || domain.as_bytes().contains(&0) {
+        return Err(HashError::InvalidDomain);
+    }
+    let domain_length = u64::try_from(domain.len()).map_err(|_| HashError::LengthOverflow)?;
+    8_u64
+        .checked_add(domain_length)
+        .and_then(|length| length.checked_add(payload_length))
+        .ok_or(HashError::LengthOverflow)
+}
+
 pub fn domain_separated_runtime_hash(
     domain: &str,
     value: &impl RuntimeEncode,
@@ -140,7 +166,10 @@ mod tests {
     use crate::cbor::{Encoder, WireEncode, decode_canonical, encode};
     use crate::{DecodeLimits, WireErrorKind, WireType};
 
-    use super::{Digest256, byte_span, domain_separated_cbor_hash, sha256};
+    use super::{
+        Digest256, HashError, byte_span, domain_separated_cbor_hash,
+        domain_separated_cbor_hash_stream_length, domain_separated_hash_stream_length, sha256,
+    };
 
     struct One;
 
@@ -170,6 +199,22 @@ mod tests {
                 .unwrap()
                 .to_string(),
             "9a7155a4014f2071f951555acd3e72e44dc4b3f1107033e52c56011fd886ebcd"
+        );
+        assert_eq!(
+            domain_separated_cbor_hash_stream_length("scoop-wire-test-v1", &One).unwrap(),
+            27
+        );
+        assert_eq!(
+            domain_separated_hash_stream_length("scoop-wire-test-v1", 1).unwrap(),
+            27
+        );
+        assert_eq!(
+            domain_separated_hash_stream_length("scoop-wire-test-v1", u64::MAX).unwrap_err(),
+            HashError::LengthOverflow
+        );
+        assert_eq!(
+            domain_separated_hash_stream_length("scoop\0wire", 0).unwrap_err(),
+            HashError::InvalidDomain
         );
     }
 

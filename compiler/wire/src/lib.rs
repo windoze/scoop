@@ -15,11 +15,12 @@ pub use budget::{BudgetMeter, DecodeLimits, DecodeUsage, ResourceKind};
 pub use cbor::{
     BorrowedWireDecode, Decoder, Encoder, WireDecode, WireEncode, decode_canonical,
     decode_canonical_borrowed, decode_canonical_borrowed_with_meter, decode_canonical_with_meter,
-    encode,
+    encode, encoded_length,
 };
 pub use digest::{
-    Digest256, HashError, byte_span, domain_separated_cbor_hash, domain_separated_raw_hash,
-    domain_separated_runtime_hash, sha256,
+    Digest256, HashError, byte_span, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length, domain_separated_hash_stream_length,
+    domain_separated_raw_hash, domain_separated_runtime_hash, sha256,
 };
 pub use error::{WireError, WireErrorKind, WireType};
 pub use path::{PathSegment, WirePath};

@@ -9,4 +9,4 @@ pub use decode::{
     decode_canonical_borrowed_with_meter, decode_canonical_with_meter,
 };
 pub(crate) use encode::encode_into_hasher;
-pub use encode::{EncodeError, Encoder, WireEncode, encode};
+pub use encode::{EncodeError, Encoder, WireEncode, encode, encoded_length};
