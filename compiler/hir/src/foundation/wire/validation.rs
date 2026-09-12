@@ -13,6 +13,8 @@ use crate::{NativeBoundaryResolutionError, NativeBoundaryResolver, SourceRecordV
 
 mod origins;
 pub use origins::DefinitionOriginValidationError;
+mod native_boundary;
+pub use native_boundary::NativeBoundaryShapeCoverageError;
 
 /// HIR foundation whose complete local structure has been reconstructed from
 /// validated persistent identities.
@@ -225,6 +227,12 @@ fn validate_foundation(
             })?,
         );
     }
+    native_boundary::validate_shape_coverage(
+        &fields,
+        &enum_variants,
+        &enum_variant_fields,
+        &boundary_types,
+    )?;
 
     let mut canonical = CanonicalHirFoundation::empty();
     macro_rules! set {
@@ -413,6 +421,7 @@ pub enum HirFoundationValidationError {
         index: usize,
         error: NativeBoundaryResolutionError<IdentityReferenceError>,
     },
+    NativeBoundaryShapeCoverage(NativeBoundaryShapeCoverageError),
     Build(HirFoundationBuildError),
     NonCanonicalFoundation,
 }
@@ -473,11 +482,18 @@ impl fmt::Display for HirFoundationValidationError {
                     "HIR native-boundary type {index} is invalid: {error}"
                 )
             }
+            Self::NativeBoundaryShapeCoverage(error) => error.fmt(formatter),
             Self::Build(error) => error.fmt(formatter),
             Self::NonCanonicalFoundation => {
                 formatter.write_str("HIR foundation tables are not in canonical structural order")
             }
         }
+    }
+}
+
+impl From<NativeBoundaryShapeCoverageError> for HirFoundationValidationError {
+    fn from(error: NativeBoundaryShapeCoverageError) -> Self {
+        Self::NativeBoundaryShapeCoverage(error)
     }
 }
 

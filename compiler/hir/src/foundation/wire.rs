@@ -17,7 +17,8 @@ use crate::{DecodedNativeBoundaryTypeDefinitionRecord, DecodedSourceRecord};
 
 mod validation;
 pub use validation::{
-    DefinitionOriginValidationError, HirFoundationValidationError, ValidatedHirFoundation,
+    DefinitionOriginValidationError, HirFoundationValidationError,
+    NativeBoundaryShapeCoverageError, ValidatedHirFoundation,
 };
 
 type DecodedTypeRecord = DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey>;

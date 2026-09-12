@@ -25,7 +25,7 @@ use crate::{NativeBoundaryTypeDefinitionRecord, SourceRecord, SourceRecordError}
 mod wire;
 pub use wire::{
     DecodedHirFoundation, DefinitionOriginValidationError, HirFoundationValidationError,
-    ValidatedHirFoundation,
+    NativeBoundaryShapeCoverageError, ValidatedHirFoundation,
 };
 mod counts;
 mod projection;
