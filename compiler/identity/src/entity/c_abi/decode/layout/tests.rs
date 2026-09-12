@@ -7,9 +7,8 @@ use super::{
 };
 use crate::{
     CLayoutByteAlignment, CLayoutOverride, CanonicalCAbiLayout, CanonicalCAbiLayoutField,
-    CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord,
-    CanonicalCAbiSignatureFingerprint, CanonicalCStorageType, PersistentExactTypeId,
-    PersistentFieldId, PersistentIdMismatch, PersistentIdResolver,
+    CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord, CanonicalCStorageType,
+    PersistentExactTypeId, PersistentFieldId, PersistentIdMismatch, PersistentIdResolver,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -32,7 +31,6 @@ macro_rules! id_resolver {
 
 id_resolver!(PersistentExactTypeId, exact_type());
 id_resolver!(PersistentFieldId, field());
-id_resolver!(CanonicalCAbiSignatureFingerprint, signature());
 id_resolver!(CanonicalCAbiLayoutFingerprint, referenced_layout());
 
 #[test]
@@ -123,10 +121,6 @@ const fn exact_type() -> PersistentExactTypeId {
 
 const fn field() -> PersistentFieldId {
     PersistentFieldId([2; 32])
-}
-
-const fn signature() -> CanonicalCAbiSignatureFingerprint {
-    CanonicalCAbiSignatureFingerprint([3; 32])
 }
 
 const fn referenced_layout() -> CanonicalCAbiLayoutFingerprint {

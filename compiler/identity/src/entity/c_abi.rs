@@ -106,7 +106,6 @@ pub enum CanonicalCStorageType {
     },
     CodePointer {
         exact_type: PersistentExactTypeId,
-        signature: CanonicalCAbiSignatureFingerprint,
         storage: CPointerStorage,
     },
     Struct {
@@ -143,9 +142,8 @@ impl WireEncode for CanonicalCStorageType {
             } => encode_three_value_sum(encoder, 3, exact_type, pointee, storage),
             Self::CodePointer {
                 exact_type,
-                signature,
                 storage,
-            } => encode_three_value_sum(encoder, 4, exact_type, signature, storage),
+            } => encode_two_value_sum(encoder, 4, exact_type, storage),
             Self::Struct { exact_type, layout } => {
                 encode_two_value_sum(encoder, 5, exact_type, layout)
             }
@@ -557,12 +555,13 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        CLayoutOverride, CanonicalCAbiError, CanonicalCAbiFunctionSignature, CanonicalCAbiLayout,
-        CanonicalCAbiParameter, CanonicalCAbiReturn, CanonicalCStorageType,
+        CLayoutOverride, CPointerStorage, CanonicalCAbiError, CanonicalCAbiFunctionSignature,
+        CanonicalCAbiLayout, CanonicalCAbiLayoutField, CanonicalCAbiParameter, CanonicalCAbiReturn,
+        CanonicalCStorageType,
     };
     use crate::{
         CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, ConeIdentity,
-        PersistentExactTypeId,
+        PersistentExactTypeId, PersistentFieldId,
     };
 
     #[test]
@@ -621,6 +620,40 @@ mod tests {
                 .to_string(),
             "d344c6a5bccf5e675d5a2d5516a7f977d7dc928ed3317f539b09c4a76fe1f4c1"
         );
+    }
+
+    #[test]
+    fn code_pointer_storage_keeps_layout_and_signature_hashes_acyclic() {
+        let struct_type = PersistentExactTypeId([1; 32]);
+        let callback_type = PersistentExactTypeId([2; 32]);
+        let layout = CanonicalCAbiLayout::new(
+            struct_type,
+            8,
+            NonZeroU64::new(8).unwrap(),
+            CLayoutOverride::Natural,
+            CLayoutOverride::Natural,
+            vec![CanonicalCAbiLayoutField::new(
+                PersistentFieldId([3; 32]),
+                0,
+                CanonicalCStorageType::CodePointer {
+                    exact_type: callback_type,
+                    storage: CPointerStorage::Direct,
+                },
+            )],
+        );
+        let layout_fingerprint = CanonicalCAbiLayoutFingerprint::from_layout(&layout).unwrap();
+        let parameter = CanonicalCAbiParameter::new(
+            struct_type,
+            CanonicalCStorageType::Struct {
+                exact_type: struct_type,
+                layout: layout_fingerprint,
+            },
+        )
+        .unwrap();
+        let signature =
+            CanonicalCAbiFunctionSignature::cdecl(vec![parameter], CanonicalCAbiReturn::Void);
+
+        CanonicalCAbiSignatureFingerprint::from_signature(&signature).unwrap();
     }
 
     fn hex(bytes: &[u8]) -> String {

@@ -2,9 +2,8 @@ use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
 use super::{DecodedCDataPointee, DecodedCPointerStorage, DecodedCanonicalCStorageType};
 use crate::{
-    CDataPointee, CPointerStorage, CanonicalCAbiLayoutFingerprint,
-    CanonicalCAbiSignatureFingerprint, CanonicalCStorageType, IntegerBitWidth,
-    PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver, Signedness,
+    CDataPointee, CPointerStorage, CanonicalCAbiLayoutFingerprint, CanonicalCStorageType,
+    IntegerBitWidth, PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver, Signedness,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -21,18 +20,6 @@ impl PersistentIdResolver<PersistentExactTypeId> for Resolver {
     ) -> Result<PersistentExactTypeId, Self::Error> {
         id.verify(exact_type())
             .map_err(|_: PersistentIdMismatch<PersistentExactTypeId>| ResolutionError)
-    }
-}
-
-impl PersistentIdResolver<CanonicalCAbiSignatureFingerprint> for Resolver {
-    type Error = ResolutionError;
-
-    fn resolve(
-        &mut self,
-        id: crate::DecodedPersistentId<CanonicalCAbiSignatureFingerprint>,
-    ) -> Result<CanonicalCAbiSignatureFingerprint, Self::Error> {
-        id.verify(signature())
-            .map_err(|_: PersistentIdMismatch<CanonicalCAbiSignatureFingerprint>| ResolutionError)
     }
 }
 
@@ -95,7 +82,6 @@ fn all_c_storage_shapes_round_trip_and_resolve_typed_references() {
         },
         CanonicalCStorageType::CodePointer {
             exact_type: exact_type(),
-            signature: signature(),
             storage: CPointerStorage::Direct,
         },
         CanonicalCStorageType::Struct {
@@ -143,10 +129,6 @@ fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag
 
 const fn exact_type() -> PersistentExactTypeId {
     PersistentExactTypeId([1; 32])
-}
-
-const fn signature() -> CanonicalCAbiSignatureFingerprint {
-    CanonicalCAbiSignatureFingerprint([2; 32])
 }
 
 const fn layout() -> CanonicalCAbiLayoutFingerprint {

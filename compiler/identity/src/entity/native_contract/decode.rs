@@ -8,13 +8,12 @@ use scoop_wire::{
 use super::{NativeExternAbi, NativeExternalContract, NativeExternalContractRecord};
 use crate::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiResolutionError,
-    CanonicalCAbiSignatureFingerprint, DecodedCanonicalCAbiFunctionSignature,
-    DecodedCanonicalCStorageType, DecodedCanonicalScoopAbiFunctionSignature,
-    DecodedNativeExternalSymbolKey, DecodedNativeLibraryBinding, DecodedPersistentId,
-    NativeExternalContractFingerprint, NativeLinkRequirementId, NativeLinkValidationError,
-    PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver,
-    PersistentNativeExternalSymbolId, PersistentSourceNativeExternalContractId,
-    ScoopAbiResolutionError, TargetCallingConvention,
+    DecodedCanonicalCAbiFunctionSignature, DecodedCanonicalCStorageType,
+    DecodedCanonicalScoopAbiFunctionSignature, DecodedNativeExternalSymbolKey,
+    DecodedNativeLibraryBinding, DecodedPersistentId, NativeExternalContractFingerprint,
+    NativeLinkRequirementId, NativeLinkValidationError, PersistentExactTypeId,
+    PersistentIdMismatch, PersistentIdResolver, PersistentNativeExternalSymbolId,
+    PersistentSourceNativeExternalContractId, ScoopAbiResolutionError, TargetCallingConvention,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -30,7 +29,6 @@ impl DecodedNativeExternAbi {
     ) -> Result<NativeExternAbi, NativeExternalContractResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         match self {
@@ -104,7 +102,6 @@ impl DecodedNativeExternalContract {
     where
         R: PersistentIdResolver<NativeLinkRequirementId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         match self {
@@ -274,7 +271,6 @@ impl DecodedNativeExternalContractRecord {
         R: PersistentIdResolver<PersistentSourceNativeExternalContractId, Error = E>
             + PersistentIdResolver<NativeLinkRequirementId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         let source = resolver
@@ -401,7 +397,6 @@ fn resolve_data_contract<R, E>(
 where
     R: PersistentIdResolver<NativeLinkRequirementId, Error = E>
         + PersistentIdResolver<PersistentExactTypeId, Error = E>
-        + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
         + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
 {
     let library = library

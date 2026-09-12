@@ -23,7 +23,6 @@ impl DecodedCanonicalCAbiParameter {
     ) -> Result<CanonicalCAbiParameter, CanonicalCAbiResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         let source_exact_type = resolver
@@ -74,7 +73,6 @@ impl DecodedCanonicalCAbiReturn {
     ) -> Result<CanonicalCAbiReturn, CanonicalCAbiResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         match self {
@@ -142,7 +140,6 @@ impl DecodedCanonicalCAbiFunctionSignature {
     ) -> Result<CanonicalCAbiFunctionSignature, CanonicalCAbiResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         let parameters = self
@@ -213,7 +210,6 @@ impl DecodedCanonicalCAbiSignatureFingerprintRecord {
     ) -> Result<CanonicalCAbiSignatureFingerprintRecord, CanonicalCAbiResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         let signature = self.signature.resolve(resolver)?;

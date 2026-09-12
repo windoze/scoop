@@ -6,10 +6,9 @@ use super::{
 };
 use crate::{
     CanonicalCAbiError, CanonicalCAbiFunctionSignature, CanonicalCAbiLayoutFingerprint,
-    CanonicalCAbiParameter, CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprint,
-    CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType, IntegerBitWidth,
-    PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver, Signedness,
-    TargetCallingConvention,
+    CanonicalCAbiParameter, CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprintRecord,
+    CanonicalCStorageType, IntegerBitWidth, PersistentExactTypeId, PersistentIdMismatch,
+    PersistentIdResolver, Signedness, TargetCallingConvention,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -27,18 +26,6 @@ impl PersistentIdResolver<PersistentExactTypeId> for Resolver {
         id.verify(first_type())
             .or_else(|_| id.verify(second_type()))
             .map_err(|_: PersistentIdMismatch<PersistentExactTypeId>| ResolutionError)
-    }
-}
-
-impl PersistentIdResolver<CanonicalCAbiSignatureFingerprint> for Resolver {
-    type Error = ResolutionError;
-
-    fn resolve(
-        &mut self,
-        id: crate::DecodedPersistentId<CanonicalCAbiSignatureFingerprint>,
-    ) -> Result<CanonicalCAbiSignatureFingerprint, Self::Error> {
-        id.verify(referenced_signature())
-            .map_err(|_: PersistentIdMismatch<CanonicalCAbiSignatureFingerprint>| ResolutionError)
     }
 }
 
@@ -175,10 +162,6 @@ const fn first_type() -> PersistentExactTypeId {
 
 const fn second_type() -> PersistentExactTypeId {
     PersistentExactTypeId([2; 32])
-}
-
-const fn referenced_signature() -> CanonicalCAbiSignatureFingerprint {
-    CanonicalCAbiSignatureFingerprint([3; 32])
 }
 
 const fn referenced_layout() -> CanonicalCAbiLayoutFingerprint {

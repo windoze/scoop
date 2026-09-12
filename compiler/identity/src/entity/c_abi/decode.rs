@@ -122,7 +122,6 @@ pub enum DecodedCanonicalCStorageType {
     },
     CodePointer {
         exact_type: DecodedPersistentId<PersistentExactTypeId>,
-        signature: DecodedPersistentId<CanonicalCAbiSignatureFingerprint>,
         storage: DecodedCPointerStorage,
     },
     Struct {
@@ -135,7 +134,6 @@ impl DecodedCanonicalCStorageType {
     pub fn resolve<R, E>(self, resolver: &mut R) -> Result<CanonicalCStorageType, E>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         match self {
@@ -162,11 +160,9 @@ impl DecodedCanonicalCStorageType {
             }),
             Self::CodePointer {
                 exact_type,
-                signature,
                 storage,
             } => Ok(CanonicalCStorageType::CodePointer {
                 exact_type: resolver.resolve(exact_type)?,
-                signature: resolver.resolve(signature)?,
                 storage: storage.resolve(resolver)?,
             }),
             Self::Struct { exact_type, layout } => Ok(CanonicalCStorageType::Struct {
@@ -193,9 +189,8 @@ impl WireEncode for DecodedCanonicalCStorageType {
             } => encode_three_value_sum(encoder, 3, exact_type, pointee, storage),
             Self::CodePointer {
                 exact_type,
-                signature,
                 storage,
-            } => encode_three_value_sum(encoder, 4, exact_type, signature, storage),
+            } => encode_two_value_sum(encoder, 4, exact_type, storage),
             Self::Struct { exact_type, layout } => {
                 encode_two_value_sum(encoder, 5, exact_type, layout)
             }
@@ -230,11 +225,10 @@ impl WireDecode for DecodedCanonicalCStorageType {
                 })
             }
             4 => {
-                expect_sum_length(decoder, fields, 4)?;
+                expect_sum_length(decoder, fields, 3)?;
                 Ok(Self::CodePointer {
                     exact_type: decoder.field(1, DecodedPersistentId::decode)?,
-                    signature: decoder.field(2, DecodedPersistentId::decode)?,
-                    storage: decoder.field(3, DecodedCPointerStorage::decode)?,
+                    storage: decoder.field(2, DecodedCPointerStorage::decode)?,
                 })
             }
             5 => {

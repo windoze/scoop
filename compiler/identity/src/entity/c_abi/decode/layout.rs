@@ -8,9 +8,8 @@ use scoop_wire::{
 use super::{CanonicalCAbiResolutionError, DecodedCanonicalCStorageType};
 use crate::{
     CLayoutByteAlignment, CLayoutOverride, CanonicalCAbiLayout, CanonicalCAbiLayoutField,
-    CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord,
-    CanonicalCAbiSignatureFingerprint, DecodedPersistentId, PersistentExactTypeId,
-    PersistentFieldId, PersistentIdResolver,
+    CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord, DecodedPersistentId,
+    PersistentExactTypeId, PersistentFieldId, PersistentIdResolver,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -71,7 +70,6 @@ impl DecodedCanonicalCAbiLayoutField {
     where
         R: PersistentIdResolver<PersistentFieldId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         let field = resolver
@@ -126,7 +124,6 @@ impl DecodedCanonicalCAbiLayout {
     where
         R: PersistentIdResolver<PersistentFieldId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         let exact_type = resolver
@@ -211,7 +208,6 @@ impl DecodedCanonicalCAbiLayoutFingerprintRecord {
     where
         R: PersistentIdResolver<PersistentFieldId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
             + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
     {
         let layout = self.layout.resolve(resolver)?;

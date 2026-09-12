@@ -6,12 +6,12 @@ use super::{
 };
 use crate::{
     CanonicalCAbiFunctionSignature, CanonicalCAbiLayoutFingerprint, CanonicalCAbiReturn,
-    CanonicalCAbiSignatureFingerprint, CanonicalCStorageType, CanonicalScoopAbiFunctionSignature,
-    Effect, ExactCallableSignature, GcEffect, NativeExternAbi, NativeExternalContract,
-    NativeExternalContractRecord, NativeExternalSymbolKey, NativeLibraryBinding,
-    NativeLinkRequirementId, NativeLinkValidationError, PersistentExactTypeId,
-    PersistentIdMismatch, PersistentIdResolver, PersistentSourceNativeExternalContractId,
-    ScoopAbiReturn, SourceNativeSymbol, TargetCallingConvention,
+    CanonicalCStorageType, CanonicalScoopAbiFunctionSignature, Effect, ExactCallableSignature,
+    GcEffect, NativeExternAbi, NativeExternalContract, NativeExternalContractRecord,
+    NativeExternalSymbolKey, NativeLibraryBinding, NativeLinkRequirementId,
+    NativeLinkValidationError, PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentSourceNativeExternalContractId, ScoopAbiReturn, SourceNativeSymbol,
+    TargetCallingConvention,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -35,7 +35,6 @@ macro_rules! id_resolver {
 id_resolver!(PersistentSourceNativeExternalContractId, source_contract());
 id_resolver!(NativeLinkRequirementId, link_requirement());
 id_resolver!(PersistentExactTypeId, exact_type());
-id_resolver!(CanonicalCAbiSignatureFingerprint, signature_fingerprint());
 id_resolver!(CanonicalCAbiLayoutFingerprint, layout_fingerprint());
 
 #[test]
@@ -214,7 +213,6 @@ fn scoop_signature() -> CanonicalScoopAbiFunctionSignature {
 fn storage() -> CanonicalCStorageType {
     CanonicalCStorageType::CodePointer {
         exact_type: exact_type(),
-        signature: signature_fingerprint(),
         storage: crate::CPointerStorage::Direct,
     }
 }
@@ -266,10 +264,6 @@ const fn link_requirement() -> NativeLinkRequirementId {
 
 const fn exact_type() -> PersistentExactTypeId {
     PersistentExactTypeId([1; 32])
-}
-
-const fn signature_fingerprint() -> CanonicalCAbiSignatureFingerprint {
-    CanonicalCAbiSignatureFingerprint([2; 32])
 }
 
 const fn layout_fingerprint() -> CanonicalCAbiLayoutFingerprint {
