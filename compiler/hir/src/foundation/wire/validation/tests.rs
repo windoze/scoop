@@ -4,10 +4,14 @@ use scoop_identity::{
     NormalizedSourcePath, PackagePath, PendingIdentityValidation, SourceContextKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 use super::*;
 use crate::{NativeBoundaryCLayoutPolicy, NativeBoundaryNominalShape};
+
+fn meter() -> BudgetMeter {
+    BudgetMeter::new(DecodeLimits::default())
+}
 
 struct Fixture {
     coordinate: ConeCoordinate,
@@ -114,7 +118,7 @@ fn validates_the_complete_hir_foundation_atomically() {
     );
 
     let validated = decoded
-        .validate(&fixture.coordinate, &mut identities)
+        .validate(&fixture.coordinate, &mut identities, &mut meter())
         .unwrap();
 
     assert_eq!(encode(&validated).unwrap(), bytes);
@@ -133,7 +137,7 @@ fn rejects_a_missing_required_definition_origin() {
     );
 
     assert!(matches!(
-        decoded.validate(&fixture.coordinate, &mut identities),
+        decoded.validate(&fixture.coordinate, &mut identities, &mut meter()),
         Err(HirFoundationValidationError::Origin(
             DefinitionOriginValidationError::MissingSubject { subject }
         )) if subject == fixture.subject
@@ -150,7 +154,7 @@ fn rejects_an_origin_endpoint_absent_from_the_source_point_table() {
     );
 
     assert!(matches!(
-        decoded.validate(&fixture.coordinate, &mut identities),
+        decoded.validate(&fixture.coordinate, &mut identities, &mut meter()),
         Err(HirFoundationValidationError::Origin(
             DefinitionOriginValidationError::MissingPoint {
                 subject,
@@ -172,7 +176,7 @@ fn rejects_semantically_noncanonical_table_order() {
     );
 
     assert!(matches!(
-        decoded.validate(&fixture.coordinate, &mut identities),
+        decoded.validate(&fixture.coordinate, &mut identities, &mut meter()),
         Err(HirFoundationValidationError::NonCanonicalFoundation)
     ));
 }
@@ -202,7 +206,7 @@ fn rejects_a_foreign_source_declaration_in_the_artifact_delta() {
     );
 
     assert!(matches!(
-        decoded.validate(&coordinate, &mut identities),
+        decoded.validate(&coordinate, &mut identities, &mut meter()),
         Err(HirFoundationValidationError::ForeignDeclaration {
             table: HirFoundationTable::Type,
             identity: actual,
@@ -226,7 +230,7 @@ fn rejects_a_foundation_without_the_trusted_core_nominals() {
     let mut identities = validate_identities(&decoded, [ConeIdentity::CORE, cone]);
 
     assert!(matches!(
-        decoded.validate(&coordinate, &mut identities),
+        decoded.validate(&coordinate, &mut identities, &mut meter()),
         Err(HirFoundationValidationError::MissingCoreBuiltin { .. })
     ));
 }

@@ -11,6 +11,7 @@ use scoop_identity::{
     SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceExternFunctionAbi,
     SourceNativeExternalContract, SourceScoopAbiFunctionSignature,
 };
+use scoop_wire::WirePath;
 
 use super::StructurallyValidatedFoundations;
 
@@ -26,9 +27,9 @@ pub struct NativeBoundarySourceValidatedFoundations<'input> {
 
 impl<'input> StructurallyValidatedFoundations<'input> {
     pub fn validate_native_boundary_source(
-        self,
+        mut self,
     ) -> Result<NativeBoundarySourceValidatedFoundations<'input>, NativeBoundaryCompileError> {
-        validate_source_closure(&self)?;
+        validate_source_closure(&mut self)?;
         Ok(NativeBoundarySourceValidatedFoundations { foundations: self })
     }
 }
@@ -40,28 +41,54 @@ impl NativeBoundarySourceValidatedFoundations<'_> {
 }
 
 fn validate_source_closure(
-    foundations: &StructurallyValidatedFoundations<'_>,
+    foundations: &mut StructurallyValidatedFoundations<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
     let graph = &foundations.identities;
-    let exact_types = records_by_id(
-        [IdentityLayer::Hir, IdentityLayer::Mir, IdentityLayer::Lir]
-            .into_iter()
-            .map(|layer| graph.records::<PersistentExactTypeId, ExactTypeKey>(layer)),
-    )?;
+    let meter = foundations.graph.envelope.meter_mut();
+    let exact_types = records_by_id([
+        graph.records::<PersistentExactTypeId, ExactTypeKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(15),
+        ),
+        graph.records::<PersistentExactTypeId, ExactTypeKey>(
+            IdentityLayer::Mir,
+            meter,
+            &WirePath::root().field(1),
+        ),
+        graph.records::<PersistentExactTypeId, ExactTypeKey>(
+            IdentityLayer::Lir,
+            meter,
+            &WirePath::root().field(1),
+        ),
+    ])?;
     let callable_applications = records_by_id(std::iter::once(
-        graph
-            .records::<PersistentCallableApplicationId, CallableApplicationKey>(IdentityLayer::Hir),
+        graph.records::<PersistentCallableApplicationId, CallableApplicationKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(17),
+        ),
     ))?;
     let initialization_units = records_by_id(std::iter::once(
-        graph.records::<PersistentInitializationUnitId, InitializationUnitKey>(IdentityLayer::Hir),
+        graph.records::<PersistentInitializationUnitId, InitializationUnitKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(21),
+        ),
     ))?;
     let callback_registrations = graph
         .records::<scoop_identity::PersistentCallbackRegistrationId, CallbackRegistrationKey>(
             IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(25),
         )
         .map_err(NativeBoundaryCompileError::Identity)?;
     let callback_applications = graph
-        .records::<PersistentCallbackApplicationId, CallbackApplicationKey>(IdentityLayer::Mir)
+        .records::<PersistentCallbackApplicationId, CallbackApplicationKey>(
+            IdentityLayer::Mir,
+            meter,
+            &WirePath::root().field(9),
+        )
         .map_err(NativeBoundaryCompileError::Identity)?;
 
     let mut required = BTreeSet::new();

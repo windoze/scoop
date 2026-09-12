@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use scoop_wire::budget::{GRAPH_EDGE_BYTES, READY_SET_ELEMENT_BYTES};
+use scoop_wire::budget::{COLLECTION_ELEMENT_BYTES, GRAPH_EDGE_BYTES, READY_SET_ELEMENT_BYTES};
 use scoop_wire::{
     BudgetMeter, Digest256, HashError, WireError, WireErrorKind, WirePath,
     domain_separated_hash_stream_length,
@@ -1080,14 +1080,44 @@ impl ValidatedIdentityGraph {
     pub fn records<I, K>(
         &self,
         layer: IdentityLayer,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<Vec<CborIdentityRecord<I, K>>, IdentityValidationError>
     where
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Clone + 'static,
     {
+        let first = IdentityNode {
+            kind: I::KIND,
+            bytes: [0; 32],
+        };
+        let last = IdentityNode {
+            kind: I::KIND,
+            bytes: [u8::MAX; 32],
+        };
+        let record_count = self
+            .candidates
+            .range(first..=last)
+            .filter(|(node, candidate)| {
+                candidate.layer == Some(layer)
+                    && self
+                        .canonical_keys
+                        .contains_key(&CanonicalKeySlot::new::<I, K>(node.bytes))
+            })
+            .count();
+        let record_count = u64::try_from(record_count).map_err(|_| {
+            IdentityValidationError::Resource(WireError::new(
+                WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ))
+        })?;
         let mut records = Vec::new();
-        for (node, candidate) in &self.candidates {
-            if node.kind != I::KIND || candidate.layer != Some(layer) {
+        meter
+            .try_reserve_exact(&mut records, record_count, COLLECTION_ELEMENT_BYTES, path)
+            .map_err(IdentityValidationError::Resource)?;
+        for (node, candidate) in self.candidates.range(first..=last) {
+            if candidate.layer != Some(layer) {
                 continue;
             }
             let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
@@ -1116,14 +1146,44 @@ impl ValidatedIdentityGraph {
     pub fn runtime_records<I, K>(
         &self,
         layer: IdentityLayer,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<Vec<RuntimeIdentityRecord<I>>, IdentityValidationError>
     where
         I: PersistentId + 'static,
         K: RuntimeIdentityKey<I> + Clone + 'static,
     {
+        let first = IdentityNode {
+            kind: I::KIND,
+            bytes: [0; 32],
+        };
+        let last = IdentityNode {
+            kind: I::KIND,
+            bytes: [u8::MAX; 32],
+        };
+        let record_count = self
+            .candidates
+            .range(first..=last)
+            .filter(|(node, candidate)| {
+                candidate.layer == Some(layer)
+                    && self
+                        .canonical_keys
+                        .contains_key(&CanonicalKeySlot::new::<I, K>(node.bytes))
+            })
+            .count();
+        let record_count = u64::try_from(record_count).map_err(|_| {
+            IdentityValidationError::Resource(WireError::new(
+                WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ))
+        })?;
         let mut records = Vec::new();
-        for (node, candidate) in &self.candidates {
-            if node.kind != I::KIND || candidate.layer != Some(layer) {
+        meter
+            .try_reserve_exact(&mut records, record_count, COLLECTION_ELEMENT_BYTES, path)
+            .map_err(IdentityValidationError::Resource)?;
+        for (node, candidate) in self.candidates.range(first..=last) {
+            if candidate.layer != Some(layer) {
                 continue;
             }
             let slot = CanonicalKeySlot::new::<I, K>(node.bytes);

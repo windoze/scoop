@@ -6,7 +6,7 @@ use scoop_identity::{
     IdentityLayer, IdentityReferenceError, IdentityValidationError, PersistentId, SourceContextKey,
     SourceNativeExternalResolutionError, ValidatedIdentityGraph,
 };
-use scoop_wire::{WireEncode, encode};
+use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode};
 
 use super::*;
 use crate::{NativeBoundaryResolutionError, NativeBoundaryResolver, SourceRecordValidationError};
@@ -61,8 +61,9 @@ impl DecodedHirFoundation {
         self,
         coordinate: &ConeCoordinate,
         identities: &mut ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
     ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
-        validate_foundation(self, coordinate, identities)
+        validate_foundation(self, coordinate, identities, meter)
     }
 }
 
@@ -70,6 +71,7 @@ fn validate_foundation(
     foundation: DecodedHirFoundation,
     coordinate: &ConeCoordinate,
     identities: &mut ValidatedIdentityGraph,
+    meter: &mut BudgetMeter,
 ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
     let original = encode(&foundation).map_err(HirFoundationValidationError::WireEncode)?;
     let artifact = coordinate
@@ -121,55 +123,60 @@ fn validate_foundation(
     }
 
     macro_rules! records {
-        ($id:ty, $key:ty) => {
+        ($field:literal, $id:ty, $key:ty) => {
             identities
-                .records::<$id, $key>(IdentityLayer::Hir)
+                .records::<$id, $key>(IdentityLayer::Hir, meter, &WirePath::root().field($field))
                 .map_err(HirFoundationValidationError::Identity)?
         };
     }
 
-    let types: Vec<TypeRecord> = records!(PersistentTypeId, SourceDeclarationKey);
+    let types: Vec<TypeRecord> = records!(2, PersistentTypeId, SourceDeclarationKey);
     let generic_types: Vec<GenericTypeRecord> =
-        records!(PersistentGenericTypeId, SourceDeclarationKey);
-    let functions: Vec<FunctionRecord> = records!(PersistentFunctionId, SourceDeclarationKey);
+        records!(3, PersistentGenericTypeId, SourceDeclarationKey);
+    let functions: Vec<FunctionRecord> = records!(4, PersistentFunctionId, SourceDeclarationKey);
     let generic_functions: Vec<GenericFunctionRecord> =
-        records!(PersistentGenericFunctionId, SourceDeclarationKey);
+        records!(5, PersistentGenericFunctionId, SourceDeclarationKey);
     let constructors: Vec<ConstructorRecord> =
-        records!(PersistentConstructorId, SourceDeclarationKey);
-    let properties: Vec<PropertyRecord> = records!(PersistentPropertyId, SourceDeclarationKey);
+        records!(6, PersistentConstructorId, SourceDeclarationKey);
+    let properties: Vec<PropertyRecord> = records!(7, PersistentPropertyId, SourceDeclarationKey);
     let extension_properties: Vec<ExtensionPropertyRecord> =
-        records!(PersistentExtensionPropertyId, SourceDeclarationKey);
+        records!(8, PersistentExtensionPropertyId, SourceDeclarationKey);
     let object_values: Vec<ObjectValueRecord> =
-        records!(PersistentObjectValueId, SourceDeclarationKey);
-    let type_aliases: Vec<TypeAliasRecord> = records!(PersistentTypeAliasId, SourceDeclarationKey);
+        records!(9, PersistentObjectValueId, SourceDeclarationKey);
+    let type_aliases: Vec<TypeAliasRecord> =
+        records!(10, PersistentTypeAliasId, SourceDeclarationKey);
     let property_accessors: Vec<PropertyAccessorRecord> =
-        records!(PersistentPropertyAccessorId, PropertyAccessorKey);
-    let fields: Vec<FieldRecord> = records!(PersistentFieldId, FieldIdentityKey);
+        records!(11, PersistentPropertyAccessorId, PropertyAccessorKey);
+    let fields: Vec<FieldRecord> = records!(12, PersistentFieldId, FieldIdentityKey);
     let enum_variants: Vec<EnumVariantRecord> =
-        records!(PersistentEnumVariantId, EnumVariantIdentityKey);
+        records!(13, PersistentEnumVariantId, EnumVariantIdentityKey);
     let enum_variant_fields: Vec<EnumVariantFieldRecord> =
-        records!(PersistentEnumVariantFieldId, EnumVariantFieldKey);
-    let exact_types: Vec<ExactTypeRecord> = records!(PersistentExactTypeId, ExactTypeKey);
+        records!(14, PersistentEnumVariantFieldId, EnumVariantFieldKey);
+    let exact_types: Vec<ExactTypeRecord> = records!(15, PersistentExactTypeId, ExactTypeKey);
     let export_bindings: Vec<ExportBindingRecord> =
-        records!(PersistentExportBindingId, ExportBindingKey);
+        records!(16, PersistentExportBindingId, ExportBindingKey);
     let callable_applications: Vec<CallableApplicationRecord> =
-        records!(PersistentCallableApplicationId, CallableApplicationKey);
+        records!(17, PersistentCallableApplicationId, CallableApplicationKey);
     let generated_callables: Vec<GeneratedCallableRecord> =
-        records!(PersistentGeneratedCallableId, GeneratedCallableKey);
-    let generated_types: Vec<GeneratedTypeRecord> = records!(PersistentTypeId, GeneratedNominalKey);
+        records!(18, PersistentGeneratedCallableId, GeneratedCallableKey);
+    let generated_types: Vec<GeneratedTypeRecord> =
+        records!(19, PersistentTypeId, GeneratedNominalKey);
     let dispatch_slots: Vec<DispatchSlotRecord> =
-        records!(PersistentDispatchSlotId, DispatchSlotKey);
+        records!(20, PersistentDispatchSlotId, DispatchSlotKey);
     let initialization_units: Vec<InitializationUnitRecord> =
-        records!(PersistentInitializationUnitId, InitializationUnitKey);
+        records!(21, PersistentInitializationUnitId, InitializationUnitKey);
     let source_contexts: Vec<SourceContextRecord> =
-        records!(PersistentSourceContextId, SourceContextKey);
+        records!(22, PersistentSourceContextId, SourceContextKey);
     let local_bindings: Vec<LocalBindingRecord> =
-        records!(PersistentLocalBindingId, LocalBindingKey);
-    let local_values: Vec<LocalValueRecord> = records!(PersistentLocalValueId, LocalValueKey);
-    let callback_registrations: Vec<CallbackRegistrationRecord> =
-        records!(PersistentCallbackRegistrationId, CallbackRegistrationKey);
-    let odr_groups: Vec<OdrGroupRecord> = records!(OdrGroupId, SpecializationKey);
-    let odr_members: Vec<OdrMemberRecord> = records!(OdrMemberId, OdrMemberKey);
+        records!(23, PersistentLocalBindingId, LocalBindingKey);
+    let local_values: Vec<LocalValueRecord> = records!(24, PersistentLocalValueId, LocalValueKey);
+    let callback_registrations: Vec<CallbackRegistrationRecord> = records!(
+        25,
+        PersistentCallbackRegistrationId,
+        CallbackRegistrationKey
+    );
+    let odr_groups: Vec<OdrGroupRecord> = records!(27, OdrGroupId, SpecializationKey);
+    let odr_members: Vec<OdrMemberRecord> = records!(28, OdrMemberId, OdrMemberKey);
 
     validate_declaration_ownership(
         artifact,

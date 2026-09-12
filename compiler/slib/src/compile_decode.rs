@@ -355,15 +355,17 @@ impl<'input> IdentityCheckedFoundations<'input> {
             mir,
             lir,
         } = self;
+        let coordinate = graph.coordinate().clone();
+        let producer = graph.identity();
+        let meter = graph.envelope.meter_mut();
         let hir = hir
-            .validate(graph.coordinate(), &mut identities)
+            .validate(&coordinate, &mut identities, meter)
             .map_err(FoundationStructureValidationError::Hir)?;
         let mir = mir
-            .validate(&mut identities)
+            .validate(&mut identities, meter)
             .map_err(FoundationStructureValidationError::Mir)?;
-        let producer = graph.identity();
         let lir = lir
-            .validate(producer, &mut identities, graph.envelope.meter_mut())
+            .validate(producer, &mut identities, meter)
             .map_err(FoundationStructureValidationError::Lir)?;
         Ok(StructurallyValidatedFoundations {
             graph,

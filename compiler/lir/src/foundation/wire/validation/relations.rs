@@ -7,6 +7,7 @@ use scoop_identity::{
     PersistentSourceNativeExternalContractId, SafepointSiteRole, SourceNativeExternalContractKey,
     ValidatedIdentityGraph,
 };
+use scoop_wire::{BudgetMeter, WirePath};
 
 use super::*;
 
@@ -75,10 +76,13 @@ pub(super) fn validate_safepoints(
 pub(super) fn validate_native_contracts(
     identities: &ValidatedIdentityGraph,
     contracts: &[NativeExternalContractRecord],
+    meter: &mut BudgetMeter,
 ) -> Result<(), LirFoundationValidationError> {
     let sources = identities
         .records::<PersistentSourceNativeExternalContractId, SourceNativeExternalContractKey>(
             IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(26),
         )
         .map_err(LirFoundationValidationError::Identity)?
         .into_iter()
@@ -119,15 +123,24 @@ pub(super) fn validate_bridges(
     identities: &ValidatedIdentityGraph,
     producer: ConeIdentity,
     tables: BridgeTables<'_>,
+    meter: &mut BudgetMeter,
 ) -> Result<(), LirFoundationValidationError> {
     let applications = identities
-        .records::<PersistentCallbackApplicationId, CallbackApplicationKey>(IdentityLayer::Mir)
+        .records::<PersistentCallbackApplicationId, CallbackApplicationKey>(
+            IdentityLayer::Mir,
+            meter,
+            &WirePath::root().field(9),
+        )
         .map_err(LirFoundationValidationError::Identity)?
         .into_iter()
         .map(|record| (record.id(), record.into_key()))
         .collect::<BTreeMap<_, _>>();
     let registrations = identities
-        .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(IdentityLayer::Hir)
+        .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(25),
+        )
         .map_err(LirFoundationValidationError::Identity)?
         .into_iter()
         .map(|record| (record.id(), record.into_key()))

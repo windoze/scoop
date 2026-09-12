@@ -1,3 +1,4 @@
+use scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
 use scoop_wire::{
     BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath, decode_canonical, encode,
 };
@@ -101,10 +102,53 @@ fn commits_a_complete_identity_transaction() {
     pending.resolve(&decoded).unwrap();
 
     let graph = pending.finish().unwrap();
+    let mut meter = BudgetMeter::new(DecodeLimits::default());
     let records = graph
-        .records::<PersistentTypeId, SourceDeclarationKey>(IdentityLayer::Hir)
+        .records::<PersistentTypeId, SourceDeclarationKey>(
+            IdentityLayer::Hir,
+            &mut meter,
+            &WirePath::root(),
+        )
         .unwrap();
     assert_eq!(records, vec![source_type_record()]);
+}
+
+#[test]
+fn canonical_record_materialization_precharges_exact_slot_budget() {
+    let decoded = decoded_source_type();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending.resolve(&decoded).unwrap();
+    let graph = pending.finish().unwrap();
+
+    for (limit, accepted) in [
+        (COLLECTION_ELEMENT_BYTES - 1, false),
+        (COLLECTION_ELEMENT_BYTES, true),
+        (COLLECTION_ELEMENT_BYTES + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            logical_heap_bytes: limit,
+            ..DecodeLimits::default()
+        });
+        let result = graph.records::<PersistentTypeId, SourceDeclarationKey>(
+            IdentityLayer::Hir,
+            &mut meter,
+            &WirePath::root().field(2),
+        );
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert!(matches!(
+                result,
+                Err(IdentityValidationError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::LogicalHeapBytes,
+                        limit,
+                        observed: COLLECTION_ELEMENT_BYTES,
+                    }
+            ));
+        }
+    }
 }
 
 #[test]

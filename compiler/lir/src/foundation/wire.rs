@@ -285,7 +285,9 @@ mod tests {
         SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite,
         SourceNativeExternalContractKey, SourceNativeSymbol, StrongCallableDefinitionOwner,
     };
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{
+        BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode,
+    };
 
     use super::*;
 
@@ -353,9 +355,14 @@ mod tests {
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
         assert_eq!(
             graph
-                .runtime_records::<PersistentCallableBodyId, CallableBodyKey>(IdentityLayer::Lir)
+                .runtime_records::<PersistentCallableBodyId, CallableBodyKey>(
+                    IdentityLayer::Lir,
+                    &mut meter,
+                    &WirePath::root(),
+                )
                 .unwrap(),
             vec![record]
         );
@@ -386,9 +393,14 @@ mod tests {
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
         assert_eq!(
             graph
-                .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(IdentityLayer::Lir)
+                .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(
+                    IdentityLayer::Lir,
+                    &mut meter,
+                    &WirePath::root(),
+                )
                 .unwrap(),
             vec![unit]
         );
@@ -455,11 +467,15 @@ mod tests {
         decoded.register_identities(&mut validation).unwrap();
         decoded.resolve_identities(&mut validation).unwrap();
 
+        let graph = validation.finish().unwrap();
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
         assert_eq!(
-            validation
-                .finish()
-                .unwrap()
-                .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(IdentityLayer::Lir)
+            graph
+                .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(
+                    IdentityLayer::Lir,
+                    &mut meter,
+                    &WirePath::root(),
+                )
                 .unwrap(),
             vec![unit]
         );

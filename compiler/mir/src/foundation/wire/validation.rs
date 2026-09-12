@@ -7,7 +7,7 @@ use scoop_identity::{
     OdrMemberId, OdrMemberIdentityError, OdrMemberKey, PersistentCallbackRegistrationId,
     PersistentId, PersistentIdResolver, PersistentKeyResolver, ValidatedIdentityGraph,
 };
-use scoop_wire::{WireEncode, encode};
+use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode};
 
 use super::*;
 use crate::{
@@ -50,14 +50,16 @@ impl DecodedMirFoundation {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
     ) -> Result<ValidatedMirFoundation, MirFoundationValidationError> {
-        validate_foundation(self, identities)
+        validate_foundation(self, identities, meter)
     }
 }
 
 fn validate_foundation(
     foundation: DecodedMirFoundation,
     identities: &mut ValidatedIdentityGraph,
+    meter: &mut BudgetMeter,
 ) -> Result<ValidatedMirFoundation, MirFoundationValidationError> {
     let original = encode(&foundation).map_err(MirFoundationValidationError::WireEncode)?;
     let DecodedMirFoundationWire {
@@ -76,26 +78,27 @@ fn validate_foundation(
     } = foundation.decoded;
 
     macro_rules! records {
-        ($id:ty, $key:ty) => {
+        ($field:literal, $id:ty, $key:ty) => {
             identities
-                .records::<$id, $key>(IdentityLayer::Mir)
+                .records::<$id, $key>(IdentityLayer::Mir, meter, &WirePath::root().field($field))
                 .map_err(MirFoundationValidationError::Identity)?
         };
     }
-    let exact_types: Vec<ExactTypeRecord> = records!(PersistentExactTypeId, ExactTypeKey);
+    let exact_types: Vec<ExactTypeRecord> = records!(1, PersistentExactTypeId, ExactTypeKey);
     let generated_callables: Vec<GeneratedCallableRecord> =
-        records!(PersistentGeneratedCallableId, GeneratedCallableKey);
-    let generated_types: Vec<GeneratedTypeRecord> = records!(PersistentTypeId, GeneratedNominalKey);
-    let fields: Vec<FieldRecord> = records!(PersistentFieldId, FieldIdentityKey);
+        records!(2, PersistentGeneratedCallableId, GeneratedCallableKey);
+    let generated_types: Vec<GeneratedTypeRecord> =
+        records!(3, PersistentTypeId, GeneratedNominalKey);
+    let fields: Vec<FieldRecord> = records!(4, PersistentFieldId, FieldIdentityKey);
     let enum_variants: Vec<EnumVariantRecord> =
-        records!(PersistentEnumVariantId, EnumVariantIdentityKey);
+        records!(5, PersistentEnumVariantId, EnumVariantIdentityKey);
     let enum_variant_fields: Vec<EnumVariantFieldRecord> =
-        records!(PersistentEnumVariantFieldId, EnumVariantFieldKey);
-    let local_values: Vec<LocalValueRecord> = records!(PersistentLocalValueId, LocalValueKey);
+        records!(6, PersistentEnumVariantFieldId, EnumVariantFieldKey);
+    let local_values: Vec<LocalValueRecord> = records!(8, PersistentLocalValueId, LocalValueKey);
     let callback_applications: Vec<CallbackApplicationIdentityRecord> =
-        records!(PersistentCallbackApplicationId, CallbackApplicationKey);
-    let odr_groups: Vec<OdrGroupRecord> = records!(OdrGroupId, SpecializationKey);
-    let odr_members: Vec<OdrMemberRecord> = records!(OdrMemberId, OdrMemberKey);
+        records!(9, PersistentCallbackApplicationId, CallbackApplicationKey);
+    let odr_groups: Vec<OdrGroupRecord> = records!(11, OdrGroupId, SpecializationKey);
+    let odr_members: Vec<OdrMemberRecord> = records!(12, OdrMemberId, OdrMemberKey);
 
     let mut resolver = FoundationResolver { identities };
     let mut signatures = Vec::new();
@@ -125,6 +128,7 @@ fn validate_foundation(
         &callback_applications,
         &applications,
         &signatures,
+        meter,
     )?;
 
     let mut canonical = CanonicalMirFoundation::empty();
@@ -191,23 +195,36 @@ fn validate_callback_applications(
     identity_records: &[CallbackApplicationIdentityRecord],
     records: &[CallbackApplicationRecord],
     signatures: &[CallableSignatureRecord],
+    meter: &mut BudgetMeter,
 ) -> Result<(), MirFoundationValidationError> {
     let identity_keys = identity_records
         .iter()
         .map(|record| (record.id(), record.key()))
         .collect::<BTreeMap<_, _>>();
     let registrations = identities
-        .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(IdentityLayer::Hir)
+        .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(25),
+        )
         .map_err(MirFoundationValidationError::Identity)?
         .into_iter()
         .map(|record| (record.id(), record))
         .collect::<BTreeMap<_, _>>();
     let mut generated = identities
-        .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(IdentityLayer::Hir)
+        .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(18),
+        )
         .map_err(MirFoundationValidationError::Identity)?;
     generated.extend(
         identities
-            .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(IdentityLayer::Mir)
+            .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(
+                IdentityLayer::Mir,
+                meter,
+                &WirePath::root().field(2),
+            )
             .map_err(MirFoundationValidationError::Identity)?,
     );
     let generated = generated
@@ -215,11 +232,19 @@ fn validate_callback_applications(
         .map(|record| (record.id(), record))
         .collect::<BTreeMap<_, _>>();
     let mut members = identities
-        .records::<OdrMemberId, OdrMemberKey>(IdentityLayer::Hir)
+        .records::<OdrMemberId, OdrMemberKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(28),
+        )
         .map_err(MirFoundationValidationError::Identity)?;
     members.extend(
         identities
-            .records::<OdrMemberId, OdrMemberKey>(IdentityLayer::Mir)
+            .records::<OdrMemberId, OdrMemberKey>(
+                IdentityLayer::Mir,
+                meter,
+                &WirePath::root().field(12),
+            )
             .map_err(MirFoundationValidationError::Identity)?,
     );
     let members = members

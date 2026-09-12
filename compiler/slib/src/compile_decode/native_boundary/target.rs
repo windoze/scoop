@@ -23,6 +23,7 @@ use scoop_identity::{
     SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractRecord,
     SourceNativeLibraryBinding, SourceScoopAbiFunctionSignature, TargetCallingConvention,
 };
+use scoop_wire::WirePath;
 
 use super::{NativeBoundaryCompileError, NativeBoundarySourceValidatedFoundations, records_by_id};
 
@@ -36,9 +37,9 @@ pub struct NativeBoundaryValidatedFoundations<'input> {
 
 impl<'input> NativeBoundarySourceValidatedFoundations<'input> {
     pub fn validate_target(
-        self,
+        mut self,
     ) -> Result<NativeBoundaryValidatedFoundations<'input>, NativeBoundaryCompileError> {
-        validate_target_normalization(&self.foundations)?;
+        validate_target_normalization(&mut self.foundations)?;
         Ok(NativeBoundaryValidatedFoundations {
             foundations: self.foundations,
         })
@@ -52,29 +53,55 @@ impl NativeBoundaryValidatedFoundations<'_> {
 }
 
 fn validate_target_normalization(
-    foundations: &super::super::StructurallyValidatedFoundations<'_>,
+    foundations: &mut super::super::StructurallyValidatedFoundations<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
     let graph = &foundations.identities;
-    let exact_types = records_by_id(
-        [IdentityLayer::Hir, IdentityLayer::Mir, IdentityLayer::Lir]
-            .into_iter()
-            .map(|layer| graph.records::<PersistentExactTypeId, ExactTypeKey>(layer)),
-    )?;
+    let target = foundations.graph.target_selection().target();
+    let meter = foundations.graph.envelope.meter_mut();
+    let exact_types = records_by_id([
+        graph.records::<PersistentExactTypeId, ExactTypeKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(15),
+        ),
+        graph.records::<PersistentExactTypeId, ExactTypeKey>(
+            IdentityLayer::Mir,
+            meter,
+            &WirePath::root().field(1),
+        ),
+        graph.records::<PersistentExactTypeId, ExactTypeKey>(
+            IdentityLayer::Lir,
+            meter,
+            &WirePath::root().field(1),
+        ),
+    ])?;
     let callable_applications = records_by_id(std::iter::once(
-        graph
-            .records::<PersistentCallableApplicationId, CallableApplicationKey>(IdentityLayer::Hir),
+        graph.records::<PersistentCallableApplicationId, CallableApplicationKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(17),
+        ),
     ))?;
     let initialization_units = records_by_id(std::iter::once(
-        graph.records::<PersistentInitializationUnitId, InitializationUnitKey>(IdentityLayer::Hir),
+        graph.records::<PersistentInitializationUnitId, InitializationUnitKey>(
+            IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(21),
+        ),
     ))?;
     let callback_registrations = records_by_id(std::iter::once(
         graph.records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(
             IdentityLayer::Hir,
+            meter,
+            &WirePath::root().field(25),
         ),
     ))?;
     let callback_applications = records_by_id(std::iter::once(
-        graph
-            .records::<PersistentCallbackApplicationId, CallbackApplicationKey>(IdentityLayer::Mir),
+        graph.records::<PersistentCallbackApplicationId, CallbackApplicationKey>(
+            IdentityLayer::Mir,
+            meter,
+            &WirePath::root().field(9),
+        ),
     ))?;
     let definitions = foundations
         .hir
@@ -84,7 +111,7 @@ fn validate_target_normalization(
         .collect::<BTreeMap<_, _>>();
 
     let mut normalizer = NativeBoundaryNormalizer::new(
-        foundations.graph.target_selection().target(),
+        target,
         &exact_types,
         &callable_applications,
         &initialization_units,
@@ -179,7 +206,11 @@ fn validate_target_normalization(
     )?;
 
     let actual_requirements = records_by_id(std::iter::once(
-        graph.records::<NativeLinkRequirementId, NativeLinkRequirementKey>(IdentityLayer::Lir),
+        graph.records::<NativeLinkRequirementId, NativeLinkRequirementKey>(
+            IdentityLayer::Lir,
+            meter,
+            &WirePath::root().field(20),
+        ),
     ))?;
     if actual_requirements != normalizer.expected_requirements {
         return Err(NativeBoundaryTargetError::NativeRequirementSetMismatch.into());

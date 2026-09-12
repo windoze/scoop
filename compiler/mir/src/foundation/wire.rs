@@ -195,7 +195,9 @@ fn encode_table_field<T: WireEncode>(
 #[cfg(test)]
 mod tests {
     use scoop_identity::{CborIdentityRecord, CoreBuiltinNominal, ExactTypeKey};
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{
+        BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode,
+    };
 
     use super::*;
 
@@ -238,9 +240,14 @@ mod tests {
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
         assert_eq!(
             graph
-                .records::<PersistentExactTypeId, ExactTypeKey>(IdentityLayer::Mir)
+                .records::<PersistentExactTypeId, ExactTypeKey>(
+                    IdentityLayer::Mir,
+                    &mut meter,
+                    &WirePath::root(),
+                )
                 .unwrap(),
             vec![record]
         );

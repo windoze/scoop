@@ -9,10 +9,14 @@ use scoop_identity::{
     SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 use super::*;
 use crate::ForeignCallbackStorageAbi;
+
+fn meter() -> BudgetMeter {
+    BudgetMeter::new(DecodeLimits::default())
+}
 
 type DecodedRegistrationRecord =
     DecodedCborIdentityRecord<PersistentCallbackRegistrationId, DecodedCallbackRegistrationKey>;
@@ -145,7 +149,7 @@ fn validates_callback_identity_record_and_signature_as_one_relation() {
     let decoded = decode(&fixture.canonical);
     let mut identities = validate_identities(&decoded, &fixture);
 
-    let validated = decoded.validate(&mut identities).unwrap();
+    let validated = decoded.validate(&mut identities, &mut meter()).unwrap();
 
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(validated.counts().callback_applications, 1);
@@ -159,7 +163,7 @@ fn rejects_a_callback_identity_without_its_semantic_record() {
     let mut identities = validate_identities(&decoded, &fixture);
 
     assert!(matches!(
-        decoded.validate(&mut identities),
+        decoded.validate(&mut identities, &mut meter()),
         Err(MirFoundationValidationError::CallbackRelation(
             CallbackApplicationRelationError::MissingRecord { application }
         )) if application == fixture.application
@@ -173,7 +177,7 @@ fn rejects_a_callback_record_that_changes_the_registration_mode() {
     let mut identities = validate_identities(&decoded, &fixture);
 
     assert!(matches!(
-        decoded.validate(&mut identities),
+        decoded.validate(&mut identities, &mut meter()),
         Err(MirFoundationValidationError::CallbackRelation(
             CallbackApplicationRelationError::ModeMismatch { application }
         )) if application == fixture.application
@@ -201,7 +205,7 @@ fn rejects_semantically_noncanonical_identity_order() {
     let mut identities = pending.finish().unwrap();
 
     assert!(matches!(
-        decoded.validate(&mut identities),
+        decoded.validate(&mut identities, &mut meter()),
         Err(MirFoundationValidationError::NonCanonicalFoundation)
     ));
 }

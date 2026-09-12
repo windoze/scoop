@@ -104,38 +104,42 @@ fn validate_foundation(
     } = foundation.decoded;
 
     macro_rules! records {
-        ($id:ty, $key:ty) => {
+        ($field:literal, $id:ty, $key:ty) => {
             identities
-                .records::<$id, $key>(IdentityLayer::Lir)
+                .records::<$id, $key>(IdentityLayer::Lir, meter, &WirePath::root().field($field))
                 .map_err(LirFoundationValidationError::Identity)?
         };
     }
-    let exact_types: Vec<ExactTypeRecord> = records!(PersistentExactTypeId, ExactTypeKey);
-    let layouts: Vec<LayoutRecord> = records!(PersistentLayoutId, LayoutKey);
-    let scans: Vec<ScanRecord> = records!(PersistentScanId, ScanKey);
+    let exact_types: Vec<ExactTypeRecord> = records!(1, PersistentExactTypeId, ExactTypeKey);
+    let layouts: Vec<LayoutRecord> = records!(2, PersistentLayoutId, LayoutKey);
+    let scans: Vec<ScanRecord> = records!(3, PersistentScanId, ScanKey);
     let dispatch_tables: Vec<DispatchTableRecord> =
-        records!(PersistentDispatchTableId, DispatchTableKey);
+        records!(4, PersistentDispatchTableId, DispatchTableKey);
     let static_storages: Vec<StaticStorageRecord> =
-        records!(PersistentStaticStorageId, StaticStorageKey);
+        records!(5, PersistentStaticStorageId, StaticStorageKey);
     let immortal_objects: Vec<ImmortalObjectRecord> =
-        records!(PersistentImmortalObjectId, ImmortalObjectKey);
-    let odr_groups: Vec<OdrGroupRecord> = records!(OdrGroupId, SpecializationKey);
-    let odr_members: Vec<OdrMemberRecord> = records!(OdrMemberId, OdrMemberKey);
+        records!(6, PersistentImmortalObjectId, ImmortalObjectKey);
+    let odr_groups: Vec<OdrGroupRecord> = records!(7, OdrGroupId, SpecializationKey);
+    let odr_members: Vec<OdrMemberRecord> = records!(8, OdrMemberId, OdrMemberKey);
     let callable_bodies: Vec<CallableBodyRecord> = identities
-        .runtime_records::<PersistentCallableBodyId, CallableBodyKey>(IdentityLayer::Lir)
+        .runtime_records::<PersistentCallableBodyId, CallableBodyKey>(
+            IdentityLayer::Lir,
+            meter,
+            &WirePath::root().field(9),
+        )
         .map_err(LirFoundationValidationError::Identity)?;
     let safepoint_sites: Vec<SafepointSiteRecord> =
-        records!(PersistentSafepointSiteId, SafepointSiteKey);
+        records!(10, PersistentSafepointSiteId, SafepointSiteKey);
     let bridge_units: Vec<BridgeUnitRecord> =
-        records!(GeneratedBridgeUnitId, GeneratedBridgeUnitKey);
+        records!(17, GeneratedBridgeUnitId, GeneratedBridgeUnitKey);
     let bridge_atoms: Vec<BridgeAtomRecord> =
-        records!(GeneratedBridgeAtomId, GeneratedBridgeAtomKey);
+        records!(18, GeneratedBridgeAtomId, GeneratedBridgeAtomKey);
     let native_link_requirements: Vec<NativeLinkRequirementRecord> =
-        records!(NativeLinkRequirementId, NativeLinkRequirementKey);
+        records!(20, NativeLinkRequirementId, NativeLinkRequirementKey);
     let definition_plans: Vec<DefinitionPlanRecord> =
-        records!(ObjectDefinitionPlanId, ObjectDefinitionPlanKey);
+        records!(21, ObjectDefinitionPlanId, ObjectDefinitionPlanKey);
     let definition_atoms: Vec<DefinitionAtomRecord> =
-        records!(ObjectDefinitionAtomId, ObjectDefinitionAtomKey);
+        records!(22, ObjectDefinitionAtomId, ObjectDefinitionAtomKey);
 
     let mut resolved_runtime_types = Vec::new();
     resolved_runtime_types
@@ -220,7 +224,7 @@ fn validate_foundation(
     }
 
     validate_safepoints(&callable_bodies, &safepoint_sites, &resolved_safepoints)?;
-    validate_native_contracts(identities, &resolved_contracts)?;
+    validate_native_contracts(identities, &resolved_contracts, meter)?;
     validate_bridges(
         identities,
         producer,
@@ -233,6 +237,7 @@ fn validate_foundation(
             callbacks: &resolved_callbacks,
             plans: &definition_plans,
         },
+        meter,
     )?;
 
     let mut canonical = CanonicalLirFoundation::empty();
