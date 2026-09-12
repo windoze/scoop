@@ -8,7 +8,7 @@ use scoop_identity::{
     DecodedInitializationUnitKey, DecodedLocalBindingKey, DecodedLocalValueKey,
     DecodedOdrMemberKey, DecodedPropertyAccessorKey, DecodedSourceContextKey,
     DecodedSourceDeclarationKey, DecodedSourceNativeExternalContractRecord,
-    DecodedSpecializationKey,
+    DecodedSpecializationKey, IdentityLayer, IdentityValidationError, PendingIdentityValidation,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -122,6 +122,105 @@ impl WireDecode for DecodedHirFoundation {
     }
 }
 
+impl DecodedHirFoundation {
+    /// Registers every HIR-owned identity before any layer starts resolution.
+    pub fn register_identities(
+        &self,
+        validation: &mut PendingIdentityValidation,
+    ) -> Result<(), IdentityValidationError> {
+        macro_rules! register_tables {
+            ($($table:ident),+ $(,)?) => {
+                $(for record in &self.decoded.$table {
+                    validation.register(IdentityLayer::Hir, record)?;
+                })+
+            };
+        }
+
+        register_tables!(
+            types,
+            generic_types,
+            functions,
+            generic_functions,
+            constructors,
+            properties,
+            extension_properties,
+            object_values,
+            type_aliases,
+            property_accessors,
+            fields,
+            enum_variants,
+            enum_variant_fields,
+            exact_types,
+            export_bindings,
+            callable_applications,
+            generated_callables,
+            generated_types,
+            dispatch_slots,
+            initialization_units,
+            source_contexts,
+            local_bindings,
+            local_values,
+            callback_registrations,
+            odr_groups,
+            odr_members,
+        );
+        for record in &self.decoded.source_native_contracts {
+            validation.register_source_native_contract(IdentityLayer::Hir, record)?;
+        }
+        Ok(())
+    }
+
+    /// Resolves every HIR-owned identity after all three layers registered
+    /// their candidates.
+    pub fn resolve_identities(
+        &self,
+        validation: &mut PendingIdentityValidation,
+    ) -> Result<(), IdentityValidationError> {
+        macro_rules! resolve_tables {
+            ($($table:ident),+ $(,)?) => {
+                $(for record in &self.decoded.$table {
+                    validation.resolve(record)?;
+                })+
+            };
+        }
+
+        // Source declarations need only typed ids. Resolving them first makes
+        // their canonical keys available to owner-sensitive HIR identities.
+        resolve_tables!(
+            types,
+            generic_types,
+            functions,
+            generic_functions,
+            constructors,
+            properties,
+            extension_properties,
+            object_values,
+            type_aliases,
+            property_accessors,
+            exact_types,
+            callable_applications,
+            generated_callables,
+            generated_types,
+            dispatch_slots,
+            initialization_units,
+            source_contexts,
+            local_values,
+            odr_groups,
+            odr_members,
+        );
+
+        // These keys reconstruct source or generated owners, so their owner
+        // families must already have canonical keys.
+        resolve_tables!(fields, enum_variants, enum_variant_fields);
+        resolve_tables!(export_bindings, local_bindings);
+        resolve_tables!(callback_registrations);
+        for record in &self.decoded.source_native_contracts {
+            validation.resolve_source_native_contract(record)?;
+        }
+        Ok(())
+    }
+}
+
 impl WireEncode for DecodedHirFoundationWire {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(30)?;
@@ -220,6 +319,11 @@ fn encode_table_field<T: WireEncode>(
 
 #[cfg(test)]
 mod tests {
+    use scoop_identity::{
+        CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
+        DefinitionOwnerChain, PackagePath, SourceDeclarationKey, SourceDeclarationSite,
+        SourceNominalKind,
+    };
     use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
     use super::*;
@@ -261,6 +365,43 @@ mod tests {
         assert!(decoded.odr_members.is_empty());
         assert!(decoded.definition_origins.is_empty());
         assert!(decoded.native_boundary_types.is_empty());
+    }
+
+    #[test]
+    fn registers_and_resolves_a_hir_identity_delta() {
+        let declaration = SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("Widget").unwrap(),
+            SourceNominalKind::Struct,
+            0,
+        );
+        let record = CborIdentityRecord::from_key(declaration).unwrap();
+        let mut canonical = CanonicalHirFoundation::empty();
+        canonical.set_types(vec![record.clone()]).unwrap();
+        let decoded = decode_canonical::<DecodedHirFoundation>(
+            &encode(&canonical).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let mut validation = PendingIdentityValidation::new();
+        validation.register_authority(ConeIdentity::CORE).unwrap();
+
+        decoded.register_identities(&mut validation).unwrap();
+        decoded.resolve_identities(&mut validation).unwrap();
+
+        let graph = validation.finish().unwrap();
+        assert_eq!(
+            graph
+                .records::<PersistentTypeId, SourceDeclarationKey>(IdentityLayer::Hir)
+                .unwrap(),
+            vec![record]
+        );
     }
 
     #[test]

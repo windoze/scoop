@@ -9,7 +9,9 @@ use scoop_wire::{Digest256, HashError};
 use crate::ids::PersistentIdConstruction;
 use crate::{
     CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord, DecodedPersistentId,
-    PersistentId, PersistentIdResolver, PersistentKeyResolver,
+    DecodedSourceNativeExternalContractRecord, PersistentId, PersistentIdResolver,
+    PersistentKeyResolver, PersistentSourceNativeExternalContractId,
+    SourceNativeExternalContractKey,
 };
 
 mod decoded;
@@ -146,7 +148,6 @@ impl PendingIdentityValidation {
     where
         I: PersistentId + 'static,
         D: DecodedIdentityKey<I>,
-        <D::Canonical as CborIdentityKey<I>>::Error: fmt::Display,
     {
         self.require_registration_phase()?;
         let expected = match record.key().candidate_identity() {
@@ -166,22 +167,31 @@ impl PendingIdentityValidation {
             });
         }
 
-        let node = IdentityNode::decoded(record.decoded_id());
-        if self.candidates.contains_key(&node) {
-            return self.fail(IdentityValidationError::DuplicateIdentity {
-                kind: node.kind,
-                id: node.bytes,
+        self.insert_candidate(layer, IdentityNode::decoded(record.decoded_id()))
+    }
+
+    pub fn register_source_native_contract(
+        &mut self,
+        layer: IdentityLayer,
+        record: &DecodedSourceNativeExternalContractRecord,
+    ) -> Result<(), IdentityValidationError> {
+        self.require_registration_phase()?;
+        let expected = record.candidate_identity().map_err(|error| {
+            self.phase = ValidationPhase::Poisoned;
+            IdentityValidationError::Hash {
+                kind: PersistentSourceNativeExternalContractId::KIND,
+                error,
+            }
+        })?;
+        let decoded = record.decoded_id();
+        if let Err(mismatch) = decoded.verify(expected) {
+            return self.fail(IdentityValidationError::IdentityMismatch {
+                kind: PersistentSourceNativeExternalContractId::KIND,
+                expected: *mismatch.expected().as_array(),
+                actual: *mismatch.actual(),
             });
         }
-        self.candidates.insert(
-            node,
-            Candidate {
-                layer: Some(layer),
-                resolved: false,
-                dependencies: BTreeSet::new(),
-            },
-        );
-        Ok(())
+        self.insert_candidate(layer, IdentityNode::decoded(decoded))
     }
 
     /// Resolves and rehashes one previously registered record.
@@ -194,27 +204,8 @@ impl PendingIdentityValidation {
         D: DecodedIdentityKey<I>,
         <D::Canonical as CborIdentityKey<I>>::Error: fmt::Display,
     {
-        if self.phase == ValidationPhase::Poisoned {
-            return Err(IdentityValidationError::Poisoned);
-        }
-        self.phase = ValidationPhase::Resolving;
-
         let node = IdentityNode::decoded(record.decoded_id());
-        match self.candidates.get(&node) {
-            Some(candidate) if candidate.layer.is_some() && !candidate.resolved => {}
-            Some(_) => {
-                return self.fail(IdentityValidationError::AlreadyResolved {
-                    kind: node.kind,
-                    id: node.bytes,
-                });
-            }
-            None => {
-                return self.fail(IdentityValidationError::UnregisteredIdentity {
-                    kind: node.kind,
-                    id: node.bytes,
-                });
-            }
-        }
+        self.start_resolution(node)?;
 
         let resolved = {
             let mut resolver = PendingIdentityResolver {
@@ -238,19 +229,37 @@ impl PendingIdentityValidation {
                 });
             }
         };
-        let key = resolved.key().clone();
-        let slot = CanonicalKeySlot::new::<I, D::Canonical>(node.bytes);
-        if self.canonical_keys.insert(slot, Box::new(key)).is_some() {
-            return self.fail(IdentityValidationError::AlreadyResolved {
-                kind: node.kind,
-                id: node.bytes,
-            });
-        }
-        self.candidates
-            .get_mut(&node)
-            .expect("registered identity disappeared")
-            .resolved = true;
-        Ok(())
+        self.store_resolved_key::<I, D::Canonical>(node, resolved.key().clone())
+    }
+
+    pub fn resolve_source_native_contract(
+        &mut self,
+        record: &DecodedSourceNativeExternalContractRecord,
+    ) -> Result<(), IdentityValidationError> {
+        let node = IdentityNode::decoded(record.decoded_id());
+        self.start_resolution(node)?;
+        let resolved = {
+            let mut resolver = PendingIdentityResolver {
+                current: node,
+                candidates: &mut self.candidates,
+                canonical_keys: &self.canonical_keys,
+            };
+            record.clone().resolve(&mut resolver)
+        };
+        let resolved = match resolved {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                return self.fail(IdentityValidationError::InvalidRecord {
+                    kind: node.kind,
+                    id: node.bytes,
+                    reason: error.to_string(),
+                });
+            }
+        };
+        self.store_resolved_key::<
+            PersistentSourceNativeExternalContractId,
+            SourceNativeExternalContractKey,
+        >(node, resolved.key())
     }
 
     /// Completes validation only if every declared record was resolved and the
@@ -288,6 +297,69 @@ impl PendingIdentityValidation {
             ValidationPhase::Resolving => self.fail(IdentityValidationError::RegistrationClosed),
             ValidationPhase::Poisoned => Err(IdentityValidationError::Poisoned),
         }
+    }
+
+    fn insert_candidate(
+        &mut self,
+        layer: IdentityLayer,
+        node: IdentityNode,
+    ) -> Result<(), IdentityValidationError> {
+        if self.candidates.contains_key(&node) {
+            return self.fail(IdentityValidationError::DuplicateIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            });
+        }
+        self.candidates.insert(
+            node,
+            Candidate {
+                layer: Some(layer),
+                resolved: false,
+                dependencies: BTreeSet::new(),
+            },
+        );
+        Ok(())
+    }
+
+    fn start_resolution(&mut self, node: IdentityNode) -> Result<(), IdentityValidationError> {
+        if self.phase == ValidationPhase::Poisoned {
+            return Err(IdentityValidationError::Poisoned);
+        }
+        self.phase = ValidationPhase::Resolving;
+        match self.candidates.get(&node) {
+            Some(candidate) if candidate.layer.is_some() && !candidate.resolved => Ok(()),
+            Some(_) => self.fail(IdentityValidationError::AlreadyResolved {
+                kind: node.kind,
+                id: node.bytes,
+            }),
+            None => self.fail(IdentityValidationError::UnregisteredIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            }),
+        }
+    }
+
+    fn store_resolved_key<I, K>(
+        &mut self,
+        node: IdentityNode,
+        key: K,
+    ) -> Result<(), IdentityValidationError>
+    where
+        I: PersistentId + 'static,
+        K: 'static,
+    {
+        let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
+        if self.canonical_keys.insert(slot, Box::new(key)).is_some() {
+            return self.fail(IdentityValidationError::AlreadyResolved {
+                kind: node.kind,
+                id: node.bytes,
+            });
+        }
+        self.candidates
+            .get_mut(&node)
+            .expect("registered identity disappeared")
+            .resolved = true;
+        Ok(())
     }
 
     fn fail<T>(&mut self, error: IdentityValidationError) -> Result<T, IdentityValidationError> {

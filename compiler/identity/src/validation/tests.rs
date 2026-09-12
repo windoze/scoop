@@ -4,8 +4,13 @@ use super::*;
 use crate::{
     CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity, DeclarationScope,
     DecodedCborIdentityRecord, DecodedExactTypeKey, DecodedSourceDeclarationKey,
-    DefinitionOwnerChain, ExactTypeKey, PackagePath, PersistentExactTypeId, PersistentTypeId,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    DecodedSourceNativeExternalContractRecord, DefinitionOwnerChain, ExactTypeKey, PackagePath,
+    PersistentExactTypeId, PersistentFunctionId, PersistentSourceNativeExternalContractId,
+    PersistentTypeId, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention,
+    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
+    SourceNativeExternalContract, SourceNativeExternalContractKey,
+    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
+    SourceNominalKind,
 };
 
 fn source_type_record() -> CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> {
@@ -48,6 +53,40 @@ fn decoded_exact_type() -> DecodedCborIdentityRecord<PersistentExactTypeId, Deco
     .unwrap()
 }
 
+fn source_function_record() -> CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey> {
+    CborIdentityRecord::from_key(SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("nativeEntry").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    ))
+    .unwrap()
+}
+
+fn source_native_contract_record() -> SourceNativeExternalContractRecord {
+    let function = source_function_record();
+    SourceNativeExternalContractRecord::new(
+        SourceNativeExternalContractKey::function(function.key()).unwrap(),
+        SourceNativeExternalContract::Function {
+            symbol: SourceNativeSymbol::new("native_entry").unwrap(),
+            library: SourceNativeLibraryBinding::DefaultNativeNamespace,
+            abi: SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
+                Vec::new(),
+                SourceCAbiReturn::Void,
+            )),
+            calling_convention: SourceCallingConvention::Cdecl,
+        },
+    )
+    .unwrap()
+}
+
 #[test]
 fn commits_a_complete_identity_transaction() {
     let decoded = decoded_source_type();
@@ -61,6 +100,41 @@ fn commits_a_complete_identity_transaction() {
         .records::<PersistentTypeId, SourceDeclarationKey>(IdentityLayer::Hir)
         .unwrap();
     assert_eq!(records, vec![source_type_record()]);
+}
+
+#[test]
+fn commits_a_source_native_contract_in_the_same_transaction() {
+    let function = source_function_record();
+    let contract = source_native_contract_record();
+    let decoded_function = decode_canonical::<
+        DecodedCborIdentityRecord<PersistentFunctionId, DecodedSourceDeclarationKey>,
+    >(&encode(&function).unwrap(), DecodeLimits::default())
+    .unwrap();
+    let decoded_contract = decode_canonical::<DecodedSourceNativeExternalContractRecord>(
+        &encode(&contract).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending
+        .register(IdentityLayer::Hir, &decoded_function)
+        .unwrap();
+    pending
+        .register_source_native_contract(IdentityLayer::Hir, &decoded_contract)
+        .unwrap();
+    pending.resolve(&decoded_function).unwrap();
+    pending
+        .resolve_source_native_contract(&decoded_contract)
+        .unwrap();
+
+    let mut graph = pending.finish().unwrap();
+    let key = <ValidatedIdentityGraph as PersistentKeyResolver<
+        PersistentSourceNativeExternalContractId,
+        SourceNativeExternalContractKey,
+    >>::resolve_key(&mut graph, decoded_contract.decoded_id())
+    .unwrap();
+    assert_eq!(key, contract.key());
 }
 
 #[test]

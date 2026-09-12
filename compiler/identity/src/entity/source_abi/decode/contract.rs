@@ -309,6 +309,18 @@ pub struct DecodedSourceNativeExternalContractRecord {
 }
 
 impl DecodedSourceNativeExternalContractRecord {
+    pub(crate) const fn decoded_id(
+        &self,
+    ) -> DecodedPersistentId<PersistentSourceNativeExternalContractId> {
+        self.id
+    }
+
+    pub(crate) fn candidate_identity(
+        &self,
+    ) -> Result<PersistentSourceNativeExternalContractId, scoop_wire::HashError> {
+        crate::ids::derive_persistent_id("scoop-source-native-contract-id-v1", &self.key)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
