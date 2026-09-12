@@ -11,7 +11,7 @@ use scoop_identity::{
     CallbackRegistrationKey, CanonicalCAbiFunctionSignature, CanonicalCAbiLayout,
     CanonicalCAbiLayoutField, CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord,
     CanonicalCAbiParameter, CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprint,
-    CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType,
+    CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType, CanonicalNativeLibraryName,
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, CborIdentityRecord,
     CoreNativeBoundaryNominal, ExactCallableSignature, ExactTypeKey, GcEffect, IdentityLayer,
     InitializationUnitKey, NativeExternalContract, NativeExternalContractRecord,
@@ -316,6 +316,46 @@ where
     Ok(records.insert(key, value))
 }
 
+fn metered_vec<T>(
+    meter: &mut BudgetMeter,
+    capacity: usize,
+    path: &WirePath,
+) -> Result<Vec<T>, NativeBoundaryCompileError> {
+    let mut values = Vec::new();
+    meter
+        .try_reserve_collection_slots(&mut values, capacity, path)
+        .map_err(NativeBoundaryCompileError::Resource)?;
+    Ok(values)
+}
+
+fn clone_c_signature(
+    meter: &mut BudgetMeter,
+    signature: &CanonicalCAbiFunctionSignature,
+    path: &WirePath,
+) -> Result<CanonicalCAbiFunctionSignature, NativeBoundaryCompileError> {
+    let mut parameters = metered_vec(meter, signature.parameters().len(), path)?;
+    parameters.extend_from_slice(signature.parameters());
+    Ok(CanonicalCAbiFunctionSignature::cdecl(
+        parameters,
+        signature.result(),
+    ))
+}
+
+fn push_binder_group(
+    meter: &mut BudgetMeter,
+    binders: &mut Vec<Vec<PersistentExactTypeId>>,
+    arguments: &[PersistentExactTypeId],
+    path: &WirePath,
+) -> Result<(), NativeBoundaryCompileError> {
+    meter
+        .try_reserve_collection_slots(binders, 1, path)
+        .map_err(NativeBoundaryCompileError::Resource)?;
+    let mut group = metered_vec(meter, arguments.len(), path)?;
+    group.extend_from_slice(arguments);
+    binders.push(group);
+    Ok(())
+}
+
 struct MeteredVisitingSet<T> {
     entries: HashSet<T>,
     charged_capacity: usize,
@@ -435,7 +475,11 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             SourceNativeExternalContract::Function { abi, .. } => match abi {
                 SourceExternFunctionAbi::C(signature) => {
                     let record = self.c_signature(signature, &[])?;
-                    let signature = record.signature().clone();
+                    let signature = clone_c_signature(
+                        self.meter,
+                        record.signature(),
+                        &WirePath::root().field(15),
+                    )?;
                     insert_metered(
                         self.meter,
                         &mut self.expected_signatures,
@@ -485,17 +529,24 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 Ok(NativeLibraryBinding::DefaultNativeNamespace)
             }
             SourceNativeLibraryBinding::LogicalLibrary(name) => {
-                let key = NativeLinkRequirementKey::target_default(name.clone());
-                let record = CborIdentityRecord::from_key(key.clone())
-                    .map_err(NativeBoundaryTargetError::Hash)?;
+                let name = CanonicalNativeLibraryName::from_owned(
+                    self.meter
+                        .try_copy_str(name.as_str(), &WirePath::root().field(20))
+                        .map_err(NativeBoundaryCompileError::Resource)?,
+                )
+                .map_err(NativeBoundaryTargetError::NativeName)?;
+                let record =
+                    CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(name))
+                        .map_err(NativeBoundaryTargetError::Hash)?;
+                let id = record.id();
                 insert_metered(
                     self.meter,
                     &mut self.expected_requirements,
-                    record.id(),
-                    key,
+                    id,
+                    record.into_key(),
                     &WirePath::root().field(20),
                 )?;
-                Ok(NativeLibraryBinding::Requirement(record.id()))
+                Ok(NativeLibraryBinding::Requirement(id))
             }
         }
     }
@@ -505,7 +556,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         source: &SourceCAbiFunctionSignature,
         binders: &[Vec<PersistentExactTypeId>],
     ) -> Result<CanonicalCAbiSignatureFingerprintRecord, NativeBoundaryCompileError> {
-        let mut parameters = Vec::with_capacity(source.parameters().len());
+        let path = WirePath::root().field(15);
+        let mut parameters = metered_vec(self.meter, source.parameters().len(), &path)?;
         for source in source.parameters() {
             let exact = self.signature_exact(source, binders)?;
             parameters.push(
@@ -534,22 +586,18 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         gc_effect: GcEffect,
         binders: &[Vec<PersistentExactTypeId>],
     ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
-        let parameters = source
-            .parameters()
-            .iter()
-            .map(|parameter| self.signature_exact(parameter, binders))
-            .collect::<Result<Vec<_>, _>>()?;
+        let path = WirePath::root().field(14);
+        let mut parameters = metered_vec(self.meter, source.parameters().len(), &path)?;
+        for parameter in source.parameters() {
+            parameters.push(self.signature_exact(parameter, binders)?);
+        }
         let result = self.signature_exact(source.result(), binders)?;
-        let exact_signature = ExactCallableSignature::new(
-            scoop_identity::Effect::Ordinary,
-            None,
-            parameters.clone(),
-            result,
-        );
-        let arguments = parameters
-            .into_iter()
-            .map(|exact| self.scoop_argument(exact))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut arguments = metered_vec(self.meter, parameters.len(), &path)?;
+        for exact in &parameters {
+            arguments.push(self.scoop_argument(*exact)?);
+        }
+        let exact_signature =
+            ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, parameters, result);
         let result = if self.is_unit(result) {
             ScoopAbiReturn::UnitVoid
         } else {
@@ -561,7 +609,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     fn managed_signature(
-        &self,
+        &mut self,
         source: &SignatureCallableShape,
         binders: &[Vec<PersistentExactTypeId>],
     ) -> Result<ExactCallableSignature, NativeBoundaryCompileError> {
@@ -571,11 +619,11 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 Some(self.signature_exact(receiver, binders)?)
             }
         };
-        let parameters = source
-            .parameters()
-            .iter()
-            .map(|parameter| self.signature_exact(parameter, binders))
-            .collect::<Result<Vec<_>, _>>()?;
+        let path = WirePath::root().field(10);
+        let mut parameters = metered_vec(self.meter, source.parameters().len(), &path)?;
+        for parameter in source.parameters() {
+            parameters.push(self.signature_exact(parameter, binders)?);
+        }
         Ok(ExactCallableSignature::new(
             source.effect(),
             receiver,
@@ -585,10 +633,23 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     fn signature_exact(
-        &self,
+        &mut self,
         source: &SignatureTypeKey,
         binders: &[Vec<PersistentExactTypeId>],
     ) -> Result<PersistentExactTypeId, NativeBoundaryCompileError> {
+        self.signature_exact_at(source, binders, 1)
+    }
+
+    fn signature_exact_at(
+        &mut self,
+        source: &SignatureTypeKey,
+        binders: &[Vec<PersistentExactTypeId>],
+        depth: u64,
+    ) -> Result<PersistentExactTypeId, NativeBoundaryCompileError> {
+        let path = WirePath::root().field(15);
+        self.meter
+            .check_semantic_depth(depth, &path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
         let key = match source {
             SignatureTypeKey::Binder { depth, index } => {
                 let group = binders
@@ -605,54 +666,59 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             }
             SignatureTypeKey::Nominal(owner) => ExactTypeKey::Nominal(*owner),
             SignatureTypeKey::NominalApplication { origin, arguments } => {
-                let arguments = arguments
-                    .as_slice()
-                    .iter()
-                    .map(|argument| self.signature_exact(argument, binders))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let mut resolved = metered_vec(self.meter, arguments.as_slice().len(), &path)?;
+                for argument in arguments.as_slice() {
+                    resolved.push(self.signature_exact_at(argument, binders, depth + 1)?);
+                }
                 ExactTypeKey::NominalApplication {
                     origin: *origin,
-                    arguments: NonEmptyVec::new(arguments)
-                        .expect("validated signature applications are non-empty"),
+                    arguments: NonEmptyVec::new(resolved)
+                        .map_err(|_| NativeBoundaryTargetError::InvalidSignatureShape)?,
                 }
             }
             SignatureTypeKey::Tuple(elements) => {
-                let elements = elements
-                    .as_slice()
-                    .iter()
-                    .map(|element| self.signature_exact(element, binders))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let mut resolved = metered_vec(self.meter, elements.as_slice().len(), &path)?;
+                for element in elements.as_slice() {
+                    resolved.push(self.signature_exact_at(element, binders, depth + 1)?);
+                }
                 ExactTypeKey::Tuple(
-                    NonEmptyVec::new(elements).expect("validated signature tuples are non-empty"),
+                    NonEmptyVec::new(resolved)
+                        .map_err(|_| NativeBoundaryTargetError::InvalidSignatureShape)?,
                 )
             }
             SignatureTypeKey::Function {
                 effect,
                 parameters,
                 result,
-            } => ExactTypeKey::Function {
-                effect: *effect,
-                parameters: parameters
-                    .iter()
-                    .map(|parameter| self.signature_exact(parameter, binders))
-                    .collect::<Result<Vec<_>, _>>()?,
-                result: self.signature_exact(result, binders)?,
-            },
+            } => {
+                let mut resolved = metered_vec(self.meter, parameters.len(), &path)?;
+                for parameter in parameters {
+                    resolved.push(self.signature_exact_at(parameter, binders, depth + 1)?);
+                }
+                ExactTypeKey::Function {
+                    effect: *effect,
+                    parameters: resolved,
+                    result: self.signature_exact_at(result, binders, depth + 1)?,
+                }
+            }
             SignatureTypeKey::RawPointer(pointee) => {
-                ExactTypeKey::RawPointer(self.signature_exact(pointee, binders)?)
+                ExactTypeKey::RawPointer(self.signature_exact_at(pointee, binders, depth + 1)?)
             }
             SignatureTypeKey::NativeFunctionPointer {
                 calling_convention,
                 parameters,
                 result,
-            } => ExactTypeKey::NativeFunctionPointer {
-                calling_convention: *calling_convention,
-                parameters: parameters
-                    .iter()
-                    .map(|parameter| self.signature_exact(parameter, binders))
-                    .collect::<Result<Vec<_>, _>>()?,
-                result: self.signature_exact(result, binders)?,
-            },
+            } => {
+                let mut resolved = metered_vec(self.meter, parameters.len(), &path)?;
+                for parameter in parameters {
+                    resolved.push(self.signature_exact_at(parameter, binders, depth + 1)?);
+                }
+                ExactTypeKey::NativeFunctionPointer {
+                    calling_convention: *calling_convention,
+                    parameters: resolved,
+                    result: self.signature_exact_at(result, binders, depth + 1)?,
+                }
+            }
         };
         let exact =
             PersistentExactTypeId::from_key(&key).map_err(NativeBoundaryTargetError::Hash)?;
@@ -703,14 +769,28 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             .get(&application)
             .ok_or(NativeBoundaryTargetError::MissingCallableApplication { application })?;
         if let CallableArguments::Arguments(arguments) = key.callable_arguments() {
-            binders.push(arguments.as_slice().to_vec());
+            push_binder_group(
+                self.meter,
+                binders,
+                arguments.as_slice(),
+                &WirePath::root().field(17),
+            )?;
         }
         let owner = key.instantiation_owner();
         match owner {
             CallableInstantiationOwner::NoOwner => {}
             CallableInstantiationOwner::ExactNominalOwner(owner) => {
-                if let ExactTypeKey::NominalApplication { arguments, .. } = self.exact(owner)? {
-                    binders.push(arguments.as_slice().to_vec());
+                let key = self
+                    .exact_types
+                    .get(&owner)
+                    .ok_or(NativeBoundaryTargetError::MissingExactType { exact: owner })?;
+                if let ExactTypeKey::NominalApplication { arguments, .. } = key {
+                    push_binder_group(
+                        self.meter,
+                        binders,
+                        arguments.as_slice(),
+                        &WirePath::root().field(17),
+                    )?;
                 }
             }
             CallableInstantiationOwner::EnclosingCallableApplication(enclosing) => {
@@ -738,7 +818,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             ..
         } = key
         {
-            binders.push(receiver_arguments.as_slice().to_vec());
+            push_binder_group(
+                self.meter,
+                binders,
+                receiver_arguments.as_slice(),
+                &WirePath::root().field(21),
+            )?;
         }
         Ok(())
     }
@@ -818,8 +903,19 @@ fn aggregate_with_overrides(
     shape: ScoopAbiValueShape,
     exact: PersistentExactTypeId,
 ) -> Result<PhysicalType, NativeBoundaryCompileError> {
+    aggregate_values(fields.iter().copied(), aligned, packed, shape, exact)
+}
+
+fn aggregate_values(
+    fields: impl IntoIterator<Item = PhysicalType>,
+    aligned: Option<u64>,
+    packed: Option<u64>,
+    shape: ScoopAbiValueShape,
+    exact: PersistentExactTypeId,
+) -> Result<PhysicalType, NativeBoundaryCompileError> {
     let mut size = 0_u64;
     let mut alignment = aligned.unwrap_or(1);
+    let mut gc_free = true;
     for field in fields {
         let access_alignment = packed.map_or(field.alignment, |cap| field.alignment.min(cap));
         size = align_up(size, access_alignment)?;
@@ -827,12 +923,13 @@ fn aggregate_with_overrides(
             .checked_add(field.size)
             .ok_or(NativeBoundaryTargetError::LayoutOverflow { exact })?;
         alignment = alignment.max(access_alignment);
+        gc_free &= field.gc_free;
     }
     Ok(PhysicalType {
         size: align_up(size, alignment)?,
         alignment,
         shape,
-        gc_free: fields.iter().all(|field| field.gc_free),
+        gc_free,
     })
 }
 
@@ -901,6 +998,7 @@ fn source_target(
 
 #[derive(Debug)]
 pub enum NativeBoundaryTargetError {
+    InvalidSignatureShape,
     MissingExactType {
         exact: PersistentExactTypeId,
     },
@@ -955,6 +1053,7 @@ pub enum NativeBoundaryTargetError {
     CAbiSignatureSetMismatch,
     CAbiLayoutSetMismatch,
     NativeRequirementSetMismatch,
+    NativeName(scoop_identity::CanonicalNativeNameError),
     NativeSymbol(scoop_identity::NativeLinkSymbolError),
     CanonicalCAbi(scoop_identity::CanonicalCAbiError),
     ScoopAbi(scoop_identity::ScoopAbiError),

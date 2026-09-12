@@ -10,7 +10,7 @@ pub struct DecodedCanonicalNativeLibraryName(String);
 
 impl DecodedCanonicalNativeLibraryName {
     pub fn validate(self) -> Result<CanonicalNativeLibraryName, CanonicalNativeNameError> {
-        CanonicalNativeLibraryName::new(&self.0)
+        CanonicalNativeLibraryName::from_owned(self.0)
     }
 }
 

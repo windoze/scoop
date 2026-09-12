@@ -191,6 +191,25 @@ impl BudgetMeter {
         self.charge_heap(bytes, path)
     }
 
+    pub fn try_copy_str(&mut self, value: &str, path: &WirePath) -> Result<String, WireError> {
+        let length = u64::try_from(value.len())
+            .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        self.charge_owned_bytes(length, path)?;
+        let mut copy = String::new();
+        copy.try_reserve_exact(value.len()).map_err(|_| {
+            WireError::new(
+                WireErrorKind::ResourceAllocation {
+                    requested_logical_bytes: length,
+                    requested_slots: length,
+                },
+                path.clone(),
+                None,
+            )
+        })?;
+        copy.push_str(value);
+        Ok(copy)
+    }
+
     pub fn charge_work(&mut self, units: u64, path: &WirePath) -> Result<(), WireError> {
         charge(
             &mut self.usage.validation_work_units,
@@ -427,6 +446,31 @@ mod tests {
                         resource: ResourceKind::LogicalHeapBytes,
                         limit,
                         observed: required,
+                    }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn string_copy_has_inclusive_owned_byte_boundaries() {
+        let path = WirePath::root().field(9);
+        for (limit, accepted) in [(2, false), (3, true), (4, true)] {
+            let mut meter = BudgetMeter::new(DecodeLimits {
+                owned_bytes: limit,
+                ..DecodeLimits::default()
+            });
+            let result = meter.try_copy_str("lib", &path);
+            assert_eq!(result.is_ok(), accepted);
+            if accepted {
+                assert_eq!(result.unwrap(), "lib");
+            } else {
+                assert_eq!(
+                    result.unwrap_err().kind(),
+                    &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::OwnedBytes,
+                        limit,
+                        observed: 3,
                     }
                 );
             }

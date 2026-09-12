@@ -11,8 +11,12 @@ pub struct CanonicalNativeLibraryName(String);
 
 impl CanonicalNativeLibraryName {
     pub fn new(value: &str) -> Result<Self, CanonicalNativeNameError> {
-        validate_native_name(value)?;
-        Ok(Self(value.to_owned()))
+        Self::from_owned(value.to_owned())
+    }
+
+    pub fn from_owned(value: String) -> Result<Self, CanonicalNativeNameError> {
+        validate_native_name(&value)?;
+        Ok(Self(value))
     }
 
     pub fn as_str(&self) -> &str {
@@ -143,6 +147,12 @@ mod tests {
         assert_eq!(
             encode(&name).unwrap(),
             "Résumé-库".as_bytes_with_cbor_text()
+        );
+        assert_eq!(
+            CanonicalNativeLibraryName::from_owned("native-core".to_owned())
+                .unwrap()
+                .as_str(),
+            "native-core"
         );
     }
 
