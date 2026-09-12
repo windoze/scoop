@@ -28,8 +28,10 @@ pub use wire::{
     NativeBoundaryShapeCoverageError, ValidatedHirFoundation,
 };
 mod counts;
+mod imported;
 mod projection;
 pub use counts::HirFoundationCounts;
+pub use imported::{ImportedHirId, ImportedHirSet};
 
 type TypeRecord = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
 type GenericTypeRecord = CborIdentityRecord<PersistentGenericTypeId, SourceDeclarationKey>;

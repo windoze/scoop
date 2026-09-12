@@ -29,6 +29,20 @@ impl ValidatedHirFoundation {
     pub fn counts(&self) -> HirFoundationCounts {
         self.canonical.counts()
     }
+
+    pub(crate) fn into_canonical(self) -> CanonicalHirFoundation {
+        self.canonical
+    }
+
+    #[doc(hidden)]
+    pub fn source_native_contracts(&self) -> &[SourceNativeExternalContractRecord] {
+        &self.canonical.source_native_contracts
+    }
+
+    #[doc(hidden)]
+    pub fn native_boundary_types(&self) -> &[NativeBoundaryTypeDefinitionRecord] {
+        &self.canonical.native_boundary_types
+    }
 }
 
 impl WireEncode for ValidatedHirFoundation {

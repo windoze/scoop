@@ -1,0 +1,579 @@
+use super::*;
+
+impl<'a> NativeBoundaryNormalizer<'a> {
+    pub(super) fn c_storage(
+        &mut self,
+        exact: PersistentExactTypeId,
+    ) -> Result<CanonicalCStorageType, NativeBoundaryCompileError> {
+        let key = self.exact(exact)?.clone();
+        if self.is_unit(exact) {
+            return Err(NativeBoundaryTargetError::NotCAbiSafe { exact }.into());
+        }
+        if let Some((signedness, bit_width)) = core_integer(&key) {
+            return Ok(CanonicalCStorageType::Integer {
+                exact_type: exact,
+                signedness,
+                bit_width,
+            });
+        }
+        if is_core_application(&key, CoreNativeBoundaryNominal::PinnedPtr)
+            || is_core_application(&key, CoreNativeBoundaryNominal::GcHandle)
+        {
+            return Ok(CanonicalCStorageType::Integer {
+                exact_type: exact,
+                signedness: scoop_identity::Signedness::Unsigned,
+                bit_width: scoop_identity::IntegerBitWidth::Bits64,
+            });
+        }
+        match key {
+            ExactTypeKey::Nominal(owner)
+                if Some(owner) == CoreNativeBoundaryNominal::Boolean.concrete_id() =>
+            {
+                Ok(CanonicalCStorageType::Boolean { exact_type: exact })
+            }
+            ExactTypeKey::RawPointer(pointee) => Ok(CanonicalCStorageType::DataPointer {
+                exact_type: exact,
+                pointee: if self.is_unit(pointee) {
+                    CDataPointee::OpaqueUnit
+                } else {
+                    CDataPointee::ExactObject(pointee)
+                },
+                storage: CPointerStorage::Direct,
+            }),
+            ExactTypeKey::NativeFunctionPointer { .. } => Ok(CanonicalCStorageType::CodePointer {
+                exact_type: exact,
+                storage: CPointerStorage::Direct,
+            }),
+            ExactTypeKey::NominalApplication { origin, arguments }
+                if Some(origin) == CoreNativeBoundaryNominal::Option.generic_id() =>
+            {
+                let payload = arguments.as_slice()[0];
+                match self.exact(payload)? {
+                    ExactTypeKey::RawPointer(pointee) => Ok(CanonicalCStorageType::DataPointer {
+                        exact_type: exact,
+                        pointee: if self.is_unit(*pointee) {
+                            CDataPointee::OpaqueUnit
+                        } else {
+                            CDataPointee::ExactObject(*pointee)
+                        },
+                        storage: CPointerStorage::NullableWrapper(exact),
+                    }),
+                    ExactTypeKey::NativeFunctionPointer { .. } => {
+                        Ok(CanonicalCStorageType::CodePointer {
+                            exact_type: exact,
+                            storage: CPointerStorage::NullableWrapper(exact),
+                        })
+                    }
+                    _ => Err(NativeBoundaryTargetError::NotCAbiSafe { exact }.into()),
+                }
+            }
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
+                let layout = self.c_layout(exact)?;
+                Ok(CanonicalCStorageType::Struct {
+                    exact_type: exact,
+                    layout,
+                })
+            }
+            ExactTypeKey::Tuple(_) | ExactTypeKey::Function { .. } => {
+                Err(NativeBoundaryTargetError::NotCAbiSafe { exact }.into())
+            }
+        }
+    }
+
+    fn c_layout(
+        &mut self,
+        exact: PersistentExactTypeId,
+    ) -> Result<CanonicalCAbiLayoutFingerprint, NativeBoundaryCompileError> {
+        if let Some(fingerprint) = self.layouts_by_type.get(&exact) {
+            return Ok(*fingerprint);
+        }
+        if !self.visiting_c_layouts.insert(exact) {
+            return Err(NativeBoundaryTargetError::CLayoutCycle { exact }.into());
+        }
+        let (definition, binders) = self.definition(exact)?;
+        let NativeBoundaryNominalShape::Struct { c_layout, fields } = definition.shape() else {
+            return Err(NativeBoundaryTargetError::NotCAbiSafe { exact }.into());
+        };
+        let NativeBoundaryCLayoutPolicy::CLayout { aligned, packed } = c_layout else {
+            return Err(NativeBoundaryTargetError::NotCAbiSafe { exact }.into());
+        };
+        let fields = fields.clone();
+        let aligned = *aligned;
+        let packed = *packed;
+        let mut normalized = Vec::with_capacity(fields.len());
+        let mut size = 0_u64;
+        let mut alignment = override_bytes(aligned).unwrap_or(1);
+        for field in &fields {
+            let field_exact = self.signature_exact(field.ty(), &binders)?;
+            let storage = self.c_storage(field_exact)?;
+            let (field_size, natural_alignment) = self.c_storage_layout(storage)?;
+            let access_alignment = override_bytes(packed)
+                .map_or(natural_alignment, |packed| natural_alignment.min(packed));
+            let offset = align_up(size, access_alignment)?;
+            size = offset
+                .checked_add(field_size)
+                .ok_or(NativeBoundaryTargetError::LayoutOverflow { exact })?;
+            alignment = alignment.max(access_alignment);
+            normalized.push(CanonicalCAbiLayoutField::new(
+                field.field(),
+                offset,
+                storage,
+            ));
+        }
+        size = align_up(size, alignment)?;
+        let layout = CanonicalCAbiLayout::new(
+            exact,
+            size,
+            NonZeroU64::new(alignment).expect("native layout alignment is nonzero"),
+            aligned,
+            packed,
+            normalized,
+        );
+        let record = CanonicalCAbiLayoutFingerprintRecord::new(layout)
+            .map_err(NativeBoundaryTargetError::Hash)?;
+        let fingerprint = record.fingerprint();
+        self.expected_layouts.insert(fingerprint, record);
+        self.layouts_by_type.insert(exact, fingerprint);
+        self.visiting_c_layouts.remove(&exact);
+        Ok(fingerprint)
+    }
+
+    fn c_storage_layout(
+        &self,
+        storage: CanonicalCStorageType,
+    ) -> Result<(u64, u64), NativeBoundaryCompileError> {
+        match storage {
+            CanonicalCStorageType::Integer { bit_width, .. } => {
+                let layout = self.target.scalar_layout(integer_scalar_kind(bit_width));
+                Ok((layout.size_bytes(), layout.alignment_bytes()))
+            }
+            CanonicalCStorageType::Boolean { .. } => {
+                let layout = self.target.scalar_layout(scoop_lir::BackendScalarKind::I1);
+                Ok((layout.size_bytes(), layout.alignment_bytes()))
+            }
+            CanonicalCStorageType::DataPointer { .. } => {
+                let layout = self.target.data_pointer().layout();
+                Ok((layout.size_bytes(), layout.alignment_bytes()))
+            }
+            CanonicalCStorageType::CodePointer { .. } => {
+                let layout = self.target.code_pointer().layout();
+                Ok((layout.size_bytes(), layout.alignment_bytes()))
+            }
+            CanonicalCStorageType::Struct { layout, .. } => {
+                let record = self
+                    .expected_layouts
+                    .get(&layout)
+                    .ok_or(NativeBoundaryTargetError::MissingComputedCLayout { layout })?;
+                Ok((
+                    record.layout().byte_size(),
+                    record.layout().alignment().get(),
+                ))
+            }
+        }
+    }
+
+    pub(super) fn scoop_argument(
+        &mut self,
+        exact: PersistentExactTypeId,
+    ) -> Result<ScoopAbiArgument, NativeBoundaryCompileError> {
+        let storage = self.scoop_storage(exact)?;
+        if storage.byte_size() == 0 {
+            ScoopAbiArgument::elided_zst(storage)
+        } else if storage.shape() == ScoopAbiValueShape::Scalar {
+            ScoopAbiArgument::direct(storage)
+        } else {
+            ScoopAbiArgument::indirect(storage)
+        }
+        .map_err(NativeBoundaryTargetError::ScoopAbi)
+        .map_err(Into::into)
+    }
+
+    pub(super) fn scoop_return(
+        &mut self,
+        exact: PersistentExactTypeId,
+    ) -> Result<ScoopAbiReturn, NativeBoundaryCompileError> {
+        let storage = self.scoop_storage(exact)?;
+        if storage.byte_size() == 0 {
+            ScoopAbiReturn::elided_zst(storage)
+        } else if storage.shape() == ScoopAbiValueShape::Scalar {
+            ScoopAbiReturn::direct(storage)
+        } else {
+            ScoopAbiReturn::indirect(storage)
+        }
+        .map_err(NativeBoundaryTargetError::ScoopAbi)
+        .map_err(Into::into)
+    }
+
+    fn scoop_storage(
+        &mut self,
+        exact: PersistentExactTypeId,
+    ) -> Result<CanonicalScoopStorage, NativeBoundaryCompileError> {
+        let physical = self.scoop_layout(exact)?;
+        Ok(CanonicalScoopStorage::new(
+            exact,
+            physical.size,
+            NonZeroU64::new(physical.alignment).expect("native Scoop layout alignment is nonzero"),
+            physical.shape,
+        ))
+    }
+
+    fn scoop_layout(
+        &mut self,
+        exact: PersistentExactTypeId,
+    ) -> Result<PhysicalType, NativeBoundaryCompileError> {
+        if let Some(layout) = self.scoop_layouts.get(&exact) {
+            return Ok(*layout);
+        }
+        if !self.visiting_scoop_layouts.insert(exact) {
+            return Err(NativeBoundaryTargetError::ScoopLayoutCycle { exact }.into());
+        }
+        let key = self.exact(exact)?.clone();
+        let layout = if let Some((_, bit_width)) = core_integer(&key) {
+            scalar(
+                self.target.scalar_layout(integer_scalar_kind(bit_width)),
+                true,
+            )
+        } else if is_core_application(&key, CoreNativeBoundaryNominal::PinnedPtr)
+            || is_core_application(&key, CoreNativeBoundaryNominal::GcHandle)
+        {
+            scalar(
+                self.target.scalar_layout(scoop_lir::BackendScalarKind::I64),
+                true,
+            )
+        } else {
+            match key {
+                ExactTypeKey::Nominal(_) if self.is_unit(exact) => PhysicalType {
+                    size: 0,
+                    alignment: 1,
+                    shape: ScoopAbiValueShape::Aggregate,
+                    gc_free: true,
+                },
+                ExactTypeKey::Nominal(owner)
+                    if Some(owner) == CoreNativeBoundaryNominal::Boolean.concrete_id() =>
+                {
+                    scalar(
+                        self.target.scalar_layout(scoop_lir::BackendScalarKind::I1),
+                        true,
+                    )
+                }
+                ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
+                    self.nominal_layout(exact)?
+                }
+                ExactTypeKey::Tuple(elements) => {
+                    let fields = elements
+                        .as_slice()
+                        .iter()
+                        .map(|field| self.scoop_layout(*field))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    aggregate(&fields, ScoopAbiValueShape::Aggregate, exact)?
+                }
+                ExactTypeKey::Function { .. } => {
+                    pointer(self.target, scoop_lir::PointerKind::Managed, false)
+                }
+                ExactTypeKey::RawPointer(_) => {
+                    pointer(self.target, scoop_lir::PointerKind::Raw, true)
+                }
+                ExactTypeKey::NativeFunctionPointer { .. } => {
+                    pointer(self.target, scoop_lir::PointerKind::Code, true)
+                }
+            }
+        };
+        self.visiting_scoop_layouts.remove(&exact);
+        self.scoop_layouts.insert(exact, layout);
+        Ok(layout)
+    }
+
+    fn nominal_layout(
+        &mut self,
+        exact: PersistentExactTypeId,
+    ) -> Result<PhysicalType, NativeBoundaryCompileError> {
+        let (definition, binders) = self.definition(exact)?;
+        match definition.shape() {
+            NativeBoundaryNominalShape::Reference => {
+                Ok(pointer(self.target, scoop_lir::PointerKind::Managed, false))
+            }
+            NativeBoundaryNominalShape::Struct { c_layout, fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field| {
+                        let exact = self.signature_exact(field.ty(), &binders)?;
+                        self.scoop_layout(exact)
+                    })
+                    .collect::<Result<Vec<_>, NativeBoundaryCompileError>>()?;
+                aggregate_with_policy(&fields, *c_layout, exact)
+            }
+            NativeBoundaryNominalShape::Enum { variants } => {
+                let variants = variants
+                    .iter()
+                    .map(|variant| {
+                        variant
+                            .fields()
+                            .iter()
+                            .map(|field| {
+                                let exact = self.signature_exact(field.ty(), &binders)?;
+                                Ok((exact, self.scoop_layout(exact)?))
+                            })
+                            .collect::<Result<Vec<_>, NativeBoundaryCompileError>>()
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.enum_layout(exact, &variants)
+            }
+        }
+    }
+
+    fn enum_layout(
+        &self,
+        exact: PersistentExactTypeId,
+        variants: &[Vec<(PersistentExactTypeId, PhysicalType)>],
+    ) -> Result<PhysicalType, NativeBoundaryCompileError> {
+        let niche_pointer_kind = variants
+            .iter()
+            .find(|variant| !variant.is_empty())
+            .filter(|variant| variant.len() == 1)
+            .and_then(|variant| self.niche_pointer_kind(variant[0].0));
+        if variants.len() == 2
+            && variants.iter().any(Vec::is_empty)
+            && let Some(niche_pointer_kind) = niche_pointer_kind
+        {
+            let gc_free = variants.iter().flatten().all(|(_, field)| field.gc_free);
+            let mut layout = pointer(self.target, niche_pointer_kind, gc_free);
+            layout.gc_free = gc_free;
+            return Ok(layout);
+        }
+
+        let payloads = variants
+            .iter()
+            .map(|variant| {
+                aggregate(
+                    &variant.iter().map(|(_, field)| *field).collect::<Vec<_>>(),
+                    ScoopAbiValueShape::Aggregate,
+                    exact,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let pure_size = payloads
+            .iter()
+            .filter(|variant| variant.gc_free)
+            .map(|variant| variant.size)
+            .max()
+            .unwrap_or(0);
+        let pure_alignment = payloads
+            .iter()
+            .filter(|variant| variant.gc_free)
+            .map(|variant| variant.alignment)
+            .max()
+            .unwrap_or(1);
+        let tag = self.target.scalar_layout(scoop_lir::BackendScalarKind::I64);
+        let pure_offset = align_up(tag.size_bytes(), pure_alignment)?;
+        let mut cursor = pure_offset
+            .checked_add(pure_size)
+            .ok_or(NativeBoundaryTargetError::LayoutOverflow { exact })?;
+        let mut alignment = tag.alignment_bytes().max(pure_alignment);
+        for variant in payloads.iter().filter(|variant| !variant.gc_free) {
+            cursor = align_up(cursor, variant.alignment)?;
+            cursor = cursor
+                .checked_add(variant.size)
+                .ok_or(NativeBoundaryTargetError::LayoutOverflow { exact })?;
+            alignment = alignment.max(variant.alignment);
+        }
+        Ok(PhysicalType {
+            size: align_up(cursor, alignment)?,
+            alignment,
+            shape: ScoopAbiValueShape::Aggregate,
+            gc_free: payloads.iter().all(|variant| variant.gc_free),
+        })
+    }
+
+    fn niche_pointer_kind(&self, exact: PersistentExactTypeId) -> Option<scoop_lir::PointerKind> {
+        match self.exact_types.get(&exact) {
+            Some(ExactTypeKey::Function { .. }) => Some(scoop_lir::PointerKind::Managed),
+            Some(ExactTypeKey::RawPointer(_)) => Some(scoop_lir::PointerKind::Raw),
+            Some(ExactTypeKey::NativeFunctionPointer { .. }) => Some(scoop_lir::PointerKind::Code),
+            Some(ExactTypeKey::Nominal(owner)) => self
+                .definitions
+                .get(&NativeBoundaryNominalOwner::Concrete(*owner))
+                .filter(|definition| {
+                    matches!(definition.shape(), NativeBoundaryNominalShape::Reference)
+                })
+                .map(|_| scoop_lir::PointerKind::Managed),
+            Some(ExactTypeKey::NominalApplication { origin, .. }) => self
+                .definitions
+                .get(&NativeBoundaryNominalOwner::GenericTemplate(*origin))
+                .filter(|definition| {
+                    matches!(definition.shape(), NativeBoundaryNominalShape::Reference)
+                })
+                .map(|_| scoop_lir::PointerKind::Managed),
+            Some(ExactTypeKey::Tuple(_)) | None => None,
+        }
+    }
+
+    fn definition(
+        &self,
+        exact: PersistentExactTypeId,
+    ) -> Result<
+        (
+            &'a NativeBoundaryTypeDefinitionRecord,
+            Vec<Vec<PersistentExactTypeId>>,
+        ),
+        NativeBoundaryCompileError,
+    > {
+        let (owner, binders) = match self.exact(exact)? {
+            ExactTypeKey::Nominal(owner) => {
+                (NativeBoundaryNominalOwner::Concrete(*owner), Vec::new())
+            }
+            ExactTypeKey::NominalApplication { origin, arguments } => (
+                NativeBoundaryNominalOwner::GenericTemplate(*origin),
+                vec![arguments.as_slice().to_vec()],
+            ),
+            _ => return Err(NativeBoundaryTargetError::ExpectedNominal { exact }.into()),
+        };
+        self.definitions
+            .get(&owner)
+            .copied()
+            .map(|definition| (definition, binders))
+            .ok_or(NativeBoundaryCompileError::ClosureRequired { owner })
+    }
+
+    pub(super) fn exact(
+        &self,
+        exact: PersistentExactTypeId,
+    ) -> Result<&ExactTypeKey, NativeBoundaryCompileError> {
+        self.exact_types
+            .get(&exact)
+            .ok_or(NativeBoundaryTargetError::MissingExactType { exact }.into())
+    }
+
+    pub(super) fn is_unit(&self, exact: PersistentExactTypeId) -> bool {
+        matches!(
+            self.exact_types.get(&exact),
+            Some(ExactTypeKey::Nominal(owner))
+                if Some(*owner) == CoreNativeBoundaryNominal::Unit.concrete_id()
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use scoop_hir::NativeBoundaryFieldDefinition;
+    use scoop_identity::{
+        CLayoutByteAlignment, CLayoutOverride, CanonicalIdentifier, ConeIdentity, DeclarationScope,
+        DefinitionOwnerChain, FieldIdentityKey, PackagePath, PersistentTypeId,
+        SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    };
+
+    use super::*;
+
+    #[test]
+    fn rejects_unit_as_a_c_object_even_without_consulting_a_witness() {
+        let owner = CoreNativeBoundaryNominal::Unit.concrete_id().unwrap();
+        let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(owner)).unwrap();
+        let exact = record.id();
+        let exact_types = BTreeMap::from([(exact, record.into_key())]);
+        let callable_applications = BTreeMap::new();
+        let initialization_units = BTreeMap::new();
+        let definitions = BTreeMap::new();
+        let mut normalizer = NativeBoundaryNormalizer::new(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            &exact_types,
+            &callable_applications,
+            &initialization_units,
+            &definitions,
+        );
+
+        assert!(matches!(
+            normalizer.c_storage(exact),
+            Err(NativeBoundaryCompileError::Target(
+                NativeBoundaryTargetError::NotCAbiSafe { exact: actual }
+            )) if actual == exact
+        ));
+    }
+
+    #[test]
+    fn recomputes_packed_and_overaligned_c_struct_layout() {
+        let declaration = SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
+                ConeIdentity::SINGLE_FILE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("PackedPair").unwrap(),
+            SourceNominalKind::Struct,
+            0,
+        );
+        let owner = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+        let first = FieldIdentityKey::source_declared(
+            &declaration,
+            CanonicalIdentifier::new("first").unwrap(),
+        )
+        .unwrap();
+        let second = FieldIdentityKey::source_declared(
+            &declaration,
+            CanonicalIdentifier::new("second").unwrap(),
+        )
+        .unwrap();
+        let u8_owner = CoreNativeBoundaryNominal::Unsigned8.concrete_id().unwrap();
+        let u64_owner = CoreNativeBoundaryNominal::Unsigned64.concrete_id().unwrap();
+        let definition = NativeBoundaryTypeDefinitionRecord::new(
+            &declaration,
+            &[0],
+            NativeBoundaryNominalShape::Struct {
+                c_layout: NativeBoundaryCLayoutPolicy::CLayout {
+                    aligned: CLayoutOverride::Bytes(CLayoutByteAlignment::Bytes8),
+                    packed: CLayoutOverride::Bytes(CLayoutByteAlignment::Bytes1),
+                },
+                fields: vec![
+                    NativeBoundaryFieldDefinition::new(&first, SignatureTypeKey::Nominal(u8_owner))
+                        .unwrap(),
+                    NativeBoundaryFieldDefinition::new(
+                        &second,
+                        SignatureTypeKey::Nominal(u64_owner),
+                    )
+                    .unwrap(),
+                ],
+            },
+        )
+        .unwrap();
+        let exact = |owner| {
+            CborIdentityRecord::from_key(ExactTypeKey::Nominal(owner))
+                .unwrap()
+                .id()
+        };
+        let owner_exact = exact(owner);
+        let exact_types = BTreeMap::from([
+            (owner_exact, ExactTypeKey::Nominal(owner)),
+            (exact(u8_owner), ExactTypeKey::Nominal(u8_owner)),
+            (exact(u64_owner), ExactTypeKey::Nominal(u64_owner)),
+        ]);
+        let callable_applications = BTreeMap::new();
+        let initialization_units = BTreeMap::new();
+        let definitions = BTreeMap::from([(definition.owner(), &definition)]);
+        let mut normalizer = NativeBoundaryNormalizer::new(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            &exact_types,
+            &callable_applications,
+            &initialization_units,
+            &definitions,
+        );
+
+        let CanonicalCStorageType::Struct { layout, .. } =
+            normalizer.c_storage(owner_exact).unwrap()
+        else {
+            panic!("a C-layout struct must normalize to struct storage");
+        };
+        let layout = normalizer.expected_layouts.get(&layout).unwrap().layout();
+
+        assert_eq!(layout.byte_size(), 16);
+        assert_eq!(layout.alignment().get(), 8);
+        assert_eq!(
+            layout
+                .fields()
+                .iter()
+                .copied()
+                .map(CanonicalCAbiLayoutField::offset)
+                .collect::<Vec<_>>(),
+            [0, 1]
+        );
+    }
+}

@@ -23,7 +23,9 @@ pub use wire::{
     CallbackApplicationRelationError, DecodedMirFoundation, MirFoundationReferenceError,
     MirFoundationValidationError, ValidatedMirFoundation,
 };
+mod imported;
 mod projection;
+pub use imported::{ImportedMirId, ImportedMirSet};
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type GeneratedCallableRecord =

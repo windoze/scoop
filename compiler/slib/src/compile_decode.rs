@@ -1,12 +1,15 @@
 use std::collections::BTreeSet;
+use std::fmt;
+use std::marker::PhantomData;
 
-use scoop_hir::{DecodedHirFoundation, ValidatedHirFoundation};
+use scoop_hir::{DecodedHirFoundation, ImportedHirSet, ValidatedHirFoundation};
 use scoop_identity::{
     CapabilityId, ConeCoordinate, ConeIdentity, IdentityValidationError, PendingIdentityValidation,
+    SemanticIdentityImportError, SemanticIdentitySession, SemanticOriginFingerprint,
     ValidatedIdentityGraph,
 };
-use scoop_lir::{DecodedLirFoundation, ValidatedLirFoundation};
-use scoop_mir::{DecodedMirFoundation, ValidatedMirFoundation};
+use scoop_lir::{DecodedLirFoundation, ImportedLirSet, ValidatedLirFoundation};
+use scoop_mir::{DecodedMirFoundation, ImportedMirSet, ValidatedMirFoundation};
 use scoop_wire::{DecodeUsage, decode_canonical_with_meter};
 
 use crate::{
@@ -18,6 +21,11 @@ use crate::{
 
 mod error;
 pub use error::{FoundationStructureValidationError, IdentityFoundationDecodeError};
+mod native_boundary;
+pub use native_boundary::{
+    NativeBoundaryCompileError, NativeBoundarySourceValidatedFoundations,
+    NativeBoundaryTargetError, NativeBoundaryValidatedFoundations,
+};
 
 /// Canonically decoded foundation payloads whose artifact, profile inventory,
 /// outer envelopes, inner wire products, and semantic fingerprints agree.
@@ -382,6 +390,120 @@ impl StructurallyValidatedFoundations<'_> {
         &self.lir
     }
 }
+
+mod profile_seal {
+    pub trait Sealed {}
+}
+
+/// Marker implemented only by compile capability profiles whose proof chain
+/// is available in this compiler.
+pub trait CompileCapabilityProfile: profile_seal::Sealed {}
+
+/// The non-publishable identity-foundation Compile profile implemented by
+/// M23-2.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IdentityFoundationProfile;
+
+impl profile_seal::Sealed for IdentityFoundationProfile {}
+impl CompileCapabilityProfile for IdentityFoundationProfile {}
+
+/// A graph artifact whose complete Compile profile was structurally
+/// validated, typed-remapped, and committed to the caller's semantic session.
+///
+/// This type deliberately exposes no publication, dependency, object, or Link
+/// conversion.
+pub struct ValidatedCompileArtifact<'input, P: CompileCapabilityProfile> {
+    graph: ValidatedGraphArtifact<'input>,
+    hir: ImportedHirSet,
+    mir: ImportedMirSet,
+    lir: ImportedLirSet,
+    profile: PhantomData<fn() -> P>,
+}
+
+impl<'input> NativeBoundaryValidatedFoundations<'input> {
+    /// Atomically imports all three layers into one session. Identity ids are
+    /// assigned only after every origin and canonical-key conflict check has
+    /// passed.
+    pub fn commit(
+        self,
+        session: &mut SemanticIdentitySession,
+    ) -> Result<ValidatedCompileArtifact<'input, IdentityFoundationProfile>, CompileCommitError>
+    {
+        let StructurallyValidatedFoundations {
+            graph,
+            identities,
+            hir,
+            mir,
+            lir,
+        } = self.foundations;
+        let semantic = graph.envelope.manifest().semantic_fingerprints();
+        let fingerprint = SemanticOriginFingerprint::new(
+            *semantic.hir().as_array(),
+            *semantic.mir().as_array(),
+            *semantic.lir().as_array(),
+        );
+        let imported = session
+            .import(graph.identity(), fingerprint, &identities)
+            .map_err(CompileCommitError::SemanticImport)?;
+        let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
+        Ok(ValidatedCompileArtifact {
+            graph,
+            hir: ImportedHirSet::from_validated(hir, hir_identities),
+            mir: ImportedMirSet::from_validated(mir, mir_identities),
+            lir: ImportedLirSet::from_validated(lir, lir_identities),
+            profile: PhantomData,
+        })
+    }
+}
+
+impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<'_, P> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub fn direct_dependencies(&self) -> &[DependencyRecord] {
+        self.graph.direct_dependencies()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub const fn hir(&self) -> &ImportedHirSet {
+        &self.hir
+    }
+
+    pub const fn mir(&self) -> &ImportedMirSet {
+        &self.mir
+    }
+
+    pub const fn lir(&self) -> &ImportedLirSet {
+        &self.lir
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompileCommitError {
+    SemanticImport(SemanticIdentityImportError),
+}
+
+impl fmt::Display for CompileCommitError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SemanticImport(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CompileCommitError {}
 
 fn reject_compile_required_manifest_sections(
     graph: &ValidatedGraphArtifact<'_>,

@@ -26,6 +26,15 @@ impl ValidatedMirFoundation {
     pub fn counts(&self) -> MirFoundationCounts {
         self.canonical.counts()
     }
+
+    pub(crate) fn into_canonical(self) -> CanonicalMirFoundation {
+        self.canonical
+    }
+
+    #[doc(hidden)]
+    pub fn callback_application_records(&self) -> &[CallbackApplicationRecord] {
+        &self.canonical.callback_application_records
+    }
 }
 
 impl WireEncode for ValidatedMirFoundation {

@@ -28,7 +28,9 @@ pub use wire::{
     ValidatedLirFoundation,
 };
 
+mod imported;
 mod projection;
+pub use imported::{ImportedLirId, ImportedLirSet};
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type LayoutRecord = CborIdentityRecord<PersistentLayoutId, LayoutKey>;

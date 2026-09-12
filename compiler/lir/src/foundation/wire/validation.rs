@@ -25,6 +25,30 @@ impl ValidatedLirFoundation {
     pub fn counts(&self) -> LirFoundationCounts {
         self.canonical.counts()
     }
+
+    pub(crate) fn into_canonical(self) -> CanonicalLirFoundation {
+        self.canonical
+    }
+
+    #[doc(hidden)]
+    pub fn native_contracts(&self) -> &[NativeExternalContractRecord] {
+        &self.canonical.native_contracts
+    }
+
+    #[doc(hidden)]
+    pub fn c_abi_signatures(&self) -> &[CanonicalCAbiSignatureFingerprintRecord] {
+        &self.canonical.c_abi_signatures
+    }
+
+    #[doc(hidden)]
+    pub fn c_abi_layouts(&self) -> &[CanonicalCAbiLayoutFingerprintRecord] {
+        &self.canonical.c_abi_layouts
+    }
+
+    #[doc(hidden)]
+    pub fn callback_bridges(&self) -> &[CallbackBridgeRecord] {
+        &self.canonical.callback_bridges
+    }
 }
 
 impl WireEncode for ValidatedLirFoundation {
