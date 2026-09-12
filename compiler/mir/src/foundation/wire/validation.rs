@@ -7,7 +7,7 @@ use scoop_identity::{
     OdrMemberId, OdrMemberIdentityError, OdrMemberKey, PersistentCallbackRegistrationId,
     PersistentId, PersistentIdResolver, PersistentKeyResolver, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode};
+use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode_canonical_temporary_with_meter};
 
 use super::*;
 use crate::{
@@ -61,7 +61,8 @@ fn validate_foundation(
     identities: &mut ValidatedIdentityGraph,
     meter: &mut BudgetMeter,
 ) -> Result<ValidatedMirFoundation, MirFoundationValidationError> {
-    let original = encode(&foundation).map_err(MirFoundationValidationError::WireEncode)?;
+    let original = encode_canonical_temporary_with_meter(&foundation, meter, &WirePath::root())
+        .map_err(MirFoundationValidationError::Resource)?;
     let DecodedMirFoundationWire {
         exact_types: _,
         generated_callables: _,
@@ -160,7 +161,8 @@ fn validate_foundation(
     set!(set_odr_groups, odr_groups);
     set!(set_odr_members, odr_members);
 
-    let rebuilt = encode(&canonical).map_err(MirFoundationValidationError::WireEncode)?;
+    let rebuilt = encode_canonical_temporary_with_meter(&canonical, meter, &WirePath::root())
+        .map_err(MirFoundationValidationError::Resource)?;
     if rebuilt != original {
         return Err(MirFoundationValidationError::NonCanonicalFoundation);
     }
@@ -446,7 +448,6 @@ impl std::error::Error for CallbackApplicationRelationError {}
 
 #[derive(Debug)]
 pub enum MirFoundationValidationError {
-    WireEncode(scoop_wire::cbor::EncodeError),
     Resource(scoop_wire::WireError),
     Identity(IdentityValidationError),
     CallableSignature {
@@ -471,7 +472,6 @@ impl From<CallbackApplicationRelationError> for MirFoundationValidationError {
 impl fmt::Display for MirFoundationValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::WireEncode(error) => error.fmt(formatter),
             Self::Resource(error) => error.fmt(formatter),
             Self::Identity(error) => error.fmt(formatter),
             Self::CallableSignature { index, error } => {

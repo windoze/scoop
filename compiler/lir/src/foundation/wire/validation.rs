@@ -1,7 +1,7 @@
 use scoop_identity::{
     CallableBodyKey, ConeIdentity, GeneratedBridgeUnitKey, IdentityLayer, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode};
+use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode_canonical_temporary_with_meter};
 
 use super::*;
 
@@ -77,7 +77,8 @@ fn validate_foundation(
     identities: &mut ValidatedIdentityGraph,
     meter: &mut BudgetMeter,
 ) -> Result<ValidatedLirFoundation, LirFoundationValidationError> {
-    let original = encode(&foundation).map_err(LirFoundationValidationError::WireEncode)?;
+    let original = encode_canonical_temporary_with_meter(&foundation, meter, &WirePath::root())
+        .map_err(LirFoundationValidationError::Resource)?;
     let DecodedLirFoundationWire {
         exact_types: _,
         layouts: _,
@@ -295,7 +296,8 @@ fn validate_foundation(
     set!(set_definition_plans, definition_plans);
     set!(set_definition_atoms, definition_atoms);
 
-    let rebuilt = encode(&canonical).map_err(LirFoundationValidationError::WireEncode)?;
+    let rebuilt = encode_canonical_temporary_with_meter(&canonical, meter, &WirePath::root())
+        .map_err(LirFoundationValidationError::Resource)?;
     if rebuilt != original {
         return Err(LirFoundationValidationError::NonCanonicalFoundation);
     }

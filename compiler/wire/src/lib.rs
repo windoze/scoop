@@ -15,7 +15,7 @@ pub use budget::{BudgetMeter, DecodeLimits, DecodeUsage, ResourceKind};
 pub use cbor::{
     BorrowedWireDecode, Decoder, Encoder, WireDecode, WireEncode, decode_canonical,
     decode_canonical_borrowed, decode_canonical_borrowed_with_meter, decode_canonical_with_meter,
-    encode, encoded_length,
+    encode, encode_canonical_temporary_with_meter, encoded_length,
 };
 pub use digest::{
     CanonicalHashStream, Digest256, HashError, byte_span, domain_separated_cbor_hash,

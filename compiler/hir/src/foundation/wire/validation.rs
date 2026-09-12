@@ -6,7 +6,7 @@ use scoop_identity::{
     IdentityLayer, IdentityReferenceError, IdentityValidationError, PersistentId, SourceContextKey,
     SourceNativeExternalResolutionError, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode};
+use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode_canonical_temporary_with_meter};
 
 use super::*;
 use crate::{NativeBoundaryResolutionError, NativeBoundaryResolver, SourceRecordValidationError};
@@ -73,7 +73,8 @@ fn validate_foundation(
     identities: &mut ValidatedIdentityGraph,
     meter: &mut BudgetMeter,
 ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
-    let original = encode(&foundation).map_err(HirFoundationValidationError::WireEncode)?;
+    let original = encode_canonical_temporary_with_meter(&foundation, meter, &WirePath::root())
+        .map_err(HirFoundationValidationError::Resource)?;
     let artifact = coordinate
         .identity()
         .map_err(HirFoundationValidationError::CoordinateIdentity)?;
@@ -310,7 +311,8 @@ fn validate_foundation(
     set!(set_definition_origins, origins);
     set!(set_native_boundary_types, boundary_types);
 
-    let rebuilt = encode(&canonical).map_err(HirFoundationValidationError::WireEncode)?;
+    let rebuilt = encode_canonical_temporary_with_meter(&canonical, meter, &WirePath::root())
+        .map_err(HirFoundationValidationError::Resource)?;
     if rebuilt != original {
         return Err(HirFoundationValidationError::NonCanonicalFoundation);
     }
@@ -425,7 +427,6 @@ impl NativeBoundaryResolver<IdentityReferenceError> for ValidatedIdentityGraph {
 #[derive(Debug)]
 pub enum HirFoundationValidationError {
     CoordinateIdentity(scoop_wire::HashError),
-    WireEncode(scoop_wire::cbor::EncodeError),
     Resource(scoop_wire::WireError),
     SourceRecord {
         index: usize,
@@ -473,7 +474,6 @@ impl fmt::Display for HirFoundationValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::CoordinateIdentity(error) => error.fmt(formatter),
-            Self::WireEncode(error) => error.fmt(formatter),
             Self::Resource(error) => error.fmt(formatter),
             Self::SourceRecord { index, error } => {
                 write!(formatter, "HIR source record {index} is invalid: {error}")
