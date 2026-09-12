@@ -8,9 +8,11 @@ use scoop_wire::{Digest256, HashError};
 
 use crate::ids::PersistentIdConstruction;
 use crate::{
-    CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord, DecodedPersistentId,
-    DecodedSourceNativeExternalContractRecord, PersistentId, PersistentIdResolver,
-    PersistentKeyResolver, PersistentSourceNativeExternalContractId,
+    CallableBodyKey, CborIdentityKey, CborIdentityRecord, DecodedCallableBodyKey,
+    DecodedCborIdentityRecord, DecodedPersistentId, DecodedRuntimeIdentityRecord,
+    DecodedSourceNativeExternalContractRecord, PersistentCallableBodyId, PersistentId,
+    PersistentIdResolver, PersistentKeyResolver, PersistentSourceNativeExternalContractId,
+    RuntimeIdentityKey, RuntimeIdentityRecord, RuntimeIdentityRecordValidationError,
     SourceNativeExternalContractKey,
 };
 
@@ -194,6 +196,32 @@ impl PendingIdentityValidation {
         self.insert_candidate(layer, IdentityNode::decoded(decoded))
     }
 
+    pub fn register_callable_body(
+        &mut self,
+        layer: IdentityLayer,
+        record: &DecodedRuntimeIdentityRecord<PersistentCallableBodyId>,
+    ) -> Result<(), IdentityValidationError> {
+        self.require_registration_phase()?;
+        let decoded = record.decoded_id();
+        if let Err(error) = record.clone().validate_key::<DecodedCallableBodyKey>() {
+            return match error {
+                RuntimeIdentityRecordValidationError::Id(mismatch) => {
+                    self.fail(IdentityValidationError::IdentityMismatch {
+                        kind: PersistentCallableBodyId::KIND,
+                        expected: *mismatch.expected().as_array(),
+                        actual: *mismatch.actual(),
+                    })
+                }
+                error => self.fail(IdentityValidationError::InvalidRecord {
+                    kind: PersistentCallableBodyId::KIND,
+                    id: *decoded.as_array(),
+                    reason: error.to_string(),
+                }),
+            };
+        }
+        self.insert_candidate(layer, IdentityNode::decoded(decoded))
+    }
+
     /// Resolves and rehashes one previously registered record.
     pub fn resolve<I, D>(
         &mut self,
@@ -260,6 +288,60 @@ impl PendingIdentityValidation {
             PersistentSourceNativeExternalContractId,
             SourceNativeExternalContractKey,
         >(node, resolved.key())
+    }
+
+    pub fn resolve_callable_body(
+        &mut self,
+        record: &DecodedRuntimeIdentityRecord<PersistentCallableBodyId>,
+    ) -> Result<(), IdentityValidationError> {
+        let node = IdentityNode::decoded(record.decoded_id());
+        self.start_resolution(node)?;
+        let decoded = match record.decode_key::<DecodedCallableBodyKey>() {
+            Ok(decoded) => decoded,
+            Err(error) => {
+                return self.fail(IdentityValidationError::InvalidRecord {
+                    kind: node.kind,
+                    id: node.bytes,
+                    reason: error.to_string(),
+                });
+            }
+        };
+        let resolved = {
+            let mut resolver = PendingIdentityResolver {
+                current: node,
+                candidates: &mut self.candidates,
+                canonical_keys: &self.canonical_keys,
+            };
+            decoded.resolve(&mut resolver)
+        };
+        let resolved = match resolved {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                return self.fail(IdentityValidationError::InvalidRecord {
+                    kind: node.kind,
+                    id: node.bytes,
+                    reason: error.to_string(),
+                });
+            }
+        };
+        let rebuilt = match RuntimeIdentityRecord::from_key(&resolved) {
+            Ok(rebuilt) => rebuilt,
+            Err(error) => {
+                return self.fail(IdentityValidationError::InvalidRecord {
+                    kind: node.kind,
+                    id: node.bytes,
+                    reason: error.to_string(),
+                });
+            }
+        };
+        if let Err(mismatch) = record.decoded_id().verify(rebuilt.id()) {
+            return self.fail(IdentityValidationError::IdentityMismatch {
+                kind: node.kind,
+                expected: *mismatch.expected().as_array(),
+                actual: *mismatch.actual(),
+            });
+        }
+        self.store_resolved_key::<PersistentCallableBodyId, CallableBodyKey>(node, resolved)
     }
 
     /// Completes validation only if every declared record was resolved and the
@@ -475,6 +557,49 @@ impl ValidatedIdentityGraph {
                 continue;
             };
             let record = CborIdentityRecord::from_key(key.clone()).map_err(|error| {
+                IdentityValidationError::InvalidRecord {
+                    kind: I::KIND,
+                    id: node.bytes,
+                    reason: error.to_string(),
+                }
+            })?;
+            if record.id().as_array() != &node.bytes {
+                return Err(IdentityValidationError::IdentityMismatch {
+                    kind: I::KIND,
+                    expected: *record.id().as_array(),
+                    actual: node.bytes,
+                });
+            }
+            records.push(record);
+        }
+        Ok(records)
+    }
+
+    /// Reconstructs runtime-encoded records introduced by one layer and key
+    /// family, sorted by raw persistent id.
+    pub fn runtime_records<I, K>(
+        &self,
+        layer: IdentityLayer,
+    ) -> Result<Vec<RuntimeIdentityRecord<I>>, IdentityValidationError>
+    where
+        I: PersistentId + 'static,
+        K: RuntimeIdentityKey<I> + Clone + 'static,
+        K::Error: fmt::Display,
+    {
+        let mut records = Vec::new();
+        for (node, candidate) in &self.candidates {
+            if node.kind != I::KIND || candidate.layer != Some(layer) {
+                continue;
+            }
+            let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
+            let Some(key) = self
+                .canonical_keys
+                .get(&slot)
+                .and_then(|key| key.downcast_ref::<K>())
+            else {
+                continue;
+            };
+            let record = RuntimeIdentityRecord::from_key(key).map_err(|error| {
                 IdentityValidationError::InvalidRecord {
                     kind: I::KIND,
                     id: node.bytes,

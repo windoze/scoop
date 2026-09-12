@@ -7,7 +7,8 @@ use scoop_identity::{
     DecodedLayoutKey, DecodedNativeExternalContractRecord, DecodedNativeLinkRequirementKey,
     DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey, DecodedOdrMemberKey,
     DecodedPersistentSymbolRequestTable, DecodedRuntimeIdentityRecord, DecodedSafepointSiteKey,
-    DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey,
+    DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey, IdentityLayer,
+    IdentityValidationError, PendingIdentityValidation,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -86,6 +87,83 @@ impl WireEncode for DecodedLirFoundation {
 impl WireDecode for DecodedLirFoundation {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         DecodedLirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
+    }
+}
+
+impl DecodedLirFoundation {
+    /// Registers every LIR-owned identity before cross-layer resolution.
+    pub fn register_identities(
+        &self,
+        validation: &mut PendingIdentityValidation,
+    ) -> Result<(), IdentityValidationError> {
+        macro_rules! register_tables {
+            ($($table:ident),+ $(,)?) => {
+                $(for record in &self.decoded.$table {
+                    validation.register(IdentityLayer::Lir, record)?;
+                })+
+            };
+        }
+
+        register_tables!(
+            exact_types,
+            layouts,
+            scans,
+            dispatch_tables,
+            static_storages,
+            immortal_objects,
+            odr_groups,
+            odr_members,
+            safepoint_sites,
+            bridge_units,
+            bridge_atoms,
+            native_link_requirements,
+            definition_plans,
+            definition_atoms,
+        );
+        for record in &self.decoded.callable_bodies {
+            validation.register_callable_body(IdentityLayer::Lir, record)?;
+        }
+        Ok(())
+    }
+
+    /// Resolves every LIR-owned identity after HIR and MIR identities supplied
+    /// all earlier-layer keys.
+    pub fn resolve_identities(
+        &self,
+        validation: &mut PendingIdentityValidation,
+    ) -> Result<(), IdentityValidationError> {
+        macro_rules! resolve_tables {
+            ($($table:ident),+ $(,)?) => {
+                $(for record in &self.decoded.$table {
+                    validation.resolve(record)?;
+                })+
+            };
+        }
+
+        resolve_tables!(
+            exact_types,
+            layouts,
+            scans,
+            dispatch_tables,
+            static_storages,
+            immortal_objects,
+            odr_groups,
+            odr_members,
+        );
+        // ODR callable bodies reconstruct a refined member key.
+        for record in &self.decoded.callable_bodies {
+            validation.resolve_callable_body(record)?;
+        }
+        resolve_tables!(
+            safepoint_sites,
+            bridge_units,
+            bridge_atoms,
+            native_link_requirements,
+        );
+        // A strong definition plan may reconstruct a generated bridge atom;
+        // definition atoms in turn depend on their plans.
+        resolve_tables!(definition_plans, definition_atoms);
+        Ok(())
     }
 }
 
@@ -172,6 +250,11 @@ fn encode_table_field<T: WireEncode>(
 
 #[cfg(test)]
 mod tests {
+    use scoop_identity::{
+        CallableBodyKey, CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
+        PackagePath, PersistentFunctionId, RuntimeIdentityRecord, SourceDeclarationKey,
+        SourceDeclarationSite, StrongCallableDefinitionOwner,
+    };
     use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
     use super::*;
@@ -204,6 +287,48 @@ mod tests {
         assert!(decoded.native_link_requirements.is_empty());
         assert!(decoded.definition_plans.is_empty());
         assert!(decoded.definition_atoms.is_empty());
+    }
+
+    #[test]
+    fn registers_and_resolves_a_lir_runtime_identity_delta() {
+        let declaration = SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("run").unwrap(),
+            0,
+            None,
+            Vec::new(),
+        );
+        let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+        let record = RuntimeIdentityRecord::from_key(&CallableBodyKey::strong(
+            StrongCallableDefinitionOwner::Function(function),
+        ))
+        .unwrap();
+        let mut canonical = CanonicalLirFoundation::empty();
+        canonical.set_callable_bodies(vec![record.clone()]).unwrap();
+        let decoded = decode_canonical::<DecodedLirFoundation>(
+            &encode(&canonical).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let mut validation = PendingIdentityValidation::new();
+        validation.register_authority(function).unwrap();
+
+        decoded.register_identities(&mut validation).unwrap();
+        decoded.resolve_identities(&mut validation).unwrap();
+
+        let graph = validation.finish().unwrap();
+        assert_eq!(
+            graph
+                .runtime_records::<PersistentCallableBodyId, CallableBodyKey>(IdentityLayer::Lir)
+                .unwrap(),
+            vec![record]
+        );
     }
 
     #[test]

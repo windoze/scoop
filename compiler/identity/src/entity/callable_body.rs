@@ -1,3 +1,5 @@
+use std::fmt;
+
 use scoop_wire::{
     HashError, RuntimeDecode, RuntimeDecodeError, RuntimeDecodeErrorKind, RuntimeDecoder,
     RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireEncode,
@@ -6,9 +8,10 @@ use scoop_wire::{
 use super::CallableOdrMemberId;
 use crate::ids::derive_runtime_persistent_id;
 use crate::{
-    ConeIdentity, DecodedPersistentId, OdrMemberId, PersistentCallableBodyId,
-    PersistentConstructorId, PersistentFunctionId, PersistentGeneratedCallableId, PersistentId,
-    PersistentInitializationUnitId, PersistentPropertyAccessorId,
+    ConeIdentity, DecodedPersistentId, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
+    PersistentCallableBodyId, PersistentConstructorId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentId, PersistentIdResolver,
+    PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -130,7 +133,82 @@ impl DecodedCallableBodyKey {
     pub const fn kind(&self) -> DecodedCallableBodyKeyKind {
         self.0
     }
+
+    pub fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<CallableBodyKey, CallableBodyResolutionError<E>>
+    where
+        R: PersistentIdResolver<PersistentFunctionId, Error = E>
+            + PersistentIdResolver<PersistentConstructorId, Error = E>
+            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
+            + PersistentKeyResolver<OdrMemberId, OdrMemberKey, Error = E>
+            + PersistentIdResolver<ConeIdentity, Error = E>
+            + PersistentIdResolver<PersistentCallableBodyId, Error = E>
+            + PersistentIdResolver<PersistentInitializationUnitId, Error = E>,
+    {
+        match self.0 {
+            DecodedCallableBodyKeyKind::Strong(owner) => {
+                let owner = match owner {
+                    DecodedStrongCallableDefinitionOwner::Function(id) => resolver
+                        .resolve(id)
+                        .map(StrongCallableDefinitionOwner::Function),
+                    DecodedStrongCallableDefinitionOwner::Constructor(id) => resolver
+                        .resolve(id)
+                        .map(StrongCallableDefinitionOwner::Constructor),
+                    DecodedStrongCallableDefinitionOwner::PropertyAccessor(id) => resolver
+                        .resolve(id)
+                        .map(StrongCallableDefinitionOwner::PropertyAccessor),
+                    DecodedStrongCallableDefinitionOwner::GeneratedCallable(id) => resolver
+                        .resolve(id)
+                        .map(StrongCallableDefinitionOwner::GeneratedCallable),
+                }
+                .map_err(CallableBodyResolutionError::Reference)?;
+                Ok(CallableBodyKey::strong(owner))
+            }
+            DecodedCallableBodyKeyKind::Odr(member) => {
+                let key = resolver
+                    .resolve_key(member)
+                    .map_err(CallableBodyResolutionError::Reference)?;
+                let member = CallableOdrMemberId::from_key(&key)
+                    .map_err(CallableBodyResolutionError::Member)?;
+                Ok(CallableBodyKey::odr(member))
+            }
+            DecodedCallableBodyKeyKind::RootGateway { root_cone, main } => {
+                let root_cone = resolver
+                    .resolve(root_cone)
+                    .map_err(CallableBodyResolutionError::Reference)?;
+                let main = resolver
+                    .resolve(main)
+                    .map(MainCallableBodyId::from_body)
+                    .map_err(CallableBodyResolutionError::Reference)?;
+                Ok(CallableBodyKey::root_gateway(root_cone, main))
+            }
+            DecodedCallableBodyKeyKind::InitializationStartupGateway(unit) => resolver
+                .resolve(unit)
+                .map(CallableBodyKey::initialization_startup_gateway)
+                .map_err(CallableBodyResolutionError::Reference),
+        }
+    }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CallableBodyResolutionError<E> {
+    Reference(E),
+    Member(OdrMemberIdentityError),
+}
+
+impl<E: fmt::Display> fmt::Display for CallableBodyResolutionError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Reference(error) => error.fmt(formatter),
+            Self::Member(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for CallableBodyResolutionError<E> {}
 
 impl RuntimeDecode for DecodedCallableBodyKey {
     fn runtime_decode(decoder: &mut RuntimeDecoder<'_>) -> Result<Self, RuntimeDecodeError> {
