@@ -228,3 +228,68 @@ fn registration_rejects_an_id_that_does_not_match_its_decoded_key() {
         Err(IdentityValidationError::IdentityMismatch { .. })
     ));
 }
+
+#[test]
+fn semantic_import_reuses_world_ids_across_origins() {
+    let graph = validated_source_type_graph();
+    let fingerprint = SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]);
+    let mut session = SemanticIdentitySession::new();
+
+    let (first, _, _) = session
+        .import(ConeIdentity::CORE, fingerprint, &graph)
+        .unwrap()
+        .into_parts();
+    let first_id = first.get(source_type_record().id()).unwrap();
+    let (second, _, _) = session
+        .import(ConeIdentity::SINGLE_FILE, fingerprint, &graph)
+        .unwrap()
+        .into_parts();
+    let second_id = second.get(source_type_record().id()).unwrap();
+
+    assert_eq!(first_id, second_id);
+    assert_eq!(first_id.persistent(), source_type_record().id());
+    assert_eq!(session.origin_count(), 2);
+    assert_eq!(session.entity_count(), 1);
+}
+
+#[test]
+fn semantic_import_rejects_origin_conflicts_without_partial_commit() {
+    let graph = validated_source_type_graph();
+    let mut session = SemanticIdentitySession::new();
+    session
+        .import(
+            ConeIdentity::CORE,
+            SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
+            &graph,
+        )
+        .unwrap();
+    let origin_count = session.origin_count();
+    let entity_count = session.entity_count();
+
+    let error = match session.import(
+        ConeIdentity::CORE,
+        SemanticOriginFingerprint::new([9; 32], [2; 32], [3; 32]),
+        &graph,
+    ) {
+        Ok(_) => panic!("conflicting origin fingerprints must be rejected"),
+        Err(error) => error,
+    };
+
+    assert_eq!(
+        error,
+        SemanticIdentityImportError::OriginConflict {
+            origin: ConeIdentity::CORE
+        }
+    );
+    assert_eq!(session.origin_count(), origin_count);
+    assert_eq!(session.entity_count(), entity_count);
+}
+
+fn validated_source_type_graph() -> ValidatedIdentityGraph {
+    let decoded = decoded_source_type();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending.resolve(&decoded).unwrap();
+    pending.finish().unwrap()
+}

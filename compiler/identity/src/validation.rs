@@ -3,6 +3,7 @@
 use std::any::{Any, TypeId};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
+use std::sync::Arc;
 
 use scoop_wire::{Digest256, HashError};
 
@@ -18,6 +19,13 @@ use crate::{
 
 mod decoded;
 pub use decoded::DecodedIdentityKey;
+
+mod semantic;
+pub use semantic::{
+    HirIdentityLayer, ImportedIdentityId, ImportedIdentityLayer, ImportedIdentityLayers,
+    ImportedIdentityMap, LirIdentityLayer, MirIdentityLayer, SemanticIdentityImportError,
+    SemanticIdentitySession, SemanticOriginFingerprint,
+};
 
 /// Artifact layer that first introduces a persistent identity record.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -68,18 +76,39 @@ struct Candidate {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct CanonicalKeySlot {
+    kind: &'static str,
     id_type: TypeId,
     key_type: TypeId,
     bytes: [u8; 32],
 }
 
 impl CanonicalKeySlot {
-    fn new<I: 'static, K: 'static>(bytes: [u8; 32]) -> Self {
+    fn new<I: PersistentId + 'static, K: 'static>(bytes: [u8; 32]) -> Self {
         Self {
+            kind: I::KIND,
             id_type: TypeId::of::<I>(),
             key_type: TypeId::of::<K>(),
             bytes,
         }
+    }
+}
+
+trait ErasedCanonicalKey: Any {
+    fn as_any(&self) -> &dyn Any;
+
+    fn equals(&self, other: &dyn ErasedCanonicalKey) -> bool;
+}
+
+impl<T> ErasedCanonicalKey for T
+where
+    T: Any + Eq,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn equals(&self, other: &dyn ErasedCanonicalKey) -> bool {
+        other.as_any().downcast_ref::<Self>() == Some(self)
     }
 }
 
@@ -97,7 +126,7 @@ enum ValidationPhase {
 /// [`Self::finish`] succeeds.
 pub struct PendingIdentityValidation {
     candidates: BTreeMap<IdentityNode, Candidate>,
-    canonical_keys: HashMap<CanonicalKeySlot, Box<dyn Any>>,
+    canonical_keys: HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
     phase: ValidationPhase,
 }
 
@@ -450,10 +479,10 @@ impl PendingIdentityValidation {
     ) -> Result<(), IdentityValidationError>
     where
         I: PersistentId + 'static,
-        K: 'static,
+        K: Eq + 'static,
     {
         let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
-        if self.canonical_keys.insert(slot, Box::new(key)).is_some() {
+        if self.canonical_keys.insert(slot, Arc::new(key)).is_some() {
             return self.fail(IdentityValidationError::AlreadyResolved {
                 kind: node.kind,
                 id: node.bytes,
@@ -476,7 +505,7 @@ impl PendingIdentityValidation {
 pub struct PendingIdentityResolver<'validation> {
     current: IdentityNode,
     candidates: &'validation mut BTreeMap<IdentityNode, Candidate>,
-    canonical_keys: &'validation HashMap<CanonicalKeySlot, Box<dyn Any>>,
+    canonical_keys: &'validation HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
 }
 
 impl<I> PersistentIdResolver<I> for PendingIdentityResolver<'_>
@@ -530,7 +559,7 @@ where
         let slot = CanonicalKeySlot::new::<I, K>(*resolved.as_array());
         self.canonical_keys
             .get(&slot)
-            .and_then(|key| key.downcast_ref::<K>())
+            .and_then(|key| key.as_any().downcast_ref::<K>())
             .cloned()
             .ok_or(IdentityReferenceError::KeyUnavailable {
                 kind: I::KIND,
@@ -546,7 +575,7 @@ where
 /// dependency graph is acyclic.
 pub struct ValidatedIdentityGraph {
     candidates: BTreeMap<IdentityNode, Candidate>,
-    canonical_keys: HashMap<CanonicalKeySlot, Box<dyn Any>>,
+    canonical_keys: HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
 }
 
 impl ValidatedIdentityGraph {
@@ -574,7 +603,7 @@ impl ValidatedIdentityGraph {
             let Some(key) = self
                 .canonical_keys
                 .get(&slot)
-                .and_then(|key| key.downcast_ref::<K>())
+                .and_then(|key| key.as_any().downcast_ref::<K>())
             else {
                 continue;
             };
@@ -617,7 +646,7 @@ impl ValidatedIdentityGraph {
             let Some(key) = self
                 .canonical_keys
                 .get(&slot)
-                .and_then(|key| key.downcast_ref::<K>())
+                .and_then(|key| key.as_any().downcast_ref::<K>())
             else {
                 continue;
             };
@@ -672,7 +701,7 @@ where
         let slot = CanonicalKeySlot::new::<I, K>(*resolved.as_array());
         self.canonical_keys
             .get(&slot)
-            .and_then(|key| key.downcast_ref::<K>())
+            .and_then(|key| key.as_any().downcast_ref::<K>())
             .cloned()
             .ok_or(IdentityReferenceError::KeyUnavailable {
                 kind: I::KIND,

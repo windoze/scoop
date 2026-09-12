@@ -209,6 +209,9 @@ pub use syntax::{
     PackagePath,
 };
 pub use validation::{
-    DecodedIdentityKey, IdentityLayer, IdentityReferenceError, IdentityValidationError,
-    PendingIdentityValidation, ValidatedIdentityGraph,
+    DecodedIdentityKey, HirIdentityLayer, IdentityLayer, IdentityReferenceError,
+    IdentityValidationError, ImportedIdentityId, ImportedIdentityLayer, ImportedIdentityLayers,
+    ImportedIdentityMap, LirIdentityLayer, MirIdentityLayer, PendingIdentityValidation,
+    SemanticIdentityImportError, SemanticIdentitySession, SemanticOriginFingerprint,
+    ValidatedIdentityGraph,
 };
