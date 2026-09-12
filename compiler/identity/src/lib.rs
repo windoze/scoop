@@ -20,6 +20,7 @@ mod mangling;
 mod record;
 mod source;
 mod syntax;
+mod validation;
 
 pub use capability::{
     ArtifactCapabilityProfileId, BackendProfileWireId, CapabilityId, CapabilityIdError,
@@ -204,4 +205,8 @@ pub use source::{
 pub use syntax::{
     CanonicalIdentifier, CanonicalIdentifierError, DecodedCanonicalIdentifier, DecodedPackagePath,
     PackagePath,
+};
+pub use validation::{
+    DecodedIdentityKey, IdentityLayer, IdentityReferenceError, IdentityValidationError,
+    PendingIdentityValidation, ValidatedIdentityGraph,
 };
