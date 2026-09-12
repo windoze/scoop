@@ -158,16 +158,17 @@ impl PendingIdentityValidation {
     /// Adds a hash identity whose canonical preimage was verified by its
     /// owning decoded record before graph registration.
     ///
-    /// Unlike an identity delta this leaf has no separately addressable key
-    /// table. Its owning foundation validator must still resolve every
-    /// reference carried by the preimage before the semantic world is
-    /// committed.
+    /// The caller must subsequently supply the resolved preimage through
+    /// [`Self::resolve_verified_leaf`]. Keeping these fingerprints in the
+    /// ordinary layer delta makes them participate in typed remap and
+    /// semantic-key conflict detection just like every other identity kind.
     pub fn register_verified_leaf<I: PersistentId>(
         &mut self,
+        layer: IdentityLayer,
         id: I,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
-        self.insert_resolved_leaf(id)
+        self.insert_candidate(layer, IdentityNode::trusted(id))
     }
 
     fn insert_resolved_leaf<I: PersistentId>(
@@ -393,6 +394,39 @@ impl PendingIdentityValidation {
             });
         }
         self.store_resolved_key::<PersistentCallableBodyId, CallableBodyKey>(node, resolved)
+    }
+
+    /// Resolves the canonical preimage of a previously verified hash leaf.
+    /// References observed by the callback are added to the same dependency
+    /// graph as ordinary identity records.
+    pub fn resolve_verified_leaf<I, K, E>(
+        &mut self,
+        id: I,
+        resolve: impl FnOnce(&mut PendingIdentityResolver<'_>) -> Result<K, E>,
+    ) -> Result<(), IdentityValidationError>
+    where
+        I: PersistentId + 'static,
+        K: Eq + 'static,
+        E: fmt::Display,
+    {
+        let node = IdentityNode::trusted(id);
+        self.start_resolution(node)?;
+        let resolved = {
+            let mut resolver = PendingIdentityResolver {
+                current: node,
+                candidates: &mut self.candidates,
+                canonical_keys: &self.canonical_keys,
+            };
+            resolve(&mut resolver)
+        };
+        match resolved {
+            Ok(key) => self.store_resolved_key::<I, K>(node, key),
+            Err(error) => self.fail(IdentityValidationError::InvalidRecord {
+                kind: node.kind,
+                id: node.bytes,
+                reason: error.to_string(),
+            }),
+        }
     }
 
     /// Completes validation only if every declared record was resolved and the
