@@ -16,7 +16,6 @@ pub enum NominalOwner {
 #[derive(Debug, Clone)]
 pub struct ObjectDecl {
     pub origin: HirNominalIdentity,
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub object_type: ObjectTypeId,
@@ -64,7 +63,6 @@ pub struct SingletonValue {
 pub struct SingletonPublishedRoot {
     pub value: SingletonValueId,
     pub ty: TypeId,
-    pub link_name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -72,7 +70,6 @@ pub struct StructDef {
     pub origin: HirNominalIdentity,
     /// Canonical concrete type represented by this physical declaration.
     pub canonical_type: TypeId,
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
@@ -112,7 +109,6 @@ pub struct EnumDef {
     pub origin: HirNominalIdentity,
     /// Canonical concrete type represented by this exact enum application.
     pub canonical_type: TypeId,
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
@@ -295,7 +291,6 @@ pub struct ClassDef {
     /// Canonical concrete type represented by this physical declaration.
     pub canonical_type: TypeId,
     pub modifier: ClassModifier,
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
@@ -428,7 +423,6 @@ pub struct InterfaceDef {
     pub origin: HirNominalIdentity,
     /// Canonical concrete type represented by this exact interface application.
     pub canonical_type: TypeId,
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub family: InterfaceFamilyId,
@@ -589,7 +583,6 @@ mod tests {
         let enumeration = enums.alloc(EnumDef {
             origin: nominal_identity("Option", SourceNominalKind::Enum, 1),
             canonical_type: ty,
-            link_stem: NominalLinkStem::from_session_local_encoding("Option".to_string()),
             name: "Option".to_string(),
             owner: None,
             type_arguments: vec![ty],
@@ -649,7 +642,6 @@ mod tests {
         let other = enums.alloc(EnumDef {
             origin: nominal_identity("Other", SourceNominalKind::Enum, 0),
             canonical_type: ty,
-            link_stem: NominalLinkStem::from_session_local_encoding("Other".to_string()),
             name: "Other".to_string(),
             owner: None,
             type_arguments: Vec::new(),
@@ -671,7 +663,6 @@ mod tests {
         let declared = structs.alloc(StructDef {
             origin: nominal_identity("Record", SourceNominalKind::Struct, 0),
             canonical_type: ty,
-            link_stem: NominalLinkStem::from_session_local_encoding("Record".to_string()),
             name: "Record".to_string(),
             owner: None,
             type_arguments: Vec::new(),

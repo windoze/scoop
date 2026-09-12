@@ -17,7 +17,7 @@ pub(super) fn dump_statements(
             StatementKind::InitializationEnsure(unit) => out.push_str(&format!(
                 "{pad}ensure init{} {}\n",
                 unit.into_raw(),
-                module.initialization_units[*unit].stable_key
+                module.initialization_units[*unit].display_name
             )),
             StatementKind::LocalFunction(id) => {
                 let local = &module.local_functions[*id];

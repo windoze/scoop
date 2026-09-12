@@ -6,11 +6,11 @@ use super::*;
 fn option_of_string_uses_the_niche_representation() {
     // Option<String>: the payload maps to `Ptr`, so the value is
     // the pointer itself with None = null (spec 7.4).
-    let module = lower(&option_round_trip("Option$S", mir::Type::String));
+    let module = lower(&option_round_trip("Option<String>", mir::Type::String));
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  enum Option$S niche(kind=managed,payload_variant=0)
+  enum Option<String> niche(kind=managed,payload_variant=0)
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 o: enum0
     local %1 t: machine<enum-tag>
@@ -37,7 +37,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option<String> size=8 align=8 enum-scan=refs[0]
   entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
@@ -45,7 +45,7 @@ Module
 #[test]
 fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
     let mut builder = Builder::new();
-    let option = builder.option_enum("Option$P", mir::Type::Ptr(Box::new(INT)));
+    let option = builder.option_enum("Option<Ptr<Int>>", mir::Type::Ptr(Box::new(INT)));
     let main = builder.main(Arena::new(), Vec::new());
     let module = lower(&builder.finish(main));
 
@@ -57,7 +57,7 @@ fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
         }
     ));
     let layout = layout_values(&module)
-        .find(|layout| layout.name == "Option$P")
+        .find(|layout| layout.name == "Option<Ptr<Int>>")
         .expect("raw pointer option layout");
     let lir::LayoutKind::Enum { scan } = &layout.kind else {
         panic!("Option<Ptr<Int>> must retain its enum layout identity")
@@ -74,7 +74,7 @@ fn option_of_code_pointer_records_code_niche_provenance() {
         return_type: mir::Type::Unit,
     });
     let option = builder.enums.alloc(mir::EnumDef {
-        name: "Option$F".to_string(),
+        name: "Option<FunPtr>".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
@@ -111,11 +111,11 @@ fn option_of_code_pointer_records_code_niche_provenance() {
 fn option_of_int_uses_the_tagged_representation() {
     // Option<Int>: the `{ i64 tag, [4 x i8] payload }` tagged
     // form — size 16, align 8.
-    let module = lower(&option_round_trip("Option$I", INT));
+    let module = lower(&option_round_trip("Option<Int>", INT));
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  enum Option$I tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
     local %0 o: enum0
     local %1 t: machine<enum-tag>
@@ -142,7 +142,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$I size=16 align=8 enum-scan=none
+  layout Option<Int> size=16 align=8 enum-scan=none
   entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
@@ -150,10 +150,10 @@ Module
 #[test]
 fn niche_detection_requires_option_isomorphic_pointer_shape() {
     let mut b = Builder::new();
-    let option_s = b.option_enum("Option$S", mir::Type::String);
+    let option_s = b.option_enum("Option<String>", mir::Type::String);
     let array_int = b.array("Array<Int>", INT);
-    let option_array = b.option_enum("Option$Array$I", array_int);
-    let option_i = b.option_enum("Option$I", INT);
+    let option_array = b.option_enum("Option<Array<Int>>", array_int);
+    let option_i = b.option_enum("Option<Int>", INT);
     // Reversed declaration order: the payload variant comes second.
     let flip = b.enums.alloc(mir::EnumDef {
         name: "Flip".to_string(),

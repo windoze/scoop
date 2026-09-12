@@ -35,7 +35,6 @@ pub struct Module {
 #[derive(Debug)]
 pub struct InitializationUnit {
     pub identity: InitializationUnitIdentityRecord,
-    pub stable_key: String,
     pub display_name: String,
     pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,

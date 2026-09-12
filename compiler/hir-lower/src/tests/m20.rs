@@ -128,8 +128,8 @@ fn class_bound_member_resolves_to_a_concrete_class_method() {
         .find(|(_, function)| {
             function.name == "read"
                 && matches!(
-                    &function.emission,
-                    hir::concrete::FunctionEmission::Materialized { .. }
+                    function.materialization.context(),
+                    hir::concrete::CallableMaterializationContext::Application(_)
                 )
         })
         .expect("read<StringNode> specialization")
@@ -501,12 +501,26 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
         .map(|(_, function)| function)
         .find(|function| function.name == "second")
         .expect("the local graph contains second<Int, String>");
-    let hir::concrete::FunctionEmission::Materialized { arguments, .. } = &concrete.emission else {
-        panic!("the local second function must retain typed generic provenance")
+    let hir::concrete::CallableMaterializationContext::Application(application) =
+        concrete.materialization.context()
+    else {
+        panic!("the local second function must retain its typed generic application")
+    };
+    let record = output
+        .local
+        .callable_applications
+        .get(application)
+        .expect("the local second function has one application record");
+    let scoop_identity::CallableArguments::Arguments(arguments) = record.key().callable_arguments()
+    else {
+        panic!("second<Int, String> retains a non-empty argument group")
     };
     assert_eq!(
-        arguments.as_slice().to_vec(),
-        vec![concrete_int_type(&output.local), output.local.string]
+        arguments.as_slice(),
+        [
+            output.local.exact_type_identities[concrete_int_type(&output.local)].id(),
+            output.local.exact_type_identities[output.local.string].id(),
+        ]
     );
     assert_eq!(concrete.params[0].ty, concrete_int_type(&output.local));
     assert_eq!(concrete.params[1].ty, output.local.string);

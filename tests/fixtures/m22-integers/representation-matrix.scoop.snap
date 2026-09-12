@@ -2378,31 +2378,31 @@ Module
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct Widths (i8: Int8, i16: Int16, i32: Int, i64: Long, u8: UInt8, u16: UInt16, u32: UInt, u64: ULong)
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
-  enum Option$I8
+  enum Option<Int8>
     Some(_1: Int8)
     None()
-  enum Option$I16
+  enum Option<Int16>
     Some(_1: Int16)
     None()
-  enum Option$V8
+  enum Option<UInt8>
     Some(_1: UInt8)
     None()
-  enum Option$V16
+  enum Option<UInt16>
     Some(_1: UInt16)
     None()
   enum WidthValue
@@ -2430,22 +2430,22 @@ Module
   class IndexOutOfBoundsException vtable=0 itables=0
   class IllegalArgumentException vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
-  class ArrayIterator$I8 vtable=0 itables=1
-  class ArrayIterator$I16 vtable=0 itables=1
-  class ArrayIterator$I32 vtable=0 itables=1
-  class ArrayIterator$I64 vtable=0 itables=1
-  class ArrayIterator$V8 vtable=0 itables=1
-  class ArrayIterator$V16 vtable=0 itables=1
-  class ArrayIterator$V32 vtable=0 itables=1
-  class ArrayIterator$V64 vtable=0 itables=1
-  class MutableArrayIterator$I8 vtable=0 itables=1
-  class MutableArrayIterator$I16 vtable=0 itables=1
-  class MutableArrayIterator$I32 vtable=0 itables=1
-  class MutableArrayIterator$I64 vtable=0 itables=1
-  class MutableArrayIterator$V8 vtable=0 itables=1
-  class MutableArrayIterator$V16 vtable=0 itables=1
-  class MutableArrayIterator$V32 vtable=0 itables=1
-  class MutableArrayIterator$V64 vtable=0 itables=1
+  class ArrayIterator<Int8> vtable=0 itables=1
+  class ArrayIterator<Int16> vtable=0 itables=1
+  class ArrayIterator<Int> vtable=0 itables=1
+  class ArrayIterator<Long> vtable=0 itables=1
+  class ArrayIterator<UInt8> vtable=0 itables=1
+  class ArrayIterator<UInt16> vtable=0 itables=1
+  class ArrayIterator<UInt> vtable=0 itables=1
+  class ArrayIterator<ULong> vtable=0 itables=1
+  class MutableArrayIterator<Int8> vtable=0 itables=1
+  class MutableArrayIterator<Int16> vtable=0 itables=1
+  class MutableArrayIterator<Int> vtable=0 itables=1
+  class MutableArrayIterator<Long> vtable=0 itables=1
+  class MutableArrayIterator<UInt8> vtable=0 itables=1
+  class MutableArrayIterator<UInt16> vtable=0 itables=1
+  class MutableArrayIterator<UInt> vtable=0 itables=1
+  class MutableArrayIterator<ULong> vtable=0 itables=1
   class box<Int8> vtable=0 itables=0
   class box<Int16> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
@@ -2456,22 +2456,22 @@ Module
   class box<ULong> vtable=0 itables=0
   interface ToString
   interface Hash
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
-  interface Iterable$I8
-  interface Iterator$I8
-  interface Iterable$I16
-  interface Iterator$I16
-  interface Iterable$V8
-  interface Iterator$V8
-  interface Iterable$V16
-  interface Iterator$V16
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  interface Iterable<Int8>
+  interface Iterator<Int8>
+  interface Iterable<Int16>
+  interface Iterator<Int16>
+  interface Iterable<UInt8>
+  interface Iterator<UInt8>
+  interface Iterable<UInt16>
+  interface Iterator<UInt16>
   generated_exact_type get0 location=class54 nominal_id=d3ec1dd80e1deff45823497aaf368fae1fd223a3e94270c12ebe3b9145f95ade exact_id=2ae85a658cc02e953803af8e625fcc5e4bb5f08a0be20e17c3bc3bf638468d26
   generated_exact_type get1 location=class56 nominal_id=9998276d77b1440b651ab89b36decb49be3f72b687801ebd40eea50d574b8000 exact_id=ade3773a6e341f9480fe5dc861bba51256358366e34407ddaa8801e520ea521f
   generated_exact_type get2 location=class50 nominal_id=adb25914e90c2d4fb3b4af969746a6725289251b4b7688111cc5e8e8ec1a8387 exact_id=b4b5dd6b39f7a03d0862e75930c05229b5dec39780205d043c8a7a51fcfd6fbc
@@ -4606,7 +4606,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @fn51(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn51(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -4704,9 +4704,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4715,7 +4715,7 @@ Module
       call @fn170 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5127,7 +5127,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5136,8 +5136,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5226,8 +5226,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5237,8 +5237,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5300,8 +5300,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5311,8 +5311,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5448,8 +5448,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -5582,7 +5582,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn55(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn55(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -5680,9 +5680,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5691,7 +5691,7 @@ Module
       call @fn170 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6103,7 +6103,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6112,8 +6112,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6202,8 +6202,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6213,8 +6213,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6276,8 +6276,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6287,8 +6287,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6424,8 +6424,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -6558,7 +6558,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -6643,9 +6643,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6654,7 +6654,7 @@ Module
       call @fn170 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -7036,7 +7036,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7045,8 +7045,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -7135,8 +7135,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -7146,8 +7146,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -7209,8 +7209,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -7220,8 +7220,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -7331,8 +7331,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -7465,7 +7465,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -7550,9 +7550,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -7561,7 +7561,7 @@ Module
       call @fn170 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -7943,7 +7943,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7952,8 +7952,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -8042,8 +8042,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -8053,8 +8053,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -8116,8 +8116,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -8127,8 +8127,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -8238,8 +8238,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -9130,56 +9130,56 @@ Module
         Local $parameter.value
       val i8s: Array<Int8>
         Type Array<Int8>
-        ArrayLiteral Array$I8
+        ArrayLiteral Array<Int8>
           Type Int8
           IntegerLiteral Int8 value=-1 bits=0xff
           Type Int8
           IntegerLiteral Int8 value=0 bits=0x00
       val i16s: Array<Int16>
         Type Array<Int16>
-        ArrayLiteral Array$I16
+        ArrayLiteral Array<Int16>
           Type Int16
           IntegerLiteral Int16 value=-257 bits=0xfeff
           Type Int16
           IntegerLiteral Int16 value=0 bits=0x0000
       val i32s: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I32
+        ArrayLiteral Array<Int>
           Type Int
           IntegerLiteral Int value=-65537 bits=0xfffeffff
           Type Int
           IntegerLiteral Int value=0 bits=0x00000000
       val i64s: Array<Long>
         Type Array<Long>
-        ArrayLiteral Array$I64
+        ArrayLiteral Array<Long>
           Type Long
           IntegerLiteral Long value=-4294967297 bits=0xfffffffeffffffff
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
       val u8s: Array<UInt8>
         Type Array<UInt8>
-        ArrayLiteral Array$V8
+        ArrayLiteral Array<UInt8>
           Type UInt8
           IntegerLiteral UInt8 value=255 bits=0xff
           Type UInt8
           IntegerLiteral UInt8 value=0 bits=0x00
       val u16s: Array<UInt16>
         Type Array<UInt16>
-        ArrayLiteral Array$V16
+        ArrayLiteral Array<UInt16>
           Type UInt16
           IntegerLiteral UInt16 value=65535 bits=0xffff
           Type UInt16
           IntegerLiteral UInt16 value=0 bits=0x0000
       val u32s: Array<UInt>
         Type Array<UInt>
-        ArrayLiteral Array$V32
+        ArrayLiteral Array<UInt>
           Type UInt
           IntegerLiteral UInt value=4294967295 bits=0xffffffff
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
       val u64s: Array<ULong>
         Type Array<ULong>
-        ArrayLiteral Array$V64
+        ArrayLiteral Array<ULong>
           Type ULong
           IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
           Type ULong
@@ -9213,7 +9213,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I8
+          ArrayLen Array<Int8>
             Type Array<Int8>
             Local $arr.1
       goto bb3
@@ -9239,7 +9239,7 @@ Module
     bb5 if.merge.5
       val $argument.0: Int8
         Type Int8
-        ArrayGet Array$I8
+        ArrayGet Array<Int8>
           Type Array<Int8>
           Local $arr.1
           Type Long
@@ -9279,7 +9279,7 @@ Module
           Type Long
           Local $idx.4
           Type Long
-          ArrayLen Array$I16
+          ArrayLen Array<Int16>
             Type Array<Int16>
             Local $arr.3
       goto bb8
@@ -9305,7 +9305,7 @@ Module
     bb10 if.merge.10
       val $argument.0: Int16
         Type Int16
-        ArrayGet Array$I16
+        ArrayGet Array<Int16>
           Type Array<Int16>
           Local $arr.3
           Type Long
@@ -9345,7 +9345,7 @@ Module
           Type Long
           Local $idx.6
           Type Long
-          ArrayLen Array$I32
+          ArrayLen Array<Int>
             Type Array<Int>
             Local $arr.5
       goto bb13
@@ -9371,7 +9371,7 @@ Module
     bb15 if.merge.15
       val $argument.0: Int
         Type Int
-        ArrayGet Array$I32
+        ArrayGet Array<Int>
           Type Array<Int>
           Local $arr.5
           Type Long
@@ -9411,7 +9411,7 @@ Module
           Type Long
           Local $idx.8
           Type Long
-          ArrayLen Array$I64
+          ArrayLen Array<Long>
             Type Array<Long>
             Local $arr.7
       goto bb18
@@ -9437,7 +9437,7 @@ Module
     bb20 if.merge.20
       val $argument.0: Long
         Type Long
-        ArrayGet Array$I64
+        ArrayGet Array<Long>
           Type Array<Long>
           Local $arr.7
           Type Long
@@ -9477,7 +9477,7 @@ Module
           Type Long
           Local $idx.10
           Type Long
-          ArrayLen Array$V8
+          ArrayLen Array<UInt8>
             Type Array<UInt8>
             Local $arr.9
       goto bb23
@@ -9503,7 +9503,7 @@ Module
     bb25 if.merge.25
       val $argument.0: UInt8
         Type UInt8
-        ArrayGet Array$V8
+        ArrayGet Array<UInt8>
           Type Array<UInt8>
           Local $arr.9
           Type Long
@@ -9543,7 +9543,7 @@ Module
           Type Long
           Local $idx.12
           Type Long
-          ArrayLen Array$V16
+          ArrayLen Array<UInt16>
             Type Array<UInt16>
             Local $arr.11
       goto bb28
@@ -9569,7 +9569,7 @@ Module
     bb30 if.merge.30
       val $argument.0: UInt16
         Type UInt16
-        ArrayGet Array$V16
+        ArrayGet Array<UInt16>
           Type Array<UInt16>
           Local $arr.11
           Type Long
@@ -9609,7 +9609,7 @@ Module
           Type Long
           Local $idx.14
           Type Long
-          ArrayLen Array$V32
+          ArrayLen Array<UInt>
             Type Array<UInt>
             Local $arr.13
       goto bb33
@@ -9635,7 +9635,7 @@ Module
     bb35 if.merge.35
       val $argument.0: UInt
         Type UInt
-        ArrayGet Array$V32
+        ArrayGet Array<UInt>
           Type Array<UInt>
           Local $arr.13
           Type Long
@@ -9675,7 +9675,7 @@ Module
           Type Long
           Local $idx.16
           Type Long
-          ArrayLen Array$V64
+          ArrayLen Array<ULong>
             Type Array<ULong>
             Local $arr.15
       goto bb38
@@ -9701,7 +9701,7 @@ Module
     bb40 if.merge.40
       val $argument.0: ULong
         Type ULong
-        ArrayGet Array$V64
+        ArrayGet Array<ULong>
           Type Array<ULong>
           Local $arr.15
           Type Long
@@ -11209,7 +11209,7 @@ Module
           Local $call.1
           Type Long
           Local $call.2
-  fun Array.iterator @fn106(this: Array<Int8>) -> Iterator$I8
+  fun Array.iterator @fn106(this: Array<Int8>) -> Iterator<Int8>
     bb0 entry
       val $argument.0: Array<Int8>
         Type Array<Int8>
@@ -11224,19 +11224,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$I8
-        ClassAlloc ArrayIterator$I8
+        Type ArrayIterator<Int8>
+        ClassAlloc ArrayIterator<Int8>
       call @fn173 direct
-        Type ArrayIterator$I8
+        Type ArrayIterator<Int8>
         Local $new.1
         Type Array<Int8>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$I8
+        Type ArrayIterator<Int8>
         Local $new.1
-  fun Array.iterator @fn107(this: Array<Int16>) -> Iterator$I16
+  fun Array.iterator @fn107(this: Array<Int16>) -> Iterator<Int16>
     bb0 entry
       val $argument.0: Array<Int16>
         Type Array<Int16>
@@ -11251,19 +11251,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$I16
-        ClassAlloc ArrayIterator$I16
+        Type ArrayIterator<Int16>
+        ClassAlloc ArrayIterator<Int16>
       call @fn174 direct
-        Type ArrayIterator$I16
+        Type ArrayIterator<Int16>
         Local $new.1
         Type Array<Int16>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$I16
+        Type ArrayIterator<Int16>
         Local $new.1
-  fun Array.iterator @fn108(this: Array<Int>) -> Iterator$I32
+  fun Array.iterator @fn108(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $argument.0: Array<Int>
         Type Array<Int>
@@ -11278,19 +11278,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$I32
-        ClassAlloc ArrayIterator$I32
+        Type ArrayIterator<Int>
+        ClassAlloc ArrayIterator<Int>
       call @fn175 direct
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local $new.1
         Type Array<Int>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local $new.1
-  fun Array.iterator @fn109(this: Array<Long>) -> Iterator$I64
+  fun Array.iterator @fn109(this: Array<Long>) -> Iterator<Long>
     bb0 entry
       val $argument.0: Array<Long>
         Type Array<Long>
@@ -11305,19 +11305,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$I64
-        ClassAlloc ArrayIterator$I64
+        Type ArrayIterator<Long>
+        ClassAlloc ArrayIterator<Long>
       call @fn176 direct
-        Type ArrayIterator$I64
+        Type ArrayIterator<Long>
         Local $new.1
         Type Array<Long>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$I64
+        Type ArrayIterator<Long>
         Local $new.1
-  fun Array.iterator @fn110(this: Array<UInt8>) -> Iterator$V8
+  fun Array.iterator @fn110(this: Array<UInt8>) -> Iterator<UInt8>
     bb0 entry
       val $argument.0: Array<UInt8>
         Type Array<UInt8>
@@ -11332,19 +11332,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$V8
-        ClassAlloc ArrayIterator$V8
+        Type ArrayIterator<UInt8>
+        ClassAlloc ArrayIterator<UInt8>
       call @fn177 direct
-        Type ArrayIterator$V8
+        Type ArrayIterator<UInt8>
         Local $new.1
         Type Array<UInt8>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$V8
+        Type ArrayIterator<UInt8>
         Local $new.1
-  fun Array.iterator @fn111(this: Array<UInt16>) -> Iterator$V16
+  fun Array.iterator @fn111(this: Array<UInt16>) -> Iterator<UInt16>
     bb0 entry
       val $argument.0: Array<UInt16>
         Type Array<UInt16>
@@ -11359,19 +11359,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$V16
-        ClassAlloc ArrayIterator$V16
+        Type ArrayIterator<UInt16>
+        ClassAlloc ArrayIterator<UInt16>
       call @fn178 direct
-        Type ArrayIterator$V16
+        Type ArrayIterator<UInt16>
         Local $new.1
         Type Array<UInt16>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$V16
+        Type ArrayIterator<UInt16>
         Local $new.1
-  fun Array.iterator @fn112(this: Array<UInt>) -> Iterator$V32
+  fun Array.iterator @fn112(this: Array<UInt>) -> Iterator<UInt>
     bb0 entry
       val $argument.0: Array<UInt>
         Type Array<UInt>
@@ -11386,19 +11386,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$V32
-        ClassAlloc ArrayIterator$V32
+        Type ArrayIterator<UInt>
+        ClassAlloc ArrayIterator<UInt>
       call @fn179 direct
-        Type ArrayIterator$V32
+        Type ArrayIterator<UInt>
         Local $new.1
         Type Array<UInt>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$V32
+        Type ArrayIterator<UInt>
         Local $new.1
-  fun Array.iterator @fn113(this: Array<ULong>) -> Iterator$V64
+  fun Array.iterator @fn113(this: Array<ULong>) -> Iterator<ULong>
     bb0 entry
       val $argument.0: Array<ULong>
         Type Array<ULong>
@@ -11413,19 +11413,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$V64
-        ClassAlloc ArrayIterator$V64
+        Type ArrayIterator<ULong>
+        ClassAlloc ArrayIterator<ULong>
       call @fn180 direct
-        Type ArrayIterator$V64
+        Type ArrayIterator<ULong>
         Local $new.1
         Type Array<ULong>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$V64
+        Type ArrayIterator<ULong>
         Local $new.1
-  fun MutableArray.iterator @fn114(this: MutableArray<Int8>) -> Iterator$I8
+  fun MutableArray.iterator @fn114(this: MutableArray<Int8>) -> Iterator<Int8>
     bb0 entry
       val $argument.0: MutableArray<Int8>
         Type MutableArray<Int8>
@@ -11440,31 +11440,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$I8
-        ClassAlloc MutableArrayIterator$I8
+        Type MutableArrayIterator<Int8>
+        ClassAlloc MutableArrayIterator<Int8>
       call @fn181 direct
-        Type MutableArrayIterator$I8
+        Type MutableArrayIterator<Int8>
         Local $new.1
         Type MutableArray<Int8>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$I8
+        Type MutableArrayIterator<Int8>
         Local $new.1
-  fun ArrayIterator.next @fn115(this: ArrayIterator$I8) -> Option$I8<Int8>
+  fun ArrayIterator.next @fn115(this: ArrayIterator<Int8>) -> Option<Int8>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I8
+          Type ArrayIterator<Int8>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$I8
+        ArrayLen Array<Int8>
           Type Array<Int8>
           FieldAccess 0
-            Type ArrayIterator$I8
+            Type ArrayIterator<Int8>
             Local this
       val $parameter.other: Long
         Type Long
@@ -11484,12 +11484,12 @@ Module
       val $receiver: Array<Int8>
         Type Array<Int8>
         FieldAccess 0
-          Type ArrayIterator$I8
+          Type ArrayIterator<Int8>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I8
+          Type ArrayIterator<Int8>
           Local this
       val $parameter.index: Long
         Type Long
@@ -11509,8 +11509,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I8<Int8>
-        VariantConstruct Option$I8<Int8> v1
+        Type Option<Int8>
+        VariantConstruct Option<Int8> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -11518,7 +11518,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I8
+          ArrayLen Array<Int8>
             Type Array<Int8>
             Local $arr.1
       goto bb5
@@ -11544,7 +11544,7 @@ Module
     bb7 if.merge.7
       val value: Int8
         Type Int8
-        ArrayGet Array$I8
+        ArrayGet Array<Int8>
           Type Array<Int8>
           Local $arr.1
           Type Long
@@ -11552,7 +11552,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I8
+          Type ArrayIterator<Int8>
           Local this
       val $argument.0: Long
         Type Long
@@ -11561,7 +11561,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$I8
+        Type ArrayIterator<Int8>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -11576,11 +11576,11 @@ Module
         Type Int8
         Local $argument.0
       return
-        Type Option$I8<Int8>
-        VariantConstruct Option$I8<Int8> v0
+        Type Option<Int8>
+        VariantConstruct Option<Int8> v0
           Type Int8
           Local $parameter._1
-  fun MutableArray.iterator @fn116(this: MutableArray<Int16>) -> Iterator$I16
+  fun MutableArray.iterator @fn116(this: MutableArray<Int16>) -> Iterator<Int16>
     bb0 entry
       val $argument.0: MutableArray<Int16>
         Type MutableArray<Int16>
@@ -11595,31 +11595,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$I16
-        ClassAlloc MutableArrayIterator$I16
+        Type MutableArrayIterator<Int16>
+        ClassAlloc MutableArrayIterator<Int16>
       call @fn182 direct
-        Type MutableArrayIterator$I16
+        Type MutableArrayIterator<Int16>
         Local $new.1
         Type MutableArray<Int16>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$I16
+        Type MutableArrayIterator<Int16>
         Local $new.1
-  fun ArrayIterator.next @fn117(this: ArrayIterator$I16) -> Option$I16<Int16>
+  fun ArrayIterator.next @fn117(this: ArrayIterator<Int16>) -> Option<Int16>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I16
+          Type ArrayIterator<Int16>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$I16
+        ArrayLen Array<Int16>
           Type Array<Int16>
           FieldAccess 0
-            Type ArrayIterator$I16
+            Type ArrayIterator<Int16>
             Local this
       val $parameter.other: Long
         Type Long
@@ -11639,12 +11639,12 @@ Module
       val $receiver: Array<Int16>
         Type Array<Int16>
         FieldAccess 0
-          Type ArrayIterator$I16
+          Type ArrayIterator<Int16>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I16
+          Type ArrayIterator<Int16>
           Local this
       val $parameter.index: Long
         Type Long
@@ -11664,8 +11664,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I16<Int16>
-        VariantConstruct Option$I16<Int16> v1
+        Type Option<Int16>
+        VariantConstruct Option<Int16> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -11673,7 +11673,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I16
+          ArrayLen Array<Int16>
             Type Array<Int16>
             Local $arr.1
       goto bb5
@@ -11699,7 +11699,7 @@ Module
     bb7 if.merge.7
       val value: Int16
         Type Int16
-        ArrayGet Array$I16
+        ArrayGet Array<Int16>
           Type Array<Int16>
           Local $arr.1
           Type Long
@@ -11707,7 +11707,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I16
+          Type ArrayIterator<Int16>
           Local this
       val $argument.0: Long
         Type Long
@@ -11716,7 +11716,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$I16
+        Type ArrayIterator<Int16>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -11731,11 +11731,11 @@ Module
         Type Int16
         Local $argument.0
       return
-        Type Option$I16<Int16>
-        VariantConstruct Option$I16<Int16> v0
+        Type Option<Int16>
+        VariantConstruct Option<Int16> v0
           Type Int16
           Local $parameter._1
-  fun MutableArray.iterator @fn118(this: MutableArray<Int>) -> Iterator$I32
+  fun MutableArray.iterator @fn118(this: MutableArray<Int>) -> Iterator<Int>
     bb0 entry
       val $argument.0: MutableArray<Int>
         Type MutableArray<Int>
@@ -11750,31 +11750,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$I32
-        ClassAlloc MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
+        ClassAlloc MutableArrayIterator<Int>
       call @fn183 direct
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local $new.1
         Type MutableArray<Int>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local $new.1
-  fun ArrayIterator.next @fn119(this: ArrayIterator$I32) -> Option$I32<Int>
+  fun ArrayIterator.next @fn119(this: ArrayIterator<Int>) -> Option<Int>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$I32
+        ArrayLen Array<Int>
           Type Array<Int>
           FieldAccess 0
-            Type ArrayIterator$I32
+            Type ArrayIterator<Int>
             Local this
       val $parameter.other: Long
         Type Long
@@ -11794,12 +11794,12 @@ Module
       val $receiver: Array<Int>
         Type Array<Int>
         FieldAccess 0
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $parameter.index: Long
         Type Long
@@ -11819,8 +11819,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -11828,7 +11828,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I32
+          ArrayLen Array<Int>
             Type Array<Int>
             Local $arr.1
       goto bb5
@@ -11854,7 +11854,7 @@ Module
     bb7 if.merge.7
       val value: Int
         Type Int
-        ArrayGet Array$I32
+        ArrayGet Array<Int>
           Type Array<Int>
           Local $arr.1
           Type Long
@@ -11862,7 +11862,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
@@ -11871,7 +11871,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -11886,11 +11886,11 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
-  fun MutableArray.iterator @fn120(this: MutableArray<Long>) -> Iterator$I64
+  fun MutableArray.iterator @fn120(this: MutableArray<Long>) -> Iterator<Long>
     bb0 entry
       val $argument.0: MutableArray<Long>
         Type MutableArray<Long>
@@ -11905,31 +11905,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$I64
-        ClassAlloc MutableArrayIterator$I64
+        Type MutableArrayIterator<Long>
+        ClassAlloc MutableArrayIterator<Long>
       call @fn184 direct
-        Type MutableArrayIterator$I64
+        Type MutableArrayIterator<Long>
         Local $new.1
         Type MutableArray<Long>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$I64
+        Type MutableArrayIterator<Long>
         Local $new.1
-  fun ArrayIterator.next @fn121(this: ArrayIterator$I64) -> Option$I64<Long>
+  fun ArrayIterator.next @fn121(this: ArrayIterator<Long>) -> Option<Long>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I64
+          Type ArrayIterator<Long>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$I64
+        ArrayLen Array<Long>
           Type Array<Long>
           FieldAccess 0
-            Type ArrayIterator$I64
+            Type ArrayIterator<Long>
             Local this
       val $parameter.other: Long
         Type Long
@@ -11949,12 +11949,12 @@ Module
       val $receiver: Array<Long>
         Type Array<Long>
         FieldAccess 0
-          Type ArrayIterator$I64
+          Type ArrayIterator<Long>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I64
+          Type ArrayIterator<Long>
           Local this
       val $parameter.index: Long
         Type Long
@@ -11974,8 +11974,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -11983,7 +11983,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I64
+          ArrayLen Array<Long>
             Type Array<Long>
             Local $arr.1
       goto bb5
@@ -12009,7 +12009,7 @@ Module
     bb7 if.merge.7
       val value: Long
         Type Long
-        ArrayGet Array$I64
+        ArrayGet Array<Long>
           Type Array<Long>
           Local $arr.1
           Type Long
@@ -12017,7 +12017,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I64
+          Type ArrayIterator<Long>
           Local this
       val $argument.0: Long
         Type Long
@@ -12026,7 +12026,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$I64
+        Type ArrayIterator<Long>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -12041,11 +12041,11 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
-  fun MutableArray.iterator @fn122(this: MutableArray<UInt8>) -> Iterator$V8
+  fun MutableArray.iterator @fn122(this: MutableArray<UInt8>) -> Iterator<UInt8>
     bb0 entry
       val $argument.0: MutableArray<UInt8>
         Type MutableArray<UInt8>
@@ -12060,31 +12060,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$V8
-        ClassAlloc MutableArrayIterator$V8
+        Type MutableArrayIterator<UInt8>
+        ClassAlloc MutableArrayIterator<UInt8>
       call @fn185 direct
-        Type MutableArrayIterator$V8
+        Type MutableArrayIterator<UInt8>
         Local $new.1
         Type MutableArray<UInt8>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$V8
+        Type MutableArrayIterator<UInt8>
         Local $new.1
-  fun ArrayIterator.next @fn123(this: ArrayIterator$V8) -> Option$V8<UInt8>
+  fun ArrayIterator.next @fn123(this: ArrayIterator<UInt8>) -> Option<UInt8>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V8
+          Type ArrayIterator<UInt8>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$V8
+        ArrayLen Array<UInt8>
           Type Array<UInt8>
           FieldAccess 0
-            Type ArrayIterator$V8
+            Type ArrayIterator<UInt8>
             Local this
       val $parameter.other: Long
         Type Long
@@ -12104,12 +12104,12 @@ Module
       val $receiver: Array<UInt8>
         Type Array<UInt8>
         FieldAccess 0
-          Type ArrayIterator$V8
+          Type ArrayIterator<UInt8>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V8
+          Type ArrayIterator<UInt8>
           Local this
       val $parameter.index: Long
         Type Long
@@ -12129,8 +12129,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V8<UInt8>
-        VariantConstruct Option$V8<UInt8> v1
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -12138,7 +12138,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$V8
+          ArrayLen Array<UInt8>
             Type Array<UInt8>
             Local $arr.1
       goto bb5
@@ -12164,7 +12164,7 @@ Module
     bb7 if.merge.7
       val value: UInt8
         Type UInt8
-        ArrayGet Array$V8
+        ArrayGet Array<UInt8>
           Type Array<UInt8>
           Local $arr.1
           Type Long
@@ -12172,7 +12172,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V8
+          Type ArrayIterator<UInt8>
           Local this
       val $argument.0: Long
         Type Long
@@ -12181,7 +12181,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$V8
+        Type ArrayIterator<UInt8>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -12196,11 +12196,11 @@ Module
         Type UInt8
         Local $argument.0
       return
-        Type Option$V8<UInt8>
-        VariantConstruct Option$V8<UInt8> v0
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v0
           Type UInt8
           Local $parameter._1
-  fun MutableArray.iterator @fn124(this: MutableArray<UInt16>) -> Iterator$V16
+  fun MutableArray.iterator @fn124(this: MutableArray<UInt16>) -> Iterator<UInt16>
     bb0 entry
       val $argument.0: MutableArray<UInt16>
         Type MutableArray<UInt16>
@@ -12215,31 +12215,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$V16
-        ClassAlloc MutableArrayIterator$V16
+        Type MutableArrayIterator<UInt16>
+        ClassAlloc MutableArrayIterator<UInt16>
       call @fn186 direct
-        Type MutableArrayIterator$V16
+        Type MutableArrayIterator<UInt16>
         Local $new.1
         Type MutableArray<UInt16>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$V16
+        Type MutableArrayIterator<UInt16>
         Local $new.1
-  fun ArrayIterator.next @fn125(this: ArrayIterator$V16) -> Option$V16<UInt16>
+  fun ArrayIterator.next @fn125(this: ArrayIterator<UInt16>) -> Option<UInt16>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V16
+          Type ArrayIterator<UInt16>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$V16
+        ArrayLen Array<UInt16>
           Type Array<UInt16>
           FieldAccess 0
-            Type ArrayIterator$V16
+            Type ArrayIterator<UInt16>
             Local this
       val $parameter.other: Long
         Type Long
@@ -12259,12 +12259,12 @@ Module
       val $receiver: Array<UInt16>
         Type Array<UInt16>
         FieldAccess 0
-          Type ArrayIterator$V16
+          Type ArrayIterator<UInt16>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V16
+          Type ArrayIterator<UInt16>
           Local this
       val $parameter.index: Long
         Type Long
@@ -12284,8 +12284,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V16<UInt16>
-        VariantConstruct Option$V16<UInt16> v1
+        Type Option<UInt16>
+        VariantConstruct Option<UInt16> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -12293,7 +12293,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$V16
+          ArrayLen Array<UInt16>
             Type Array<UInt16>
             Local $arr.1
       goto bb5
@@ -12319,7 +12319,7 @@ Module
     bb7 if.merge.7
       val value: UInt16
         Type UInt16
-        ArrayGet Array$V16
+        ArrayGet Array<UInt16>
           Type Array<UInt16>
           Local $arr.1
           Type Long
@@ -12327,7 +12327,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V16
+          Type ArrayIterator<UInt16>
           Local this
       val $argument.0: Long
         Type Long
@@ -12336,7 +12336,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$V16
+        Type ArrayIterator<UInt16>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -12351,11 +12351,11 @@ Module
         Type UInt16
         Local $argument.0
       return
-        Type Option$V16<UInt16>
-        VariantConstruct Option$V16<UInt16> v0
+        Type Option<UInt16>
+        VariantConstruct Option<UInt16> v0
           Type UInt16
           Local $parameter._1
-  fun MutableArray.iterator @fn126(this: MutableArray<UInt>) -> Iterator$V32
+  fun MutableArray.iterator @fn126(this: MutableArray<UInt>) -> Iterator<UInt>
     bb0 entry
       val $argument.0: MutableArray<UInt>
         Type MutableArray<UInt>
@@ -12370,31 +12370,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$V32
-        ClassAlloc MutableArrayIterator$V32
+        Type MutableArrayIterator<UInt>
+        ClassAlloc MutableArrayIterator<UInt>
       call @fn187 direct
-        Type MutableArrayIterator$V32
+        Type MutableArrayIterator<UInt>
         Local $new.1
         Type MutableArray<UInt>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$V32
+        Type MutableArrayIterator<UInt>
         Local $new.1
-  fun ArrayIterator.next @fn127(this: ArrayIterator$V32) -> Option$V32<UInt>
+  fun ArrayIterator.next @fn127(this: ArrayIterator<UInt>) -> Option<UInt>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V32
+          Type ArrayIterator<UInt>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$V32
+        ArrayLen Array<UInt>
           Type Array<UInt>
           FieldAccess 0
-            Type ArrayIterator$V32
+            Type ArrayIterator<UInt>
             Local this
       val $parameter.other: Long
         Type Long
@@ -12414,12 +12414,12 @@ Module
       val $receiver: Array<UInt>
         Type Array<UInt>
         FieldAccess 0
-          Type ArrayIterator$V32
+          Type ArrayIterator<UInt>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V32
+          Type ArrayIterator<UInt>
           Local this
       val $parameter.index: Long
         Type Long
@@ -12439,8 +12439,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -12448,7 +12448,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$V32
+          ArrayLen Array<UInt>
             Type Array<UInt>
             Local $arr.1
       goto bb5
@@ -12474,7 +12474,7 @@ Module
     bb7 if.merge.7
       val value: UInt
         Type UInt
-        ArrayGet Array$V32
+        ArrayGet Array<UInt>
           Type Array<UInt>
           Local $arr.1
           Type Long
@@ -12482,7 +12482,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V32
+          Type ArrayIterator<UInt>
           Local this
       val $argument.0: Long
         Type Long
@@ -12491,7 +12491,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$V32
+        Type ArrayIterator<UInt>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -12506,11 +12506,11 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
-  fun MutableArray.iterator @fn128(this: MutableArray<ULong>) -> Iterator$V64
+  fun MutableArray.iterator @fn128(this: MutableArray<ULong>) -> Iterator<ULong>
     bb0 entry
       val $argument.0: MutableArray<ULong>
         Type MutableArray<ULong>
@@ -12525,31 +12525,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$V64
-        ClassAlloc MutableArrayIterator$V64
+        Type MutableArrayIterator<ULong>
+        ClassAlloc MutableArrayIterator<ULong>
       call @fn188 direct
-        Type MutableArrayIterator$V64
+        Type MutableArrayIterator<ULong>
         Local $new.1
         Type MutableArray<ULong>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$V64
+        Type MutableArrayIterator<ULong>
         Local $new.1
-  fun ArrayIterator.next @fn129(this: ArrayIterator$V64) -> Option$V64<ULong>
+  fun ArrayIterator.next @fn129(this: ArrayIterator<ULong>) -> Option<ULong>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V64
+          Type ArrayIterator<ULong>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$V64
+        ArrayLen Array<ULong>
           Type Array<ULong>
           FieldAccess 0
-            Type ArrayIterator$V64
+            Type ArrayIterator<ULong>
             Local this
       val $parameter.other: Long
         Type Long
@@ -12569,12 +12569,12 @@ Module
       val $receiver: Array<ULong>
         Type Array<ULong>
         FieldAccess 0
-          Type ArrayIterator$V64
+          Type ArrayIterator<ULong>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V64
+          Type ArrayIterator<ULong>
           Local this
       val $parameter.index: Long
         Type Long
@@ -12594,8 +12594,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -12603,7 +12603,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$V64
+          ArrayLen Array<ULong>
             Type Array<ULong>
             Local $arr.1
       goto bb5
@@ -12629,7 +12629,7 @@ Module
     bb7 if.merge.7
       val value: ULong
         Type ULong
-        ArrayGet Array$V64
+        ArrayGet Array<ULong>
           Type Array<ULong>
           Local $arr.1
           Type Long
@@ -12637,7 +12637,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$V64
+          Type ArrayIterator<ULong>
           Local this
       val $argument.0: Long
         Type Long
@@ -12646,7 +12646,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$V64
+        Type ArrayIterator<ULong>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -12661,23 +12661,23 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
-  fun MutableArrayIterator.next @fn130(this: MutableArrayIterator$I8) -> Option$I8<Int8>
+  fun MutableArrayIterator.next @fn130(this: MutableArrayIterator<Int8>) -> Option<Int8>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I8
+          Type MutableArrayIterator<Int8>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$I8
+        ArrayLen MutableArray<Int8>
           Type MutableArray<Int8>
           FieldAccess 0
-            Type MutableArrayIterator$I8
+            Type MutableArrayIterator<Int8>
             Local this
       val $parameter.other: Long
         Type Long
@@ -12697,12 +12697,12 @@ Module
       val $receiver: MutableArray<Int8>
         Type MutableArray<Int8>
         FieldAccess 0
-          Type MutableArrayIterator$I8
+          Type MutableArrayIterator<Int8>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I8
+          Type MutableArrayIterator<Int8>
           Local this
       val $parameter.index: Long
         Type Long
@@ -12722,8 +12722,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I8<Int8>
-        VariantConstruct Option$I8<Int8> v1
+        Type Option<Int8>
+        VariantConstruct Option<Int8> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -12731,7 +12731,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$I8
+          ArrayLen MutableArray<Int8>
             Type MutableArray<Int8>
             Local $arr.1
       goto bb5
@@ -12757,7 +12757,7 @@ Module
     bb7 if.merge.7
       val value: Int8
         Type Int8
-        ArrayGet MutableArray$I8
+        ArrayGet MutableArray<Int8>
           Type MutableArray<Int8>
           Local $arr.1
           Type Long
@@ -12765,7 +12765,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I8
+          Type MutableArrayIterator<Int8>
           Local this
       val $argument.0: Long
         Type Long
@@ -12774,7 +12774,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$I8
+        Type MutableArrayIterator<Int8>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -12789,23 +12789,23 @@ Module
         Type Int8
         Local $argument.0
       return
-        Type Option$I8<Int8>
-        VariantConstruct Option$I8<Int8> v0
+        Type Option<Int8>
+        VariantConstruct Option<Int8> v0
           Type Int8
           Local $parameter._1
-  fun MutableArrayIterator.next @fn131(this: MutableArrayIterator$I16) -> Option$I16<Int16>
+  fun MutableArrayIterator.next @fn131(this: MutableArrayIterator<Int16>) -> Option<Int16>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I16
+          Type MutableArrayIterator<Int16>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$I16
+        ArrayLen MutableArray<Int16>
           Type MutableArray<Int16>
           FieldAccess 0
-            Type MutableArrayIterator$I16
+            Type MutableArrayIterator<Int16>
             Local this
       val $parameter.other: Long
         Type Long
@@ -12825,12 +12825,12 @@ Module
       val $receiver: MutableArray<Int16>
         Type MutableArray<Int16>
         FieldAccess 0
-          Type MutableArrayIterator$I16
+          Type MutableArrayIterator<Int16>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I16
+          Type MutableArrayIterator<Int16>
           Local this
       val $parameter.index: Long
         Type Long
@@ -12850,8 +12850,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I16<Int16>
-        VariantConstruct Option$I16<Int16> v1
+        Type Option<Int16>
+        VariantConstruct Option<Int16> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -12859,7 +12859,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$I16
+          ArrayLen MutableArray<Int16>
             Type MutableArray<Int16>
             Local $arr.1
       goto bb5
@@ -12885,7 +12885,7 @@ Module
     bb7 if.merge.7
       val value: Int16
         Type Int16
-        ArrayGet MutableArray$I16
+        ArrayGet MutableArray<Int16>
           Type MutableArray<Int16>
           Local $arr.1
           Type Long
@@ -12893,7 +12893,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I16
+          Type MutableArrayIterator<Int16>
           Local this
       val $argument.0: Long
         Type Long
@@ -12902,7 +12902,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$I16
+        Type MutableArrayIterator<Int16>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -12917,23 +12917,23 @@ Module
         Type Int16
         Local $argument.0
       return
-        Type Option$I16<Int16>
-        VariantConstruct Option$I16<Int16> v0
+        Type Option<Int16>
+        VariantConstruct Option<Int16> v0
           Type Int16
           Local $parameter._1
-  fun MutableArrayIterator.next @fn132(this: MutableArrayIterator$I32) -> Option$I32<Int>
+  fun MutableArrayIterator.next @fn132(this: MutableArrayIterator<Int>) -> Option<Int>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$I32
+        ArrayLen MutableArray<Int>
           Type MutableArray<Int>
           FieldAccess 0
-            Type MutableArrayIterator$I32
+            Type MutableArrayIterator<Int>
             Local this
       val $parameter.other: Long
         Type Long
@@ -12953,12 +12953,12 @@ Module
       val $receiver: MutableArray<Int>
         Type MutableArray<Int>
         FieldAccess 0
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $parameter.index: Long
         Type Long
@@ -12978,8 +12978,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -12987,7 +12987,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$I32
+          ArrayLen MutableArray<Int>
             Type MutableArray<Int>
             Local $arr.1
       goto bb5
@@ -13013,7 +13013,7 @@ Module
     bb7 if.merge.7
       val value: Int
         Type Int
-        ArrayGet MutableArray$I32
+        ArrayGet MutableArray<Int>
           Type MutableArray<Int>
           Local $arr.1
           Type Long
@@ -13021,7 +13021,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
@@ -13030,7 +13030,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -13045,23 +13045,23 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
-  fun MutableArrayIterator.next @fn133(this: MutableArrayIterator$I64) -> Option$I64<Long>
+  fun MutableArrayIterator.next @fn133(this: MutableArrayIterator<Long>) -> Option<Long>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I64
+          Type MutableArrayIterator<Long>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$I64
+        ArrayLen MutableArray<Long>
           Type MutableArray<Long>
           FieldAccess 0
-            Type MutableArrayIterator$I64
+            Type MutableArrayIterator<Long>
             Local this
       val $parameter.other: Long
         Type Long
@@ -13081,12 +13081,12 @@ Module
       val $receiver: MutableArray<Long>
         Type MutableArray<Long>
         FieldAccess 0
-          Type MutableArrayIterator$I64
+          Type MutableArrayIterator<Long>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I64
+          Type MutableArrayIterator<Long>
           Local this
       val $parameter.index: Long
         Type Long
@@ -13106,8 +13106,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -13115,7 +13115,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$I64
+          ArrayLen MutableArray<Long>
             Type MutableArray<Long>
             Local $arr.1
       goto bb5
@@ -13141,7 +13141,7 @@ Module
     bb7 if.merge.7
       val value: Long
         Type Long
-        ArrayGet MutableArray$I64
+        ArrayGet MutableArray<Long>
           Type MutableArray<Long>
           Local $arr.1
           Type Long
@@ -13149,7 +13149,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I64
+          Type MutableArrayIterator<Long>
           Local this
       val $argument.0: Long
         Type Long
@@ -13158,7 +13158,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$I64
+        Type MutableArrayIterator<Long>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -13173,23 +13173,23 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
-  fun MutableArrayIterator.next @fn134(this: MutableArrayIterator$V8) -> Option$V8<UInt8>
+  fun MutableArrayIterator.next @fn134(this: MutableArrayIterator<UInt8>) -> Option<UInt8>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V8
+          Type MutableArrayIterator<UInt8>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$V8
+        ArrayLen MutableArray<UInt8>
           Type MutableArray<UInt8>
           FieldAccess 0
-            Type MutableArrayIterator$V8
+            Type MutableArrayIterator<UInt8>
             Local this
       val $parameter.other: Long
         Type Long
@@ -13209,12 +13209,12 @@ Module
       val $receiver: MutableArray<UInt8>
         Type MutableArray<UInt8>
         FieldAccess 0
-          Type MutableArrayIterator$V8
+          Type MutableArrayIterator<UInt8>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V8
+          Type MutableArrayIterator<UInt8>
           Local this
       val $parameter.index: Long
         Type Long
@@ -13234,8 +13234,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V8<UInt8>
-        VariantConstruct Option$V8<UInt8> v1
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -13243,7 +13243,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$V8
+          ArrayLen MutableArray<UInt8>
             Type MutableArray<UInt8>
             Local $arr.1
       goto bb5
@@ -13269,7 +13269,7 @@ Module
     bb7 if.merge.7
       val value: UInt8
         Type UInt8
-        ArrayGet MutableArray$V8
+        ArrayGet MutableArray<UInt8>
           Type MutableArray<UInt8>
           Local $arr.1
           Type Long
@@ -13277,7 +13277,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V8
+          Type MutableArrayIterator<UInt8>
           Local this
       val $argument.0: Long
         Type Long
@@ -13286,7 +13286,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$V8
+        Type MutableArrayIterator<UInt8>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -13301,23 +13301,23 @@ Module
         Type UInt8
         Local $argument.0
       return
-        Type Option$V8<UInt8>
-        VariantConstruct Option$V8<UInt8> v0
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v0
           Type UInt8
           Local $parameter._1
-  fun MutableArrayIterator.next @fn135(this: MutableArrayIterator$V16) -> Option$V16<UInt16>
+  fun MutableArrayIterator.next @fn135(this: MutableArrayIterator<UInt16>) -> Option<UInt16>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V16
+          Type MutableArrayIterator<UInt16>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$V16
+        ArrayLen MutableArray<UInt16>
           Type MutableArray<UInt16>
           FieldAccess 0
-            Type MutableArrayIterator$V16
+            Type MutableArrayIterator<UInt16>
             Local this
       val $parameter.other: Long
         Type Long
@@ -13337,12 +13337,12 @@ Module
       val $receiver: MutableArray<UInt16>
         Type MutableArray<UInt16>
         FieldAccess 0
-          Type MutableArrayIterator$V16
+          Type MutableArrayIterator<UInt16>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V16
+          Type MutableArrayIterator<UInt16>
           Local this
       val $parameter.index: Long
         Type Long
@@ -13362,8 +13362,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V16<UInt16>
-        VariantConstruct Option$V16<UInt16> v1
+        Type Option<UInt16>
+        VariantConstruct Option<UInt16> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -13371,7 +13371,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$V16
+          ArrayLen MutableArray<UInt16>
             Type MutableArray<UInt16>
             Local $arr.1
       goto bb5
@@ -13397,7 +13397,7 @@ Module
     bb7 if.merge.7
       val value: UInt16
         Type UInt16
-        ArrayGet MutableArray$V16
+        ArrayGet MutableArray<UInt16>
           Type MutableArray<UInt16>
           Local $arr.1
           Type Long
@@ -13405,7 +13405,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V16
+          Type MutableArrayIterator<UInt16>
           Local this
       val $argument.0: Long
         Type Long
@@ -13414,7 +13414,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$V16
+        Type MutableArrayIterator<UInt16>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -13429,23 +13429,23 @@ Module
         Type UInt16
         Local $argument.0
       return
-        Type Option$V16<UInt16>
-        VariantConstruct Option$V16<UInt16> v0
+        Type Option<UInt16>
+        VariantConstruct Option<UInt16> v0
           Type UInt16
           Local $parameter._1
-  fun MutableArrayIterator.next @fn136(this: MutableArrayIterator$V32) -> Option$V32<UInt>
+  fun MutableArrayIterator.next @fn136(this: MutableArrayIterator<UInt>) -> Option<UInt>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V32
+          Type MutableArrayIterator<UInt>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$V32
+        ArrayLen MutableArray<UInt>
           Type MutableArray<UInt>
           FieldAccess 0
-            Type MutableArrayIterator$V32
+            Type MutableArrayIterator<UInt>
             Local this
       val $parameter.other: Long
         Type Long
@@ -13465,12 +13465,12 @@ Module
       val $receiver: MutableArray<UInt>
         Type MutableArray<UInt>
         FieldAccess 0
-          Type MutableArrayIterator$V32
+          Type MutableArrayIterator<UInt>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V32
+          Type MutableArrayIterator<UInt>
           Local this
       val $parameter.index: Long
         Type Long
@@ -13490,8 +13490,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -13499,7 +13499,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$V32
+          ArrayLen MutableArray<UInt>
             Type MutableArray<UInt>
             Local $arr.1
       goto bb5
@@ -13525,7 +13525,7 @@ Module
     bb7 if.merge.7
       val value: UInt
         Type UInt
-        ArrayGet MutableArray$V32
+        ArrayGet MutableArray<UInt>
           Type MutableArray<UInt>
           Local $arr.1
           Type Long
@@ -13533,7 +13533,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V32
+          Type MutableArrayIterator<UInt>
           Local this
       val $argument.0: Long
         Type Long
@@ -13542,7 +13542,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$V32
+        Type MutableArrayIterator<UInt>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -13557,23 +13557,23 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
-  fun MutableArrayIterator.next @fn137(this: MutableArrayIterator$V64) -> Option$V64<ULong>
+  fun MutableArrayIterator.next @fn137(this: MutableArrayIterator<ULong>) -> Option<ULong>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V64
+          Type MutableArrayIterator<ULong>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$V64
+        ArrayLen MutableArray<ULong>
           Type MutableArray<ULong>
           FieldAccess 0
-            Type MutableArrayIterator$V64
+            Type MutableArrayIterator<ULong>
             Local this
       val $parameter.other: Long
         Type Long
@@ -13593,12 +13593,12 @@ Module
       val $receiver: MutableArray<ULong>
         Type MutableArray<ULong>
         FieldAccess 0
-          Type MutableArrayIterator$V64
+          Type MutableArrayIterator<ULong>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V64
+          Type MutableArrayIterator<ULong>
           Local this
       val $parameter.index: Long
         Type Long
@@ -13618,8 +13618,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -13627,7 +13627,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$V64
+          ArrayLen MutableArray<ULong>
             Type MutableArray<ULong>
             Local $arr.1
       goto bb5
@@ -13653,7 +13653,7 @@ Module
     bb7 if.merge.7
       val value: ULong
         Type ULong
-        ArrayGet MutableArray$V64
+        ArrayGet MutableArray<ULong>
           Type MutableArray<ULong>
           Local $arr.1
           Type Long
@@ -13661,7 +13661,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$V64
+          Type MutableArrayIterator<ULong>
           Local this
       val $argument.0: Long
         Type Long
@@ -13670,7 +13670,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$V64
+        Type MutableArrayIterator<ULong>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -13685,8 +13685,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
   fun init.IntRange.$c2 @fn156(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
@@ -13936,7 +13936,7 @@ Module
   fun init.Throwable.$c10 @fn164(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn165(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn165(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn164 direct
         Type Throwable
@@ -13946,7 +13946,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn166(this: UnwrapException) -> Unit
@@ -13957,20 +13957,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn165 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn167(this: ClassCastException) -> Unit
@@ -13981,20 +13981,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn165 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn168(this: ArithmeticException) -> Unit
@@ -14005,20 +14005,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn165 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn169(this: IndexOutOfBoundsException) -> Unit
@@ -14029,52 +14029,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn165 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn170(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn170(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn165 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn171(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn171(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn165 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c18 @fn172(this: IllegalStateException) -> Unit
@@ -14085,221 +14085,221 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn171 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.ArrayIterator$I8.$c0 @fn173(this: ArrayIterator$I8, source: Array<Int8>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn173(this: ArrayIterator<Int8>, source: Array<Int8>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$I8
+        Type ArrayIterator<Int8>
         Local this
         Type Array<Int8>
         Local source
       field_set 1
-        Type ArrayIterator$I8
+        Type ArrayIterator<Int8>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$I16.$c0 @fn174(this: ArrayIterator$I16, source: Array<Int16>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn174(this: ArrayIterator<Int16>, source: Array<Int16>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$I16
+        Type ArrayIterator<Int16>
         Local this
         Type Array<Int16>
         Local source
       field_set 1
-        Type ArrayIterator$I16
+        Type ArrayIterator<Int16>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$I32.$c0 @fn175(this: ArrayIterator$I32, source: Array<Int>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn175(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local this
         Type Array<Int>
         Local source
       field_set 1
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$I64.$c0 @fn176(this: ArrayIterator$I64, source: Array<Long>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn176(this: ArrayIterator<Long>, source: Array<Long>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$I64
+        Type ArrayIterator<Long>
         Local this
         Type Array<Long>
         Local source
       field_set 1
-        Type ArrayIterator$I64
+        Type ArrayIterator<Long>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$V8.$c0 @fn177(this: ArrayIterator$V8, source: Array<UInt8>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn177(this: ArrayIterator<UInt8>, source: Array<UInt8>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$V8
+        Type ArrayIterator<UInt8>
         Local this
         Type Array<UInt8>
         Local source
       field_set 1
-        Type ArrayIterator$V8
+        Type ArrayIterator<UInt8>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$V16.$c0 @fn178(this: ArrayIterator$V16, source: Array<UInt16>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn178(this: ArrayIterator<UInt16>, source: Array<UInt16>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$V16
+        Type ArrayIterator<UInt16>
         Local this
         Type Array<UInt16>
         Local source
       field_set 1
-        Type ArrayIterator$V16
+        Type ArrayIterator<UInt16>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$V32.$c0 @fn179(this: ArrayIterator$V32, source: Array<UInt>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn179(this: ArrayIterator<UInt>, source: Array<UInt>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$V32
+        Type ArrayIterator<UInt>
         Local this
         Type Array<UInt>
         Local source
       field_set 1
-        Type ArrayIterator$V32
+        Type ArrayIterator<UInt>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$V64.$c0 @fn180(this: ArrayIterator$V64, source: Array<ULong>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn180(this: ArrayIterator<ULong>, source: Array<ULong>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$V64
+        Type ArrayIterator<ULong>
         Local this
         Type Array<ULong>
         Local source
       field_set 1
-        Type ArrayIterator$V64
+        Type ArrayIterator<ULong>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$I8.$c1 @fn181(this: MutableArrayIterator$I8, source: MutableArray<Int8>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn181(this: MutableArrayIterator<Int8>, source: MutableArray<Int8>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$I8
+        Type MutableArrayIterator<Int8>
         Local this
         Type MutableArray<Int8>
         Local source
       field_set 1
-        Type MutableArrayIterator$I8
+        Type MutableArrayIterator<Int8>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$I16.$c1 @fn182(this: MutableArrayIterator$I16, source: MutableArray<Int16>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn182(this: MutableArrayIterator<Int16>, source: MutableArray<Int16>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$I16
+        Type MutableArrayIterator<Int16>
         Local this
         Type MutableArray<Int16>
         Local source
       field_set 1
-        Type MutableArrayIterator$I16
+        Type MutableArrayIterator<Int16>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$I32.$c1 @fn183(this: MutableArrayIterator$I32, source: MutableArray<Int>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn183(this: MutableArrayIterator<Int>, source: MutableArray<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local this
         Type MutableArray<Int>
         Local source
       field_set 1
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$I64.$c1 @fn184(this: MutableArrayIterator$I64, source: MutableArray<Long>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn184(this: MutableArrayIterator<Long>, source: MutableArray<Long>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$I64
+        Type MutableArrayIterator<Long>
         Local this
         Type MutableArray<Long>
         Local source
       field_set 1
-        Type MutableArrayIterator$I64
+        Type MutableArrayIterator<Long>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$V8.$c1 @fn185(this: MutableArrayIterator$V8, source: MutableArray<UInt8>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn185(this: MutableArrayIterator<UInt8>, source: MutableArray<UInt8>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$V8
+        Type MutableArrayIterator<UInt8>
         Local this
         Type MutableArray<UInt8>
         Local source
       field_set 1
-        Type MutableArrayIterator$V8
+        Type MutableArrayIterator<UInt8>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$V16.$c1 @fn186(this: MutableArrayIterator$V16, source: MutableArray<UInt16>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn186(this: MutableArrayIterator<UInt16>, source: MutableArray<UInt16>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$V16
+        Type MutableArrayIterator<UInt16>
         Local this
         Type MutableArray<UInt16>
         Local source
       field_set 1
-        Type MutableArrayIterator$V16
+        Type MutableArrayIterator<UInt16>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$V32.$c1 @fn187(this: MutableArrayIterator$V32, source: MutableArray<UInt>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn187(this: MutableArrayIterator<UInt>, source: MutableArray<UInt>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$V32
+        Type MutableArrayIterator<UInt>
         Local this
         Type MutableArray<UInt>
         Local source
       field_set 1
-        Type MutableArrayIterator$V32
+        Type MutableArrayIterator<UInt>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$V64.$c1 @fn188(this: MutableArrayIterator$V64, source: MutableArray<ULong>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn188(this: MutableArrayIterator<ULong>, source: MutableArray<ULong>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$V64
+        Type MutableArrayIterator<ULong>
         Local this
         Type MutableArray<ULong>
         Local source
       field_set 1
-        Type MutableArrayIterator$V64
+        Type MutableArrayIterator<ULong>
         Local this
         Type Long
         Local index
@@ -14448,15 +14448,15 @@ Module
   global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$I8 tagged size=16 align=8 variants=(i8)@8+1 ()@8+0
-  enum Option$I16 tagged size=16 align=8 variants=(i16)@8+2 ()@8+0
-  enum Option$V8 tagged size=16 align=8 variants=(i8)@8+1 ()@8+0
-  enum Option$V16 tagged size=16 align=8 variants=(i16)@8+2 ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i8)@8+1 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i16)@8+2 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i8)@8+1 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i16)@8+2 ()@8+0
   enum WidthValue tagged size=16 align=8 variants=(i8)@8+1 (i16)@8+2 (i32)@8+4 (i64)@8+8 (i8)@8+1 (i16)@8+2 (i32)@8+4 (i64)@8+8
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
@@ -21386,22 +21386,22 @@ Module
     ret t0
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
-  td td10 Iterable$I8 @scoop$1$td$732dc2c6a068c717ebe398b5acde955d6ae4e3b7b1e57e0ed38e6a55f7aaa126 type-id=11480665903673878224 size=0 parent=none vtable=[] itables=[]
-  td td11 Iterator$I8 @scoop$1$td$98784de7605676d790f985ad484ab6e2bbe64e29a448e34da6be1cf5dab810fc type-id=1786325528672542407 size=0 parent=none vtable=[] itables=[]
-  td td12 Iterable$I16 @scoop$1$td$a8438a2b55c1620c04e7b0fc0557133aefe6c2dd7c5195e066e526ac77d18bae type-id=16701858248524689280 size=0 parent=none vtable=[] itables=[]
-  td td13 Iterator$I16 @scoop$1$td$bf0e139f8f7e1b76219beb61134ce36b27a55ba804b76cc084e1ae25c14744d6 type-id=10058548355155169249 size=0 parent=none vtable=[] itables=[]
-  td td14 Iterable$V8 @scoop$1$td$9eaa7902c5b390cd80bb0316dbfc096b91847d2fa91632e108441928c2679b8e type-id=2268469128969712200 size=0 parent=none vtable=[] itables=[]
-  td td15 Iterator$V8 @scoop$1$td$9a744a617bbd91f450f3fa980b3d6b483edc7698b70cfe721cf03381ec359299 type-id=11147318004101750811 size=0 parent=none vtable=[] itables=[]
-  td td16 Iterable$V16 @scoop$1$td$70f49f027bc0fe8ed989aff69a2683d9432e5e846ada3b267682e6b608cfd65d type-id=16507657726962053326 size=0 parent=none vtable=[] itables=[]
-  td td17 Iterator$V16 @scoop$1$td$0af2d8571457fb89f62d670f73f8a69e29a8b4cd5471fcee3370d3aac8d8972f type-id=6952928623229752673 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td10 Iterable @scoop$1$td$732dc2c6a068c717ebe398b5acde955d6ae4e3b7b1e57e0ed38e6a55f7aaa126 type-id=11480665903673878224 size=0 parent=none vtable=[] itables=[]
+  td td11 Iterator @scoop$1$td$98784de7605676d790f985ad484ab6e2bbe64e29a448e34da6be1cf5dab810fc type-id=1786325528672542407 size=0 parent=none vtable=[] itables=[]
+  td td12 Iterable @scoop$1$td$a8438a2b55c1620c04e7b0fc0557133aefe6c2dd7c5195e066e526ac77d18bae type-id=16701858248524689280 size=0 parent=none vtable=[] itables=[]
+  td td13 Iterator @scoop$1$td$bf0e139f8f7e1b76219beb61134ce36b27a55ba804b76cc084e1ae25c14744d6 type-id=10058548355155169249 size=0 parent=none vtable=[] itables=[]
+  td td14 Iterable @scoop$1$td$9eaa7902c5b390cd80bb0316dbfc096b91847d2fa91632e108441928c2679b8e type-id=2268469128969712200 size=0 parent=none vtable=[] itables=[]
+  td td15 Iterator @scoop$1$td$9a744a617bbd91f450f3fa980b3d6b483edc7698b70cfe721cf03381ec359299 type-id=11147318004101750811 size=0 parent=none vtable=[] itables=[]
+  td td16 Iterable @scoop$1$td$70f49f027bc0fe8ed989aff69a2683d9432e5e846ada3b267682e6b608cfd65d type-id=16507657726962053326 size=0 parent=none vtable=[] itables=[]
+  td td17 Iterator @scoop$1$td$0af2d8571457fb89f62d670f73f8a69e29a8b4cd5471fcee3370d3aac8d8972f type-id=6952928623229752673 size=0 parent=none vtable=[] itables=[]
   td td18 IntRange @scoop$1$td$66618ce5db61b359b7e13b6df76dcda8b9a9e55768487b6fe93e0d1aedd90a1b type-id=5739975931137510880 size=32 parent=none vtable=[] itables=[td2:[local-fn51]]
   td td19 IntRangeIterator @scoop$1$td$6e6a352e9c43b3e382fd0925e1ed04966e4c5b5796883838be021562ff19bf07 type-id=4889723440050595746 size=32 parent=none vtable=[] itables=[td3:[local-fn54]]
   td td20 LongRange @scoop$1$td$2ba9cccc6161621932a055e067295205245e2a6613b2d01110ad6d0256e8bea3 type-id=2382795341378320473 size=48 parent=none vtable=[] itables=[td4:[local-fn55]]
@@ -21411,22 +21411,22 @@ Module
   td td24 ULongRange @scoop$1$td$1b212a69e8101ac444b8aa65e383f2ae39ce00a947eb5811b4764a7369e2c46f type-id=14796194647152015379 size=48 parent=none vtable=[] itables=[td8:[local-fn63]]
   td td25 ULongRangeIterator @scoop$1$td$a582d0a5ca66be7b87d96cdb30140f6e9549eead1a06592ff1f0dc10e1746698 type-id=3014124323270244459 size=48 parent=none vtable=[] itables=[td9:[local-fn66]]
   td td26 Throwable @scoop$1$td$b016f4a9f05589f1ebf83e27ddf4751eea466124b0f550438d3777136b3aa38c type-id=13299621460173771540 size=16 parent=none vtable=[] itables=[]
-  td td37 ArrayIterator$I8 @scoop$1$td$fd414610b2752abb3f37372d302c3cbf243fd49de7a6762b4d701e574ae737ee type-id=11011728900456854007 size=32 parent=none vtable=[] itables=[td11:[local-fn115]]
-  td td39 ArrayIterator$I16 @scoop$1$td$e41db01df8e972751478853c41a754a82f788706cad8e99ebe5a023fef915048 type-id=3218002910235651386 size=32 parent=none vtable=[] itables=[td13:[local-fn117]]
-  td td41 ArrayIterator$I32 @scoop$1$td$8e2000292087c9778cfb8e8d268b7f37c5f10fa7b6c0494d3f3b0d2880dd4037 type-id=3092229143477019009 size=32 parent=none vtable=[] itables=[td3:[local-fn119]]
-  td td43 ArrayIterator$I64 @scoop$1$td$58241a1163250df49edb9768a102b2839bf2e202135c2d9331dbddb5da134c63 type-id=700806348478384688 size=32 parent=none vtable=[] itables=[td5:[local-fn121]]
-  td td45 ArrayIterator$V8 @scoop$1$td$6b9ee987b9ba5687439b6977ded9632717b72abb179dc5444b2d0f12d11529cc type-id=13482084573528320033 size=32 parent=none vtable=[] itables=[td15:[local-fn123]]
-  td td47 ArrayIterator$V16 @scoop$1$td$84a1311df7cd9899a4a8cee2a7eb9d0050fc455d31886757d93b929172c462d5 type-id=17099030521987096394 size=32 parent=none vtable=[] itables=[td17:[local-fn125]]
-  td td49 ArrayIterator$V32 @scoop$1$td$ed706346e972ec821548f89e50e51165fb50400f4473afcfc27b136f24988303 type-id=10265277088635302603 size=32 parent=none vtable=[] itables=[td7:[local-fn127]]
-  td td51 ArrayIterator$V64 @scoop$1$td$7aada7d5500ed33058e9e4cd0c5d971703c837ed30ff4fd18f123177cdc5a9b4 type-id=8880798668637998912 size=32 parent=none vtable=[] itables=[td9:[local-fn129]]
-  td td52 MutableArrayIterator$I8 @scoop$1$td$e5b2838b8784364533f2baec7022cd68d19df7e4b116be5ec3922ccd917c4c73 type-id=2951431045159464104 size=32 parent=none vtable=[] itables=[td11:[local-fn130]]
-  td td53 MutableArrayIterator$I16 @scoop$1$td$4e3c33384e373fb5b87c27aef158628670d6ce8331ed5459f3e9fc3bf20904cd type-id=15002572270484770615 size=32 parent=none vtable=[] itables=[td13:[local-fn131]]
-  td td54 MutableArrayIterator$I32 @scoop$1$td$7140fe1248901c111d847cc7931f3ff441eb971540c2dc7239b39a48da3e985a type-id=2378697403886227389 size=32 parent=none vtable=[] itables=[td3:[local-fn132]]
-  td td55 MutableArrayIterator$I64 @scoop$1$td$0725afddb2796b48514b9785c8aee1fe2de0aef75d7e8b4fea6851c9f0b39812 type-id=7972731655910852873 size=32 parent=none vtable=[] itables=[td5:[local-fn133]]
-  td td56 MutableArrayIterator$V8 @scoop$1$td$46f9006593fe9edb2fa68b594d272558fcf37f725d4bacfc06feed86c20567b8 type-id=814459813447921990 size=32 parent=none vtable=[] itables=[td15:[local-fn134]]
-  td td57 MutableArrayIterator$V16 @scoop$1$td$82812d669e0db96721a1737f0b239caa2c3fa327f477461f6ddb45d5cbb5f1b7 type-id=7898848648990253097 size=32 parent=none vtable=[] itables=[td17:[local-fn135]]
-  td td58 MutableArrayIterator$V32 @scoop$1$td$51afc76eb95ee74b48631e319ee861aa4bfb667f736cff11019c6cb5e8ac9665 type-id=1716290222612828946 size=32 parent=none vtable=[] itables=[td7:[local-fn136]]
-  td td59 MutableArrayIterator$V64 @scoop$1$td$474926283b38e28eef011b76ac654d6707e405ece274b0979fa19f5e229eea12 type-id=16188458037354160843 size=32 parent=none vtable=[] itables=[td9:[local-fn137]]
+  td td37 ArrayIterator @scoop$1$td$fd414610b2752abb3f37372d302c3cbf243fd49de7a6762b4d701e574ae737ee type-id=11011728900456854007 size=32 parent=none vtable=[] itables=[td11:[local-fn115]]
+  td td39 ArrayIterator @scoop$1$td$e41db01df8e972751478853c41a754a82f788706cad8e99ebe5a023fef915048 type-id=3218002910235651386 size=32 parent=none vtable=[] itables=[td13:[local-fn117]]
+  td td41 ArrayIterator @scoop$1$td$8e2000292087c9778cfb8e8d268b7f37c5f10fa7b6c0494d3f3b0d2880dd4037 type-id=3092229143477019009 size=32 parent=none vtable=[] itables=[td3:[local-fn119]]
+  td td43 ArrayIterator @scoop$1$td$58241a1163250df49edb9768a102b2839bf2e202135c2d9331dbddb5da134c63 type-id=700806348478384688 size=32 parent=none vtable=[] itables=[td5:[local-fn121]]
+  td td45 ArrayIterator @scoop$1$td$6b9ee987b9ba5687439b6977ded9632717b72abb179dc5444b2d0f12d11529cc type-id=13482084573528320033 size=32 parent=none vtable=[] itables=[td15:[local-fn123]]
+  td td47 ArrayIterator @scoop$1$td$84a1311df7cd9899a4a8cee2a7eb9d0050fc455d31886757d93b929172c462d5 type-id=17099030521987096394 size=32 parent=none vtable=[] itables=[td17:[local-fn125]]
+  td td49 ArrayIterator @scoop$1$td$ed706346e972ec821548f89e50e51165fb50400f4473afcfc27b136f24988303 type-id=10265277088635302603 size=32 parent=none vtable=[] itables=[td7:[local-fn127]]
+  td td51 ArrayIterator @scoop$1$td$7aada7d5500ed33058e9e4cd0c5d971703c837ed30ff4fd18f123177cdc5a9b4 type-id=8880798668637998912 size=32 parent=none vtable=[] itables=[td9:[local-fn129]]
+  td td52 MutableArrayIterator @scoop$1$td$e5b2838b8784364533f2baec7022cd68d19df7e4b116be5ec3922ccd917c4c73 type-id=2951431045159464104 size=32 parent=none vtable=[] itables=[td11:[local-fn130]]
+  td td53 MutableArrayIterator @scoop$1$td$4e3c33384e373fb5b87c27aef158628670d6ce8331ed5459f3e9fc3bf20904cd type-id=15002572270484770615 size=32 parent=none vtable=[] itables=[td13:[local-fn131]]
+  td td54 MutableArrayIterator @scoop$1$td$7140fe1248901c111d847cc7931f3ff441eb971540c2dc7239b39a48da3e985a type-id=2378697403886227389 size=32 parent=none vtable=[] itables=[td3:[local-fn132]]
+  td td55 MutableArrayIterator @scoop$1$td$0725afddb2796b48514b9785c8aee1fe2de0aef75d7e8b4fea6851c9f0b39812 type-id=7972731655910852873 size=32 parent=none vtable=[] itables=[td5:[local-fn133]]
+  td td56 MutableArrayIterator @scoop$1$td$46f9006593fe9edb2fa68b594d272558fcf37f725d4bacfc06feed86c20567b8 type-id=814459813447921990 size=32 parent=none vtable=[] itables=[td15:[local-fn134]]
+  td td57 MutableArrayIterator @scoop$1$td$82812d669e0db96721a1737f0b239caa2c3fa327f477461f6ddb45d5cbb5f1b7 type-id=7898848648990253097 size=32 parent=none vtable=[] itables=[td17:[local-fn135]]
+  td td58 MutableArrayIterator @scoop$1$td$51afc76eb95ee74b48631e319ee861aa4bfb667f736cff11019c6cb5e8ac9665 type-id=1716290222612828946 size=32 parent=none vtable=[] itables=[td7:[local-fn136]]
+  td td59 MutableArrayIterator @scoop$1$td$474926283b38e28eef011b76ac654d6707e405ece274b0979fa19f5e229eea12 type-id=16188458037354160843 size=32 parent=none vtable=[] itables=[td9:[local-fn137]]
   td td60 box<Int8> @scoop$1$td$db9e3cb3d8fc84aff6fadcd13ed41bfabfeba931a2091e153f787fa001f8bcd3 type-id=10022184160012654322 size=24 parent=none vtable=[] itables=[]
   td td61 box<Int16> @scoop$1$td$b4b5dd6b39f7a03d0862e75930c05229b5dec39780205d043c8a7a51fcfd6fbc type-id=471521284010174506 size=24 parent=none vtable=[] itables=[]
   td td62 box<Int> @scoop$1$td$e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61 type-id=18106731461425164798 size=24 parent=none vtable=[] itables=[]
@@ -21442,22 +21442,22 @@ Module
   td td72 IndexOutOfBoundsException @scoop$1$td$280daf3721d646c4f2b20d11d7129e2aadfd4014f6d24b0bc9fc66152463a0d9 type-id=16540099246306328353 size=24 parent=td68 vtable=[] itables=[]
   td td73 IllegalArgumentException @scoop$1$td$2eeeb27e14a5b78ab30041b0cb81a89c5e18876da275b577b37c043ffa8c1a5f type-id=936431379189495586 size=24 parent=td68 vtable=[] itables=[]
   td td74 IllegalStateException @scoop$1$td$c576841b1176a4f8fc3891935e9dedc1d7fb7d44ac1a333f8c668c2a01a4a74a type-id=9165001687984215765 size=24 parent=td68 vtable=[] itables=[]
-  array-type array0 Array$I8 kind=immutable element=i8 size=1 align=1 scan=none td=td28
-  array-type array1 Array$I16 kind=immutable element=i16 size=2 align=2 scan=none td=td29
-  array-type array2 Array$I32 kind=immutable element=i32 size=4 align=4 scan=none td=td30
-  array-type array3 Array$I64 kind=immutable element=i64 size=8 align=8 scan=none td=td31
-  array-type array4 Array$V8 kind=immutable element=i8 size=1 align=1 scan=none td=td32
-  array-type array5 Array$V16 kind=immutable element=i16 size=2 align=2 scan=none td=td33
-  array-type array6 Array$V32 kind=immutable element=i32 size=4 align=4 scan=none td=td34
-  array-type array7 Array$V64 kind=immutable element=i64 size=8 align=8 scan=none td=td35
-  array-type array8 MutableArray$I8 kind=mutable element=i8 size=1 align=1 scan=none td=td36
-  array-type array9 MutableArray$I16 kind=mutable element=i16 size=2 align=2 scan=none td=td38
-  array-type array10 MutableArray$I32 kind=mutable element=i32 size=4 align=4 scan=none td=td40
-  array-type array11 MutableArray$I64 kind=mutable element=i64 size=8 align=8 scan=none td=td42
-  array-type array12 MutableArray$V8 kind=mutable element=i8 size=1 align=1 scan=none td=td44
-  array-type array13 MutableArray$V16 kind=mutable element=i16 size=2 align=2 scan=none td=td46
-  array-type array14 MutableArray$V32 kind=mutable element=i32 size=4 align=4 scan=none td=td48
-  array-type array15 MutableArray$V64 kind=mutable element=i64 size=8 align=8 scan=none td=td50
+  array-type array0 Array kind=immutable element=i8 size=1 align=1 scan=none td=td28
+  array-type array1 Array kind=immutable element=i16 size=2 align=2 scan=none td=td29
+  array-type array2 Array kind=immutable element=i32 size=4 align=4 scan=none td=td30
+  array-type array3 Array kind=immutable element=i64 size=8 align=8 scan=none td=td31
+  array-type array4 Array kind=immutable element=i8 size=1 align=1 scan=none td=td32
+  array-type array5 Array kind=immutable element=i16 size=2 align=2 scan=none td=td33
+  array-type array6 Array kind=immutable element=i32 size=4 align=4 scan=none td=td34
+  array-type array7 Array kind=immutable element=i64 size=8 align=8 scan=none td=td35
+  array-type array8 MutableArray kind=mutable element=i8 size=1 align=1 scan=none td=td36
+  array-type array9 MutableArray kind=mutable element=i16 size=2 align=2 scan=none td=td38
+  array-type array10 MutableArray kind=mutable element=i32 size=4 align=4 scan=none td=td40
+  array-type array11 MutableArray kind=mutable element=i64 size=8 align=8 scan=none td=td42
+  array-type array12 MutableArray kind=mutable element=i8 size=1 align=1 scan=none td=td44
+  array-type array13 MutableArray kind=mutable element=i16 size=2 align=2 scan=none td=td46
+  array-type array14 MutableArray kind=mutable element=i32 size=4 align=4 scan=none td=td48
+  array-type array15 MutableArray kind=mutable element=i64 size=8 align=8 scan=none td=td50
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -21470,15 +21470,15 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Widths size=32 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
-  layout Option$I8 size=16 align=8 enum-scan=none
-  layout Option$I16 size=16 align=8 enum-scan=none
-  layout Option$V8 size=16 align=8 enum-scan=none
-  layout Option$V16 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout WidthValue size=16 align=8 enum-scan=none
   layout IntRange size=32 align=8 refs=[]
   layout IntRangeIterator size=32 align=8 refs=[]
@@ -21496,22 +21496,22 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalArgumentException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
-  layout ArrayIterator$I8 size=32 align=8 refs=[16]
-  layout ArrayIterator$I16 size=32 align=8 refs=[16]
-  layout ArrayIterator$I32 size=32 align=8 refs=[16]
-  layout ArrayIterator$I64 size=32 align=8 refs=[16]
-  layout ArrayIterator$V8 size=32 align=8 refs=[16]
-  layout ArrayIterator$V16 size=32 align=8 refs=[16]
-  layout ArrayIterator$V32 size=32 align=8 refs=[16]
-  layout ArrayIterator$V64 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$I8 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$I16 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$I32 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$I64 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$V8 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$V16 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$V32 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$V64 size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
   layout box<Int8> size=24 align=8 refs=[]
   layout box<Int16> size=24 align=8 refs=[]
   layout box<Int> size=24 align=8 refs=[]

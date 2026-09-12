@@ -101,10 +101,6 @@ fn callable_applications_form_one_persistent_lexical_graph() {
                 function.materialization.template(),
                 hir::concrete::CallableTemplateOwner::GenericFunction(_)
             ));
-            assert!(matches!(
-                function.emission,
-                hir::concrete::FunctionEmission::Materialized { .. }
-            ));
             let hir::concrete::CallableMaterializationContext::Application(application) =
                 function.materialization.context()
             else {
@@ -251,17 +247,13 @@ fn generic_nominal_constructors_have_persistent_applications() {
     let class_applications = module
         .class_constructors
         .iter()
-        .filter(|(_, constructor)| module.classes[constructor.class].name.starts_with("Box$"))
+        .filter(|(_, constructor)| module.classes[constructor.class].name == "Box")
         .map(|(_, constructor)| constructor.materialization)
         .collect::<Vec<_>>();
     let struct_applications = module
         .struct_constructors
         .iter()
-        .filter(|(_, constructor)| {
-            module.structs[constructor.structure]
-                .name
-                .starts_with("Cell$")
-        })
+        .filter(|(_, constructor)| module.structs[constructor.structure].name == "Cell")
         .map(|(_, constructor)| constructor.materialization)
         .collect::<Vec<_>>();
 

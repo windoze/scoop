@@ -43,7 +43,6 @@ impl Harness {
         let generic = !type_params.is_empty();
         let type_params = type_params.into_iter().map(type_param).collect();
         let id = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem(name),
             name: name.to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -103,7 +102,6 @@ impl Harness {
         let resume_receiver = resume_locals.alloc(local("this", continuation_ty));
         let resume_value = resume_locals.alloc(local("value", t));
         let continuation_resume = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("Continuation.resume"),
             name: "Continuation.resume".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -131,7 +129,6 @@ impl Harness {
         let failure_receiver = failure_locals.alloc(local("this", continuation_ty));
         let failure = failure_locals.alloc(local("exception", throwable_ty));
         let continuation_resume_with_exception = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("Continuation.resumeWithException"),
             name: "Continuation.resumeWithException".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -208,7 +205,6 @@ impl Harness {
         let mut run_locals = Arena::new();
         let run_receiver = run_locals.alloc(local("this", suspend_task_ty));
         let suspend_task_run = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("SuspendTask.run"),
             name: "SuspendTask.run".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -250,7 +246,6 @@ impl Harness {
         let mut register_locals = Arena::new();
         let register_receiver = register_locals.alloc(local("this", suspend_registration_ty));
         let suspend_registration_register = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("SuspendRegistration.register"),
             name: "SuspendRegistration.register".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -288,7 +283,6 @@ impl Harness {
                 };
         }
         let start_coroutine = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("startCoroutine"),
             name: "startCoroutine".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -306,7 +300,6 @@ impl Harness {
             span: SPAN,
         });
         let suspend_coroutine = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("suspendCoroutine"),
             name: "suspendCoroutine".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

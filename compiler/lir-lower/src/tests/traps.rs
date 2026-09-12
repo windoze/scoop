@@ -6,7 +6,7 @@ fn trap_calls_branch_to_a_shared_trap_block() {
     // mir-lower shape: each `o!!` is `if (tag == Some) { val $uw =
     // field0 } else { trap(msg) }`.
     let mut b = Builder::new();
-    let option_i = b.option_enum("Option$I", INT);
+    let option_i = b.option_enum("Option<Int>", INT);
     let option_ty = mir::Type::Enum(option_i, vec![INT]);
     let message = b.string("unwrap on None (function f)");
     let mut locals = Arena::new();
@@ -129,7 +129,7 @@ fn trap_calls_branch_to_a_shared_trap_block() {
 Module
   global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "unwrap on None (function f)"
   global @scoop.cstr.0 = c"unwrap on None (function f)"
-  enum Option$I tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(indirect<enum0 size=16 align=8 scan=none>) -> i32
     local %0 $uw.1: i32
     local %1 $uw.2: i32
@@ -174,7 +174,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$I size=16 align=8 enum-scan=none
+  layout Option<Int> size=16 align=8 enum-scan=none
   entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }

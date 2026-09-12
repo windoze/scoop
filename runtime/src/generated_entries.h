@@ -35,7 +35,7 @@ typedef struct ScoopInitializationCell {
 
 typedef struct ScoopInitializationUnitDescriptor {
     uint64_t schedule;
-    const char *stable_key;
+    uint8_t semantic_id[32];
     const char *display_name;
     ScoopInitializationCell *cell;
     void *storage;

@@ -333,7 +333,7 @@ fn class_layouts_shift_ref_offsets_by_the_header() {
     // inside the payload shift by the header too.
     let s = b.strukt("S", &[("x", INT), ("s", mir::Type::String)]);
     let boxed = b.class(
-        "box$S",
+        "box<S>",
         None,
         &[("value", mir::Type::Struct(s))],
         empty_vtable(),
@@ -359,9 +359,9 @@ fn class_layouts_shift_ref_offsets_by_the_header() {
     let c_layout = by_name("C");
     assert_eq!((c_layout.size, c_layout.align), (48, 8));
     assert_eq!(plain_refs(c_layout), [24, 40]);
-    // box$S: header 16 + payload { Int @0, String @8 } @16 → the
+    // box<S>: header 16 + payload { Int @0, String @8 } @16 → the
     // String lands at 24.
-    let boxed_layout = by_name("box$S");
+    let boxed_layout = by_name("box<S>");
     assert_eq!((boxed_layout.size, boxed_layout.align), (32, 8));
     assert_eq!(plain_refs(boxed_layout), [24]);
     // The TypeDescriptors carry the same reference offsets.
@@ -371,7 +371,10 @@ fn class_layouts_shift_ref_offsets_by_the_header() {
             .unwrap_or_else(|| panic!("missing TypeDescriptor for {name}"))
     };
     assert_eq!(*fixed_scan(td("C")), lir::RefScan::References(vec![24, 40]));
-    assert_eq!(*fixed_scan(td("box$S")), lir::RefScan::References(vec![24]));
+    assert_eq!(
+        *fixed_scan(td("box<S>")),
+        lir::RefScan::References(vec![24])
+    );
     assert!(td("C").parent.is_none());
-    assert!(td("box$S").parent.is_none());
+    assert!(td("box<S>").parent.is_none());
 }

@@ -10,7 +10,7 @@ const UNITS_SYMBOL: &str = "scoop_image_initialization_units";
 const UNIT_COUNT_SYMBOL: &str = "scoop_image_initialization_unit_count";
 
 /// Emit one address-stable cell/descriptor per typed unit and a second table
-/// sorted by stable key for deterministic eager startup. Generated ensure
+/// sorted by persistent identity bytes for deterministic eager startup. Generated ensure
 /// functions use the individual descriptor addresses; both views point at the
 /// same cell and managed root slots.
 pub(super) fn emit<'ctx>(
@@ -21,11 +21,12 @@ pub(super) fn emit<'ctx>(
 ) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
     let ptr = ptr_ty(context);
     let i64_ty = context.i64_type();
+    let semantic_id_ty = context.i8_type().array_type(32);
     let cell_ty = context.struct_type(&[i64_ty.into(), ptr.into()], false);
     let descriptor_ty = context.struct_type(
         &[
             i64_ty.into(),
-            ptr.into(),
+            semantic_id_ty.into(),
             ptr.into(),
             ptr.into(),
             ptr.into(),
@@ -35,27 +36,18 @@ pub(super) fn emit<'ctx>(
         ],
         false,
     );
-    let mut keys = HashSet::new();
+    let mut identities = HashSet::new();
     let mut descriptors = Vec::with_capacity(module.initialization_units.len());
     let mut records = Vec::with_capacity(module.initialization_units.len());
 
     for (id, unit) in module.initialization_units.iter() {
-        if !keys.insert(unit.stable_key.as_str()) {
+        let semantic_id = unit.identity.id();
+        if !identities.insert(semantic_id) {
             return Err(CodegenError(format!(
-                "duplicate initialization stable key `{}`",
-                unit.stable_key
+                "duplicate initialization unit identity `{semantic_id}`"
             )));
         }
         let raw = id.into_raw().into_u32();
-        let key_bytes = unit.stable_key.as_bytes();
-        let key_global = llvm.add_global(
-            context.i8_type().array_type(key_bytes.len() as u32 + 1),
-            None,
-            &format!("scoop.init.key.{raw}"),
-        );
-        key_global.set_linkage(Linkage::Private);
-        key_global.set_constant(true);
-        key_global.set_initializer(&context.const_string(key_bytes, true));
         let display_bytes = unit.display_name.as_bytes();
         let display_global = llvm.add_global(
             context.i8_type().array_type(display_bytes.len() as u32 + 1),
@@ -81,7 +73,7 @@ pub(super) fn emit<'ctx>(
         let record = context.const_struct(
             &[
                 i64_ty.const_int(schedule, false).into(),
-                key_global.as_pointer_value().into(),
+                context.const_string(semantic_id.as_array(), false).into(),
                 display_global.as_pointer_value().into(),
                 cell.as_pointer_value().into(),
                 storage.as_pointer_value().into(),
@@ -97,10 +89,10 @@ pub(super) fn emit<'ctx>(
         descriptor.set_constant(true);
         descriptor.set_initializer(&record);
         descriptors.push(descriptor);
-        records.push((unit.stable_key.as_str(), record));
+        records.push((*semantic_id.as_array(), record));
     }
 
-    records.sort_by(|left, right| left.0.cmp(right.0));
+    records.sort_by_key(|record| record.0);
     let count = records.len() as u64;
     let table_values = if records.is_empty() {
         vec![descriptor_ty.const_zero()]

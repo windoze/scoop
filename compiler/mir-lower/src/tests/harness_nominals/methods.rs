@@ -102,7 +102,6 @@ impl Harness {
             _ => hir::MethodDispatch::Direct,
         };
         let function = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem(name),
             name: name.to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

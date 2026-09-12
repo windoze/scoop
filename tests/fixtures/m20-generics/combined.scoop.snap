@@ -1379,31 +1379,31 @@ Module
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct NameToken (text: String)
-  enum Option$J16_Continuation$I32X
-    Some(_1: Continuation$I32)
+  enum Option<Continuation<Int>>
+    Some(_1: Continuation<Int>)
     None()
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
-  enum Option$J5_NamedX
+  enum Option<Named>
     Some(_1: Named)
     None()
-  enum Option$C7_MessageX
+  enum Option<Message>
     Some(_1: Message)
     None()
-  enum Option$D9_NameTokenX
+  enum Option<NameToken>
     Some(_1: NameToken)
     None()
   enum CoroutineStep<String>
@@ -1444,23 +1444,23 @@ Module
   class IllegalArgumentException vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Message vtable=1 itables=1
-  class Record$S vtable=1 itables=0
+  class Record<String> vtable=1 itables=0
   class CombinedFailure vtable=0 itables=0
   class Gate vtable=0 itables=0
   class Registration vtable=0 itables=1
   class CombinedTask vtable=0 itables=1
-  class GenericBox$C7_MessageX_S vtable=0 itables=0
+  class GenericBox<Message, String> vtable=0 itables=0
   class RecordingCompletion vtable=0 itables=1
-  class ArrayIterator$S vtable=0 itables=1
-  class GenericBox$C8_Record$SX_S vtable=0 itables=0
-  class GenericBox$C7_MessageX_J5_NamedX vtable=0 itables=0
-  class MutableArrayIterator$S vtable=0 itables=1
-  class ArrayIterator$J5_NamedX vtable=0 itables=1
-  class ArrayIterator$C7_MessageX vtable=0 itables=1
-  class ArrayIterator$D9_NameTokenX vtable=0 itables=1
-  class MutableArrayIterator$J5_NamedX vtable=0 itables=1
-  class MutableArrayIterator$C7_MessageX vtable=0 itables=1
-  class MutableArrayIterator$D9_NameTokenX vtable=0 itables=1
+  class ArrayIterator<String> vtable=0 itables=1
+  class GenericBox<Record<String>, String> vtable=0 itables=0
+  class GenericBox<Message, Named> vtable=0 itables=0
+  class MutableArrayIterator<String> vtable=0 itables=1
+  class ArrayIterator<Named> vtable=0 itables=1
+  class ArrayIterator<Message> vtable=0 itables=1
+  class ArrayIterator<NameToken> vtable=0 itables=1
+  class MutableArrayIterator<Named> vtable=0 itables=1
+  class MutableArrayIterator<Message> vtable=0 itables=1
+  class MutableArrayIterator<NameToken> vtable=0 itables=1
   class box<NameToken> vtable=0 itables=1
   class CoroutineFrame<CombinedTask.run> vtable=0 itables=0
   class CoroutineAdapter<CombinedTask.run>$1 vtable=0 itables=1
@@ -1469,28 +1469,28 @@ Module
   interface Named
   interface ToString
   interface Hash
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
-  interface Continuation$I32
-  interface SuspendRegistration$I32
-  interface Iterable$S
-  interface Iterator$S
-  interface SuspendTask$S
-  interface Continuation$S
-  interface Iterable$J5_NamedX
-  interface Iterator$J5_NamedX
-  interface Iterable$C7_MessageX
-  interface Iterator$C7_MessageX
-  interface Iterable$D9_NameTokenX
-  interface Iterator$D9_NameTokenX
-  interface SuspendTask$I32
-  interface SuspendRegistration$S
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  interface Continuation<Int>
+  interface SuspendRegistration<Int>
+  interface Iterable<String>
+  interface Iterator<String>
+  interface SuspendTask<String>
+  interface Continuation<String>
+  interface Iterable<Named>
+  interface Iterator<Named>
+  interface Iterable<Message>
+  interface Iterator<Message>
+  interface Iterable<NameToken>
+  interface Iterator<NameToken>
+  interface SuspendTask<Int>
+  interface SuspendRegistration<String>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn84 captures=1
   generated_exact_type get0 location=class45 nominal_id=0898fa2c1088ef98cb9bb1db5d6abe60c197203ba543ebcdc0abe2468c5a4dfc exact_id=07cf48fb16996bb39953dcbefe513c758e9515377dde606560b488010e780c9d
   generated_exact_type get1 location=class43 nominal_id=a53bfd031ff0c4c1a61dee8a11602e9bed12b4f9f88b8a2986a974772c371e24 exact_id=0ddd7ffe187768873dc5699e8f667f942d5080b588675e3173ffdb7d782fa51b
@@ -3650,7 +3650,7 @@ Module
         FieldAccess 0
           Type NameToken
           Local this
-  fun IntRange.iterator @fn52(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn52(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3748,9 +3748,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -3759,7 +3759,7 @@ Module
       call @fn146 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -4171,7 +4171,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn55(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn55(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4180,8 +4180,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4270,8 +4270,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -4281,8 +4281,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4344,8 +4344,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4355,8 +4355,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -4492,8 +4492,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -4626,7 +4626,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn56(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn56(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4724,9 +4724,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4735,7 +4735,7 @@ Module
       call @fn146 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5147,7 +5147,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn59(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn59(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5156,8 +5156,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5246,8 +5246,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5257,8 +5257,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5320,8 +5320,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5331,8 +5331,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5468,8 +5468,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -5602,7 +5602,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn60(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn60(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5687,9 +5687,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5698,7 +5698,7 @@ Module
       call @fn146 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6080,7 +6080,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn63(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn63(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6089,8 +6089,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6179,8 +6179,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6190,8 +6190,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6253,8 +6253,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6264,8 +6264,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6375,8 +6375,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -6509,7 +6509,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn64(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn64(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6594,9 +6594,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6605,7 +6605,7 @@ Module
       call @fn146 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6987,7 +6987,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn67(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn67(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6996,8 +6996,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -7086,8 +7086,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -7097,8 +7097,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -7160,8 +7160,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -7171,8 +7171,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -7282,8 +7282,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -7469,30 +7469,30 @@ Module
       return
         Type String
         StringConst @str4
-  fun Record.read @fn73(this: Record$S) -> String
+  fun Record.read @fn73(this: Record<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
-          Type Record$S
+          Type Record<String>
           Local this
   fun Gate.complete @fn74(this: Gate, value: Int) -> Unit
     bb0 entry
-      val $opt.1: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $opt.1: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         FieldAccess 0
           Type Gate
           Local this
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$J16_Continuation$I32X v0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+        VariantTest Option<Continuation<Int>> v0
+          Type Option<Continuation<Int>>
           Local $opt.1
     bb1 if.then.1
-      val $uw.2: Continuation$I32
-        Type Continuation$I32
-        VariantPayloadProject Option$J16_Continuation$I32X v0 f0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $uw.2: Continuation<Int>
+        Type Continuation<Int>
+        VariantPayloadProject Option<Continuation<Int>> v0 f0
+          Type Option<Continuation<Int>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -7506,16 +7506,16 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val continuation: Continuation$I32
-        Type Continuation$I32
+      val continuation: Continuation<Int>
+        Type Continuation<Int>
         Local $uw.2
       field_set 0
         Type Gate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $receiver: Continuation$I32
-        Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $receiver: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
       val $argument.0: Int
         Type Int
@@ -7523,31 +7523,31 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn105 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn105 interface Continuation<Int>[0]
+        Type Continuation<Int>
         Local $receiver
         Type Int
         Local $parameter.value
       return
-  fun Registration.register @fn75(this: Registration, continuation: Continuation$I32) -> Unit
+  fun Registration.register @fn75(this: Registration, continuation: Continuation<Int>) -> Unit
     bb0 entry
-      val $argument.0: Continuation$I32
-        Type Continuation$I32
+      val $argument.0: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
-      val $parameter._1: Continuation$I32
-        Type Continuation$I32
+      val $parameter._1: Continuation<Int>
+        Type Continuation<Int>
         Local $argument.0
       field_set 0
         Type Gate
         FieldAccess 0
           Type Registration
           Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v0
-          Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v0
+          Type Continuation<Int>
           Local $parameter._1
       return
-  fun Array.iterator @fn76(this: Array<String>) -> Iterator$S
+  fun Array.iterator @fn76(this: Array<String>) -> Iterator<String>
     bb0 entry
       val $argument.0: Array<String>
         Type Array<String>
@@ -7562,19 +7562,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$S
-        ClassAlloc ArrayIterator$S
+        Type ArrayIterator<String>
+        ClassAlloc ArrayIterator<String>
       call @fn158 direct
-        Type ArrayIterator$S
+        Type ArrayIterator<String>
         Local $new.1
         Type Array<String>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$S
+        Type ArrayIterator<String>
         Local $new.1
-  fun CombinedTask.run @fn77(this: CombinedTask, $completion: Continuation$S) -> CoroutineStep<String>
+  fun CombinedTask.run @fn77(this: CombinedTask, $completion: Continuation<String>) -> CoroutineStep<String>
     bb0 entry
       val $frame: CoroutineFrame<CombinedTask.run>
         Type CoroutineFrame<CombinedTask.run>
@@ -7587,7 +7587,7 @@ Module
       field_set 1
         Type CoroutineFrame<CombinedTask.run>
         Local $frame
-        Type Continuation$S
+        Type Continuation<String>
         Local $completion
       field_set 2
         Type CoroutineFrame<CombinedTask.run>
@@ -7654,21 +7654,21 @@ Module
         Type String
         Local $parameter.value
       return
-  fun rebuild @fn80(source: GenericBox$C7_MessageX_S) -> GenericBox$C8_Record$SX_S
+  fun rebuild @fn80(source: GenericBox<Message, String>) -> GenericBox<Record<String>, String>
     bb0 entry
       val $argument.0: Message
         Type Message
         FieldAccess 0
-          Type GenericBox$C7_MessageX_S
+          Type GenericBox<Message, String>
           Local source
       val $argument.1: String
         Type String
         FieldAccess 1
-          Type GenericBox$C7_MessageX_S
+          Type GenericBox<Message, String>
           Local source
-      val $parameter.source: Record$S
-        Type Record$S
-        Retype Record$S
+      val $parameter.source: Record<String>
+        Type Record<String>
+        Retype Record<String>
           Type Message
           Local $argument.0
       val $parameter.fallback: String
@@ -7679,14 +7679,14 @@ Module
         Local $parameter.fallback
       val $parameter.rest: Array<String>
         Type Array<String>
-        ArrayAssembly Array$S
+        ArrayAssembly Array<String>
       assign $new.1
-        Type GenericBox$C8_Record$SX_S
-        ClassAlloc GenericBox$C8_Record$SX_S
+        Type GenericBox<Record<String>, String>
+        ClassAlloc GenericBox<Record<String>, String>
       call @fn160 direct
-        Type GenericBox$C8_Record$SX_S
+        Type GenericBox<Record<String>, String>
         Local $new.1
-        Type Record$S
+        Type Record<String>
         Local $parameter.source
         Type String
         Local $parameter.fallback
@@ -7695,9 +7695,9 @@ Module
         Type Array<String>
         Local $parameter.rest
       return
-        Type GenericBox$C8_Record$SX_S
+        Type GenericBox<Record<String>, String>
         Local $new.1
-  fun awaitSignal @fn81(gate: Gate, $completion: Continuation$I32) -> CoroutineStep<Int>
+  fun awaitSignal @fn81(gate: Gate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<awaitSignal>
         Type CoroutineFrame<awaitSignal>
@@ -7710,7 +7710,7 @@ Module
       field_set 1
         Type CoroutineFrame<awaitSignal>
         Local $frame
-        Type Continuation$I32
+        Type Continuation<Int>
         Local $completion
       field_set 2
         Type CoroutineFrame<awaitSignal>
@@ -7837,12 +7837,12 @@ Module
         Local $parameter.fallback
       val $parameter.rest: Array<String>
         Type Array<String>
-        ArrayAssembly Array$S
+        ArrayAssembly Array<String>
       assign $new.2
-        Type GenericBox$C7_MessageX_S
-        ClassAlloc GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
+        ClassAlloc GenericBox<Message, String>
       call @fn156 direct
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local $new.2
         Type Message
         Local $parameter.source
@@ -7852,8 +7852,8 @@ Module
         Local $parameter.label
         Type Array<String>
         Local $parameter.rest
-      val defaulted: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val defaulted: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local $new.2
       val $argument.0: Message
         Type Message
@@ -7881,7 +7881,7 @@ Module
         Local $argument.2
       val $parameter.rest: Array<String>
         Type Array<String>
-        ArrayAssembly Array$S
+        ArrayAssembly Array<String>
           Element
             Type String
             Local $argument.3
@@ -7889,10 +7889,10 @@ Module
             Type String
             Local $argument.4
       assign $new.3
-        Type GenericBox$C7_MessageX_S
-        ClassAlloc GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
+        ClassAlloc GenericBox<Message, String>
       call @fn156 direct
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local $new.3
         Type Message
         Local $parameter.source
@@ -7902,8 +7902,8 @@ Module
         Local $parameter.label
         Type Array<String>
         Local $parameter.rest
-      val varied: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val varied: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local $new.3
       val $argument.0: String
         Type String
@@ -7936,12 +7936,12 @@ Module
         Local $parameter.fallback
       val $parameter.rest: Array<Named>
         Type Array<Named>
-        ArrayAssembly Array$J5_NamedX
+        ArrayAssembly Array<Named>
       assign $new.5
-        Type GenericBox$C7_MessageX_J5_NamedX
-        ClassAlloc GenericBox$C7_MessageX_J5_NamedX
+        Type GenericBox<Message, Named>
+        ClassAlloc GenericBox<Message, Named>
       call @fn162 direct
-        Type GenericBox$C7_MessageX_J5_NamedX
+        Type GenericBox<Message, Named>
         Local $new.5
         Type Message
         Local $parameter.source
@@ -7951,13 +7951,13 @@ Module
         Local $parameter.label
         Type Array<Named>
         Local $parameter.rest
-      val namedBox: GenericBox$C7_MessageX_J5_NamedX
-        Type GenericBox$C7_MessageX_J5_NamedX
+      val namedBox: GenericBox<Message, Named>
+        Type GenericBox<Message, Named>
         Local $new.5
       val $argument.0: String
         Type String
         FieldAccess 1
-          Type GenericBox$C7_MessageX_S
+          Type GenericBox<Message, String>
           Local defaulted
       val $parameter.value: String
         Type String
@@ -7967,10 +7967,10 @@ Module
         Local $parameter.value
       val $argument.0: Long
         Type Long
-        ArrayLen Array$S
+        ArrayLen Array<String>
           Type Array<String>
           FieldAccess 2
-            Type GenericBox$C7_MessageX_S
+            Type GenericBox<Message, String>
             Local defaulted
       val $parameter.value: Long
         Type Long
@@ -7981,7 +7981,7 @@ Module
       val $argument.0: String
         Type String
         FieldAccess 1
-          Type GenericBox$C7_MessageX_S
+          Type GenericBox<Message, String>
           Local varied
       val $parameter.value: String
         Type String
@@ -7991,10 +7991,10 @@ Module
         Local $parameter.value
       val $argument.0: Long
         Type Long
-        ArrayLen Array$S
+        ArrayLen Array<String>
           Type Array<String>
           FieldAccess 2
-            Type GenericBox$C7_MessageX_S
+            Type GenericBox<Message, String>
             Local varied
       val $parameter.value: Long
         Type Long
@@ -8004,7 +8004,7 @@ Module
         Local $parameter.value
       val $argument.0: Array<Message>
         Type Array<Message>
-        ArrayLiteral Array$C7_MessageX
+        ArrayLiteral Array<Message>
           Type Message
           Local message
       val $parameter.values: Array<Message>
@@ -8030,7 +8030,7 @@ Module
         Local $parameter.text
       val $argument.0: Array<NameToken>
         Type Array<NameToken>
-        ArrayLiteral Array$D9_NameTokenX
+        ArrayLiteral Array<NameToken>
           Type NameToken
           Local $call.6
       val $parameter.values: Array<NameToken>
@@ -8045,22 +8045,22 @@ Module
       call @fn85 direct
         Type String
         Local $parameter.value
-      val $argument.0: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val $argument.0: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local defaulted
-      val $parameter.source: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val $parameter.source: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local $argument.0
-      call $call.7: GenericBox$C8_Record$SX_S = @fn80 direct
-        Type GenericBox$C7_MessageX_S
+      call $call.7: GenericBox<Record<String>, String> = @fn80 direct
+        Type GenericBox<Message, String>
         Local $parameter.source
-      val $receiver: Record$S
-        Type Record$S
+      val $receiver: Record<String>
+        Type Record<String>
         FieldAccess 0
-          Type GenericBox$C8_Record$SX_S
+          Type GenericBox<Record<String>, String>
           Local $call.7
       call $argument.0: String = @fn73 virtual[0]
-        Type Record$S
+        Type Record<String>
         Local $receiver
       val $parameter.value: String
         Type String
@@ -8071,7 +8071,7 @@ Module
       val $receiver: Named
         Type Named
         FieldAccess 1
-          Type GenericBox$C7_MessageX_J5_NamedX
+          Type GenericBox<Message, Named>
           Local namedBox
       call $argument.0: String = @fn106 interface Named[0]
         Type Named
@@ -8082,11 +8082,11 @@ Module
       call @fn85 direct
         Type String
         Local $parameter.value
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.8
         Type Gate
@@ -8094,16 +8094,16 @@ Module
       call @fn152 direct
         Type Gate
         Local $new.8
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val successGate: Gate
         Type Gate
         Local $new.8
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.9
         Type Gate
@@ -8111,7 +8111,7 @@ Module
       call @fn152 direct
         Type Gate
         Local $new.9
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val failureGate: Gate
         Type Gate
@@ -8119,14 +8119,14 @@ Module
       val $argument.0: Gate
         Type Gate
         Local successGate
-      val $argument.1: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val $argument.1: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local defaulted
       val $parameter.gate: Gate
         Type Gate
         Local $argument.0
-      val $parameter.box: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val $parameter.box: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local $argument.1
       assign $new.10
         Type CombinedTask
@@ -8136,9 +8136,9 @@ Module
         Local $new.10
         Type Gate
         Local $parameter.gate
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local $parameter.box
-      val $argument.0: SuspendTask$S
+      val $argument.0: SuspendTask<String>
         Type CombinedTask
         Local $new.10
       val $argument.0: String
@@ -8155,31 +8155,31 @@ Module
         Local $new.11
         Type String
         Local $parameter.label
-      val $argument.1: Continuation$S
+      val $argument.1: Continuation<String>
         Type RecordingCompletion
         Local $new.11
-      val $parameter.task: SuspendTask$S
-        Type SuspendTask$S
+      val $parameter.task: SuspendTask<String>
+        Type SuspendTask<String>
         Local $argument.0
-      val $parameter.completion: Continuation$S
-        Type Continuation$S
+      val $parameter.completion: Continuation<String>
+        Type Continuation<String>
         Local $argument.1
       call @fn172 direct
-        Type SuspendTask$S
+        Type SuspendTask<String>
         Local $parameter.task
-        Type Continuation$S
+        Type Continuation<String>
         Local $parameter.completion
       val $argument.0: Gate
         Type Gate
         Local failureGate
-      val $argument.1: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val $argument.1: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local defaulted
       val $parameter.gate: Gate
         Type Gate
         Local $argument.0
-      val $parameter.box: GenericBox$C7_MessageX_S
-        Type GenericBox$C7_MessageX_S
+      val $parameter.box: GenericBox<Message, String>
+        Type GenericBox<Message, String>
         Local $argument.1
       assign $new.12
         Type CombinedTask
@@ -8189,9 +8189,9 @@ Module
         Local $new.12
         Type Gate
         Local $parameter.gate
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local $parameter.box
-      val $argument.0: SuspendTask$S
+      val $argument.0: SuspendTask<String>
         Type CombinedTask
         Local $new.12
       val $argument.0: String
@@ -8208,19 +8208,19 @@ Module
         Local $new.13
         Type String
         Local $parameter.label
-      val $argument.1: Continuation$S
+      val $argument.1: Continuation<String>
         Type RecordingCompletion
         Local $new.13
-      val $parameter.task: SuspendTask$S
-        Type SuspendTask$S
+      val $parameter.task: SuspendTask<String>
+        Type SuspendTask<String>
         Local $argument.0
-      val $parameter.completion: Continuation$S
-        Type Continuation$S
+      val $parameter.completion: Continuation<String>
+        Type Continuation<String>
         Local $argument.1
       call @fn172 direct
-        Type SuspendTask$S
+        Type SuspendTask<String>
         Local $parameter.task
-        Type Continuation$S
+        Type Continuation<String>
         Local $parameter.completion
       val $argument.0: String
         Type String
@@ -8350,7 +8350,7 @@ Module
     bb0 entry
       return
         Type Long
-        ArrayLen Array$C7_MessageX
+        ArrayLen Array<Message>
           Type Array<Message>
           Local values
   fun firstName @fn88(values: Array<NameToken>) -> String
@@ -8384,7 +8384,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$D9_NameTokenX
+          ArrayLen Array<NameToken>
             Type Array<NameToken>
             Local $arr.1
       goto bb3
@@ -8410,7 +8410,7 @@ Module
     bb5 if.merge.5
       val $receiver: NameToken
         Type NameToken
-        ArrayGet Array$D9_NameTokenX
+        ArrayGet Array<NameToken>
           Type Array<NameToken>
           Local $arr.1
           Type Long
@@ -8461,7 +8461,7 @@ Module
       return
         Type String
         Local $call.1
-  fun MutableArray.iterator @fn90(this: MutableArray<String>) -> Iterator$S
+  fun MutableArray.iterator @fn90(this: MutableArray<String>) -> Iterator<String>
     bb0 entry
       val $argument.0: MutableArray<String>
         Type MutableArray<String>
@@ -8476,31 +8476,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$S
-        ClassAlloc MutableArrayIterator$S
+        Type MutableArrayIterator<String>
+        ClassAlloc MutableArrayIterator<String>
       call @fn163 direct
-        Type MutableArrayIterator$S
+        Type MutableArrayIterator<String>
         Local $new.1
         Type MutableArray<String>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$S
+        Type MutableArrayIterator<String>
         Local $new.1
-  fun ArrayIterator.next @fn91(this: ArrayIterator$S) -> Option$S<String>
+  fun ArrayIterator.next @fn91(this: ArrayIterator<String>) -> Option<String>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$S
+          Type ArrayIterator<String>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$S
+        ArrayLen Array<String>
           Type Array<String>
           FieldAccess 0
-            Type ArrayIterator$S
+            Type ArrayIterator<String>
             Local this
       val $parameter.other: Long
         Type Long
@@ -8520,12 +8520,12 @@ Module
       val $receiver: Array<String>
         Type Array<String>
         FieldAccess 0
-          Type ArrayIterator$S
+          Type ArrayIterator<String>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$S
+          Type ArrayIterator<String>
           Local this
       val $parameter.index: Long
         Type Long
@@ -8545,8 +8545,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v1
+        Type Option<String>
+        VariantConstruct Option<String> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -8554,7 +8554,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$S
+          ArrayLen Array<String>
             Type Array<String>
             Local $arr.1
       goto bb5
@@ -8580,7 +8580,7 @@ Module
     bb7 if.merge.7
       val value: String
         Type String
-        ArrayGet Array$S
+        ArrayGet Array<String>
           Type Array<String>
           Local $arr.1
           Type Long
@@ -8588,7 +8588,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$S
+          Type ArrayIterator<String>
           Local this
       val $argument.0: Long
         Type Long
@@ -8597,7 +8597,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$S
+        Type ArrayIterator<String>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -8612,11 +8612,11 @@ Module
         Type String
         Local $argument.0
       return
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-  fun Array.iterator @fn92(this: Array<Named>) -> Iterator$J5_NamedX
+  fun Array.iterator @fn92(this: Array<Named>) -> Iterator<Named>
     bb0 entry
       val $argument.0: Array<Named>
         Type Array<Named>
@@ -8631,19 +8631,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$J5_NamedX
-        ClassAlloc ArrayIterator$J5_NamedX
+        Type ArrayIterator<Named>
+        ClassAlloc ArrayIterator<Named>
       call @fn164 direct
-        Type ArrayIterator$J5_NamedX
+        Type ArrayIterator<Named>
         Local $new.1
         Type Array<Named>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$J5_NamedX
+        Type ArrayIterator<Named>
         Local $new.1
-  fun Array.iterator @fn93(this: Array<Message>) -> Iterator$C7_MessageX
+  fun Array.iterator @fn93(this: Array<Message>) -> Iterator<Message>
     bb0 entry
       val $argument.0: Array<Message>
         Type Array<Message>
@@ -8658,19 +8658,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$C7_MessageX
-        ClassAlloc ArrayIterator$C7_MessageX
+        Type ArrayIterator<Message>
+        ClassAlloc ArrayIterator<Message>
       call @fn165 direct
-        Type ArrayIterator$C7_MessageX
+        Type ArrayIterator<Message>
         Local $new.1
         Type Array<Message>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$C7_MessageX
+        Type ArrayIterator<Message>
         Local $new.1
-  fun Array.iterator @fn94(this: Array<NameToken>) -> Iterator$D9_NameTokenX
+  fun Array.iterator @fn94(this: Array<NameToken>) -> Iterator<NameToken>
     bb0 entry
       val $argument.0: Array<NameToken>
         Type Array<NameToken>
@@ -8685,31 +8685,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$D9_NameTokenX
-        ClassAlloc ArrayIterator$D9_NameTokenX
+        Type ArrayIterator<NameToken>
+        ClassAlloc ArrayIterator<NameToken>
       call @fn166 direct
-        Type ArrayIterator$D9_NameTokenX
+        Type ArrayIterator<NameToken>
         Local $new.1
         Type Array<NameToken>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$D9_NameTokenX
+        Type ArrayIterator<NameToken>
         Local $new.1
-  fun MutableArrayIterator.next @fn95(this: MutableArrayIterator$S) -> Option$S<String>
+  fun MutableArrayIterator.next @fn95(this: MutableArrayIterator<String>) -> Option<String>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$S
+          Type MutableArrayIterator<String>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$S
+        ArrayLen MutableArray<String>
           Type MutableArray<String>
           FieldAccess 0
-            Type MutableArrayIterator$S
+            Type MutableArrayIterator<String>
             Local this
       val $parameter.other: Long
         Type Long
@@ -8729,12 +8729,12 @@ Module
       val $receiver: MutableArray<String>
         Type MutableArray<String>
         FieldAccess 0
-          Type MutableArrayIterator$S
+          Type MutableArrayIterator<String>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$S
+          Type MutableArrayIterator<String>
           Local this
       val $parameter.index: Long
         Type Long
@@ -8754,8 +8754,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v1
+        Type Option<String>
+        VariantConstruct Option<String> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -8763,7 +8763,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$S
+          ArrayLen MutableArray<String>
             Type MutableArray<String>
             Local $arr.1
       goto bb5
@@ -8789,7 +8789,7 @@ Module
     bb7 if.merge.7
       val value: String
         Type String
-        ArrayGet MutableArray$S
+        ArrayGet MutableArray<String>
           Type MutableArray<String>
           Local $arr.1
           Type Long
@@ -8797,7 +8797,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$S
+          Type MutableArrayIterator<String>
           Local this
       val $argument.0: Long
         Type Long
@@ -8806,7 +8806,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$S
+        Type MutableArrayIterator<String>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -8821,11 +8821,11 @@ Module
         Type String
         Local $argument.0
       return
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-  fun MutableArray.iterator @fn96(this: MutableArray<Named>) -> Iterator$J5_NamedX
+  fun MutableArray.iterator @fn96(this: MutableArray<Named>) -> Iterator<Named>
     bb0 entry
       val $argument.0: MutableArray<Named>
         Type MutableArray<Named>
@@ -8840,31 +8840,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$J5_NamedX
-        ClassAlloc MutableArrayIterator$J5_NamedX
+        Type MutableArrayIterator<Named>
+        ClassAlloc MutableArrayIterator<Named>
       call @fn167 direct
-        Type MutableArrayIterator$J5_NamedX
+        Type MutableArrayIterator<Named>
         Local $new.1
         Type MutableArray<Named>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$J5_NamedX
+        Type MutableArrayIterator<Named>
         Local $new.1
-  fun ArrayIterator.next @fn97(this: ArrayIterator$J5_NamedX) -> Option$J5_NamedX<Named>
+  fun ArrayIterator.next @fn97(this: ArrayIterator<Named>) -> Option<Named>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$J5_NamedX
+          Type ArrayIterator<Named>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$J5_NamedX
+        ArrayLen Array<Named>
           Type Array<Named>
           FieldAccess 0
-            Type ArrayIterator$J5_NamedX
+            Type ArrayIterator<Named>
             Local this
       val $parameter.other: Long
         Type Long
@@ -8884,12 +8884,12 @@ Module
       val $receiver: Array<Named>
         Type Array<Named>
         FieldAccess 0
-          Type ArrayIterator$J5_NamedX
+          Type ArrayIterator<Named>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$J5_NamedX
+          Type ArrayIterator<Named>
           Local this
       val $parameter.index: Long
         Type Long
@@ -8909,8 +8909,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$J5_NamedX<Named>
-        VariantConstruct Option$J5_NamedX<Named> v1
+        Type Option<Named>
+        VariantConstruct Option<Named> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -8918,7 +8918,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$J5_NamedX
+          ArrayLen Array<Named>
             Type Array<Named>
             Local $arr.1
       goto bb5
@@ -8944,7 +8944,7 @@ Module
     bb7 if.merge.7
       val value: Named
         Type Named
-        ArrayGet Array$J5_NamedX
+        ArrayGet Array<Named>
           Type Array<Named>
           Local $arr.1
           Type Long
@@ -8952,7 +8952,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$J5_NamedX
+          Type ArrayIterator<Named>
           Local this
       val $argument.0: Long
         Type Long
@@ -8961,7 +8961,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$J5_NamedX
+        Type ArrayIterator<Named>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -8976,11 +8976,11 @@ Module
         Type Named
         Local $argument.0
       return
-        Type Option$J5_NamedX<Named>
-        VariantConstruct Option$J5_NamedX<Named> v0
+        Type Option<Named>
+        VariantConstruct Option<Named> v0
           Type Named
           Local $parameter._1
-  fun MutableArray.iterator @fn98(this: MutableArray<Message>) -> Iterator$C7_MessageX
+  fun MutableArray.iterator @fn98(this: MutableArray<Message>) -> Iterator<Message>
     bb0 entry
       val $argument.0: MutableArray<Message>
         Type MutableArray<Message>
@@ -8995,31 +8995,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$C7_MessageX
-        ClassAlloc MutableArrayIterator$C7_MessageX
+        Type MutableArrayIterator<Message>
+        ClassAlloc MutableArrayIterator<Message>
       call @fn168 direct
-        Type MutableArrayIterator$C7_MessageX
+        Type MutableArrayIterator<Message>
         Local $new.1
         Type MutableArray<Message>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$C7_MessageX
+        Type MutableArrayIterator<Message>
         Local $new.1
-  fun ArrayIterator.next @fn99(this: ArrayIterator$C7_MessageX) -> Option$C7_MessageX<Message>
+  fun ArrayIterator.next @fn99(this: ArrayIterator<Message>) -> Option<Message>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$C7_MessageX
+          Type ArrayIterator<Message>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$C7_MessageX
+        ArrayLen Array<Message>
           Type Array<Message>
           FieldAccess 0
-            Type ArrayIterator$C7_MessageX
+            Type ArrayIterator<Message>
             Local this
       val $parameter.other: Long
         Type Long
@@ -9039,12 +9039,12 @@ Module
       val $receiver: Array<Message>
         Type Array<Message>
         FieldAccess 0
-          Type ArrayIterator$C7_MessageX
+          Type ArrayIterator<Message>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$C7_MessageX
+          Type ArrayIterator<Message>
           Local this
       val $parameter.index: Long
         Type Long
@@ -9064,8 +9064,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$C7_MessageX<Message>
-        VariantConstruct Option$C7_MessageX<Message> v1
+        Type Option<Message>
+        VariantConstruct Option<Message> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -9073,7 +9073,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$C7_MessageX
+          ArrayLen Array<Message>
             Type Array<Message>
             Local $arr.1
       goto bb5
@@ -9099,7 +9099,7 @@ Module
     bb7 if.merge.7
       val value: Message
         Type Message
-        ArrayGet Array$C7_MessageX
+        ArrayGet Array<Message>
           Type Array<Message>
           Local $arr.1
           Type Long
@@ -9107,7 +9107,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$C7_MessageX
+          Type ArrayIterator<Message>
           Local this
       val $argument.0: Long
         Type Long
@@ -9116,7 +9116,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$C7_MessageX
+        Type ArrayIterator<Message>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -9131,11 +9131,11 @@ Module
         Type Message
         Local $argument.0
       return
-        Type Option$C7_MessageX<Message>
-        VariantConstruct Option$C7_MessageX<Message> v0
+        Type Option<Message>
+        VariantConstruct Option<Message> v0
           Type Message
           Local $parameter._1
-  fun MutableArray.iterator @fn100(this: MutableArray<NameToken>) -> Iterator$D9_NameTokenX
+  fun MutableArray.iterator @fn100(this: MutableArray<NameToken>) -> Iterator<NameToken>
     bb0 entry
       val $argument.0: MutableArray<NameToken>
         Type MutableArray<NameToken>
@@ -9150,31 +9150,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$D9_NameTokenX
-        ClassAlloc MutableArrayIterator$D9_NameTokenX
+        Type MutableArrayIterator<NameToken>
+        ClassAlloc MutableArrayIterator<NameToken>
       call @fn169 direct
-        Type MutableArrayIterator$D9_NameTokenX
+        Type MutableArrayIterator<NameToken>
         Local $new.1
         Type MutableArray<NameToken>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$D9_NameTokenX
+        Type MutableArrayIterator<NameToken>
         Local $new.1
-  fun ArrayIterator.next @fn101(this: ArrayIterator$D9_NameTokenX) -> Option$D9_NameTokenX<NameToken>
+  fun ArrayIterator.next @fn101(this: ArrayIterator<NameToken>) -> Option<NameToken>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$D9_NameTokenX
+          Type ArrayIterator<NameToken>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$D9_NameTokenX
+        ArrayLen Array<NameToken>
           Type Array<NameToken>
           FieldAccess 0
-            Type ArrayIterator$D9_NameTokenX
+            Type ArrayIterator<NameToken>
             Local this
       val $parameter.other: Long
         Type Long
@@ -9194,12 +9194,12 @@ Module
       val $receiver: Array<NameToken>
         Type Array<NameToken>
         FieldAccess 0
-          Type ArrayIterator$D9_NameTokenX
+          Type ArrayIterator<NameToken>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$D9_NameTokenX
+          Type ArrayIterator<NameToken>
           Local this
       val $parameter.index: Long
         Type Long
@@ -9219,8 +9219,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$D9_NameTokenX<NameToken>
-        VariantConstruct Option$D9_NameTokenX<NameToken> v1
+        Type Option<NameToken>
+        VariantConstruct Option<NameToken> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -9228,7 +9228,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$D9_NameTokenX
+          ArrayLen Array<NameToken>
             Type Array<NameToken>
             Local $arr.1
       goto bb5
@@ -9254,7 +9254,7 @@ Module
     bb7 if.merge.7
       val value: NameToken
         Type NameToken
-        ArrayGet Array$D9_NameTokenX
+        ArrayGet Array<NameToken>
           Type Array<NameToken>
           Local $arr.1
           Type Long
@@ -9262,7 +9262,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$D9_NameTokenX
+          Type ArrayIterator<NameToken>
           Local this
       val $argument.0: Long
         Type Long
@@ -9271,7 +9271,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$D9_NameTokenX
+        Type ArrayIterator<NameToken>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -9286,23 +9286,23 @@ Module
         Type NameToken
         Local $argument.0
       return
-        Type Option$D9_NameTokenX<NameToken>
-        VariantConstruct Option$D9_NameTokenX<NameToken> v0
+        Type Option<NameToken>
+        VariantConstruct Option<NameToken> v0
           Type NameToken
           Local $parameter._1
-  fun MutableArrayIterator.next @fn102(this: MutableArrayIterator$J5_NamedX) -> Option$J5_NamedX<Named>
+  fun MutableArrayIterator.next @fn102(this: MutableArrayIterator<Named>) -> Option<Named>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$J5_NamedX
+          Type MutableArrayIterator<Named>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$J5_NamedX
+        ArrayLen MutableArray<Named>
           Type MutableArray<Named>
           FieldAccess 0
-            Type MutableArrayIterator$J5_NamedX
+            Type MutableArrayIterator<Named>
             Local this
       val $parameter.other: Long
         Type Long
@@ -9322,12 +9322,12 @@ Module
       val $receiver: MutableArray<Named>
         Type MutableArray<Named>
         FieldAccess 0
-          Type MutableArrayIterator$J5_NamedX
+          Type MutableArrayIterator<Named>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$J5_NamedX
+          Type MutableArrayIterator<Named>
           Local this
       val $parameter.index: Long
         Type Long
@@ -9347,8 +9347,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$J5_NamedX<Named>
-        VariantConstruct Option$J5_NamedX<Named> v1
+        Type Option<Named>
+        VariantConstruct Option<Named> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -9356,7 +9356,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$J5_NamedX
+          ArrayLen MutableArray<Named>
             Type MutableArray<Named>
             Local $arr.1
       goto bb5
@@ -9382,7 +9382,7 @@ Module
     bb7 if.merge.7
       val value: Named
         Type Named
-        ArrayGet MutableArray$J5_NamedX
+        ArrayGet MutableArray<Named>
           Type MutableArray<Named>
           Local $arr.1
           Type Long
@@ -9390,7 +9390,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$J5_NamedX
+          Type MutableArrayIterator<Named>
           Local this
       val $argument.0: Long
         Type Long
@@ -9399,7 +9399,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$J5_NamedX
+        Type MutableArrayIterator<Named>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -9414,23 +9414,23 @@ Module
         Type Named
         Local $argument.0
       return
-        Type Option$J5_NamedX<Named>
-        VariantConstruct Option$J5_NamedX<Named> v0
+        Type Option<Named>
+        VariantConstruct Option<Named> v0
           Type Named
           Local $parameter._1
-  fun MutableArrayIterator.next @fn103(this: MutableArrayIterator$C7_MessageX) -> Option$C7_MessageX<Message>
+  fun MutableArrayIterator.next @fn103(this: MutableArrayIterator<Message>) -> Option<Message>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$C7_MessageX
+          Type MutableArrayIterator<Message>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$C7_MessageX
+        ArrayLen MutableArray<Message>
           Type MutableArray<Message>
           FieldAccess 0
-            Type MutableArrayIterator$C7_MessageX
+            Type MutableArrayIterator<Message>
             Local this
       val $parameter.other: Long
         Type Long
@@ -9450,12 +9450,12 @@ Module
       val $receiver: MutableArray<Message>
         Type MutableArray<Message>
         FieldAccess 0
-          Type MutableArrayIterator$C7_MessageX
+          Type MutableArrayIterator<Message>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$C7_MessageX
+          Type MutableArrayIterator<Message>
           Local this
       val $parameter.index: Long
         Type Long
@@ -9475,8 +9475,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$C7_MessageX<Message>
-        VariantConstruct Option$C7_MessageX<Message> v1
+        Type Option<Message>
+        VariantConstruct Option<Message> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -9484,7 +9484,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$C7_MessageX
+          ArrayLen MutableArray<Message>
             Type MutableArray<Message>
             Local $arr.1
       goto bb5
@@ -9510,7 +9510,7 @@ Module
     bb7 if.merge.7
       val value: Message
         Type Message
-        ArrayGet MutableArray$C7_MessageX
+        ArrayGet MutableArray<Message>
           Type MutableArray<Message>
           Local $arr.1
           Type Long
@@ -9518,7 +9518,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$C7_MessageX
+          Type MutableArrayIterator<Message>
           Local this
       val $argument.0: Long
         Type Long
@@ -9527,7 +9527,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$C7_MessageX
+        Type MutableArrayIterator<Message>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -9542,23 +9542,23 @@ Module
         Type Message
         Local $argument.0
       return
-        Type Option$C7_MessageX<Message>
-        VariantConstruct Option$C7_MessageX<Message> v0
+        Type Option<Message>
+        VariantConstruct Option<Message> v0
           Type Message
           Local $parameter._1
-  fun MutableArrayIterator.next @fn104(this: MutableArrayIterator$D9_NameTokenX) -> Option$D9_NameTokenX<NameToken>
+  fun MutableArrayIterator.next @fn104(this: MutableArrayIterator<NameToken>) -> Option<NameToken>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$D9_NameTokenX
+          Type MutableArrayIterator<NameToken>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$D9_NameTokenX
+        ArrayLen MutableArray<NameToken>
           Type MutableArray<NameToken>
           FieldAccess 0
-            Type MutableArrayIterator$D9_NameTokenX
+            Type MutableArrayIterator<NameToken>
             Local this
       val $parameter.other: Long
         Type Long
@@ -9578,12 +9578,12 @@ Module
       val $receiver: MutableArray<NameToken>
         Type MutableArray<NameToken>
         FieldAccess 0
-          Type MutableArrayIterator$D9_NameTokenX
+          Type MutableArrayIterator<NameToken>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$D9_NameTokenX
+          Type MutableArrayIterator<NameToken>
           Local this
       val $parameter.index: Long
         Type Long
@@ -9603,8 +9603,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$D9_NameTokenX<NameToken>
-        VariantConstruct Option$D9_NameTokenX<NameToken> v1
+        Type Option<NameToken>
+        VariantConstruct Option<NameToken> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -9612,7 +9612,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$D9_NameTokenX
+          ArrayLen MutableArray<NameToken>
             Type MutableArray<NameToken>
             Local $arr.1
       goto bb5
@@ -9638,7 +9638,7 @@ Module
     bb7 if.merge.7
       val value: NameToken
         Type NameToken
-        ArrayGet MutableArray$D9_NameTokenX
+        ArrayGet MutableArray<NameToken>
           Type MutableArray<NameToken>
           Local $arr.1
           Type Long
@@ -9646,7 +9646,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$D9_NameTokenX
+          Type MutableArrayIterator<NameToken>
           Local this
       val $argument.0: Long
         Type Long
@@ -9655,7 +9655,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$D9_NameTokenX
+        Type MutableArrayIterator<NameToken>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -9670,8 +9670,8 @@ Module
         Type NameToken
         Local $argument.0
       return
-        Type Option$D9_NameTokenX<NameToken>
-        VariantConstruct Option$D9_NameTokenX<NameToken> v0
+        Type Option<NameToken>
+        VariantConstruct Option<NameToken> v0
           Type NameToken
           Local $parameter._1
   fun init.IntRange.$c2 @fn132(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
@@ -9921,7 +9921,7 @@ Module
   fun init.Throwable.$c10 @fn140(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn141(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn141(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn140 direct
         Type Throwable
@@ -9931,7 +9931,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn142(this: UnwrapException) -> Unit
@@ -9942,20 +9942,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn141 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn143(this: ClassCastException) -> Unit
@@ -9966,20 +9966,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn141 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn144(this: ArithmeticException) -> Unit
@@ -9990,20 +9990,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn141 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn145(this: IndexOutOfBoundsException) -> Unit
@@ -10014,52 +10014,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn141 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn146(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn146(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn141 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn147(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn147(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn141 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c27 @fn148(this: IllegalStateException) -> Unit
@@ -10070,15 +10070,15 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn147 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.Message.$c19 @fn149(this: Message, value: String) -> Unit
@@ -10090,43 +10090,43 @@ Module
         Type String
         Local $argument.0
       call @fn150 direct
-        Type Record$S
-        Retype Record$S
+        Type Record<String>
+        Retype Record<String>
           Type Message
           Local this
         Type String
         Local $parameter.value
       return
-  fun init.Record$S.$c18 @fn150(this: Record$S, value: String) -> Unit
+  fun init.Record.$c18 @fn150(this: Record<String>, value: String) -> Unit
     bb0 entry
       field_set 0
-        Type Record$S
+        Type Record<String>
         Local this
         Type String
         Local value
       return
   fun init.CombinedFailure.$c22 @fn151(this: CombinedFailure) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn141 direct
         Type Exception
         Retype Exception
           Type CombinedFailure
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.Gate.$c23 @fn152(this: Gate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
+  fun init.Gate.$c23 @fn152(this: Gate, waiter: Option<Continuation<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type Gate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local waiter
       return
   fun init.Registration.$c24 @fn153(this: Registration, gate: Gate) -> Unit
@@ -10137,7 +10137,7 @@ Module
         Type Gate
         Local gate
       return
-  fun init.CombinedTask.$c25 @fn154(this: CombinedTask, gate: Gate, box: GenericBox$C7_MessageX_S) -> Unit
+  fun init.CombinedTask.$c25 @fn154(this: CombinedTask, gate: Gate, box: GenericBox<Message, String>) -> Unit
     bb0 entry
       field_set 0
         Type CombinedTask
@@ -10147,28 +10147,28 @@ Module
       field_set 1
         Type CombinedTask
         Local this
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local box
       return
-  fun init.GenericBox$C7_MessageX_S.$c20 @fn155(this: GenericBox$C7_MessageX_S, source: Message, label: String, rest: Array<String>) -> Unit
+  fun init.GenericBox.$c20 @fn155(this: GenericBox<Message, String>, source: Message, label: String, rest: Array<String>) -> Unit
     bb0 entry
       field_set 0
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local this
         Type Message
         Local source
       field_set 1
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local this
         Type String
         Local label
       field_set 2
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local this
         Type Array<String>
         Local rest
       return
-  fun init.GenericBox$C7_MessageX_S.$c21 @fn156(this: GenericBox$C7_MessageX_S, source: Message, fallback: String, label: String, rest: Array<String>) -> Unit
+  fun init.GenericBox.$c21 @fn156(this: GenericBox<Message, String>, source: Message, fallback: String, label: String, rest: Array<String>) -> Unit
     bb0 entry
       val $argument.0: Message
         Type Message
@@ -10189,7 +10189,7 @@ Module
         Type Array<String>
         Local $argument.2
       call @fn155 direct
-        Type GenericBox$C7_MessageX_S
+        Type GenericBox<Message, String>
         Local this
         Type Message
         Local $parameter.source
@@ -10207,41 +10207,41 @@ Module
         Type String
         Local label
       return
-  fun init.ArrayIterator$S.$c0 @fn158(this: ArrayIterator$S, source: Array<String>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn158(this: ArrayIterator<String>, source: Array<String>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$S
+        Type ArrayIterator<String>
         Local this
         Type Array<String>
         Local source
       field_set 1
-        Type ArrayIterator$S
+        Type ArrayIterator<String>
         Local this
         Type Long
         Local index
       return
-  fun init.GenericBox$C8_Record$SX_S.$c20 @fn159(this: GenericBox$C8_Record$SX_S, source: Record$S, label: String, rest: Array<String>) -> Unit
+  fun init.GenericBox.$c20 @fn159(this: GenericBox<Record<String>, String>, source: Record<String>, label: String, rest: Array<String>) -> Unit
     bb0 entry
       field_set 0
-        Type GenericBox$C8_Record$SX_S
+        Type GenericBox<Record<String>, String>
         Local this
-        Type Record$S
+        Type Record<String>
         Local source
       field_set 1
-        Type GenericBox$C8_Record$SX_S
+        Type GenericBox<Record<String>, String>
         Local this
         Type String
         Local label
       field_set 2
-        Type GenericBox$C8_Record$SX_S
+        Type GenericBox<Record<String>, String>
         Local this
         Type Array<String>
         Local rest
       return
-  fun init.GenericBox$C8_Record$SX_S.$c21 @fn160(this: GenericBox$C8_Record$SX_S, source: Record$S, fallback: String, label: String, rest: Array<String>) -> Unit
+  fun init.GenericBox.$c21 @fn160(this: GenericBox<Record<String>, String>, source: Record<String>, fallback: String, label: String, rest: Array<String>) -> Unit
     bb0 entry
-      val $argument.0: Record$S
-        Type Record$S
+      val $argument.0: Record<String>
+        Type Record<String>
         Local source
       val $argument.1: String
         Type String
@@ -10249,8 +10249,8 @@ Module
       val $argument.2: Array<String>
         Type Array<String>
         Local rest
-      val $parameter.source: Record$S
-        Type Record$S
+      val $parameter.source: Record<String>
+        Type Record<String>
         Local $argument.0
       val $parameter.label: String
         Type String
@@ -10259,9 +10259,9 @@ Module
         Type Array<String>
         Local $argument.2
       call @fn159 direct
-        Type GenericBox$C8_Record$SX_S
+        Type GenericBox<Record<String>, String>
         Local this
-        Type Record$S
+        Type Record<String>
         Local $parameter.source
         Type String
         Local $parameter.label
@@ -10269,25 +10269,25 @@ Module
         Local $parameter.rest
       call @scoop_rt_gc_collect direct
       return
-  fun init.GenericBox$C7_MessageX_J5_NamedX.$c20 @fn161(this: GenericBox$C7_MessageX_J5_NamedX, source: Message, label: Named, rest: Array<Named>) -> Unit
+  fun init.GenericBox.$c20 @fn161(this: GenericBox<Message, Named>, source: Message, label: Named, rest: Array<Named>) -> Unit
     bb0 entry
       field_set 0
-        Type GenericBox$C7_MessageX_J5_NamedX
+        Type GenericBox<Message, Named>
         Local this
         Type Message
         Local source
       field_set 1
-        Type GenericBox$C7_MessageX_J5_NamedX
+        Type GenericBox<Message, Named>
         Local this
         Type Named
         Local label
       field_set 2
-        Type GenericBox$C7_MessageX_J5_NamedX
+        Type GenericBox<Message, Named>
         Local this
         Type Array<Named>
         Local rest
       return
-  fun init.GenericBox$C7_MessageX_J5_NamedX.$c21 @fn162(this: GenericBox$C7_MessageX_J5_NamedX, source: Message, fallback: Named, label: Named, rest: Array<Named>) -> Unit
+  fun init.GenericBox.$c21 @fn162(this: GenericBox<Message, Named>, source: Message, fallback: Named, label: Named, rest: Array<Named>) -> Unit
     bb0 entry
       val $argument.0: Message
         Type Message
@@ -10308,7 +10308,7 @@ Module
         Type Array<Named>
         Local $argument.2
       call @fn161 direct
-        Type GenericBox$C7_MessageX_J5_NamedX
+        Type GenericBox<Message, Named>
         Local this
         Type Message
         Local $parameter.source
@@ -10318,93 +10318,93 @@ Module
         Local $parameter.rest
       call @scoop_rt_gc_collect direct
       return
-  fun init.MutableArrayIterator$S.$c1 @fn163(this: MutableArrayIterator$S, source: MutableArray<String>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn163(this: MutableArrayIterator<String>, source: MutableArray<String>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$S
+        Type MutableArrayIterator<String>
         Local this
         Type MutableArray<String>
         Local source
       field_set 1
-        Type MutableArrayIterator$S
+        Type MutableArrayIterator<String>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$J5_NamedX.$c0 @fn164(this: ArrayIterator$J5_NamedX, source: Array<Named>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn164(this: ArrayIterator<Named>, source: Array<Named>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$J5_NamedX
+        Type ArrayIterator<Named>
         Local this
         Type Array<Named>
         Local source
       field_set 1
-        Type ArrayIterator$J5_NamedX
+        Type ArrayIterator<Named>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$C7_MessageX.$c0 @fn165(this: ArrayIterator$C7_MessageX, source: Array<Message>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn165(this: ArrayIterator<Message>, source: Array<Message>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$C7_MessageX
+        Type ArrayIterator<Message>
         Local this
         Type Array<Message>
         Local source
       field_set 1
-        Type ArrayIterator$C7_MessageX
+        Type ArrayIterator<Message>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$D9_NameTokenX.$c0 @fn166(this: ArrayIterator$D9_NameTokenX, source: Array<NameToken>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn166(this: ArrayIterator<NameToken>, source: Array<NameToken>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$D9_NameTokenX
+        Type ArrayIterator<NameToken>
         Local this
         Type Array<NameToken>
         Local source
       field_set 1
-        Type ArrayIterator$D9_NameTokenX
+        Type ArrayIterator<NameToken>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$J5_NamedX.$c1 @fn167(this: MutableArrayIterator$J5_NamedX, source: MutableArray<Named>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn167(this: MutableArrayIterator<Named>, source: MutableArray<Named>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$J5_NamedX
+        Type MutableArrayIterator<Named>
         Local this
         Type MutableArray<Named>
         Local source
       field_set 1
-        Type MutableArrayIterator$J5_NamedX
+        Type MutableArrayIterator<Named>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$C7_MessageX.$c1 @fn168(this: MutableArrayIterator$C7_MessageX, source: MutableArray<Message>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn168(this: MutableArrayIterator<Message>, source: MutableArray<Message>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$C7_MessageX
+        Type MutableArrayIterator<Message>
         Local this
         Type MutableArray<Message>
         Local source
       field_set 1
-        Type MutableArrayIterator$C7_MessageX
+        Type MutableArrayIterator<Message>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$D9_NameTokenX.$c1 @fn169(this: MutableArrayIterator$D9_NameTokenX, source: MutableArray<NameToken>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn169(this: MutableArrayIterator<NameToken>, source: MutableArray<NameToken>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$D9_NameTokenX
+        Type MutableArrayIterator<NameToken>
         Local this
         Type MutableArray<NameToken>
         Local source
       field_set 1
-        Type MutableArrayIterator$D9_NameTokenX
+        Type MutableArrayIterator<NameToken>
         Local this
         Type Long
         Local index
@@ -10431,12 +10431,12 @@ Module
         StructInit NameToken
           Type String
           Local text
-  fun startCoroutine<String> @fn172(task: SuspendTask$S, completion: Continuation$S) -> Unit
+  fun startCoroutine<String> @fn172(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn110 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn110 interface Continuation<String>[0]
+        Type Continuation<String>
         Local completion
         Type String
         EnumField v0 f0
@@ -10444,8 +10444,8 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn111 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn111 interface Continuation<String>[1]
+        Type Continuation<String>
         Local completion
         Type Throwable
         Local $exception
@@ -10459,10 +10459,10 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<String> = @fn112 interface SuspendTask$S[0]
-        Type SuspendTask$S
+      call $step: CoroutineStep<String> = @fn112 interface SuspendTask<String>[0]
+        Type SuspendTask<String>
         Local task
-        Type Continuation$S
+        Type Continuation<String>
         Local completion
       branch bb1 bb0
         Type Boolean
@@ -10590,14 +10590,14 @@ Module
       val $argument.0: Message
         Type Message
         FieldAccess 0
-          Type GenericBox$C7_MessageX_S
+          Type GenericBox<Message, String>
           FieldAccess 1
             Type CombinedTask
             Local this
       val $argument.1: String
         Type String
         FieldAccess 1
-          Type GenericBox$C7_MessageX_S
+          Type GenericBox<Message, String>
           FieldAccess 1
             Type CombinedTask
             Local this
@@ -10625,10 +10625,10 @@ Module
         Local $parameter.transform
       val $receiver: Long
         Type Long
-        ArrayLen Array$S
+        ArrayLen Array<String>
           Type Array<String>
           FieldAccess 2
-            Type GenericBox$C7_MessageX_S
+            Type GenericBox<Message, String>
             FieldAccess 1
               Type CombinedTask
               Local this
@@ -10839,8 +10839,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn175 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn175 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<CombinedTask.run>
           FieldAccess 0
@@ -10861,8 +10861,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn176 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn176 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<CombinedTask.run>
           FieldAccess 0
@@ -10972,8 +10972,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn175 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn175 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<CombinedTask.run>
           FieldAccess 0
@@ -10994,8 +10994,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn176 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn176 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<CombinedTask.run>
           FieldAccess 0
@@ -11102,11 +11102,11 @@ Module
         Local $new.1
         Type Gate
         Local $parameter.gate
-      val $argument.0: SuspendRegistration$I32
+      val $argument.0: SuspendRegistration<Int>
         Type Registration
         Local $new.1
-      val $parameter.registration: SuspendRegistration$I32
-        Type SuspendRegistration$I32
+      val $parameter.registration: SuspendRegistration<Int>
+        Type SuspendRegistration<Int>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitSignal>
@@ -11144,8 +11144,8 @@ Module
           Type Int
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn109 interface SuspendRegistration$I32[0]
-        Type SuspendRegistration$I32
+      call @fn109 interface SuspendRegistration<Int>[0]
+        Type SuspendRegistration<Int>
         Local $parameter.registration
         Type CoroutineAdapter<awaitSignal>$1
         Local $safe_adapter.1
@@ -11461,8 +11461,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn180 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn180 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitSignal>
           FieldAccess 0
@@ -11483,8 +11483,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn181 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn181 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitSignal>
           FieldAccess 0
@@ -11625,8 +11625,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn180 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn180 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitSignal>
           FieldAccess 0
@@ -11647,8 +11647,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn181 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn181 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitSignal>
           FieldAccess 0
@@ -11891,15 +11891,15 @@ Module
   global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
-  enum Option$J16_Continuation$I32X niche(kind=managed,payload_variant=0)
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$J5_NamedX niche(kind=managed,payload_variant=0)
-  enum Option$C7_MessageX niche(kind=managed,payload_variant=0)
-  enum Option$D9_NameTokenX tagged size=16 align=8 variants=(struct10)@8+8:refs ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(struct10)@8+8:refs ()@8+0
   enum CoroutineStep<String> niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum CoroutineSlot<Int> tagged size=16 align=8 variants=()@8+0 (i32)@8+4
@@ -17723,28 +17723,28 @@ Module
   td td0 Named @scoop$1$td$059db12bb00d13eac27cf0270a5f4f9b39ddf95ebed40323235121362670d922 type-id=11856196089485123319 size=0 parent=none vtable=[] itables=[]
   td td1 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td2 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td10 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
-  td td11 Continuation$I32 @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
-  td td12 SuspendRegistration$I32 @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
-  td td13 Iterable$S @scoop$1$td$2fb442e0a08d413e4bed49099effba8a05a6ee710abd12e19999964bbf0a3927 type-id=12424586719249350357 size=0 parent=none vtable=[] itables=[]
-  td td14 Iterator$S @scoop$1$td$a2ff707b9d10dc8e468361334979745be3b0737bd8abf471e4fb55c0231ec3a2 type-id=7650355614176219595 size=0 parent=none vtable=[] itables=[]
-  td td15 SuspendTask$S @scoop$1$td$391a33dfafa312851abd70c36ab21ee839e2538741060a32adf11b4af684a087 type-id=3313109822306524975 size=0 parent=none vtable=[] itables=[]
-  td td16 Continuation$S @scoop$1$td$bdb2e738f336c86b2edfa4c10e3b702294b70584c48403d85c6af4651090d144 type-id=13708490125718186201 size=0 parent=none vtable=[] itables=[]
-  td td17 Iterable$J5_NamedX @scoop$1$td$425b3e4d5185e64c070f031f541b037519472f22897eea577aef209b1cbfcc61 type-id=6593730967870362881 size=0 parent=none vtable=[] itables=[]
-  td td18 Iterator$J5_NamedX @scoop$1$td$36af3dcd6dad68ade1911e637fa526a2fb400f61818e15737d2dd630caf2bca1 type-id=16801953235379633944 size=0 parent=none vtable=[] itables=[]
-  td td19 Iterable$C7_MessageX @scoop$1$td$4af5d4adbc13b9eaf5f460bd08b828c887326ebeabc021c54a145151f3c84fa9 type-id=4012325637908482564 size=0 parent=none vtable=[] itables=[]
-  td td20 Iterator$C7_MessageX @scoop$1$td$d39c9f389d2fd5f86a80a2a2ed86ff8df4ae92caa19659ea112f87653e1d7d64 type-id=4031577579646244778 size=0 parent=none vtable=[] itables=[]
-  td td21 Iterable$D9_NameTokenX @scoop$1$td$df741700119372c0d79367f9c352fdbf90009c0cd421165636550bcf001e6a4f type-id=15501239470856237137 size=0 parent=none vtable=[] itables=[]
-  td td22 Iterator$D9_NameTokenX @scoop$1$td$444fde0ecbbfedabf75d5498cd4ef362ab1e361b840dd6e6f840997d889cbcbe type-id=2115047210427157677 size=0 parent=none vtable=[] itables=[]
-  td td23 SuspendTask$I32 @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
-  td td24 SuspendRegistration$S @scoop$1$td$95672bde9a719e16276c1071522a952469fec00e732101ee70b6a3b3f7bba8a6 type-id=7615586260526196850 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td10 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td11 Continuation @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
+  td td12 SuspendRegistration @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
+  td td13 Iterable @scoop$1$td$2fb442e0a08d413e4bed49099effba8a05a6ee710abd12e19999964bbf0a3927 type-id=12424586719249350357 size=0 parent=none vtable=[] itables=[]
+  td td14 Iterator @scoop$1$td$a2ff707b9d10dc8e468361334979745be3b0737bd8abf471e4fb55c0231ec3a2 type-id=7650355614176219595 size=0 parent=none vtable=[] itables=[]
+  td td15 SuspendTask @scoop$1$td$391a33dfafa312851abd70c36ab21ee839e2538741060a32adf11b4af684a087 type-id=3313109822306524975 size=0 parent=none vtable=[] itables=[]
+  td td16 Continuation @scoop$1$td$bdb2e738f336c86b2edfa4c10e3b702294b70584c48403d85c6af4651090d144 type-id=13708490125718186201 size=0 parent=none vtable=[] itables=[]
+  td td17 Iterable @scoop$1$td$425b3e4d5185e64c070f031f541b037519472f22897eea577aef209b1cbfcc61 type-id=6593730967870362881 size=0 parent=none vtable=[] itables=[]
+  td td18 Iterator @scoop$1$td$36af3dcd6dad68ade1911e637fa526a2fb400f61818e15737d2dd630caf2bca1 type-id=16801953235379633944 size=0 parent=none vtable=[] itables=[]
+  td td19 Iterable @scoop$1$td$4af5d4adbc13b9eaf5f460bd08b828c887326ebeabc021c54a145151f3c84fa9 type-id=4012325637908482564 size=0 parent=none vtable=[] itables=[]
+  td td20 Iterator @scoop$1$td$d39c9f389d2fd5f86a80a2a2ed86ff8df4ae92caa19659ea112f87653e1d7d64 type-id=4031577579646244778 size=0 parent=none vtable=[] itables=[]
+  td td21 Iterable @scoop$1$td$df741700119372c0d79367f9c352fdbf90009c0cd421165636550bcf001e6a4f type-id=15501239470856237137 size=0 parent=none vtable=[] itables=[]
+  td td22 Iterator @scoop$1$td$444fde0ecbbfedabf75d5498cd4ef362ab1e361b840dd6e6f840997d889cbcbe type-id=2115047210427157677 size=0 parent=none vtable=[] itables=[]
+  td td23 SuspendTask @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
+  td td24 SuspendRegistration @scoop$1$td$95672bde9a719e16276c1071522a952469fec00e732101ee70b6a3b3f7bba8a6 type-id=7615586260526196850 size=0 parent=none vtable=[] itables=[]
   td td25 function<(Message, String) -> String> @scoop$1$td$bbb0c7ce25fa32eb7bb5cb4e27333daf70de6ed45244bfcb9a478dfec014e34c type-id=7273363783188084679 size=0 parent=none vtable=[] itables=[]
   td td26 IntRange @scoop$1$td$66618ce5db61b359b7e13b6df76dcda8b9a9e55768487b6fe93e0d1aedd90a1b type-id=5739975931137510880 size=32 parent=none vtable=[] itables=[td3:[local-fn52]]
   td td27 IntRangeIterator @scoop$1$td$6e6a352e9c43b3e382fd0925e1ed04966e4c5b5796883838be021562ff19bf07 type-id=4889723440050595746 size=32 parent=none vtable=[] itables=[td4:[local-fn55]]
@@ -17755,22 +17755,22 @@ Module
   td td32 ULongRange @scoop$1$td$1b212a69e8101ac444b8aa65e383f2ae39ce00a947eb5811b4764a7369e2c46f type-id=14796194647152015379 size=48 parent=none vtable=[] itables=[td9:[local-fn64]]
   td td33 ULongRangeIterator @scoop$1$td$a582d0a5ca66be7b87d96cdb30140f6e9549eead1a06592ff1f0dc10e1746698 type-id=3014124323270244459 size=48 parent=none vtable=[] itables=[td10:[local-fn67]]
   td td34 Throwable @scoop$1$td$b016f4a9f05589f1ebf83e27ddf4751eea466124b0f550438d3777136b3aa38c type-id=13299621460173771540 size=16 parent=none vtable=[] itables=[]
-  td td36 Record$S @scoop$1$td$5ad82b1cb04eed76c6190e3e997a4383ffd2c3dc0807022c5eae65302f2f3816 type-id=186366134354336116 size=24 parent=none vtable=[local-fn73] itables=[]
+  td td36 Record @scoop$1$td$5ad82b1cb04eed76c6190e3e997a4383ffd2c3dc0807022c5eae65302f2f3816 type-id=186366134354336116 size=24 parent=none vtable=[local-fn73] itables=[]
   td td37 Gate @scoop$1$td$b33f8d2c6ddb3c878287068e8c5c33d46feb28d50bdc959d1358d42cc702e457 type-id=15191845837124754335 size=24 parent=none vtable=[] itables=[]
   td td38 Registration @scoop$1$td$d46f6f6952e332d4b7e95a19d383e95fb7339d5006cc83343c89b59019c46c32 type-id=6448999430971197511 size=24 parent=none vtable=[] itables=[td12:[local-fn75]]
   td td39 CombinedTask @scoop$1$td$f735d63d998f19af1669b69a3a58c47d44ceda97c5f1c58cdf733a5ad3f6ae8f type-id=6280609557746833229 size=32 parent=none vtable=[] itables=[td15:[local-fn77]]
-  td td40 GenericBox$C7_MessageX_S @scoop$1$td$bdb159c83fb51d7b37ef78e832686da73ba7174bd2be85774b38e514307d97ea type-id=18150391801265840389 size=40 parent=none vtable=[] itables=[]
+  td td40 GenericBox @scoop$1$td$bdb159c83fb51d7b37ef78e832686da73ba7174bd2be85774b38e514307d97ea type-id=18150391801265840389 size=40 parent=none vtable=[] itables=[]
   td td42 RecordingCompletion @scoop$1$td$d30a4d789290392e58125a25f9e52c0fe74c88f51cd03cffc57bc6776c284c17 type-id=16347324576266081555 size=24 parent=none vtable=[] itables=[td16:[local-fn78, local-fn79]]
-  td td44 ArrayIterator$S @scoop$1$td$c4875631703c13e438c7d9f4d3ce0155d79ac02f5534a67b01e4427d073fd198 type-id=220053195353751849 size=32 parent=none vtable=[] itables=[td14:[local-fn91]]
-  td td45 GenericBox$C8_Record$SX_S @scoop$1$td$d2f5f2f072921e2ae7ffbdc8f69cf76429fd18a0d4b236e56a5d5f8e6a4281e9 type-id=7879768240178329485 size=40 parent=none vtable=[] itables=[]
-  td td47 GenericBox$C7_MessageX_J5_NamedX @scoop$1$td$000984710d8676b57df2478c6aaf83a50c6fd6ea3ac8a01ce583e479a5564429 type-id=1086370023401902316 size=40 parent=none vtable=[] itables=[]
-  td td50 MutableArrayIterator$S @scoop$1$td$66efa74c12f5ed9289324585e5c3d75fe846892d93fcf394aeaf6ffdcd8b2756 type-id=5135460145265956950 size=32 parent=none vtable=[] itables=[td14:[local-fn95]]
-  td td52 ArrayIterator$J5_NamedX @scoop$1$td$391c093bb7035be03aecf914c48382be4231ec773f32ce02fd6892b85a60fb91 type-id=10564405471392516129 size=32 parent=none vtable=[] itables=[td18:[local-fn97]]
-  td td54 ArrayIterator$C7_MessageX @scoop$1$td$d5f68814b6d003240f367676a09ffa7e5ebcbe5d02eaeca9cc84eaf27f1721be type-id=4035905752799306437 size=32 parent=none vtable=[] itables=[td20:[local-fn99]]
-  td td56 ArrayIterator$D9_NameTokenX @scoop$1$td$ea82a35265bec53dff070cf627550d7b5bce3a105b0aa6e32aa117e6aec81fc7 type-id=10871788262045019091 size=32 parent=none vtable=[] itables=[td22:[local-fn101]]
-  td td57 MutableArrayIterator$J5_NamedX @scoop$1$td$912b89d6aaf6af702f6d9fa5d30471346299194717b869f1d8a7f535998b7bfb type-id=7760607960993332620 size=32 parent=none vtable=[] itables=[td18:[local-fn102]]
-  td td58 MutableArrayIterator$C7_MessageX @scoop$1$td$504031bcf9b3b7eb71123fe325241fef7cabd48272ee3ada7f1032b682d962bd type-id=6681373264531789232 size=32 parent=none vtable=[] itables=[td20:[local-fn103]]
-  td td59 MutableArrayIterator$D9_NameTokenX @scoop$1$td$ef8dc170a7983904fc13899065e2dd988f6b77e43a4f3a67226b4512dbaade76 type-id=2976113259422638147 size=32 parent=none vtable=[] itables=[td22:[local-fn104]]
+  td td44 ArrayIterator @scoop$1$td$c4875631703c13e438c7d9f4d3ce0155d79ac02f5534a67b01e4427d073fd198 type-id=220053195353751849 size=32 parent=none vtable=[] itables=[td14:[local-fn91]]
+  td td45 GenericBox @scoop$1$td$d2f5f2f072921e2ae7ffbdc8f69cf76429fd18a0d4b236e56a5d5f8e6a4281e9 type-id=7879768240178329485 size=40 parent=none vtable=[] itables=[]
+  td td47 GenericBox @scoop$1$td$000984710d8676b57df2478c6aaf83a50c6fd6ea3ac8a01ce583e479a5564429 type-id=1086370023401902316 size=40 parent=none vtable=[] itables=[]
+  td td50 MutableArrayIterator @scoop$1$td$66efa74c12f5ed9289324585e5c3d75fe846892d93fcf394aeaf6ffdcd8b2756 type-id=5135460145265956950 size=32 parent=none vtable=[] itables=[td14:[local-fn95]]
+  td td52 ArrayIterator @scoop$1$td$391c093bb7035be03aecf914c48382be4231ec773f32ce02fd6892b85a60fb91 type-id=10564405471392516129 size=32 parent=none vtable=[] itables=[td18:[local-fn97]]
+  td td54 ArrayIterator @scoop$1$td$d5f68814b6d003240f367676a09ffa7e5ebcbe5d02eaeca9cc84eaf27f1721be type-id=4035905752799306437 size=32 parent=none vtable=[] itables=[td20:[local-fn99]]
+  td td56 ArrayIterator @scoop$1$td$ea82a35265bec53dff070cf627550d7b5bce3a105b0aa6e32aa117e6aec81fc7 type-id=10871788262045019091 size=32 parent=none vtable=[] itables=[td22:[local-fn101]]
+  td td57 MutableArrayIterator @scoop$1$td$912b89d6aaf6af702f6d9fa5d30471346299194717b869f1d8a7f535998b7bfb type-id=7760607960993332620 size=32 parent=none vtable=[] itables=[td18:[local-fn102]]
+  td td58 MutableArrayIterator @scoop$1$td$504031bcf9b3b7eb71123fe325241fef7cabd48272ee3ada7f1032b682d962bd type-id=6681373264531789232 size=32 parent=none vtable=[] itables=[td20:[local-fn103]]
+  td td59 MutableArrayIterator @scoop$1$td$ef8dc170a7983904fc13899065e2dd988f6b77e43a4f3a67226b4512dbaade76 type-id=2976113259422638147 size=32 parent=none vtable=[] itables=[td22:[local-fn104]]
   td td60 box<NameToken> @scoop$1$td$0ddd7ffe187768873dc5699e8f667f942d5080b588675e3173ffdb7d782fa51b type-id=7364885097941167416 size=24 parent=none vtable=[] itables=[td0:[local-fn146]]
   td td61 CoroutineFrame<CombinedTask.run> @scoop$1$td$1472da45bcf55da7c40ce6ede950a6485d2b06e1d572e2e9387584494c775447 type-id=11940461349486271481 size=72 parent=none vtable=[] itables=[]
   td td62 CoroutineAdapter<CombinedTask.run>$1 @scoop$1$td$07cf48fb16996bb39953dcbefe513c758e9515377dde606560b488010e780c9d type-id=16943107736072520455 size=32 parent=none vtable=[] itables=[td11:[local-fn148, local-fn149]]
@@ -17786,14 +17786,14 @@ Module
   td td72 IllegalStateException @scoop$1$td$c576841b1176a4f8fc3891935e9dedc1d7fb7d44ac1a333f8c668c2a01a4a74a type-id=9165001687984215765 size=24 parent=td65 vtable=[] itables=[]
   td td73 CombinedFailure @scoop$1$td$744466018e8e06130292dc3756ea4160c9a41e482490962da990eca78dc1ef18 type-id=17219690644218600592 size=24 parent=td65 vtable=[] itables=[]
   td td74 $Closure$lambda0 @scoop$1$td$1c0065cb8cdf1e6b9c749ab536413f069a016e238a14e4fa26fcb84d8624054a type-id=3983634101027977327 size=32 parent=td25 vtable=[] itables=[]
-  array-type array0 Array$S kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td41
-  array-type array1 MutableArray$S kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td43
-  array-type array2 Array$J5_NamedX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td46
-  array-type array3 Array$C7_MessageX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td48
-  array-type array4 Array$D9_NameTokenX kind=immutable element=struct10 size=8 align=8 scan=refs[0] td=td49
-  array-type array5 MutableArray$J5_NamedX kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td51
-  array-type array6 MutableArray$C7_MessageX kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td53
-  array-type array7 MutableArray$D9_NameTokenX kind=mutable element=struct10 size=8 align=8 scan=refs[0] td=td55
+  array-type array0 Array kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td41
+  array-type array1 MutableArray kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td43
+  array-type array2 Array kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td46
+  array-type array3 Array kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td48
+  array-type array4 Array kind=immutable element=struct10 size=8 align=8 scan=refs[0] td=td49
+  array-type array5 MutableArray kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td51
+  array-type array6 MutableArray kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td53
+  array-type array7 MutableArray kind=mutable element=struct10 size=8 align=8 scan=refs[0] td=td55
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -17806,15 +17806,15 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout NameToken size=8 align=8 refs=[0]
-  layout Option$J16_Continuation$I32X size=8 align=8 enum-scan=refs[0]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
-  layout Option$J5_NamedX size=8 align=8 enum-scan=refs[0]
-  layout Option$C7_MessageX size=8 align=8 enum-scan=refs[0]
-  layout Option$D9_NameTokenX size=16 align=8 enum-scan=refs[8]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=refs[8]
   layout CoroutineStep<String> size=8 align=8 enum-scan=refs[0]
   layout CoroutineStep<Int> size=16 align=8 enum-scan=none
   layout CoroutineSlot<Int> size=16 align=8 enum-scan=none
@@ -17839,23 +17839,23 @@ Module
   layout IllegalArgumentException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout Message size=24 align=8 refs=[16]
-  layout Record$S size=24 align=8 refs=[16]
+  layout Record size=24 align=8 refs=[16]
   layout CombinedFailure size=24 align=8 refs=[16]
   layout Gate size=24 align=8 refs=[16]
   layout Registration size=24 align=8 refs=[16]
   layout CombinedTask size=32 align=8 refs=[16, 24]
-  layout GenericBox$C7_MessageX_S size=40 align=8 refs=[16, 24, 32]
+  layout GenericBox size=40 align=8 refs=[16, 24, 32]
   layout RecordingCompletion size=24 align=8 refs=[16]
-  layout ArrayIterator$S size=32 align=8 refs=[16]
-  layout GenericBox$C8_Record$SX_S size=40 align=8 refs=[16, 24, 32]
-  layout GenericBox$C7_MessageX_J5_NamedX size=40 align=8 refs=[16, 24, 32]
-  layout MutableArrayIterator$S size=32 align=8 refs=[16]
-  layout ArrayIterator$J5_NamedX size=32 align=8 refs=[16]
-  layout ArrayIterator$C7_MessageX size=32 align=8 refs=[16]
-  layout ArrayIterator$D9_NameTokenX size=32 align=8 refs=[16]
-  layout MutableArrayIterator$J5_NamedX size=32 align=8 refs=[16]
-  layout MutableArrayIterator$C7_MessageX size=32 align=8 refs=[16]
-  layout MutableArrayIterator$D9_NameTokenX size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout GenericBox size=40 align=8 refs=[16, 24, 32]
+  layout GenericBox size=40 align=8 refs=[16, 24, 32]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
   layout box<NameToken> size=24 align=8 refs=[16]
   layout CoroutineFrame<CombinedTask.run> size=72 align=8 refs=[24, 48, 56, 64]
   layout CoroutineAdapter<CombinedTask.run>$1 size=32 align=8 refs=[16]

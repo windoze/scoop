@@ -209,7 +209,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     });
     // A niche enum inside a struct: the value itself is the
     // reference.
-    let option_s = b.option_enum("Option$S", mir::Type::String);
+    let option_s = b.option_enum("Option<String>", mir::Type::String);
     let _s = b.strukt(
         "S",
         &[("o", mir::Type::Enum(option_s, vec![mir::Type::String]))],
@@ -278,7 +278,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
 
     // The niche layout: the payload variant is the reference
     // itself; the unit variant has none.
-    let option_layout = by_name("Option$S");
+    let option_layout = by_name("Option<String>");
     assert_eq!((option_layout.size, option_layout.align), (8, 8));
     let lir::LayoutKind::Enum { scan } = &option_layout.kind else {
         panic!("an enum layout keeps fixed scan offsets")

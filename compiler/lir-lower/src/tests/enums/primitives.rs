@@ -127,7 +127,7 @@ fn primitive_instructions(
 
 #[test]
 fn typed_variant_primitives_lower_through_tagged_layout() {
-    let module = lower_variant_primitives("Option$I", INT, int_expr(7));
+    let module = lower_variant_primitives("Option<Int>", INT, int_expr(7));
     let (wrap, test, project) = primitive_instructions(&module);
     let lir::Instruction::EnumWrap {
         variant: wrapped, ..
@@ -164,7 +164,7 @@ fn typed_variant_primitives_lower_through_tagged_layout() {
 fn typed_variant_primitives_lower_through_niche_layout() {
     let mut builder = Builder::new();
     let payload = builder.string("payload");
-    let option = builder.option_enum("Option$S", mir::Type::String);
+    let option = builder.option_enum("Option<String>", mir::Type::String);
     let option_ty = mir::Type::Enum(option, vec![mir::Type::String]);
     let option_core = builder.option_core[0];
     let some = option_core.some();

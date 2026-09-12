@@ -1760,35 +1760,35 @@ Module
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Long <abi=scoop managed>
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
-  struct RangePatternPayload (entry: Entry$C4_NodeX, marker: (Boolean, Int))
-  struct Entry$C4_NodeX (slot: Long, payload: (Node, String))
+  struct RangePatternPayload (entry: Entry<Node>, marker: (Boolean, Int))
+  struct Entry<Node> (slot: Long, payload: (Node, String))
   struct RangeCheckpoint (ordinal: Int, retained: Node, label: String)
   struct EmptyValueIterator ()
-  enum Option$J14_Continuation$UX
-    Some(_1: Continuation$U)
+  enum Option<Continuation<Unit>>
+    Some(_1: Continuation<Unit>)
     None()
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$D14_Entry$C4_NodeXX
-    Some(_1: Entry$C4_NodeX)
+  enum Option<Entry<Node>>
+    Some(_1: Entry<Node>)
     None()
-  enum Option$U
+  enum Option<Unit>
     Some(_1: Unit)
     None()
-  enum Option$FRC4_NodeXX
+  enum Option<() -> Node>
     Some(_1: () -> Node)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
   enum RangeSignal
@@ -1800,8 +1800,8 @@ Module
   enum CoroutineStep<Unit>
     Completed(value: Unit)
     Suspended()
-  enum CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
-    Completed(value: DelayedIterator$D14_Entry$C4_NodeXX)
+  enum CoroutineStep<DelayedIterator<Entry<Node>>>
+    Completed(value: DelayedIterator<Entry<Node>>)
     Suspended()
   enum CoroutineSlot<Long>
     Empty()
@@ -1815,27 +1815,27 @@ Module
   enum CoroutineSlot<Throwable>
     Empty()
     Value(value: Throwable)
-  enum CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
+  enum CoroutineSlot<Iterator<Entry<Node>>>
     Empty()
-    Value(value: Iterator$D14_Entry$C4_NodeXX)
+    Value(value: Iterator<Entry<Node>>)
   enum CoroutineSlot<Int>
     Empty()
     Value(value: Int)
   enum CoroutineSlot<RangeCheckpoint>
     Empty()
     Value(value: RangeCheckpoint)
-  enum CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX>
+  enum CoroutineSlot<DelayedIterator<Entry<Node>>>
     Empty()
-    Value(value: DelayedIterator$D14_Entry$C4_NodeXX)
+    Value(value: DelayedIterator<Entry<Node>>)
   enum CoroutineSlot<Gate>
     Empty()
     Value(value: Gate)
   enum CoroutineSlot<Unit>
     Empty()
     Value(value: Unit)
-  enum CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX>
+  enum CoroutineSlot<DelayedIterable<Entry<Node>>>
     Empty()
-    Value(value: DelayedIterable$D14_Entry$C4_NodeXX)
+    Value(value: DelayedIterable<Entry<Node>>)
   class Node vtable=0 itables=0
   class IntRange vtable=0 itables=1
   class IntRangeIterator vtable=0 itables=1
@@ -1862,14 +1862,14 @@ Module
   class Registration vtable=0 itables=1
   class IterationTask vtable=0 itables=1
   class RecordingCompletion vtable=0 itables=1
-  class ArrayIterator$I32 vtable=0 itables=1
-  class ArrayIterator$D14_Entry$C4_NodeXX vtable=0 itables=1
-  class DelayedIterable$D14_Entry$C4_NodeXX vtable=0 itables=0
-  class DelayedIterator$D14_Entry$C4_NodeXX vtable=0 itables=1
-  class MutableArrayIterator$I32 vtable=0 itables=1
-  class MutableArrayIterator$D14_Entry$C4_NodeXX vtable=0 itables=1
-  class MutableArrayIterator$FRC4_NodeXX vtable=0 itables=1
-  class ArrayIterator$FRC4_NodeXX vtable=0 itables=1
+  class ArrayIterator<Int> vtable=0 itables=1
+  class ArrayIterator<Entry<Node>> vtable=0 itables=1
+  class DelayedIterable<Entry<Node>> vtable=0 itables=0
+  class DelayedIterator<Entry<Node>> vtable=0 itables=1
+  class MutableArrayIterator<Int> vtable=0 itables=1
+  class MutableArrayIterator<Entry<Node>> vtable=0 itables=1
+  class MutableArrayIterator<() -> Node> vtable=0 itables=1
+  class ArrayIterator<() -> Node> vtable=0 itables=1
   class box<EmptyValueIterator> vtable=0 itables=1
   class CoroutineFrame<IterationTask.run> vtable=0 itables=0
   class CoroutineAdapter<IterationTask.run>$5 vtable=0 itables=1
@@ -1883,28 +1883,28 @@ Module
   class CoroutineAdapter<DelayedIterable.iterator>$1 vtable=0 itables=1
   interface ToString
   interface Hash
-  interface Iterator$U
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
-  interface Iterator$D14_Entry$C4_NodeXX
-  interface Iterable$D14_Entry$C4_NodeXX
-  interface Continuation$U
-  interface SuspendRegistration$U
-  interface SuspendTask$I64
-  interface Continuation$I64
-  interface Iterable$FRC4_NodeXX
-  interface Iterator$FRC4_NodeXX
-  interface SuspendTask$U
-  interface SuspendRegistration$I64
-  interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
-  interface SuspendTask$C35_DelayedIterator$D14_Entry$C4_NodeXXX
-  interface SuspendRegistration$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+  interface Iterator<Unit>
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  interface Iterator<Entry<Node>>
+  interface Iterable<Entry<Node>>
+  interface Continuation<Unit>
+  interface SuspendRegistration<Unit>
+  interface SuspendTask<Long>
+  interface Continuation<Long>
+  interface Iterable<() -> Node>
+  interface Iterator<() -> Node>
+  interface SuspendTask<Unit>
+  interface SuspendRegistration<Long>
+  interface Continuation<DelayedIterator<Entry<Node>>>
+  interface SuspendTask<DelayedIterator<Entry<Node>>>
+  interface SuspendRegistration<DelayedIterator<Entry<Node>>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn92 captures=1
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn93 captures=1
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn94 captures=1
@@ -4091,7 +4091,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun EmptyValueIterator.next @fn51(this: EmptyValueIterator) -> Option$U<Unit>
+  fun EmptyValueIterator.next @fn51(this: EmptyValueIterator) -> Option<Unit>
     bb0 entry
       val $argument.0: String
         Type String
@@ -4103,9 +4103,9 @@ Module
         Type String
         Local $parameter.value
       return
-        Type Option$U<Unit>
-        VariantConstruct Option$U<Unit> v1
-  fun IntRange.iterator @fn52(this: IntRange) -> Iterator$I32
+        Type Option<Unit>
+        VariantConstruct Option<Unit> v1
+  fun IntRange.iterator @fn52(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -4203,9 +4203,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4214,7 +4214,7 @@ Module
       call @fn158 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -4626,7 +4626,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn55(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn55(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4635,8 +4635,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4725,8 +4725,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -4736,8 +4736,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4799,8 +4799,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4810,8 +4810,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -4947,8 +4947,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -5081,7 +5081,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn56(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn56(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -5179,9 +5179,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5190,7 +5190,7 @@ Module
       call @fn158 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5602,7 +5602,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn59(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn59(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5611,8 +5611,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5701,8 +5701,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5712,8 +5712,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5775,8 +5775,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5786,8 +5786,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5923,8 +5923,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -6057,7 +6057,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn60(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn60(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -6142,9 +6142,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6153,7 +6153,7 @@ Module
       call @fn158 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6535,7 +6535,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn63(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn63(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6544,8 +6544,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6634,8 +6634,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6645,8 +6645,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6708,8 +6708,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6719,8 +6719,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6830,8 +6830,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -6964,7 +6964,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn64(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn64(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -7049,9 +7049,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -7060,7 +7060,7 @@ Module
       call @fn158 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -7442,7 +7442,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn67(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn67(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7451,8 +7451,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -7541,8 +7541,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -7552,8 +7552,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -7615,8 +7615,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -7626,8 +7626,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -7737,8 +7737,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -7912,7 +7912,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun Array.iterator @fn71(this: Array<Int>) -> Iterator$I32
+  fun Array.iterator @fn71(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $argument.0: Array<Int>
         Type Array<Int>
@@ -7927,19 +7927,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$I32
-        ClassAlloc ArrayIterator$I32
+        Type ArrayIterator<Int>
+        ClassAlloc ArrayIterator<Int>
       call @fn170 direct
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local $new.1
         Type Array<Int>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local $new.1
-  fun UserIterator.next @fn72(this: UserIterator) -> Option$I32<Int>
+  fun UserIterator.next @fn72(this: UserIterator) -> Option<Int>
     bb0 entry
       val $receiver: String
         Type String
@@ -7973,7 +7973,7 @@ Module
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$I32
+        ArrayLen Array<Int>
           Type Array<Int>
           FieldAccess 0
             Type UserIterator
@@ -8021,8 +8021,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -8030,7 +8030,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I32
+          ArrayLen Array<Int>
             Type Array<Int>
             Local $arr.1
       goto bb5
@@ -8056,7 +8056,7 @@ Module
     bb7 if.merge.7
       val value: Int
         Type Int
-        ArrayGet Array$I32
+        ArrayGet Array<Int>
           Type Array<Int>
           Local $arr.1
           Type Long
@@ -8088,11 +8088,11 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
-  fun UserIterable.iterator @fn73(this: UserIterable) -> Iterator$I32
+  fun UserIterable.iterator @fn73(this: UserIterable) -> Iterator<Int>
     bb0 entry
       val $argument.0: String
         Type String
@@ -8145,32 +8145,32 @@ Module
       return
         Type EmptyValueIterator
         Local $call.1
-  fun RangeEntryIterator.next @fn75(this: RangeEntryIterator) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+  fun RangeEntryIterator.next @fn75(this: RangeEntryIterator) -> Option<Entry<Node>>
     bb0 entry
-      val $receiver: Iterator$I32
-        Type Iterator$I32
+      val $receiver: Iterator<Int>
+        Type Iterator<Int>
         FieldAccess 0
           Type RangeEntryIterator
           Local this
-      call next: Option$I32<Int> = @fn116 interface Iterator$I32[0]
-        Type Iterator$I32
+      call next: Option<Int> = @fn116 interface Iterator<Int>[0]
+        Type Iterator<Int>
         Local $receiver
-      val $when.1: Option$I32<Int>
-        Type Option$I32<Int>
+      val $when.1: Option<Int>
+        Type Option<Int>
         Local next
-      val $pattern.subject.2: Option$I32<Int>
-        Type Option$I32<Int>
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val value: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $pattern.subject.2
       val $receiver: Int
         Type Int
@@ -8238,54 +8238,54 @@ Module
       val $parameter.payload: (Node, String)
         Type (Node, String)
         Local $argument.1
-      call $argument.0: Entry$C4_NodeX = @fn180 direct
+      call $argument.0: Entry<Node> = @fn180 direct
         Type Long
         Local $parameter.slot
         Type (Node, String)
         Local $parameter.payload
-      val $parameter._1: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $parameter._1: Entry<Node>
+        Type Entry<Node>
         Local $argument.0
       assign $result.43
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v0
-          Type Entry$C4_NodeX
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v0
+          Type Entry<Node>
           Local $parameter._1
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$I32<Int>
-        Type Option$I32<Int>
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$I32 v1
-          Type Option$I32<Int>
+        VariantTest Option<Int> v1
+          Type Option<Int>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+        Type Option<Entry<Node>>
         Local $result.43
     bb4 pattern.pass.4
       assign $result.43
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v1
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v1
       goto bb6
     bb5 pattern.else.5
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun RangeEntries.iterator @fn76(this: RangeEntries) -> Iterator$D14_Entry$C4_NodeXX
+  fun RangeEntries.iterator @fn76(this: RangeEntries) -> Iterator<Entry<Node>>
     bb0 entry
       val $receiver: IntRange
         Type IntRange
         FieldAccess 0
           Type RangeEntries
           Local this
-      call $argument.0: Iterator$I32 = @fn52 direct
+      call $argument.0: Iterator<Int> = @fn52 direct
         Type IntRange
         Local $receiver
-      val $parameter.inner: Iterator$I32
-        Type Iterator$I32
+      val $parameter.inner: Iterator<Int>
+        Type Iterator<Int>
         Local $argument.0
       assign $new.1
         Type RangeEntryIterator
@@ -8293,28 +8293,28 @@ Module
       call @fn164 direct
         Type RangeEntryIterator
         Local $new.1
-        Type Iterator$I32
+        Type Iterator<Int>
         Local $parameter.inner
       return
         Type RangeEntryIterator
         Local $new.1
   fun Gate.complete @fn77(this: Gate) -> Unit
     bb0 entry
-      val $opt.1: Option$J14_Continuation$UX<Continuation$U>
-        Type Option$J14_Continuation$UX<Continuation$U>
+      val $opt.1: Option<Continuation<Unit>>
+        Type Option<Continuation<Unit>>
         FieldAccess 0
           Type Gate
           Local this
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$J14_Continuation$UX v0
-          Type Option$J14_Continuation$UX<Continuation$U>
+        VariantTest Option<Continuation<Unit>> v0
+          Type Option<Continuation<Unit>>
           Local $opt.1
     bb1 if.then.1
-      val $uw.2: Continuation$U
-        Type Continuation$U
-        VariantPayloadProject Option$J14_Continuation$UX v0 f0
-          Type Option$J14_Continuation$UX<Continuation$U>
+      val $uw.2: Continuation<Unit>
+        Type Continuation<Unit>
+        VariantPayloadProject Option<Continuation<Unit>> v0 f0
+          Type Option<Continuation<Unit>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -8328,16 +8328,16 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val continuation: Continuation$U
-        Type Continuation$U
+      val continuation: Continuation<Unit>
+        Type Continuation<Unit>
         Local $uw.2
       field_set 0
         Type Gate
         Local this
-        Type Option$J14_Continuation$UX<Continuation$U>
-        VariantConstruct Option$J14_Continuation$UX<Continuation$U> v1
-      val $receiver: Continuation$U
-        Type Continuation$U
+        Type Option<Continuation<Unit>>
+        VariantConstruct Option<Continuation<Unit>> v1
+      val $receiver: Continuation<Unit>
+        Type Continuation<Unit>
         Local continuation
       val $argument.0: Unit
         Type Unit
@@ -8345,58 +8345,58 @@ Module
       val $parameter.value: Unit
         Type Unit
         Local $argument.0
-      call @fn117 interface Continuation$U[0]
-        Type Continuation$U
+      call @fn117 interface Continuation<Unit>[0]
+        Type Continuation<Unit>
         Local $receiver
         Type Unit
         Local $parameter.value
       return
-  fun Registration.register @fn78(this: Registration, continuation: Continuation$U) -> Unit
+  fun Registration.register @fn78(this: Registration, continuation: Continuation<Unit>) -> Unit
     bb0 entry
-      val $argument.0: Continuation$U
-        Type Continuation$U
+      val $argument.0: Continuation<Unit>
+        Type Continuation<Unit>
         Local continuation
-      val $parameter._1: Continuation$U
-        Type Continuation$U
+      val $parameter._1: Continuation<Unit>
+        Type Continuation<Unit>
         Local $argument.0
       field_set 0
         Type Gate
         FieldAccess 0
           Type Registration
           Local this
-        Type Option$J14_Continuation$UX<Continuation$U>
-        VariantConstruct Option$J14_Continuation$UX<Continuation$U> v0
-          Type Continuation$U
+        Type Option<Continuation<Unit>>
+        VariantConstruct Option<Continuation<Unit>> v0
+          Type Continuation<Unit>
           Local $parameter._1
       return
-  fun Array.iterator @fn79(this: Array<Entry$C4_NodeX>) -> Iterator$D14_Entry$C4_NodeXX
+  fun Array.iterator @fn79(this: Array<Entry<Node>>) -> Iterator<Entry<Node>>
     bb0 entry
-      val $argument.0: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $argument.0: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local this
       val $argument.1: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $parameter.source: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $parameter.source: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $argument.0
       val $parameter.index: Long
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$D14_Entry$C4_NodeXX
-        ClassAlloc ArrayIterator$D14_Entry$C4_NodeXX
+        Type ArrayIterator<Entry<Node>>
+        ClassAlloc ArrayIterator<Entry<Node>>
       call @fn171 direct
-        Type ArrayIterator$D14_Entry$C4_NodeXX
+        Type ArrayIterator<Entry<Node>>
         Local $new.1
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$D14_Entry$C4_NodeXX
+        Type ArrayIterator<Entry<Node>>
         Local $new.1
-  fun IterationTask.run @fn80(this: IterationTask, $completion: Continuation$I64) -> CoroutineStep<Long>
+  fun IterationTask.run @fn80(this: IterationTask, $completion: Continuation<Long>) -> CoroutineStep<Long>
     bb0 entry
       val $frame: CoroutineFrame<IterationTask.run>
         Type CoroutineFrame<IterationTask.run>
@@ -8409,7 +8409,7 @@ Module
       field_set 1
         Type CoroutineFrame<IterationTask.run>
         Local $frame
-        Type Continuation$I64
+        Type Continuation<Long>
         Local $completion
       field_set 2
         Type CoroutineFrame<IterationTask.run>
@@ -8436,8 +8436,8 @@ Module
       field_set 6
         Type CoroutineFrame<IterationTask.run>
         Local $frame
-        Type CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineSlot<Iterator$D14_Entry$C4_NodeXX> v0
+        Type CoroutineSlot<Iterator<Entry<Node>>>
+        VariantConstruct CoroutineSlot<Iterator<Entry<Node>>> v0
       field_set 7
         Type CoroutineFrame<IterationTask.run>
         Local $frame
@@ -8451,8 +8451,8 @@ Module
       field_set 9
         Type CoroutineFrame<IterationTask.run>
         Local $frame
-        Type CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX> v0
+        Type CoroutineSlot<DelayedIterator<Entry<Node>>>
+        VariantConstruct CoroutineSlot<DelayedIterator<Entry<Node>>> v0
       field_set 10
         Type CoroutineFrame<IterationTask.run>
         Local $frame
@@ -8544,7 +8544,7 @@ Module
         FieldAccess 0
           Type (Node, String)
           FieldAccess 1
-            Type Entry$C4_NodeX
+            Type Entry<Node>
             FieldAccess 0
               Type RangePatternPayload
               VariantPayloadProject RangeSignal v0 f0
@@ -8555,7 +8555,7 @@ Module
         FieldAccess 1
           Type (Node, String)
           FieldAccess 1
-            Type Entry$C4_NodeX
+            Type Entry<Node>
             FieldAccess 0
               Type RangePatternPayload
               VariantPayloadProject RangeSignal v0 f0
@@ -8656,37 +8656,37 @@ Module
       unreachable
     bb11 pattern.merge.11
       goto bb8
-  fun replayIterable @fn84(values: Iterable$I32) -> Unit
+  fun replayIterable @fn84(values: Iterable<Int>) -> Unit
     bb0 entry
-      val $for.source.14: Iterable$I32
-        Type Iterable$I32
+      val $for.source.14: Iterable<Int>
+        Type Iterable<Int>
         Local values
-      val $receiver: Iterable$I32
-        Type Iterable$I32
+      val $receiver: Iterable<Int>
+        Type Iterable<Int>
         Local $for.source.14
-      call $for.iterator.result.15: Iterator$I32 = @fn119 interface Iterable$I32[0]
-        Type Iterable$I32
+      call $for.iterator.result.15: Iterator<Int> = @fn119 interface Iterable<Int>[0]
+        Type Iterable<Int>
         Local $receiver
-      val $for.iterator.16: Iterator$I32
-        Type Iterator$I32
+      val $for.iterator.16: Iterator<Int>
+        Type Iterator<Int>
         Local $for.iterator.result.15
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.17: Option$I32<Int> = @fn116 interface Iterator$I32[0]
-        Type Iterator$I32
+      call $for.next.17: Option<Int> = @fn116 interface Iterator<Int>[0]
+        Type Iterator<Int>
         Local $for.iterator.16
       branch bb3 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $for.next.17
     bb2 while.exit.2
       return
     bb3 while.body.3
       val $for.element.18: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $for.next.17
       val value: Int
         Type Int
@@ -8732,28 +8732,28 @@ Module
       call $for.iterator.result.20: EmptyValueIterator = @fn74 direct
         Type EmptyValueSource
         Local $receiver
-      val $for.iterator.21: Iterator$U
-        Type Iterator$U
+      val $for.iterator.21: Iterator<Unit>
+        Type Iterator<Unit>
         Box
           Type EmptyValueIterator
           Local $for.iterator.result.20
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.22: Option$U<Unit> = @fn120 interface Iterator$U[0]
-        Type Iterator$U
+      call $for.next.22: Option<Unit> = @fn120 interface Iterator<Unit>[0]
+        Type Iterator<Unit>
         Local $for.iterator.21
       branch bb3 bb2
         Type Boolean
-        VariantTest Option$U v0
-          Type Option$U<Unit>
+        VariantTest Option<Unit> v0
+          Type Option<Unit>
           Local $for.next.22
     bb2 while.exit.2
       return
     bb3 while.body.3
       val $for.element.23: Unit
         Type Unit
-        VariantPayloadProject Option$U v0 f0
-          Type Option$U<Unit>
+        VariantPayloadProject Option<Unit> v0 f0
+          Type Option<Unit>
           Local $for.next.22
       val $argument.0: String
         Type String
@@ -8769,7 +8769,7 @@ Module
     bb0 entry
       val outerValues: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I32
+        ArrayLiteral Array<Int>
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
           Type Int
@@ -8778,7 +8778,7 @@ Module
           IntegerLiteral Int value=3 bits=0x00000003
       val innerValues: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I32
+        ArrayLiteral Array<Int>
           Type Int
           IntegerLiteral Int value=0 bits=0x00000000
           Type Int
@@ -8793,29 +8793,29 @@ Module
       val $receiver: Array<Int>
         Type Array<Int>
         Local $for.source.24
-      call $for.iterator.result.25: Iterator$I32 = @fn71 direct
+      call $for.iterator.result.25: Iterator<Int> = @fn71 direct
         Type Array<Int>
         Local $receiver
-      val $for.iterator.26: Iterator$I32
-        Type Iterator$I32
+      val $for.iterator.26: Iterator<Int>
+        Type Iterator<Int>
         Local $for.iterator.result.25
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.27: Option$I32<Int> = @fn116 interface Iterator$I32[0]
-        Type Iterator$I32
+      call $for.next.27: Option<Int> = @fn116 interface Iterator<Int>[0]
+        Type Iterator<Int>
         Local $for.iterator.26
       branch bb3 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $for.next.27
     bb2 while.exit.2
       return
     bb3 while.body.3
       val $for.element.28: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $for.next.27
       val outer: Int
         Type Int
@@ -8826,21 +8826,21 @@ Module
       val $receiver: Array<Int>
         Type Array<Int>
         Local $for.source.29
-      call $for.iterator.result.30: Iterator$I32 = @fn71 direct
+      call $for.iterator.result.30: Iterator<Int> = @fn71 direct
         Type Array<Int>
         Local $receiver
-      val $for.iterator.31: Iterator$I32
-        Type Iterator$I32
+      val $for.iterator.31: Iterator<Int>
+        Type Iterator<Int>
         Local $for.iterator.result.30
       goto bb4
     bb4 while.cond.4 <loop-header-poll>
-      call $for.next.32: Option$I32<Int> = @fn116 interface Iterator$I32[0]
-        Type Iterator$I32
+      call $for.next.32: Option<Int> = @fn116 interface Iterator<Int>[0]
+        Type Iterator<Int>
         Local $for.iterator.31
       branch bb6 bb5
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $for.next.32
     bb5 while.exit.5
       branch bb11 bb12
@@ -8853,8 +8853,8 @@ Module
     bb6 while.body.6
       val $for.element.33: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $for.next.32
       val inner: Int
         Type Int
@@ -8942,7 +8942,7 @@ Module
     bb0 entry
       val values: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I32
+        ArrayLiteral Array<Int>
           Type Int
           IntegerLiteral Int value=0 bits=0x00000000
           Type Int
@@ -8957,29 +8957,29 @@ Module
       val $receiver: Array<Int>
         Type Array<Int>
         Local $for.source.34
-      call $for.iterator.result.35: Iterator$I32 = @fn71 direct
+      call $for.iterator.result.35: Iterator<Int> = @fn71 direct
         Type Array<Int>
         Local $receiver
-      val $for.iterator.36: Iterator$I32
-        Type Iterator$I32
+      val $for.iterator.36: Iterator<Int>
+        Type Iterator<Int>
         Local $for.iterator.result.35
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.37: Option$I32<Int> = @fn116 interface Iterator$I32[0]
-        Type Iterator$I32
+      call $for.next.37: Option<Int> = @fn116 interface Iterator<Int>[0]
+        Type Iterator<Int>
         Local $for.iterator.36
       branch bb3 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $for.next.37
     bb2 while.exit.2
       return
     bb3 while.body.3
       val $for.element.38: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $for.next.37
       val value: Int
         Type Int
@@ -9162,7 +9162,7 @@ Module
         Type String
         Local $parameter.value
       rethrow unwind bb6
-  fun waitFor @fn88(gate: Gate, $completion: Continuation$U) -> CoroutineStep<Unit>
+  fun waitFor @fn88(gate: Gate, $completion: Continuation<Unit>) -> CoroutineStep<Unit>
     bb0 entry
       val $frame: CoroutineFrame<waitFor>
         Type CoroutineFrame<waitFor>
@@ -9175,7 +9175,7 @@ Module
       field_set 1
         Type CoroutineFrame<waitFor>
         Local $frame
-        Type Continuation$U
+        Type Continuation<Unit>
         Local $completion
       field_set 2
         Type CoroutineFrame<waitFor>
@@ -9370,29 +9370,29 @@ Module
       val $parameter.payload: (Node, String)
         Type (Node, String)
         Local $argument.1
-      call $call.4: Entry$C4_NodeX = @fn180 direct
+      call $call.4: Entry<Node> = @fn180 direct
         Type Long
         Local $parameter.slot
         Type (Node, String)
         Local $parameter.payload
-      call $call.5: Entry$C4_NodeX = @fn180 direct
+      call $call.5: Entry<Node> = @fn180 direct
         Type Long
         Local $parameter.slot
         Type (Node, String)
         Local $parameter.payload
-      call $call.6: Entry$C4_NodeX = @fn180 direct
+      call $call.6: Entry<Node> = @fn180 direct
         Type Long
         Local $parameter.slot
         Type (Node, String)
         Local $parameter.payload
-      val entries: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
-        ArrayLiteral Array$D14_Entry$C4_NodeXX
-          Type Entry$C4_NodeX
+      val entries: Array<Entry<Node>>
+        Type Array<Entry<Node>>
+        ArrayLiteral Array<Entry<Node>>
+          Type Entry<Node>
           Local $call.4
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $call.5
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $call.6
       val $argument.0: String
         Type String
@@ -9413,7 +9413,7 @@ Module
         Local $new.7
       val readers: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
-        ArrayLiteral MutableArray$FRC4_NodeXX
+        ArrayLiteral MutableArray<() -> Node>
           Type () -> Node
           ClosureAlloc cc0 $Closure$lambda0
             CaptureInit field=0
@@ -9430,20 +9430,20 @@ Module
               Type Node
               Local fallback
       call @fn90 direct
-      val $argument.0: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $argument.0: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local entries
       val $argument.1: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
         Local readers
-      val $parameter.entries: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $parameter.entries: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $argument.0
       val $parameter.readers: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
         Local $argument.1
       call @fn98 direct
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local $parameter.entries
         Type MutableArray<() -> Node>
         Local $parameter.readers
@@ -9467,7 +9467,7 @@ Module
         Local $parameter.render
       val $argument.0: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I32
+        ArrayLiteral Array<Int>
       val $parameter.values: Array<Int>
         Type Array<Int>
         Local $argument.0
@@ -9479,18 +9479,18 @@ Module
         Local $new.8
         Type Array<Int>
         Local $parameter.values
-      val $argument.0: Iterable$I32
+      val $argument.0: Iterable<Int>
         Type UserIterable
         Local $new.8
-      val $parameter.values: Iterable$I32
-        Type Iterable$I32
+      val $parameter.values: Iterable<Int>
+        Type Iterable<Int>
         Local $argument.0
       call @fn84 direct
-        Type Iterable$I32
+        Type Iterable<Int>
         Local $parameter.values
       val $argument.0: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I32
+        ArrayLiteral Array<Int>
           Type Int
           IntegerLiteral Int value=4 bits=0x00000004
       val $parameter.values: Array<Int>
@@ -9504,23 +9504,23 @@ Module
         Local $new.9
         Type Array<Int>
         Local $parameter.values
-      val $argument.0: Iterable$I32
+      val $argument.0: Iterable<Int>
         Type UserIterable
         Local $new.9
-      val $parameter.values: Iterable$I32
-        Type Iterable$I32
+      val $parameter.values: Iterable<Int>
+        Type Iterable<Int>
         Local $argument.0
       call @fn84 direct
-        Type Iterable$I32
+        Type Iterable<Int>
         Local $parameter.values
       call @fn85 direct
       call @fn86 direct
       call @fn87 direct
-      val $argument.0: Option$J14_Continuation$UX<Continuation$U>
-        Type Option$J14_Continuation$UX<Continuation$U>
-        VariantConstruct Option$J14_Continuation$UX<Continuation$U> v1
-      val $parameter.waiter: Option$J14_Continuation$UX<Continuation$U>
-        Type Option$J14_Continuation$UX<Continuation$U>
+      val $argument.0: Option<Continuation<Unit>>
+        Type Option<Continuation<Unit>>
+        VariantConstruct Option<Continuation<Unit>> v1
+      val $parameter.waiter: Option<Continuation<Unit>>
+        Type Option<Continuation<Unit>>
         Local $argument.0
       assign $new.10
         Type Gate
@@ -9528,7 +9528,7 @@ Module
       call @fn166 direct
         Type Gate
         Local $new.10
-        Type Option$J14_Continuation$UX<Continuation$U>
+        Type Option<Continuation<Unit>>
         Local $parameter.waiter
       val gate: Gate
         Type Gate
@@ -9536,14 +9536,14 @@ Module
       val $argument.0: Gate
         Type Gate
         Local gate
-      val $argument.1: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $argument.1: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local entries
       val $parameter.gate: Gate
         Type Gate
         Local $argument.0
-      val $parameter.entries: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $parameter.entries: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $argument.1
       assign $new.11
         Type IterationTask
@@ -9553,9 +9553,9 @@ Module
         Local $new.11
         Type Gate
         Local $parameter.gate
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local $parameter.entries
-      val $argument.0: SuspendTask$I64
+      val $argument.0: SuspendTask<Long>
         Type IterationTask
         Local $new.11
       assign $new.12
@@ -9564,19 +9564,19 @@ Module
       call @fn169 direct
         Type RecordingCompletion
         Local $new.12
-      val $argument.1: Continuation$I64
+      val $argument.1: Continuation<Long>
         Type RecordingCompletion
         Local $new.12
-      val $parameter.task: SuspendTask$I64
-        Type SuspendTask$I64
+      val $parameter.task: SuspendTask<Long>
+        Type SuspendTask<Long>
         Local $argument.0
-      val $parameter.completion: Continuation$I64
-        Type Continuation$I64
+      val $parameter.completion: Continuation<Long>
+        Type Continuation<Long>
         Local $argument.1
       call @fn183 direct
-        Type SuspendTask$I64
+        Type SuspendTask<Long>
         Local $parameter.task
-        Type Continuation$I64
+        Type Continuation<Long>
         Local $parameter.completion
       val $argument.0: String
         Type String
@@ -9687,48 +9687,48 @@ Module
         Type String
         Local $parameter.message
       return
-  fun installReaders @fn98(entries: Array<Entry$C4_NodeX>, readers: MutableArray<() -> Node>) -> Unit
+  fun installReaders @fn98(entries: Array<Entry<Node>>, readers: MutableArray<() -> Node>) -> Unit
     bb0 entry
-      val $argument.0: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $argument.0: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local entries
-      val $parameter.values: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $parameter.values: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $argument.0
-      call $for.source.1: Array<Entry$C4_NodeX> = @fn109 direct
-        Type Array<Entry$C4_NodeX>
+      call $for.source.1: Array<Entry<Node>> = @fn109 direct
+        Type Array<Entry<Node>>
         Local $parameter.values
-      val $receiver: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $receiver: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $for.source.1
-      call $for.iterator.result.2: Iterator$D14_Entry$C4_NodeXX = @fn79 direct
-        Type Array<Entry$C4_NodeX>
+      call $for.iterator.result.2: Iterator<Entry<Node>> = @fn79 direct
+        Type Array<Entry<Node>>
         Local $receiver
-      val $for.iterator.3: Iterator$D14_Entry$C4_NodeXX
-        Type Iterator$D14_Entry$C4_NodeXX
+      val $for.iterator.3: Iterator<Entry<Node>>
+        Type Iterator<Entry<Node>>
         Local $for.iterator.result.2
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.4: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @fn118 interface Iterator$D14_Entry$C4_NodeXX[0]
-        Type Iterator$D14_Entry$C4_NodeXX
+      call $for.next.4: Option<Entry<Node>> = @fn118 interface Iterator<Entry<Node>>[0]
+        Type Iterator<Entry<Node>>
         Local $for.iterator.3
       branch bb3 bb2
         Type Boolean
-        VariantTest Option$D14_Entry$C4_NodeXX v0
-          Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+        VariantTest Option<Entry<Node>> v0
+          Type Option<Entry<Node>>
           Local $for.next.4
     bb2 while.exit.2
       return
     bb3 while.body.3
-      val $for.element.5: Entry$C4_NodeX
-        Type Entry$C4_NodeX
-        VariantPayloadProject Option$D14_Entry$C4_NodeXX v0 f0
-          Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+      val $for.element.5: Entry<Node>
+        Type Entry<Node>
+        VariantPayloadProject Option<Entry<Node>> v0 f0
+          Type Option<Entry<Node>>
           Local $for.next.4
       val $binding.projection.6: Long
         Type Long
         FieldAccess 0
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $for.element.5
       val slot: Long
         Type Long
@@ -9736,7 +9736,7 @@ Module
       val $binding.projection.7: (Node, String)
         Type (Node, String)
         FieldAccess 1
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $for.element.5
       val $binding.projection.8: Node
         Type Node
@@ -9787,7 +9787,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$FRC4_NodeXX
+          ArrayLen MutableArray<() -> Node>
             Type MutableArray<() -> Node>
             Local $arr.1
       goto bb6
@@ -9811,7 +9811,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb8 if.merge.8
-      array_set MutableArray$FRC4_NodeXX
+      array_set MutableArray<() -> Node>
         Type MutableArray<() -> Node>
         Local $arr.1
         Type Long
@@ -9827,29 +9827,29 @@ Module
       val $receiver: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
         Local $for.source.9
-      call $for.iterator.result.10: Iterator$FRC4_NodeXX = @fn108 direct
+      call $for.iterator.result.10: Iterator<() -> Node> = @fn108 direct
         Type MutableArray<() -> Node>
         Local $receiver
-      val $for.iterator.11: Iterator$FRC4_NodeXX
-        Type Iterator$FRC4_NodeXX
+      val $for.iterator.11: Iterator<() -> Node>
+        Type Iterator<() -> Node>
         Local $for.iterator.result.10
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.12: Option$FRC4_NodeXX<() -> Node> = @fn121 interface Iterator$FRC4_NodeXX[0]
-        Type Iterator$FRC4_NodeXX
+      call $for.next.12: Option<() -> Node> = @fn121 interface Iterator<() -> Node>[0]
+        Type Iterator<() -> Node>
         Local $for.iterator.11
       branch bb3 bb2
         Type Boolean
-        VariantTest Option$FRC4_NodeXX v0
-          Type Option$FRC4_NodeXX<() -> Node>
+        VariantTest Option<() -> Node> v0
+          Type Option<() -> Node>
           Local $for.next.12
     bb2 while.exit.2
       return
     bb3 while.body.3
       val $for.element.13: () -> Node
         Type () -> Node
-        VariantPayloadProject Option$FRC4_NodeXX v0 f0
-          Type Option$FRC4_NodeXX<() -> Node>
+        VariantPayloadProject Option<() -> Node> v0 f0
+          Type Option<() -> Node>
           Local $for.next.12
       val reader: () -> Node
         Type () -> Node
@@ -9869,7 +9869,7 @@ Module
         Type String
         Local $parameter.value
       goto bb1
-  fun delayedSource @fn100(gate: Gate, values: Array<Entry$C4_NodeX>) -> DelayedIterable$D14_Entry$C4_NodeXX
+  fun delayedSource @fn100(gate: Gate, values: Array<Entry<Node>>) -> DelayedIterable<Entry<Node>>
     bb0 entry
       val $argument.0: String
         Type String
@@ -9883,27 +9883,27 @@ Module
       val $argument.0: Gate
         Type Gate
         Local gate
-      val $argument.1: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $argument.1: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local values
       val $parameter.gate: Gate
         Type Gate
         Local $argument.0
-      val $parameter.values: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $parameter.values: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $argument.1
       assign $new.1
-        Type DelayedIterable$D14_Entry$C4_NodeXX
-        ClassAlloc DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
+        ClassAlloc DelayedIterable<Entry<Node>>
       call @fn172 direct
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
         Local $new.1
         Type Gate
         Local $parameter.gate
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local $parameter.values
       return
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
         Local $new.1
   fun println @fn101(value: Long) -> Unit
     bb0 entry
@@ -9929,7 +9929,7 @@ Module
         Type String
         Local $parameter.message
       return
-  fun MutableArray.iterator @fn102(this: MutableArray<Int>) -> Iterator$I32
+  fun MutableArray.iterator @fn102(this: MutableArray<Int>) -> Iterator<Int>
     bb0 entry
       val $argument.0: MutableArray<Int>
         Type MutableArray<Int>
@@ -9944,31 +9944,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$I32
-        ClassAlloc MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
+        ClassAlloc MutableArrayIterator<Int>
       call @fn174 direct
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local $new.1
         Type MutableArray<Int>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local $new.1
-  fun ArrayIterator.next @fn103(this: ArrayIterator$I32) -> Option$I32<Int>
+  fun ArrayIterator.next @fn103(this: ArrayIterator<Int>) -> Option<Int>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$I32
+        ArrayLen Array<Int>
           Type Array<Int>
           FieldAccess 0
-            Type ArrayIterator$I32
+            Type ArrayIterator<Int>
             Local this
       val $parameter.other: Long
         Type Long
@@ -9988,12 +9988,12 @@ Module
       val $receiver: Array<Int>
         Type Array<Int>
         FieldAccess 0
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $parameter.index: Long
         Type Long
@@ -10013,8 +10013,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -10022,7 +10022,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I32
+          ArrayLen Array<Int>
             Type Array<Int>
             Local $arr.1
       goto bb5
@@ -10048,7 +10048,7 @@ Module
     bb7 if.merge.7
       val value: Int
         Type Int
-        ArrayGet Array$I32
+        ArrayGet Array<Int>
           Type Array<Int>
           Local $arr.1
           Type Long
@@ -10056,7 +10056,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$I32
+          Type ArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
@@ -10065,7 +10065,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -10080,50 +10080,50 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
-  fun MutableArray.iterator @fn104(this: MutableArray<Entry$C4_NodeX>) -> Iterator$D14_Entry$C4_NodeXX
+  fun MutableArray.iterator @fn104(this: MutableArray<Entry<Node>>) -> Iterator<Entry<Node>>
     bb0 entry
-      val $argument.0: MutableArray<Entry$C4_NodeX>
-        Type MutableArray<Entry$C4_NodeX>
+      val $argument.0: MutableArray<Entry<Node>>
+        Type MutableArray<Entry<Node>>
         Local this
       val $argument.1: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $parameter.source: MutableArray<Entry$C4_NodeX>
-        Type MutableArray<Entry$C4_NodeX>
+      val $parameter.source: MutableArray<Entry<Node>>
+        Type MutableArray<Entry<Node>>
         Local $argument.0
       val $parameter.index: Long
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$D14_Entry$C4_NodeXX
-        ClassAlloc MutableArrayIterator$D14_Entry$C4_NodeXX
+        Type MutableArrayIterator<Entry<Node>>
+        ClassAlloc MutableArrayIterator<Entry<Node>>
       call @fn175 direct
-        Type MutableArrayIterator$D14_Entry$C4_NodeXX
+        Type MutableArrayIterator<Entry<Node>>
         Local $new.1
-        Type MutableArray<Entry$C4_NodeX>
+        Type MutableArray<Entry<Node>>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$D14_Entry$C4_NodeXX
+        Type MutableArrayIterator<Entry<Node>>
         Local $new.1
-  fun ArrayIterator.next @fn105(this: ArrayIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+  fun ArrayIterator.next @fn105(this: ArrayIterator<Entry<Node>>) -> Option<Entry<Node>>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$D14_Entry$C4_NodeXX
+          Type ArrayIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$D14_Entry$C4_NodeXX
-          Type Array<Entry$C4_NodeX>
+        ArrayLen Array<Entry<Node>>
+          Type Array<Entry<Node>>
           FieldAccess 0
-            Type ArrayIterator$D14_Entry$C4_NodeXX
+            Type ArrayIterator<Entry<Node>>
             Local this
       val $parameter.other: Long
         Type Long
@@ -10140,21 +10140,21 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      val $receiver: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $receiver: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         FieldAccess 0
-          Type ArrayIterator$D14_Entry$C4_NodeXX
+          Type ArrayIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$D14_Entry$C4_NodeXX
+          Type ArrayIterator<Entry<Node>>
           Local this
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $arr.1: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $arr.1: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $receiver
       val $idx.2: Long
         Type Long
@@ -10168,8 +10168,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v1
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -10177,8 +10177,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$D14_Entry$C4_NodeXX
-            Type Array<Entry$C4_NodeX>
+          ArrayLen Array<Entry<Node>>
+            Type Array<Entry<Node>>
             Local $arr.1
       goto bb5
     bb4 logic.short.4
@@ -10201,17 +10201,17 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb7 if.merge.7
-      val value: Entry$C4_NodeX
-        Type Entry$C4_NodeX
-        ArrayGet Array$D14_Entry$C4_NodeXX
-          Type Array<Entry$C4_NodeX>
+      val value: Entry<Node>
+        Type Entry<Node>
+        ArrayGet Array<Entry<Node>>
+          Type Array<Entry<Node>>
           Local $arr.1
           Type Long
           Local $idx.2
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$D14_Entry$C4_NodeXX
+          Type ArrayIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
@@ -10220,7 +10220,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$D14_Entry$C4_NodeXX
+        Type ArrayIterator<Entry<Node>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -10228,18 +10228,18 @@ Module
           Local $receiver
           Type Long
           Local $parameter.other
-      val $argument.0: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $argument.0: Entry<Node>
+        Type Entry<Node>
         Local value
-      val $parameter._1: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $parameter._1: Entry<Node>
+        Type Entry<Node>
         Local $argument.0
       return
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v0
-          Type Entry$C4_NodeX
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v0
+          Type Entry<Node>
           Local $parameter._1
-  fun DelayedIterable.iterator @fn106(this: DelayedIterable$D14_Entry$C4_NodeXX, $completion: Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX) -> CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+  fun DelayedIterable.iterator @fn106(this: DelayedIterable<Entry<Node>>, $completion: Continuation<DelayedIterator<Entry<Node>>>) -> CoroutineStep<DelayedIterator<Entry<Node>>>
     bb0 entry
       val $frame: CoroutineFrame<DelayedIterable.iterator>
         Type CoroutineFrame<DelayedIterable.iterator>
@@ -10252,29 +10252,29 @@ Module
       field_set 1
         Type CoroutineFrame<DelayedIterable.iterator>
         Local $frame
-        Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+        Type Continuation<DelayedIterator<Entry<Node>>>
         Local $completion
       field_set 2
         Type CoroutineFrame<DelayedIterable.iterator>
         Local $frame
-        Type CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX> v1
-          Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type CoroutineSlot<DelayedIterable<Entry<Node>>>
+        VariantConstruct CoroutineSlot<DelayedIterable<Entry<Node>>> v1
+          Type DelayedIterable<Entry<Node>>
           Local this
       field_set 3
         Type CoroutineFrame<DelayedIterable.iterator>
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> = @fn203 direct
+      call $step: CoroutineStep<DelayedIterator<Entry<Node>>> = @fn203 direct
         Type CoroutineFrame<DelayedIterable.iterator>
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       return
-        Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+        Type CoroutineStep<DelayedIterator<Entry<Node>>>
         Local $step
-  fun DelayedIterator.next @fn107(this: DelayedIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+  fun DelayedIterator.next @fn107(this: DelayedIterator<Entry<Node>>) -> Option<Entry<Node>>
     bb0 entry
       val $receiver: String
         Type String
@@ -10282,7 +10282,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+          Type DelayedIterator<Entry<Node>>
           Local this
       call $argument.0: String = @fn22 direct
         Type Long
@@ -10304,14 +10304,14 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+          Type DelayedIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$D14_Entry$C4_NodeXX
-          Type Array<Entry$C4_NodeX>
+        ArrayLen Array<Entry<Node>>
+          Type Array<Entry<Node>>
           FieldAccess 0
-            Type DelayedIterator$D14_Entry$C4_NodeXX
+            Type DelayedIterator<Entry<Node>>
             Local this
       val $parameter.other: Long
         Type Long
@@ -10328,21 +10328,21 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      val $receiver: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $receiver: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         FieldAccess 0
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+          Type DelayedIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+          Type DelayedIterator<Entry<Node>>
           Local this
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $arr.1: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $arr.1: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $receiver
       val $idx.2: Long
         Type Long
@@ -10356,8 +10356,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v1
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -10365,8 +10365,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$D14_Entry$C4_NodeXX
-            Type Array<Entry$C4_NodeX>
+          ArrayLen Array<Entry<Node>>
+            Type Array<Entry<Node>>
             Local $arr.1
       goto bb5
     bb4 logic.short.4
@@ -10389,17 +10389,17 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb7 if.merge.7
-      val value: Entry$C4_NodeX
-        Type Entry$C4_NodeX
-        ArrayGet Array$D14_Entry$C4_NodeXX
-          Type Array<Entry$C4_NodeX>
+      val value: Entry<Node>
+        Type Entry<Node>
+        ArrayGet Array<Entry<Node>>
+          Type Array<Entry<Node>>
           Local $arr.1
           Type Long
           Local $idx.2
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+          Type DelayedIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
@@ -10408,7 +10408,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -10416,18 +10416,18 @@ Module
           Local $receiver
           Type Long
           Local $parameter.other
-      val $argument.0: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $argument.0: Entry<Node>
+        Type Entry<Node>
         Local value
-      val $parameter._1: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $parameter._1: Entry<Node>
+        Type Entry<Node>
         Local $argument.0
       return
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v0
-          Type Entry$C4_NodeX
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v0
+          Type Entry<Node>
           Local $parameter._1
-  fun MutableArray.iterator @fn108(this: MutableArray<() -> Node>) -> Iterator$FRC4_NodeXX
+  fun MutableArray.iterator @fn108(this: MutableArray<() -> Node>) -> Iterator<() -> Node>
     bb0 entry
       val $argument.0: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
@@ -10442,19 +10442,19 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type MutableArrayIterator$FRC4_NodeXX
-        ClassAlloc MutableArrayIterator$FRC4_NodeXX
+        Type MutableArrayIterator<() -> Node>
+        ClassAlloc MutableArrayIterator<() -> Node>
       call @fn176 direct
-        Type MutableArrayIterator$FRC4_NodeXX
+        Type MutableArrayIterator<() -> Node>
         Local $new.1
         Type MutableArray<() -> Node>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type MutableArrayIterator$FRC4_NodeXX
+        Type MutableArrayIterator<() -> Node>
         Local $new.1
-  fun markArray @fn109(values: Array<Entry$C4_NodeX>) -> Array<Entry$C4_NodeX>
+  fun markArray @fn109(values: Array<Entry<Node>>) -> Array<Entry<Node>>
     bb0 entry
       val $argument.0: String
         Type String
@@ -10466,7 +10466,7 @@ Module
         Type String
         Local $parameter.value
       return
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local values
   fun $lambda.0 @fn110($closure: () -> Node) -> Node
     bb0 entry
@@ -10475,19 +10475,19 @@ Module
         ClosureCapture cc4 0
           Type () -> Node
           Local $closure
-  fun MutableArrayIterator.next @fn111(this: MutableArrayIterator$I32) -> Option$I32<Int>
+  fun MutableArrayIterator.next @fn111(this: MutableArrayIterator<Int>) -> Option<Int>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$I32
+        ArrayLen MutableArray<Int>
           Type MutableArray<Int>
           FieldAccess 0
-            Type MutableArrayIterator$I32
+            Type MutableArrayIterator<Int>
             Local this
       val $parameter.other: Long
         Type Long
@@ -10507,12 +10507,12 @@ Module
       val $receiver: MutableArray<Int>
         Type MutableArray<Int>
         FieldAccess 0
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $parameter.index: Long
         Type Long
@@ -10532,8 +10532,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -10541,7 +10541,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$I32
+          ArrayLen MutableArray<Int>
             Type MutableArray<Int>
             Local $arr.1
       goto bb5
@@ -10567,7 +10567,7 @@ Module
     bb7 if.merge.7
       val value: Int
         Type Int
-        ArrayGet MutableArray$I32
+        ArrayGet MutableArray<Int>
           Type MutableArray<Int>
           Local $arr.1
           Type Long
@@ -10575,7 +10575,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$I32
+          Type MutableArrayIterator<Int>
           Local this
       val $argument.0: Long
         Type Long
@@ -10584,7 +10584,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -10599,23 +10599,23 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
-  fun MutableArrayIterator.next @fn112(this: MutableArrayIterator$D14_Entry$C4_NodeXX) -> Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+  fun MutableArrayIterator.next @fn112(this: MutableArrayIterator<Entry<Node>>) -> Option<Entry<Node>>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$D14_Entry$C4_NodeXX
+          Type MutableArrayIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$D14_Entry$C4_NodeXX
-          Type MutableArray<Entry$C4_NodeX>
+        ArrayLen MutableArray<Entry<Node>>
+          Type MutableArray<Entry<Node>>
           FieldAccess 0
-            Type MutableArrayIterator$D14_Entry$C4_NodeXX
+            Type MutableArrayIterator<Entry<Node>>
             Local this
       val $parameter.other: Long
         Type Long
@@ -10632,21 +10632,21 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      val $receiver: MutableArray<Entry$C4_NodeX>
-        Type MutableArray<Entry$C4_NodeX>
+      val $receiver: MutableArray<Entry<Node>>
+        Type MutableArray<Entry<Node>>
         FieldAccess 0
-          Type MutableArrayIterator$D14_Entry$C4_NodeXX
+          Type MutableArrayIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$D14_Entry$C4_NodeXX
+          Type MutableArrayIterator<Entry<Node>>
           Local this
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $arr.1: MutableArray<Entry$C4_NodeX>
-        Type MutableArray<Entry$C4_NodeX>
+      val $arr.1: MutableArray<Entry<Node>>
+        Type MutableArray<Entry<Node>>
         Local $receiver
       val $idx.2: Long
         Type Long
@@ -10660,8 +10660,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v1
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -10669,8 +10669,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$D14_Entry$C4_NodeXX
-            Type MutableArray<Entry$C4_NodeX>
+          ArrayLen MutableArray<Entry<Node>>
+            Type MutableArray<Entry<Node>>
             Local $arr.1
       goto bb5
     bb4 logic.short.4
@@ -10693,17 +10693,17 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb7 if.merge.7
-      val value: Entry$C4_NodeX
-        Type Entry$C4_NodeX
-        ArrayGet MutableArray$D14_Entry$C4_NodeXX
-          Type MutableArray<Entry$C4_NodeX>
+      val value: Entry<Node>
+        Type Entry<Node>
+        ArrayGet MutableArray<Entry<Node>>
+          Type MutableArray<Entry<Node>>
           Local $arr.1
           Type Long
           Local $idx.2
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$D14_Entry$C4_NodeXX
+          Type MutableArrayIterator<Entry<Node>>
           Local this
       val $argument.0: Long
         Type Long
@@ -10712,7 +10712,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$D14_Entry$C4_NodeXX
+        Type MutableArrayIterator<Entry<Node>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -10720,18 +10720,18 @@ Module
           Local $receiver
           Type Long
           Local $parameter.other
-      val $argument.0: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $argument.0: Entry<Node>
+        Type Entry<Node>
         Local value
-      val $parameter._1: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $parameter._1: Entry<Node>
+        Type Entry<Node>
         Local $argument.0
       return
-        Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
-        VariantConstruct Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> v0
-          Type Entry$C4_NodeX
+        Type Option<Entry<Node>>
+        VariantConstruct Option<Entry<Node>> v0
+          Type Entry<Node>
           Local $parameter._1
-  fun Array.iterator @fn113(this: Array<() -> Node>) -> Iterator$FRC4_NodeXX
+  fun Array.iterator @fn113(this: Array<() -> Node>) -> Iterator<() -> Node>
     bb0 entry
       val $argument.0: Array<() -> Node>
         Type Array<() -> Node>
@@ -10746,31 +10746,31 @@ Module
         Type Long
         Local $argument.1
       assign $new.1
-        Type ArrayIterator$FRC4_NodeXX
-        ClassAlloc ArrayIterator$FRC4_NodeXX
+        Type ArrayIterator<() -> Node>
+        ClassAlloc ArrayIterator<() -> Node>
       call @fn177 direct
-        Type ArrayIterator$FRC4_NodeXX
+        Type ArrayIterator<() -> Node>
         Local $new.1
         Type Array<() -> Node>
         Local $parameter.source
         Type Long
         Local $parameter.index
       return
-        Type ArrayIterator$FRC4_NodeXX
+        Type ArrayIterator<() -> Node>
         Local $new.1
-  fun MutableArrayIterator.next @fn114(this: MutableArrayIterator$FRC4_NodeXX) -> Option$FRC4_NodeXX<() -> Node>
+  fun MutableArrayIterator.next @fn114(this: MutableArrayIterator<() -> Node>) -> Option<() -> Node>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$FRC4_NodeXX
+          Type MutableArrayIterator<() -> Node>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen MutableArray$FRC4_NodeXX
+        ArrayLen MutableArray<() -> Node>
           Type MutableArray<() -> Node>
           FieldAccess 0
-            Type MutableArrayIterator$FRC4_NodeXX
+            Type MutableArrayIterator<() -> Node>
             Local this
       val $parameter.other: Long
         Type Long
@@ -10790,12 +10790,12 @@ Module
       val $receiver: MutableArray<() -> Node>
         Type MutableArray<() -> Node>
         FieldAccess 0
-          Type MutableArrayIterator$FRC4_NodeXX
+          Type MutableArrayIterator<() -> Node>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$FRC4_NodeXX
+          Type MutableArrayIterator<() -> Node>
           Local this
       val $parameter.index: Long
         Type Long
@@ -10815,8 +10815,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$FRC4_NodeXX<() -> Node>
-        VariantConstruct Option$FRC4_NodeXX<() -> Node> v1
+        Type Option<() -> Node>
+        VariantConstruct Option<() -> Node> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -10824,7 +10824,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray$FRC4_NodeXX
+          ArrayLen MutableArray<() -> Node>
             Type MutableArray<() -> Node>
             Local $arr.1
       goto bb5
@@ -10850,7 +10850,7 @@ Module
     bb7 if.merge.7
       val value: () -> Node
         Type () -> Node
-        ArrayGet MutableArray$FRC4_NodeXX
+        ArrayGet MutableArray<() -> Node>
           Type MutableArray<() -> Node>
           Local $arr.1
           Type Long
@@ -10858,7 +10858,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator$FRC4_NodeXX
+          Type MutableArrayIterator<() -> Node>
           Local this
       val $argument.0: Long
         Type Long
@@ -10867,7 +10867,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type MutableArrayIterator$FRC4_NodeXX
+        Type MutableArrayIterator<() -> Node>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -10882,23 +10882,23 @@ Module
         Type () -> Node
         Local $argument.0
       return
-        Type Option$FRC4_NodeXX<() -> Node>
-        VariantConstruct Option$FRC4_NodeXX<() -> Node> v0
+        Type Option<() -> Node>
+        VariantConstruct Option<() -> Node> v0
           Type () -> Node
           Local $parameter._1
-  fun ArrayIterator.next @fn115(this: ArrayIterator$FRC4_NodeXX) -> Option$FRC4_NodeXX<() -> Node>
+  fun ArrayIterator.next @fn115(this: ArrayIterator<() -> Node>) -> Option<() -> Node>
     bb0 entry
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$FRC4_NodeXX
+          Type ArrayIterator<() -> Node>
           Local this
       val $argument.0: Long
         Type Long
-        ArrayLen Array$FRC4_NodeXX
+        ArrayLen Array<() -> Node>
           Type Array<() -> Node>
           FieldAccess 0
-            Type ArrayIterator$FRC4_NodeXX
+            Type ArrayIterator<() -> Node>
             Local this
       val $parameter.other: Long
         Type Long
@@ -10918,12 +10918,12 @@ Module
       val $receiver: Array<() -> Node>
         Type Array<() -> Node>
         FieldAccess 0
-          Type ArrayIterator$FRC4_NodeXX
+          Type ArrayIterator<() -> Node>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$FRC4_NodeXX
+          Type ArrayIterator<() -> Node>
           Local this
       val $parameter.index: Long
         Type Long
@@ -10943,8 +10943,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 if.merge.2
       return
-        Type Option$FRC4_NodeXX<() -> Node>
-        VariantConstruct Option$FRC4_NodeXX<() -> Node> v1
+        Type Option<() -> Node>
+        VariantConstruct Option<() -> Node> v1
     bb3 logic.rhs.3
       assign $logic.1
         Type Boolean
@@ -10952,7 +10952,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$FRC4_NodeXX
+          ArrayLen Array<() -> Node>
             Type Array<() -> Node>
             Local $arr.1
       goto bb5
@@ -10978,7 +10978,7 @@ Module
     bb7 if.merge.7
       val value: () -> Node
         Type () -> Node
-        ArrayGet Array$FRC4_NodeXX
+        ArrayGet Array<() -> Node>
           Type Array<() -> Node>
           Local $arr.1
           Type Long
@@ -10986,7 +10986,7 @@ Module
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator$FRC4_NodeXX
+          Type ArrayIterator<() -> Node>
           Local this
       val $argument.0: Long
         Type Long
@@ -10995,7 +10995,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ArrayIterator$FRC4_NodeXX
+        Type ArrayIterator<() -> Node>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -11010,8 +11010,8 @@ Module
         Type () -> Node
         Local $argument.0
       return
-        Type Option$FRC4_NodeXX<() -> Node>
-        VariantConstruct Option$FRC4_NodeXX<() -> Node> v0
+        Type Option<() -> Node>
+        VariantConstruct Option<() -> Node> v0
           Type () -> Node
           Local $parameter._1
   fun init.Node.$c18 @fn143(this: Node, text: String) -> Unit
@@ -11269,7 +11269,7 @@ Module
   fun init.Throwable.$c10 @fn152(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn153(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn153(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn152 direct
         Type Throwable
@@ -11279,7 +11279,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn154(this: UnwrapException) -> Unit
@@ -11290,20 +11290,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn153 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn155(this: ClassCastException) -> Unit
@@ -11314,20 +11314,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn153 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn156(this: ArithmeticException) -> Unit
@@ -11338,20 +11338,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn153 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn157(this: IndexOutOfBoundsException) -> Unit
@@ -11362,52 +11362,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn153 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn158(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn158(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn153 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn159(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn159(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn153 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c30 @fn160(this: IllegalStateException) -> Unit
@@ -11418,15 +11418,15 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn159 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.UserIterator.$c19 @fn161(this: UserIterator, values: Array<Int>, index: Long) -> Unit
@@ -11453,12 +11453,12 @@ Module
   fun init.EmptyValueSource.$c21 @fn163(this: EmptyValueSource) -> Unit
     bb0 entry
       return
-  fun init.RangeEntryIterator.$c22 @fn164(this: RangeEntryIterator, inner: Iterator$I32) -> Unit
+  fun init.RangeEntryIterator.$c22 @fn164(this: RangeEntryIterator, inner: Iterator<Int>) -> Unit
     bb0 entry
       field_set 0
         Type RangeEntryIterator
         Local this
-        Type Iterator$I32
+        Type Iterator<Int>
         Local inner
       return
   fun init.RangeEntries.$c23 @fn165(this: RangeEntries, range: IntRange) -> Unit
@@ -11469,12 +11469,12 @@ Module
         Type IntRange
         Local range
       return
-  fun init.Gate.$c24 @fn166(this: Gate, waiter: Option$J14_Continuation$UX<Continuation$U>) -> Unit
+  fun init.Gate.$c24 @fn166(this: Gate, waiter: Option<Continuation<Unit>>) -> Unit
     bb0 entry
       field_set 0
         Type Gate
         Local this
-        Type Option$J14_Continuation$UX<Continuation$U>
+        Type Option<Continuation<Unit>>
         Local waiter
       return
   fun init.Registration.$c25 @fn167(this: Registration, gate: Gate) -> Unit
@@ -11485,7 +11485,7 @@ Module
         Type Gate
         Local gate
       return
-  fun init.IterationTask.$c28 @fn168(this: IterationTask, gate: Gate, entries: Array<Entry$C4_NodeX>) -> Unit
+  fun init.IterationTask.$c28 @fn168(this: IterationTask, gate: Gate, entries: Array<Entry<Node>>) -> Unit
     bb0 entry
       field_set 0
         Type IterationTask
@@ -11495,112 +11495,112 @@ Module
       field_set 1
         Type IterationTask
         Local this
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local entries
       return
   fun init.RecordingCompletion.$c29 @fn169(this: RecordingCompletion) -> Unit
     bb0 entry
       return
-  fun init.ArrayIterator$I32.$c0 @fn170(this: ArrayIterator$I32, source: Array<Int>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn170(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local this
         Type Array<Int>
         Local source
       field_set 1
-        Type ArrayIterator$I32
+        Type ArrayIterator<Int>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$D14_Entry$C4_NodeXX.$c0 @fn171(this: ArrayIterator$D14_Entry$C4_NodeXX, source: Array<Entry$C4_NodeX>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn171(this: ArrayIterator<Entry<Node>>, source: Array<Entry<Node>>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$D14_Entry$C4_NodeXX
+        Type ArrayIterator<Entry<Node>>
         Local this
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local source
       field_set 1
-        Type ArrayIterator$D14_Entry$C4_NodeXX
+        Type ArrayIterator<Entry<Node>>
         Local this
         Type Long
         Local index
       return
-  fun init.DelayedIterable$D14_Entry$C4_NodeXX.$c27 @fn172(this: DelayedIterable$D14_Entry$C4_NodeXX, gate: Gate, values: Array<Entry$C4_NodeX>) -> Unit
+  fun init.DelayedIterable.$c27 @fn172(this: DelayedIterable<Entry<Node>>, gate: Gate, values: Array<Entry<Node>>) -> Unit
     bb0 entry
       field_set 0
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
         Local this
         Type Gate
         Local gate
       field_set 1
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
         Local this
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local values
       return
-  fun init.DelayedIterator$D14_Entry$C4_NodeXX.$c26 @fn173(this: DelayedIterator$D14_Entry$C4_NodeXX, values: Array<Entry$C4_NodeX>, index: Long) -> Unit
+  fun init.DelayedIterator.$c26 @fn173(this: DelayedIterator<Entry<Node>>, values: Array<Entry<Node>>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
         Local this
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local values
       field_set 1
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$I32.$c1 @fn174(this: MutableArrayIterator$I32, source: MutableArray<Int>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn174(this: MutableArrayIterator<Int>, source: MutableArray<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local this
         Type MutableArray<Int>
         Local source
       field_set 1
-        Type MutableArrayIterator$I32
+        Type MutableArrayIterator<Int>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$D14_Entry$C4_NodeXX.$c1 @fn175(this: MutableArrayIterator$D14_Entry$C4_NodeXX, source: MutableArray<Entry$C4_NodeX>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn175(this: MutableArrayIterator<Entry<Node>>, source: MutableArray<Entry<Node>>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$D14_Entry$C4_NodeXX
+        Type MutableArrayIterator<Entry<Node>>
         Local this
-        Type MutableArray<Entry$C4_NodeX>
+        Type MutableArray<Entry<Node>>
         Local source
       field_set 1
-        Type MutableArrayIterator$D14_Entry$C4_NodeXX
+        Type MutableArrayIterator<Entry<Node>>
         Local this
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator$FRC4_NodeXX.$c1 @fn176(this: MutableArrayIterator$FRC4_NodeXX, source: MutableArray<() -> Node>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn176(this: MutableArrayIterator<() -> Node>, source: MutableArray<() -> Node>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator$FRC4_NodeXX
+        Type MutableArrayIterator<() -> Node>
         Local this
         Type MutableArray<() -> Node>
         Local source
       field_set 1
-        Type MutableArrayIterator$FRC4_NodeXX
+        Type MutableArrayIterator<() -> Node>
         Local this
         Type Long
         Local index
       return
-  fun init.ArrayIterator$FRC4_NodeXX.$c0 @fn177(this: ArrayIterator$FRC4_NodeXX, source: Array<() -> Node>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn177(this: ArrayIterator<() -> Node>, source: Array<() -> Node>, index: Long) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator$FRC4_NodeXX
+        Type ArrayIterator<() -> Node>
         Local this
         Type Array<() -> Node>
         Local source
       field_set 1
-        Type ArrayIterator$FRC4_NodeXX
+        Type ArrayIterator<() -> Node>
         Local this
         Type Long
         Local index
@@ -11620,20 +11620,20 @@ Module
           Local functionName
           Type String
           Local typeName
-  fun ctor.RangePatternPayload.$c7 @fn179(entry: Entry$C4_NodeX, marker: (Boolean, Int)) -> RangePatternPayload <no-gc>
+  fun ctor.RangePatternPayload.$c7 @fn179(entry: Entry<Node>, marker: (Boolean, Int)) -> RangePatternPayload <no-gc>
     bb0 entry
       return
         Type RangePatternPayload
         StructInit RangePatternPayload
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local entry
           Type (Boolean, Int)
           Local marker
-  fun ctor.Entry$C4_NodeX.$c6 @fn180(slot: Long, payload: (Node, String)) -> Entry$C4_NodeX <no-gc>
+  fun ctor.Entry.$c6 @fn180(slot: Long, payload: (Node, String)) -> Entry<Node> <no-gc>
     bb0 entry
       return
-        Type Entry$C4_NodeX
-        StructInit Entry$C4_NodeX
+        Type Entry<Node>
+        StructInit Entry<Node>
           Type Long
           Local slot
           Type (Node, String)
@@ -11654,12 +11654,12 @@ Module
       return
         Type EmptyValueIterator
         StructInit EmptyValueIterator
-  fun startCoroutine<Long> @fn183(task: SuspendTask$I64, completion: Continuation$I64) -> Unit
+  fun startCoroutine<Long> @fn183(task: SuspendTask<Long>, completion: Continuation<Long>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn125 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn125 interface Continuation<Long>[0]
+        Type Continuation<Long>
         Local completion
         Type Long
         EnumField v0 f0
@@ -11667,8 +11667,8 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn126 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn126 interface Continuation<Long>[1]
+        Type Continuation<Long>
         Local completion
         Type Throwable
         Local $exception
@@ -11682,10 +11682,10 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Long> = @fn127 interface SuspendTask$I64[0]
-        Type SuspendTask$I64
+      call $step: CoroutineStep<Long> = @fn127 interface SuspendTask<Long>[0]
+        Type SuspendTask<Long>
         Local task
-        Type Continuation$I64
+        Type Continuation<Long>
         Local completion
       branch bb1 bb0
         Type Boolean
@@ -11696,15 +11696,15 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun thunk<EmptyValueIterator> Iterator$U.next() @fn184(this: Any) -> Option$U<Unit>
+  fun thunk<EmptyValueIterator> Iterator.next() @fn184(this: Any) -> Option<Unit>
     bb0 entry
-      call $call.1: Option$U<Unit> = @fn51 direct
+      call $call.1: Option<Unit> = @fn51 direct
         Type EmptyValueIterator
         Unbox
           Type Any
           Local this
       return
-        Type Option$U<Unit>
+        Type Option<Unit>
         Local $call.1
   fun IterationTask.run$drive @fn185($frame: CoroutineFrame<IterationTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Long>
     bb0 entry
@@ -11716,24 +11716,24 @@ Module
         FieldAccess 0
           Type IterationTask
           Local this
-      val $argument.1: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $argument.1: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         FieldAccess 1
           Type IterationTask
           Local this
       val $parameter.gate: Gate
         Type Gate
         Local $argument.0
-      val $parameter.values: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $parameter.values: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $argument.1
-      call $for.source.44: DelayedIterable$D14_Entry$C4_NodeXX = @fn100 direct
+      call $for.source.44: DelayedIterable<Entry<Node>> = @fn100 direct
         Type Gate
         Local $parameter.gate
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local $parameter.values
-      val $receiver: DelayedIterable$D14_Entry$C4_NodeXX
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+      val $receiver: DelayedIterable<Entry<Node>>
+        Type DelayedIterable<Entry<Node>>
         Local $for.source.44
       field_set 4
         Type CoroutineFrame<IterationTask.run>
@@ -11767,8 +11767,8 @@ Module
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> = @fn106 direct
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+      call $step.1: CoroutineStep<DelayedIterator<Entry<Node>>> = @fn106 direct
+        Type DelayedIterable<Entry<Node>>
         Local $receiver
         Type CoroutineAdapter<IterationTask.run>$1
         Local $adapter.1
@@ -11777,18 +11777,18 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+            Type CoroutineStep<DelayedIterator<Entry<Node>>>
             Local $step.1
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
     bb1 while.cond.1 <loop-header-poll>
-      call $for.next.47: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @fn118 interface Iterator$D14_Entry$C4_NodeXX[0]
-        Type Iterator$D14_Entry$C4_NodeXX
+      call $for.next.47: Option<Entry<Node>> = @fn118 interface Iterator<Entry<Node>>[0]
+        Type Iterator<Entry<Node>>
         Local $for.iterator.46
       branch bb3 bb2
         Type Boolean
-        VariantTest Option$D14_Entry$C4_NodeXX v0
-          Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+        VariantTest Option<Entry<Node>> v0
+          Type Option<Entry<Node>>
           Local $for.next.47
     bb2 while.exit.2
       val rangeFirst: Int8
@@ -11842,23 +11842,23 @@ Module
       val $receiver: RangeEntries
         Type RangeEntries
         Local $for.source.53
-      call $for.iterator.result.54: Iterator$D14_Entry$C4_NodeXX = @fn76 direct
+      call $for.iterator.result.54: Iterator<Entry<Node>> = @fn76 direct
         Type RangeEntries
         Local $receiver
-      val $for.iterator.55: Iterator$D14_Entry$C4_NodeXX
-        Type Iterator$D14_Entry$C4_NodeXX
+      val $for.iterator.55: Iterator<Entry<Node>>
+        Type Iterator<Entry<Node>>
         Local $for.iterator.result.54
       goto bb6
     bb3 while.body.3
-      val $for.element.48: Entry$C4_NodeX
-        Type Entry$C4_NodeX
-        VariantPayloadProject Option$D14_Entry$C4_NodeXX v0 f0
-          Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+      val $for.element.48: Entry<Node>
+        Type Entry<Node>
+        VariantPayloadProject Option<Entry<Node>> v0 f0
+          Type Option<Entry<Node>>
           Local $for.next.47
       val $binding.projection.49: Long
         Type Long
         FieldAccess 0
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $for.element.48
       val slot: Long
         Type Long
@@ -11866,7 +11866,7 @@ Module
       val $binding.projection.50: (Node, String)
         Type (Node, String)
         FieldAccess 1
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $for.element.48
       val $binding.projection.51: Node
         Type Node
@@ -11957,13 +11957,13 @@ Module
           Local $parameter.other
       goto bb1
     bb6 while.cond.6 <loop-header-poll>
-      call $for.next.56: Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX> = @fn118 interface Iterator$D14_Entry$C4_NodeXX[0]
-        Type Iterator$D14_Entry$C4_NodeXX
+      call $for.next.56: Option<Entry<Node>> = @fn118 interface Iterator<Entry<Node>>[0]
+        Type Iterator<Entry<Node>>
         Local $for.iterator.55
       branch bb8 bb7
         Type Boolean
-        VariantTest Option$D14_Entry$C4_NodeXX v0
-          Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+        VariantTest Option<Entry<Node>> v0
+          Type Option<Entry<Node>>
           Local $for.next.56
     bb7 while.exit.7
       return
@@ -11972,15 +11972,15 @@ Module
           Type Long
           Local total
     bb8 while.body.8
-      val $for.element.57: Entry$C4_NodeX
-        Type Entry$C4_NodeX
-        VariantPayloadProject Option$D14_Entry$C4_NodeXX v0 f0
-          Type Option$D14_Entry$C4_NodeXX<Entry$C4_NodeX>
+      val $for.element.57: Entry<Node>
+        Type Entry<Node>
+        VariantPayloadProject Option<Entry<Node>> v0 f0
+          Type Option<Entry<Node>>
           Local $for.next.56
       val $binding.projection.58: Long
         Type Long
         FieldAccess 0
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $for.element.57
       val slot: Long
         Type Long
@@ -11988,7 +11988,7 @@ Module
       val $binding.projection.59: (Node, String)
         Type (Node, String)
         FieldAccess 1
-          Type Entry$C4_NodeX
+          Type Entry<Node>
           Local $for.element.57
       val $binding.projection.60: Node
         Type Node
@@ -12030,7 +12030,7 @@ Module
       val $parameter.payload: (Node, String)
         Type (Node, String)
         Local $argument.1
-      call $argument.0: Entry$C4_NodeX = @fn180 direct
+      call $argument.0: Entry<Node> = @fn180 direct
         Type Long
         Local $parameter.slot
         Type (Node, String)
@@ -12042,14 +12042,14 @@ Module
           BoolLiteral true
           Type Int
           Local ordinal
-      val $parameter.entry: Entry$C4_NodeX
-        Type Entry$C4_NodeX
+      val $parameter.entry: Entry<Node>
+        Type Entry<Node>
         Local $argument.0
       val $parameter.marker: (Boolean, Int)
         Type (Boolean, Int)
         Local $argument.1
       call $argument.0: RangePatternPayload = @fn179 direct
-        Type Entry$C4_NodeX
+        Type Entry<Node>
         Local $parameter.entry
         Type (Boolean, Int)
         Local $parameter.marker
@@ -12292,9 +12292,9 @@ Module
       field_set 6
         Type CoroutineFrame<IterationTask.run>
         Local $frame
-        Type CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineSlot<Iterator$D14_Entry$C4_NodeXX> v1
-          Type Iterator$D14_Entry$C4_NodeXX
+        Type CoroutineSlot<Iterator<Entry<Node>>>
+        VariantConstruct CoroutineSlot<Iterator<Entry<Node>>> v1
+          Type Iterator<Entry<Node>>
           Local $for.iterator.55
       field_set 7
         Type CoroutineFrame<IterationTask.run>
@@ -12661,9 +12661,9 @@ Module
       field_set 6
         Type CoroutineFrame<IterationTask.run>
         Local $frame
-        Type CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineSlot<Iterator$D14_Entry$C4_NodeXX> v1
-          Type Iterator$D14_Entry$C4_NodeXX
+        Type CoroutineSlot<Iterator<Entry<Node>>>
+        VariantConstruct CoroutineSlot<Iterator<Entry<Node>>> v1
+          Type Iterator<Entry<Node>>
           Local $for.iterator.55
       field_set 7
         Type CoroutineFrame<IterationTask.run>
@@ -13120,9 +13120,9 @@ Module
             Type CoroutineFrame<IterationTask.run>
             Local $frame
       assign $for.iterator.55
-        Type Iterator$D14_Entry$C4_NodeXX
+        Type Iterator<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<Iterator<Entry<Node>>>
           FieldAccess 6
             Type CoroutineFrame<IterationTask.run>
             Local $frame
@@ -13164,9 +13164,9 @@ Module
             Type CoroutineFrame<IterationTask.run>
             Local $frame
       assign $for.iterator.55
-        Type Iterator$D14_Entry$C4_NodeXX
+        Type Iterator<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<Iterator<Entry<Node>>>
           FieldAccess 6
             Type CoroutineFrame<IterationTask.run>
             Local $frame
@@ -13444,9 +13444,9 @@ Module
             Type CoroutineFrame<IterationTask.run>
             Local $frame
       assign $for.iterator.55
-        Type Iterator$D14_Entry$C4_NodeXX
+        Type Iterator<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<Iterator<Entry<Node>>>
           FieldAccess 6
             Type CoroutineFrame<IterationTask.run>
             Local $frame
@@ -13488,9 +13488,9 @@ Module
             Type CoroutineFrame<IterationTask.run>
             Local $frame
       assign $for.iterator.55
-        Type Iterator$D14_Entry$C4_NodeXX
+        Type Iterator<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<Iterator$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<Iterator<Entry<Node>>>
           FieldAccess 6
             Type CoroutineFrame<IterationTask.run>
             Local $frame
@@ -13516,17 +13516,17 @@ Module
             Type CoroutineFrame<IterationTask.run>
             Local $frame
     bb68 coroutine.post.1
-      val $for.iterator.46: Iterator$D14_Entry$C4_NodeXX
-        Type Iterator$D14_Entry$C4_NodeXX
-        Retype Iterator$D14_Entry$C4_NodeXX
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+      val $for.iterator.46: Iterator<Entry<Node>>
+        Type Iterator<Entry<Node>>
+        Retype Iterator<Entry<Node>>
+          Type DelayedIterator<Entry<Node>>
           Local $for.iterator.result.45
       goto bb1
     bb69 coroutine.completed.1
-      val $for.iterator.result.45: DelayedIterator$D14_Entry$C4_NodeXX
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+      val $for.iterator.result.45: DelayedIterator<Entry<Node>>
+        Type DelayedIterator<Entry<Node>>
         EnumField v0 f0
-          Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+          Type CoroutineStep<DelayedIterator<Entry<Node>>>
           Local $step.1
       goto bb68
     bb70 coroutine.protocol_error
@@ -13593,9 +13593,9 @@ Module
             Type CoroutineFrame<IterationTask.run>
             Local $frame
       assign $for.iterator.result.45
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<DelayedIterator<Entry<Node>>>
           FieldAccess 9
             Type CoroutineFrame<IterationTask.run>
             Local $frame
@@ -13753,8 +13753,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -13775,8 +13775,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -13877,8 +13877,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -13899,8 +13899,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14010,8 +14010,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14032,8 +14032,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14134,8 +14134,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14156,8 +14156,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14267,8 +14267,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14289,8 +14289,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14391,8 +14391,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14413,8 +14413,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14524,8 +14524,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14546,8 +14546,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14648,8 +14648,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14670,8 +14670,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14762,7 +14762,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resume$1 @fn196(this: CoroutineAdapter<IterationTask.run>$1, value: DelayedIterator$D14_Entry$C4_NodeXX) -> Unit
+  fun CoroutineAdapter.resume$1 @fn196(this: CoroutineAdapter<IterationTask.run>$1, value: DelayedIterator<Entry<Node>>) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -14781,8 +14781,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14803,8 +14803,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14827,9 +14827,9 @@ Module
         FieldAccess 0
           Type CoroutineAdapter<IterationTask.run>$1
           Local this
-        Type CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX> v1
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type CoroutineSlot<DelayedIterator<Entry<Node>>>
+        VariantConstruct CoroutineSlot<DelayedIterator<Entry<Node>>> v1
+          Type DelayedIterator<Entry<Node>>
           Local value
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<IterationTask.run>$1
@@ -14914,8 +14914,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn186 interface Continuation$I64[0]
-        Type Continuation$I64
+      call @fn186 interface Continuation<Long>[0]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -14936,8 +14936,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn187 interface Continuation$I64[1]
-        Type Continuation$I64
+      call @fn187 interface Continuation<Long>[1]
+        Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<IterationTask.run>
           FieldAccess 0
@@ -15044,11 +15044,11 @@ Module
         Local $new.1
         Type Gate
         Local $parameter.gate
-      val $argument.0: SuspendRegistration$U
+      val $argument.0: SuspendRegistration<Unit>
         Type Registration
         Local $new.1
-      val $parameter.registration: SuspendRegistration$U
-        Type SuspendRegistration$U
+      val $parameter.registration: SuspendRegistration<Unit>
+        Type SuspendRegistration<Unit>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<waitFor>
@@ -15086,8 +15086,8 @@ Module
           Type Unit
           UnitLiteral
     bb2 coroutine.register.1 unwind bb22
-      call @fn124 interface SuspendRegistration$U[0]
-        Type SuspendRegistration$U
+      call @fn124 interface SuspendRegistration<Unit>[0]
+        Type SuspendRegistration<Unit>
         Local $parameter.registration
         Type CoroutineAdapter<waitFor>$1
         Local $safe_adapter.1
@@ -15389,8 +15389,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn199 interface Continuation$U[0]
-        Type Continuation$U
+      call @fn199 interface Continuation<Unit>[0]
+        Type Continuation<Unit>
         FieldAccess 1
           Type CoroutineFrame<waitFor>
           FieldAccess 0
@@ -15411,8 +15411,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn200 interface Continuation$U[1]
-        Type Continuation$U
+      call @fn200 interface Continuation<Unit>[1]
+        Type Continuation<Unit>
         FieldAccess 1
           Type CoroutineFrame<waitFor>
           FieldAccess 0
@@ -15544,8 +15544,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn199 interface Continuation$U[0]
-        Type Continuation$U
+      call @fn199 interface Continuation<Unit>[0]
+        Type Continuation<Unit>
         FieldAccess 1
           Type CoroutineFrame<waitFor>
           FieldAccess 0
@@ -15566,8 +15566,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn200 interface Continuation$U[1]
-        Type Continuation$U
+      call @fn200 interface Continuation<Unit>[1]
+        Type Continuation<Unit>
         FieldAccess 1
           Type CoroutineFrame<waitFor>
           FieldAccess 0
@@ -15689,7 +15689,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun DelayedIterable.iterator$drive @fn203($frame: CoroutineFrame<DelayedIterable.iterator>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+  fun DelayedIterable.iterator$drive @fn203($frame: CoroutineFrame<DelayedIterable.iterator>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<DelayedIterator<Entry<Node>>>
     bb0 entry
       val $argument.0: String
         Type String
@@ -15703,7 +15703,7 @@ Module
       val $argument.0: Gate
         Type Gate
         FieldAccess 0
-          Type DelayedIterable$D14_Entry$C4_NodeXX
+          Type DelayedIterable<Entry<Node>>
           Local this
       val $parameter.gate: Gate
         Type Gate
@@ -15711,9 +15711,9 @@ Module
       field_set 2
         Type CoroutineFrame<DelayedIterable.iterator>
         Local $frame
-        Type CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX> v1
-          Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type CoroutineSlot<DelayedIterable<Entry<Node>>>
+        VariantConstruct CoroutineSlot<DelayedIterable<Entry<Node>>> v1
+          Type DelayedIterable<Entry<Node>>
           Local this
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<DelayedIterable.iterator>
@@ -15757,34 +15757,34 @@ Module
       call @fn96 direct
         Type String
         Local $parameter.value
-      val $argument.0: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $argument.0: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         FieldAccess 1
-          Type DelayedIterable$D14_Entry$C4_NodeXX
+          Type DelayedIterable<Entry<Node>>
           Local this
       val $argument.1: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $parameter.values: Array<Entry$C4_NodeX>
-        Type Array<Entry$C4_NodeX>
+      val $parameter.values: Array<Entry<Node>>
+        Type Array<Entry<Node>>
         Local $argument.0
       val $parameter.index: Long
         Type Long
         Local $argument.1
       assign $new.1
-        Type DelayedIterator$D14_Entry$C4_NodeXX
-        ClassAlloc DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
+        ClassAlloc DelayedIterator<Entry<Node>>
       call @fn173 direct
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
         Local $new.1
-        Type Array<Entry$C4_NodeX>
+        Type Array<Entry<Node>>
         Local $parameter.values
         Type Long
         Local $parameter.index
       return
-        Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> v0
-          Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type CoroutineStep<DelayedIterator<Entry<Node>>>
+        VariantConstruct CoroutineStep<DelayedIterator<Entry<Node>>> v0
+          Type DelayedIterator<Entry<Node>>
           Local $new.1
     bb2 coroutine.completed.1
       goto bb1
@@ -15834,22 +15834,22 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
     bb6 coroutine.suspended.1
       return
-        Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
-        VariantConstruct CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> v1
+        Type CoroutineStep<DelayedIterator<Entry<Node>>>
+        VariantConstruct CoroutineStep<DelayedIterator<Entry<Node>>> v1
     bb7 coroutine.resume.1
       assign this
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<DelayedIterable<Entry<Node>>>
           FieldAccess 2
             Type CoroutineFrame<DelayedIterable.iterator>
             Local $frame
       goto bb1
     bb8 coroutine.failure.1
       assign this
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<DelayedIterable<Entry<Node>>>
           FieldAccess 2
             Type CoroutineFrame<DelayedIterable.iterator>
             Local $frame
@@ -15862,9 +15862,9 @@ Module
             Local $frame
     bb9 coroutine.initial
       assign this
-        Type DelayedIterable$D14_Entry$C4_NodeXX
+        Type DelayedIterable<Entry<Node>>
         EnumField v1 f0
-          Type CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX>
+          Type CoroutineSlot<DelayedIterable<Entry<Node>>>
           FieldAccess 2
             Type CoroutineFrame<DelayedIterable.iterator>
             Local $frame
@@ -15927,16 +15927,16 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn204 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[0]
-        Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+      call @fn204 interface Continuation<DelayedIterator<Entry<Node>>>[0]
+        Type Continuation<DelayedIterator<Entry<Node>>>
         FieldAccess 1
           Type CoroutineFrame<DelayedIterable.iterator>
           FieldAccess 0
             Type CoroutineAdapter<DelayedIterable.iterator>$1
             Local this
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
         EnumField v0 f0
-          Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+          Type CoroutineStep<DelayedIterator<Entry<Node>>>
           Local $step
       return
     bb2 suspended
@@ -15949,8 +15949,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn205 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[1]
-        Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+      call @fn205 interface Continuation<DelayedIterator<Entry<Node>>>[1]
+        Type Continuation<DelayedIterator<Entry<Node>>>
         FieldAccess 1
           Type CoroutineFrame<DelayedIterable.iterator>
           FieldAccess 0
@@ -15973,7 +15973,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> = @fn203 direct
+      call $step: CoroutineStep<DelayedIterator<Entry<Node>>> = @fn203 direct
         Type CoroutineFrame<DelayedIterable.iterator>
         FieldAccess 0
           Type CoroutineAdapter<DelayedIterable.iterator>$1
@@ -15985,7 +15985,7 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+            Type CoroutineStep<DelayedIterator<Entry<Node>>>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -16051,16 +16051,16 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn204 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[0]
-        Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+      call @fn204 interface Continuation<DelayedIterator<Entry<Node>>>[0]
+        Type Continuation<DelayedIterator<Entry<Node>>>
         FieldAccess 1
           Type CoroutineFrame<DelayedIterable.iterator>
           FieldAccess 0
             Type CoroutineAdapter<DelayedIterable.iterator>$1
             Local this
-        Type DelayedIterator$D14_Entry$C4_NodeXX
+        Type DelayedIterator<Entry<Node>>
         EnumField v0 f0
-          Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+          Type CoroutineStep<DelayedIterator<Entry<Node>>>
           Local $step
       return
     bb2 suspended
@@ -16073,8 +16073,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn205 interface Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX[1]
-        Type Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX
+      call @fn205 interface Continuation<DelayedIterator<Entry<Node>>>[1]
+        Type Continuation<DelayedIterator<Entry<Node>>>
         FieldAccess 1
           Type CoroutineFrame<DelayedIterable.iterator>
           FieldAccess 0
@@ -16106,7 +16106,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> = @fn203 direct
+      call $step: CoroutineStep<DelayedIterator<Entry<Node>>> = @fn203 direct
         Type CoroutineFrame<DelayedIterable.iterator>
         FieldAccess 0
           Type CoroutineAdapter<DelayedIterable.iterator>$1
@@ -16118,7 +16118,7 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX>
+            Type CoroutineStep<DelayedIterator<Entry<Node>>>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -16167,32 +16167,32 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
   coroutine_step cs0 CoroutineStep<Long> result=Long
   coroutine_step cs1 CoroutineStep<Unit> result=Unit
-  coroutine_step cs2 CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> result=DelayedIterator$D14_Entry$C4_NodeXX
+  coroutine_step cs2 CoroutineStep<DelayedIterator<Entry<Node>>> result=DelayedIterator<Entry<Node>>
   coroutine_slot cl0 CoroutineSlot<Long> value=Long
   coroutine_slot cl1 CoroutineSlot<IntRange> value=IntRange
   coroutine_slot cl2 CoroutineSlot<IterationTask> value=IterationTask
   coroutine_slot cl3 CoroutineSlot<Throwable> value=Throwable
-  coroutine_slot cl4 CoroutineSlot<Iterator$D14_Entry$C4_NodeXX> value=Iterator$D14_Entry$C4_NodeXX
+  coroutine_slot cl4 CoroutineSlot<Iterator<Entry<Node>>> value=Iterator<Entry<Node>>
   coroutine_slot cl5 CoroutineSlot<Int> value=Int
   coroutine_slot cl6 CoroutineSlot<RangeCheckpoint> value=RangeCheckpoint
-  coroutine_slot cl7 CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX> value=DelayedIterator$D14_Entry$C4_NodeXX
+  coroutine_slot cl7 CoroutineSlot<DelayedIterator<Entry<Node>>> value=DelayedIterator<Entry<Node>>
   coroutine_slot cl8 CoroutineSlot<Gate> value=Gate
   coroutine_slot cl9 CoroutineSlot<Unit> value=Unit
-  coroutine_slot cl10 CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX> value=DelayedIterable$D14_Entry$C4_NodeXX
+  coroutine_slot cl10 CoroutineSlot<DelayedIterable<Entry<Node>>> value=DelayedIterable<Entry<Node>>
   continuation_shell ch0 result=Long success=fn186 failure=fn187
   continuation_shell ch1 result=Unit success=fn199 failure=fn200
-  continuation_shell ch2 result=DelayedIterator$D14_Entry$C4_NodeXX success=fn204 failure=fn205
+  continuation_shell ch2 result=DelayedIterator<Entry<Node>> success=fn204 failure=fn205
   coroutine_start ct0 result=Long function=fn183
   coroutine_saved cv0 class=CoroutineFrame<IterationTask.run> field=2 slot=cl0 value=Long
   coroutine_saved cv1 class=CoroutineFrame<IterationTask.run> field=3 slot=cl1 value=IntRange
   coroutine_saved cv2 class=CoroutineFrame<IterationTask.run> field=4 slot=cl2 value=IterationTask
   coroutine_saved cv3 class=CoroutineFrame<IterationTask.run> field=5 slot=cl3 value=Throwable
-  coroutine_saved cv4 class=CoroutineFrame<IterationTask.run> field=6 slot=cl4 value=Iterator$D14_Entry$C4_NodeXX
+  coroutine_saved cv4 class=CoroutineFrame<IterationTask.run> field=6 slot=cl4 value=Iterator<Entry<Node>>
   coroutine_saved cv5 class=CoroutineFrame<IterationTask.run> field=7 slot=cl5 value=Int
   coroutine_saved cv6 class=CoroutineFrame<IterationTask.run> field=8 slot=cl6 value=RangeCheckpoint
-  coroutine_saved cv7 class=CoroutineFrame<IterationTask.run> field=9 slot=cl7 value=DelayedIterator$D14_Entry$C4_NodeXX
+  coroutine_saved cv7 class=CoroutineFrame<IterationTask.run> field=9 slot=cl7 value=DelayedIterator<Entry<Node>>
   coroutine_saved cv8 class=CoroutineFrame<waitFor> field=2 slot=cl8 value=Gate
-  coroutine_saved cv9 class=CoroutineFrame<DelayedIterable.iterator> field=2 slot=cl10 value=DelayedIterable$D14_Entry$C4_NodeXX
+  coroutine_saved cv9 class=CoroutineFrame<DelayedIterable.iterator> field=2 slot=cl10 value=DelayedIterable<Entry<Node>>
   coroutine_failure cx0 class=CoroutineFrame<IterationTask.run> field=10 slot=cl3 throwable=Throwable
   coroutine_failure cx1 class=CoroutineFrame<waitFor> field=3 slot=cl3 throwable=Throwable
   coroutine_failure cx2 class=CoroutineFrame<DelayedIterable.iterator> field=3 slot=cl3 throwable=Throwable
@@ -16219,7 +16219,7 @@ Module
       entry=bb66
     failure resume_failure.2 -> Continue(bb6) -> ManagedThrow(cx0, unwind=propagate)
       entry=bb67
-  coroutine_resume cp4 site=1 result=DelayedIterator$D14_Entry$C4_NodeXX frame=cr0 adapter=CoroutineAdapter<IterationTask.run>$1 environment_id=e8358e6a4a50a02deae3dea50faedbe31a5f89c1fe14d85f71c03dbe11b87ec8 resume=@fn196 success_id=4f0ae0014bb928ac810ad61ed809cfec434963d92aa67ac50b3c06f1f6595d02 failure=@fn197 failure_id=c8c45b7fe743fb51950b560b3487223436f57a8e93644f3da76819798aac2c68
+  coroutine_resume cp4 site=1 result=DelayedIterator<Entry<Node>> frame=cr0 adapter=CoroutineAdapter<IterationTask.run>$1 environment_id=e8358e6a4a50a02deae3dea50faedbe31a5f89c1fe14d85f71c03dbe11b87ec8 resume=@fn196 success_id=4f0ae0014bb928ac810ad61ed809cfec434963d92aa67ac50b3c06f1f6595d02 failure=@fn197 failure_id=c8c45b7fe743fb51950b560b3487223436f57a8e93644f3da76819798aac2c68
     success suspended.1 -> Fallthrough(bb68)
       entry=bb74
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
@@ -16236,10 +16236,10 @@ Module
       entry=bb8
   coroutine_fn cf0 @fn80 source_return=Long step=cs0 frame=cr0 driver=@fn185 id=052d6b19c83b131d593c66d4c6a84c14b73a0cca7e3167c75cf5369186850476 resumes=[cp4,cp3,cp2,cp1,cp0]
   coroutine_fn cf1 @fn88 source_return=Unit step=cs1 frame=cr1 driver=@fn198 id=3263a8d0d1fb7b9ee4c8a5a1e63d16b77a68cdf60c4b6fb56a256750b7f4f338 resumes=[cp5]
-  coroutine_fn cf2 @fn106 source_return=DelayedIterator$D14_Entry$C4_NodeXX step=cs2 frame=cr2 driver=@fn203 id=6a85e69bf09d9891eb7b7d091dd2de229ffff9153338063e552913f06abf3b6b resumes=[cp6]
+  coroutine_fn cf2 @fn106 source_return=DelayedIterator<Entry<Node>> step=cs2 frame=cr2 driver=@fn203 id=6a85e69bf09d9891eb7b7d091dd2de229ffff9153338063e552913f06abf3b6b resumes=[cp6]
   coroutine_fn cf3 @fn123 source_return=Unit step=cs1 immediate
   coroutine_fn cf4 @fn127 source_return=Long step=cs0 immediate
-  coroutine_fn cf5 @fn131 source_return=DelayedIterator$D14_Entry$C4_NodeXX step=cs2 immediate
+  coroutine_fn cf5 @fn131 source_return=DelayedIterator<Entry<Node>> step=cs2 immediate
   instance mi0 function=@fn71 <- Array.iterator
   instance mi1 function=@fn79 <- Array.iterator
   instance mi2 function=@fn96 <- println
@@ -16395,30 +16395,30 @@ Module
   global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
-  enum Option$J14_Continuation$UX niche(kind=managed,payload_variant=0)
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$D14_Entry$C4_NodeXX tagged size=32 align=8 variants=(struct11)@8+24:refs ()@8+0
-  enum Option$U tagged size=8 align=8 variants=({})@8+0 ()@8+0
-  enum Option$FRC4_NodeXX niche(kind=managed,payload_variant=0)
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=32 align=8 variants=(struct11)@8+24:refs ()@8+0
+  enum Option tagged size=8 align=8 variants=({})@8+0 ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum RangeSignal tagged size=48 align=8 variants=(struct10, i1)@8+40:refs ()@8+0
   enum CoroutineStep<Long> tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineStep<Unit> tagged size=8 align=8 variants=({})@8+0 ()@8+0
-  enum CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> niche(kind=managed,payload_variant=0)
+  enum CoroutineStep<DelayedIterator<Entry<Node>>> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Long> tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum CoroutineSlot<IntRange> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<IterationTask> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<Throwable> niche(kind=managed,payload_variant=1)
-  enum CoroutineSlot<Iterator$D14_Entry$C4_NodeXX> niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot<Iterator<Entry<Node>>> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<Int> tagged size=16 align=8 variants=()@8+0 (i32)@8+4
   enum CoroutineSlot<RangeCheckpoint> tagged size=32 align=8 variants=()@8+0 (struct12)@8+24:refs
-  enum CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX> niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot<DelayedIterator<Entry<Node>>> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<Gate> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<Unit> tagged size=8 align=8 variants=()@8+0 ({})@8+0
-  enum CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX> niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot<DelayedIterable<Entry<Node>>> niche(kind=managed,payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
   extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
@@ -24555,28 +24555,28 @@ Module
     cbr t24 then @completed else @suspended
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterator$U @scoop$1$td$3e712e4192aea9a42605f9ba400e88c9a1fd63aab54349711506e2fffea5c8ff type-id=3594084316110206815 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td10 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
-  td td11 Iterator$D14_Entry$C4_NodeXX @scoop$1$td$53e2901856b04a03257a57cf7a0c4477df0bc1d49d8cd2744cd9a000a4c6e7b4 type-id=17911840226062468335 size=0 parent=none vtable=[] itables=[]
-  td td12 Iterable$D14_Entry$C4_NodeXX @scoop$1$td$84070fc165a8929b2bf003e7ce48e8b4a015d53669e3b332527431742a448c31 type-id=11284346151584696675 size=0 parent=none vtable=[] itables=[]
-  td td13 Continuation$U @scoop$1$td$9334861749a29113057d0004cd3728354b4c6e79013ca72acab1c51d57b7d78b type-id=7086247798055360882 size=0 parent=none vtable=[] itables=[]
-  td td14 SuspendRegistration$U @scoop$1$td$b813ae5d1c3ee755618524bf6a45d38ad3bebcd126fabdaca8af44016e79107e type-id=13969897205885254729 size=0 parent=none vtable=[] itables=[]
-  td td15 SuspendTask$I64 @scoop$1$td$457e8fe5388ee232aca23cfc53d1e66c745095fa15c11e13fbe6aabda63a5093 type-id=17293099788188354694 size=0 parent=none vtable=[] itables=[]
-  td td16 Continuation$I64 @scoop$1$td$026985847fa4febc8c3b4d251ec16fd43aeaa5b1e1939b94e5cb0bbef032f5fa type-id=14923514476942245595 size=0 parent=none vtable=[] itables=[]
-  td td17 Iterable$FRC4_NodeXX @scoop$1$td$9857582ff87d637c2b84a5a187dd23b53ad4a917c8afd2d6bff1ca1de02908a5 type-id=3808709666097573786 size=0 parent=none vtable=[] itables=[]
-  td td18 Iterator$FRC4_NodeXX @scoop$1$td$65ed68b554b51831129197b06b73cf0bf5c809b86a32bb099c4c2904beaa95c1 type-id=8056982164167526061 size=0 parent=none vtable=[] itables=[]
-  td td19 SuspendTask$U @scoop$1$td$c3bb4cae6941ae1d01108a49c6b841e66d2463d5492e452035d926652f94ab24 type-id=14424458497150341140 size=0 parent=none vtable=[] itables=[]
-  td td20 SuspendRegistration$I64 @scoop$1$td$08b5fb6f3fbfe68b782f5c13637d3d1120ffad85aeeef773340d4cab11022c69 type-id=5590955954078529635 size=0 parent=none vtable=[] itables=[]
-  td td21 Continuation$C35_DelayedIterator$D14_Entry$C4_NodeXXX @scoop$1$td$6719e20734d9ac8bcbb36088803245a1e4d679715c32b9f964b995c585228110 type-id=12526380368457313158 size=0 parent=none vtable=[] itables=[]
-  td td22 SuspendTask$C35_DelayedIterator$D14_Entry$C4_NodeXXX @scoop$1$td$6951d0494ad0c8c0f6e5f09f326da16bb31a862f671e0d59abc88743b57e4de7 type-id=3749240296634909815 size=0 parent=none vtable=[] itables=[]
-  td td23 SuspendRegistration$C35_DelayedIterator$D14_Entry$C4_NodeXXX @scoop$1$td$e8d0e1cf9e41ce8aa7d53b93867640ba379639f5518c4d7328ee53cdc272f9c0 type-id=15610492971671839102 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterator @scoop$1$td$3e712e4192aea9a42605f9ba400e88c9a1fd63aab54349711506e2fffea5c8ff type-id=3594084316110206815 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td10 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td11 Iterator @scoop$1$td$53e2901856b04a03257a57cf7a0c4477df0bc1d49d8cd2744cd9a000a4c6e7b4 type-id=17911840226062468335 size=0 parent=none vtable=[] itables=[]
+  td td12 Iterable @scoop$1$td$84070fc165a8929b2bf003e7ce48e8b4a015d53669e3b332527431742a448c31 type-id=11284346151584696675 size=0 parent=none vtable=[] itables=[]
+  td td13 Continuation @scoop$1$td$9334861749a29113057d0004cd3728354b4c6e79013ca72acab1c51d57b7d78b type-id=7086247798055360882 size=0 parent=none vtable=[] itables=[]
+  td td14 SuspendRegistration @scoop$1$td$b813ae5d1c3ee755618524bf6a45d38ad3bebcd126fabdaca8af44016e79107e type-id=13969897205885254729 size=0 parent=none vtable=[] itables=[]
+  td td15 SuspendTask @scoop$1$td$457e8fe5388ee232aca23cfc53d1e66c745095fa15c11e13fbe6aabda63a5093 type-id=17293099788188354694 size=0 parent=none vtable=[] itables=[]
+  td td16 Continuation @scoop$1$td$026985847fa4febc8c3b4d251ec16fd43aeaa5b1e1939b94e5cb0bbef032f5fa type-id=14923514476942245595 size=0 parent=none vtable=[] itables=[]
+  td td17 Iterable @scoop$1$td$9857582ff87d637c2b84a5a187dd23b53ad4a917c8afd2d6bff1ca1de02908a5 type-id=3808709666097573786 size=0 parent=none vtable=[] itables=[]
+  td td18 Iterator @scoop$1$td$65ed68b554b51831129197b06b73cf0bf5c809b86a32bb099c4c2904beaa95c1 type-id=8056982164167526061 size=0 parent=none vtable=[] itables=[]
+  td td19 SuspendTask @scoop$1$td$c3bb4cae6941ae1d01108a49c6b841e66d2463d5492e452035d926652f94ab24 type-id=14424458497150341140 size=0 parent=none vtable=[] itables=[]
+  td td20 SuspendRegistration @scoop$1$td$08b5fb6f3fbfe68b782f5c13637d3d1120ffad85aeeef773340d4cab11022c69 type-id=5590955954078529635 size=0 parent=none vtable=[] itables=[]
+  td td21 Continuation @scoop$1$td$6719e20734d9ac8bcbb36088803245a1e4d679715c32b9f964b995c585228110 type-id=12526380368457313158 size=0 parent=none vtable=[] itables=[]
+  td td22 SuspendTask @scoop$1$td$6951d0494ad0c8c0f6e5f09f326da16bb31a862f671e0d59abc88743b57e4de7 type-id=3749240296634909815 size=0 parent=none vtable=[] itables=[]
+  td td23 SuspendRegistration @scoop$1$td$e8d0e1cf9e41ce8aa7d53b93867640ba379639f5518c4d7328ee53cdc272f9c0 type-id=15610492971671839102 size=0 parent=none vtable=[] itables=[]
   td td24 function<() -> Node> @scoop$1$td$a4917bbe51947acdaf9869bad52edff64e7afffd089c4b7490c06a07dafc44f8 type-id=138335808241442132 size=0 parent=none vtable=[] itables=[]
   td td25 function<(Node) -> String> @scoop$1$td$bd675504bd569d9010445f0f1bc65e15b709f01f080aeb047001abcecfc3e484 type-id=10415394786175724487 size=0 parent=none vtable=[] itables=[]
   td td26 Node @scoop$1$td$7cd58eee51e8ebae7d0ccc2db6ff6a7686829c87e2fecdd9d32e46965c4938c3 type-id=13597638225849505043 size=24 parent=none vtable=[] itables=[]
@@ -24598,14 +24598,14 @@ Module
   td td44 Registration @scoop$1$td$d46f6f6952e332d4b7e95a19d383e95fb7339d5006cc83343c89b59019c46c32 type-id=6448999430971197511 size=24 parent=none vtable=[] itables=[td14:[local-fn78]]
   td td45 IterationTask @scoop$1$td$32251beadb63dfaf0cc8cf09d06ff8f196d021b45b0bf802e71c2048deab8bf5 type-id=6832358471181525183 size=32 parent=none vtable=[] itables=[td15:[local-fn80]]
   td td47 RecordingCompletion @scoop$1$td$d30a4d789290392e58125a25f9e52c0fe74c88f51cd03cffc57bc6776c284c17 type-id=16347324576266081555 size=16 parent=none vtable=[] itables=[td16:[local-fn81, local-fn82]]
-  td td49 ArrayIterator$I32 @scoop$1$td$8e2000292087c9778cfb8e8d268b7f37c5f10fa7b6c0494d3f3b0d2880dd4037 type-id=3092229143477019009 size=32 parent=none vtable=[] itables=[td4:[local-fn103]]
-  td td51 ArrayIterator$D14_Entry$C4_NodeXX @scoop$1$td$94651085bdb9d67dc6e4f04074d0062a1469c2e3b0a5020adecda1496e9bf7f1 type-id=9359175903555509148 size=32 parent=none vtable=[] itables=[td11:[local-fn105]]
-  td td52 DelayedIterable$D14_Entry$C4_NodeXX @scoop$1$td$12c0042ed49eb1af281cb6fa00fd3189f92620acf6b9407249a7a3a43f5a8b61 type-id=4638401880448703552 size=32 parent=none vtable=[] itables=[]
-  td td53 DelayedIterator$D14_Entry$C4_NodeXX @scoop$1$td$55e7bfebe079a5a408fff056b473aa0509c3a247d3b02280e120b1821360b3f7 type-id=12951138362704668600 size=32 parent=none vtable=[] itables=[td11:[local-fn107]]
-  td td55 MutableArrayIterator$I32 @scoop$1$td$7140fe1248901c111d847cc7931f3ff441eb971540c2dc7239b39a48da3e985a type-id=2378697403886227389 size=32 parent=none vtable=[] itables=[td4:[local-fn111]]
-  td td56 MutableArrayIterator$D14_Entry$C4_NodeXX @scoop$1$td$cd373f5a44736dead45df973605cee5eba8dd2d0f0809e9cfd671a189ef10a04 type-id=10087279793417511661 size=32 parent=none vtable=[] itables=[td11:[local-fn112]]
-  td td58 MutableArrayIterator$FRC4_NodeXX @scoop$1$td$d7fe6cb34a2c4df3738298a925853cc22139fbfcb1812d672e574f8fa1ff202a type-id=5356785099337449183 size=32 parent=none vtable=[] itables=[td18:[local-fn114]]
-  td td59 ArrayIterator$FRC4_NodeXX @scoop$1$td$207c579cdf2d5619b941691e57552a9999d351eee4d07c38825d04de5e7f4c9f type-id=8981209143733895178 size=32 parent=none vtable=[] itables=[td18:[local-fn115]]
+  td td49 ArrayIterator @scoop$1$td$8e2000292087c9778cfb8e8d268b7f37c5f10fa7b6c0494d3f3b0d2880dd4037 type-id=3092229143477019009 size=32 parent=none vtable=[] itables=[td4:[local-fn103]]
+  td td51 ArrayIterator @scoop$1$td$94651085bdb9d67dc6e4f04074d0062a1469c2e3b0a5020adecda1496e9bf7f1 type-id=9359175903555509148 size=32 parent=none vtable=[] itables=[td11:[local-fn105]]
+  td td52 DelayedIterable @scoop$1$td$12c0042ed49eb1af281cb6fa00fd3189f92620acf6b9407249a7a3a43f5a8b61 type-id=4638401880448703552 size=32 parent=none vtable=[] itables=[]
+  td td53 DelayedIterator @scoop$1$td$55e7bfebe079a5a408fff056b473aa0509c3a247d3b02280e120b1821360b3f7 type-id=12951138362704668600 size=32 parent=none vtable=[] itables=[td11:[local-fn107]]
+  td td55 MutableArrayIterator @scoop$1$td$7140fe1248901c111d847cc7931f3ff441eb971540c2dc7239b39a48da3e985a type-id=2378697403886227389 size=32 parent=none vtable=[] itables=[td4:[local-fn111]]
+  td td56 MutableArrayIterator @scoop$1$td$cd373f5a44736dead45df973605cee5eba8dd2d0f0809e9cfd671a189ef10a04 type-id=10087279793417511661 size=32 parent=none vtable=[] itables=[td11:[local-fn112]]
+  td td58 MutableArrayIterator @scoop$1$td$d7fe6cb34a2c4df3738298a925853cc22139fbfcb1812d672e574f8fa1ff202a type-id=5356785099337449183 size=32 parent=none vtable=[] itables=[td18:[local-fn114]]
+  td td59 ArrayIterator @scoop$1$td$207c579cdf2d5619b941691e57552a9999d351eee4d07c38825d04de5e7f4c9f type-id=8981209143733895178 size=32 parent=none vtable=[] itables=[td18:[local-fn115]]
   td td60 box<EmptyValueIterator> @scoop$1$td$82a5bf64881f8678e773cfec462db9af4bf3c48c49bbad4099feb9ad9b68018b type-id=6812745272014235645 size=16 parent=none vtable=[] itables=[td2:[local-fn157]]
   td td61 CoroutineFrame<IterationTask.run> @scoop$1$td$72ac710a10e962f29f9e0d1ae0aa1cd77768e7cf3de17afeaabf47c1b3279a09 type-id=3036457405059013714 size=144 parent=none vtable=[] itables=[]
   td td62 CoroutineAdapter<IterationTask.run>$5 @scoop$1$td$c2e9a2fd4f4b2738691a95ad51d011580863debedf5040c424d7c222445a95e1 type-id=17339831277034445650 size=32 parent=none vtable=[] itables=[td13:[local-fn159, local-fn160]]
@@ -24629,12 +24629,12 @@ Module
   td td80 $Closure$lambda2 @scoop$1$td$8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f type-id=10679526333612014532 size=32 parent=td24 vtable=[] itables=[]
   td td81 $Closure$lambda3 @scoop$1$td$eb2d41bca85af9d3d2b2cd551229aaac44e4348e1daa017bf059a115a8bbab71 type-id=15522540147607954767 size=24 parent=td25 vtable=[] itables=[]
   td td82 $Closure$lambda4 @scoop$1$td$f61a2cece3f5656bc391946dba84206b5b8c7e33636a1434e5e0849e4ebe5ebe type-id=524722214256653212 size=32 parent=td24 vtable=[] itables=[]
-  array-type array0 Array$I32 kind=immutable element=i32 size=4 align=4 scan=none td=td38
-  array-type array1 Array$D14_Entry$C4_NodeXX kind=immutable element=struct11 size=24 align=8 scan=refs[8, 16] td=td46
-  array-type array2 MutableArray$I32 kind=mutable element=i32 size=4 align=4 scan=none td=td48
-  array-type array3 MutableArray$D14_Entry$C4_NodeXX kind=mutable element=struct11 size=24 align=8 scan=refs[8, 16] td=td50
-  array-type array4 MutableArray$FRC4_NodeXX kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td54
-  array-type array5 Array$FRC4_NodeXX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td57
+  array-type array0 Array kind=immutable element=i32 size=4 align=4 scan=none td=td38
+  array-type array1 Array kind=immutable element=struct11 size=24 align=8 scan=refs[8, 16] td=td46
+  array-type array2 MutableArray kind=mutable element=i32 size=4 align=4 scan=none td=td48
+  array-type array3 MutableArray kind=mutable element=struct11 size=24 align=8 scan=refs[8, 16] td=td50
+  array-type array4 MutableArray kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td54
+  array-type array5 Array kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td57
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -24647,33 +24647,33 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout RangePatternPayload size=32 align=8 refs=[8, 16]
-  layout Entry$C4_NodeX size=24 align=8 refs=[8, 16]
+  layout Entry size=24 align=8 refs=[8, 16]
   layout RangeCheckpoint size=24 align=8 refs=[8, 16]
   layout EmptyValueIterator size=0 align=1 refs=[]
-  layout Option$J14_Continuation$UX size=8 align=8 enum-scan=refs[0]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$D14_Entry$C4_NodeXX size=32 align=8 enum-scan=refs[16, 24]
-  layout Option$U size=8 align=8 enum-scan=none
-  layout Option$FRC4_NodeXX size=8 align=8 enum-scan=refs[0]
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=32 align=8 enum-scan=refs[16, 24]
+  layout Option size=8 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout RangeSignal size=48 align=8 enum-scan=refs[16, 24]
   layout CoroutineStep<Long> size=16 align=8 enum-scan=none
   layout CoroutineStep<Unit> size=8 align=8 enum-scan=none
-  layout CoroutineStep<DelayedIterator$D14_Entry$C4_NodeXX> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<DelayedIterator<Entry<Node>>> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Long> size=16 align=8 enum-scan=none
   layout CoroutineSlot<IntRange> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<IterationTask> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Throwable> size=8 align=8 enum-scan=refs[0]
-  layout CoroutineSlot<Iterator$D14_Entry$C4_NodeXX> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Iterator<Entry<Node>>> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Int> size=16 align=8 enum-scan=none
   layout CoroutineSlot<RangeCheckpoint> size=32 align=8 enum-scan=refs[16, 24]
-  layout CoroutineSlot<DelayedIterator$D14_Entry$C4_NodeXX> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<DelayedIterator<Entry<Node>>> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Gate> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Unit> size=8 align=8 enum-scan=none
-  layout CoroutineSlot<DelayedIterable$D14_Entry$C4_NodeXX> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<DelayedIterable<Entry<Node>>> size=8 align=8 enum-scan=refs[0]
   layout Node size=24 align=8 refs=[16]
   layout IntRange size=32 align=8 refs=[]
   layout IntRangeIterator size=32 align=8 refs=[]
@@ -24700,14 +24700,14 @@ Module
   layout Registration size=24 align=8 refs=[16]
   layout IterationTask size=32 align=8 refs=[16, 24]
   layout RecordingCompletion size=16 align=8 refs=[]
-  layout ArrayIterator$I32 size=32 align=8 refs=[16]
-  layout ArrayIterator$D14_Entry$C4_NodeXX size=32 align=8 refs=[16]
-  layout DelayedIterable$D14_Entry$C4_NodeXX size=32 align=8 refs=[16, 24]
-  layout DelayedIterator$D14_Entry$C4_NodeXX size=32 align=8 refs=[16]
-  layout MutableArrayIterator$I32 size=32 align=8 refs=[16]
-  layout MutableArrayIterator$D14_Entry$C4_NodeXX size=32 align=8 refs=[16]
-  layout MutableArrayIterator$FRC4_NodeXX size=32 align=8 refs=[16]
-  layout ArrayIterator$FRC4_NodeXX size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
+  layout DelayedIterable size=32 align=8 refs=[16, 24]
+  layout DelayedIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout MutableArrayIterator size=32 align=8 refs=[16]
+  layout ArrayIterator size=32 align=8 refs=[16]
   layout box<EmptyValueIterator> size=16 align=8 refs=[]
   layout CoroutineFrame<IterationTask.run> size=144 align=8 refs=[24, 48, 56, 64, 72, 112, 120, 128, 136]
   layout CoroutineAdapter<IterationTask.run>$5 size=32 align=8 refs=[16]

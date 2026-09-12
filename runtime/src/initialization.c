@@ -32,7 +32,6 @@ static _Noreturn void initialization_fatal(const char *message) {
 
 static void require_unit(const ScoopInitializationUnitDescriptor *unit) {
     if (unit == NULL || unit->schedule > SCOOP_INIT_LAZY_ACCESS ||
-        unit->stable_key == NULL || unit->stable_key[0] == '\0' ||
         unit->display_name == NULL || unit->display_name[0] == '\0' ||
         unit->cell == NULL || unit->storage == NULL || unit->failure_root == NULL ||
         unit->initializer_entry == NULL || unit->ensure_entry == NULL) {
@@ -378,12 +377,15 @@ static void initialize_units(const ScoopInitializationUnitDescriptor *units,
     const void *gateway_boundary = __builtin_frame_address(0);
     const void *previous_boundary =
         scoop_thread_push_managed_gateway_boundary(gateway_boundary);
-    const char *previous_key = NULL;
+    const uint8_t *previous_identity = NULL;
     for (uint64_t index = 0; index < count; index++) {
         const ScoopInitializationUnitDescriptor *unit = &units[index];
         require_unit(unit);
-        if (previous_key != NULL && strcmp(previous_key, unit->stable_key) >= 0) {
-            initialization_fatal("initialization unit table is not in stable-key order");
+        if (previous_identity != NULL &&
+            memcmp(previous_identity, unit->semantic_id,
+                   sizeof unit->semantic_id) >= 0) {
+            initialization_fatal(
+                "initialization unit table is not in persistent-identity order");
         }
         if (unit->cell->state != SCOOP_INIT_UNINITIALIZED ||
             unit->cell->owner_thread != NULL || *unit->failure_root != NULL) {
@@ -396,7 +398,7 @@ static void initialize_units(const ScoopInitializationUnitDescriptor *units,
                 initialization_fatal("initialization unit descriptor aliases another unit");
             }
         }
-        previous_key = unit->stable_key;
+        previous_identity = unit->semantic_id;
     }
     for (uint64_t index = 0; index < count; index++) {
         const ScoopInitializationUnitDescriptor *unit = &units[index];

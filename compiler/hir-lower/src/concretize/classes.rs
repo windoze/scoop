@@ -56,11 +56,7 @@ impl Concretizer<'_> {
             origin: self.source.nominal_identities[source_id].clone(),
             canonical_type: ty,
             modifier: source.modifier,
-            link_stem: source.link_stem.clone(),
-            name: self.instance_name(
-                &self.source_nominal_name(&source.name, source.owner),
-                &arguments,
-            ),
+            name: self.source_nominal_name(&source.name, source.owner),
             owner: self.lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             representation,

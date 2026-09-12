@@ -33,7 +33,7 @@ typedef struct TestUnit {
     ScoopInitializationUnitDescriptor descriptor;
 } TestUnit;
 
-static void initialize_test_unit(TestUnit *unit, const char *key,
+static void initialize_test_unit(TestUnit *unit, uint8_t identity_byte,
                                  const char *display_name) {
     *unit = (TestUnit){
         .cell = {0},
@@ -42,7 +42,6 @@ static void initialize_test_unit(TestUnit *unit, const char *key,
     };
     unit->descriptor = (ScoopInitializationUnitDescriptor){
         .schedule = SCOOP_INIT_LAZY_ACCESS,
-        .stable_key = key,
         .display_name = display_name,
         .cell = &unit->cell,
         .storage = &unit->storage,
@@ -50,6 +49,7 @@ static void initialize_test_unit(TestUnit *unit, const char *key,
         .initializer_entry = unused_initializer,
         .ensure_entry = unused_ensure,
     };
+    unit->descriptor.semantic_id[31] = identity_byte;
 }
 
 static void test_startup_schedule(void) {
@@ -59,7 +59,7 @@ static void test_startup_schedule(void) {
     ScoopInitializationUnitDescriptor units[2] = {
         {
             .schedule = SCOOP_INIT_LAZY_ACCESS,
-            .stable_key = "a-lazy",
+            .semantic_id = {1},
             .display_name = "top-level:lazy",
             .cell = &cells[0],
             .storage = &storage[0],
@@ -69,7 +69,7 @@ static void test_startup_schedule(void) {
         },
         {
             .schedule = SCOOP_INIT_EAGER_STARTUP,
-            .stable_key = "b-eager",
+            .semantic_id = {2},
             .display_name = "top-level:eager",
             .cell = &cells[1],
             .storage = &storage[1],
@@ -160,14 +160,14 @@ static void wait_for_edge(WorkerPlan *plan, TestUnit *unit) {
 
 static void test_ready_and_failure(void) {
     TestUnit ready;
-    initialize_test_unit(&ready, "opaque-ready", "top-level:ready");
+    initialize_test_unit(&ready, 1, "top-level:ready");
     assert(managed_enter(&ready.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     init_succeed(&ready.descriptor);
     assert(managed_enter(&ready.descriptor) == SCOOP_INIT_READY);
 
     static uint64_t failure_object;
     TestUnit failed;
-    initialize_test_unit(&failed, "opaque-failed", "top-level:failed");
+    initialize_test_unit(&failed, 2, "top-level:failed");
     assert(managed_enter(&failed.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     init_fail(&failed.descriptor, &failure_object);
     assert(managed_enter(&failed.descriptor) == SCOOP_INIT_RESULT_FAILED);
@@ -178,8 +178,8 @@ static void test_same_thread_cycle(void) {
     static uint64_t failure_object;
     TestUnit outer;
     TestUnit inner;
-    initialize_test_unit(&outer, "opaque-outer", "object:Outer");
-    initialize_test_unit(&inner, "opaque-inner", "object:Inner");
+    initialize_test_unit(&outer, 3, "object:Outer");
+    initialize_test_unit(&inner, 4, "object:Inner");
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&inner.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_CYCLE);
@@ -192,7 +192,7 @@ static void test_same_thread_cycle(void) {
 
 static void test_wait_participates_in_collection(void) {
     TestUnit unit;
-    initialize_test_unit(&unit, "opaque-waited", "top-level:waited");
+    initialize_test_unit(&unit, 5, "top-level:waited");
     assert(managed_enter(&unit.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     WorkerPlan plan = {
         .owned = NULL,
@@ -216,8 +216,8 @@ static void test_cross_thread_cycle(void) {
     static uint64_t failure_object;
     TestUnit left;
     TestUnit right;
-    initialize_test_unit(&left, "opaque-left", "top-level:left");
-    initialize_test_unit(&right, "opaque-right", "top-level:right");
+    initialize_test_unit(&left, 6, "top-level:left");
+    initialize_test_unit(&right, 7, "top-level:right");
     assert(managed_enter(&left.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     WorkerPlan plan = {
         .owned = &right,

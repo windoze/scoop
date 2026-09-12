@@ -144,7 +144,6 @@ impl Harness {
         let self_application =
             hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
         let enumeration = self.enums.alloc(hir::EnumDecl {
-            link_stem: nominal_link_stem(name),
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),

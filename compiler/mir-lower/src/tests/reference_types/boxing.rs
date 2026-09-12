@@ -99,10 +99,8 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     let mut h = Harness::new();
     let int = h.int;
     let iface = h.interface("Describable", &["describe"]);
-    h.interfaces[iface].link_stem = nominal_link_stem("$pkg$api$interface$Describable");
     let iface_ty = h.interface_ty(iface);
     let s = h.strukt_with("S", &[("x", int)], &[iface]);
-    h.structs[s].link_stem = nominal_link_stem("$pkg$model$struct$S");
     let s_ty = h.struct_ty(s);
     let _describe = empty_method(&mut h, "S", "describe", s_ty);
     // `val d: Describable = S(1)` — a Box whose target is the

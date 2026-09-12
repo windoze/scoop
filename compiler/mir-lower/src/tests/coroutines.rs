@@ -39,7 +39,11 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
     let mir::Type::Interface(continuation) = function.params[0].ty else {
         panic!("hidden completion must be a concrete Continuation<Int>")
     };
-    assert_eq!(module.interfaces[continuation].name, "Continuation$I32");
+    assert_eq!(module.interfaces[continuation].name, "Continuation");
+    assert_eq!(
+        module.interfaces[continuation].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
 
     let step = &module.meta.coroutine_steps[coroutine.step];
     assert_eq!(
@@ -637,7 +641,6 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let registration = locals.alloc(local("registration", registration_ty));
     let value = locals.alloc(local("value", result));
     let caller = source.functions.alloc(hir::Function {
-        link_stem: callable_link_stem("suspendIntrinsicCaller"),
         name: "suspendIntrinsicCaller".to_string(),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),
@@ -774,7 +777,6 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             type_args: vec![result],
         });
     let launcher = hir_module.functions.alloc(hir::Function {
-        link_stem: callable_link_stem("launcher"),
         name: "launcher".to_string(),
         access: hir::DeclarationAccess::public(),
         override_access: Vec::new(),
@@ -861,7 +863,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     else {
         panic!("startCoroutine must invoke SuspendTask<T>.run through interface dispatch")
     };
-    assert_eq!(module.interfaces[task_interface].name, "SuspendTask$I32");
+    assert_eq!(module.interfaces[task_interface].name, "SuspendTask");
+    assert_eq!(
+        module.interfaces[task_interface].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
     assert_eq!(run.args.len(), 2, "run receives task and hidden completion");
     let step_local = step_local.expect("run returns a CoroutineStep<T>");
     let mir::Terminator::Branch {
@@ -896,7 +902,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     };
     assert_eq!(
         module.interfaces[continuation_interface].name,
-        "Continuation$I32"
+        "Continuation"
     );
     assert!(matches!(resume.args.as_slice(), [completion, field]
             if matches!(completion.kind, mir::ExprKind::Local(_))

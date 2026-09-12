@@ -29,7 +29,7 @@ fn concrete_pair_type(module: &hir::concrete::Module) -> hir::concrete::TypeId {
     let pair = module
         .structs
         .iter()
-        .find_map(|(id, declaration)| declaration.name.starts_with("Pair$").then_some(id))
+        .find_map(|(id, declaration)| (declaration.name == "Pair").then_some(id))
         .expect("Pair<Int> is materialized");
     module
         .types

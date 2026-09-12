@@ -2,17 +2,11 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    /// Completed request-local native-emission identity propagated from
-    /// export HIR without reconstructing it from a display name.
-    pub link_stem: CallableLinkStem,
     pub name: String,
     /// Persistent template plus the exact substitution context in which this
     /// body exists. Declaration, application, and generated-template ids are
     /// distinct kinds and cannot be reconstructed from names or arena ids.
     pub materialization: CallableMaterialization,
-    /// Temporary native-symbol inputs retained until the persistent mangler
-    /// replaces the current local emitter. This carries no semantic origin.
-    pub emission: FunctionEmission,
     pub is_suspend: bool,
     pub modifiers: CallableModifiers,
     pub params: Vec<Param>,
@@ -33,21 +27,6 @@ pub enum MethodOwner {
     /// A compiler-derived method on a structural value type such as Unit or
     /// tuple. The exact concrete owner type is part of the identity.
     Structural(TypeId),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FunctionEmission {
-    Direct,
-    Materialized {
-        arguments: NonEmptyVec<TypeId>,
-        symbol: InstanceSymbol,
-    },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InstanceSymbol {
-    Unique,
-    Overloaded { discriminator: u32 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

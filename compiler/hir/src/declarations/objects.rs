@@ -5,9 +5,6 @@ use super::*;
 /// domains; the backing class is only the physical object representation.
 #[derive(Debug, Clone)]
 pub struct ObjectDecl {
-    /// Native-emission identity of the object declaration itself. Its
-    /// compiler-owned backing class carries a distinct nominal role/stem.
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
@@ -67,5 +64,4 @@ pub struct SingletonValue {
 pub struct SingletonPublishedRoot {
     pub value: SingletonValueId,
     pub ty: TypeId,
-    pub link_name: String,
 }

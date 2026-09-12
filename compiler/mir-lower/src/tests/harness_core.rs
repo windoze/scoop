@@ -21,7 +21,6 @@ impl Harness {
         let mut enum_applications = Arena::new();
         let option_self_application = hir::EnumApplicationId::from_raw(0.into());
         let option_enum = enums.alloc(hir::EnumDecl {
-            link_stem: nominal_link_stem("Option"),
             owner: None,
             name: "Option".to_string(),
             access: hir::NominalAccess::public(),
@@ -143,7 +142,6 @@ impl Harness {
             return_type: self.unit,
         });
         let id = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("write"),
             name: "write".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -181,7 +179,6 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("coreLongToString"),
             name: "coreLongToString".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -218,7 +215,6 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem("coreBooleanToString"),
             name: "coreBooleanToString".to_string(),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

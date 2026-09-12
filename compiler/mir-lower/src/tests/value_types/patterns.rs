@@ -95,7 +95,7 @@ fn when_lowers_to_a_decision_sequence() {
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
   fun print @fn0(message: Int) -> Unit
@@ -120,40 +120,40 @@ Module
       return
   fun main @fn2() -> Unit
     bb0 entry
-      val o: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+      val o: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
-      val $when.1: Option$I32<Int>
-        Type Option$I32<Int>
+      val $when.1: Option<Int>
+        Type Option<Int>
         Local o
-      val $pattern.subject.2: Option$I32<Int>
-        Type Option$I32<Int>
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val x: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $pattern.subject.2
       call @fn0 direct
         Type Int
         Local x
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$I32<Int>
-        Type Option$I32<Int>
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$I32 v1
-          Type Option$I32<Int>
+        VariantTest Option<Int> v1
+          Type Option<Int>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
@@ -745,7 +745,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
   fun print @fn0(message: Int) -> Unit
@@ -770,22 +770,22 @@ Module
       return
   fun main @fn2() -> Unit
     bb0 entry
-      val $when.1: Option$I32<Int>
-        Type Option$I32<Int>
+      val $when.1: Option<Int>
+        Type Option<Int>
         Local o
-      val $pattern.subject.2: Option$I32<Int>
-        Type Option$I32<Int>
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val x: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $pattern.subject.2
       val threshold: Int
         Type Int

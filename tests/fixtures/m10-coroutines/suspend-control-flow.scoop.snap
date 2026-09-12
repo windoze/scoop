@@ -1314,28 +1314,28 @@ Module
   enum Choice
     Number(_1: Int)
     Empty()
-  enum Option$J16_Continuation$I32X
-    Some(_1: Continuation$I32)
+  enum Option<Continuation<Int>>
+    Some(_1: Continuation<Int>)
     None()
-  enum Option$J14_Continuation$BX
-    Some(_1: Continuation$B)
+  enum Option<Continuation<Boolean>>
+    Some(_1: Continuation<Boolean>)
     None()
-  enum Option$J23_Continuation$E6_ChoiceXX
-    Some(_1: Continuation$E6_ChoiceX)
+  enum Option<Continuation<Choice>>
+    Some(_1: Continuation<Choice>)
     None()
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
   enum CoroutineStep<Int>
@@ -1413,23 +1413,23 @@ Module
   class CoroutineAdapter<waitForChoice>$1 vtable=0 itables=1
   interface ToString
   interface Hash
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
-  interface Continuation$I32
-  interface Continuation$B
-  interface Continuation$E6_ChoiceX
-  interface SuspendRegistration$I32
-  interface SuspendRegistration$B
-  interface SuspendRegistration$E6_ChoiceX
-  interface SuspendTask$I32
-  interface SuspendTask$B
-  interface SuspendTask$E6_ChoiceX
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  interface Continuation<Int>
+  interface Continuation<Boolean>
+  interface Continuation<Choice>
+  interface SuspendRegistration<Int>
+  interface SuspendRegistration<Boolean>
+  interface SuspendRegistration<Choice>
+  interface SuspendTask<Int>
+  interface SuspendTask<Boolean>
+  interface SuspendTask<Choice>
   generated_exact_type get0 location=class31 nominal_id=4916385bb08da46b98e7d642f435a2cbd721463843c1e7aff471c238309ae1b1 exact_id=0429584d65c9ae235d25e42465a47d6b8366dae66ce6ab8d9d01a9e0a036eb13
   generated_exact_type get1 location=class37 nominal_id=6253fb3403584d0b3d2edd9f249ffc1c7c5d9af553e30fb651e1afd09583fa40 exact_id=052c865825d14d95501172533ab1cede3f546466aec684a6d2856c55812e39e2
   generated_exact_type get2 location=class27 nominal_id=f67720b3a4fd46a34d03c3303a7d3cc4de1a4bc1124dcfdf21ea791ef0a49830 exact_id=11cea03a77beaf940731b7809f377be13eec4ce23ed0d62aa5318224084e16c1
@@ -3618,7 +3618,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @fn51(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn51(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3716,9 +3716,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -3727,7 +3727,7 @@ Module
       call @fn124 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -4139,7 +4139,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4148,8 +4148,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4238,8 +4238,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -4249,8 +4249,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4312,8 +4312,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4323,8 +4323,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -4460,8 +4460,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -4594,7 +4594,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn55(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn55(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4692,9 +4692,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4703,7 +4703,7 @@ Module
       call @fn124 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5115,7 +5115,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5124,8 +5124,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5214,8 +5214,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5225,8 +5225,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5288,8 +5288,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5299,8 +5299,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5436,8 +5436,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -5570,7 +5570,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5655,9 +5655,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5666,7 +5666,7 @@ Module
       call @fn124 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6048,7 +6048,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6057,8 +6057,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6147,8 +6147,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6158,8 +6158,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6221,8 +6221,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6232,8 +6232,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6343,8 +6343,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -6477,7 +6477,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6562,9 +6562,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6573,7 +6573,7 @@ Module
       call @fn124 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6955,7 +6955,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6964,8 +6964,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -7054,8 +7054,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -7065,8 +7065,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -7128,8 +7128,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -7139,8 +7139,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -7250,8 +7250,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -7427,21 +7427,21 @@ Module
         Local $call.1
   fun IntGate.complete @fn70(this: IntGate, value: Int) -> Unit
     bb0 entry
-      val $opt.1: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $opt.1: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         FieldAccess 0
           Type IntGate
           Local this
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$J16_Continuation$I32X v0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+        VariantTest Option<Continuation<Int>> v0
+          Type Option<Continuation<Int>>
           Local $opt.1
     bb1 if.then.1
-      val $uw.2: Continuation$I32
-        Type Continuation$I32
-        VariantPayloadProject Option$J16_Continuation$I32X v0 f0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $uw.2: Continuation<Int>
+        Type Continuation<Int>
+        VariantPayloadProject Option<Continuation<Int>> v0 f0
+          Type Option<Continuation<Int>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -7455,16 +7455,16 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val continuation: Continuation$I32
-        Type Continuation$I32
+      val continuation: Continuation<Int>
+        Type Continuation<Int>
         Local $uw.2
       field_set 0
         Type IntGate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $receiver: Continuation$I32
-        Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $receiver: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
       val $argument.0: Int
         Type Int
@@ -7472,29 +7472,29 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn88 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn88 interface Continuation<Int>[0]
+        Type Continuation<Int>
         Local $receiver
         Type Int
         Local $parameter.value
       return
   fun BooleanGate.complete @fn71(this: BooleanGate, value: Boolean) -> Unit
     bb0 entry
-      val $opt.1: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
+      val $opt.1: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
         FieldAccess 0
           Type BooleanGate
           Local this
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$J14_Continuation$BX v0
-          Type Option$J14_Continuation$BX<Continuation$B>
+        VariantTest Option<Continuation<Boolean>> v0
+          Type Option<Continuation<Boolean>>
           Local $opt.1
     bb1 if.then.1
-      val $uw.2: Continuation$B
-        Type Continuation$B
-        VariantPayloadProject Option$J14_Continuation$BX v0 f0
-          Type Option$J14_Continuation$BX<Continuation$B>
+      val $uw.2: Continuation<Boolean>
+        Type Continuation<Boolean>
+        VariantPayloadProject Option<Continuation<Boolean>> v0 f0
+          Type Option<Continuation<Boolean>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -7508,16 +7508,16 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val continuation: Continuation$B
-        Type Continuation$B
+      val continuation: Continuation<Boolean>
+        Type Continuation<Boolean>
         Local $uw.2
       field_set 0
         Type BooleanGate
         Local this
-        Type Option$J14_Continuation$BX<Continuation$B>
-        VariantConstruct Option$J14_Continuation$BX<Continuation$B> v1
-      val $receiver: Continuation$B
-        Type Continuation$B
+        Type Option<Continuation<Boolean>>
+        VariantConstruct Option<Continuation<Boolean>> v1
+      val $receiver: Continuation<Boolean>
+        Type Continuation<Boolean>
         Local continuation
       val $argument.0: Boolean
         Type Boolean
@@ -7525,29 +7525,29 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn89 interface Continuation$B[0]
-        Type Continuation$B
+      call @fn89 interface Continuation<Boolean>[0]
+        Type Continuation<Boolean>
         Local $receiver
         Type Boolean
         Local $parameter.value
       return
   fun ChoiceGate.complete @fn72(this: ChoiceGate, value: Choice) -> Unit
     bb0 entry
-      val $opt.1: Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
-        Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
+      val $opt.1: Option<Continuation<Choice>>
+        Type Option<Continuation<Choice>>
         FieldAccess 0
           Type ChoiceGate
           Local this
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$J23_Continuation$E6_ChoiceXX v0
-          Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
+        VariantTest Option<Continuation<Choice>> v0
+          Type Option<Continuation<Choice>>
           Local $opt.1
     bb1 if.then.1
-      val $uw.2: Continuation$E6_ChoiceX
-        Type Continuation$E6_ChoiceX
-        VariantPayloadProject Option$J23_Continuation$E6_ChoiceXX v0 f0
-          Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
+      val $uw.2: Continuation<Choice>
+        Type Continuation<Choice>
+        VariantPayloadProject Option<Continuation<Choice>> v0 f0
+          Type Option<Continuation<Choice>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -7561,16 +7561,16 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val continuation: Continuation$E6_ChoiceX
-        Type Continuation$E6_ChoiceX
+      val continuation: Continuation<Choice>
+        Type Continuation<Choice>
         Local $uw.2
       field_set 0
         Type ChoiceGate
         Local this
-        Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
-        VariantConstruct Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX> v1
-      val $receiver: Continuation$E6_ChoiceX
-        Type Continuation$E6_ChoiceX
+        Type Option<Continuation<Choice>>
+        VariantConstruct Option<Continuation<Choice>> v1
+      val $receiver: Continuation<Choice>
+        Type Continuation<Choice>
         Local continuation
       val $argument.0: Choice
         Type Choice
@@ -7578,67 +7578,67 @@ Module
       val $parameter.value: Choice
         Type Choice
         Local $argument.0
-      call @fn90 interface Continuation$E6_ChoiceX[0]
-        Type Continuation$E6_ChoiceX
+      call @fn90 interface Continuation<Choice>[0]
+        Type Continuation<Choice>
         Local $receiver
         Type Choice
         Local $parameter.value
       return
-  fun IntRegistration.register @fn73(this: IntRegistration, continuation: Continuation$I32) -> Unit
+  fun IntRegistration.register @fn73(this: IntRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
-      val $argument.0: Continuation$I32
-        Type Continuation$I32
+      val $argument.0: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
-      val $parameter._1: Continuation$I32
-        Type Continuation$I32
+      val $parameter._1: Continuation<Int>
+        Type Continuation<Int>
         Local $argument.0
       field_set 0
         Type IntGate
         FieldAccess 0
           Type IntRegistration
           Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v0
-          Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v0
+          Type Continuation<Int>
           Local $parameter._1
       return
-  fun BooleanRegistration.register @fn74(this: BooleanRegistration, continuation: Continuation$B) -> Unit
+  fun BooleanRegistration.register @fn74(this: BooleanRegistration, continuation: Continuation<Boolean>) -> Unit
     bb0 entry
-      val $argument.0: Continuation$B
-        Type Continuation$B
+      val $argument.0: Continuation<Boolean>
+        Type Continuation<Boolean>
         Local continuation
-      val $parameter._1: Continuation$B
-        Type Continuation$B
+      val $parameter._1: Continuation<Boolean>
+        Type Continuation<Boolean>
         Local $argument.0
       field_set 0
         Type BooleanGate
         FieldAccess 0
           Type BooleanRegistration
           Local this
-        Type Option$J14_Continuation$BX<Continuation$B>
-        VariantConstruct Option$J14_Continuation$BX<Continuation$B> v0
-          Type Continuation$B
+        Type Option<Continuation<Boolean>>
+        VariantConstruct Option<Continuation<Boolean>> v0
+          Type Continuation<Boolean>
           Local $parameter._1
       return
-  fun ChoiceRegistration.register @fn75(this: ChoiceRegistration, continuation: Continuation$E6_ChoiceX) -> Unit
+  fun ChoiceRegistration.register @fn75(this: ChoiceRegistration, continuation: Continuation<Choice>) -> Unit
     bb0 entry
-      val $argument.0: Continuation$E6_ChoiceX
-        Type Continuation$E6_ChoiceX
+      val $argument.0: Continuation<Choice>
+        Type Continuation<Choice>
         Local continuation
-      val $parameter._1: Continuation$E6_ChoiceX
-        Type Continuation$E6_ChoiceX
+      val $parameter._1: Continuation<Choice>
+        Type Continuation<Choice>
         Local $argument.0
       field_set 0
         Type ChoiceGate
         FieldAccess 0
           Type ChoiceRegistration
           Local this
-        Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
-        VariantConstruct Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX> v0
-          Type Continuation$E6_ChoiceX
+        Type Option<Continuation<Choice>>
+        VariantConstruct Option<Continuation<Choice>> v0
+          Type Continuation<Choice>
           Local $parameter._1
       return
-  fun ControlTask.run @fn76(this: ControlTask, $completion: Continuation$I32) -> CoroutineStep<Int>
+  fun ControlTask.run @fn76(this: ControlTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<ControlTask.run>
         Type CoroutineFrame<ControlTask.run>
@@ -7651,7 +7651,7 @@ Module
       field_set 1
         Type CoroutineFrame<ControlTask.run>
         Local $frame
-        Type Continuation$I32
+        Type Continuation<Int>
         Local $completion
       field_set 2
         Type CoroutineFrame<ControlTask.run>
@@ -7782,7 +7782,7 @@ Module
         Type String
         Local $parameter.value
       return
-  fun waitForInt @fn79(gate: IntGate, $completion: Continuation$I32) -> CoroutineStep<Int>
+  fun waitForInt @fn79(gate: IntGate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<waitForInt>
         Type CoroutineFrame<waitForInt>
@@ -7795,7 +7795,7 @@ Module
       field_set 1
         Type CoroutineFrame<waitForInt>
         Local $frame
-        Type Continuation$I32
+        Type Continuation<Int>
         Local $completion
       field_set 2
         Type CoroutineFrame<waitForInt>
@@ -7822,7 +7822,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun waitForBoolean @fn80(gate: BooleanGate, $completion: Continuation$B) -> CoroutineStep<Boolean>
+  fun waitForBoolean @fn80(gate: BooleanGate, $completion: Continuation<Boolean>) -> CoroutineStep<Boolean>
     bb0 entry
       val $frame: CoroutineFrame<waitForBoolean>
         Type CoroutineFrame<waitForBoolean>
@@ -7835,7 +7835,7 @@ Module
       field_set 1
         Type CoroutineFrame<waitForBoolean>
         Local $frame
-        Type Continuation$B
+        Type Continuation<Boolean>
         Local $completion
       field_set 2
         Type CoroutineFrame<waitForBoolean>
@@ -7862,7 +7862,7 @@ Module
       return
         Type CoroutineStep<Boolean>
         Local $step
-  fun waitForChoice @fn81(gate: ChoiceGate, $completion: Continuation$E6_ChoiceX) -> CoroutineStep<Choice>
+  fun waitForChoice @fn81(gate: ChoiceGate, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
     bb0 entry
       val $frame: CoroutineFrame<waitForChoice>
         Type CoroutineFrame<waitForChoice>
@@ -7875,7 +7875,7 @@ Module
       field_set 1
         Type CoroutineFrame<waitForChoice>
         Local $frame
-        Type Continuation$E6_ChoiceX
+        Type Continuation<Choice>
         Local $completion
       field_set 2
         Type CoroutineFrame<waitForChoice>
@@ -7963,11 +7963,11 @@ Module
           Local $parameter.other
   fun main @fn85() -> Unit
     bb0 entry
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.1
         Type IntGate
@@ -7975,16 +7975,16 @@ Module
       call @fn127 direct
         Type IntGate
         Local $new.1
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val argumentGate: IntGate
         Type IntGate
         Local $new.1
-      val $argument.0: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
-        VariantConstruct Option$J14_Continuation$BX<Continuation$B> v1
-      val $parameter.waiter: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
+      val $argument.0: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
+        VariantConstruct Option<Continuation<Boolean>> v1
+      val $parameter.waiter: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
         Local $argument.0
       assign $new.2
         Type BooleanGate
@@ -7992,16 +7992,16 @@ Module
       call @fn128 direct
         Type BooleanGate
         Local $new.2
-        Type Option$J14_Continuation$BX<Continuation$B>
+        Type Option<Continuation<Boolean>>
         Local $parameter.waiter
       val ifConditionGate: BooleanGate
         Type BooleanGate
         Local $new.2
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.3
         Type IntGate
@@ -8009,16 +8009,16 @@ Module
       call @fn127 direct
         Type IntGate
         Local $new.3
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val ifValueGate: IntGate
         Type IntGate
         Local $new.3
-      val $argument.0: Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
-        Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
-        VariantConstruct Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX> v1
-      val $parameter.waiter: Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
-        Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
+      val $argument.0: Option<Continuation<Choice>>
+        Type Option<Continuation<Choice>>
+        VariantConstruct Option<Continuation<Choice>> v1
+      val $parameter.waiter: Option<Continuation<Choice>>
+        Type Option<Continuation<Choice>>
         Local $argument.0
       assign $new.4
         Type ChoiceGate
@@ -8026,16 +8026,16 @@ Module
       call @fn129 direct
         Type ChoiceGate
         Local $new.4
-        Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
+        Type Option<Continuation<Choice>>
         Local $parameter.waiter
       val whenChoiceGate: ChoiceGate
         Type ChoiceGate
         Local $new.4
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.5
         Type IntGate
@@ -8043,16 +8043,16 @@ Module
       call @fn127 direct
         Type IntGate
         Local $new.5
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val whenValueGate: IntGate
         Type IntGate
         Local $new.5
-      val $argument.0: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
-        VariantConstruct Option$J14_Continuation$BX<Continuation$B> v1
-      val $parameter.waiter: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
+      val $argument.0: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
+        VariantConstruct Option<Continuation<Boolean>> v1
+      val $parameter.waiter: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
         Local $argument.0
       assign $new.6
         Type BooleanGate
@@ -8060,16 +8060,16 @@ Module
       call @fn128 direct
         Type BooleanGate
         Local $new.6
-        Type Option$J14_Continuation$BX<Continuation$B>
+        Type Option<Continuation<Boolean>>
         Local $parameter.waiter
       val loopConditionGate: BooleanGate
         Type BooleanGate
         Local $new.6
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.7
         Type IntGate
@@ -8077,16 +8077,16 @@ Module
       call @fn127 direct
         Type IntGate
         Local $new.7
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val loopBodyGate: IntGate
         Type IntGate
         Local $new.7
-      val $argument.0: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
-        VariantConstruct Option$J14_Continuation$BX<Continuation$B> v1
-      val $parameter.waiter: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
+      val $argument.0: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
+        VariantConstruct Option<Continuation<Boolean>> v1
+      val $parameter.waiter: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
         Local $argument.0
       assign $new.8
         Type BooleanGate
@@ -8094,16 +8094,16 @@ Module
       call @fn128 direct
         Type BooleanGate
         Local $new.8
-        Type Option$J14_Continuation$BX<Continuation$B>
+        Type Option<Continuation<Boolean>>
         Local $parameter.waiter
       val andGate: BooleanGate
         Type BooleanGate
         Local $new.8
-      val $argument.0: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
-        VariantConstruct Option$J14_Continuation$BX<Continuation$B> v1
-      val $parameter.waiter: Option$J14_Continuation$BX<Continuation$B>
-        Type Option$J14_Continuation$BX<Continuation$B>
+      val $argument.0: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
+        VariantConstruct Option<Continuation<Boolean>> v1
+      val $parameter.waiter: Option<Continuation<Boolean>>
+        Type Option<Continuation<Boolean>>
         Local $argument.0
       assign $new.9
         Type BooleanGate
@@ -8111,7 +8111,7 @@ Module
       call @fn128 direct
         Type BooleanGate
         Local $new.9
-        Type Option$J14_Continuation$BX<Continuation$B>
+        Type Option<Continuation<Boolean>>
         Local $parameter.waiter
       val orGate: BooleanGate
         Type BooleanGate
@@ -8194,7 +8194,7 @@ Module
         Local $parameter.andGate
         Type BooleanGate
         Local $parameter.orGate
-      val $argument.0: SuspendTask$I32
+      val $argument.0: SuspendTask<Int>
         Type ControlTask
         Local $new.10
       assign $new.11
@@ -8203,19 +8203,19 @@ Module
       call @fn134 direct
         Type RecordingCompletion
         Local $new.11
-      val $argument.1: Continuation$I32
+      val $argument.1: Continuation<Int>
         Type RecordingCompletion
         Local $new.11
-      val $parameter.task: SuspendTask$I32
-        Type SuspendTask$I32
+      val $parameter.task: SuspendTask<Int>
+        Type SuspendTask<Int>
         Local $argument.0
-      val $parameter.completion: Continuation$I32
-        Type Continuation$I32
+      val $parameter.completion: Continuation<Int>
+        Type Continuation<Int>
         Local $argument.1
       call @fn136 direct
-        Type SuspendTask$I32
+        Type SuspendTask<Int>
         Local $parameter.task
-        Type Continuation$I32
+        Type Continuation<Int>
         Local $parameter.completion
       val $argument.0: String
         Type String
@@ -8698,7 +8698,7 @@ Module
   fun init.Throwable.$c10 @fn118(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn119(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn119(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn118 direct
         Type Throwable
@@ -8708,7 +8708,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn120(this: UnwrapException) -> Unit
@@ -8719,20 +8719,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn119 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn121(this: ClassCastException) -> Unit
@@ -8743,20 +8743,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn119 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn122(this: ArithmeticException) -> Unit
@@ -8767,20 +8767,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn119 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn123(this: IndexOutOfBoundsException) -> Unit
@@ -8791,52 +8791,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn119 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn124(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn124(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn119 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn125(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn125(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn119 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c26 @fn126(this: IllegalStateException) -> Unit
@@ -8847,39 +8847,39 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn125 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IntGate.$c18 @fn127(this: IntGate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
+  fun init.IntGate.$c18 @fn127(this: IntGate, waiter: Option<Continuation<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type IntGate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local waiter
       return
-  fun init.BooleanGate.$c19 @fn128(this: BooleanGate, waiter: Option$J14_Continuation$BX<Continuation$B>) -> Unit
+  fun init.BooleanGate.$c19 @fn128(this: BooleanGate, waiter: Option<Continuation<Boolean>>) -> Unit
     bb0 entry
       field_set 0
         Type BooleanGate
         Local this
-        Type Option$J14_Continuation$BX<Continuation$B>
+        Type Option<Continuation<Boolean>>
         Local waiter
       return
-  fun init.ChoiceGate.$c20 @fn129(this: ChoiceGate, waiter: Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>) -> Unit
+  fun init.ChoiceGate.$c20 @fn129(this: ChoiceGate, waiter: Option<Continuation<Choice>>) -> Unit
     bb0 entry
       field_set 0
         Type ChoiceGate
         Local this
-        Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
+        Type Option<Continuation<Choice>>
         Local waiter
       return
   fun init.IntRegistration.$c21 @fn130(this: IntRegistration, gate: IntGate) -> Unit
@@ -8972,12 +8972,12 @@ Module
           Local functionName
           Type String
           Local typeName
-  fun startCoroutine<Int> @fn136(task: SuspendTask$I32, completion: Continuation$I32) -> Unit
+  fun startCoroutine<Int> @fn136(task: SuspendTask<Int>, completion: Continuation<Int>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn88 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn88 interface Continuation<Int>[0]
+        Type Continuation<Int>
         Local completion
         Type Int
         EnumField v0 f0
@@ -8985,8 +8985,8 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn91 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn91 interface Continuation<Int>[1]
+        Type Continuation<Int>
         Local completion
         Type Throwable
         Local $exception
@@ -9000,10 +9000,10 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Int> = @fn92 interface SuspendTask$I32[0]
-        Type SuspendTask$I32
+      call $step: CoroutineStep<Int> = @fn92 interface SuspendTask<Int>[0]
+        Type SuspendTask<Int>
         Local task
-        Type Continuation$I32
+        Type Continuation<Int>
         Local completion
       branch bb1 bb0
         Type Boolean
@@ -11228,8 +11228,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11250,8 +11250,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11361,8 +11361,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11383,8 +11383,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11494,8 +11494,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11516,8 +11516,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11627,8 +11627,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11649,8 +11649,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11760,8 +11760,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11782,8 +11782,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11893,8 +11893,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -11915,8 +11915,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12026,8 +12026,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12048,8 +12048,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12159,8 +12159,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12181,8 +12181,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12292,8 +12292,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12314,8 +12314,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12425,8 +12425,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12447,8 +12447,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12558,8 +12558,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12580,8 +12580,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12691,8 +12691,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12713,8 +12713,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12824,8 +12824,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12846,8 +12846,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12957,8 +12957,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -12979,8 +12979,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13090,8 +13090,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13112,8 +13112,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13223,8 +13223,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13245,8 +13245,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13356,8 +13356,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13378,8 +13378,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13489,8 +13489,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13511,8 +13511,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<ControlTask.run>
           FieldAccess 0
@@ -13619,11 +13619,11 @@ Module
         Local $new.1
         Type IntGate
         Local $parameter.gate
-      val $argument.0: SuspendRegistration$I32
+      val $argument.0: SuspendRegistration<Int>
         Type IntRegistration
         Local $new.1
-      val $parameter.registration: SuspendRegistration$I32
-        Type SuspendRegistration$I32
+      val $parameter.registration: SuspendRegistration<Int>
+        Type SuspendRegistration<Int>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<waitForInt>
@@ -13661,8 +13661,8 @@ Module
           Type Int
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn93 interface SuspendRegistration$I32[0]
-        Type SuspendRegistration$I32
+      call @fn93 interface SuspendRegistration<Int>[0]
+        Type SuspendRegistration<Int>
         Local $parameter.registration
         Type CoroutineAdapter<waitForInt>$1
         Local $safe_adapter.1
@@ -13978,8 +13978,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<waitForInt>
           FieldAccess 0
@@ -14000,8 +14000,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<waitForInt>
           FieldAccess 0
@@ -14142,8 +14142,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn138 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<waitForInt>
           FieldAccess 0
@@ -14164,8 +14164,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn139 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<waitForInt>
           FieldAccess 0
@@ -14303,11 +14303,11 @@ Module
         Local $new.1
         Type BooleanGate
         Local $parameter.gate
-      val $argument.0: SuspendRegistration$B
+      val $argument.0: SuspendRegistration<Boolean>
         Type BooleanRegistration
         Local $new.1
-      val $parameter.registration: SuspendRegistration$B
-        Type SuspendRegistration$B
+      val $parameter.registration: SuspendRegistration<Boolean>
+        Type SuspendRegistration<Boolean>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<waitForBoolean>
@@ -14345,8 +14345,8 @@ Module
           Type Boolean
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn96 interface SuspendRegistration$B[0]
-        Type SuspendRegistration$B
+      call @fn96 interface SuspendRegistration<Boolean>[0]
+        Type SuspendRegistration<Boolean>
         Local $parameter.registration
         Type CoroutineAdapter<waitForBoolean>$1
         Local $safe_adapter.1
@@ -14662,8 +14662,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn162 interface Continuation$B[0]
-        Type Continuation$B
+      call @fn162 interface Continuation<Boolean>[0]
+        Type Continuation<Boolean>
         FieldAccess 1
           Type CoroutineFrame<waitForBoolean>
           FieldAccess 0
@@ -14684,8 +14684,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn163 interface Continuation$B[1]
-        Type Continuation$B
+      call @fn163 interface Continuation<Boolean>[1]
+        Type Continuation<Boolean>
         FieldAccess 1
           Type CoroutineFrame<waitForBoolean>
           FieldAccess 0
@@ -14826,8 +14826,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn162 interface Continuation$B[0]
-        Type Continuation$B
+      call @fn162 interface Continuation<Boolean>[0]
+        Type Continuation<Boolean>
         FieldAccess 1
           Type CoroutineFrame<waitForBoolean>
           FieldAccess 0
@@ -14848,8 +14848,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn163 interface Continuation$B[1]
-        Type Continuation$B
+      call @fn163 interface Continuation<Boolean>[1]
+        Type Continuation<Boolean>
         FieldAccess 1
           Type CoroutineFrame<waitForBoolean>
           FieldAccess 0
@@ -14987,11 +14987,11 @@ Module
         Local $new.1
         Type ChoiceGate
         Local $parameter.gate
-      val $argument.0: SuspendRegistration$E6_ChoiceX
+      val $argument.0: SuspendRegistration<Choice>
         Type ChoiceRegistration
         Local $new.1
-      val $parameter.registration: SuspendRegistration$E6_ChoiceX
-        Type SuspendRegistration$E6_ChoiceX
+      val $parameter.registration: SuspendRegistration<Choice>
+        Type SuspendRegistration<Choice>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<waitForChoice>
@@ -15029,8 +15029,8 @@ Module
           Type Choice
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn99 interface SuspendRegistration$E6_ChoiceX[0]
-        Type SuspendRegistration$E6_ChoiceX
+      call @fn99 interface SuspendRegistration<Choice>[0]
+        Type SuspendRegistration<Choice>
         Local $parameter.registration
         Type CoroutineAdapter<waitForChoice>$1
         Local $safe_adapter.1
@@ -15346,8 +15346,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn167 interface Continuation$E6_ChoiceX[0]
-        Type Continuation$E6_ChoiceX
+      call @fn167 interface Continuation<Choice>[0]
+        Type Continuation<Choice>
         FieldAccess 1
           Type CoroutineFrame<waitForChoice>
           FieldAccess 0
@@ -15368,8 +15368,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn168 interface Continuation$E6_ChoiceX[1]
-        Type Continuation$E6_ChoiceX
+      call @fn168 interface Continuation<Choice>[1]
+        Type Continuation<Choice>
         FieldAccess 1
           Type CoroutineFrame<waitForChoice>
           FieldAccess 0
@@ -15510,8 +15510,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn167 interface Continuation$E6_ChoiceX[0]
-        Type Continuation$E6_ChoiceX
+      call @fn167 interface Continuation<Choice>[0]
+        Type Continuation<Choice>
         FieldAccess 1
           Type CoroutineFrame<waitForChoice>
           FieldAccess 0
@@ -15532,8 +15532,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn168 interface Continuation$E6_ChoiceX[1]
-        Type Continuation$E6_ChoiceX
+      call @fn168 interface Continuation<Choice>[1]
+        Type Continuation<Choice>
         FieldAccess 1
           Type CoroutineFrame<waitForChoice>
           FieldAccess 0
@@ -15822,14 +15822,14 @@ Module
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
   enum Choice tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$J16_Continuation$I32X niche(kind=managed,payload_variant=0)
-  enum Option$J14_Continuation$BX niche(kind=managed,payload_variant=0)
-  enum Option$J23_Continuation$E6_ChoiceXX niche(kind=managed,payload_variant=0)
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineStep<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum CoroutineStep<Boolean> tagged size=16 align=8 variants=(i1)@8+1 ()@8+0
   enum CoroutineStep<Choice> tagged size=24 align=8 variants=(enum0)@8+16 ()@8+0
@@ -23594,23 +23594,23 @@ Module
     cbr t23 then @completed else @suspended
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
-  td td10 Continuation$I32 @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
-  td td11 Continuation$B @scoop$1$td$aafc4fd3c35746d2ba0a8f843bd6fec206fec8410aae6cc20d9515da201ea344 type-id=653185598458356085 size=0 parent=none vtable=[] itables=[]
-  td td12 Continuation$E6_ChoiceX @scoop$1$td$75e75f7b9b61d191b60f12d6576327cd361a623ca2c4717742bc4f05a49fdbeb type-id=7070069293098160148 size=0 parent=none vtable=[] itables=[]
-  td td13 SuspendRegistration$I32 @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
-  td td14 SuspendRegistration$B @scoop$1$td$26062323e543553f55a81dafe1a9a57da140375eb67c6593d932106313ab35be type-id=197475879342280034 size=0 parent=none vtable=[] itables=[]
-  td td15 SuspendRegistration$E6_ChoiceX @scoop$1$td$8c4ca45a48521ca0afaebf8fd780b705cf7e817ecc362daa37b3b650d82bdf55 type-id=6177887324036127514 size=0 parent=none vtable=[] itables=[]
-  td td16 SuspendTask$I32 @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
-  td td17 SuspendTask$B @scoop$1$td$58c6bb09e52447265186807184ad053d10c3af6d4b8acefa2bc021991d4075ae type-id=14643040650170865372 size=0 parent=none vtable=[] itables=[]
-  td td18 SuspendTask$E6_ChoiceX @scoop$1$td$ba1ca1224aa933b516759d6b40bd264ddf9217673fb1ad69c32f37b51c41059f type-id=9227679034925569381 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td10 Continuation @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
+  td td11 Continuation @scoop$1$td$aafc4fd3c35746d2ba0a8f843bd6fec206fec8410aae6cc20d9515da201ea344 type-id=653185598458356085 size=0 parent=none vtable=[] itables=[]
+  td td12 Continuation @scoop$1$td$75e75f7b9b61d191b60f12d6576327cd361a623ca2c4717742bc4f05a49fdbeb type-id=7070069293098160148 size=0 parent=none vtable=[] itables=[]
+  td td13 SuspendRegistration @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
+  td td14 SuspendRegistration @scoop$1$td$26062323e543553f55a81dafe1a9a57da140375eb67c6593d932106313ab35be type-id=197475879342280034 size=0 parent=none vtable=[] itables=[]
+  td td15 SuspendRegistration @scoop$1$td$8c4ca45a48521ca0afaebf8fd780b705cf7e817ecc362daa37b3b650d82bdf55 type-id=6177887324036127514 size=0 parent=none vtable=[] itables=[]
+  td td16 SuspendTask @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
+  td td17 SuspendTask @scoop$1$td$58c6bb09e52447265186807184ad053d10c3af6d4b8acefa2bc021991d4075ae type-id=14643040650170865372 size=0 parent=none vtable=[] itables=[]
+  td td18 SuspendTask @scoop$1$td$ba1ca1224aa933b516759d6b40bd264ddf9217673fb1ad69c32f37b51c41059f type-id=9227679034925569381 size=0 parent=none vtable=[] itables=[]
   td td19 IntRange @scoop$1$td$66618ce5db61b359b7e13b6df76dcda8b9a9e55768487b6fe93e0d1aedd90a1b type-id=5739975931137510880 size=32 parent=none vtable=[] itables=[td2:[local-fn51]]
   td td20 IntRangeIterator @scoop$1$td$6e6a352e9c43b3e382fd0925e1ed04966e4c5b5796883838be021562ff19bf07 type-id=4889723440050595746 size=32 parent=none vtable=[] itables=[td3:[local-fn54]]
   td td21 LongRange @scoop$1$td$2ba9cccc6161621932a055e067295205245e2a6613b2d01110ad6d0256e8bea3 type-id=2382795341378320473 size=48 parent=none vtable=[] itables=[td4:[local-fn55]]
@@ -23663,14 +23663,14 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Choice size=16 align=8 enum-scan=none
-  layout Option$J16_Continuation$I32X size=8 align=8 enum-scan=refs[0]
-  layout Option$J14_Continuation$BX size=8 align=8 enum-scan=refs[0]
-  layout Option$J23_Continuation$E6_ChoiceXX size=8 align=8 enum-scan=refs[0]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout CoroutineStep<Int> size=16 align=8 enum-scan=none
   layout CoroutineStep<Boolean> size=16 align=8 enum-scan=none
   layout CoroutineStep<Choice> size=24 align=8 enum-scan=none

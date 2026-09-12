@@ -114,8 +114,8 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
         .find(|(_, function)| {
             function.name == "read"
                 && matches!(
-                    &function.emission,
-                    hir::concrete::FunctionEmission::Materialized { .. }
+                    function.materialization.context(),
+                    hir::concrete::CallableMaterializationContext::Application(_)
                 )
         })
         .expect("read<Shown> specialization")

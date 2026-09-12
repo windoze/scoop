@@ -307,7 +307,6 @@ fn initialization_display_name_survives_lir_lowering() {
         });
     let unit = source.initialization_units.alloc(mir::InitializationUnit {
         identity: unit_identity,
-        stable_key: "$local$opaque-value".to_string(),
         display_name: "top-level:value".to_string(),
         schedule: mir::InitializationSchedule::EagerStartup,
         kind: mir::InitializationUnitKind::EagerTopLevel { storage },
@@ -660,14 +659,14 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
 fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
     let mut builder = Builder::new();
     let raw_payload = mir::Type::Ptr(Box::new(INT));
-    let raw_option = builder.option_enum("Option$Ptr$Int", raw_payload.clone());
+    let raw_option = builder.option_enum("Option<Ptr<Int>>", raw_payload.clone());
     let native_signature = builder.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: vec![mir::Type::Integer(mir::IntegerKind::UNSIGNED_16)],
         return_type: mir::Type::Integer(mir::IntegerKind::SIGNED_8),
     });
     let code_payload = mir::Type::FunPtr(native_signature);
-    let code_option = builder.option_enum("Option$FunPtr", code_payload.clone());
+    let code_option = builder.option_enum("Option<FunPtr>", code_payload.clone());
     builder.extern_functions.alloc(mir::ExternFunction {
         source_name: "nullablePointers".to_string(),
         native_symbol: "nullable_pointers".to_string(),

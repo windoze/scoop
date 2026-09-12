@@ -167,7 +167,6 @@ fn validate_local_entry(
         )
         || function.materialization.context()
             != concrete::CallableMaterializationContext::NoSubstitution
-        || !matches!(function.emission, concrete::FunctionEmission::Direct)
         || function.is_suspend
         || !function.params.is_empty()
         || function.return_ty != unit
@@ -200,7 +199,6 @@ mod tests {
 
     fn export_function(unit: crate::TypeId, kind: FunctionKind) -> crate::Function {
         crate::Function {
-            link_stem: crate::CallableLinkStem::from_session_local_encoding("main".to_string()),
             name: "main".to_string(),
             access: crate::DeclarationAccess::public(),
             override_access: Vec::new(),
@@ -218,13 +216,11 @@ mod tests {
 
     fn local_function(unit: concrete::TypeId) -> concrete::Function {
         concrete::Function {
-            link_stem: crate::CallableLinkStem::from_session_local_encoding("main".to_string()),
             name: "main".to_string(),
             materialization: CallableMaterialization::new(
                 CallableTemplateOwner::Function(persistent_function("main")),
                 CallableMaterializationContext::NoSubstitution,
             ),
-            emission: concrete::FunctionEmission::Direct,
             is_suspend: false,
             modifiers: crate::CallableModifiers::default(),
             params: Vec::new(),
@@ -384,14 +380,6 @@ mod tests {
             ("name", {
                 let mut function = valid();
                 function.name = "notMain".to_string();
-                function
-            }),
-            ("materialized emission", {
-                let mut function = valid();
-                function.emission = concrete::FunctionEmission::Materialized {
-                    arguments: scoop_identity::NonEmptyVec::new(vec![unit]).unwrap(),
-                    symbol: concrete::InstanceSymbol::Unique,
-                };
                 function
             }),
             ("member", {

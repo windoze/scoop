@@ -2,8 +2,6 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDecl {
-    /// Native-emission identity, distinct from the source-facing `name`.
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,

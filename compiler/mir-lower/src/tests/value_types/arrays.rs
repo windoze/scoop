@@ -77,7 +77,7 @@ Module
     bb0 entry
       val a: Array<Int>
         Type Array<Int>
-        ArrayLiteral Array$I32
+        ArrayLiteral Array<Int>
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
           Type Int
@@ -104,7 +104,7 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen Array$I32
+          ArrayLen Array<Int>
             Type Array<Int>
             Local $arr.1
       goto bb3
@@ -130,19 +130,19 @@ Module
     bb5 if.merge.5
       val x: Int
         Type Int
-        ArrayGet Array$I32
+        ArrayGet Array<Int>
           Type Array<Int>
           Local $arr.1
           Type Long
           Local $idx.2
       val n: Long
         Type Long
-        ArrayLen Array$I32
+        ArrayLen Array<Int>
           Type Array<Int>
           Local a
       val m: MutableArray<Int>
         Type MutableArray<Int>
-        ArrayClone Array$I32 -> MutableArray$I32
+        ArrayClone Array<Int> -> MutableArray<Int>
           Type Array<Int>
           Local a
       val $arr.3: MutableArray<Int>
@@ -165,7 +165,7 @@ Module
           Type Long
           Local $idx.4
           Type Long
-          ArrayLen MutableArray$I32
+          ArrayLen MutableArray<Int>
             Type MutableArray<Int>
             Local $arr.3
       goto bb8
@@ -189,7 +189,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.4
     bb10 if.merge.10
-      array_set MutableArray$I32
+      array_set MutableArray<Int>
         Type MutableArray<Int>
         Local $arr.3
         Type Long
@@ -244,7 +244,7 @@ fn array_assembly_preserves_typed_element_and_copy_parts() {
     );
     let module = lower(&h.finish(main));
     let dump = dump(&module);
-    assert!(dump.contains("ArrayAssembly Array$I32"), "{dump}");
+    assert!(dump.contains("ArrayAssembly Array<Int>"), "{dump}");
     assert!(dump.contains("Element\n"), "{dump}");
     assert!(dump.contains("CopyArray\n"), "{dump}");
 }

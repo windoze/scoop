@@ -41,7 +41,6 @@ pub(super) struct BuiltCallableIdentities {
     pub(super) callable_applications: concrete::CallableApplicationIdentities,
     pub(super) callback_applications: concrete::CallbackApplicationIdentities,
     pub(super) function_materializations: Vec<CallableMaterialization>,
-    pub(super) function_emissions: Vec<concrete::FunctionEmission>,
     pub(super) class_constructor_materializations: Vec<CallableMaterialization>,
     pub(super) struct_constructor_materializations: Vec<CallableMaterialization>,
     pub(super) callable_reference_identities: Vec<concrete::CallableReferenceIdentity>,
@@ -140,12 +139,6 @@ impl<'a> CallableIdentityBuilder<'a> {
         for index in 0..self.concretizer.foreign_callback_slots.len() {
             self.resolve_foreign_callback(index);
         }
-        let function_emissions = self
-            .concretizer
-            .function_keys
-            .iter()
-            .map(|key| self.emission(key))
-            .collect();
         let function_materializations = std::mem::take(&mut self.materializations)
             .into_iter()
             .enumerate()
@@ -190,7 +183,6 @@ impl<'a> CallableIdentityBuilder<'a> {
             callable_applications,
             callback_applications,
             function_materializations,
-            function_emissions,
             class_constructor_materializations,
             struct_constructor_materializations,
             callable_reference_identities,
@@ -512,22 +504,6 @@ impl<'a> CallableIdentityBuilder<'a> {
             .insert(record.key().to_owned(), application);
         self.callback_applications.push(record);
         application
-    }
-
-    fn emission(&self, key: &FunctionKey) -> concrete::FunctionEmission {
-        let arguments = self.concretizer.function_key_arguments(key);
-        if arguments.is_empty() {
-            return concrete::FunctionEmission::Direct;
-        }
-        let arguments = NonEmptyVec::new(arguments).expect("the argument group is non-empty");
-        let source = key.source();
-        concrete::FunctionEmission::Materialized {
-            arguments,
-            symbol: self.concretizer.instance_symbol(
-                &self.concretizer.source.functions[source].link_stem,
-                source.into_raw().into_u32(),
-            ),
-        }
     }
 }
 

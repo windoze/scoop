@@ -9,7 +9,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
     // mir-lower registers the boxed class of every checked / boxed
     // value type.
     let boxed = b.class(
-        "box$D1_SX",
+        "box<S>",
         None,
         &[("value", mir::Type::Struct(s))],
         empty_vtable(),
@@ -100,7 +100,7 @@ Module
     call no-gc-direct-target0 t4 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td0)
     store t4 -> local2
     ret
-  td td0 box$D1_SX @scoop$1$td$9d50e433dbe8bb745ff3db8d7f7f2b38e16509d73219567a1896134c800ac607 type-id=3448932397359138960 size=24 parent=none vtable=[] itables=[]
+  td td0 box<S> @scoop$1$td$9d50e433dbe8bb745ff3db8d7f7f2b38e16509d73219567a1896134c800ac607 type-id=3448932397359138960 size=24 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -112,7 +112,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout S size=4 align=4 refs=[]
-  layout box$D1_SX size=24 align=8 refs=[]
+  layout box<S> size=24 align=8 refs=[]
   entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
@@ -125,8 +125,8 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
     // `releaseGcHandle` unwrap field 0 for the reverse call, and
     // the hooks are a void call / an i64 result.
     let mut b = Builder::new();
-    let pinned_ptr = b.strukt("PinnedPtr$S", &[("raw", ULONG)]);
-    let gc_handle = b.strukt("GcHandle$S", &[("raw", ULONG)]);
+    let pinned_ptr = b.strukt("PinnedPtr<String>", &[("raw", ULONG)]);
+    let gc_handle = b.strukt("GcHandle<String>", &[("raw", ULONG)]);
     let mut locals = Arena::new();
     let v = locals.alloc(local("v", mir::Type::String));
     let raw_pin = locals.alloc(local("$call.1", ULONG));
@@ -252,8 +252,8 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout PinnedPtr$S size=8 align=8 refs=[]
-  layout GcHandle$S size=8 align=8 refs=[]
+  layout PinnedPtr<String> size=8 align=8 refs=[]
+  layout GcHandle<String> size=8 align=8 refs=[]
   entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }

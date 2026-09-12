@@ -37,7 +37,6 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     );
     assert_eq!(
         source.objects.alloc(hir::ObjectDecl {
-            link_stem: nominal_link_stem("Registry.object"),
             name: "Registry".to_string(),
             owner: None,
             access: hir::NominalAccess::public(),
@@ -55,7 +54,6 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
             .alloc(hir::SingletonPublishedRoot {
                 value,
                 ty: backing_ty,
-                link_name: "Registry".to_string(),
             }),
         published_root
     );
@@ -70,7 +68,6 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     );
     assert_eq!(
         source.initialization_units.alloc(hir::InitializationUnit {
-            stable_key: "singleton:Registry".to_string(),
             display_name: "object:Registry".to_string(),
             schedule: hir::InitializationSchedule::LazyAccess,
             kind: hir::InitializationUnitKind::LazySingleton {

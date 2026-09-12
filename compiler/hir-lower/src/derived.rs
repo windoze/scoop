@@ -97,16 +97,7 @@ impl Lowerer {
             Owner::Interface(id) => self.interface_files[&id],
             Owner::Object(id) => self.object_files[&id],
         };
-        let link_stem = self.local_callable_link_stem(
-            file,
-            crate::globals::LocalCallableScope::Member(owner),
-            "equals",
-            crate::globals::LocalCallableLinkRole::Function(
-                crate::globals::LocalCallableReceiver::Ordinary,
-            ),
-        );
         let function = self.functions.alloc(Function {
-            link_stem,
             name: format!("{}.equals", owner.describe_name(self)),
             access,
             override_access: Vec::new(),
@@ -248,14 +239,7 @@ impl Lowerer {
         let this = hir::LocalId::from_raw(0.into());
         let other = hir::LocalId::from_raw(1.into());
         let access = self.local_declaration_access();
-        let link_stem = self.local_callable_link_stem(
-            self.current_file,
-            crate::globals::LocalCallableScope::SourceLocal,
-            "equals",
-            crate::globals::LocalCallableLinkRole::StructuralDerivedEquality(owner_ty),
-        );
         let function = self.functions.alloc(Function {
-            link_stem,
             name: format!("{}.equals", self.type_name(owner_ty)),
             access,
             override_access: Vec::new(),

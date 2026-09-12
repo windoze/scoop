@@ -68,16 +68,7 @@ impl Lowerer {
             file_index,
             slot_access,
         );
-        let link_stem = self.local_callable_link_stem(
-            file_index,
-            crate::globals::LocalCallableScope::Member(owner),
-            &decl.name.text,
-            crate::globals::LocalCallableLinkRole::Function(
-                crate::globals::LocalCallableReceiver::Ordinary,
-            ),
-        );
         let id = self.functions.alloc(Function {
-            link_stem,
             name,
             access,
             override_access: Vec::new(),
@@ -177,24 +168,7 @@ impl Lowerer {
             }),
         };
         let access = self.top_level_access(decl.visibility, decl.name.span, "function", file_index);
-        let scope = if access.declared == hir::DeclaredVisibility::Private {
-            crate::globals::TopLevelCallableScope::FilePrivate
-        } else {
-            crate::globals::TopLevelCallableScope::Package
-        };
-        let receiver = if decl.receiver_ty.is_some() {
-            crate::globals::LocalCallableReceiver::ExtensionDeclaration
-        } else {
-            crate::globals::LocalCallableReceiver::Ordinary
-        };
-        let link_stem = self.local_callable_link_stem(
-            file_index,
-            crate::globals::LocalCallableScope::TopLevel(scope),
-            &decl.name.text,
-            crate::globals::LocalCallableLinkRole::Function(receiver),
-        );
         let id = self.functions.alloc(Function {
-            link_stem,
             name: decl.name.text.clone(),
             access,
             override_access: Vec::new(),

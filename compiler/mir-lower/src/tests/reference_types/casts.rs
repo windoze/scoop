@@ -67,7 +67,7 @@ fn is_instance_and_casts_lower_to_runtime_checks() {
     let expected = "\
 Module
   struct S (x: Int)
-  enum Option$D1_SX
+  enum Option<S>
     Some(_1: S)
     None()
   class ClassCastException vtable=0 itables=0
@@ -119,8 +119,8 @@ Module
           Local $cast.3
     bb3 if.then.3
       assign $cast.4
-        Type Option$D1_SX<S>
-        VariantConstruct Option$D1_SX<S> v0
+        Type Option<S>
+        VariantConstruct Option<S> v0
           Type S
           Unbox
             Type Any
@@ -128,12 +128,12 @@ Module
       goto bb5
     bb4 if.else.4
       assign $cast.4
-        Type Option$D1_SX<S>
-        VariantConstruct Option$D1_SX<S> v1
+        Type Option<S>
+        VariantConstruct Option<S> v1
       goto bb5
     bb5 if.merge.5
-      val maybe: Option$D1_SX<S>
-        Type Option$D1_SX<S>
+      val maybe: Option<S>
+        Type Option<S>
         Local $cast.4
       return
   fun init.ClassCastException.$c0 @fn1(this: ClassCastException) -> Unit

@@ -35,7 +35,7 @@ fn storage_global_linkage_follows_its_materialization_root() {
 }
 
 #[test]
-fn emits_typed_initialization_descriptors_in_stable_key_order() {
+fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
     let mut module = values_module();
     let storage = module.globals.alloc(Global {
         address_kind: PointerKind::Raw,
@@ -79,12 +79,18 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     });
     let mut functions = scoop_lir::LocalFunctionIdentities::default();
     let entry = functions.alloc_managed();
+    let alpha = initialization_unit_identity(ConeIdentity::CORE, "alpha");
+    let zed = initialization_unit_identity(ConeIdentity::SINGLE_FILE, "zed");
+    let (higher_identity, higher_name, lower_identity, lower_name) = if alpha.id() > zed.id() {
+        (alpha, "alpha", zed, "zed")
+    } else {
+        (zed, "zed", alpha, "alpha")
+    };
     module
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
-            identity: initialization_unit_identity(ConeIdentity::CORE, "alpha"),
-            stable_key: "$local$opaque-z".to_string(),
-            display_name: "top-level:alpha".to_string(),
+            identity: higher_identity,
+            display_name: format!("top-level:{higher_name}"),
             schedule: scoop_lir::InitializationSchedule::EagerStartup,
             kind: scoop_lir::InitializationUnitKind::EagerTopLevel { storage },
             failure_root: failure,
@@ -95,9 +101,8 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     module
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
-            identity: initialization_unit_identity(ConeIdentity::SINGLE_FILE, "zed"),
-            stable_key: "$local$opaque-a".to_string(),
-            display_name: "top-level:zed".to_string(),
+            identity: lower_identity,
+            display_name: format!("top-level:{lower_name}"),
             schedule: scoop_lir::InitializationSchedule::LazyAccess,
             kind: scoop_lir::InitializationUnitKind::EagerTopLevel {
                 storage: second_storage,
@@ -113,23 +118,24 @@ fn emits_typed_initialization_descriptors_in_stable_key_order() {
     assert!(ir.contains("@scoop.init.descriptor.1 = private constant"));
     assert!(ir.contains("@scoop.init.display.0 = private constant"));
     assert!(ir.contains("@scoop.init.display.1 = private constant"));
-    assert!(ir.contains("c\"top-level:alpha\\00\""));
-    assert!(ir.contains("c\"top-level:zed\\00\""));
-    assert!(ir.contains("{ i64 0, ptr @scoop.init.key.0, ptr @scoop.init.display.0"));
-    assert!(ir.contains("{ i64 1, ptr @scoop.init.key.1, ptr @scoop.init.display.1"));
+    assert!(ir.contains(&format!("c\"top-level:{higher_name}\\00\"")));
+    assert!(ir.contains(&format!("c\"top-level:{lower_name}\\00\"")));
+    assert!(ir.contains("{ i64 0, [32 x i8] c\""));
+    assert!(ir.contains("{ i64 1, [32 x i8] c\""));
+    assert!(!ir.contains("scoop.init.key"));
     let table = ir
         .lines()
         .find(|line| line.starts_with("@scoop_image_initialization_units ="))
         .expect("initialization descriptor table");
-    let opaque_a = table
-        .find("@scoop.init.key.1")
-        .expect("opaque a key in table");
-    let opaque_z = table
-        .find("@scoop.init.key.0")
-        .expect("opaque z key in table");
+    let lower = table
+        .find("@scoop.init.display.1")
+        .expect("lower persistent identity in table");
+    let higher = table
+        .find("@scoop.init.display.0")
+        .expect("higher persistent identity in table");
     assert!(
-        opaque_a < opaque_z,
-        "descriptor table must be sorted by stable key, not display name"
+        lower < higher,
+        "descriptor table must be sorted by persistent identity, not arena order"
     );
     assert!(ir.contains("@scoop_image_initialization_unit_count = constant i64 2"));
 }

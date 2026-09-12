@@ -1154,36 +1154,36 @@ Module
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Long <abi=scoop managed>
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
-  enum Option$J16_Continuation$I32X
-    Some(_1: Continuation$I32)
+  enum Option<Continuation<Int>>
+    Some(_1: Continuation<Int>)
     None()
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
   enum CoroutineStep<String>
     Completed(value: String)
     Suspended()
-  enum CoroutineStep<AsyncNumber$C7_PayloadX>
-    Completed(value: AsyncNumber$C7_PayloadX)
+  enum CoroutineStep<AsyncNumber<Payload>>
+    Completed(value: AsyncNumber<Payload>)
     Suspended()
   enum CoroutineStep<Int>
     Completed(value: Int)
     Suspended()
-  enum CoroutineSlot<AsyncNumber$C7_PayloadX>
+  enum CoroutineSlot<AsyncNumber<Payload>>
     Empty()
-    Value(value: AsyncNumber$C7_PayloadX)
+    Value(value: AsyncNumber<Payload>)
   enum CoroutineSlot<Int>
     Empty()
     Value(value: Int)
@@ -1217,9 +1217,9 @@ Module
   class OperatorGate vtable=0 itables=0
   class OperatorRegistration vtable=0 itables=1
   class OperatorTask vtable=0 itables=1
-  class AsyncNumber$C7_PayloadX vtable=0 itables=0
+  class AsyncNumber<Payload> vtable=0 itables=0
   class OperatorCompletion vtable=0 itables=1
-  class GenericIndex$C7_PayloadX vtable=0 itables=0
+  class GenericIndex<Payload> vtable=0 itables=0
   class CoroutineFrame<AsyncNumber.plus> vtable=0 itables=0
   class CoroutineAdapter<AsyncNumber.plus>$1 vtable=0 itables=1
   class CoroutineFrame<OperatorTask.run> vtable=0 itables=0
@@ -1228,23 +1228,23 @@ Module
   class CoroutineAdapter<awaitOperator>$1 vtable=0 itables=1
   interface ToString
   interface Hash
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
-  interface Continuation$I32
-  interface SuspendRegistration$I32
-  interface SuspendTask$S
-  interface Continuation$S
-  interface SuspendTask$I32
-  interface SuspendRegistration$S
-  interface Continuation$C23_AsyncNumber$C7_PayloadXX
-  interface SuspendTask$C23_AsyncNumber$C7_PayloadXX
-  interface SuspendRegistration$C23_AsyncNumber$C7_PayloadXX
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  interface Continuation<Int>
+  interface SuspendRegistration<Int>
+  interface SuspendTask<String>
+  interface Continuation<String>
+  interface SuspendTask<Int>
+  interface SuspendRegistration<String>
+  interface Continuation<AsyncNumber<Payload>>
+  interface SuspendTask<AsyncNumber<Payload>>
+  interface SuspendRegistration<AsyncNumber<Payload>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn79 captures=2
   generated_exact_type get0 location=enum6 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
   generated_exact_type get1 location=enum7 nominal_id=841889dabd9d0fae5391f43f5df6131312477644a52bc1270f88250fb7b13690 exact_id=115e41725a93b78c189ab4958c47a22f83d5b4f38e6a4de93ff7918c573fd9b0
@@ -3403,7 +3403,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @fn51(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn51(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3501,9 +3501,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -3512,7 +3512,7 @@ Module
       call @fn119 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -3924,7 +3924,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -3933,8 +3933,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4023,8 +4023,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -4034,8 +4034,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4097,8 +4097,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4108,8 +4108,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -4245,8 +4245,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -4379,7 +4379,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn55(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn55(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4477,9 +4477,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4488,7 +4488,7 @@ Module
       call @fn119 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -4900,7 +4900,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4909,8 +4909,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4999,8 +4999,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5010,8 +5010,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5073,8 +5073,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5084,8 +5084,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5221,8 +5221,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -5355,7 +5355,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5440,9 +5440,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5451,7 +5451,7 @@ Module
       call @fn119 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5833,7 +5833,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5842,8 +5842,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5932,8 +5932,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5943,8 +5943,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6006,8 +6006,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6017,8 +6017,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6128,8 +6128,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -6262,7 +6262,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6347,9 +6347,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6358,7 +6358,7 @@ Module
       call @fn119 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6740,7 +6740,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6749,8 +6749,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6839,8 +6839,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6850,8 +6850,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6913,8 +6913,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6924,8 +6924,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -7035,8 +7035,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -7212,21 +7212,21 @@ Module
         Local $call.1
   fun OperatorGate.complete @fn70(this: OperatorGate, value: Int) -> Unit
     bb0 entry
-      val $opt.1: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $opt.1: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         FieldAccess 0
           Type OperatorGate
           Local this
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$J16_Continuation$I32X v0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+        VariantTest Option<Continuation<Int>> v0
+          Type Option<Continuation<Int>>
           Local $opt.1
     bb1 if.then.1
-      val $uw.2: Continuation$I32
-        Type Continuation$I32
-        VariantPayloadProject Option$J16_Continuation$I32X v0 f0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $uw.2: Continuation<Int>
+        Type Continuation<Int>
+        VariantPayloadProject Option<Continuation<Int>> v0 f0
+          Type Option<Continuation<Int>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -7240,16 +7240,16 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val continuation: Continuation$I32
-        Type Continuation$I32
+      val continuation: Continuation<Int>
+        Type Continuation<Int>
         Local $uw.2
       field_set 0
         Type OperatorGate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $receiver: Continuation$I32
-        Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $receiver: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
       val $argument.0: Int
         Type Int
@@ -7257,31 +7257,31 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn83 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn83 interface Continuation<Int>[0]
+        Type Continuation<Int>
         Local $receiver
         Type Int
         Local $parameter.value
       return
-  fun OperatorRegistration.register @fn71(this: OperatorRegistration, continuation: Continuation$I32) -> Unit
+  fun OperatorRegistration.register @fn71(this: OperatorRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
-      val $argument.0: Continuation$I32
-        Type Continuation$I32
+      val $argument.0: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
-      val $parameter._1: Continuation$I32
-        Type Continuation$I32
+      val $parameter._1: Continuation<Int>
+        Type Continuation<Int>
         Local $argument.0
       field_set 0
         Type OperatorGate
         FieldAccess 0
           Type OperatorRegistration
           Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v0
-          Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v0
+          Type Continuation<Int>
           Local $parameter._1
       return
-  fun AsyncNumber.plus @fn72(this: AsyncNumber$C7_PayloadX, other: AsyncNumber$C7_PayloadX, $completion: Continuation$C23_AsyncNumber$C7_PayloadXX) -> CoroutineStep<AsyncNumber$C7_PayloadX>
+  fun AsyncNumber.plus @fn72(this: AsyncNumber<Payload>, other: AsyncNumber<Payload>, $completion: Continuation<AsyncNumber<Payload>>) -> CoroutineStep<AsyncNumber<Payload>>
     bb0 entry
       val $frame: CoroutineFrame<AsyncNumber.plus>
         Type CoroutineFrame<AsyncNumber.plus>
@@ -7294,21 +7294,21 @@ Module
       field_set 1
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
-        Type Continuation$C23_AsyncNumber$C7_PayloadXX
+        Type Continuation<AsyncNumber<Payload>>
         Local $completion
       field_set 2
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
-        Type CoroutineSlot<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineSlot<AsyncNumber$C7_PayloadX> v1
-          Type AsyncNumber$C7_PayloadX
+        Type CoroutineSlot<AsyncNumber<Payload>>
+        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
+          Type AsyncNumber<Payload>
           Local this
       field_set 3
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
-        Type CoroutineSlot<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineSlot<AsyncNumber$C7_PayloadX> v1
-          Type AsyncNumber$C7_PayloadX
+        Type CoroutineSlot<AsyncNumber<Payload>>
+        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
+          Type AsyncNumber<Payload>
           Local other
       field_set 4
         Type CoroutineFrame<AsyncNumber.plus>
@@ -7320,15 +7320,15 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<AsyncNumber$C7_PayloadX> = @fn132 direct
+      call $step: CoroutineStep<AsyncNumber<Payload>> = @fn132 direct
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       return
-        Type CoroutineStep<AsyncNumber$C7_PayloadX>
+        Type CoroutineStep<AsyncNumber<Payload>>
         Local $step
-  fun OperatorTask.run @fn73(this: OperatorTask, $completion: Continuation$S) -> CoroutineStep<String>
+  fun OperatorTask.run @fn73(this: OperatorTask, $completion: Continuation<String>) -> CoroutineStep<String>
     bb0 entry
       val $frame: CoroutineFrame<OperatorTask.run>
         Type CoroutineFrame<OperatorTask.run>
@@ -7341,7 +7341,7 @@ Module
       field_set 1
         Type CoroutineFrame<OperatorTask.run>
         Local $frame
-        Type Continuation$S
+        Type Continuation<String>
         Local $completion
       field_set 2
         Type CoroutineFrame<OperatorTask.run>
@@ -7353,8 +7353,8 @@ Module
       field_set 3
         Type CoroutineFrame<OperatorTask.run>
         Local $frame
-        Type CoroutineSlot<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineSlot<AsyncNumber$C7_PayloadX> v0
+        Type CoroutineSlot<AsyncNumber<Payload>>
+        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v0
       field_set 4
         Type CoroutineFrame<OperatorTask.run>
         Local $frame
@@ -7403,7 +7403,7 @@ Module
         Type String
         Local $parameter.value
       return
-  fun awaitOperator @fn76(gate: OperatorGate, $completion: Continuation$I32) -> CoroutineStep<Int>
+  fun awaitOperator @fn76(gate: OperatorGate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<awaitOperator>
         Type CoroutineFrame<awaitOperator>
@@ -7416,7 +7416,7 @@ Module
       field_set 1
         Type CoroutineFrame<awaitOperator>
         Local $frame
-        Type Continuation$I32
+        Type Continuation<Int>
         Local $completion
       field_set 2
         Type CoroutineFrame<awaitOperator>
@@ -7459,11 +7459,11 @@ Module
         IntegerLiteral Int value=2 bits=0x00000002
   fun main @fn78() -> Unit
     bb0 entry
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.1
         Type OperatorGate
@@ -7471,16 +7471,16 @@ Module
       call @fn124 direct
         Type OperatorGate
         Local $new.1
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val successGate: OperatorGate
         Type OperatorGate
         Local $new.1
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.2
         Type OperatorGate
@@ -7488,7 +7488,7 @@ Module
       call @fn124 direct
         Type OperatorGate
         Local $new.2
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val failureGate: OperatorGate
         Type OperatorGate
@@ -7535,10 +7535,10 @@ Module
         Type Int
         Local $argument.3
       assign $new.4
-        Type AsyncNumber$C7_PayloadX
-        ClassAlloc AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
+        ClassAlloc AsyncNumber<Payload>
       call @fn127 direct
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $new.4
         Type OperatorGate
         Local $parameter.gate
@@ -7548,8 +7548,8 @@ Module
         Local $parameter.label
         Type Int
         Local $parameter.amount
-      val successLeft: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val successLeft: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $new.4
       val $argument.0: OperatorGate
         Type OperatorGate
@@ -7576,10 +7576,10 @@ Module
         Type Int
         Local $argument.3
       assign $new.5
-        Type AsyncNumber$C7_PayloadX
-        ClassAlloc AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
+        ClassAlloc AsyncNumber<Payload>
       call @fn127 direct
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $new.5
         Type OperatorGate
         Local $parameter.gate
@@ -7589,8 +7589,8 @@ Module
         Local $parameter.label
         Type Int
         Local $parameter.amount
-      val successRight: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val successRight: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $new.5
       val $argument.0: OperatorGate
         Type OperatorGate
@@ -7617,10 +7617,10 @@ Module
         Type Int
         Local $argument.3
       assign $new.6
-        Type AsyncNumber$C7_PayloadX
-        ClassAlloc AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
+        ClassAlloc AsyncNumber<Payload>
       call @fn127 direct
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $new.6
         Type OperatorGate
         Local $parameter.gate
@@ -7630,8 +7630,8 @@ Module
         Local $parameter.label
         Type Int
         Local $parameter.amount
-      val failureLeft: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val failureLeft: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $new.6
       val $argument.0: OperatorGate
         Type OperatorGate
@@ -7658,10 +7658,10 @@ Module
         Type Int
         Local $argument.3
       assign $new.7
-        Type AsyncNumber$C7_PayloadX
-        ClassAlloc AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
+        ClassAlloc AsyncNumber<Payload>
       call @fn127 direct
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $new.7
         Type OperatorGate
         Local $parameter.gate
@@ -7671,26 +7671,26 @@ Module
         Local $parameter.label
         Type Int
         Local $parameter.amount
-      val failureRight: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val failureRight: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $new.7
       val $argument.0: OperatorGate
         Type OperatorGate
         Local successGate
-      val $argument.1: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $argument.1: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local successLeft
-      val $argument.2: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $argument.2: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local successRight
       val $parameter.gate: OperatorGate
         Type OperatorGate
         Local $argument.0
-      val $parameter.left: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $parameter.left: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $argument.1
-      val $parameter.right: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $parameter.right: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $argument.2
       assign $new.8
         Type OperatorTask
@@ -7700,11 +7700,11 @@ Module
         Local $new.8
         Type OperatorGate
         Local $parameter.gate
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $parameter.left
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $parameter.right
-      val $argument.0: SuspendTask$S
+      val $argument.0: SuspendTask<String>
         Type OperatorTask
         Local $new.8
       val $argument.0: String
@@ -7721,37 +7721,37 @@ Module
         Local $new.9
         Type String
         Local $parameter.label
-      val $argument.1: Continuation$S
+      val $argument.1: Continuation<String>
         Type OperatorCompletion
         Local $new.9
-      val $parameter.task: SuspendTask$S
-        Type SuspendTask$S
+      val $parameter.task: SuspendTask<String>
+        Type SuspendTask<String>
         Local $argument.0
-      val $parameter.completion: Continuation$S
-        Type Continuation$S
+      val $parameter.completion: Continuation<String>
+        Type Continuation<String>
         Local $argument.1
       call @fn131 direct
-        Type SuspendTask$S
+        Type SuspendTask<String>
         Local $parameter.task
-        Type Continuation$S
+        Type Continuation<String>
         Local $parameter.completion
       val $argument.0: OperatorGate
         Type OperatorGate
         Local failureGate
-      val $argument.1: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $argument.1: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local failureLeft
-      val $argument.2: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $argument.2: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local failureRight
       val $parameter.gate: OperatorGate
         Type OperatorGate
         Local $argument.0
-      val $parameter.left: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $parameter.left: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $argument.1
-      val $parameter.right: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $parameter.right: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $argument.2
       assign $new.10
         Type OperatorTask
@@ -7761,11 +7761,11 @@ Module
         Local $new.10
         Type OperatorGate
         Local $parameter.gate
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $parameter.left
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $parameter.right
-      val $argument.0: SuspendTask$S
+      val $argument.0: SuspendTask<String>
         Type OperatorTask
         Local $new.10
       val $argument.0: String
@@ -7782,19 +7782,19 @@ Module
         Local $new.11
         Type String
         Local $parameter.label
-      val $argument.1: Continuation$S
+      val $argument.1: Continuation<String>
         Type OperatorCompletion
         Local $new.11
-      val $parameter.task: SuspendTask$S
-        Type SuspendTask$S
+      val $parameter.task: SuspendTask<String>
+        Type SuspendTask<String>
         Local $argument.0
-      val $parameter.completion: Continuation$S
-        Type Continuation$S
+      val $parameter.completion: Continuation<String>
+        Type Continuation<String>
         Local $argument.1
       call @fn131 direct
-        Type SuspendTask$S
+        Type SuspendTask<String>
         Local $parameter.task
-        Type Continuation$S
+        Type Continuation<String>
         Local $parameter.completion
       val $argument.0: String
         Type String
@@ -7858,7 +7858,7 @@ Module
       val $argument.0: String
         Type String
         FieldAccess 2
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           ClosureCapture cc0 0
             Type () -> String
             Local $closure
@@ -7921,12 +7921,12 @@ Module
         Type String
         Local $parameter.message
       return
-  fun GenericIndex.get @fn82(this: GenericIndex$C7_PayloadX, index: Int, scale: Int) -> Payload
+  fun GenericIndex.get @fn82(this: GenericIndex<Payload>, index: Int, scale: Int) -> Payload
     bb0 entry
       return
         Type Payload
         FieldAccess 0
-          Type GenericIndex$C7_PayloadX
+          Type GenericIndex<Payload>
           Local this
   fun init.IntRange.$c2 @fn105(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
@@ -8175,7 +8175,7 @@ Module
   fun init.Throwable.$c10 @fn113(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn114(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn114(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn113 direct
         Type Throwable
@@ -8185,7 +8185,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn115(this: UnwrapException) -> Unit
@@ -8196,20 +8196,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn114 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn116(this: ClassCastException) -> Unit
@@ -8220,20 +8220,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn114 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn117(this: ArithmeticException) -> Unit
@@ -8244,20 +8244,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn114 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn118(this: IndexOutOfBoundsException) -> Unit
@@ -8268,52 +8268,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn114 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn119(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn119(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn114 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn120(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn120(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn114 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c26 @fn121(this: IllegalStateException) -> Unit
@@ -8324,31 +8324,31 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn120 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.OperatorFailure.$c18 @fn122(this: OperatorFailure) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn114 direct
         Type Exception
         Retype Exception
           Type OperatorFailure
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.Payload.$c19 @fn123(this: Payload, text: String) -> Unit
@@ -8359,12 +8359,12 @@ Module
         Type String
         Local text
       return
-  fun init.OperatorGate.$c20 @fn124(this: OperatorGate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
+  fun init.OperatorGate.$c20 @fn124(this: OperatorGate, waiter: Option<Continuation<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type OperatorGate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local waiter
       return
   fun init.OperatorRegistration.$c21 @fn125(this: OperatorRegistration, gate: OperatorGate) -> Unit
@@ -8375,7 +8375,7 @@ Module
         Type OperatorGate
         Local gate
       return
-  fun init.OperatorTask.$c24 @fn126(this: OperatorTask, gate: OperatorGate, left: AsyncNumber$C7_PayloadX, right: AsyncNumber$C7_PayloadX) -> Unit
+  fun init.OperatorTask.$c24 @fn126(this: OperatorTask, gate: OperatorGate, left: AsyncNumber<Payload>, right: AsyncNumber<Payload>) -> Unit
     bb0 entry
       field_set 0
         Type OperatorTask
@@ -8385,33 +8385,33 @@ Module
       field_set 1
         Type OperatorTask
         Local this
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local left
       field_set 2
         Type OperatorTask
         Local this
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local right
       return
-  fun init.AsyncNumber$C7_PayloadX.$c23 @fn127(this: AsyncNumber$C7_PayloadX, gate: OperatorGate, payload: Payload, label: String, amount: Int) -> Unit
+  fun init.AsyncNumber.$c23 @fn127(this: AsyncNumber<Payload>, gate: OperatorGate, payload: Payload, label: String, amount: Int) -> Unit
     bb0 entry
       field_set 0
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local this
         Type OperatorGate
         Local gate
       field_set 1
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local this
         Type Payload
         Local payload
       field_set 2
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local this
         Type String
         Local label
       field_set 3
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local this
         Type Int
         Local amount
@@ -8424,10 +8424,10 @@ Module
         Type String
         Local label
       return
-  fun init.GenericIndex$C7_PayloadX.$c22 @fn129(this: GenericIndex$C7_PayloadX, value: Payload) -> Unit
+  fun init.GenericIndex.$c22 @fn129(this: GenericIndex<Payload>, value: Payload) -> Unit
     bb0 entry
       field_set 0
-        Type GenericIndex$C7_PayloadX
+        Type GenericIndex<Payload>
         Local this
         Type Payload
         Local value
@@ -8447,12 +8447,12 @@ Module
           Local functionName
           Type String
           Local typeName
-  fun startCoroutine<String> @fn131(task: SuspendTask$S, completion: Continuation$S) -> Unit
+  fun startCoroutine<String> @fn131(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn87 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn87 interface Continuation<String>[0]
+        Type Continuation<String>
         Local completion
         Type String
         EnumField v0 f0
@@ -8460,8 +8460,8 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn88 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn88 interface Continuation<String>[1]
+        Type Continuation<String>
         Local completion
         Type Throwable
         Local $exception
@@ -8475,10 +8475,10 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<String> = @fn89 interface SuspendTask$S[0]
-        Type SuspendTask$S
+      call $step: CoroutineStep<String> = @fn89 interface SuspendTask<String>[0]
+        Type SuspendTask<String>
         Local task
-        Type Continuation$S
+        Type Continuation<String>
         Local completion
       branch bb1 bb0
         Type Boolean
@@ -8489,12 +8489,12 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun AsyncNumber.plus$drive @fn132($frame: CoroutineFrame<AsyncNumber.plus>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<AsyncNumber$C7_PayloadX>
+  fun AsyncNumber.plus$drive @fn132($frame: CoroutineFrame<AsyncNumber.plus>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<AsyncNumber<Payload>>
     bb0 entry
       val $argument.0: OperatorGate
         Type OperatorGate
         FieldAccess 0
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local this
       val $parameter.gate: OperatorGate
         Type OperatorGate
@@ -8502,16 +8502,16 @@ Module
       field_set 2
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
-        Type CoroutineSlot<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineSlot<AsyncNumber$C7_PayloadX> v1
-          Type AsyncNumber$C7_PayloadX
+        Type CoroutineSlot<AsyncNumber<Payload>>
+        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
+          Type AsyncNumber<Payload>
           Local this
       field_set 3
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
-        Type CoroutineSlot<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineSlot<AsyncNumber$C7_PayloadX> v1
-          Type AsyncNumber$C7_PayloadX
+        Type CoroutineSlot<AsyncNumber<Payload>>
+        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
+          Type AsyncNumber<Payload>
           Local other
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncNumber.plus>
@@ -8559,12 +8559,12 @@ Module
       val $argument.0: OperatorGate
         Type OperatorGate
         FieldAccess 0
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local this
       val $argument.1: Payload
         Type Payload
         FieldAccess 1
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local this
       val $argument.2: String
         Type String
@@ -8572,12 +8572,12 @@ Module
       val $receiver: Int
         Type Int
         FieldAccess 3
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local this
       val $argument.0: Int
         Type Int
         FieldAccess 3
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local other
       val $parameter.other: Int
         Type Int
@@ -8615,10 +8615,10 @@ Module
         Type Int
         Local $argument.3
       assign $new.2
-        Type AsyncNumber$C7_PayloadX
-        ClassAlloc AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
+        ClassAlloc AsyncNumber<Payload>
       call @fn127 direct
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $new.2
         Type OperatorGate
         Local $parameter.gate
@@ -8629,20 +8629,20 @@ Module
         Type Int
         Local $parameter.amount
       return
-        Type CoroutineStep<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineStep<AsyncNumber$C7_PayloadX> v0
-          Type AsyncNumber$C7_PayloadX
+        Type CoroutineStep<AsyncNumber<Payload>>
+        VariantConstruct CoroutineStep<AsyncNumber<Payload>> v0
+          Type AsyncNumber<Payload>
           Local $new.2
     bb3 coroutine.post.1
       val $receiver: String
         Type String
         FieldAccess 2
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local this
       val $argument.0: String
         Type String
         FieldAccess 2
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local other
       val $parameter.other: String
         Type String
@@ -8713,20 +8713,20 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
     bb8 coroutine.suspended.1
       return
-        Type CoroutineStep<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineStep<AsyncNumber$C7_PayloadX> v1
+        Type CoroutineStep<AsyncNumber<Payload>>
+        VariantConstruct CoroutineStep<AsyncNumber<Payload>> v1
     bb9 coroutine.resume.1
       assign this
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncNumber$C7_PayloadX>
+          Type CoroutineSlot<AsyncNumber<Payload>>
           FieldAccess 2
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       assign other
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncNumber$C7_PayloadX>
+          Type CoroutineSlot<AsyncNumber<Payload>>
           FieldAccess 3
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
@@ -8740,16 +8740,16 @@ Module
       goto bb3
     bb10 coroutine.failure.1
       assign this
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncNumber$C7_PayloadX>
+          Type CoroutineSlot<AsyncNumber<Payload>>
           FieldAccess 2
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       assign other
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncNumber$C7_PayloadX>
+          Type CoroutineSlot<AsyncNumber<Payload>>
           FieldAccess 3
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
@@ -8762,16 +8762,16 @@ Module
             Local $frame
     bb11 coroutine.initial
       assign this
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncNumber$C7_PayloadX>
+          Type CoroutineSlot<AsyncNumber<Payload>>
           FieldAccess 2
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       assign other
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncNumber$C7_PayloadX>
+          Type CoroutineSlot<AsyncNumber<Payload>>
           FieldAccess 3
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
@@ -8834,16 +8834,16 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn133 interface Continuation$C23_AsyncNumber$C7_PayloadXX[0]
-        Type Continuation$C23_AsyncNumber$C7_PayloadXX
+      call @fn133 interface Continuation<AsyncNumber<Payload>>[0]
+        Type Continuation<AsyncNumber<Payload>>
         FieldAccess 1
           Type CoroutineFrame<AsyncNumber.plus>
           FieldAccess 0
             Type CoroutineAdapter<AsyncNumber.plus>$1
             Local this
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v0 f0
-          Type CoroutineStep<AsyncNumber$C7_PayloadX>
+          Type CoroutineStep<AsyncNumber<Payload>>
           Local $step
       return
     bb2 suspended
@@ -8856,8 +8856,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn134 interface Continuation$C23_AsyncNumber$C7_PayloadXX[1]
-        Type Continuation$C23_AsyncNumber$C7_PayloadXX
+      call @fn134 interface Continuation<AsyncNumber<Payload>>[1]
+        Type Continuation<AsyncNumber<Payload>>
         FieldAccess 1
           Type CoroutineFrame<AsyncNumber.plus>
           FieldAccess 0
@@ -8889,7 +8889,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<AsyncNumber$C7_PayloadX> = @fn132 direct
+      call $step: CoroutineStep<AsyncNumber<Payload>> = @fn132 direct
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
           Type CoroutineAdapter<AsyncNumber.plus>$1
@@ -8901,7 +8901,7 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep<AsyncNumber$C7_PayloadX>
+            Type CoroutineStep<AsyncNumber<Payload>>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -8967,16 +8967,16 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn133 interface Continuation$C23_AsyncNumber$C7_PayloadXX[0]
-        Type Continuation$C23_AsyncNumber$C7_PayloadXX
+      call @fn133 interface Continuation<AsyncNumber<Payload>>[0]
+        Type Continuation<AsyncNumber<Payload>>
         FieldAccess 1
           Type CoroutineFrame<AsyncNumber.plus>
           FieldAccess 0
             Type CoroutineAdapter<AsyncNumber.plus>$1
             Local this
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v0 f0
-          Type CoroutineStep<AsyncNumber$C7_PayloadX>
+          Type CoroutineStep<AsyncNumber<Payload>>
           Local $step
       return
     bb2 suspended
@@ -8989,8 +8989,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn134 interface Continuation$C23_AsyncNumber$C7_PayloadXX[1]
-        Type Continuation$C23_AsyncNumber$C7_PayloadXX
+      call @fn134 interface Continuation<AsyncNumber<Payload>>[1]
+        Type Continuation<AsyncNumber<Payload>>
         FieldAccess 1
           Type CoroutineFrame<AsyncNumber.plus>
           FieldAccess 0
@@ -9022,7 +9022,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<AsyncNumber$C7_PayloadX> = @fn132 direct
+      call $step: CoroutineStep<AsyncNumber<Payload>> = @fn132 direct
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
           Type CoroutineAdapter<AsyncNumber.plus>$1
@@ -9034,7 +9034,7 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep<AsyncNumber$C7_PayloadX>
+            Type CoroutineStep<AsyncNumber<Payload>>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -9117,18 +9117,18 @@ Module
           Type String
           Local $result.4
     bb6 try.body.6 unwind bb1
-      val $receiver: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $receiver: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         FieldAccess 1
           Type OperatorTask
           Local this
-      val $argument.0: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $argument.0: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         FieldAccess 2
           Type OperatorTask
           Local this
-      val $parameter.other: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val $parameter.other: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<OperatorTask.run>
@@ -9148,10 +9148,10 @@ Module
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep<AsyncNumber$C7_PayloadX> = @fn72 direct
-        Type AsyncNumber$C7_PayloadX
+      call $step.1: CoroutineStep<AsyncNumber<Payload>> = @fn72 direct
+        Type AsyncNumber<Payload>
         Local $receiver
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         Local $parameter.other
         Type CoroutineAdapter<OperatorTask.run>$1
         Local $adapter.1
@@ -9160,7 +9160,7 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep<AsyncNumber$C7_PayloadX>
+            Type CoroutineStep<AsyncNumber<Payload>>
             Local $step.1
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -9184,21 +9184,21 @@ Module
       val $argument.0: Payload
         Type Payload
         FieldAccess 1
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local total
       val $parameter.value: Payload
         Type Payload
         Local $argument.0
       assign $new.3
-        Type GenericIndex$C7_PayloadX
-        ClassAlloc GenericIndex$C7_PayloadX
+        Type GenericIndex<Payload>
+        ClassAlloc GenericIndex<Payload>
       call @fn129 direct
-        Type GenericIndex$C7_PayloadX
+        Type GenericIndex<Payload>
         Local $new.3
         Type Payload
         Local $parameter.value
-      val $receiver: GenericIndex$C7_PayloadX
-        Type GenericIndex$C7_PayloadX
+      val $receiver: GenericIndex<Payload>
+        Type GenericIndex<Payload>
         Local $new.3
       val $argument.0: Int
         Type Int
@@ -9208,7 +9208,7 @@ Module
         Local $argument.0
       call $parameter.scale: Int = @fn77 direct
       call selected: Payload = @fn82 direct
-        Type GenericIndex$C7_PayloadX
+        Type GenericIndex<Payload>
         Local $receiver
         Type Int
         Local $parameter.index
@@ -9221,13 +9221,13 @@ Module
             Type Payload
             Local selected
           CaptureInit field=0
-            Type AsyncNumber$C7_PayloadX
+            Type AsyncNumber<Payload>
             Local total
       call @scoop_rt_gc_collect direct
       val $argument.0: Int
         Type Int
         FieldAccess 3
-          Type AsyncNumber$C7_PayloadX
+          Type AsyncNumber<Payload>
           Local total
       val $parameter.value: Int
         Type Int
@@ -9243,10 +9243,10 @@ Module
         Local $call.4
       goto bb5
     bb11 coroutine.completed.1 unwind bb1
-      val total: AsyncNumber$C7_PayloadX
-        Type AsyncNumber$C7_PayloadX
+      val total: AsyncNumber<Payload>
+        Type AsyncNumber<Payload>
         EnumField v0 f0
-          Type CoroutineStep<AsyncNumber$C7_PayloadX>
+          Type CoroutineStep<AsyncNumber<Payload>>
           Local $step.1
       goto bb10
     bb12 coroutine.protocol_error unwind bb1
@@ -9299,9 +9299,9 @@ Module
         VariantConstruct CoroutineStep<String> v1
     bb16 coroutine.resume.1 unwind bb1
       assign total
-        Type AsyncNumber$C7_PayloadX
+        Type AsyncNumber<Payload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncNumber$C7_PayloadX>
+          Type CoroutineSlot<AsyncNumber<Payload>>
           FieldAccess 3
             Type CoroutineFrame<OperatorTask.run>
             Local $frame
@@ -9362,7 +9362,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn140(this: CoroutineAdapter<OperatorTask.run>$1, value: AsyncNumber$C7_PayloadX) -> Unit
+  fun CoroutineAdapter.resume$1 @fn140(this: CoroutineAdapter<OperatorTask.run>$1, value: AsyncNumber<Payload>) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -9381,8 +9381,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn138 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<OperatorTask.run>
           FieldAccess 0
@@ -9403,8 +9403,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn139 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<OperatorTask.run>
           FieldAccess 0
@@ -9427,9 +9427,9 @@ Module
         FieldAccess 0
           Type CoroutineAdapter<OperatorTask.run>$1
           Local this
-        Type CoroutineSlot<AsyncNumber$C7_PayloadX>
-        VariantConstruct CoroutineSlot<AsyncNumber$C7_PayloadX> v1
-          Type AsyncNumber$C7_PayloadX
+        Type CoroutineSlot<AsyncNumber<Payload>>
+        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
+          Type AsyncNumber<Payload>
           Local value
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<OperatorTask.run>$1
@@ -9514,8 +9514,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn138 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn138 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<OperatorTask.run>
           FieldAccess 0
@@ -9536,8 +9536,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn139 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn139 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<OperatorTask.run>
           FieldAccess 0
@@ -9644,11 +9644,11 @@ Module
         Local $new.1
         Type OperatorGate
         Local $parameter.gate
-      val $argument.0: SuspendRegistration$I32
+      val $argument.0: SuspendRegistration<Int>
         Type OperatorRegistration
         Local $new.1
-      val $parameter.registration: SuspendRegistration$I32
-        Type SuspendRegistration$I32
+      val $parameter.registration: SuspendRegistration<Int>
+        Type SuspendRegistration<Int>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitOperator>
@@ -9686,8 +9686,8 @@ Module
           Type Int
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn86 interface SuspendRegistration$I32[0]
-        Type SuspendRegistration$I32
+      call @fn86 interface SuspendRegistration<Int>[0]
+        Type SuspendRegistration<Int>
         Local $parameter.registration
         Type CoroutineAdapter<awaitOperator>$1
         Local $safe_adapter.1
@@ -10003,8 +10003,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn143 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn143 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitOperator>
           FieldAccess 0
@@ -10025,8 +10025,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn144 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn144 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitOperator>
           FieldAccess 0
@@ -10167,8 +10167,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn143 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn143 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitOperator>
           FieldAccess 0
@@ -10189,8 +10189,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn144 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn144 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitOperator>
           FieldAccess 0
@@ -10313,22 +10313,22 @@ Module
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
   coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_step cs1 CoroutineStep<AsyncNumber$C7_PayloadX> result=AsyncNumber$C7_PayloadX
+  coroutine_step cs1 CoroutineStep<AsyncNumber<Payload>> result=AsyncNumber<Payload>
   coroutine_step cs2 CoroutineStep<Int> result=Int
-  coroutine_slot cl0 CoroutineSlot<AsyncNumber$C7_PayloadX> value=AsyncNumber$C7_PayloadX
+  coroutine_slot cl0 CoroutineSlot<AsyncNumber<Payload>> value=AsyncNumber<Payload>
   coroutine_slot cl1 CoroutineSlot<Int> value=Int
   coroutine_slot cl2 CoroutineSlot<Throwable> value=Throwable
   coroutine_slot cl3 CoroutineSlot<OperatorTask> value=OperatorTask
   coroutine_slot cl4 CoroutineSlot<OperatorGate> value=OperatorGate
-  continuation_shell ch0 result=AsyncNumber$C7_PayloadX success=fn133 failure=fn134
+  continuation_shell ch0 result=AsyncNumber<Payload> success=fn133 failure=fn134
   continuation_shell ch1 result=String success=fn138 failure=fn139
   continuation_shell ch2 result=Int success=fn143 failure=fn144
   coroutine_start ct0 result=String function=fn131
-  coroutine_saved cv0 class=CoroutineFrame<AsyncNumber.plus> field=2 slot=cl0 value=AsyncNumber$C7_PayloadX
-  coroutine_saved cv1 class=CoroutineFrame<AsyncNumber.plus> field=3 slot=cl0 value=AsyncNumber$C7_PayloadX
+  coroutine_saved cv0 class=CoroutineFrame<AsyncNumber.plus> field=2 slot=cl0 value=AsyncNumber<Payload>
+  coroutine_saved cv1 class=CoroutineFrame<AsyncNumber.plus> field=3 slot=cl0 value=AsyncNumber<Payload>
   coroutine_saved cv2 class=CoroutineFrame<AsyncNumber.plus> field=4 slot=cl1 value=Int
   coroutine_saved cv3 class=CoroutineFrame<OperatorTask.run> field=2 slot=cl3 value=OperatorTask
-  coroutine_saved cv4 class=CoroutineFrame<OperatorTask.run> field=3 slot=cl0 value=AsyncNumber$C7_PayloadX
+  coroutine_saved cv4 class=CoroutineFrame<OperatorTask.run> field=3 slot=cl0 value=AsyncNumber<Payload>
   coroutine_saved cv5 class=CoroutineFrame<awaitOperator> field=2 slot=cl1 value=Int
   coroutine_saved cv6 class=CoroutineFrame<awaitOperator> field=3 slot=cl4 value=OperatorGate
   coroutine_failure cx0 class=CoroutineFrame<AsyncNumber.plus> field=5 slot=cl2 throwable=Throwable
@@ -10342,7 +10342,7 @@ Module
       entry=bb9
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb10
-  coroutine_resume cp1 site=1 result=AsyncNumber$C7_PayloadX frame=cr1 adapter=CoroutineAdapter<OperatorTask.run>$1 environment_id=00e26cc93b87ece1085bd6a43e4766d81fa21fec3767513851b97450454d6321 resume=@fn140 success_id=f2d5aca838a4665f150841f96f9f090302230db3b743812f419a10deed30c1e9 failure=@fn141 failure_id=6562f927916271101e498fcabf3f8d14dca0fa6c110db5ca18fa61cf1401edcf
+  coroutine_resume cp1 site=1 result=AsyncNumber<Payload> frame=cr1 adapter=CoroutineAdapter<OperatorTask.run>$1 environment_id=00e26cc93b87ece1085bd6a43e4766d81fa21fec3767513851b97450454d6321 resume=@fn140 success_id=f2d5aca838a4665f150841f96f9f090302230db3b743812f419a10deed30c1e9 failure=@fn141 failure_id=6562f927916271101e498fcabf3f8d14dca0fa6c110db5ca18fa61cf1401edcf
     success suspended.1 -> Fallthrough(bb10)
       entry=bb16
     failure resume_failure.1 -> ManagedThrow(cx1, unwind=bb1)
@@ -10352,12 +10352,12 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @fn72 source_return=AsyncNumber$C7_PayloadX step=cs1 frame=cr0 driver=@fn132 id=af4e878ee5cbbc78fe03bb927e990874bd1a790f71bf0c296b08aef57ad7e2e5 resumes=[cp0]
+  coroutine_fn cf0 @fn72 source_return=AsyncNumber<Payload> step=cs1 frame=cr0 driver=@fn132 id=af4e878ee5cbbc78fe03bb927e990874bd1a790f71bf0c296b08aef57ad7e2e5 resumes=[cp0]
   coroutine_fn cf1 @fn73 source_return=String step=cs0 frame=cr1 driver=@fn137 id=57c1c551f61d6b4b2527e08c3e68e6a6c20ed0ae8fc6f217d852c676e5026823 resumes=[cp1]
   coroutine_fn cf2 @fn76 source_return=Int step=cs2 frame=cr2 driver=@fn142 id=ca056ddef0636bd516d2b6b95571a47fd4227580c36b7e3dd1ad2c6c0006d1c8 resumes=[cp2]
   coroutine_fn cf3 @fn85 source_return=Int step=cs2 immediate
   coroutine_fn cf4 @fn89 source_return=String step=cs0 immediate
-  coroutine_fn cf5 @fn93 source_return=AsyncNumber$C7_PayloadX step=cs1 immediate
+  coroutine_fn cf5 @fn93 source_return=AsyncNumber<Payload> step=cs1 immediate
   instance mi0 function=@fn72 <- AsyncNumber.plus
   instance mi1 function=@fn80 <- println
   instance mi2 function=@fn81 <- println
@@ -10424,16 +10424,16 @@ Module
   global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
-  enum Option$J16_Continuation$I32X niche(kind=managed,payload_variant=0)
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineStep<String> niche(kind=managed,payload_variant=0)
-  enum CoroutineStep<AsyncNumber$C7_PayloadX> niche(kind=managed,payload_variant=0)
+  enum CoroutineStep<AsyncNumber<Payload>> niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum CoroutineSlot<AsyncNumber$C7_PayloadX> niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot<AsyncNumber<Payload>> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<Int> tagged size=16 align=8 variants=()@8+0 (i32)@8+4
   enum CoroutineSlot<Throwable> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<OperatorTask> niche(kind=managed,payload_variant=1)
@@ -15507,23 +15507,23 @@ Module
     cbr t23 then @completed else @suspended
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
-  td td10 Continuation$I32 @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
-  td td11 SuspendRegistration$I32 @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
-  td td12 SuspendTask$S @scoop$1$td$391a33dfafa312851abd70c36ab21ee839e2538741060a32adf11b4af684a087 type-id=3313109822306524975 size=0 parent=none vtable=[] itables=[]
-  td td13 Continuation$S @scoop$1$td$bdb2e738f336c86b2edfa4c10e3b702294b70584c48403d85c6af4651090d144 type-id=13708490125718186201 size=0 parent=none vtable=[] itables=[]
-  td td14 SuspendTask$I32 @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
-  td td15 SuspendRegistration$S @scoop$1$td$95672bde9a719e16276c1071522a952469fec00e732101ee70b6a3b3f7bba8a6 type-id=7615586260526196850 size=0 parent=none vtable=[] itables=[]
-  td td16 Continuation$C23_AsyncNumber$C7_PayloadXX @scoop$1$td$f3d12c18d294e402ae0db34c19430e9a9a4880db5eb239e956d2eaf01acf28f4 type-id=12372414646742133799 size=0 parent=none vtable=[] itables=[]
-  td td17 SuspendTask$C23_AsyncNumber$C7_PayloadXX @scoop$1$td$610ca00d9cdcc356031425596ca4726a07f2c562f7478ca1ab84de05f9d034f1 type-id=9336860090586324378 size=0 parent=none vtable=[] itables=[]
-  td td18 SuspendRegistration$C23_AsyncNumber$C7_PayloadXX @scoop$1$td$7d3bd7ab7f5a8efa01c11f00b2be3dfa04acf7e20692dfdaf6d9415f8c80f829 type-id=1300332761519826249 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td10 Continuation @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
+  td td11 SuspendRegistration @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
+  td td12 SuspendTask @scoop$1$td$391a33dfafa312851abd70c36ab21ee839e2538741060a32adf11b4af684a087 type-id=3313109822306524975 size=0 parent=none vtable=[] itables=[]
+  td td13 Continuation @scoop$1$td$bdb2e738f336c86b2edfa4c10e3b702294b70584c48403d85c6af4651090d144 type-id=13708490125718186201 size=0 parent=none vtable=[] itables=[]
+  td td14 SuspendTask @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
+  td td15 SuspendRegistration @scoop$1$td$95672bde9a719e16276c1071522a952469fec00e732101ee70b6a3b3f7bba8a6 type-id=7615586260526196850 size=0 parent=none vtable=[] itables=[]
+  td td16 Continuation @scoop$1$td$f3d12c18d294e402ae0db34c19430e9a9a4880db5eb239e956d2eaf01acf28f4 type-id=12372414646742133799 size=0 parent=none vtable=[] itables=[]
+  td td17 SuspendTask @scoop$1$td$610ca00d9cdcc356031425596ca4726a07f2c562f7478ca1ab84de05f9d034f1 type-id=9336860090586324378 size=0 parent=none vtable=[] itables=[]
+  td td18 SuspendRegistration @scoop$1$td$7d3bd7ab7f5a8efa01c11f00b2be3dfa04acf7e20692dfdaf6d9415f8c80f829 type-id=1300332761519826249 size=0 parent=none vtable=[] itables=[]
   td td19 function<() -> String> @scoop$1$td$b03d2ff0c4e8855348852fc576e022c3d11227840902a324524021224dee3732 type-id=10189649510598587113 size=0 parent=none vtable=[] itables=[]
   td td20 IntRange @scoop$1$td$66618ce5db61b359b7e13b6df76dcda8b9a9e55768487b6fe93e0d1aedd90a1b type-id=5739975931137510880 size=32 parent=none vtable=[] itables=[td2:[local-fn51]]
   td td21 IntRangeIterator @scoop$1$td$6e6a352e9c43b3e382fd0925e1ed04966e4c5b5796883838be021562ff19bf07 type-id=4889723440050595746 size=32 parent=none vtable=[] itables=[td3:[local-fn54]]
@@ -15538,9 +15538,9 @@ Module
   td td31 OperatorGate @scoop$1$td$9d9f9429851934c4ee7e166806016c001379be848bdd9d190f9d6478a920f879 type-id=10131002152285344242 size=24 parent=none vtable=[] itables=[]
   td td32 OperatorRegistration @scoop$1$td$4eb9ce517ba806d781bbe2d88f44c7184c671d6418e4ec0b609c9cb5bd8f2d59 type-id=9598841396612334625 size=24 parent=none vtable=[] itables=[td11:[local-fn71]]
   td td33 OperatorTask @scoop$1$td$8ab14e2399d365ad0e2a530531098ef1975e76f3e772c84f8e341aa91a6327e5 type-id=17191253963823570539 size=40 parent=none vtable=[] itables=[td12:[local-fn73]]
-  td td34 AsyncNumber$C7_PayloadX @scoop$1$td$f1dfab24af6df52fe0666fbc4a0c558ecabec982b53a9e7adbfe01355c38bd64 type-id=10892104928155648745 size=48 parent=none vtable=[] itables=[]
+  td td34 AsyncNumber @scoop$1$td$f1dfab24af6df52fe0666fbc4a0c558ecabec982b53a9e7adbfe01355c38bd64 type-id=10892104928155648745 size=48 parent=none vtable=[] itables=[]
   td td35 OperatorCompletion @scoop$1$td$e3b5d8ec05820261081aecb78da58d6fadef7ba7eb5f01f4ece4c06e77daa970 type-id=5131280831211939510 size=24 parent=none vtable=[] itables=[td13:[local-fn74, local-fn75]]
-  td td36 GenericIndex$C7_PayloadX @scoop$1$td$4b951cffa28a9843366149cdc927d95eaf0b4199392d2f9ba592fc9e887b7a41 type-id=9860765971930450698 size=24 parent=none vtable=[] itables=[]
+  td td36 GenericIndex @scoop$1$td$4b951cffa28a9843366149cdc927d95eaf0b4199392d2f9ba592fc9e887b7a41 type-id=9860765971930450698 size=24 parent=none vtable=[] itables=[]
   td td37 CoroutineFrame<AsyncNumber.plus> @scoop$1$td$1524e48c39e54de1aea3c5285e7181325daadc0ab48cfa36e5846d61a78223f4 type-id=12803557593490146221 size=72 parent=none vtable=[] itables=[]
   td td38 CoroutineAdapter<AsyncNumber.plus>$1 @scoop$1$td$7b86dece62f5aef40f7e71f23703fe4f70ade8d5138b776da7e1abbae20989bc type-id=4166620255313420585 size=32 parent=none vtable=[] itables=[td10:[local-fn111, local-fn112]]
   td td39 CoroutineFrame<OperatorTask.run> @scoop$1$td$2f844334bb29658dcd9e72ed1de0ea917328c6e72e2117c1a1e4989476e48c33 type-id=3967347218717669968 size=56 parent=none vtable=[] itables=[]
@@ -15567,16 +15567,16 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
-  layout Option$J16_Continuation$I32X size=8 align=8 enum-scan=refs[0]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout CoroutineStep<String> size=8 align=8 enum-scan=refs[0]
-  layout CoroutineStep<AsyncNumber$C7_PayloadX> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<AsyncNumber<Payload>> size=8 align=8 enum-scan=refs[0]
   layout CoroutineStep<Int> size=16 align=8 enum-scan=none
-  layout CoroutineSlot<AsyncNumber$C7_PayloadX> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<AsyncNumber<Payload>> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Int> size=16 align=8 enum-scan=none
   layout CoroutineSlot<Throwable> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<OperatorTask> size=8 align=8 enum-scan=refs[0]
@@ -15602,9 +15602,9 @@ Module
   layout OperatorGate size=24 align=8 refs=[16]
   layout OperatorRegistration size=24 align=8 refs=[16]
   layout OperatorTask size=40 align=8 refs=[16, 24, 32]
-  layout AsyncNumber$C7_PayloadX size=48 align=8 refs=[16, 24, 32]
+  layout AsyncNumber size=48 align=8 refs=[16, 24, 32]
   layout OperatorCompletion size=24 align=8 refs=[16]
-  layout GenericIndex$C7_PayloadX size=24 align=8 refs=[16]
+  layout GenericIndex size=24 align=8 refs=[16]
   layout CoroutineFrame<AsyncNumber.plus> size=72 align=8 refs=[24, 32, 40, 64]
   layout CoroutineAdapter<AsyncNumber.plus>$1 size=32 align=8 refs=[16]
   layout CoroutineFrame<OperatorTask.run> size=56 align=8 refs=[24, 32, 40, 48]

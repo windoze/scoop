@@ -769,9 +769,9 @@ Module
   property64 var Int.offset: Int getter64=body($get$offset) setter13=body($set$offset) <delegated storage0 type=ExtensionDelegate location=managed-global0>
   property65 var message: String getter65=body($get$message) setter14=body($set$message) <delegated storage1 type=UnitDelegate location=managed-global1>
   property66 var provided: Int getter66=body($get$provided) setter15=body($set$provided) <delegated storage2 type=EffectiveDelegate location=managed-global2>
-  val $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset: ExtensionDelegate <global0 managed>
-  val $delegate$$local$u0:p0:r9:top-leveln7:message: UnitDelegate <global1 managed>
-  val $delegate$$local$u0:p0:r9:top-leveln8:provided: EffectiveDelegate <global2 managed>
+  val $delegate$extension:Int:offset: ExtensionDelegate <global0 managed>
+  val $delegate$top-level:message: UnitDelegate <global1 managed>
+  val $delegate$top-level:provided: EffectiveDelegate <global2 managed>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -1024,38 +1024,38 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
   fun $init$body$0(): Unit
-    assign global $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset
+    assign global $delegate$extension:Int:offset
       Call provideDelegate : ExtensionDelegate
         Call makeExtensionDelegate : ExtensionDelegate
   fun $init$ensure$0(): Unit
   fun $get$offset(this: Int): Int
-    ensure init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset
+    ensure init0 extension:Int:offset
     return
       Call getValue : Int
-        GlobalRead $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset : ExtensionDelegate
+        GlobalRead $delegate$extension:Int:offset : ExtensionDelegate
         Local this : Int
   fun $set$offset(this: Int, value: Int): Unit
-    ensure init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset
+    ensure init0 extension:Int:offset
     Call setValue : Unit
-      GlobalRead $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset : ExtensionDelegate
+      GlobalRead $delegate$extension:Int:offset : ExtensionDelegate
       Local this : Int
       Local value : Int
     return
   fun $init$body$1(): Unit
-    assign global $delegate$$local$u0:p0:r9:top-leveln7:message
+    assign global $delegate$top-level:message
       MethodCall UnitDelegate.provideDelegate : UnitDelegate
         Call makeUnitDelegate : UnitDelegate
   fun $init$ensure$1(): Unit
   fun $get$message(): String
-    ensure init1 $local$u0:p0:r9:top-leveln7:message
+    ensure init1 top-level:message
     return
       MethodCall UnitDelegate.getValue : String
-        GlobalRead $delegate$$local$u0:p0:r9:top-leveln7:message : UnitDelegate
+        GlobalRead $delegate$top-level:message : UnitDelegate
         UnitLiteral : Unit
   fun $set$message(value: String): Unit
-    ensure init1 $local$u0:p0:r9:top-leveln7:message
+    ensure init1 top-level:message
     MethodCall UnitDelegate.setValue : Unit
-      GlobalRead $delegate$$local$u0:p0:r9:top-leveln7:message : UnitDelegate
+      GlobalRead $delegate$top-level:message : UnitDelegate
       UnitLiteral : Unit
       Local value : String
     return
@@ -1064,21 +1064,21 @@ Module
       IntegerLiteral 7 : Int
     val local1
       Local $argument.0 : Int
-    assign global $delegate$$local$u0:p0:r9:top-leveln8:provided
+    assign global $delegate$top-level:provided
       MethodCall Seed.provideDelegate : EffectiveDelegate
         ClassInit Seed : Seed
           Local $parameter.value : Int
   fun $init$ensure$2(): Unit
   fun $get$provided(): Int
-    ensure init2 $local$u0:p0:r9:top-leveln8:provided
+    ensure init2 top-level:provided
     return
       MethodCall EffectiveDelegate.getValue : Int
-        GlobalRead $delegate$$local$u0:p0:r9:top-leveln8:provided : EffectiveDelegate
+        GlobalRead $delegate$top-level:provided : EffectiveDelegate
         UnitLiteral : Unit
   fun $set$provided(value: Int): Unit
-    ensure init2 $local$u0:p0:r9:top-leveln8:provided
+    ensure init2 top-level:provided
     MethodCall EffectiveDelegate.setValue : Unit
-      GlobalRead $delegate$$local$u0:p0:r9:top-leveln8:provided : EffectiveDelegate
+      GlobalRead $delegate$top-level:provided : EffectiveDelegate
       UnitLiteral : Unit
       Local value : Int
     return
@@ -1090,15 +1090,15 @@ Module
 
 == mir ==
 Module
-  global0 $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset: ExtensionDelegate managed initial=zeroed-for-runtime-unit
-  global1 $delegate$$local$u0:p0:r9:top-leveln7:message: UnitDelegate managed initial=zeroed-for-runtime-unit
-  global2 $delegate$$local$u0:p0:r9:top-leveln8:provided: EffectiveDelegate managed initial=zeroed-for-runtime-unit
+  global0 $delegate$extension:Int:offset: ExtensionDelegate managed initial=zeroed-for-runtime-unit
+  global1 $delegate$top-level:message: UnitDelegate managed initial=zeroed-for-runtime-unit
+  global2 $delegate$top-level:provided: EffectiveDelegate managed initial=zeroed-for-runtime-unit
   global3 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit
   global4 $init$failure$1: Throwable managed initial=zeroed-for-runtime-unit
   global5 $init$failure$2: Throwable managed initial=zeroed-for-runtime-unit
-  init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset eager global0 initializer=@fn82 ensure=@fn83 failure=3 deps=[]
-  init1 $local$u0:p0:r9:top-leveln7:message eager global1 initializer=@fn86 ensure=@fn87 failure=4 deps=[]
-  init2 $local$u0:p0:r9:top-leveln8:provided eager global2 initializer=@fn90 ensure=@fn91 failure=5 deps=[]
+  init0 extension:Int:offset eager global0 initializer=@fn82 ensure=@fn83 failure=3 deps=[]
+  init1 top-level:message eager global1 initializer=@fn86 ensure=@fn87 failure=4 deps=[]
+  init2 top-level:provided eager global2 initializer=@fn90 ensure=@fn91 failure=5 deps=[]
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
   extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
@@ -1110,19 +1110,19 @@ Module
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Long <abi=scoop managed>
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
   class ExtensionDelegate vtable=0 itables=0
@@ -1147,14 +1147,14 @@ Module
   class Seed vtable=0 itables=0
   interface ToString
   interface Hash
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
   fun UnitDelegate.provideDelegate @fn0(this: UnitDelegate) -> UnitDelegate
     bb0 entry
       val $argument.0: String
@@ -3343,7 +3343,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @fn56(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn56(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3441,9 +3441,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -3452,7 +3452,7 @@ Module
       call @fn123 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -3864,7 +3864,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn59(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn59(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -3873,8 +3873,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -3963,8 +3963,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -3974,8 +3974,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4037,8 +4037,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4048,8 +4048,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -4185,8 +4185,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -4319,7 +4319,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn60(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn60(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4417,9 +4417,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4428,7 +4428,7 @@ Module
       call @fn123 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -4840,7 +4840,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn63(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn63(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4849,8 +4849,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4939,8 +4939,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -4950,8 +4950,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5013,8 +5013,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5024,8 +5024,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5161,8 +5161,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -5295,7 +5295,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn64(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn64(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5380,9 +5380,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5391,7 +5391,7 @@ Module
       call @fn123 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5773,7 +5773,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn67(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn67(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5782,8 +5782,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5872,8 +5872,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5883,8 +5883,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5946,8 +5946,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5957,8 +5957,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6068,8 +6068,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -6202,7 +6202,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn68(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn68(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6287,9 +6287,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6298,7 +6298,7 @@ Module
       call @fn123 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6680,7 +6680,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn71(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn71(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6689,8 +6689,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6779,8 +6779,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6790,8 +6790,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6853,8 +6853,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6864,8 +6864,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6975,8 +6975,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -7394,7 +7394,7 @@ Module
       call $call.2: ExtensionDelegate = @fn76 direct
         Type ExtensionDelegate
         Local $call.1
-      global_assign $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset
+      global_assign $delegate$extension:Int:offset
         Type ExtensionDelegate
         Local $call.2
       return
@@ -7402,7 +7402,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset
+        InitializationUnitAddress init0 extension:Int:offset
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -7450,7 +7450,7 @@ Module
       call @fn82 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset
+        InitializationUnitAddress init0 extension:Int:offset
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -7467,7 +7467,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset
+        InitializationUnitAddress init0 extension:Int:offset
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -7488,22 +7488,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset
+        InitializationUnitAddress init0 extension:Int:offset
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset
+        InitializationUnitAddress init0 extension:Int:offset
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn124 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -7516,7 +7516,7 @@ Module
       call @fn83 direct
       call $call.1: Int = @fn77 direct
         Type ExtensionDelegate
-        GlobalRead $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset
+        GlobalRead $delegate$extension:Int:offset
         Type Int
         Local this
       return
@@ -7527,7 +7527,7 @@ Module
       call @fn83 direct
       call @fn78 direct
         Type ExtensionDelegate
-        GlobalRead $delegate$$local$u0:p0:r9:extensiont6:v3:Intn6:offset
+        GlobalRead $delegate$extension:Int:offset
         Type Int
         Local this
         Type Int
@@ -7539,7 +7539,7 @@ Module
       call $call.2: UnitDelegate = @fn0 direct
         Type UnitDelegate
         Local $call.1
-      global_assign $delegate$$local$u0:p0:r9:top-leveln7:message
+      global_assign $delegate$top-level:message
         Type UnitDelegate
         Local $call.2
       return
@@ -7547,7 +7547,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:r9:top-leveln7:message
+        InitializationUnitAddress init1 top-level:message
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -7595,7 +7595,7 @@ Module
       call @fn86 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:r9:top-leveln7:message
+        InitializationUnitAddress init1 top-level:message
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -7612,7 +7612,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:r9:top-leveln7:message
+        InitializationUnitAddress init1 top-level:message
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -7633,22 +7633,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:r9:top-leveln7:message
+        InitializationUnitAddress init1 top-level:message
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:r9:top-leveln7:message
+        InitializationUnitAddress init1 top-level:message
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn124 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -7661,7 +7661,7 @@ Module
       call @fn87 direct
       call $call.1: String = @fn1 direct
         Type UnitDelegate
-        GlobalRead $delegate$$local$u0:p0:r9:top-leveln7:message
+        GlobalRead $delegate$top-level:message
         Type Unit
         UnitLiteral
       return
@@ -7672,7 +7672,7 @@ Module
       call @fn87 direct
       call @fn2 direct
         Type UnitDelegate
-        GlobalRead $delegate$$local$u0:p0:r9:top-leveln7:message
+        GlobalRead $delegate$top-level:message
         Type Unit
         UnitLiteral
         Type String
@@ -7697,7 +7697,7 @@ Module
       call $call.2: EffectiveDelegate = @fn75 direct
         Type Seed
         Local $new.1
-      global_assign $delegate$$local$u0:p0:r9:top-leveln8:provided
+      global_assign $delegate$top-level:provided
         Type EffectiveDelegate
         Local $call.2
       return
@@ -7705,7 +7705,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:r9:top-leveln8:provided
+        InitializationUnitAddress init2 top-level:provided
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -7753,7 +7753,7 @@ Module
       call @fn90 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:r9:top-leveln8:provided
+        InitializationUnitAddress init2 top-level:provided
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -7770,7 +7770,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:r9:top-leveln8:provided
+        InitializationUnitAddress init2 top-level:provided
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -7791,22 +7791,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:r9:top-leveln8:provided
+        InitializationUnitAddress init2 top-level:provided
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:r9:top-leveln8:provided
+        InitializationUnitAddress init2 top-level:provided
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn124 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -7819,7 +7819,7 @@ Module
       call @fn91 direct
       call $call.1: Int = @fn3 direct
         Type EffectiveDelegate
-        GlobalRead $delegate$$local$u0:p0:r9:top-leveln8:provided
+        GlobalRead $delegate$top-level:provided
         Type Unit
         UnitLiteral
       return
@@ -7830,7 +7830,7 @@ Module
       call @fn91 direct
       call @fn4 direct
         Type EffectiveDelegate
-        GlobalRead $delegate$$local$u0:p0:r9:top-leveln8:provided
+        GlobalRead $delegate$top-level:provided
         Type Unit
         UnitLiteral
         Type Int
@@ -8155,7 +8155,7 @@ Module
   fun init.Throwable.$c10 @fn117(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn118(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn118(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn117 direct
         Type Throwable
@@ -8165,7 +8165,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn119(this: UnwrapException) -> Unit
@@ -8176,20 +8176,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn118 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn120(this: ClassCastException) -> Unit
@@ -8200,20 +8200,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn118 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn121(this: ArithmeticException) -> Unit
@@ -8224,20 +8224,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn118 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn122(this: IndexOutOfBoundsException) -> Unit
@@ -8248,52 +8248,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn118 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn123(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn123(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn118 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn124(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn124(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn118 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c22 @fn125(this: IllegalStateException) -> Unit
@@ -8304,15 +8304,15 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn124 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.Seed.$c20 @fn126(this: Seed, value: Int) -> Unit
@@ -8396,14 +8396,14 @@ Module
   global @scoop$1$ss$23b2cacb99a9783161b42121071f94dd7f744702b8a4be5628529a46c1d57859 : ptr<managed> scan=refs[0]
   global @scoop$1$ss$a19df91e3aa6ed8f8f0718366481c076221e0edb5a680f9f88733b1df917e4f7 : ptr<managed> scan=refs[0]
   global @scoop$1$ss$b02a36932f9f4f54e00dd49ca3441120094f48c00273a5bf38751f334407320e : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:r9:extensiont6:v3:Intn6:offset storage=@scoop$1$ss$979c937bebf6476e94186bb4603241eecae589c48a974b313eefda0b46d21c3f failure=@scoop$1$ss$23b2cacb99a9783161b42121071f94dd7f744702b8a4be5628529a46c1d57859 initializer=@scoop$1$cb$2e443566c2470cfb150518dd0c9d527bca2cd0a460858ec89164ac86286772fe ensure=@scoop$1$cb$01bab9c2269ec86fd8da94f153cc5d16f72669b43f3cf4069d2a3cddd44bb378 deps=[]
-  init1 $local$u0:p0:r9:top-leveln7:message storage=@scoop$1$ss$848120f92e53499c8de7c073fb7c735a35de9791c3a138ab9c3a1b946eb2d354 failure=@scoop$1$ss$a19df91e3aa6ed8f8f0718366481c076221e0edb5a680f9f88733b1df917e4f7 initializer=@scoop$1$cb$a0cd86a8ca40b10cc862df74d79458d9c66264416c1a3f8975a60dd3f25bc4ea ensure=@scoop$1$cb$2cde213df9be5bc85207508116580c009d9e7580a76ab524407da3a74ac65249 deps=[]
-  init2 $local$u0:p0:r9:top-leveln8:provided storage=@scoop$1$ss$f91b5060eadfa08273c592c397df1d1d1fd9cfec5f0cea2f690aea6aaea62893 failure=@scoop$1$ss$b02a36932f9f4f54e00dd49ca3441120094f48c00273a5bf38751f334407320e initializer=@scoop$1$cb$64632a5f90e9beab4b18fae509ad80eb64bbb082e59da17595211e5514a73514 ensure=@scoop$1$cb$63719067e2d3c2b31f5bc1b0a8ed83a3ceedfcb6aff53ee3bb0be267d961a879 deps=[]
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  init0 extension:Int:offset storage=@scoop$1$ss$979c937bebf6476e94186bb4603241eecae589c48a974b313eefda0b46d21c3f failure=@scoop$1$ss$23b2cacb99a9783161b42121071f94dd7f744702b8a4be5628529a46c1d57859 initializer=@scoop$1$cb$2e443566c2470cfb150518dd0c9d527bca2cd0a460858ec89164ac86286772fe ensure=@scoop$1$cb$01bab9c2269ec86fd8da94f153cc5d16f72669b43f3cf4069d2a3cddd44bb378 deps=[]
+  init1 top-level:message storage=@scoop$1$ss$848120f92e53499c8de7c073fb7c735a35de9791c3a138ab9c3a1b946eb2d354 failure=@scoop$1$ss$a19df91e3aa6ed8f8f0718366481c076221e0edb5a680f9f88733b1df917e4f7 initializer=@scoop$1$cb$a0cd86a8ca40b10cc862df74d79458d9c66264416c1a3f8975a60dd3f25bc4ea ensure=@scoop$1$cb$2cde213df9be5bc85207508116580c009d9e7580a76ab524407da3a74ac65249 deps=[]
+  init2 top-level:provided storage=@scoop$1$ss$f91b5060eadfa08273c592c397df1d1d1fd9cfec5f0cea2f690aea6aaea62893 failure=@scoop$1$ss$b02a36932f9f4f54e00dd49ca3441120094f48c00273a5bf38751f334407320e initializer=@scoop$1$cb$64632a5f90e9beab4b18fae509ad80eb64bbb082e59da17595211e5514a73514 ensure=@scoop$1$cb$63719067e2d3c2b31f5bc1b0a8ed83a3ceedfcb6aff53ee3bb0be267d961a879 deps=[]
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
   extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
@@ -12598,14 +12598,14 @@ Module
     ret t0
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
   td td10 ExtensionDelegate @scoop$1$td$2423ad20c0fdb53bcca80980d2a2cbe224fac73150973d6b72c89db872fd76a3 type-id=8372132825198707215 size=24 parent=none vtable=[] itables=[]
   td td11 UnitDelegate @scoop$1$td$481b5297f42eb239642a229146e01d5a11387a633c72eacce3c48e407e070007 type-id=12485910447307662401 size=24 parent=none vtable=[] itables=[]
   td td12 EffectiveDelegate @scoop$1$td$b8435d61b3d224a72df722bf76b5e6bcbfc0aa2fe3dd0c176dfc329d17485465 type-id=17162339185679764832 size=24 parent=none vtable=[] itables=[]
@@ -12637,11 +12637,11 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout ExtensionDelegate size=24 align=8 refs=[]
   layout UnitDelegate size=24 align=8 refs=[16]
   layout EffectiveDelegate size=24 align=8 refs=[]
@@ -12665,11 +12665,11 @@ Module
   entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
-make-extension
-provide-extension
+provide-effective
 make-unit
 provide-unit
-provide-effective
+make-extension
+provide-extension
 main
 get-unit
 initial

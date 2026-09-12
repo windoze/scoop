@@ -1,25 +1,5 @@
 use super::*;
 
-/// Opaque, request-local base identity of one source nominal declaration.
-///
-/// The source-facing name remains a diagnostic label. M23-1 deliberately
-/// leaves the bytes of this stem transient: HIR lowering constructs them from
-/// typed package, owner, source and nominal-role inputs, and M23-2 will replace
-/// the representation with the persistent identity protocol.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct NominalLinkStem(String);
-
-impl NominalLinkStem {
-    pub fn from_session_local_encoding(encoding: String) -> Self {
-        assert!(!encoding.is_empty(), "a nominal link stem cannot be empty");
-        Self(encoding)
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
 /// Lexical declaration owner of a static nested nominal. Each target keeps
 /// its own nominal id; the owner relation is typed and never reconstructed
 /// from a qualified source name.
@@ -34,8 +14,6 @@ pub enum NominalOwner {
 
 #[derive(Debug, Clone)]
 pub struct StructDecl {
-    /// Native-emission identity, distinct from the source-facing `name`.
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
@@ -161,8 +139,6 @@ pub struct HirCLayoutContract {
 
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
-    /// Native-emission identity, distinct from the source-facing `name`.
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
@@ -597,8 +573,6 @@ pub enum OperatorKind {
 #[derive(Debug, Clone)]
 pub struct ClassDecl {
     pub modifier: ClassModifier,
-    /// Native-emission identity, distinct from the source-facing `name`.
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
@@ -926,7 +900,6 @@ mod tests {
         variants: Vec<Variant>,
     ) -> EnumDecl {
         EnumDecl {
-            link_stem: NominalLinkStem::from_session_local_encoding(name.to_string()),
             name: name.to_string(),
             owner: None,
             access: NominalAccess::public(),
@@ -950,7 +923,6 @@ mod tests {
         representation: StructRepresentation,
     ) -> StructDecl {
         StructDecl {
-            link_stem: NominalLinkStem::from_session_local_encoding(name.to_string()),
             name: name.to_string(),
             owner: None,
             access: NominalAccess::public(),

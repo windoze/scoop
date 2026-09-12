@@ -10,7 +10,6 @@ struct RuntimeDelegateRequest<'a> {
     access: hir::DeclarationAccess,
     owner: hir::PropertyOwner,
     property_ty: hir::TypeId,
-    stable_key: String,
 }
 
 impl Lowerer {
@@ -18,14 +17,12 @@ impl Lowerer {
         &mut self,
         declaration: &PendingOrdinary<'_>,
     ) {
-        let stable_key = self.top_level_initialization_key(declaration);
         let (property, _) = self.allocate_runtime_delegate(RuntimeDelegateRequest {
             declaration: declaration.declaration,
             file: declaration.file,
             access: declaration.access.clone(),
             owner: hir::PropertyOwner::TopLevel,
             property_ty: declaration.ty,
-            stable_key,
         });
         self.top_level_namespaces.register_property(
             declaration.file,
@@ -44,17 +41,14 @@ impl Lowerer {
         file: usize,
         access: hir::DeclarationAccess,
         extension: hir::ExtensionPropertyId,
-        receiver_ty: hir::TypeId,
         property_ty: hir::TypeId,
     ) -> (hir::PropertyId, hir::PropertyCapability) {
-        let stable_key = self.extension_initialization_key(declaration, file, receiver_ty);
         self.allocate_runtime_delegate(RuntimeDelegateRequest {
             declaration,
             file,
             access,
             owner: hir::PropertyOwner::Extension(extension),
             property_ty,
-            stable_key,
         })
     }
 
@@ -68,7 +62,6 @@ impl Lowerer {
             access,
             owner,
             property_ty,
-            stable_key,
         } = request;
         let ast::PropertyBodySyntax::Delegated { expression, .. } = &declaration.body else {
             unreachable!("a runtime delegate owns delegated syntax")
@@ -89,8 +82,7 @@ impl Lowerer {
         let display_name =
             self.initialization_property_display_name(file, owner, &access, &declaration.name.text);
         let unit = self.initialization_units.alloc(hir::InitializationUnit {
-            stable_key: stable_key.clone(),
-            display_name,
+            display_name: display_name.clone(),
             schedule: hir::InitializationSchedule::EagerStartup,
             kind: hir::InitializationUnitKind::EagerTopLevel {
                 property: expected_property,
@@ -115,7 +107,7 @@ impl Lowerer {
             .expect("delegated properties always allocate generated accessors");
         self.mark_delegate_accessors_runtime_initialized(capability, unit);
         let global = self.globals.alloc(hir::Global {
-            name: format!("$delegate${stable_key}"),
+            name: format!("$delegate${display_name}"),
             property: expected_property,
             // The effective type is committed before a successful Export HIR
             // can be emitted; diagnostics discard the in-progress graph.
@@ -180,27 +172,5 @@ impl Lowerer {
             let setter = accessor_function(self.property_setters[setter].implementation);
             self.runtime_accessor_units.insert(setter, unit);
         }
-    }
-
-    fn extension_initialization_key(
-        &self,
-        declaration: &ast::PropertyDecl,
-        file: usize,
-        receiver_ty: hir::TypeId,
-    ) -> String {
-        let private = matches!(
-            declaration.visibility,
-            ast::VisibilitySyntax::Explicit {
-                visibility: ast::DeclaredVisibility::Private,
-                ..
-            }
-        );
-        self.local_link_component(
-            file,
-            None,
-            &declaration.name.text,
-            private,
-            super::LocalLinkRole::ExtensionInitialization(receiver_ty),
-        )
     }
 }

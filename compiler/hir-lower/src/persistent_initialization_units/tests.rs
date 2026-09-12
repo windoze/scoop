@@ -245,7 +245,7 @@ fn initialization_identities_cover_each_typed_declaration_kind() {
 }
 
 #[test]
-fn initialization_identity_ignores_display_and_transient_link_keys() {
+fn initialization_identity_ignores_display_names_and_dependency_order() {
     let output = lower_fixture();
     let expected = output
         .export
@@ -255,7 +255,6 @@ fn initialization_identity_ignores_display_and_transient_link_keys() {
         .collect::<Vec<_>>();
     let mut changed = output.export.clone();
     for (_, unit) in changed.initialization_units.iter_mut() {
-        unit.stable_key = "changed-session-key".to_string();
         unit.display_name = "changed display name".to_string();
         unit.dependencies.reverse();
     }

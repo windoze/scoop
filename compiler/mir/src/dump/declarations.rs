@@ -57,7 +57,7 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  init{} {} {kind}{schedule} global{} initializer={} ensure={} failure={} deps=[{}]\n",
             id.into_raw().into_u32(),
-            unit.stable_key,
+            unit.display_name,
             storage.into_raw().into_u32(),
             function_ref(unit.initializer),
             function_ref(unit.ensure),
@@ -117,9 +117,23 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  foreign_callback_family fcf{} callback={} state={} failure={}\n",
             id.into_raw().into_u32(),
-            module.structs[family.callback].name,
-            module.enums[family.states.enum_id()].name,
-            module.enums[family.failure_result.enum_id()].name,
+            type_name(module, &Type::Struct(family.callback)),
+            type_name(
+                module,
+                &Type::Enum(
+                    family.states.enum_id(),
+                    module.enums[family.states.enum_id()].type_arguments.clone(),
+                ),
+            ),
+            type_name(
+                module,
+                &Type::Enum(
+                    family.failure_result.enum_id(),
+                    module.enums[family.failure_result.enum_id()]
+                        .type_arguments
+                        .clone(),
+                ),
+            ),
         ));
     }
     for (id, bridge) in module.foreign_callback_bridges.iter() {
@@ -138,7 +152,7 @@ pub fn dump(module: &Module) -> String {
             function_ref(adapter.function),
         ));
     }
-    for (_, def) in module.structs.iter() {
+    for (id, def) in module.structs.iter() {
         match &def.representation {
             StructRepresentation::Declared {
                 c_layout,
@@ -167,7 +181,7 @@ pub fn dump(module: &Module) -> String {
                 };
                 out.push_str(&format!(
                     "  struct {} ({}){}\n",
-                    def.name,
+                    type_name(module, &Type::Struct(id)),
                     fields.join(", "),
                     attributes
                 ));
@@ -175,8 +189,11 @@ pub fn dump(module: &Module) -> String {
             StructRepresentation::Intrinsic(_) => {}
         }
     }
-    for (_, def) in module.enums.iter() {
-        out.push_str(&format!("  enum {}\n", def.name));
+    for (id, def) in module.enums.iter() {
+        out.push_str(&format!(
+            "  enum {}\n",
+            type_name(module, &Type::Enum(id, def.type_arguments.clone()))
+        ));
         for variant in &def.variants {
             let fields: Vec<String> = variant
                 .fields
@@ -186,19 +203,22 @@ pub fn dump(module: &Module) -> String {
             out.push_str(&format!("    {}({})\n", variant.name, fields.join(", ")));
         }
     }
-    for (_, def) in module.classes.iter() {
+    for (id, def) in module.classes.iter() {
         if matches!(def.representation, ClassRepresentation::Intrinsic(_)) {
             continue;
         }
         out.push_str(&format!(
             "  class {} vtable={} itables={}\n",
-            def.name,
+            type_name(module, &Type::Class(id)),
             def.vtable.len(),
             def.itables.len()
         ));
     }
-    for (_, def) in module.interfaces.iter() {
-        out.push_str(&format!("  interface {}\n", def.name));
+    for (id, _) in module.interfaces.iter() {
+        out.push_str(&format!(
+            "  interface {}\n",
+            type_name(module, &Type::Interface(id))
+        ));
     }
     for (id, def) in module.closure_classes.iter() {
         let invoke = module.closure_invoke_functions[def.invoke].function;
@@ -333,7 +353,13 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  coroutine_step cs{} {} result={}\n",
             id.into_raw().into_u32(),
-            module.enums[step.enum_id()].name,
+            type_name(
+                module,
+                &Type::Enum(
+                    step.enum_id(),
+                    module.enums[step.enum_id()].type_arguments.clone(),
+                ),
+            ),
             type_name(module, step.result())
         ));
     }
@@ -341,7 +367,13 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  coroutine_slot cl{} {} value={}\n",
             id.into_raw().into_u32(),
-            module.enums[slot.enum_id()].name,
+            type_name(
+                module,
+                &Type::Enum(
+                    slot.enum_id(),
+                    module.enums[slot.enum_id()].type_arguments.clone(),
+                ),
+            ),
             type_name(module, slot.value())
         ));
     }
@@ -364,7 +396,7 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  coroutine_saved cv{} class={} field={} slot=cl{} value={}\n",
             id.into_raw().into_u32(),
-            module.classes[value.field().class()].name,
+            type_name(module, &Type::Class(value.field().class())),
             value.field().field_index(),
             value.slot().into_raw().into_u32(),
             type_name(module, value.value())
@@ -374,17 +406,17 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  coroutine_failure cx{} class={} field={} slot=cl{} throwable={}\n",
             id.into_raw().into_u32(),
-            module.classes[value.field().class()].name,
+            type_name(module, &Type::Class(value.field().class())),
             value.field().field_index(),
             value.slot().into_raw().into_u32(),
-            module.classes[value.throwable()].name
+            type_name(module, &Type::Class(value.throwable()))
         ));
     }
     for (id, frame) in module.meta.coroutine_frames.iter() {
         out.push_str(&format!(
             "  coroutine_frame cr{} {} id={} owner=cf{} state=field{} completion=field{} saved=[{}] failure=cx{}\n",
             id.into_raw().into_u32(),
-            module.classes[frame.class()].name,
+            type_name(module, &Type::Class(frame.class())),
             frame.identity().generated_type_record().id(),
             frame.owner().into_raw().into_u32(),
             frame.state().field_index(),
@@ -417,7 +449,7 @@ pub fn dump(module: &Module) -> String {
             point.site().get(),
             type_name(module, point.result()),
             point.frame().into_raw().into_u32(),
-            module.classes[point.adapter()].name,
+            type_name(module, &Type::Class(point.adapter())),
             identity.generated_type_record().id(),
             function_ref(point.resume()),
             identity.success().callable_record().id(),
@@ -546,13 +578,19 @@ fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
         MirConstantImage::EnumUnit { variant } => {
             format!(
                 "{}::v{}",
-                module.enums[variant.enum_id()].name,
+                type_name(
+                    module,
+                    &Type::Enum(
+                        variant.enum_id(),
+                        module.enums[variant.enum_id()].type_arguments.clone(),
+                    ),
+                ),
                 variant.variant_index()
             )
         }
         MirConstantImage::Struct { struct_id, fields } => format!(
             "{}{{{}}}",
-            module.structs[*struct_id].name,
+            type_name(module, &Type::Struct(*struct_id)),
             fields
                 .iter()
                 .map(|field| constant_image_name(module, field))

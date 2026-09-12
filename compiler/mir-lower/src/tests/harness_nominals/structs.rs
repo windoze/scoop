@@ -59,7 +59,6 @@ impl Harness {
         });
         let strukt = self.structs.alloc(hir::StructDecl {
             owner: None,
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             self_application,
@@ -102,7 +101,6 @@ impl Harness {
         };
         let strukt = self.structs.alloc(hir::StructDecl {
             owner: None,
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             self_application,
@@ -148,7 +146,6 @@ impl Harness {
         let class = self.classes.alloc(hir::ClassDecl {
             owner: None,
             modifier: hir::ClassModifier::Final,
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             self_application,

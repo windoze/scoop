@@ -1066,22 +1066,22 @@ Module
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Long <abi=scoop managed>
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
-  enum Option$J16_Continuation$I32X
-    Some(_1: Continuation$I32)
+  enum Option<Continuation<Int>>
+    Some(_1: Continuation<Int>)
     None()
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
   enum CoroutineStep<String>
@@ -1090,9 +1090,9 @@ Module
   enum CoroutineStep<Int>
     Completed(value: Int)
     Suspended()
-  enum CoroutineSlot<AsyncInvoker$C13_InvokePayloadX>
+  enum CoroutineSlot<AsyncInvoker<InvokePayload>>
     Empty()
-    Value(value: AsyncInvoker$C13_InvokePayloadX)
+    Value(value: AsyncInvoker<InvokePayload>)
   enum CoroutineSlot<(InvokePayload) -> String>
     Empty()
     Value(value: (InvokePayload) -> String)
@@ -1132,8 +1132,8 @@ Module
   class InvokeGate vtable=0 itables=0
   class InvokeRegistration vtable=0 itables=1
   class InvokeTask vtable=0 itables=1
-  class InvokeHolder$C13_InvokePayloadX vtable=0 itables=0
-  class AsyncInvoker$C13_InvokePayloadX vtable=0 itables=0
+  class InvokeHolder<InvokePayload> vtable=0 itables=0
+  class AsyncInvoker<InvokePayload> vtable=0 itables=0
   class InvokeCompletion vtable=0 itables=1
   class CoroutineFrame<AsyncInvoker.invoke> vtable=0 itables=0
   class CoroutineAdapter<AsyncInvoker.invoke>$1 vtable=0 itables=1
@@ -1143,20 +1143,20 @@ Module
   class CoroutineAdapter<awaitInvoke>$1 vtable=0 itables=1
   interface ToString
   interface Hash
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
-  interface Continuation$I32
-  interface SuspendRegistration$I32
-  interface SuspendTask$S
-  interface Continuation$S
-  interface SuspendTask$I32
-  interface SuspendRegistration$S
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  interface Continuation<Int>
+  interface SuspendRegistration<Int>
+  interface SuspendTask<String>
+  interface Continuation<String>
+  interface SuspendTask<Int>
+  interface SuspendRegistration<String>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn79 captures=1
   generated_exact_type get0 location=enum6 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
   generated_exact_type get1 location=class28 nominal_id=1bb973d0797c34a28bbfd5c41234040ed2e6972b9a49e21f46c2a805220b18c4 exact_id=16435c1d1559469adb77ef92ff723efd13779eea053274652fd28b2533770a24
@@ -3314,7 +3314,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @fn51(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn51(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3412,9 +3412,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -3423,7 +3423,7 @@ Module
       call @fn113 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -3835,7 +3835,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -3844,8 +3844,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -3934,8 +3934,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -3945,8 +3945,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4008,8 +4008,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4019,8 +4019,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -4156,8 +4156,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -4290,7 +4290,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn55(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn55(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4388,9 +4388,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4399,7 +4399,7 @@ Module
       call @fn113 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -4811,7 +4811,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4820,8 +4820,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4910,8 +4910,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -4921,8 +4921,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4984,8 +4984,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4995,8 +4995,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5132,8 +5132,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -5266,7 +5266,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5351,9 +5351,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5362,7 +5362,7 @@ Module
       call @fn113 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5744,7 +5744,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5753,8 +5753,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5843,8 +5843,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5854,8 +5854,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5917,8 +5917,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5928,8 +5928,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6039,8 +6039,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -6173,7 +6173,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6258,9 +6258,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6269,7 +6269,7 @@ Module
       call @fn113 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6651,7 +6651,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6660,8 +6660,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6750,8 +6750,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6761,8 +6761,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6824,8 +6824,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6835,8 +6835,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6946,8 +6946,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -7123,21 +7123,21 @@ Module
         Local $call.1
   fun InvokeGate.complete @fn70(this: InvokeGate, value: Int) -> Unit
     bb0 entry
-      val $opt.1: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $opt.1: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         FieldAccess 0
           Type InvokeGate
           Local this
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$J16_Continuation$I32X v0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+        VariantTest Option<Continuation<Int>> v0
+          Type Option<Continuation<Int>>
           Local $opt.1
     bb1 if.then.1
-      val $uw.2: Continuation$I32
-        Type Continuation$I32
-        VariantPayloadProject Option$J16_Continuation$I32X v0 f0
-          Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $uw.2: Continuation<Int>
+        Type Continuation<Int>
+        VariantPayloadProject Option<Continuation<Int>> v0 f0
+          Type Option<Continuation<Int>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -7151,16 +7151,16 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val continuation: Continuation$I32
-        Type Continuation$I32
+      val continuation: Continuation<Int>
+        Type Continuation<Int>
         Local $uw.2
       field_set 0
         Type InvokeGate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $receiver: Continuation$I32
-        Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $receiver: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
       val $argument.0: Int
         Type Int
@@ -7168,31 +7168,31 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn81 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn81 interface Continuation<Int>[0]
+        Type Continuation<Int>
         Local $receiver
         Type Int
         Local $parameter.value
       return
-  fun InvokeRegistration.register @fn71(this: InvokeRegistration, continuation: Continuation$I32) -> Unit
+  fun InvokeRegistration.register @fn71(this: InvokeRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
-      val $argument.0: Continuation$I32
-        Type Continuation$I32
+      val $argument.0: Continuation<Int>
+        Type Continuation<Int>
         Local continuation
-      val $parameter._1: Continuation$I32
-        Type Continuation$I32
+      val $parameter._1: Continuation<Int>
+        Type Continuation<Int>
         Local $argument.0
       field_set 0
         Type InvokeGate
         FieldAccess 0
           Type InvokeRegistration
           Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v0
-          Type Continuation$I32
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v0
+          Type Continuation<Int>
           Local $parameter._1
       return
-  fun AsyncInvoker.invoke @fn72(this: AsyncInvoker$C13_InvokePayloadX, transform: (InvokePayload) -> String, suffix: String, $completion: Continuation$S) -> CoroutineStep<String>
+  fun AsyncInvoker.invoke @fn72(this: AsyncInvoker<InvokePayload>, transform: (InvokePayload) -> String, suffix: String, $completion: Continuation<String>) -> CoroutineStep<String>
     bb0 entry
       val $frame: CoroutineFrame<AsyncInvoker.invoke>
         Type CoroutineFrame<AsyncInvoker.invoke>
@@ -7205,14 +7205,14 @@ Module
       field_set 1
         Type CoroutineFrame<AsyncInvoker.invoke>
         Local $frame
-        Type Continuation$S
+        Type Continuation<String>
         Local $completion
       field_set 2
         Type CoroutineFrame<AsyncInvoker.invoke>
         Local $frame
-        Type CoroutineSlot<AsyncInvoker$C13_InvokePayloadX>
-        VariantConstruct CoroutineSlot<AsyncInvoker$C13_InvokePayloadX> v1
-          Type AsyncInvoker$C13_InvokePayloadX
+        Type CoroutineSlot<AsyncInvoker<InvokePayload>>
+        VariantConstruct CoroutineSlot<AsyncInvoker<InvokePayload>> v1
+          Type AsyncInvoker<InvokePayload>
           Local this
       field_set 3
         Type CoroutineFrame<AsyncInvoker.invoke>
@@ -7246,7 +7246,7 @@ Module
       return
         Type CoroutineStep<String>
         Local $step
-  fun InvokeTask.run @fn73(this: InvokeTask, $completion: Continuation$S) -> CoroutineStep<String>
+  fun InvokeTask.run @fn73(this: InvokeTask, $completion: Continuation<String>) -> CoroutineStep<String>
     bb0 entry
       val $frame: CoroutineFrame<InvokeTask.run>
         Type CoroutineFrame<InvokeTask.run>
@@ -7259,7 +7259,7 @@ Module
       field_set 1
         Type CoroutineFrame<InvokeTask.run>
         Local $frame
-        Type Continuation$S
+        Type Continuation<String>
         Local $completion
       field_set 2
         Type CoroutineFrame<InvokeTask.run>
@@ -7321,7 +7321,7 @@ Module
         Type String
         Local $parameter.value
       return
-  fun awaitInvoke @fn76(gate: InvokeGate, $completion: Continuation$I32) -> CoroutineStep<Int>
+  fun awaitInvoke @fn76(gate: InvokeGate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<awaitInvoke>
         Type CoroutineFrame<awaitInvoke>
@@ -7334,7 +7334,7 @@ Module
       field_set 1
         Type CoroutineFrame<awaitInvoke>
         Local $frame
-        Type Continuation$I32
+        Type Continuation<Int>
         Local $completion
       field_set 2
         Type CoroutineFrame<awaitInvoke>
@@ -7377,11 +7377,11 @@ Module
         StringConst @str8
   fun main @fn78() -> Unit
     bb0 entry
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.1
         Type InvokeGate
@@ -7389,16 +7389,16 @@ Module
       call @fn118 direct
         Type InvokeGate
         Local $new.1
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val successGate: InvokeGate
         Type InvokeGate
         Local $new.1
-      val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
-        VariantConstruct Option$J16_Continuation$I32X<Continuation$I32> v1
-      val $parameter.waiter: Option$J16_Continuation$I32X<Continuation$I32>
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
         Local $argument.0
       assign $new.2
         Type InvokeGate
@@ -7406,7 +7406,7 @@ Module
       call @fn118 direct
         Type InvokeGate
         Local $new.2
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local $parameter.waiter
       val failureGate: InvokeGate
         Type InvokeGate
@@ -7447,10 +7447,10 @@ Module
         Type String
         Local $argument.2
       assign $new.4
-        Type AsyncInvoker$C13_InvokePayloadX
-        ClassAlloc AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
+        ClassAlloc AsyncInvoker<InvokePayload>
       call @fn122 direct
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local $new.4
         Type InvokeGate
         Local $parameter.gate
@@ -7458,22 +7458,22 @@ Module
         Local $parameter.payload
         Type String
         Local $parameter.label
-      val $argument.0: AsyncInvoker$C13_InvokePayloadX
-        Type AsyncInvoker$C13_InvokePayloadX
+      val $argument.0: AsyncInvoker<InvokePayload>
+        Type AsyncInvoker<InvokePayload>
         Local $new.4
-      val $parameter.action: AsyncInvoker$C13_InvokePayloadX
-        Type AsyncInvoker$C13_InvokePayloadX
+      val $parameter.action: AsyncInvoker<InvokePayload>
+        Type AsyncInvoker<InvokePayload>
         Local $argument.0
       assign $new.5
-        Type InvokeHolder$C13_InvokePayloadX
-        ClassAlloc InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
+        ClassAlloc InvokeHolder<InvokePayload>
       call @fn121 direct
-        Type InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
         Local $new.5
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local $parameter.action
-      val success: InvokeHolder$C13_InvokePayloadX
-        Type InvokeHolder$C13_InvokePayloadX
+      val success: InvokeHolder<InvokePayload>
+        Type InvokeHolder<InvokePayload>
         Local $new.5
       val $argument.0: InvokeGate
         Type InvokeGate
@@ -7494,10 +7494,10 @@ Module
         Type String
         Local $argument.2
       assign $new.6
-        Type AsyncInvoker$C13_InvokePayloadX
-        ClassAlloc AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
+        ClassAlloc AsyncInvoker<InvokePayload>
       call @fn122 direct
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local $new.6
         Type InvokeGate
         Local $parameter.gate
@@ -7505,28 +7505,28 @@ Module
         Local $parameter.payload
         Type String
         Local $parameter.label
-      val $argument.0: AsyncInvoker$C13_InvokePayloadX
-        Type AsyncInvoker$C13_InvokePayloadX
+      val $argument.0: AsyncInvoker<InvokePayload>
+        Type AsyncInvoker<InvokePayload>
         Local $new.6
-      val $parameter.action: AsyncInvoker$C13_InvokePayloadX
-        Type AsyncInvoker$C13_InvokePayloadX
+      val $parameter.action: AsyncInvoker<InvokePayload>
+        Type AsyncInvoker<InvokePayload>
         Local $argument.0
       assign $new.7
-        Type InvokeHolder$C13_InvokePayloadX
-        ClassAlloc InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
+        ClassAlloc InvokeHolder<InvokePayload>
       call @fn121 direct
-        Type InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
         Local $new.7
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local $parameter.action
-      val failure: InvokeHolder$C13_InvokePayloadX
-        Type InvokeHolder$C13_InvokePayloadX
+      val failure: InvokeHolder<InvokePayload>
+        Type InvokeHolder<InvokePayload>
         Local $new.7
-      val $argument.0: InvokeHolder$C13_InvokePayloadX
-        Type InvokeHolder$C13_InvokePayloadX
+      val $argument.0: InvokeHolder<InvokePayload>
+        Type InvokeHolder<InvokePayload>
         Local success
-      val $parameter.holder: InvokeHolder$C13_InvokePayloadX
-        Type InvokeHolder$C13_InvokePayloadX
+      val $parameter.holder: InvokeHolder<InvokePayload>
+        Type InvokeHolder<InvokePayload>
         Local $argument.0
       assign $new.8
         Type InvokeTask
@@ -7534,9 +7534,9 @@ Module
       call @fn120 direct
         Type InvokeTask
         Local $new.8
-        Type InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
         Local $parameter.holder
-      val $argument.0: SuspendTask$S
+      val $argument.0: SuspendTask<String>
         Type InvokeTask
         Local $new.8
       val $argument.0: String
@@ -7553,25 +7553,25 @@ Module
         Local $new.9
         Type String
         Local $parameter.label
-      val $argument.1: Continuation$S
+      val $argument.1: Continuation<String>
         Type InvokeCompletion
         Local $new.9
-      val $parameter.task: SuspendTask$S
-        Type SuspendTask$S
+      val $parameter.task: SuspendTask<String>
+        Type SuspendTask<String>
         Local $argument.0
-      val $parameter.completion: Continuation$S
-        Type Continuation$S
+      val $parameter.completion: Continuation<String>
+        Type Continuation<String>
         Local $argument.1
       call @fn125 direct
-        Type SuspendTask$S
+        Type SuspendTask<String>
         Local $parameter.task
-        Type Continuation$S
+        Type Continuation<String>
         Local $parameter.completion
-      val $argument.0: InvokeHolder$C13_InvokePayloadX
-        Type InvokeHolder$C13_InvokePayloadX
+      val $argument.0: InvokeHolder<InvokePayload>
+        Type InvokeHolder<InvokePayload>
         Local failure
-      val $parameter.holder: InvokeHolder$C13_InvokePayloadX
-        Type InvokeHolder$C13_InvokePayloadX
+      val $parameter.holder: InvokeHolder<InvokePayload>
+        Type InvokeHolder<InvokePayload>
         Local $argument.0
       assign $new.10
         Type InvokeTask
@@ -7579,9 +7579,9 @@ Module
       call @fn120 direct
         Type InvokeTask
         Local $new.10
-        Type InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
         Local $parameter.holder
-      val $argument.0: SuspendTask$S
+      val $argument.0: SuspendTask<String>
         Type InvokeTask
         Local $new.10
       val $argument.0: String
@@ -7598,19 +7598,19 @@ Module
         Local $new.11
         Type String
         Local $parameter.label
-      val $argument.1: Continuation$S
+      val $argument.1: Continuation<String>
         Type InvokeCompletion
         Local $new.11
-      val $parameter.task: SuspendTask$S
-        Type SuspendTask$S
+      val $parameter.task: SuspendTask<String>
+        Type SuspendTask<String>
         Local $argument.0
-      val $parameter.completion: Continuation$S
-        Type Continuation$S
+      val $parameter.completion: Continuation<String>
+        Type Continuation<String>
         Local $argument.1
       call @fn125 direct
-        Type SuspendTask$S
+        Type SuspendTask<String>
         Local $parameter.task
-        Type Continuation$S
+        Type Continuation<String>
         Local $parameter.completion
       val $argument.0: String
         Type String
@@ -7945,7 +7945,7 @@ Module
   fun init.Throwable.$c10 @fn107(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn108(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn108(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn107 direct
         Type Throwable
@@ -7955,7 +7955,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn109(this: UnwrapException) -> Unit
@@ -7966,20 +7966,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn108 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn110(this: ClassCastException) -> Unit
@@ -7990,20 +7990,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn108 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn111(this: ArithmeticException) -> Unit
@@ -8014,20 +8014,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn108 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn112(this: IndexOutOfBoundsException) -> Unit
@@ -8038,52 +8038,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn108 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn113(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn113(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn108 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn114(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn114(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn108 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c26 @fn115(this: IllegalStateException) -> Unit
@@ -8094,31 +8094,31 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn114 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.InvokeFailure.$c18 @fn116(this: InvokeFailure) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn108 direct
         Type Exception
         Retype Exception
           Type InvokeFailure
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.InvokePayload.$c19 @fn117(this: InvokePayload, text: String) -> Unit
@@ -8129,12 +8129,12 @@ Module
         Type String
         Local text
       return
-  fun init.InvokeGate.$c20 @fn118(this: InvokeGate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
+  fun init.InvokeGate.$c20 @fn118(this: InvokeGate, waiter: Option<Continuation<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type InvokeGate
         Local this
-        Type Option$J16_Continuation$I32X<Continuation$I32>
+        Type Option<Continuation<Int>>
         Local waiter
       return
   fun init.InvokeRegistration.$c21 @fn119(this: InvokeRegistration, gate: InvokeGate) -> Unit
@@ -8145,36 +8145,36 @@ Module
         Type InvokeGate
         Local gate
       return
-  fun init.InvokeTask.$c24 @fn120(this: InvokeTask, holder: InvokeHolder$C13_InvokePayloadX) -> Unit
+  fun init.InvokeTask.$c24 @fn120(this: InvokeTask, holder: InvokeHolder<InvokePayload>) -> Unit
     bb0 entry
       field_set 0
         Type InvokeTask
         Local this
-        Type InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
         Local holder
       return
-  fun init.InvokeHolder$C13_InvokePayloadX.$c23 @fn121(this: InvokeHolder$C13_InvokePayloadX, action: AsyncInvoker$C13_InvokePayloadX) -> Unit
+  fun init.InvokeHolder.$c23 @fn121(this: InvokeHolder<InvokePayload>, action: AsyncInvoker<InvokePayload>) -> Unit
     bb0 entry
       field_set 0
-        Type InvokeHolder$C13_InvokePayloadX
+        Type InvokeHolder<InvokePayload>
         Local this
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local action
       return
-  fun init.AsyncInvoker$C13_InvokePayloadX.$c22 @fn122(this: AsyncInvoker$C13_InvokePayloadX, gate: InvokeGate, payload: InvokePayload, label: String) -> Unit
+  fun init.AsyncInvoker.$c22 @fn122(this: AsyncInvoker<InvokePayload>, gate: InvokeGate, payload: InvokePayload, label: String) -> Unit
     bb0 entry
       field_set 0
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local this
         Type InvokeGate
         Local gate
       field_set 1
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local this
         Type InvokePayload
         Local payload
       field_set 2
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local this
         Type String
         Local label
@@ -8202,12 +8202,12 @@ Module
           Local functionName
           Type String
           Local typeName
-  fun startCoroutine<String> @fn125(task: SuspendTask$S, completion: Continuation$S) -> Unit
+  fun startCoroutine<String> @fn125(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn85 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn85 interface Continuation<String>[0]
+        Type Continuation<String>
         Local completion
         Type String
         EnumField v0 f0
@@ -8215,8 +8215,8 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn86 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn86 interface Continuation<String>[1]
+        Type Continuation<String>
         Local completion
         Type Throwable
         Local $exception
@@ -8230,10 +8230,10 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<String> = @fn87 interface SuspendTask$S[0]
-        Type SuspendTask$S
+      call $step: CoroutineStep<String> = @fn87 interface SuspendTask<String>[0]
+        Type SuspendTask<String>
         Local task
-        Type Continuation$S
+        Type Continuation<String>
         Local completion
       branch bb1 bb0
         Type Boolean
@@ -8249,7 +8249,7 @@ Module
       val $argument.0: InvokeGate
         Type InvokeGate
         FieldAccess 0
-          Type AsyncInvoker$C13_InvokePayloadX
+          Type AsyncInvoker<InvokePayload>
           Local this
       val $parameter.gate: InvokeGate
         Type InvokeGate
@@ -8257,9 +8257,9 @@ Module
       field_set 2
         Type CoroutineFrame<AsyncInvoker.invoke>
         Local $frame
-        Type CoroutineSlot<AsyncInvoker$C13_InvokePayloadX>
-        VariantConstruct CoroutineSlot<AsyncInvoker$C13_InvokePayloadX> v1
-          Type AsyncInvoker$C13_InvokePayloadX
+        Type CoroutineSlot<AsyncInvoker<InvokePayload>>
+        VariantConstruct CoroutineSlot<AsyncInvoker<InvokePayload>> v1
+          Type AsyncInvoker<InvokePayload>
           Local this
       field_set 3
         Type CoroutineFrame<AsyncInvoker.invoke>
@@ -8323,12 +8323,12 @@ Module
         Local transform
         Type InvokePayload
         FieldAccess 1
-          Type AsyncInvoker$C13_InvokePayloadX
+          Type AsyncInvoker<InvokePayload>
           Local this
       val $argument.0: String
         Type String
         FieldAccess 2
-          Type AsyncInvoker$C13_InvokePayloadX
+          Type AsyncInvoker<InvokePayload>
           Local this
       val $parameter.other: String
         Type String
@@ -8420,9 +8420,9 @@ Module
         VariantConstruct CoroutineStep<String> v1
     bb9 coroutine.resume.1
       assign this
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncInvoker$C13_InvokePayloadX>
+          Type CoroutineSlot<AsyncInvoker<InvokePayload>>
           FieldAccess 2
             Type CoroutineFrame<AsyncInvoker.invoke>
             Local $frame
@@ -8450,9 +8450,9 @@ Module
       goto bb3
     bb10 coroutine.failure.1
       assign this
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncInvoker$C13_InvokePayloadX>
+          Type CoroutineSlot<AsyncInvoker<InvokePayload>>
           FieldAccess 2
             Type CoroutineFrame<AsyncInvoker.invoke>
             Local $frame
@@ -8479,9 +8479,9 @@ Module
             Local $frame
     bb11 coroutine.initial
       assign this
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         EnumField v1 f0
-          Type CoroutineSlot<AsyncInvoker$C13_InvokePayloadX>
+          Type CoroutineSlot<AsyncInvoker<InvokePayload>>
           FieldAccess 2
             Type CoroutineFrame<AsyncInvoker.invoke>
             Local $frame
@@ -8558,8 +8558,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn127 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn127 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<AsyncInvoker.invoke>
           FieldAccess 0
@@ -8580,8 +8580,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn128 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn128 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<AsyncInvoker.invoke>
           FieldAccess 0
@@ -8691,8 +8691,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn127 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn127 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<AsyncInvoker.invoke>
           FieldAccess 0
@@ -8713,8 +8713,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn128 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn128 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<AsyncInvoker.invoke>
           FieldAccess 0
@@ -8844,10 +8844,10 @@ Module
           Type String
           Local $result.4
     bb6 try.body.6 unwind bb1
-      val $receiver: AsyncInvoker$C13_InvokePayloadX
-        Type AsyncInvoker$C13_InvokePayloadX
+      val $receiver: AsyncInvoker<InvokePayload>
+        Type AsyncInvoker<InvokePayload>
         FieldAccess 0
-          Type InvokeHolder$C13_InvokePayloadX
+          Type InvokeHolder<InvokePayload>
           FieldAccess 0
             Type InvokeTask
             Local this
@@ -8880,7 +8880,7 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
       call $step.1: CoroutineStep<String> = @fn72 direct
-        Type AsyncInvoker$C13_InvokePayloadX
+        Type AsyncInvoker<InvokePayload>
         Local $receiver
         Type (InvokePayload) -> String
         Local $parameter.transform
@@ -9057,8 +9057,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn127 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn127 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<InvokeTask.run>
           FieldAccess 0
@@ -9079,8 +9079,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn128 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn128 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<InvokeTask.run>
           FieldAccess 0
@@ -9190,8 +9190,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn127 interface Continuation$S[0]
-        Type Continuation$S
+      call @fn127 interface Continuation<String>[0]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<InvokeTask.run>
           FieldAccess 0
@@ -9212,8 +9212,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn128 interface Continuation$S[1]
-        Type Continuation$S
+      call @fn128 interface Continuation<String>[1]
+        Type Continuation<String>
         FieldAccess 1
           Type CoroutineFrame<InvokeTask.run>
           FieldAccess 0
@@ -9320,11 +9320,11 @@ Module
         Local $new.1
         Type InvokeGate
         Local $parameter.gate
-      val $argument.0: SuspendRegistration$I32
+      val $argument.0: SuspendRegistration<Int>
         Type InvokeRegistration
         Local $new.1
-      val $parameter.registration: SuspendRegistration$I32
-        Type SuspendRegistration$I32
+      val $parameter.registration: SuspendRegistration<Int>
+        Type SuspendRegistration<Int>
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitInvoke>
@@ -9362,8 +9362,8 @@ Module
           Type Int
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn84 interface SuspendRegistration$I32[0]
-        Type SuspendRegistration$I32
+      call @fn84 interface SuspendRegistration<Int>[0]
+        Type SuspendRegistration<Int>
         Local $parameter.registration
         Type CoroutineAdapter<awaitInvoke>$1
         Local $safe_adapter.1
@@ -9679,8 +9679,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn135 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn135 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitInvoke>
           FieldAccess 0
@@ -9701,8 +9701,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn136 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn136 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitInvoke>
           FieldAccess 0
@@ -9843,8 +9843,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn135 interface Continuation$I32[0]
-        Type Continuation$I32
+      call @fn135 interface Continuation<Int>[0]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitInvoke>
           FieldAccess 0
@@ -9865,8 +9865,8 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn136 interface Continuation$I32[1]
-        Type Continuation$I32
+      call @fn136 interface Continuation<Int>[1]
+        Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitInvoke>
           FieldAccess 0
@@ -9990,7 +9990,7 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Registering)
   coroutine_step cs0 CoroutineStep<String> result=String
   coroutine_step cs1 CoroutineStep<Int> result=Int
-  coroutine_slot cl0 CoroutineSlot<AsyncInvoker$C13_InvokePayloadX> value=AsyncInvoker$C13_InvokePayloadX
+  coroutine_slot cl0 CoroutineSlot<AsyncInvoker<InvokePayload>> value=AsyncInvoker<InvokePayload>
   coroutine_slot cl1 CoroutineSlot<(InvokePayload) -> String> value=(InvokePayload) -> String
   coroutine_slot cl2 CoroutineSlot<String> value=String
   coroutine_slot cl3 CoroutineSlot<Int> value=Int
@@ -10000,7 +10000,7 @@ Module
   continuation_shell ch0 result=String success=fn127 failure=fn128
   continuation_shell ch1 result=Int success=fn135 failure=fn136
   coroutine_start ct0 result=String function=fn125
-  coroutine_saved cv0 class=CoroutineFrame<AsyncInvoker.invoke> field=2 slot=cl0 value=AsyncInvoker$C13_InvokePayloadX
+  coroutine_saved cv0 class=CoroutineFrame<AsyncInvoker.invoke> field=2 slot=cl0 value=AsyncInvoker<InvokePayload>
   coroutine_saved cv1 class=CoroutineFrame<AsyncInvoker.invoke> field=3 slot=cl1 value=(InvokePayload) -> String
   coroutine_saved cv2 class=CoroutineFrame<AsyncInvoker.invoke> field=4 slot=cl2 value=String
   coroutine_saved cv3 class=CoroutineFrame<AsyncInvoker.invoke> field=5 slot=cl3 value=Int
@@ -10090,15 +10090,15 @@ Module
   global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
-  enum Option$J16_Continuation$I32X niche(kind=managed,payload_variant=0)
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineStep<String> niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum CoroutineSlot<AsyncInvoker$C13_InvokePayloadX> niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot<AsyncInvoker<InvokePayload>> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<(InvokePayload) -> String> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<String> niche(kind=managed,payload_variant=1)
   enum CoroutineSlot<Int> tagged size=16 align=8 variants=()@8+0 (i32)@8+4
@@ -15029,20 +15029,20 @@ Module
     cbr t23 then @completed else @suspended
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
-  td td10 Continuation$I32 @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
-  td td11 SuspendRegistration$I32 @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
-  td td12 SuspendTask$S @scoop$1$td$391a33dfafa312851abd70c36ab21ee839e2538741060a32adf11b4af684a087 type-id=3313109822306524975 size=0 parent=none vtable=[] itables=[]
-  td td13 Continuation$S @scoop$1$td$bdb2e738f336c86b2edfa4c10e3b702294b70584c48403d85c6af4651090d144 type-id=13708490125718186201 size=0 parent=none vtable=[] itables=[]
-  td td14 SuspendTask$I32 @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
-  td td15 SuspendRegistration$S @scoop$1$td$95672bde9a719e16276c1071522a952469fec00e732101ee70b6a3b3f7bba8a6 type-id=7615586260526196850 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td10 Continuation @scoop$1$td$2a38b38f35cc4b11ce52e041bbd17a7d9d0856af376b80df15f79ce6cbb5ea67 type-id=6978428981129964230 size=0 parent=none vtable=[] itables=[]
+  td td11 SuspendRegistration @scoop$1$td$39ac28f8ec87ff6409454cbc9997514a58ade9647851e7bcea9242ad880751ce type-id=5926246245466130365 size=0 parent=none vtable=[] itables=[]
+  td td12 SuspendTask @scoop$1$td$391a33dfafa312851abd70c36ab21ee839e2538741060a32adf11b4af684a087 type-id=3313109822306524975 size=0 parent=none vtable=[] itables=[]
+  td td13 Continuation @scoop$1$td$bdb2e738f336c86b2edfa4c10e3b702294b70584c48403d85c6af4651090d144 type-id=13708490125718186201 size=0 parent=none vtable=[] itables=[]
+  td td14 SuspendTask @scoop$1$td$dea47f973bbcc8b84ed59cd19a21d284437148dd21606aca0e6f0e64b90fd960 type-id=3920019270299143811 size=0 parent=none vtable=[] itables=[]
+  td td15 SuspendRegistration @scoop$1$td$95672bde9a719e16276c1071522a952469fec00e732101ee70b6a3b3f7bba8a6 type-id=7615586260526196850 size=0 parent=none vtable=[] itables=[]
   td td16 function<(InvokePayload) -> String> @scoop$1$td$aaac7191a1d0e4c7ab85719d6385612a907023fe833fa696cca9d79c00b88544 type-id=16613308040508532089 size=0 parent=none vtable=[] itables=[]
   td td17 IntRange @scoop$1$td$66618ce5db61b359b7e13b6df76dcda8b9a9e55768487b6fe93e0d1aedd90a1b type-id=5739975931137510880 size=32 parent=none vtable=[] itables=[td2:[local-fn51]]
   td td18 IntRangeIterator @scoop$1$td$6e6a352e9c43b3e382fd0925e1ed04966e4c5b5796883838be021562ff19bf07 type-id=4889723440050595746 size=32 parent=none vtable=[] itables=[td3:[local-fn54]]
@@ -15057,8 +15057,8 @@ Module
   td td28 InvokeGate @scoop$1$td$505f79926bd47335f1d312bdaa97a065aee4b5db83923924c4ded0d36abd3195 type-id=5427352036086462270 size=24 parent=none vtable=[] itables=[]
   td td29 InvokeRegistration @scoop$1$td$4ffc99c5c20359dc921e8868e04d944ee57aee232a2247be123e4b2148b41fb1 type-id=8427916140696509618 size=24 parent=none vtable=[] itables=[td11:[local-fn71]]
   td td30 InvokeTask @scoop$1$td$3a7dbdbc4b4d8f4bbd18258a03dd92da1f7d268ca24742e50151a07a11860d70 type-id=10694634375853057495 size=24 parent=none vtable=[] itables=[td12:[local-fn73]]
-  td td31 InvokeHolder$C13_InvokePayloadX @scoop$1$td$d74733c57b440ae04ec7079168dd63d85fb480d3dcb83300726e5957d44d8c5f type-id=12921515645457833592 size=24 parent=none vtable=[] itables=[]
-  td td32 AsyncInvoker$C13_InvokePayloadX @scoop$1$td$4a5d1ebd6107c3e6d83a499b471309f671b529d996f57bf0c1967c85192c9aa8 type-id=17684955094484836119 size=40 parent=none vtable=[] itables=[]
+  td td31 InvokeHolder @scoop$1$td$d74733c57b440ae04ec7079168dd63d85fb480d3dcb83300726e5957d44d8c5f type-id=12921515645457833592 size=24 parent=none vtable=[] itables=[]
+  td td32 AsyncInvoker @scoop$1$td$4a5d1ebd6107c3e6d83a499b471309f671b529d996f57bf0c1967c85192c9aa8 type-id=17684955094484836119 size=40 parent=none vtable=[] itables=[]
   td td33 InvokeCompletion @scoop$1$td$85e4e9af3dc31202d461ac166bcd14aafce5b275298b37723d80acd00ad94192 type-id=14967807405230014316 size=24 parent=none vtable=[] itables=[td13:[local-fn74, local-fn75]]
   td td34 CoroutineFrame<AsyncInvoker.invoke> @scoop$1$td$f857244c290d5c26ab31a7a2d9061b9cb32ca4ac0efec26fc9a1c92c01772b05 type-id=239069690624910503 size=80 parent=none vtable=[] itables=[]
   td td35 CoroutineAdapter<AsyncInvoker.invoke>$1 @scoop$1$td$3bcfa4a01ddf4dc6ae6c61b1125173b47edff7ca6f0d3e6ccd733a55f7099cf2 type-id=2641672578410068972 size=32 parent=none vtable=[] itables=[td10:[local-fn109, local-fn110]]
@@ -15086,15 +15086,15 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
-  layout Option$J16_Continuation$I32X size=8 align=8 enum-scan=refs[0]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout CoroutineStep<String> size=8 align=8 enum-scan=refs[0]
   layout CoroutineStep<Int> size=16 align=8 enum-scan=none
-  layout CoroutineSlot<AsyncInvoker$C13_InvokePayloadX> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<AsyncInvoker<InvokePayload>> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<(InvokePayload) -> String> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<String> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Int> size=16 align=8 enum-scan=none
@@ -15122,8 +15122,8 @@ Module
   layout InvokeGate size=24 align=8 refs=[16]
   layout InvokeRegistration size=24 align=8 refs=[16]
   layout InvokeTask size=24 align=8 refs=[16]
-  layout InvokeHolder$C13_InvokePayloadX size=24 align=8 refs=[16]
-  layout AsyncInvoker$C13_InvokePayloadX size=40 align=8 refs=[16, 24, 32]
+  layout InvokeHolder size=24 align=8 refs=[16]
+  layout AsyncInvoker size=40 align=8 refs=[16, 24, 32]
   layout InvokeCompletion size=24 align=8 refs=[16]
   layout CoroutineFrame<AsyncInvoker.invoke> size=80 align=8 refs=[24, 32, 40, 48, 72]
   layout CoroutineAdapter<AsyncInvoker.invoke>$1 size=32 align=8 refs=[16]

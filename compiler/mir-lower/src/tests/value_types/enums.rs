@@ -67,7 +67,7 @@ fn enum_instances_are_created_once_with_substituted_fields() {
         .iter()
         .map(|(_, def)| def.name.as_str())
         .collect();
-    assert_eq!(names, ["Option$I32", "Color", "Option$S", "Option$D1_SX"]);
+    assert_eq!(names, ["Option", "Color", "Option", "Option"]);
 
     // The variant field types are substituted with the instance's
     // type arguments.
@@ -94,7 +94,10 @@ fn enum_instances_are_created_once_with_substituted_fields() {
         option_s_def.variants[0].fields[0].ty,
         mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
     );
-    assert_ne!(option_string_def.name, option_s_def.name);
+    assert_ne!(
+        option_string_def.type_arguments,
+        option_s_def.type_arguments
+    );
     assert!(!option_string_def.gc_free);
     assert!(!option_string_def.variants[0].gc_free);
     assert!(option_string_def.variants[1].gc_free);
@@ -201,29 +204,29 @@ fn option_consumers_become_guarded_representation_independent_primitives() {
 
     let expected = "\
 Module
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
   fun main @fn0() -> Unit
     bb0 entry
-      val o: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+      val o: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           IntegerLiteral Int value=41 bits=0x00000029
-      val n: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+      val n: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local o
     bb1 if.then.1
       val y: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local o
       goto bb2
     bb2 if.merge.2
@@ -276,30 +279,30 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // `UnwrapException()` (M8) — an ordinary constructor call.
     let expected = "\
 Module
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
   class UnwrapException vtable=0 itables=0
   fun main @fn0() -> Unit
     bb0 entry
-      val o: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+      val o: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
-      val $opt.1: Option$I32<Int>
-        Type Option$I32<Int>
+      val $opt.1: Option<Int>
+        Type Option<Int>
         Local o
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
+        VariantTest Option<Int> v0
+          Type Option<Int>
           Local $opt.1
     bb1 if.then.1
       val $uw.2: Int
         Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
           Local $opt.1
       goto bb3
     bb2 if.else.2

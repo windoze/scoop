@@ -1,7 +1,6 @@
 use super::*;
 
 pub(super) struct PendingFunction {
-    pub(super) link_stem: export::CallableLinkStem,
     pub(super) name: String,
     pub(super) is_suspend: bool,
     pub(super) modifiers: export::CallableModifiers,
@@ -17,13 +16,10 @@ impl PendingFunction {
     pub(super) fn finish(
         self,
         materialization: concrete::CallableMaterialization,
-        emission: concrete::FunctionEmission,
     ) -> concrete::Function {
         concrete::Function {
-            link_stem: self.link_stem,
             name: self.name,
             materialization,
-            emission,
             is_suspend: self.is_suspend,
             modifiers: self.modifiers,
             params: self.params,
@@ -148,7 +144,6 @@ impl Concretizer<'_> {
             dispatch: self.lower_method_dispatch(method.dispatch, key),
         });
         PendingFunction {
-            link_stem: source.link_stem,
             name: source.name,
             is_suspend: source.is_suspend,
             modifiers: source.modifiers,
@@ -192,18 +187,6 @@ impl Concretizer<'_> {
             concrete::MethodOwner::Interface(id) => &self.interfaces[id].type_arguments,
             concrete::MethodOwner::Object(_) => &[],
             concrete::MethodOwner::Structural(_) => &[],
-        }
-    }
-
-    pub(super) fn instance_symbol(
-        &self,
-        link_stem: &export::CallableLinkStem,
-        discriminator: u32,
-    ) -> concrete::InstanceSymbol {
-        if self.overloaded_generic_link_stems.contains(link_stem) {
-            concrete::InstanceSymbol::Overloaded { discriminator }
-        } else {
-            concrete::InstanceSymbol::Unique
         }
     }
 }

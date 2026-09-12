@@ -1080,41 +1080,7 @@ impl Lowerer {
             || declaration.name.text.clone(),
             |owner| format!("{}.{}", owner.describe_name(self), declaration.name.text),
         );
-        let receiver = match owner {
-            hir::PropertyOwner::Extension(extension) => {
-                crate::globals::LocalCallableReceiver::ExtensionProperty(
-                    self.extension_properties[extension].receiver_ty,
-                )
-            }
-            hir::PropertyOwner::TopLevel
-            | hir::PropertyOwner::Class(_)
-            | hir::PropertyOwner::Struct(_)
-            | hir::PropertyOwner::Enum(_)
-            | hir::PropertyOwner::Interface(_)
-            | hir::PropertyOwner::Object(_) => crate::globals::LocalCallableReceiver::Ordinary,
-        };
-        let role = match kind {
-            PropertyAccessorKind::Getter => {
-                crate::globals::LocalCallableLinkRole::PropertyGetter(receiver)
-            }
-            PropertyAccessorKind::Setter => {
-                crate::globals::LocalCallableLinkRole::PropertySetter(receiver)
-            }
-        };
-        let scope = match method_owner {
-            Some(owner) => crate::globals::LocalCallableScope::Member(owner),
-            None => crate::globals::LocalCallableScope::TopLevel(
-                if access.declared == hir::DeclaredVisibility::Private {
-                    crate::globals::TopLevelCallableScope::FilePrivate
-                } else {
-                    crate::globals::TopLevelCallableScope::Package
-                },
-            ),
-        };
-        let link_stem =
-            self.local_callable_link_stem(self.current_file, scope, &declaration.name.text, role);
         let function = self.functions.alloc(Function {
-            link_stem,
             name,
             access,
             override_access: Vec::new(),

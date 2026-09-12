@@ -152,8 +152,8 @@ fn generic_equality_resolves_the_exact_operator_bound_member() {
         .find(|(_, function)| {
             function.name == "equal"
                 && matches!(
-                    &function.emission,
-                    hir::concrete::FunctionEmission::Materialized { .. }
+                    function.materialization.context(),
+                    hir::concrete::CallableMaterializationContext::Application(_)
                 )
         })
         .expect("equal<Value> specialization")

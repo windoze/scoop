@@ -8,10 +8,9 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    CallableBodyTypeArguments, CallableLinkStem, CallableModifiers, DeclarationAccess,
-    FunctionAttributes, FunctionGenericity, FunctionKind, HirConstructorIdentityInputs,
-    HirNominalIdentities, HirPropertyIdentities, HirTypeIdentityInputs, IntegerKind,
-    IntegerTypeCore, IntrinsicTypeCore,
+    CallableBodyTypeArguments, CallableModifiers, DeclarationAccess, FunctionAttributes,
+    FunctionGenericity, FunctionKind, HirConstructorIdentityInputs, HirNominalIdentities,
+    HirPropertyIdentities, HirTypeIdentityInputs, IntegerKind, IntegerTypeCore, IntrinsicTypeCore,
 };
 
 struct Fixture {
@@ -216,7 +215,6 @@ fn source_key(name: &str, type_parameter_count: u32) -> SourceDeclarationKey {
 
 fn function(name: &str) -> Function {
     Function {
-        link_stem: CallableLinkStem::from_session_local_encoding(name.to_string()),
         name: name.to_string(),
         access: DeclarationAccess::public(),
         override_access: Vec::new(),

@@ -380,11 +380,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         module.enums[family.states.enum_id()].name,
         "ForeignCallbackState"
     );
-    assert!(
-        module.enums[family.failure_result.enum_id()]
-            .name
-            .starts_with("Option$")
-    );
+    assert_eq!(module.enums[family.failure_result.enum_id()].name, "Option");
     assert_eq!(
         family
             .modes

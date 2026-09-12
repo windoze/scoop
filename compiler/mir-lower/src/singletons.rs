@@ -43,7 +43,7 @@ impl Lowerer {
                 )
             };
             let global = self.globals.alloc(mir::Global {
-                name: format!("$singleton${}", source.link_name),
+                name: format!("$singleton${}", module.objects[value.declaration].name),
                 storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(owner),
                 ty,
                 mutable: true,

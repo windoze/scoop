@@ -266,21 +266,6 @@ impl Lowerer {
             ),
             None => self.nominal_access(source.visibility(), name_span, source.description(), file),
         };
-        let private = access.declared == hir::DeclaredVisibility::Private;
-        let object_link_stem = self.local_nominal_link_stem(
-            file,
-            owner,
-            name,
-            private,
-            crate::globals::LocalNominalLinkRole::Object,
-        );
-        let backing_link_stem = self.local_nominal_link_stem(
-            file,
-            owner,
-            name,
-            private,
-            crate::globals::LocalNominalLinkRole::ObjectBackingClass,
-        );
         let object_id = ObjectId::from_raw((self.objects.len() as u32).into());
         let object_type_id = hir::ObjectTypeId::from_raw((self.object_types.len() as u32).into());
         let companion_relation_id = source.companion_name().map(|_| {
@@ -298,7 +283,6 @@ impl Lowerer {
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let backing_class = self.classes.alloc(ClassDecl {
             modifier: hir::ClassModifier::Final,
-            link_stem: backing_link_stem,
             name: name.to_string(),
             owner: owner.map(Owner::as_nominal_owner),
             access: access.clone(),
@@ -319,7 +303,6 @@ impl Lowerer {
         assert_eq!(self.types[canonical_type], Type::Class(self_application));
 
         let object = self.objects.alloc(hir::ObjectDecl {
-            link_stem: object_link_stem,
             name: name.to_string(),
             owner: owner.map(Owner::as_nominal_owner),
             access: access.clone(),
@@ -352,19 +335,11 @@ impl Lowerer {
 
         self.object_files.insert(object, file);
         let display_name = self.singleton_initialization_display_name(object);
-        let stable_key = self.local_link_component(
-            file,
-            Some(Owner::Object(object)),
-            "",
-            false,
-            crate::globals::LocalLinkRole::SingletonInitialization,
-        );
         let published_root = self
             .singleton_published_roots
             .alloc(hir::SingletonPublishedRoot {
                 value: singleton_value_id,
                 ty: canonical_type,
-                link_name: stable_key.clone(),
             });
         assert_eq!(published_root, published_root_id);
         let failure_root =
@@ -382,7 +357,6 @@ impl Lowerer {
         });
         assert_eq!(value, singleton_value_id);
         let initialization = self.initialization_units.alloc(hir::InitializationUnit {
-            stable_key,
             display_name,
             schedule: hir::InitializationSchedule::LazyAccess,
             kind: hir::InitializationUnitKind::LazySingleton {

@@ -1318,15 +1318,15 @@ Module
 
 == mir ==
 Module
-  global0 $singleton$$local$u0:p0:O14:n10:ObjectHostr9:singletonn0:: ObjectHost managed initial=zeroed-for-runtime-unit
-  global1 $singleton$$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:: StructHost.Maker managed initial=zeroed-for-runtime-unit
-  global2 $singleton$$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:: EnumHost.Values managed initial=zeroed-for-runtime-unit
-  global3 $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:: Box.Factory managed initial=zeroed-for-runtime-unit
-  global4 $singleton$$local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:: DefaultHost.Companion managed initial=zeroed-for-runtime-unit
-  global5 $singleton$$local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:: Independent.Companion managed initial=zeroed-for-runtime-unit
-  global6 $singleton$$local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:: InheritedHost.Companion managed initial=zeroed-for-runtime-unit
-  global7 $singleton$$local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:: InterfaceHost.Provider managed initial=zeroed-for-runtime-unit
-  global8 $singleton$$local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:: ObjectHost.NestedCompanion managed initial=zeroed-for-runtime-unit
+  global0 $singleton$ObjectHost: ObjectHost managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Maker: StructHost.Maker managed initial=zeroed-for-runtime-unit
+  global2 $singleton$Values: EnumHost.Values managed initial=zeroed-for-runtime-unit
+  global3 $singleton$Factory: Box.Factory managed initial=zeroed-for-runtime-unit
+  global4 $singleton$Companion: DefaultHost.Companion managed initial=zeroed-for-runtime-unit
+  global5 $singleton$Companion: Independent.Companion managed initial=zeroed-for-runtime-unit
+  global6 $singleton$Companion: InheritedHost.Companion managed initial=zeroed-for-runtime-unit
+  global7 $singleton$Provider: InterfaceHost.Provider managed initial=zeroed-for-runtime-unit
+  global8 $singleton$NestedCompanion: ObjectHost.NestedCompanion managed initial=zeroed-for-runtime-unit
   global9 $init$failure$0: Throwable managed initial=zeroed-for-runtime-unit
   global10 $init$failure$1: Throwable managed initial=zeroed-for-runtime-unit
   global11 $init$failure$2: Throwable managed initial=zeroed-for-runtime-unit
@@ -1336,15 +1336,15 @@ Module
   global15 $init$failure$6: Throwable managed initial=zeroed-for-runtime-unit
   global16 $init$failure$7: Throwable managed initial=zeroed-for-runtime-unit
   global17 $init$failure$8: Throwable managed initial=zeroed-for-runtime-unit
-  init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0: singleton lazy global0 initializer=@fn80 ensure=@fn81 failure=9 deps=[]
-  init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0: singleton lazy global1 initializer=@fn84 ensure=@fn85 failure=10 deps=[]
-  init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0: singleton lazy global2 initializer=@fn86 ensure=@fn87 failure=11 deps=[]
-  init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0: singleton lazy global3 initializer=@fn88 ensure=@fn89 failure=12 deps=[]
-  init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0: singleton lazy global4 initializer=@fn90 ensure=@fn91 failure=13 deps=[]
-  init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0: singleton lazy global5 initializer=@fn92 ensure=@fn93 failure=14 deps=[]
-  init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0: singleton lazy global6 initializer=@fn94 ensure=@fn95 failure=15 deps=[]
-  init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0: singleton lazy global7 initializer=@fn96 ensure=@fn97 failure=16 deps=[]
-  init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0: singleton lazy global8 initializer=@fn98 ensure=@fn99 failure=17 deps=[]
+  init0 object:ObjectHost singleton lazy global0 initializer=@fn80 ensure=@fn81 failure=9 deps=[]
+  init1 companion:StructHost.Maker singleton lazy global1 initializer=@fn84 ensure=@fn85 failure=10 deps=[]
+  init2 companion:EnumHost.Values singleton lazy global2 initializer=@fn86 ensure=@fn87 failure=11 deps=[]
+  init3 companion:Box.Factory singleton lazy global3 initializer=@fn88 ensure=@fn89 failure=12 deps=[]
+  init4 companion:DefaultHost.Companion singleton lazy global4 initializer=@fn90 ensure=@fn91 failure=13 deps=[]
+  init5 companion:Independent.Companion singleton lazy global5 initializer=@fn92 ensure=@fn93 failure=14 deps=[]
+  init6 companion:InheritedHost.Companion singleton lazy global6 initializer=@fn94 ensure=@fn95 failure=15 deps=[]
+  init7 companion:InterfaceHost.Provider singleton lazy global7 initializer=@fn96 ensure=@fn97 failure=16 deps=[]
+  init8 companion:ObjectHost.NestedCompanion singleton lazy global8 initializer=@fn98 ensure=@fn99 failure=17 deps=[]
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
   extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
@@ -1357,19 +1357,19 @@ Module
   extern ef9 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
   struct StructHost ()
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
   class IntRange vtable=0 itables=1
@@ -1401,18 +1401,18 @@ Module
   class InheritedHost.Companion vtable=0 itables=0
   class InterfaceHost.Provider vtable=0 itables=0
   class ObjectHost.NestedCompanion vtable=0 itables=0
-  class Box$I32 vtable=0 itables=0
+  class Box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
   interface InterfaceHost
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
   fun Int8.rangeTo @fn0(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
@@ -3539,7 +3539,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @fn51(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn51(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3637,9 +3637,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -3648,7 +3648,7 @@ Module
       call @fn128 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -4060,7 +4060,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4069,8 +4069,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -4159,8 +4159,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -4170,8 +4170,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -4233,8 +4233,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -4244,8 +4244,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -4381,8 +4381,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -4515,7 +4515,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn55(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn55(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4613,9 +4613,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4624,7 +4624,7 @@ Module
       call @fn128 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5036,7 +5036,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5045,8 +5045,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5135,8 +5135,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5146,8 +5146,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5209,8 +5209,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5220,8 +5220,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5357,8 +5357,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -5491,7 +5491,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5576,9 +5576,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5587,7 +5587,7 @@ Module
       call @fn128 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5969,7 +5969,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5978,8 +5978,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6068,8 +6068,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6079,8 +6079,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6142,8 +6142,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6153,8 +6153,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6264,8 +6264,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -6398,7 +6398,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6483,9 +6483,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6494,7 +6494,7 @@ Module
       call @fn128 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6876,7 +6876,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6885,8 +6885,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6975,8 +6975,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6986,8 +6986,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -7049,8 +7049,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -7060,8 +7060,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -7171,8 +7171,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -7366,7 +7366,7 @@ Module
       return
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
-  fun Box.Factory.emptyInt @fn74(this: Box.Factory) -> Box$I32
+  fun Box.Factory.emptyInt @fn74(this: Box.Factory) -> Box<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -7375,15 +7375,15 @@ Module
         Type Int
         Local $argument.0
       assign $new.1
-        Type Box$I32
-        ClassAlloc Box$I32
+        Type Box<Int>
+        ClassAlloc Box<Int>
       call @fn144 direct
-        Type Box$I32
+        Type Box<Int>
         Local $new.1
         Type Int
         Local $parameter.value
       return
-        Type Box$I32
+        Type Box<Int>
         Local $new.1
   fun Box.Factory.answer @fn75(this: Box.Factory) -> Int
     bb0 entry
@@ -7395,13 +7395,13 @@ Module
       val $receiver: Box.Factory
         Type Box.Factory
         Local this
-      call $call.1: Box$I32 = @fn74 direct
+      call $call.1: Box<Int> = @fn74 direct
         Type Box.Factory
         Local $receiver
       val $argument.0: Int
         Type Int
         FieldAccess 0
-          Type Box$I32
+          Type Box<Int>
           Local $call.1
       val $parameter.other: Int
         Type Int
@@ -7450,7 +7450,7 @@ Module
       call @fn132 direct
         Type ObjectHost
         Local $new.1
-      global_assign $singleton$$local$u0:p0:O14:n10:ObjectHostr9:singletonn0:
+      global_assign $singleton$ObjectHost
         Type ObjectHost
         Local $new.1
       return
@@ -7458,7 +7458,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0:
+        InitializationUnitAddress init0 object:ObjectHost
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -7506,7 +7506,7 @@ Module
       call @fn80 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0:
+        InitializationUnitAddress init0 object:ObjectHost
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -7523,7 +7523,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0:
+        InitializationUnitAddress init0 object:ObjectHost
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -7544,22 +7544,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0:
+        InitializationUnitAddress init0 object:ObjectHost
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0:
+        InitializationUnitAddress init0 object:ObjectHost
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -7626,7 +7626,7 @@ Module
       call @fn89 direct
       val $receiver: Box.Factory
         Type Box.Factory
-        GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        GlobalRead $singleton$Factory
       call $argument.0: Int = @fn75 direct
         Type Box.Factory
         Local $receiver
@@ -7639,7 +7639,7 @@ Module
       call @fn89 direct
       field_set 1
         Type Box.Factory
-        GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        GlobalRead $singleton$Factory
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
       call @fn89 direct
@@ -7647,7 +7647,7 @@ Module
         Type Int
         FieldAccess 1
           Type Box.Factory
-          GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+          GlobalRead $singleton$Factory
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -7659,7 +7659,7 @@ Module
         Type Int
         FieldAccess 1
           Type Box.Factory
-          GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+          GlobalRead $singleton$Factory
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -7669,7 +7669,7 @@ Module
       call @fn89 direct
       field_set 1
         Type Box.Factory
-        GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        GlobalRead $singleton$Factory
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -7681,7 +7681,7 @@ Module
         Type Int
         FieldAccess 1
           Type Box.Factory
-          GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+          GlobalRead $singleton$Factory
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -7694,9 +7694,9 @@ Module
         Type Boolean
         Binary RefEq
           Type Box.Factory
-          GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+          GlobalRead $singleton$Factory
           Type Box.Factory
-          GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+          GlobalRead $singleton$Factory
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -7706,7 +7706,7 @@ Module
       call @fn89 direct
       val $argument.0: Box.Factory
         Type Box.Factory
-        GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        GlobalRead $singleton$Factory
       val $parameter.value: Box.Factory
         Type Box.Factory
         Local $argument.0
@@ -7720,7 +7720,7 @@ Module
           Type Box.Factory
           Local $call.1
           Type Box.Factory
-          GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+          GlobalRead $singleton$Factory
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -7730,7 +7730,7 @@ Module
       call @fn89 direct
       val $receiver: Box.Factory
         Type Box.Factory
-        GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        GlobalRead $singleton$Factory
       call $argument.0: Int = @fn75 direct
         Type Box.Factory
         Local $receiver
@@ -7743,7 +7743,7 @@ Module
       call @fn89 direct
       val $receiver: Box.Factory
         Type Box.Factory
-        GlobalRead $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        GlobalRead $singleton$Factory
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
@@ -7764,7 +7764,7 @@ Module
       call @fn91 direct
       val $receiver: DefaultHost.Companion
         Type DefaultHost.Companion
-        GlobalRead $singleton$$local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+        GlobalRead $singleton$Companion
       call $argument.0: Int = @fn77 direct
         Type DefaultHost.Companion
         Local $receiver
@@ -7777,7 +7777,7 @@ Module
       call @fn91 direct
       val $receiver: DefaultHost.Companion
         Type DefaultHost.Companion
-        GlobalRead $singleton$$local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+        GlobalRead $singleton$Companion
       call $argument.0: Int = @fn77 direct
         Type DefaultHost.Companion
         Local $receiver
@@ -7790,7 +7790,7 @@ Module
       call @fn85 direct
       val $receiver: StructHost.Maker
         Type StructHost.Maker
-        GlobalRead $singleton$$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+        GlobalRead $singleton$Maker
       call $argument.0: Int = @fn72 direct
         Type StructHost.Maker
         Local $receiver
@@ -7803,7 +7803,7 @@ Module
       call @fn85 direct
       val $receiver: StructHost.Maker
         Type StructHost.Maker
-        GlobalRead $singleton$$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+        GlobalRead $singleton$Maker
       call $argument.0: Int = @fn72 direct
         Type StructHost.Maker
         Local $receiver
@@ -7816,7 +7816,7 @@ Module
       call @fn87 direct
       val $receiver: EnumHost.Values
         Type EnumHost.Values
-        GlobalRead $singleton$$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+        GlobalRead $singleton$Values
       call $argument.0: Int = @fn73 direct
         Type EnumHost.Values
         Local $receiver
@@ -7829,7 +7829,7 @@ Module
       call @fn87 direct
       val $receiver: EnumHost.Values
         Type EnumHost.Values
-        GlobalRead $singleton$$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+        GlobalRead $singleton$Values
       call $argument.0: Int = @fn73 direct
         Type EnumHost.Values
         Local $receiver
@@ -7842,7 +7842,7 @@ Module
       call @fn97 direct
       val $receiver: InterfaceHost.Provider
         Type InterfaceHost.Provider
-        GlobalRead $singleton$$local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+        GlobalRead $singleton$Provider
       call $argument.0: Int = @fn78 direct
         Type InterfaceHost.Provider
         Local $receiver
@@ -7855,7 +7855,7 @@ Module
       call @fn97 direct
       val $receiver: InterfaceHost.Provider
         Type InterfaceHost.Provider
-        GlobalRead $singleton$$local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+        GlobalRead $singleton$Provider
       call $argument.0: Int = @fn78 direct
         Type InterfaceHost.Provider
         Local $receiver
@@ -7886,7 +7886,7 @@ Module
       call @fn81 direct
       val $receiver: ObjectHost
         Type ObjectHost
-        GlobalRead $singleton$$local$u0:p0:O14:n10:ObjectHostr9:singletonn0:
+        GlobalRead $singleton$ObjectHost
       call $argument.0: Int = @fn70 direct
         Type ObjectHost
         Local $receiver
@@ -7899,7 +7899,7 @@ Module
       call @fn99 direct
       val $receiver: ObjectHost.NestedCompanion
         Type ObjectHost.NestedCompanion
-        GlobalRead $singleton$$local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+        GlobalRead $singleton$NestedCompanion
       call $argument.0: Int = @fn79 direct
         Type ObjectHost.NestedCompanion
         Local $receiver
@@ -7912,7 +7912,7 @@ Module
       call @fn99 direct
       val $receiver: ObjectHost.NestedCompanion
         Type ObjectHost.NestedCompanion
-        GlobalRead $singleton$$local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+        GlobalRead $singleton$NestedCompanion
       call $argument.0: Int = @fn79 direct
         Type ObjectHost.NestedCompanion
         Local $receiver
@@ -7945,7 +7945,7 @@ Module
         Type Int
         FieldAccess 0
           Type Independent.Companion
-          GlobalRead $singleton$$local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:
+          GlobalRead $singleton$Companion
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -7957,7 +7957,7 @@ Module
         Type Int
         FieldAccess 0
           Type InheritedHost.Companion
-          GlobalRead $singleton$$local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+          GlobalRead $singleton$Companion
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -7967,7 +7967,7 @@ Module
       call @fn95 direct
       val $receiver: InheritedHost.Companion
         Type InheritedHost.Companion
-        GlobalRead $singleton$$local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+        GlobalRead $singleton$Companion
       call $argument.0: Int = @fn71 direct
         Type InheritedHost.Companion
         Local $receiver
@@ -7986,7 +7986,7 @@ Module
       call @fn136 direct
         Type StructHost.Maker
         Local $new.1
-      global_assign $singleton$$local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+      global_assign $singleton$Maker
         Type StructHost.Maker
         Local $new.1
       return
@@ -7994,7 +7994,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+        InitializationUnitAddress init1 companion:StructHost.Maker
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8042,7 +8042,7 @@ Module
       call @fn84 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+        InitializationUnitAddress init1 companion:StructHost.Maker
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8059,7 +8059,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+        InitializationUnitAddress init1 companion:StructHost.Maker
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8080,22 +8080,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+        InitializationUnitAddress init1 companion:StructHost.Maker
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0:
+        InitializationUnitAddress init1 companion:StructHost.Maker
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -8111,7 +8111,7 @@ Module
       call @fn137 direct
         Type EnumHost.Values
         Local $new.1
-      global_assign $singleton$$local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+      global_assign $singleton$Values
         Type EnumHost.Values
         Local $new.1
       return
@@ -8119,7 +8119,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+        InitializationUnitAddress init2 companion:EnumHost.Values
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8167,7 +8167,7 @@ Module
       call @fn86 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+        InitializationUnitAddress init2 companion:EnumHost.Values
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8184,7 +8184,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+        InitializationUnitAddress init2 companion:EnumHost.Values
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8205,22 +8205,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+        InitializationUnitAddress init2 companion:EnumHost.Values
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0:
+        InitializationUnitAddress init2 companion:EnumHost.Values
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -8236,7 +8236,7 @@ Module
       call @fn138 direct
         Type Box.Factory
         Local $new.1
-      global_assign $singleton$$local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+      global_assign $singleton$Factory
         Type Box.Factory
         Local $new.1
       return
@@ -8244,7 +8244,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        InitializationUnitAddress init3 companion:Box.Factory
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8292,7 +8292,7 @@ Module
       call @fn88 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        InitializationUnitAddress init3 companion:Box.Factory
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8309,7 +8309,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        InitializationUnitAddress init3 companion:Box.Factory
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8330,22 +8330,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        InitializationUnitAddress init3 companion:Box.Factory
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0:
+        InitializationUnitAddress init3 companion:Box.Factory
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -8361,7 +8361,7 @@ Module
       call @fn139 direct
         Type DefaultHost.Companion
         Local $new.1
-      global_assign $singleton$$local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+      global_assign $singleton$Companion
         Type DefaultHost.Companion
         Local $new.1
       return
@@ -8369,7 +8369,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init4 companion:DefaultHost.Companion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8417,7 +8417,7 @@ Module
       call @fn90 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init4 companion:DefaultHost.Companion
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8434,7 +8434,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init4 companion:DefaultHost.Companion
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8455,22 +8455,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init4 companion:DefaultHost.Companion
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init4 companion:DefaultHost.Companion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -8486,7 +8486,7 @@ Module
       call @fn140 direct
         Type Independent.Companion
         Local $new.1
-      global_assign $singleton$$local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:
+      global_assign $singleton$Companion
         Type Independent.Companion
         Local $new.1
       return
@@ -8494,7 +8494,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init5 companion:Independent.Companion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8542,7 +8542,7 @@ Module
       call @fn92 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init5 companion:Independent.Companion
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8559,7 +8559,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init5 companion:Independent.Companion
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8580,22 +8580,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init5 companion:Independent.Companion
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init5 companion:Independent.Companion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -8611,7 +8611,7 @@ Module
       call @fn141 direct
         Type InheritedHost.Companion
         Local $new.1
-      global_assign $singleton$$local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+      global_assign $singleton$Companion
         Type InheritedHost.Companion
         Local $new.1
       return
@@ -8619,7 +8619,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init6 companion:InheritedHost.Companion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8667,7 +8667,7 @@ Module
       call @fn94 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init6 companion:InheritedHost.Companion
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8684,7 +8684,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init6 companion:InheritedHost.Companion
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8705,22 +8705,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init6 companion:InheritedHost.Companion
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0:
+        InitializationUnitAddress init6 companion:InheritedHost.Companion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -8736,7 +8736,7 @@ Module
       call @fn142 direct
         Type InterfaceHost.Provider
         Local $new.1
-      global_assign $singleton$$local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+      global_assign $singleton$Provider
         Type InterfaceHost.Provider
         Local $new.1
       return
@@ -8744,7 +8744,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+        InitializationUnitAddress init7 companion:InterfaceHost.Provider
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8792,7 +8792,7 @@ Module
       call @fn96 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+        InitializationUnitAddress init7 companion:InterfaceHost.Provider
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8809,7 +8809,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+        InitializationUnitAddress init7 companion:InterfaceHost.Provider
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8830,22 +8830,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+        InitializationUnitAddress init7 companion:InterfaceHost.Provider
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0:
+        InitializationUnitAddress init7 companion:InterfaceHost.Provider
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -8861,7 +8861,7 @@ Module
       call @fn143 direct
         Type ObjectHost.NestedCompanion
         Local $new.1
-      global_assign $singleton$$local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+      global_assign $singleton$NestedCompanion
         Type ObjectHost.NestedCompanion
         Local $new.1
       return
@@ -8869,7 +8869,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -8917,7 +8917,7 @@ Module
       call @fn98 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
       goto bb10
     bb12 try.catch.12
       val $init.caught: Throwable
@@ -8934,7 +8934,7 @@ Module
         Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
         Type Throwable
         Local $init.materialized
       throw unwind bb6
@@ -8955,22 +8955,22 @@ Module
     bb18 if.then.18
       call $init.failure: Throwable = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
       throw
         Type Throwable
         Local $init.failure
     bb19 if.else.19
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0:
+        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
       assign $new.1
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call @fn129 direct
         Type IllegalStateException
         Local $new.1
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $init.message
       throw
@@ -9302,7 +9302,7 @@ Module
   fun init.Throwable.$c10 @fn122(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn123(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn123(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn122 direct
         Type Throwable
@@ -9312,7 +9312,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn124(this: UnwrapException) -> Unit
@@ -9323,20 +9323,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn123 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn125(this: ClassCastException) -> Unit
@@ -9347,20 +9347,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn123 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn126(this: ArithmeticException) -> Unit
@@ -9371,20 +9371,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn123 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn127(this: IndexOutOfBoundsException) -> Unit
@@ -9395,52 +9395,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn123 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn128(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn128(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn123 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn129(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn129(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn123 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c32 @fn130(this: IllegalStateException) -> Unit
@@ -9451,15 +9451,15 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn129 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.DefaultHost.$c19 @fn131(this: DefaultHost) -> Unit
@@ -9560,10 +9560,10 @@ Module
   fun init.ObjectHost.NestedCompanion.$c31 @fn143(this: ObjectHost.NestedCompanion) -> Unit
     bb0 entry
       return
-  fun init.Box$I32.$c18 @fn144(this: Box$I32, value: Int) -> Unit
+  fun init.Box.$c18 @fn144(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
-        Type Box$I32
+        Type Box<Int>
         Local this
         Type Int
         Local value
@@ -9646,20 +9646,20 @@ Module
   global @scoop$1$ss$165974d60e06d234e609d471d36e2bdd92f905704b79f2d4b38eda1b891f6838 : ptr<managed> scan=refs[0]
   global @scoop$1$ss$cabd8c32cedf238d204951da06841fcebbde207d50a815e7bee629d1fd199ac7 : ptr<managed> scan=refs[0]
   global @scoop$1$ss$5692bcf99be14638ab56d773fa7c3b773ef4f5d0e8358eae730df6b2f389a4fe : ptr<managed> scan=refs[0]
-  init0 $local$u0:p0:O14:n10:ObjectHostr9:singletonn0: lazy storage=@scoop$1$ss$d7ec3266d16e90da301630e8c5f61de0b506754b530192ce841171c33eb8086f failure=@scoop$1$ss$9de9c9c037dcae1d67d4517d980034a6ac627ce2f3f7070cb71c035c7952ee0b initializer=@scoop$1$cb$3879e429318e009433333d02b49714c750c7dbe0e3d6d6c4cbfb060eb438ab9a ensure=@scoop$1$cb$82d299b682a1cc0bdc413e12a3367c3d11577ed0af687f8cd1fd06c488ab0331 deps=[]
-  init1 $local$u0:p0:S14:n10:StructHostO8:n5:Makerr9:singletonn0: lazy storage=@scoop$1$ss$e0d49fdd31ec3a1417fb9a87e89356aae7d83c2d08b7573e828698e7e79c1dc6 failure=@scoop$1$ss$ca6a4030b247267622b342d591efc842ee60ba360a03a4cc509f40bdd7dd19d8 initializer=@scoop$1$cb$4a6e809b230078c26fa7af7f934b200de95707d48485e17af890b4cb0b8482c8 ensure=@scoop$1$cb$249ad2a64f7342356a8c941fe2f29644e09fa32eb31d22f75301f826e2f40327 deps=[]
-  init2 $local$u0:p0:E11:n8:EnumHostO9:n6:Valuesr9:singletonn0: lazy storage=@scoop$1$ss$fbb7ce00d30a42e3e22784e56421f8c68d69814297e0b53889fd1aa18297bad5 failure=@scoop$1$ss$cf9d02b81d15fb7fff66603daf6386d93b11b02bcafc87e241fb432b0fa4c005 initializer=@scoop$1$cb$9fe26a5a465033a8aa3079e6b594a8f2abff52ee4e49ad4fd2b2b331bd0de294 ensure=@scoop$1$cb$c64e42e07a6e1c46a3ffba27f3ef08f9d34e3ca223805e20363ef4b8432b88ec deps=[]
-  init3 $local$u0:p0:C6:n3:BoxO10:n7:Factoryr9:singletonn0: lazy storage=@scoop$1$ss$77e5cd0f8d8ab5845acbdf864c961176d7852ada01a6725939cba00eb1703df3 failure=@scoop$1$ss$798dd50faebb6d03a686e42e5fd8165880b801aa214b33b3eaa9ce93bbf4b724 initializer=@scoop$1$cb$2a7691395366d408b8060a80bbc8db5c4fbc937316f681abaca3267055f2ea71 ensure=@scoop$1$cb$1af948f39b6d11444084b67594baf6e6567e4dbbdb8300022a5cf70613e76eaa deps=[]
-  init4 $local$u0:p0:C15:n11:DefaultHostO12:n9:Companionr9:singletonn0: lazy storage=@scoop$1$ss$55827a0896a12bf813fa3a4cf793899dca0d6d47ce213a5aaa91924cc5c0f213 failure=@scoop$1$ss$47e635078d3117a0b0973494900a645c13601497eefcc1372f96f0cecd4c9e93 initializer=@scoop$1$cb$73313c60d9dc7b38e01c79aff9dd9ee04b76249a4c20cf24fd77bde41d0728bc ensure=@scoop$1$cb$c1ed93c61dbb4571bd57b49b86439bd8802457961c69d339c2ecb2a3884c0a4e deps=[]
-  init5 $local$u0:p0:C15:n11:IndependentO12:n9:Companionr9:singletonn0: lazy storage=@scoop$1$ss$c51ad47889a6a05aeeaa05d4071c326396b317ae0ddf77cb16a246495b3a1b07 failure=@scoop$1$ss$eeb7fa40bc4b549688c2254aaea76f60d396c384178e4ad4eb193958878c8789 initializer=@scoop$1$cb$5288bdc2dba362577f9a98d7279ae73cbfb8ec5a8f2d58c2f7b30bf945f86cae ensure=@scoop$1$cb$5e77ab9b7cebeee7928272e254cecb33ebcb30c62c69e4ee8357feb2a1bf5e8c deps=[]
-  init6 $local$u0:p0:C17:n13:InheritedHostO12:n9:Companionr9:singletonn0: lazy storage=@scoop$1$ss$e37bd95a687fd50ae57277466ba7cd88a742d6282c658471ce3b3a6a56393a16 failure=@scoop$1$ss$165974d60e06d234e609d471d36e2bdd92f905704b79f2d4b38eda1b891f6838 initializer=@scoop$1$cb$fe8070a2f92679210ca761218f318f0089d9c7743fa2ae66a9945342879ef005 ensure=@scoop$1$cb$dc13e133392c6cd017701bc37f429883197e4cb20556c424dda7b2e78bf59776 deps=[]
-  init7 $local$u0:p0:I17:n13:InterfaceHostO11:n8:Providerr9:singletonn0: lazy storage=@scoop$1$ss$c9421c7c4457c2455e3aec33398a4b82507ba6c6ea77a9ae7086ee6f87a4e3b5 failure=@scoop$1$ss$cabd8c32cedf238d204951da06841fcebbde207d50a815e7bee629d1fd199ac7 initializer=@scoop$1$cb$39ce47db5760def79edad1d62e850d29db3d92ca5deb77f7c21fb8abe89d6401 ensure=@scoop$1$cb$99d8b0d26b48a3dc3d12094121b7e9c1cbf9d48caf67b0d01c50dc6f37945f1d deps=[]
-  init8 $local$u0:p0:O14:n10:ObjectHostO19:n15:NestedCompanionr9:singletonn0: lazy storage=@scoop$1$ss$d5e995ada7245fda2662ffb770dc96fa71ec656b58822953efd6c06aad87dcc9 failure=@scoop$1$ss$5692bcf99be14638ab56d773fa7c3b773ef4f5d0e8358eae730df6b2f389a4fe initializer=@scoop$1$cb$00fd5efffa3f96a09c0b51cf494db430a89165f05b158c783dc252b51e6de3de ensure=@scoop$1$cb$23a8c01f3526009b7f046b7d3b480da0eed20f8a5ea1197743e4598efc951675 deps=[]
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  init0 object:ObjectHost lazy storage=@scoop$1$ss$d7ec3266d16e90da301630e8c5f61de0b506754b530192ce841171c33eb8086f failure=@scoop$1$ss$9de9c9c037dcae1d67d4517d980034a6ac627ce2f3f7070cb71c035c7952ee0b initializer=@scoop$1$cb$3879e429318e009433333d02b49714c750c7dbe0e3d6d6c4cbfb060eb438ab9a ensure=@scoop$1$cb$82d299b682a1cc0bdc413e12a3367c3d11577ed0af687f8cd1fd06c488ab0331 deps=[]
+  init1 companion:StructHost.Maker lazy storage=@scoop$1$ss$e0d49fdd31ec3a1417fb9a87e89356aae7d83c2d08b7573e828698e7e79c1dc6 failure=@scoop$1$ss$ca6a4030b247267622b342d591efc842ee60ba360a03a4cc509f40bdd7dd19d8 initializer=@scoop$1$cb$4a6e809b230078c26fa7af7f934b200de95707d48485e17af890b4cb0b8482c8 ensure=@scoop$1$cb$249ad2a64f7342356a8c941fe2f29644e09fa32eb31d22f75301f826e2f40327 deps=[]
+  init2 companion:EnumHost.Values lazy storage=@scoop$1$ss$fbb7ce00d30a42e3e22784e56421f8c68d69814297e0b53889fd1aa18297bad5 failure=@scoop$1$ss$cf9d02b81d15fb7fff66603daf6386d93b11b02bcafc87e241fb432b0fa4c005 initializer=@scoop$1$cb$9fe26a5a465033a8aa3079e6b594a8f2abff52ee4e49ad4fd2b2b331bd0de294 ensure=@scoop$1$cb$c64e42e07a6e1c46a3ffba27f3ef08f9d34e3ca223805e20363ef4b8432b88ec deps=[]
+  init3 companion:Box.Factory lazy storage=@scoop$1$ss$77e5cd0f8d8ab5845acbdf864c961176d7852ada01a6725939cba00eb1703df3 failure=@scoop$1$ss$798dd50faebb6d03a686e42e5fd8165880b801aa214b33b3eaa9ce93bbf4b724 initializer=@scoop$1$cb$2a7691395366d408b8060a80bbc8db5c4fbc937316f681abaca3267055f2ea71 ensure=@scoop$1$cb$1af948f39b6d11444084b67594baf6e6567e4dbbdb8300022a5cf70613e76eaa deps=[]
+  init4 companion:DefaultHost.Companion lazy storage=@scoop$1$ss$55827a0896a12bf813fa3a4cf793899dca0d6d47ce213a5aaa91924cc5c0f213 failure=@scoop$1$ss$47e635078d3117a0b0973494900a645c13601497eefcc1372f96f0cecd4c9e93 initializer=@scoop$1$cb$73313c60d9dc7b38e01c79aff9dd9ee04b76249a4c20cf24fd77bde41d0728bc ensure=@scoop$1$cb$c1ed93c61dbb4571bd57b49b86439bd8802457961c69d339c2ecb2a3884c0a4e deps=[]
+  init5 companion:Independent.Companion lazy storage=@scoop$1$ss$c51ad47889a6a05aeeaa05d4071c326396b317ae0ddf77cb16a246495b3a1b07 failure=@scoop$1$ss$eeb7fa40bc4b549688c2254aaea76f60d396c384178e4ad4eb193958878c8789 initializer=@scoop$1$cb$5288bdc2dba362577f9a98d7279ae73cbfb8ec5a8f2d58c2f7b30bf945f86cae ensure=@scoop$1$cb$5e77ab9b7cebeee7928272e254cecb33ebcb30c62c69e4ee8357feb2a1bf5e8c deps=[]
+  init6 companion:InheritedHost.Companion lazy storage=@scoop$1$ss$e37bd95a687fd50ae57277466ba7cd88a742d6282c658471ce3b3a6a56393a16 failure=@scoop$1$ss$165974d60e06d234e609d471d36e2bdd92f905704b79f2d4b38eda1b891f6838 initializer=@scoop$1$cb$fe8070a2f92679210ca761218f318f0089d9c7743fa2ae66a9945342879ef005 ensure=@scoop$1$cb$dc13e133392c6cd017701bc37f429883197e4cb20556c424dda7b2e78bf59776 deps=[]
+  init7 companion:InterfaceHost.Provider lazy storage=@scoop$1$ss$c9421c7c4457c2455e3aec33398a4b82507ba6c6ea77a9ae7086ee6f87a4e3b5 failure=@scoop$1$ss$cabd8c32cedf238d204951da06841fcebbde207d50a815e7bee629d1fd199ac7 initializer=@scoop$1$cb$39ce47db5760def79edad1d62e850d29db3d92ca5deb77f7c21fb8abe89d6401 ensure=@scoop$1$cb$99d8b0d26b48a3dc3d12094121b7e9c1cbf9d48caf67b0d01c50dc6f37945f1d deps=[]
+  init8 companion:ObjectHost.NestedCompanion lazy storage=@scoop$1$ss$d5e995ada7245fda2662ffb770dc96fa71ec656b58822953efd6c06aad87dcc9 failure=@scoop$1$ss$5692bcf99be14638ab56d773fa7c3b773ef4f5d0e8358eae730df6b2f389a4fe initializer=@scoop$1$cb$00fd5efffa3f96a09c0b51cf494db430a89165f05b158c783dc252b51e6de3de ensure=@scoop$1$cb$23a8c01f3526009b7f046b7d3b480da0eed20f8a5ea1197743e4598efc951675 deps=[]
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
   extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
@@ -14718,14 +14718,14 @@ Module
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
   td td2 InterfaceHost @scoop$1$td$13195ad555f9d2cbc198185011133ce2e45c88595cf944ab599e354bfb5762ed type-id=9258307377168247456 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td10 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td10 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
   td td11 IntRange @scoop$1$td$66618ce5db61b359b7e13b6df76dcda8b9a9e55768487b6fe93e0d1aedd90a1b type-id=5739975931137510880 size=32 parent=none vtable=[] itables=[td3:[local-fn51]]
   td td12 IntRangeIterator @scoop$1$td$6e6a352e9c43b3e382fd0925e1ed04966e4c5b5796883838be021562ff19bf07 type-id=4889723440050595746 size=32 parent=none vtable=[] itables=[td4:[local-fn54]]
   td td13 LongRange @scoop$1$td$2ba9cccc6161621932a055e067295205245e2a6613b2d01110ad6d0256e8bea3 type-id=2382795341378320473 size=48 parent=none vtable=[] itables=[td5:[local-fn55]]
@@ -14747,7 +14747,7 @@ Module
   td td30 Independent.Companion @scoop$1$td$b0b2f58324409254244dad29b7659caf56881f500837e88ed41ded2249d4fbba type-id=8314440459560002139 size=24 parent=none vtable=[] itables=[]
   td td31 InterfaceHost.Provider @scoop$1$td$2dad53c9851cda892c473578afaeff9449ccb870c0a525eefe7a3836f38cbfcc type-id=3904607456645229924 size=16 parent=none vtable=[] itables=[]
   td td32 ObjectHost.NestedCompanion @scoop$1$td$2cec9c5e9c5c85bce46011ac2951e3c3519bc756e16322b9cd7d12808bd7ec93 type-id=8459387717424445912 size=16 parent=none vtable=[] itables=[]
-  td td33 Box$I32 @scoop$1$td$dd76874cfad03e49a135acc93616cd0f81bb2163ae2a8013c3d9caed135fcf25 type-id=16378583321935454280 size=24 parent=none vtable=[] itables=[]
+  td td33 Box @scoop$1$td$dd76874cfad03e49a135acc93616cd0f81bb2163ae2a8013c3d9caed135fcf25 type-id=16378583321935454280 size=24 parent=none vtable=[] itables=[]
   td td34 Exception @scoop$1$td$578917cec77e0c3bd418c4d82625c8d273753c6305b189f752db63b264d988a5 type-id=13357369519065266481 size=24 parent=td19 vtable=[] itables=[]
   td td35 InheritedHost.Companion @scoop$1$td$a4a0977f365875a7f80dfe44304e519985cf3383d79268e9524c965541ecfb14 type-id=2698404858793164205 size=24 parent=td24 vtable=[] itables=[]
   td td36 UnwrapException @scoop$1$td$3e5281134cfedec025420fd79f1c4748321f748c77f8755860359f9bcd4fb6e3 type-id=9962206442593385615 size=24 parent=td34 vtable=[] itables=[]
@@ -14768,11 +14768,11 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout StructHost size=0 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout IntRange size=32 align=8 refs=[]
   layout IntRangeIterator size=32 align=8 refs=[]
   layout LongRange size=48 align=8 refs=[]
@@ -14802,7 +14802,7 @@ Module
   layout InheritedHost.Companion size=24 align=8 refs=[]
   layout InterfaceHost.Provider size=16 align=8 refs=[]
   layout ObjectHost.NestedCompanion size=16 align=8 refs=[]
-  layout Box$I32 size=24 align=8 refs=[]
+  layout Box size=24 align=8 refs=[]
   entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==

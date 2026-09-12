@@ -211,14 +211,7 @@ impl Lowerer {
             abi_params.extend(params);
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
-            let link_stem = self.local_callable_link_stem(
-                self.current_file,
-                crate::globals::LocalCallableScope::SourceLocal,
-                &self.current_fn_name,
-                crate::globals::LocalCallableLinkRole::AnonymousFunction(function_number),
-            );
             let function = self.functions.alloc(hir::Function {
-                link_stem,
                 name: self.current_fn_name.clone(),
                 access,
                 override_access: Vec::new(),

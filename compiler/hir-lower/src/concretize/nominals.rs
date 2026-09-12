@@ -58,8 +58,7 @@ impl Concretizer<'_> {
         }
         let source = self.source.structs[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
-        let declaration_name = self.source_nominal_name(&source.name, source.owner);
-        let name = self.instance_name(&declaration_name, &arguments);
+        let name = self.source_nominal_name(&source.name, source.owner);
         let representation = match (&source.representation, application) {
             (
                 export::StructRepresentation::Declared(_),
@@ -110,7 +109,6 @@ impl Concretizer<'_> {
         let allocated = self.structs.alloc(concrete::StructDef {
             origin: self.source.nominal_identities[source_id].clone(),
             canonical_type: ty,
-            link_stem: source.link_stem.clone(),
             name,
             owner: self.lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
@@ -275,8 +273,7 @@ impl Concretizer<'_> {
         }
         let source = self.source.enums[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
-        let declaration_name = self.source_nominal_name(&source.name, source.owner);
-        let name = self.instance_name(&declaration_name, &arguments);
+        let name = self.source_nominal_name(&source.name, source.owner);
         let id = concrete::EnumId::from_raw(
             u32::try_from(self.enums.len())
                 .expect("concrete enum ids fit in u32")
@@ -286,7 +283,6 @@ impl Concretizer<'_> {
         let allocated = self.enums.alloc(concrete::EnumDef {
             origin: self.source.nominal_identities[source_id].clone(),
             canonical_type: ty,
-            link_stem: source.link_stem.clone(),
             name,
             owner: self.lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
@@ -354,8 +350,7 @@ impl Concretizer<'_> {
         }
         let source = self.source.interfaces[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
-        let declaration_name = self.source_nominal_name(&source.name, source.owner);
-        let name = self.instance_name(&declaration_name, &arguments);
+        let name = self.source_nominal_name(&source.name, source.owner);
         let id = concrete::InterfaceId::from_raw(
             u32::try_from(self.interfaces.len())
                 .expect("concrete interface ids fit in u32")
@@ -365,7 +360,6 @@ impl Concretizer<'_> {
         let allocated = self.interfaces.alloc(concrete::InterfaceDef {
             origin: self.source.nominal_identities[source_id].clone(),
             canonical_type: ty,
-            link_stem: source.link_stem.clone(),
             name,
             owner: self.lower_nominal_owner(source.owner),
             family: concrete::InterfaceFamilyId::from_raw(source_id.into_raw().into_u32()),
@@ -509,104 +503,6 @@ impl Concretizer<'_> {
         );
         for parent in declaration.parents {
             self.collect_interface_method_instances(parent, &arguments, seen, out);
-        }
-    }
-
-    pub(super) fn instance_name(&self, base: &str, arguments: &[concrete::TypeId]) -> String {
-        if arguments.is_empty() {
-            base.to_string()
-        } else {
-            let arguments = arguments
-                .iter()
-                .map(|argument| self.encode_type(*argument))
-                .collect::<Vec<_>>()
-                .join("_");
-            format!("{base}${arguments}")
-        }
-    }
-
-    pub(super) fn encode_type(&self, ty: concrete::TypeId) -> String {
-        match &self.types[ty].kind {
-            concrete::TypeKind::Unit => "U".to_string(),
-            concrete::TypeKind::Integer(kind) => match *kind {
-                export::IntegerKind::SIGNED_8 => "I8".to_string(),
-                export::IntegerKind::SIGNED_16 => "I16".to_string(),
-                export::IntegerKind::SIGNED_32 => "I32".to_string(),
-                export::IntegerKind::SIGNED_64 => "I64".to_string(),
-                export::IntegerKind::UNSIGNED_8 => "V8".to_string(),
-                export::IntegerKind::UNSIGNED_16 => "V16".to_string(),
-                export::IntegerKind::UNSIGNED_32 => "V32".to_string(),
-                export::IntegerKind::UNSIGNED_64 => "V64".to_string(),
-            },
-            concrete::TypeKind::Boolean => "B".to_string(),
-            concrete::TypeKind::String => "S".to_string(),
-            concrete::TypeKind::Struct(id) => {
-                let name = &self.structs[*id].name;
-                format!("D{}_{}X", name.len(), name)
-            }
-            concrete::TypeKind::Class(id) => match &self.classes[*id].representation {
-                concrete::ClassRepresentation::Intrinsic {
-                    application: concrete::IntrinsicTypeRepresentation::Array { element },
-                    ..
-                } => format!("A{}X", self.encode_type(*element)),
-                concrete::ClassRepresentation::Intrinsic {
-                    application: concrete::IntrinsicTypeRepresentation::MutableArray { element },
-                    ..
-                } => format!("M{}X", self.encode_type(*element)),
-                concrete::ClassRepresentation::Declared { .. }
-                | concrete::ClassRepresentation::Intrinsic {
-                    application: concrete::IntrinsicTypeRepresentation::String,
-                    ..
-                } => {
-                    let name = &self.classes[*id].name;
-                    format!("C{}_{}X", name.len(), name)
-                }
-                concrete::ClassRepresentation::Intrinsic { .. } => {
-                    unreachable!("the intrinsic registry fixes declaration targets")
-                }
-            },
-            concrete::TypeKind::Interface(id) => {
-                let name = &self.interfaces[*id].name;
-                format!("J{}_{}X", name.len(), name)
-            }
-            concrete::TypeKind::Any => "Any".to_string(),
-            concrete::TypeKind::Tuple(elements) => format!(
-                "T{}X",
-                elements
-                    .iter()
-                    .map(|element| self.encode_type(*element))
-                    .collect::<Vec<_>>()
-                    .join("_")
-            ),
-            concrete::TypeKind::Function(id) => {
-                let function = &self.function_types[*id];
-                let kind = if function.is_suspend { "S" } else { "F" };
-                let parameters = function
-                    .parameter_types
-                    .iter()
-                    .map(|ty| self.encode_type(*ty))
-                    .collect::<Vec<_>>()
-                    .join("_");
-                format!(
-                    "{kind}{parameters}R{}X",
-                    self.encode_type(function.return_type)
-                )
-            }
-            concrete::TypeKind::Ptr(pointee) => format!("P{}X", self.encode_type(*pointee)),
-            concrete::TypeKind::FunPtr(id) => {
-                let function = &self.function_types[*id];
-                let parameters = function
-                    .parameter_types
-                    .iter()
-                    .map(|ty| self.encode_type(*ty))
-                    .collect::<Vec<_>>()
-                    .join("_");
-                format!("N{parameters}R{}X", self.encode_type(function.return_type))
-            }
-            concrete::TypeKind::Enum(id) => {
-                let name = &self.enums[*id].name;
-                format!("E{}_{}X", name.len(), name)
-            }
         }
     }
 }

@@ -53,7 +53,7 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
         .local
         .classes
         .iter()
-        .filter(|(_, declaration)| declaration.name.starts_with("Box$"))
+        .filter(|(_, declaration)| declaration.name == "Box")
         .map(|(_, declaration)| declaration)
         .collect::<Vec<_>>();
     instances.sort_by(|left, right| left.name.cmp(&right.name));
@@ -268,10 +268,10 @@ fn generic_class_base_application_and_delegation_keep_typed_sources() {
         .local
         .classes
         .iter()
-        .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
+        .find(|(_, declaration)| declaration.name == "Derived")
         .expect("Derived<Int> specialization");
     let base = derived.base_class().expect("typed concrete base");
-    assert!(output.local.classes[base].name.starts_with("Base$"));
+    assert_eq!(output.local.classes[base].name, "Base");
     let constructor = output
         .local
         .class_constructors
@@ -370,7 +370,7 @@ fn generic_base_substitution_preserves_nested_application_identity() {
         .local
         .classes
         .iter()
-        .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
+        .find(|(_, declaration)| declaration.name == "Derived")
         .expect("Derived<Int> specialization")
         .1;
     let base = derived.base_class().expect("specialized base");
@@ -378,7 +378,7 @@ fn generic_base_substitution_preserves_nested_application_identity() {
     let hir::concrete::TypeKind::Struct(wrapper) = output.local.types[base_argument].kind else {
         panic!("Base argument must be the concrete Wrapper<Int> identity")
     };
-    assert!(output.local.structs[wrapper].name.starts_with("Wrapper$"));
+    assert_eq!(output.local.structs[wrapper].name, "Wrapper");
     assert!(matches!(
         output.local.types[output.local.structs[wrapper].type_arguments[0]].kind,
         hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)

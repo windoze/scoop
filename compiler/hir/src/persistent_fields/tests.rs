@@ -9,8 +9,8 @@ use super::*;
 use crate::{
     ClassApplicationId, ClassModifier, ClassRepresentation, DeclarationAccess, EnumDecl,
     HirNominalIdentity, HirPropertyIdentity, InterfaceDecl, MethodModifier, NominalAccess,
-    NominalLinkStem, PropertyCapability, PropertyGetterId, StoredProperty, StructApplicationId,
-    StructAttributes, StructRepresentation, TypeId,
+    PropertyCapability, PropertyGetterId, StoredProperty, StructApplicationId, StructAttributes,
+    StructRepresentation, TypeId,
 };
 
 fn source_key(name: &str, kind: SourceNominalKind) -> SourceDeclarationKey {
@@ -30,7 +30,6 @@ fn source_key(name: &str, kind: SourceNominalKind) -> SourceDeclarationKey {
 
 fn structure(name: &str, fields: &[&str]) -> StructDecl {
     StructDecl {
-        link_stem: NominalLinkStem::from_session_local_encoding(name.to_string()),
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),
@@ -60,7 +59,6 @@ fn structure(name: &str, fields: &[&str]) -> StructDecl {
 fn class(name: &str, fields: Vec<ClassFieldId>, properties: Vec<PropertyId>) -> ClassDecl {
     ClassDecl {
         modifier: ClassModifier::Final,
-        link_stem: NominalLinkStem::from_session_local_encoding(name.to_string()),
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),

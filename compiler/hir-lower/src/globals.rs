@@ -14,13 +14,7 @@ use crate::{
 
 mod consts;
 mod delegates;
-mod link_identity;
 mod static_initializers;
-
-pub(crate) use link_identity::{
-    LocalCallableLinkRole, LocalCallableReceiver, LocalCallableScope, LocalLinkRole,
-    LocalNominalLinkRole, TopLevelCallableScope,
-};
 
 pub(crate) use consts::{evaluate_hir_integer_constant, integer_wrapping_neg};
 
@@ -335,13 +329,7 @@ impl Lowerer {
             };
             let expected_property = self.next_property_id();
             let id = self.globals.alloc(hir::Global {
-                name: self.local_link_component(
-                    file_index,
-                    None,
-                    &decl.name.text,
-                    access.declared == hir::DeclaredVisibility::Private,
-                    LocalLinkRole::GlobalStorage,
-                ),
+                name: decl.name.text.clone(),
                 property: expected_property,
                 ty,
                 mutable: decl.mutable,
@@ -578,13 +566,7 @@ impl Lowerer {
             return;
         };
         let global = self.globals.alloc(hir::Global {
-            name: self.local_link_component(
-                declaration.file,
-                None,
-                &declaration.declaration.name.text,
-                declaration.access.declared == hir::DeclaredVisibility::Private,
-                LocalLinkRole::GlobalStorage,
-            ),
+            name: declaration.declaration.name.text.clone(),
             property: expected_property,
             ty: declaration.ty,
             mutable: declaration.declaration.mutable,
@@ -640,7 +622,6 @@ impl Lowerer {
             declaration.declaration.span,
             declaration.file,
         );
-        let stable_key = self.top_level_initialization_key(declaration);
         let display_name = self.initialization_property_display_name(
             declaration.file,
             hir::PropertyOwner::TopLevel,
@@ -648,7 +629,6 @@ impl Lowerer {
             &declaration.declaration.name.text,
         );
         let unit = self.initialization_units.alloc(hir::InitializationUnit {
-            stable_key,
             display_name,
             schedule: hir::InitializationSchedule::EagerStartup,
             kind: hir::InitializationUnitKind::EagerTopLevel {
@@ -677,13 +657,7 @@ impl Lowerer {
             return;
         };
         let global = self.globals.alloc(hir::Global {
-            name: self.local_link_component(
-                declaration.file,
-                None,
-                &declaration.declaration.name.text,
-                declaration.access.declared == hir::DeclaredVisibility::Private,
-                LocalLinkRole::GlobalStorage,
-            ),
+            name: declaration.declaration.name.text.clone(),
             property: expected_property,
             ty: declaration.ty,
             mutable: declaration.declaration.mutable,
@@ -736,70 +710,41 @@ impl Lowerer {
         span: ast::Span,
         file: usize,
     ) -> (hir::FunctionId, hir::FunctionId) {
-        let allocate =
-            |this: &mut Self, display_role: &str, role: crate::globals::LocalCallableLinkRole| {
-                let link_stem = this.local_callable_link_stem(
-                    file,
-                    crate::globals::LocalCallableScope::SourceLocal,
-                    &unit.into_raw().to_string(),
-                    role,
-                );
-                let function = this.functions.alloc(Function {
-                    link_stem,
-                    name: format!("$init${display_role}${}", unit.into_raw()),
-                    access: this.local_declaration_access(),
-                    override_access: Vec::new(),
-                    genericity: hir::FunctionGenericity::Plain,
+        let allocate = |this: &mut Self, display_role: &str| {
+            let function = this.functions.alloc(Function {
+                name: format!("$init${display_role}${}", unit.into_raw()),
+                access: this.local_declaration_access(),
+                override_access: Vec::new(),
+                genericity: hir::FunctionGenericity::Plain,
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: this.unit,
+                attributes: hir::FunctionAttributes::default(),
+                kind: FunctionKind::User(hir::Body {
+                    locals: la_arena::Arena::new(),
+                    statements: Vec::new(),
+                }),
+                method: None,
+                span,
+            });
+            this.function_files.insert(function, file);
+            this.signatures.insert(
+                function,
+                FnSig {
                     is_suspend: false,
                     modifiers: hir::CallableModifiers::default(),
+                    attributes: hir::FunctionAttributes::default(),
+                    owner_type_param_count: 0,
+                    type_params: Vec::new(),
                     params: Vec::new(),
                     return_ty: this.unit,
-                    attributes: hir::FunctionAttributes::default(),
-                    kind: FunctionKind::User(hir::Body {
-                        locals: la_arena::Arena::new(),
-                        statements: Vec::new(),
-                    }),
-                    method: None,
-                    span,
-                });
-                this.function_files.insert(function, file);
-                this.signatures.insert(
-                    function,
-                    FnSig {
-                        is_suspend: false,
-                        modifiers: hir::CallableModifiers::default(),
-                        attributes: hir::FunctionAttributes::default(),
-                        owner_type_param_count: 0,
-                        type_params: Vec::new(),
-                        params: Vec::new(),
-                        return_ty: this.unit,
-                    },
-                );
-                this.top_level.push(function);
-                function
-            };
-        (
-            allocate(
-                self,
-                "body",
-                crate::globals::LocalCallableLinkRole::InitializationBody,
-            ),
-            allocate(
-                self,
-                "ensure",
-                crate::globals::LocalCallableLinkRole::InitializationEnsure,
-            ),
-        )
-    }
-
-    fn top_level_initialization_key(&self, declaration: &PendingOrdinary<'_>) -> String {
-        self.local_link_component(
-            declaration.file,
-            None,
-            &declaration.declaration.name.text,
-            declaration.access.declared == hir::DeclaredVisibility::Private,
-            LocalLinkRole::TopLevelInitialization,
-        )
+                },
+            );
+            this.top_level.push(function);
+            function
+        };
+        (allocate(self, "body"), allocate(self, "ensure"))
     }
 
     pub(crate) fn lower_runtime_top_level_initializers(&mut self) {
@@ -1228,7 +1173,6 @@ impl Lowerer {
                     file_index,
                     access,
                     extension,
-                    receiver_ty,
                     property_ty,
                 )
             } else {

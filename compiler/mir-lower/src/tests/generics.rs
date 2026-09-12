@@ -168,10 +168,9 @@ fn generic_structs_instantiate_per_argument_list() {
     );
     let module = lower(&h.finish(main));
 
-    // One instance per (struct, args): `PinnedPtr$V32` once,
-    // `PinnedPtr$S` once despite two uses, `Box2$S` once — named
-    // like the enum instances. Generic definitions themselves do
-    // not survive into MIR: MIR contains no generic types.
+    // One instance per typed argument list. The source declaration name is
+    // display-only; concrete arguments, not an encoded name, distinguish the
+    // two PinnedPtr instances.
     let defs = |name: &str| {
         module
             .structs
@@ -180,20 +179,30 @@ fn generic_structs_instantiate_per_argument_list() {
             .map(|(_, def)| def)
             .collect::<Vec<_>>()
     };
-    assert!(defs("PinnedPtr").is_empty());
-    assert!(defs("Box2").is_empty());
-    assert_eq!(defs("PinnedPtr$V32").len(), 1);
+    let pinned = defs("PinnedPtr");
+    assert_eq!(pinned.len(), 2);
+    let pinned_uint = pinned
+        .iter()
+        .find(|definition| {
+            definition.type_arguments == [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+        })
+        .expect("PinnedPtr<UInt>");
     assert_eq!(
-        defs("PinnedPtr$V32")[0].declared_fields()[0].ty,
+        pinned_uint.declared_fields()[0].ty,
         mir::Type::Integer(mir::IntegerKind::UNSIGNED_64)
     );
-    assert!(defs("PinnedPtr$V32")[0].gc_free);
-    assert_eq!(defs("PinnedPtr$S").len(), 1);
-    assert!(defs("PinnedPtr$S")[0].gc_free);
-    assert_eq!(defs("Box2$S").len(), 1);
+    assert!(pinned_uint.gc_free);
+    let pinned_string = pinned
+        .iter()
+        .find(|definition| definition.type_arguments == [mir::Type::String])
+        .expect("PinnedPtr<String>");
+    assert!(pinned_string.gc_free);
+    let box2 = defs("Box2");
+    assert_eq!(box2.len(), 1);
+    assert_eq!(box2[0].type_arguments, [mir::Type::String]);
     // Field substitution: `Box2<String>`'s `x` is `String`.
-    assert_eq!(defs("Box2$S")[0].declared_fields()[0].ty, mir::Type::String);
-    assert!(!defs("Box2$S")[0].gc_free);
+    assert_eq!(box2[0].declared_fields()[0].ty, mir::Type::String);
+    assert!(!box2[0].gc_free);
 
     // Locals and StructInits resolve to the instances.
     let body = &module.functions[module.entry].body;
@@ -201,7 +210,7 @@ fn generic_structs_instantiate_per_argument_list() {
         let mir::Type::Struct(id) = &body.locals[local].ty else {
             panic!("a struct local")
         };
-        module.structs[*id].name.as_str()
+        &module.structs[*id]
     };
     let (first_constructor, la) = statement_call(&entry_statements(body)[0]);
     let (_, lb) = statement_call(&entry_statements(body)[1]);
@@ -213,10 +222,17 @@ fn generic_structs_instantiate_per_argument_list() {
         lc.expect("struct constructor returns its value"),
         ld.expect("struct constructor returns its value"),
     );
-    assert_eq!(instance_of(la), "PinnedPtr$V32");
-    assert_eq!(instance_of(lb), "PinnedPtr$S");
-    assert_eq!(instance_of(lc), "PinnedPtr$S");
-    assert_eq!(instance_of(ld), "Box2$S");
+    assert_eq!(instance_of(la).name, "PinnedPtr");
+    assert_eq!(
+        instance_of(la).type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
+    assert_eq!(instance_of(lb).name, "PinnedPtr");
+    assert_eq!(instance_of(lb).type_arguments, [mir::Type::String]);
+    assert_eq!(instance_of(lc).name, "PinnedPtr");
+    assert_eq!(instance_of(lc).type_arguments, [mir::Type::String]);
+    assert_eq!(instance_of(ld).name, "Box2");
+    assert_eq!(instance_of(ld).type_arguments, [mir::Type::String]);
     let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
         panic!("a struct constructor is a direct user function")
     };
@@ -271,7 +287,11 @@ fn generic_structs_instantiate_per_argument_list() {
     else {
         panic!("a primary struct constructor returns a StructInit")
     };
-    assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V32");
+    assert_eq!(module.structs[*struct_id].name, "PinnedPtr");
+    assert_eq!(
+        module.structs[*struct_id].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
 }
 
 #[test]
@@ -317,12 +337,17 @@ fn generic_interface_applications_get_distinct_mir_identities() {
     );
     let module = lower(&h.finish(main));
 
-    let names: Vec<_> = module
+    let channels = module
         .interfaces
         .iter()
-        .map(|(_, interface)| interface.name.as_str())
-        .collect();
-    assert_eq!(names, ["Channel$I32", "Channel$S"]);
+        .filter_map(|(_, interface)| (interface.name == "Channel").then_some(interface))
+        .collect::<Vec<_>>();
+    assert_eq!(channels.len(), 2);
+    assert_eq!(
+        channels[0].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
+    assert_eq!(channels[1].type_arguments, [mir::Type::String]);
     let class_interfaces: Vec<_> = module
         .classes
         .iter()
@@ -372,20 +397,34 @@ fn generic_interface_signature_types_follow_typed_interface_order() {
     );
     let module = lower(&h.finish(main));
 
-    let source_names = module
+    let sources = module
         .interfaces
         .iter()
-        .map(|(_, interface)| interface.name.as_str())
-        .filter(|name| name.starts_with("Source$"))
+        .filter_map(|(_, interface)| (interface.name == "Source").then_some(interface))
         .collect::<Vec<_>>();
-    assert_eq!(source_names, ["Source$I32", "Source$V32"]);
-    let option_names = module
+    assert_eq!(sources.len(), 2);
+    assert_eq!(
+        sources[0].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
+    assert_eq!(
+        sources[1].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
+    let options = module
         .enums
         .iter()
-        .map(|(_, enumeration)| enumeration.name.as_str())
-        .filter(|name| matches!(*name, "Option$I32" | "Option$V32"))
+        .filter_map(|(_, enumeration)| (enumeration.name == "Option").then_some(enumeration))
         .collect::<Vec<_>>();
-    assert_eq!(option_names, ["Option$I32", "Option$V32"]);
+    assert_eq!(options.len(), 2);
+    assert_eq!(
+        options[0].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
+    assert_eq!(
+        options[1].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
 }
 
 #[test]

@@ -297,19 +297,6 @@ fn top_level_and_extension_delegates_own_eager_managed_storage() {
 
     assert_eq!(module.delegate_storages.len(), 2);
     assert_eq!(module.initialization_units.len(), 2);
-    let mut stable_keys = module
-        .initialization_units
-        .iter()
-        .map(|(_, unit)| unit.stable_key.as_str())
-        .collect::<Vec<_>>();
-    stable_keys.sort_unstable();
-    assert_eq!(
-        stable_keys,
-        [
-            "$local$u0:p0:r9:extensiont6:v3:Intn6:shared",
-            "$local$u0:p0:r9:top-leveln6:number"
-        ]
-    );
     let mut display_names = module
         .initialization_units
         .iter()

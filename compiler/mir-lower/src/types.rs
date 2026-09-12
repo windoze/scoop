@@ -256,7 +256,8 @@ impl Types<'_> {
 }
 
 /// Concrete enum definitions, transposed once from distinct local-concrete
-/// HIR identities (`Option$I`, or a plain non-generic name).
+/// HIR identities. Generic applications remain distinct through their typed
+/// arguments; the declaration name is display-only.
 #[derive(Default)]
 pub(super) struct EnumRegistry {
     pub(super) defs: Arena<mir::EnumDef>,

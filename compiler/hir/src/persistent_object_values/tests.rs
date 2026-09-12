@@ -8,8 +8,8 @@ use scoop_identity::{
 use super::*;
 use crate::{
     ClassApplicationId, ClassDecl, ClassId, EnumDecl, HirNominalIdentity, InitializationUnitId,
-    InterfaceDecl, NominalAccess, NominalLinkStem, ObjectKind, ObjectTypeId,
-    SingletonPublishedRootId, StructDecl, TypeId,
+    InterfaceDecl, NominalAccess, ObjectKind, ObjectTypeId, SingletonPublishedRootId, StructDecl,
+    TypeId,
 };
 
 fn object_key() -> SourceDeclarationKey {
@@ -29,7 +29,6 @@ fn object_key() -> SourceDeclarationKey {
 
 fn object_declaration() -> ObjectDecl {
     ObjectDecl {
-        link_stem: NominalLinkStem::from_session_local_encoding("Registry".to_string()),
         name: "Registry".to_string(),
         owner: None,
         access: NominalAccess::public(),

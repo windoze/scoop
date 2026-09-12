@@ -289,17 +289,17 @@ fn nested_generic_calls_extend_the_worklist() {
         },
     );
     // The nested request is parameterized in export HIR's list;
-    // local-concrete HIR resolves it while materializing forward$I32.
+    // local-concrete HIR resolves it while materializing forward<Int>.
     let module = lower(&h.finish(main));
 
-    // main, forward$I32, then inner$I32 (discovered via the worklist).
+    // main, forward<Int>, then inner<Int> (discovered via the worklist).
     assert_eq!(module.top_level.len(), 3);
     let forward_i = &module.functions[module.top_level[1]];
     let inner_i = &module.functions[module.top_level[2]];
     assert_eq!(forward_i.name, "forward");
     assert_eq!(inner_i.name, "inner");
     let (call, destination) = statement_call(&entry_statements(&forward_i.body)[0]);
-    let destination = destination.expect("inner$I32 returns Int");
+    let destination = destination.expect("inner<Int> returns Int");
     assert_eq!(
         call.target.callee,
         mir::Callee::Monomorphized(instance_id(&module, module.top_level[2]))
@@ -347,7 +347,11 @@ fn instance_identities_and_types_preserve_enum_and_tuple_arguments() {
     let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {
         panic!("the Option<Int> instance parameter must be an enum type")
     };
-    assert_eq!(module.enums[*enum_id].name, "Option$I32");
+    assert_eq!(module.enums[*enum_id].name, "Option");
+    assert_eq!(
+        module.enums[*enum_id].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
     assert_eq!(
         args.as_slice(),
         &[mir::Type::Integer(mir::IntegerKind::SIGNED_32)]

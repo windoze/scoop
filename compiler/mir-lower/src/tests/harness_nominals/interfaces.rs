@@ -14,7 +14,6 @@ impl Harness {
         );
         let interface = self.interfaces.alloc(hir::InterfaceDecl {
             owner: None,
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             self_application,
@@ -50,7 +49,6 @@ impl Harness {
             params.push(param(&source.name, source.ty, local));
         }
         let function = self.functions.alloc(hir::Function {
-            link_stem: callable_link_stem(format!("{}.{}", declaration.name, method.name)),
             name: format!("{}.{}", declaration.name, method.name),
             access: hir::DeclarationAccess::public(),
             override_access: Vec::new(),

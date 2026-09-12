@@ -149,7 +149,6 @@ impl Harness {
         let class = self.classes.alloc(hir::ClassDecl {
             owner: None,
             modifier,
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             self_application,

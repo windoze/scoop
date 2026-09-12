@@ -330,7 +330,6 @@ impl Concretizer<'_> {
                     })
                     .collect();
                 let value = PendingFunction {
-                    link_stem: source_function.link_stem.clone(),
                     name: format!("$derived.equals.{}", source.into_raw().into_u32()),
                     is_suspend: false,
                     modifiers: export::CallableModifiers {

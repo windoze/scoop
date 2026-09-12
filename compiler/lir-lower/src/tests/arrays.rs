@@ -198,12 +198,12 @@ fn array_assembly_becomes_one_typed_allocation_instruction() {
 #[test]
 fn array_layouts_mark_reference_elements() {
     let mut b = Builder::new();
-    let option_s = b.option_enum("Option$S", mir::Type::String);
+    let option_s = b.option_enum("Option<String>", mir::Type::String);
     let point = b.strukt("Point", &[("x", INT), ("y", INT)]);
     let option_string = mir::Type::Enum(option_s, vec![mir::Type::String]);
     let array_int = b.array("Array<Int>", INT);
     let array_string = b.array("Array<String>", mir::Type::String);
-    let array_option = b.array("Array<Option$S<String>>", option_string);
+    let array_option = b.array("Array<Option<String>>", option_string);
     let array_point = b.array("Array<Point>", mir::Type::Struct(point));
     let array_nested = b.array("Array<Array<Int>>", array_int.clone());
     let mut locals = Arena::new();
@@ -234,7 +234,7 @@ fn array_layouts_mark_reference_elements() {
     // Option<String> uses the niche representation — a bare
     // pointer, hence a reference element.
     assert_eq!(
-        array_layout("Array<Option$S<String>>"),
+        array_layout("Array<Option<String>>"),
         (8, 8, lir::RefScan::References(vec![0]))
     );
     // A value-type element is inline: the Point stride.

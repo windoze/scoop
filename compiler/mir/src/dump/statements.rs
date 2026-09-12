@@ -58,7 +58,7 @@ pub(super) fn dump_statements(
             } => {
                 out.push_str(&format!(
                     "{pad}array_set {}\n",
-                    module.classes[*array_type].name
+                    type_name(module, &Type::Class(*array_type))
                 ));
                 dump_expr(module, locals, array, indent + 1, out);
                 dump_expr(module, locals, index, indent + 1, out);

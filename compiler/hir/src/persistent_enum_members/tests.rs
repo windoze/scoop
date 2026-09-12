@@ -9,7 +9,7 @@ use scoop_identity::{
 use super::*;
 use crate::{
     ClassDecl, EnumApplicationId, EnumDecl, Field, HirNominalIdentities, HirNominalIdentity,
-    InterfaceDecl, NominalAccess, NominalLinkStem, ObjectDecl, StructDecl, Variant,
+    InterfaceDecl, NominalAccess, ObjectDecl, StructDecl, Variant,
 };
 
 fn enum_key(name: &str) -> SourceDeclarationKey {
@@ -29,7 +29,6 @@ fn enum_key(name: &str) -> SourceDeclarationKey {
 
 fn enum_declaration() -> EnumDecl {
     EnumDecl {
-        link_stem: NominalLinkStem::from_session_local_encoding("Choice".to_string()),
         name: "Choice".to_string(),
         owner: None,
         access: NominalAccess::public(),

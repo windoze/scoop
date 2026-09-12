@@ -31,7 +31,7 @@ pub(super) fn dump_expr(
         ExprKind::InitializationUnitAddress(unit) => out.push_str(&format!(
             "{pad}InitializationUnitAddress init{} {}\n",
             unit.into_raw().into_u32(),
-            module.initialization_units[*unit].stable_key
+            module.initialization_units[*unit].display_name
         )),
         ExprKind::TupleLiteral(elements) => {
             out.push_str(&format!("{pad}TupleLiteral\n"));
@@ -41,7 +41,7 @@ pub(super) fn dump_expr(
         }
         ExprKind::ClassAlloc { class_id } => out.push_str(&format!(
             "{pad}ClassAlloc {}\n",
-            module.classes[*class_id].name
+            type_name(module, &Type::Class(*class_id))
         )),
         ExprKind::ClosureAlloc { class, captures } => {
             out.push_str(&format!(
@@ -72,7 +72,7 @@ pub(super) fn dump_expr(
         ExprKind::StructInit { struct_id, args } => {
             out.push_str(&format!(
                 "{pad}StructInit {}\n",
-                module.structs[*struct_id].name
+                type_name(module, &Type::Struct(*struct_id))
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
@@ -81,7 +81,7 @@ pub(super) fn dump_expr(
         ExprKind::StructConstruct { struct_id, fields } => {
             out.push_str(&format!(
                 "{pad}StructConstruct {}\n",
-                module.structs[*struct_id].name
+                type_name(module, &Type::Struct(*struct_id))
             ));
             for field in fields {
                 dump_expr(module, locals, field, indent + 1, out);
@@ -246,7 +246,7 @@ pub(super) fn dump_expr(
         } => {
             out.push_str(&format!(
                 "{pad}ArrayLiteral {}\n",
-                module.classes[*array_type].name
+                type_name(module, &Type::Class(*array_type))
             ));
             for element in elements {
                 dump_expr(module, locals, element, indent + 1, out);
@@ -255,7 +255,7 @@ pub(super) fn dump_expr(
         ExprKind::ArrayAssembly { array_type, parts } => {
             out.push_str(&format!(
                 "{pad}ArrayAssembly {}\n",
-                module.classes[*array_type].name
+                type_name(module, &Type::Class(*array_type))
             ));
             for part in parts {
                 match part {
@@ -277,7 +277,7 @@ pub(super) fn dump_expr(
         } => {
             out.push_str(&format!(
                 "{pad}ArrayGet {}\n",
-                module.classes[*array_type].name
+                type_name(module, &Type::Class(*array_type))
             ));
             dump_expr(module, locals, array, indent + 1, out);
             dump_expr(module, locals, index, indent + 1, out);
@@ -288,7 +288,7 @@ pub(super) fn dump_expr(
         } => {
             out.push_str(&format!(
                 "{pad}ArrayLen {}\n",
-                module.classes[*array_type].name
+                type_name(module, &Type::Class(*array_type))
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
@@ -299,7 +299,8 @@ pub(super) fn dump_expr(
         } => {
             out.push_str(&format!(
                 "{pad}ArrayClone {} -> {}\n",
-                module.classes[*source_type].name, module.classes[*target_type].name
+                type_name(module, &Type::Class(*source_type)),
+                type_name(module, &Type::Class(*target_type))
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
@@ -422,7 +423,7 @@ pub(super) fn dump_expr(
         ExprKind::VariantTest { operand, variant } => {
             out.push_str(&format!(
                 "{pad}VariantTest {} v{}\n",
-                module.enums[variant.enum_id()].name,
+                type_name(module, &operand.ty),
                 variant.variant_index()
             ));
             dump_expr(module, locals, operand, indent + 1, out);
@@ -431,7 +432,7 @@ pub(super) fn dump_expr(
             let variant = field.variant();
             out.push_str(&format!(
                 "{pad}VariantPayloadProject {} v{} f{}\n",
-                module.enums[variant.enum_id()].name,
+                type_name(module, &operand.ty),
                 variant.variant_index(),
                 field.field_index()
             ));
@@ -477,7 +478,10 @@ pub(super) fn dump_call(
         CallKind::Direct => "direct".to_string(),
         CallKind::Virtual { slot } => format!("virtual[{slot}]"),
         CallKind::Interface { interface, slot } => {
-            format!("interface {}[{slot}]", module.interfaces[*interface].name)
+            format!(
+                "interface {}[{slot}]",
+                type_name(module, &Type::Interface(*interface))
+            )
         }
         CallKind::Closure { function_type } => {
             format!(

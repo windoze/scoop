@@ -58,8 +58,8 @@ fn generic_iterator_bound_concretizes_value_and_reference_results() {
     for (_, function) in output.local.functions.iter().filter(|(_, function)| {
         function.name == "consume"
             && matches!(
-                &function.emission,
-                hir::concrete::FunctionEmission::Materialized { .. }
+                function.materialization.context(),
+                hir::concrete::CallableMaterializationContext::Application(_)
             )
     }) {
         let hir::concrete::FunctionKind::User(body) = &function.kind else {
@@ -166,8 +166,8 @@ fn generic_iteration_concretization_keeps_the_export_selected_winner() {
         .find_map(|(_, function)| {
             (function.name == "consume"
                 && matches!(
-                    &function.emission,
-                    hir::concrete::FunctionEmission::Materialized { .. }
+                    function.materialization.context(),
+                    hir::concrete::CallableMaterializationContext::Application(_)
                 ))
             .then_some(function)
         })

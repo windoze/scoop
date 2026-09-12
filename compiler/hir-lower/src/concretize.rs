@@ -4,7 +4,7 @@
 //! the fixed-point instantiation closure and emits a distinct id domain for
 //! MIR.  MIR never receives the export graph.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use la_arena::Arena;
 use scoop_hir as export;
@@ -137,7 +137,6 @@ struct Concretizer<'a> {
         HashMap<(export::DerivedEqualityApplicationId, concrete::TypeId), concrete::FunctionId>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId)>,
     emitted_functions: Vec<concrete::FunctionId>,
-    overloaded_generic_link_stems: HashSet<export::CallableLinkStem>,
     lambdas: Arena<concrete::Lambda>,
     lambda_by_key: HashMap<(export::LambdaId, Vec<concrete::TypeId>), concrete::LambdaId>,
     anonymous_functions: Arena<concrete::AnonymousFunction>,
@@ -271,7 +270,6 @@ impl<'a> Concretizer<'a> {
             structural_derived_functions: HashMap::new(),
             pending_functions: VecDeque::new(),
             emitted_functions: Vec::new(),
-            overloaded_generic_link_stems: overloaded_generic_link_stems(source),
             lambdas: Arena::new(),
             lambda_by_key: HashMap::new(),
             anonymous_functions: Arena::new(),
@@ -353,7 +351,6 @@ impl<'a> Concretizer<'a> {
             assert_eq!(declaration.object_type.into_raw(), object_type.into_raw());
             let object = self.objects.alloc(concrete::ObjectDecl {
                 origin: self.source.nominal_identities[source_id].clone(),
-                link_stem: declaration.link_stem.clone(),
                 name: declaration.name.clone(),
                 owner: self.lower_nominal_owner(declaration.owner),
                 object_type,
@@ -393,7 +390,6 @@ impl<'a> Concretizer<'a> {
                 .alloc(concrete::SingletonPublishedRoot {
                     value: concrete::SingletonValueId::from_raw(source.value.into_raw()),
                     ty,
-                    link_name: source.link_name.clone(),
                 });
             assert_eq!(source_id.into_raw(), root.into_raw());
         }
@@ -522,7 +518,6 @@ impl<'a> Concretizer<'a> {
                 .initialization_units
                 .alloc(concrete::InitializationUnit {
                     identity: self.source.initialization_unit_identities[source_id].clone(),
-                    stable_key: source.stable_key.clone(),
                     display_name: source.display_name.clone(),
                     schedule: match source.schedule {
                         export::InitializationSchedule::EagerStartup => {
@@ -627,11 +622,8 @@ impl<'a> Concretizer<'a> {
             self.callable_reference_slots,
             identities.callable_reference_identities,
         );
-        let functions = finish_function_slots(
-            self.function_slots,
-            identities.function_materializations,
-            identities.function_emissions,
-        );
+        let functions =
+            finish_function_slots(self.function_slots, identities.function_materializations);
         let class_constructors = finish_class_constructor_slots(
             self.class_constructor_slots,
             identities.class_constructor_materializations,
@@ -820,35 +812,15 @@ fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
 fn finish_function_slots(
     slots: Vec<Option<PendingFunction>>,
     materializations: Vec<concrete::CallableMaterialization>,
-    emissions: Vec<concrete::FunctionEmission>,
 ) -> Arena<concrete::Function> {
     assert_eq!(slots.len(), materializations.len());
-    assert_eq!(slots.len(), emissions.len());
     let mut arena = Arena::new();
-    for (index, ((slot, materialization), emission)) in slots
-        .into_iter()
-        .zip(materializations)
-        .zip(emissions)
-        .enumerate()
-    {
+    for (index, (slot, materialization)) in slots.into_iter().zip(materializations).enumerate() {
         let pending = slot.unwrap_or_else(|| panic!("missing concrete function at index {index}"));
-        let id = arena.alloc(pending.finish(materialization, emission));
+        let id = arena.alloc(pending.finish(materialization));
         assert_eq!(id.into_raw().into_u32() as usize, index);
     }
     arena
-}
-
-fn overloaded_generic_link_stems(module: &export::Module) -> HashSet<export::CallableLinkStem> {
-    let mut counts = HashMap::<export::CallableLinkStem, usize>::new();
-    for (_, function) in module.functions.iter() {
-        if !matches!(function.genericity, export::FunctionGenericity::Plain) {
-            *counts.entry(function.link_stem.clone()).or_default() += 1;
-        }
-    }
-    counts
-        .into_iter()
-        .filter_map(|(name, count)| (count > 1).then_some(name))
-        .collect()
 }
 
 fn export_type_has_param(module: &export::Module, ty: export::TypeId) -> bool {

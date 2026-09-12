@@ -654,7 +654,6 @@ fn non_static_top_level_initializer_is_kept_out_of_image_storage() {
         panic!("runtime top-level property must own eager-top-level initialization")
     };
     assert_eq!(unit.schedule, hir::InitializationSchedule::EagerStartup);
-    assert_eq!(unit.stable_key, "$local$u0:p0:r9:top-leveln5:value");
     assert_eq!(unit.display_name, "top-level:value");
     assert!(unit.dependencies.is_empty());
     assert!(matches!(
@@ -732,12 +731,12 @@ fn direct_top_level_reads_form_typed_dependencies() {
     let (alpha_id, alpha) = module
         .initialization_units
         .iter()
-        .find(|(_, unit)| unit.stable_key == "$local$u0:p0:r9:top-leveln5:alpha")
+        .find(|(_, unit)| unit.display_name == "top-level:alpha")
         .expect("alpha unit");
     let (zed_id, zed) = module
         .initialization_units
         .iter()
-        .find(|(_, unit)| unit.stable_key == "$local$u0:p0:r9:top-leveln3:zed")
+        .find(|(_, unit)| unit.display_name == "top-level:zed")
         .expect("zed unit");
     assert_eq!(
         alpha

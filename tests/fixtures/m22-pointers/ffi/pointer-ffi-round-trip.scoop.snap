@@ -1186,12 +1186,12 @@ Module
   property70 var globalOptionalCell: Option<Ptr<NativeCell>> getter70=storage setter13=storage <native-storage global3>
   property71 var globalCallback: FunPtr<(Int) -> Int> getter71=storage setter14=storage <native-storage global4>
   property72 var globalOptionalCallback: Option<FunPtr<(Int) -> Int>> getter72=storage setter15=storage <native-storage global5>
-  var $local$u0:p0:r6:globaln12:globalOpaque: Ptr<Unit> <global0 extern symbol=m22_global_opaque lib=fixture_native>
-  var $local$u0:p0:r6:globaln10:globalCell: Ptr<NativeCell> <global1 extern symbol=m22_global_cell lib=fixture_native>
-  var $local$u0:p0:r6:globaln20:globalOptionalOpaque: Option<Ptr<Unit>> <global2 extern symbol=m22_global_optional_opaque lib=fixture_native>
-  var $local$u0:p0:r6:globaln18:globalOptionalCell: Option<Ptr<NativeCell>> <global3 extern symbol=m22_global_optional_cell lib=fixture_native>
-  var $local$u0:p0:r6:globaln14:globalCallback: FunPtr<(Int) -> Int> <global4 extern symbol=m22_global_callback lib=fixture_native>
-  var $local$u0:p0:r6:globaln22:globalOptionalCallback: Option<FunPtr<(Int) -> Int>> <global5 extern symbol=m22_global_optional_callback lib=fixture_native>
+  var globalOpaque: Ptr<Unit> <global0 extern symbol=m22_global_opaque lib=fixture_native>
+  var globalCell: Ptr<NativeCell> <global1 extern symbol=m22_global_cell lib=fixture_native>
+  var globalOptionalOpaque: Option<Ptr<Unit>> <global2 extern symbol=m22_global_optional_opaque lib=fixture_native>
+  var globalOptionalCell: Option<Ptr<NativeCell>> <global3 extern symbol=m22_global_optional_cell lib=fixture_native>
+  var globalCallback: FunPtr<(Int) -> Int> <global4 extern symbol=m22_global_callback lib=fixture_native>
+  var globalOptionalCallback: Option<FunPtr<(Int) -> Int>> <global5 extern symbol=m22_global_optional_callback lib=fixture_native>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -2102,7 +2102,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local235
-      GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque : Option<Ptr<Unit>>
+      GlobalRead globalOptionalOpaque : Option<Ptr<Unit>>
     val local236
       Local $argument.0 : Option<Ptr<Unit>>
     val local237
@@ -2113,7 +2113,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local239
-      GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell : Option<Ptr<NativeCell>>
+      GlobalRead globalOptionalCell : Option<Ptr<NativeCell>>
     val local240
       Local $argument.0 : Option<Ptr<NativeCell>>
     val local241
@@ -2124,7 +2124,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local243
-      GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
+      GlobalRead globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
     val local244
       Local $argument.0 : Option<FunPtr<(Int) -> Int>>
     val local245
@@ -2136,7 +2136,7 @@ Module
       Local $parameter.value : Boolean
     Call prepareGlobals : Unit
     val local247
-      GlobalRead $local$u0:p0:r6:globaln12:globalOpaque : Ptr<Unit>
+      GlobalRead globalOpaque : Ptr<Unit>
     val local248
       Unary Not : Boolean
         IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
@@ -2148,7 +2148,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local250
-      GlobalRead $local$u0:p0:r6:globaln12:globalOpaque : Ptr<Unit>
+      GlobalRead globalOpaque : Ptr<Unit>
     val local251
       Local $argument.0 : Ptr<Unit>
     val local252
@@ -2159,7 +2159,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local254
-      GlobalRead $local$u0:p0:r6:globaln10:globalCell : Ptr<NativeCell>
+      GlobalRead globalCell : Ptr<NativeCell>
     val local255
       Unary Not : Boolean
         IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
@@ -2171,7 +2171,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local257
-      GlobalRead $local$u0:p0:r6:globaln10:globalCell : Ptr<NativeCell>
+      GlobalRead globalCell : Ptr<NativeCell>
     val local258
       FieldAccess field 0 : Int
         PtrLoad : NativeCell
@@ -2181,10 +2181,10 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local260
-      GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque : Option<Ptr<Unit>>
+      GlobalRead globalOptionalOpaque : Option<Ptr<Unit>>
     val local261
       Unwrap trap=true : Ptr<Unit>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque : Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque : Option<Ptr<Unit>>
     val local262
       Local $argument.0 : Option<Ptr<Unit>>
     val local263
@@ -2199,7 +2199,7 @@ Module
       Local $parameter.value : Boolean
     val local266
       Unwrap trap=true : Ptr<Unit>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque : Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque : Option<Ptr<Unit>>
     val local267
       Local $argument.0 : Ptr<Unit>
     val local268
@@ -2210,10 +2210,10 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local270
-      GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell : Option<Ptr<NativeCell>>
+      GlobalRead globalOptionalCell : Option<Ptr<NativeCell>>
     val local271
       Unwrap trap=true : Ptr<NativeCell>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell : Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell : Option<Ptr<NativeCell>>
     val local272
       Local $argument.0 : Option<Ptr<NativeCell>>
     val local273
@@ -2228,7 +2228,7 @@ Module
       Local $parameter.value : Boolean
     val local276
       Unwrap trap=true : Ptr<NativeCell>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell : Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell : Option<Ptr<NativeCell>>
     val local277
       FieldAccess field 0 : Int
         PtrLoad : NativeCell
@@ -2240,7 +2240,7 @@ Module
     val local279
       IntegerLiteral 6 : Int
     val local280
-      GlobalRead $local$u0:p0:r6:globaln14:globalCallback : FunPtr<(Int) -> Int>
+      GlobalRead globalCallback : FunPtr<(Int) -> Int>
     val local281
       Local $argument.0 : Int
     val local282
@@ -2254,7 +2254,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local285
-      GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
+      GlobalRead globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
     val local286
       IntegerLiteral 7 : Int
     val local287
@@ -2269,31 +2269,31 @@ Module
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    assign global $local$u0:p0:r6:globaln12:globalOpaque
+    assign global globalOpaque
       Local opaque : Ptr<Unit>
-    assign global $local$u0:p0:r6:globaln10:globalCell
+    assign global globalCell
       Local cell : Ptr<NativeCell>
     val local291
       Local opaque : Ptr<Unit>
     val local292
       Local $argument.0 : Ptr<Unit>
-    assign global $local$u0:p0:r6:globaln20:globalOptionalOpaque
+    assign global globalOptionalOpaque
       VariantConstruct Option.Some<Ptr<Unit>> : Option<Ptr<Unit>>
         Local $parameter._1 : Ptr<Unit>
     val local293
       Local cell : Ptr<NativeCell>
     val local294
       Local $argument.0 : Ptr<NativeCell>
-    assign global $local$u0:p0:r6:globaln18:globalOptionalCell
+    assign global globalOptionalCell
       VariantConstruct Option.Some<Ptr<NativeCell>> : Option<Ptr<NativeCell>>
         Local $parameter._1 : Ptr<NativeCell>
-    assign global $local$u0:p0:r6:globaln14:globalCallback
+    assign global globalCallback
       Local scoopCallback : FunPtr<(Int) -> Int>
     val local295
       Local scoopCallback : FunPtr<(Int) -> Int>
     val local296
       Local $argument.0 : FunPtr<(Int) -> Int>
-    assign global $local$u0:p0:r6:globaln22:globalOptionalCallback
+    assign global globalOptionalCallback
       VariantConstruct Option.Some<FunPtr<(Int) -> Int>> : Option<FunPtr<(Int) -> Int>>
         Local $parameter._1 : FunPtr<(Int) -> Int>
     val local303
@@ -2348,7 +2348,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local317
-      GlobalRead $local$u0:p0:r6:globaln12:globalOpaque : Ptr<Unit>
+      GlobalRead globalOpaque : Ptr<Unit>
     val local318
       Local opaque : Ptr<Unit>
     val local319
@@ -2362,7 +2362,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local321
-      GlobalRead $local$u0:p0:r6:globaln10:globalCell : Ptr<NativeCell>
+      GlobalRead globalCell : Ptr<NativeCell>
     val local322
       Local cell : Ptr<NativeCell>
     val local323
@@ -2376,7 +2376,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local325
-      GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque : Option<Ptr<Unit>>
+      GlobalRead globalOptionalOpaque : Option<Ptr<Unit>>
     val local326
       Local opaque : Ptr<Unit>
     val local327
@@ -2392,7 +2392,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local331
-      GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell : Option<Ptr<NativeCell>>
+      GlobalRead globalOptionalCell : Option<Ptr<NativeCell>>
     val local332
       Local cell : Ptr<NativeCell>
     val local333
@@ -2410,7 +2410,7 @@ Module
     val local337
       IntegerLiteral 44 : Int
     val local338
-      GlobalRead $local$u0:p0:r6:globaln14:globalCallback : FunPtr<(Int) -> Int>
+      GlobalRead globalCallback : FunPtr<(Int) -> Int>
     val local339
       Local $argument.0 : Int
     val local340
@@ -2424,7 +2424,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local343
-      GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
+      GlobalRead globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
     val local344
       IntegerLiteral 45 : Int
     val local345
@@ -2439,11 +2439,11 @@ Module
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    assign global $local$u0:p0:r6:globaln20:globalOptionalOpaque
+    assign global globalOptionalOpaque
       VariantConstruct Option.None<Ptr<Unit>> : Option<Ptr<Unit>>
-    assign global $local$u0:p0:r6:globaln18:globalOptionalCell
+    assign global globalOptionalCell
       VariantConstruct Option.None<Ptr<NativeCell>> : Option<Ptr<NativeCell>>
-    assign global $local$u0:p0:r6:globaln22:globalOptionalCallback
+    assign global globalOptionalCallback
       VariantConstruct Option.None<FunPtr<(Int) -> Int>> : Option<FunPtr<(Int) -> Int>>
     val local349
       Local opaque : Ptr<Unit>
@@ -2482,7 +2482,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local363
-      GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque : Option<Ptr<Unit>>
+      GlobalRead globalOptionalOpaque : Option<Ptr<Unit>>
     val local364
       Local $argument.0 : Option<Ptr<Unit>>
     val local365
@@ -2493,7 +2493,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local367
-      GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell : Option<Ptr<NativeCell>>
+      GlobalRead globalOptionalCell : Option<Ptr<NativeCell>>
     val local368
       Local $argument.0 : Option<Ptr<NativeCell>>
     val local369
@@ -2504,7 +2504,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local371
-      GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
+      GlobalRead globalOptionalCallback : Option<FunPtr<(Int) -> Int>>
     val local372
       Local $argument.0 : Option<FunPtr<(Int) -> Int>>
     val local373
@@ -2538,12 +2538,12 @@ Module
 
 == mir ==
 Module
-  global0 $local$u0:p0:r6:globaln12:globalOpaque: Ptr<Unit> extern m22_global_opaque
-  global1 $local$u0:p0:r6:globaln10:globalCell: Ptr<NativeCell> extern m22_global_cell
-  global2 $local$u0:p0:r6:globaln20:globalOptionalOpaque: Option$PUX<Ptr<Unit>> extern m22_global_optional_opaque
-  global3 $local$u0:p0:r6:globaln18:globalOptionalCell: Option$PD10_NativeCellXX<Ptr<NativeCell>> extern m22_global_optional_cell
-  global4 $local$u0:p0:r6:globaln14:globalCallback: FunPtr<(Int) -> Int> extern m22_global_callback
-  global5 $local$u0:p0:r6:globaln22:globalOptionalCallback: Option$NI32RI32X<FunPtr<(Int) -> Int>> extern m22_global_optional_callback
+  global0 globalOpaque: Ptr<Unit> extern m22_global_opaque
+  global1 globalCell: Ptr<NativeCell> extern m22_global_cell
+  global2 globalOptionalOpaque: Option<Ptr<Unit>> extern m22_global_optional_opaque
+  global3 globalOptionalCell: Option<Ptr<NativeCell>> extern m22_global_optional_cell
+  global4 globalCallback: FunPtr<(Int) -> Int> extern m22_global_callback
+  global5 globalOptionalCallback: Option<FunPtr<(Int) -> Int>> extern m22_global_optional_callback
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
   extern ef2 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
@@ -2558,15 +2558,15 @@ Module
   extern ef11 free @free(Ptr<Unit>) -> Unit <abi=c no-gc>
   extern ef12 roundOpaque @m22_round_opaque(Ptr<Unit>) -> Ptr<Unit> <abi=c no-gc lib=fixture_native>
   extern ef13 roundCell @m22_round_cell(Ptr<NativeCell>) -> Ptr<NativeCell> <abi=c no-gc lib=fixture_native>
-  extern ef14 roundOptionalOpaque @m22_round_optional_opaque(Option$PUX<Ptr<Unit>>) -> Option$PUX<Ptr<Unit>> <abi=c no-gc lib=fixture_native>
-  extern ef15 roundOptionalCell @m22_round_optional_cell(Option$PD10_NativeCellXX<Ptr<NativeCell>>) -> Option$PD10_NativeCellXX<Ptr<NativeCell>> <abi=c no-gc lib=fixture_native>
+  extern ef14 roundOptionalOpaque @m22_round_optional_opaque(Option<Ptr<Unit>>) -> Option<Ptr<Unit>> <abi=c no-gc lib=fixture_native>
+  extern ef15 roundOptionalCell @m22_round_optional_cell(Option<Ptr<NativeCell>>) -> Option<Ptr<NativeCell>> <abi=c no-gc lib=fixture_native>
   extern ef16 roundCallback @m22_round_callback(FunPtr<(Int) -> Int>) -> FunPtr<(Int) -> Int> <abi=c no-gc lib=fixture_native>
-  extern ef17 roundOptionalCallback @m22_round_optional_callback(Option$NI32RI32X<FunPtr<(Int) -> Int>>) -> Option$NI32RI32X<FunPtr<(Int) -> Int>> <abi=c no-gc lib=fixture_native>
-  extern ef18 nullOpaque @m22_null_opaque() -> Option$PUX<Ptr<Unit>> <abi=c no-gc lib=fixture_native>
-  extern ef19 nullCell @m22_null_cell() -> Option$PD10_NativeCellXX<Ptr<NativeCell>> <abi=c no-gc lib=fixture_native>
+  extern ef17 roundOptionalCallback @m22_round_optional_callback(Option<FunPtr<(Int) -> Int>>) -> Option<FunPtr<(Int) -> Int>> <abi=c no-gc lib=fixture_native>
+  extern ef18 nullOpaque @m22_null_opaque() -> Option<Ptr<Unit>> <abi=c no-gc lib=fixture_native>
+  extern ef19 nullCell @m22_null_cell() -> Option<Ptr<NativeCell>> <abi=c no-gc lib=fixture_native>
   extern ef20 nativeCallback @m22_native_callback() -> FunPtr<(Int) -> Int> <abi=c no-gc lib=fixture_native>
-  extern ef21 nativeOptionalCallback @m22_native_optional_callback() -> Option$NI32RI32X<FunPtr<(Int) -> Int>> <abi=c no-gc lib=fixture_native>
-  extern ef22 nullCallback @m22_null_callback() -> Option$NI32RI32X<FunPtr<(Int) -> Int>> <abi=c no-gc lib=fixture_native>
+  extern ef21 nativeOptionalCallback @m22_native_optional_callback() -> Option<FunPtr<(Int) -> Int>> <abi=c no-gc lib=fixture_native>
+  extern ef22 nullCallback @m22_null_callback() -> Option<FunPtr<(Int) -> Int>> <abi=c no-gc lib=fixture_native>
   extern ef23 applyCallback @m22_apply_callback(Int, FunPtr<(Int) -> Int>) -> Int <abi=c no-gc lib=fixture_native>
   extern ef24 roundBundle @m22_round_bundle(PointerBundle) -> PointerBundle <abi=c no-gc lib=fixture_native>
   extern ef25 makeSomeBundle @m22_make_some_bundle(Ptr<Unit>, Ptr<NativeCell>) -> PointerBundle <abi=c no-gc lib=fixture_native>
@@ -2574,33 +2574,33 @@ Module
   extern ef27 readOpaque @m22_read_opaque(Ptr<Unit>) -> Int <abi=c no-gc lib=fixture_native>
   extern ef28 prepareGlobals @m22_prepare_globals() -> Unit <abi=c no-gc lib=fixture_native>
   extern ef29 cleanupGlobals @m22_cleanup_globals() -> Unit <abi=c no-gc lib=fixture_native>
-  extern ef30 globalsMatch @m22_globals_match(Ptr<Unit>, Ptr<NativeCell>, Option$PUX<Ptr<Unit>>, Option$PD10_NativeCellXX<Ptr<NativeCell>>, FunPtr<(Int) -> Int>, Option$NI32RI32X<FunPtr<(Int) -> Int>>) -> Boolean <abi=c no-gc lib=fixture_native>
+  extern ef30 globalsMatch @m22_globals_match(Ptr<Unit>, Ptr<NativeCell>, Option<Ptr<Unit>>, Option<Ptr<NativeCell>>, FunPtr<(Int) -> Int>, Option<FunPtr<(Int) -> Int>>) -> Boolean <abi=c no-gc lib=fixture_native>
   callback cb0 @fn70 -> @fn110 function_type0 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
   struct NativeCell (value: Int) <c-layout aligned=natural packed=natural>
-  struct PointerBundle (opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option$PUX<Ptr<Unit>>, optionalCell: Option$PD10_NativeCellXX<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option$NI32RI32X<FunPtr<(Int) -> Int>>) <c-layout aligned=natural packed=natural>
+  struct PointerBundle (opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option<Ptr<Unit>>, optionalCell: Option<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option<FunPtr<(Int) -> Int>>) <c-layout aligned=natural packed=natural>
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
-  enum Option$PUX
+  enum Option<Ptr<Unit>>
     Some(_1: Ptr<Unit>)
     None()
-  enum Option$PD10_NativeCellXX
+  enum Option<Ptr<NativeCell>>
     Some(_1: Ptr<NativeCell>)
     None()
-  enum Option$NI32RI32X
+  enum Option<FunPtr<(Int) -> Int>>
     Some(_1: FunPtr<(Int) -> Int>)
     None()
-  enum Option$S
+  enum Option<String>
     Some(_1: String)
     None()
-  enum Option$I32
+  enum Option<Int>
     Some(_1: Int)
     None()
-  enum Option$I64
+  enum Option<Long>
     Some(_1: Long)
     None()
-  enum Option$V32
+  enum Option<UInt>
     Some(_1: UInt)
     None()
-  enum Option$V64
+  enum Option<ULong>
     Some(_1: ULong)
     None()
   class IntRange vtable=0 itables=1
@@ -2621,14 +2621,14 @@ Module
   class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
-  interface Iterable$I32
-  interface Iterator$I32
-  interface Iterable$I64
-  interface Iterator$I64
-  interface Iterable$V32
-  interface Iterator$V32
-  interface Iterable$V64
-  interface Iterator$V64
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
   generated_callable gc0 function=@fn110 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
   fun Int8.rangeTo @fn0(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
@@ -4756,7 +4756,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @fn51(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn51(this: IntRange) -> Iterator<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -4854,9 +4854,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -4865,7 +4865,7 @@ Module
       call @fn104 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -5277,7 +5277,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5286,8 +5286,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -5376,8 +5376,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -5387,8 +5387,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -5450,8 +5450,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -5461,8 +5461,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -5598,8 +5598,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
           Type Int
           Local $parameter._1
     bb26 if.then.26
@@ -5732,7 +5732,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @fn55(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn55(this: LongRange) -> Iterator<Long>
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -5830,9 +5830,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -5841,7 +5841,7 @@ Module
       call @fn104 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -6253,7 +6253,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6262,8 +6262,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -6352,8 +6352,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -6363,8 +6363,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -6426,8 +6426,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -6437,8 +6437,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v1
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -6574,8 +6574,8 @@ Module
         Type Long
         Local $argument.0
       return
-        Type Option$I64<Long>
-        VariantConstruct Option$I64<Long> v0
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
           Type Long
           Local $parameter._1
     bb26 if.then.26
@@ -6708,7 +6708,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator<UInt>
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -6793,9 +6793,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -6804,7 +6804,7 @@ Module
       call @fn104 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -7186,7 +7186,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7195,8 +7195,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -7285,8 +7285,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -7296,8 +7296,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -7359,8 +7359,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -7370,8 +7370,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v1
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -7481,8 +7481,8 @@ Module
         Type UInt
         Local $argument.0
       return
-        Type Option$V32<UInt>
-        VariantConstruct Option$V32<UInt> v0
+        Type Option<UInt>
+        VariantConstruct Option<UInt> v0
           Type UInt
           Local $parameter._1
     bb26 if.then.26
@@ -7615,7 +7615,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator<ULong>
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -7700,9 +7700,9 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       assign $new.1
@@ -7711,7 +7711,7 @@ Module
       call @fn104 direct
         Type IllegalArgumentException
         Local $new.1
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       throw
         Type IllegalArgumentException
@@ -8093,7 +8093,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -8102,8 +8102,8 @@ Module
           Local this
     bb1 if.then.1
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean
@@ -8192,8 +8192,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb10 if.merge.10
       goto bb8
     bb11 if.then.11
@@ -8203,8 +8203,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb12 if.merge.12
       goto bb8
     bb13 if.then.13
@@ -8266,8 +8266,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb17 if.merge.17
       goto bb15
     bb18 if.then.18
@@ -8277,8 +8277,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v1
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v1
     bb19 if.merge.19
       goto bb15
     bb20 if.then.20
@@ -8388,8 +8388,8 @@ Module
         Type ULong
         Local $argument.0
       return
-        Type Option$V64<ULong>
-        VariantConstruct Option$V64<ULong> v0
+        Type Option<ULong>
+        VariantConstruct Option<ULong> v0
           Type ULong
           Local $parameter._1
     bb26 if.then.26
@@ -8581,24 +8581,24 @@ Module
           Local $receiver
           Type Int
           Local $parameter.other
-  fun optionalOpaqueMatches @fn71(actual: Option$PUX<Ptr<Unit>>, expected: Ptr<Unit>) -> Boolean
+  fun optionalOpaqueMatches @fn71(actual: Option<Ptr<Unit>>, expected: Ptr<Unit>) -> Boolean
     bb0 entry
-      val $when.1: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $when.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local actual
-      val $pattern.subject.2: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $pattern.subject.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$PUX v0
-          Type Option$PUX<Ptr<Unit>>
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val pointer: Ptr<Unit>
         Type Ptr<Unit>
-        VariantPayloadProject Option$PUX v0 f0
-          Type Option$PUX<Ptr<Unit>>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
           Local $pattern.subject.2
       val $receiver: Ptr<Unit>
         Type Ptr<Unit>
@@ -8619,13 +8619,13 @@ Module
             Local $receiver
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $pattern.subject.3: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$PUX v1
-          Type Option$PUX<Ptr<Unit>>
+        VariantTest Option<Ptr<Unit>> v1
+          Type Option<Ptr<Unit>>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
@@ -8640,24 +8640,24 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalCellMatches @fn72(actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>, expected: Ptr<NativeCell>) -> Boolean
+  fun optionalCellMatches @fn72(actual: Option<Ptr<NativeCell>>, expected: Ptr<NativeCell>) -> Boolean
     bb0 entry
-      val $when.1: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $when.1: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local actual
-      val $pattern.subject.2: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $pattern.subject.2: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$PD10_NativeCellXX v0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantTest Option<Ptr<NativeCell>> v0
+          Type Option<Ptr<NativeCell>>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val pointer: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantPayloadProject Option<Ptr<NativeCell>> v0 f0
+          Type Option<Ptr<NativeCell>>
           Local $pattern.subject.2
       val $receiver: Ptr<NativeCell>
         Type Ptr<NativeCell>
@@ -8678,13 +8678,13 @@ Module
             Local $receiver
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $pattern.subject.3: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$PD10_NativeCellXX v1
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantTest Option<Ptr<NativeCell>> v1
+          Type Option<Ptr<NativeCell>>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
@@ -8699,37 +8699,37 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalOpaqueIsNone @fn73(actual: Option$PUX<Ptr<Unit>>) -> Boolean
+  fun optionalOpaqueIsNone @fn73(actual: Option<Ptr<Unit>>) -> Boolean
     bb0 entry
-      val $when.1: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $when.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local actual
-      val $pattern.subject.2: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $pattern.subject.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$PUX v0
-          Type Option$PUX<Ptr<Unit>>
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val pointer: Ptr<Unit>
         Type Ptr<Unit>
-        VariantPayloadProject Option$PUX v0 f0
-          Type Option$PUX<Ptr<Unit>>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
           Local $pattern.subject.2
       assign $result.2
         Type Boolean
         BoolLiteral false
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $pattern.subject.3: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$PUX v1
-          Type Option$PUX<Ptr<Unit>>
+        VariantTest Option<Ptr<Unit>> v1
+          Type Option<Ptr<Unit>>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
@@ -8744,37 +8744,37 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalCellIsNone @fn74(actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>) -> Boolean
+  fun optionalCellIsNone @fn74(actual: Option<Ptr<NativeCell>>) -> Boolean
     bb0 entry
-      val $when.1: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $when.1: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local actual
-      val $pattern.subject.2: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $pattern.subject.2: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$PD10_NativeCellXX v0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantTest Option<Ptr<NativeCell>> v0
+          Type Option<Ptr<NativeCell>>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val pointer: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantPayloadProject Option<Ptr<NativeCell>> v0 f0
+          Type Option<Ptr<NativeCell>>
           Local $pattern.subject.2
       assign $result.3
         Type Boolean
         BoolLiteral false
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $pattern.subject.3: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$PD10_NativeCellXX v1
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantTest Option<Ptr<NativeCell>> v1
+          Type Option<Ptr<NativeCell>>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
@@ -8789,24 +8789,24 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun applyOptionalCallback @fn75(callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>, value: Int) -> Int
+  fun applyOptionalCallback @fn75(callback: Option<FunPtr<(Int) -> Int>>, value: Int) -> Int
     bb0 entry
-      val $when.1: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $when.1: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local callback
-      val $pattern.subject.2: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $pattern.subject.2: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$NI32RI32X v0
-          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        VariantTest Option<FunPtr<(Int) -> Int>> v0
+          Type Option<FunPtr<(Int) -> Int>>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val pointer: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
-        VariantPayloadProject Option$NI32RI32X v0 f0
-          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        VariantPayloadProject Option<FunPtr<(Int) -> Int>> v0 f0
+          Type Option<FunPtr<(Int) -> Int>>
           Local $pattern.subject.2
       val $argument.0: Int
         Type Int
@@ -8830,13 +8830,13 @@ Module
         Local $call.1
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $pattern.subject.3: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$NI32RI32X v1
-          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        VariantTest Option<FunPtr<(Int) -> Int>> v1
+          Type Option<FunPtr<(Int) -> Int>>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
@@ -8851,37 +8851,37 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalCallbackIsNone @fn76(callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>) -> Boolean
+  fun optionalCallbackIsNone @fn76(callback: Option<FunPtr<(Int) -> Int>>) -> Boolean
     bb0 entry
-      val $when.1: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $when.1: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local callback
-      val $pattern.subject.2: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $pattern.subject.2: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $when.1
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$NI32RI32X v0
-          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        VariantTest Option<FunPtr<(Int) -> Int>> v0
+          Type Option<FunPtr<(Int) -> Int>>
           Local $pattern.subject.2
     bb1 pattern.pass.1
       val pointer: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
-        VariantPayloadProject Option$NI32RI32X v0 f0
-          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        VariantPayloadProject Option<FunPtr<(Int) -> Int>> v0 f0
+          Type Option<FunPtr<(Int) -> Int>>
           Local $pattern.subject.2
       assign $result.5
         Type Boolean
         BoolLiteral false
       goto bb3
     bb2 pattern.else.2
-      val $pattern.subject.3: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $pattern.subject.3: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $when.1
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$NI32RI32X v1
-          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        VariantTest Option<FunPtr<(Int) -> Int>> v1
+          Type Option<FunPtr<(Int) -> Int>>
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
@@ -9091,28 +9091,28 @@ Module
       val $parameter._1: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.0
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        VariantConstruct Option$PUX<Ptr<Unit>> v0
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
           Type Ptr<Unit>
           Local $parameter._1
-      val $parameter.pointer: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.pointer: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
-      call $argument.0: Option$PUX<Ptr<Unit>> = extern14 @m22_round_optional_opaque direct
-        Type Option$PUX<Ptr<Unit>>
+      call $argument.0: Option<Ptr<Unit>> = extern14 @m22_round_optional_opaque direct
+        Type Option<Ptr<Unit>>
         Local $parameter.pointer
       val $argument.1: Ptr<Unit>
         Type Ptr<Unit>
         Local opaque
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
       call $argument.0: Boolean = @fn71 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
         Local $parameter.expected
@@ -9128,28 +9128,28 @@ Module
       val $parameter._1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.0
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        VariantConstruct Option$PD10_NativeCellXX<Ptr<NativeCell>> v0
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        VariantConstruct Option<Ptr<NativeCell>> v0
           Type Ptr<NativeCell>
           Local $parameter._1
-      val $parameter.pointer: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.pointer: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
-      call $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>> = extern15 @m22_round_optional_cell direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      call $argument.0: Option<Ptr<NativeCell>> = extern15 @m22_round_optional_cell direct
+        Type Option<Ptr<NativeCell>>
         Local $parameter.pointer
       val $argument.1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local cell
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
       call $argument.0: Boolean = @fn72 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
         Local $parameter.expected
@@ -9159,20 +9159,20 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        VariantConstruct Option$PUX<Ptr<Unit>> v1
-      val $parameter.pointer: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v1
+      val $parameter.pointer: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
-      call $argument.0: Option$PUX<Ptr<Unit>> = extern14 @m22_round_optional_opaque direct
-        Type Option$PUX<Ptr<Unit>>
+      call $argument.0: Option<Ptr<Unit>> = extern14 @m22_round_optional_opaque direct
+        Type Option<Ptr<Unit>>
         Local $parameter.pointer
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       call $argument.0: Boolean = @fn73 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9180,20 +9180,20 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        VariantConstruct Option$PD10_NativeCellXX<Ptr<NativeCell>> v1
-      val $parameter.pointer: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        VariantConstruct Option<Ptr<NativeCell>> v1
+      val $parameter.pointer: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
-      call $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>> = extern15 @m22_round_optional_cell direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      call $argument.0: Option<Ptr<NativeCell>> = extern15 @m22_round_optional_cell direct
+        Type Option<Ptr<NativeCell>>
         Local $parameter.pointer
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       call $argument.0: Boolean = @fn74 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9201,12 +9201,12 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      call $argument.0: Option$PUX<Ptr<Unit>> = extern18 @m22_null_opaque direct
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      call $argument.0: Option<Ptr<Unit>> = extern18 @m22_null_opaque direct
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       call $argument.0: Boolean = @fn73 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9214,12 +9214,12 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      call $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>> = extern19 @m22_null_cell direct
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      call $argument.0: Option<Ptr<NativeCell>> = extern19 @m22_null_cell direct
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       call $argument.0: Boolean = @fn74 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9309,18 +9309,18 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>> = extern21 @m22_native_optional_callback direct
+      call $argument.0: Option<FunPtr<(Int) -> Int>> = extern21 @m22_native_optional_callback direct
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       val $parameter.value: Int
         Type Int
         Local $argument.1
       call $argument.0: Int = @fn75 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
         Local $parameter.value
@@ -9336,28 +9336,28 @@ Module
       val $parameter._1: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local $argument.0
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        VariantConstruct Option$NI32RI32X<FunPtr<(Int) -> Int>> v0
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v0
           Type FunPtr<(Int) -> Int>
           Local $parameter._1
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
-      call $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>> = extern17 @m22_round_optional_callback direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      call $argument.0: Option<FunPtr<(Int) -> Int>> = extern17 @m22_round_optional_callback direct
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=41 bits=0x00000029
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       val $parameter.value: Int
         Type Int
         Local $argument.1
       call $argument.0: Int = @fn75 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
         Local $parameter.value
@@ -9367,20 +9367,20 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        VariantConstruct Option$NI32RI32X<FunPtr<(Int) -> Int>> v1
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v1
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
-      call $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>> = extern17 @m22_round_optional_callback direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      call $argument.0: Option<FunPtr<(Int) -> Int>> = extern17 @m22_round_optional_callback direct
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       call $argument.0: Boolean = @fn76 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $parameter.value: Boolean
         Type Boolean
@@ -9388,12 +9388,12 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      call $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>> = extern22 @m22_null_callback direct
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      call $argument.0: Option<FunPtr<(Int) -> Int>> = extern22 @m22_null_callback direct
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       call $argument.0: Boolean = @fn76 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $parameter.value: Boolean
         Type Boolean
@@ -9461,22 +9461,22 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         FieldAccess 2
           Type PointerBundle
           Local someBundle
       val $argument.1: Ptr<Unit>
         Type Ptr<Unit>
         Local opaque
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
       call $argument.0: Boolean = @fn71 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
         Local $parameter.expected
@@ -9486,22 +9486,22 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         FieldAccess 3
           Type PointerBundle
           Local someBundle
       val $argument.1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local cell
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
       call $argument.0: Boolean = @fn72 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
         Local $parameter.expected
@@ -9536,22 +9536,22 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         FieldAccess 5
           Type PointerBundle
           Local someBundle
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       val $parameter.value: Int
         Type Int
         Local $argument.1
       call $argument.0: Int = @fn75 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
         Local $parameter.value
@@ -9578,16 +9578,16 @@ Module
         Local $parameter.opaque
         Type Ptr<NativeCell>
         Local $parameter.cell
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         FieldAccess 2
           Type PointerBundle
           Local noneBundle
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       call $argument.0: Boolean = @fn73 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9595,16 +9595,16 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         FieldAccess 3
           Type PointerBundle
           Local noneBundle
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       call $argument.0: Boolean = @fn74 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9612,16 +9612,16 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         FieldAccess 5
           Type PointerBundle
           Local noneBundle
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       call $argument.0: Boolean = @fn76 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $parameter.value: Boolean
         Type Boolean
@@ -9641,9 +9641,9 @@ Module
       val $parameter._1: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.0
-      val $argument.2: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        VariantConstruct Option$PUX<Ptr<Unit>> v0
+      val $argument.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
           Type Ptr<Unit>
           Local $parameter._1
       val $argument.0: Ptr<NativeCell>
@@ -9652,9 +9652,9 @@ Module
       val $parameter._1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.0
-      val $argument.3: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        VariantConstruct Option$PD10_NativeCellXX<Ptr<NativeCell>> v0
+      val $argument.3: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        VariantConstruct Option<Ptr<NativeCell>> v0
           Type Ptr<NativeCell>
           Local $parameter._1
       val $argument.4: FunPtr<(Int) -> Int>
@@ -9666,9 +9666,9 @@ Module
       val $parameter._1: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local $argument.0
-      val $argument.5: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        VariantConstruct Option$NI32RI32X<FunPtr<(Int) -> Int>> v0
+      val $argument.5: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v0
           Type FunPtr<(Int) -> Int>
           Local $parameter._1
       val $parameter.opaque: Ptr<Unit>
@@ -9677,30 +9677,30 @@ Module
       val $parameter.cell: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      val $parameter.optionalOpaque: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.optionalOpaque: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.2
-      val $parameter.optionalCell: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.optionalCell: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.3
       val $parameter.callback: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local $argument.4
-      val $parameter.optionalCallback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.optionalCallback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.5
       call $argument.0: PointerBundle = @fn108 direct
         Type Ptr<Unit>
         Local $parameter.opaque
         Type Ptr<NativeCell>
         Local $parameter.cell
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.optionalOpaque
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.optionalCell
         Type FunPtr<(Int) -> Int>
         Local $parameter.callback
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.optionalCallback
       val $parameter.bundle: PointerBundle
         Type PointerBundle
@@ -9758,22 +9758,22 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         FieldAccess 2
           Type PointerBundle
           Local returnedBundle
       val $argument.1: Ptr<Unit>
         Type Ptr<Unit>
         Local opaque
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
       call $argument.0: Boolean = @fn71 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
         Local $parameter.expected
@@ -9783,22 +9783,22 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         FieldAccess 3
           Type PointerBundle
           Local returnedBundle
       val $argument.1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local cell
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
       call $argument.0: Boolean = @fn72 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
         Local $parameter.expected
@@ -9833,22 +9833,22 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         FieldAccess 5
           Type PointerBundle
           Local returnedBundle
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=43 bits=0x0000002b
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       val $parameter.value: Int
         Type Int
         Local $argument.1
       call $argument.0: Int = @fn75 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
         Local $parameter.value
@@ -9858,14 +9858,14 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       call $argument.0: Boolean = @fn73 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9873,14 +9873,14 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       call $argument.0: Boolean = @fn74 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -9888,14 +9888,14 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        GlobalRead globalOptionalCallback
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       call $argument.0: Boolean = @fn76 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $parameter.value: Boolean
         Type Boolean
@@ -9906,7 +9906,7 @@ Module
       call extern28 @m22_prepare_globals direct
       val $receiver: Ptr<Unit>
         Type Ptr<Unit>
-        GlobalRead $local$u0:p0:r6:globaln12:globalOpaque
+        GlobalRead globalOpaque
       val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
@@ -9926,7 +9926,7 @@ Module
         Local $parameter.value
       val $argument.0: Ptr<Unit>
         Type Ptr<Unit>
-        GlobalRead $local$u0:p0:r6:globaln12:globalOpaque
+        GlobalRead globalOpaque
       val $parameter.pointer: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.0
@@ -9941,7 +9941,7 @@ Module
         Local $parameter.value
       val $receiver: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        GlobalRead $local$u0:p0:r6:globaln10:globalCell
+        GlobalRead globalCell
       val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
@@ -9961,7 +9961,7 @@ Module
         Local $parameter.value
       val $receiver: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        GlobalRead $local$u0:p0:r6:globaln10:globalCell
+        GlobalRead globalCell
       val $argument.0: Int
         Type Int
         FieldAccess 0
@@ -9975,22 +9975,22 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque
-      val $opt.1: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque
+      val $opt.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque
       branch bb1 bb2
         Type Boolean
-        VariantTest Option$PUX v0
-          Type Option$PUX<Ptr<Unit>>
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
           Local $opt.1
     bb1 if.then.1
       val $uw.2: Ptr<Unit>
         Type Ptr<Unit>
-        VariantPayloadProject Option$PUX v0 f0
-          Type Option$PUX<Ptr<Unit>>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
           Local $opt.1
       goto bb3
     bb2 if.else.2
@@ -10007,14 +10007,14 @@ Module
       val $argument.1: Ptr<Unit>
         Type Ptr<Unit>
         Local $uw.2
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
       call $argument.0: Boolean = @fn71 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
         Local $parameter.expected
@@ -10024,19 +10024,19 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $opt.3: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque
+      val $opt.3: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque
       branch bb4 bb5
         Type Boolean
-        VariantTest Option$PUX v0
-          Type Option$PUX<Ptr<Unit>>
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
           Local $opt.3
     bb4 if.then.4
       val $uw.4: Ptr<Unit>
         Type Ptr<Unit>
-        VariantPayloadProject Option$PUX v0 f0
-          Type Option$PUX<Ptr<Unit>>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
           Local $opt.3
       goto bb6
     bb5 if.else.5
@@ -10065,22 +10065,22 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell
-      val $opt.5: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell
+      val $opt.5: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell
       branch bb7 bb8
         Type Boolean
-        VariantTest Option$PD10_NativeCellXX v0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantTest Option<Ptr<NativeCell>> v0
+          Type Option<Ptr<NativeCell>>
           Local $opt.5
     bb7 if.then.7
       val $uw.6: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantPayloadProject Option<Ptr<NativeCell>> v0 f0
+          Type Option<Ptr<NativeCell>>
           Local $opt.5
       goto bb9
     bb8 if.else.8
@@ -10097,14 +10097,14 @@ Module
       val $argument.1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $uw.6
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
       call $argument.0: Boolean = @fn72 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
         Local $parameter.expected
@@ -10114,19 +10114,19 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $opt.7: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell
+      val $opt.7: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell
       branch bb10 bb11
         Type Boolean
-        VariantTest Option$PD10_NativeCellXX v0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantTest Option<Ptr<NativeCell>> v0
+          Type Option<Ptr<NativeCell>>
           Local $opt.7
     bb10 if.then.10
       val $uw.8: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        VariantPayloadProject Option$PD10_NativeCellXX v0 f0
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        VariantPayloadProject Option<Ptr<NativeCell>> v0 f0
+          Type Option<Ptr<NativeCell>>
           Local $opt.7
       goto bb12
     bb11 if.else.11
@@ -10161,7 +10161,7 @@ Module
         IntegerLiteral Int value=6 bits=0x00000006
       val $argument.1: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
-        GlobalRead $local$u0:p0:r6:globaln14:globalCallback
+        GlobalRead globalCallback
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -10179,20 +10179,20 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        GlobalRead globalOptionalCallback
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       val $parameter.value: Int
         Type Int
         Local $argument.1
       call $argument.0: Int = @fn75 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
         Local $parameter.value
@@ -10202,10 +10202,10 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      global_assign $local$u0:p0:r6:globaln12:globalOpaque
+      global_assign globalOpaque
         Type Ptr<Unit>
         Local opaque
-      global_assign $local$u0:p0:r6:globaln10:globalCell
+      global_assign globalCell
         Type Ptr<NativeCell>
         Local cell
       val $argument.0: Ptr<Unit>
@@ -10214,9 +10214,9 @@ Module
       val $parameter._1: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.0
-      global_assign $local$u0:p0:r6:globaln20:globalOptionalOpaque
-        Type Option$PUX<Ptr<Unit>>
-        VariantConstruct Option$PUX<Ptr<Unit>> v0
+      global_assign globalOptionalOpaque
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
           Type Ptr<Unit>
           Local $parameter._1
       val $argument.0: Ptr<NativeCell>
@@ -10225,12 +10225,12 @@ Module
       val $parameter._1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.0
-      global_assign $local$u0:p0:r6:globaln18:globalOptionalCell
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        VariantConstruct Option$PD10_NativeCellXX<Ptr<NativeCell>> v0
+      global_assign globalOptionalCell
+        Type Option<Ptr<NativeCell>>
+        VariantConstruct Option<Ptr<NativeCell>> v0
           Type Ptr<NativeCell>
           Local $parameter._1
-      global_assign $local$u0:p0:r6:globaln14:globalCallback
+      global_assign globalCallback
         Type FunPtr<(Int) -> Int>
         Local scoopCallback
       val $argument.0: FunPtr<(Int) -> Int>
@@ -10239,9 +10239,9 @@ Module
       val $parameter._1: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local $argument.0
-      global_assign $local$u0:p0:r6:globaln22:globalOptionalCallback
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        VariantConstruct Option$NI32RI32X<FunPtr<(Int) -> Int>> v0
+      global_assign globalOptionalCallback
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v0
           Type FunPtr<(Int) -> Int>
           Local $parameter._1
       val $argument.0: Ptr<Unit>
@@ -10256,9 +10256,9 @@ Module
       val $parameter._1: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.0
-      val $argument.2: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        VariantConstruct Option$PUX<Ptr<Unit>> v0
+      val $argument.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
           Type Ptr<Unit>
           Local $parameter._1
       val $argument.0: Ptr<NativeCell>
@@ -10267,9 +10267,9 @@ Module
       val $parameter._1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.0
-      val $argument.3: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        VariantConstruct Option$PD10_NativeCellXX<Ptr<NativeCell>> v0
+      val $argument.3: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        VariantConstruct Option<Ptr<NativeCell>> v0
           Type Ptr<NativeCell>
           Local $parameter._1
       val $argument.4: FunPtr<(Int) -> Int>
@@ -10281,9 +10281,9 @@ Module
       val $parameter._1: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local $argument.0
-      val $argument.5: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        VariantConstruct Option$NI32RI32X<FunPtr<(Int) -> Int>> v0
+      val $argument.5: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v0
           Type FunPtr<(Int) -> Int>
           Local $parameter._1
       val $parameter.opaque: Ptr<Unit>
@@ -10292,30 +10292,30 @@ Module
       val $parameter.cell: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      val $parameter.optionalOpaque: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.optionalOpaque: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.2
-      val $parameter.optionalCell: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.optionalCell: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.3
       val $parameter.callback: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local $argument.4
-      val $parameter.optionalCallback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.optionalCallback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.5
       call $argument.0: Boolean = extern30 @m22_globals_match direct
         Type Ptr<Unit>
         Local $parameter.opaque
         Type Ptr<NativeCell>
         Local $parameter.cell
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.optionalOpaque
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.optionalCell
         Type FunPtr<(Int) -> Int>
         Local $parameter.callback
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.optionalCallback
       val $parameter.value: Boolean
         Type Boolean
@@ -10325,7 +10325,7 @@ Module
         Local $parameter.value
       val $receiver: Ptr<Unit>
         Type Ptr<Unit>
-        GlobalRead $local$u0:p0:r6:globaln12:globalOpaque
+        GlobalRead globalOpaque
       val $receiver: Ptr<Unit>
         Type Ptr<Unit>
         Local opaque
@@ -10348,7 +10348,7 @@ Module
         Local $parameter.value
       val $receiver: Ptr<NativeCell>
         Type Ptr<NativeCell>
-        GlobalRead $local$u0:p0:r6:globaln10:globalCell
+        GlobalRead globalCell
       val $receiver: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local cell
@@ -10369,20 +10369,20 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque
       val $argument.1: Ptr<Unit>
         Type Ptr<Unit>
         Local opaque
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
       call $argument.0: Boolean = @fn71 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
         Local $parameter.expected
@@ -10392,20 +10392,20 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell
       val $argument.1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local cell
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
       call $argument.0: Boolean = @fn72 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
         Local $parameter.expected
@@ -10420,7 +10420,7 @@ Module
         IntegerLiteral Int value=44 bits=0x0000002c
       val $argument.1: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
-        GlobalRead $local$u0:p0:r6:globaln14:globalCallback
+        GlobalRead globalCallback
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -10438,20 +10438,20 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        GlobalRead globalOptionalCallback
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=45 bits=0x0000002d
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       val $parameter.value: Int
         Type Int
         Local $argument.1
       call $argument.0: Int = @fn75 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
         Local $parameter.value
@@ -10461,63 +10461,63 @@ Module
       call @fn79 direct
         Type Int
         Local $parameter.value
-      global_assign $local$u0:p0:r6:globaln20:globalOptionalOpaque
-        Type Option$PUX<Ptr<Unit>>
-        VariantConstruct Option$PUX<Ptr<Unit>> v1
-      global_assign $local$u0:p0:r6:globaln18:globalOptionalCell
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        VariantConstruct Option$PD10_NativeCellXX<Ptr<NativeCell>> v1
-      global_assign $local$u0:p0:r6:globaln22:globalOptionalCallback
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        VariantConstruct Option$NI32RI32X<FunPtr<(Int) -> Int>> v1
+      global_assign globalOptionalOpaque
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v1
+      global_assign globalOptionalCell
+        Type Option<Ptr<NativeCell>>
+        VariantConstruct Option<Ptr<NativeCell>> v1
+      global_assign globalOptionalCallback
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v1
       val $argument.0: Ptr<Unit>
         Type Ptr<Unit>
         Local opaque
       val $argument.1: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local cell
-      val $argument.2: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        VariantConstruct Option$PUX<Ptr<Unit>> v1
-      val $argument.3: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        VariantConstruct Option$PD10_NativeCellXX<Ptr<NativeCell>> v1
+      val $argument.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v1
+      val $argument.3: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        VariantConstruct Option<Ptr<NativeCell>> v1
       val $argument.4: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local scoopCallback
-      val $argument.5: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        VariantConstruct Option$NI32RI32X<FunPtr<(Int) -> Int>> v1
+      val $argument.5: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v1
       val $parameter.opaque: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.0
       val $parameter.cell: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      val $parameter.optionalOpaque: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $parameter.optionalOpaque: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.2
-      val $parameter.optionalCell: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $parameter.optionalCell: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.3
       val $parameter.callback: FunPtr<(Int) -> Int>
         Type FunPtr<(Int) -> Int>
         Local $argument.4
-      val $parameter.optionalCallback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $parameter.optionalCallback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.5
       call $argument.0: Boolean = extern30 @m22_globals_match direct
         Type Ptr<Unit>
         Local $parameter.opaque
         Type Ptr<NativeCell>
         Local $parameter.cell
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.optionalOpaque
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.optionalCell
         Type FunPtr<(Int) -> Int>
         Local $parameter.callback
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.optionalCallback
       val $parameter.value: Boolean
         Type Boolean
@@ -10525,14 +10525,14 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
-        GlobalRead $local$u0:p0:r6:globaln20:globalOptionalOpaque
-      val $parameter.actual: Option$PUX<Ptr<Unit>>
-        Type Option$PUX<Ptr<Unit>>
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        GlobalRead globalOptionalOpaque
+      val $parameter.actual: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $argument.0
       call $argument.0: Boolean = @fn73 direct
-        Type Option$PUX<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -10540,14 +10540,14 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        GlobalRead $local$u0:p0:r6:globaln18:globalOptionalCell
-      val $parameter.actual: Option$PD10_NativeCellXX<Ptr<NativeCell>>
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+      val $argument.0: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
+        GlobalRead globalOptionalCell
+      val $parameter.actual: Option<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $argument.0
       call $argument.0: Boolean = @fn74 direct
-        Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+        Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $parameter.value: Boolean
         Type Boolean
@@ -10555,14 +10555,14 @@ Module
       call @fn78 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        GlobalRead $local$u0:p0:r6:globaln22:globalOptionalCallback
-      val $parameter.callback: Option$NI32RI32X<FunPtr<(Int) -> Int>>
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+      val $argument.0: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        GlobalRead globalOptionalCallback
+      val $parameter.callback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
       call $argument.0: Boolean = @fn76 direct
-        Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $parameter.value: Boolean
         Type Boolean
@@ -10890,7 +10890,7 @@ Module
   fun init.Throwable.$c10 @fn98(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @fn99(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn99(this: Exception, message: Option<String>) -> Unit
     bb0 entry
       call @fn98 direct
         Type Throwable
@@ -10900,7 +10900,7 @@ Module
       field_set 0
         Type Exception
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local message
       return
   fun init.UnwrapException.$c12 @fn100(this: UnwrapException) -> Unit
@@ -10911,20 +10911,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn99 direct
         Type Exception
         Retype Exception
           Type UnwrapException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ClassCastException.$c13 @fn101(this: ClassCastException) -> Unit
@@ -10935,20 +10935,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn99 direct
         Type Exception
         Retype Exception
           Type ClassCastException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.ArithmeticException.$c14 @fn102(this: ArithmeticException) -> Unit
@@ -10959,20 +10959,20 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn99 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IndexOutOfBoundsException.$c15 @fn103(this: IndexOutOfBoundsException) -> Unit
@@ -10983,52 +10983,52 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn99 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @fn104(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn104(this: IllegalArgumentException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn99 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @fn105(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn105(this: IllegalStateException, message: Option<String>) -> Unit
     bb0 entry
-      val $argument.0: Option$S<String>
-        Type Option$S<String>
+      val $argument.0: Option<String>
+        Type Option<String>
         Local message
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
+      val $parameter.message: Option<String>
+        Type Option<String>
         Local $argument.0
       call @fn99 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
           Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun init.IllegalStateException.$c18 @fn106(this: IllegalStateException) -> Unit
@@ -11039,15 +11039,15 @@ Module
       val $parameter._1: String
         Type String
         Local $argument.0
-      val $parameter.message: Option$S<String>
-        Type Option$S<String>
-        VariantConstruct Option$S<String> v0
+      val $parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
           Type String
           Local $parameter._1
       call @fn105 direct
         Type IllegalStateException
         Local this
-        Type Option$S<String>
+        Type Option<String>
         Local $parameter.message
       return
   fun ctor.NativeCell.$c6 @fn107(value: Int) -> NativeCell <no-gc>
@@ -11057,7 +11057,7 @@ Module
         StructInit NativeCell
           Type Int
           Local value
-  fun ctor.PointerBundle.$c7 @fn108(opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option$PUX<Ptr<Unit>>, optionalCell: Option$PD10_NativeCellXX<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option$NI32RI32X<FunPtr<(Int) -> Int>>) -> PointerBundle <no-gc>
+  fun ctor.PointerBundle.$c7 @fn108(opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option<Ptr<Unit>>, optionalCell: Option<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option<FunPtr<(Int) -> Int>>) -> PointerBundle <no-gc>
     bb0 entry
       return
         Type PointerBundle
@@ -11066,13 +11066,13 @@ Module
           Local opaque
           Type Ptr<NativeCell>
           Local cell
-          Type Option$PUX<Ptr<Unit>>
+          Type Option<Ptr<Unit>>
           Local optionalOpaque
-          Type Option$PD10_NativeCellXX<Ptr<NativeCell>>
+          Type Option<Ptr<NativeCell>>
           Local optionalCell
           Type FunPtr<(Int) -> Int>
           Local callback
-          Type Option$NI32RI32X<FunPtr<(Int) -> Int>>
+          Type Option<FunPtr<(Int) -> Int>>
           Local optionalCallback
   fun ctor.SourceLocation.$c5 @fn109(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
     bb0 entry
@@ -11131,22 +11131,22 @@ Module
   global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
-  native_global0 $local$u0:p0:r6:globaln12:globalOpaque @m22_global_opaque : ptr<raw> c=data-ptr<opaque-void,direct> mutable(get=ng-get0,set=ng-set0,address=ng-address0)
-  native_global1 $local$u0:p0:r6:globaln10:globalCell @m22_global_cell : ptr<raw> c=data-ptr<c-struct0,direct> mutable(get=ng-get1,set=ng-set1,address=ng-address1)
-  native_global2 $local$u0:p0:r6:globaln20:globalOptionalOpaque @m22_global_optional_opaque : enum0 c=data-ptr<opaque-void,nullable=enum0<opaque-void>> mutable(get=ng-get2,set=ng-set2,address=ng-address2)
-  native_global3 $local$u0:p0:r6:globaln18:globalOptionalCell @m22_global_optional_cell : enum1 c=data-ptr<c-struct0,nullable=enum1<c-struct0>> mutable(get=ng-get3,set=ng-set3,address=ng-address3)
-  native_global4 $local$u0:p0:r6:globaln14:globalCallback @m22_global_callback : ptr<code> c=code-ptr<(Int)->Int,direct> mutable(get=ng-get4,set=ng-set4,address=ng-address4)
-  native_global5 $local$u0:p0:r6:globaln22:globalOptionalCallback @m22_global_optional_callback : enum2 c=code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> mutable(get=ng-get5,set=ng-set5,address=ng-address5)
+  native_global0 globalOpaque @m22_global_opaque : ptr<raw> c=data-ptr<opaque-void,direct> mutable(get=ng-get0,set=ng-set0,address=ng-address0)
+  native_global1 globalCell @m22_global_cell : ptr<raw> c=data-ptr<c-struct0,direct> mutable(get=ng-get1,set=ng-set1,address=ng-address1)
+  native_global2 globalOptionalOpaque @m22_global_optional_opaque : enum0 c=data-ptr<opaque-void,nullable=enum0<opaque-void>> mutable(get=ng-get2,set=ng-set2,address=ng-address2)
+  native_global3 globalOptionalCell @m22_global_optional_cell : enum1 c=data-ptr<c-struct0,nullable=enum1<c-struct0>> mutable(get=ng-get3,set=ng-set3,address=ng-address3)
+  native_global4 globalCallback @m22_global_callback : ptr<code> c=code-ptr<(Int)->Int,direct> mutable(get=ng-get4,set=ng-set4,address=ng-address4)
+  native_global5 globalOptionalCallback @m22_global_optional_callback : enum2 c=code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> mutable(get=ng-get5,set=ng-set5,address=ng-address5)
   c-struct struct0 NativeCell fields=[Int@0/4]
   c-struct struct1 PointerBundle fields=[data-ptr<opaque-void,direct>@0/8,data-ptr<c-struct0,direct>@8/8,data-ptr<opaque-void,nullable=enum0<opaque-void>>@16/8,data-ptr<c-struct0,nullable=enum1<c-struct0>>@24/8,code-ptr<(Int)->Int,direct>@32/8,code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>@40/8]
-  enum Option$PUX niche(kind=raw,payload_variant=0)
-  enum Option$PD10_NativeCellXX niche(kind=raw,payload_variant=0)
-  enum Option$NI32RI32X niche(kind=code,payload_variant=0)
-  enum Option$S niche(kind=managed,payload_variant=0)
-  enum Option$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option niche(kind=raw,payload_variant=0)
+  enum Option niche(kind=raw,payload_variant=0)
+  enum Option niche(kind=code,payload_variant=0)
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
   extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
@@ -16238,14 +16238,14 @@ Module
     ret
   td td0 ToString @scoop$1$td$cad2a31c6beb7e5e9035f4e9e86d77830bd40c021a41f0b95f8fb512baaf1f3a type-id=7755484180884575461 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop$1$td$1eeca9fd331fa0f6f35f0e0b917c47966719df71e390b27a7a2136226c8c19a1 type-id=14483345466022120840 size=0 parent=none vtable=[] itables=[]
-  td td2 Iterable$I32 @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
-  td td3 Iterator$I32 @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
-  td td4 Iterable$I64 @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
-  td td5 Iterator$I64 @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
-  td td6 Iterable$V32 @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
-  td td7 Iterator$V32 @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
-  td td8 Iterable$V64 @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
-  td td9 Iterator$V64 @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
+  td td2 Iterable @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 size=0 parent=none vtable=[] itables=[]
+  td td3 Iterator @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 size=0 parent=none vtable=[] itables=[]
+  td td4 Iterable @scoop$1$td$d989723132445d87ead2b15510f6f4d95fdff95dc4abf95c7f2d9bca08cfe586 type-id=2725683963665996345 size=0 parent=none vtable=[] itables=[]
+  td td5 Iterator @scoop$1$td$5bba4c603f98ed583b76890f8e4487f5f89de57e69e8ceeff6ff3411cf176d10 type-id=12040124626351147824 size=0 parent=none vtable=[] itables=[]
+  td td6 Iterable @scoop$1$td$f8593cea9775b988ba5c2cfca85b280e5e7cf9c5e83b22a389bdd459b8a5aba2 type-id=15325960918367111799 size=0 parent=none vtable=[] itables=[]
+  td td7 Iterator @scoop$1$td$2374d7a267c378f69e74b34e736984d4c7d65d4654d95b804a07e971b23a430c type-id=9692380198515777125 size=0 parent=none vtable=[] itables=[]
+  td td8 Iterable @scoop$1$td$4359184feb0a1258f2aed2167bbe661a4b5ca496e5ed1a7c3e48cedb067504ed type-id=13136292600838448069 size=0 parent=none vtable=[] itables=[]
+  td td9 Iterator @scoop$1$td$7d1d64d1081baff6cf9ccd35fb46953d26db3ae46463dfd345aaced66710ec92 type-id=18108517161443567381 size=0 parent=none vtable=[] itables=[]
   td td10 function<(Int) -> Int> @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 size=0 parent=none vtable=[] itables=[]
   td td11 IntRange @scoop$1$td$66618ce5db61b359b7e13b6df76dcda8b9a9e55768487b6fe93e0d1aedd90a1b type-id=5739975931137510880 size=32 parent=none vtable=[] itables=[td2:[local-fn51]]
   td td12 IntRangeIterator @scoop$1$td$6e6a352e9c43b3e382fd0925e1ed04966e4c5b5796883838be021562ff19bf07 type-id=4889723440050595746 size=32 parent=none vtable=[] itables=[td3:[local-fn54]]
@@ -16278,14 +16278,14 @@ Module
   layout PointerBundle size=48 align=8 refs=[]
   layout-meta PointerBundle c-layout(aligned=0,packed=0) fields=[0@8,8@8,16@8,24@8,32@8,40@8] interior-mutable=false
   layout SourceLocation size=40 align=8 refs=[0, 24, 32]
-  layout Option$PUX size=8 align=8 enum-scan=none
-  layout Option$PD10_NativeCellXX size=8 align=8 enum-scan=none
-  layout Option$NI32RI32X size=8 align=8 enum-scan=none
-  layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$I32 size=16 align=8 enum-scan=none
-  layout Option$I64 size=16 align=8 enum-scan=none
-  layout Option$V32 size=16 align=8 enum-scan=none
-  layout Option$V64 size=16 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=none
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
   layout IntRange size=32 align=8 refs=[]
   layout IntRangeIterator size=32 align=8 refs=[]
   layout LongRange size=48 align=8 refs=[]

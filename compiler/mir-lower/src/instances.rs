@@ -3,10 +3,13 @@
 use super::*;
 
 pub(super) fn function_instance(function: &hir::Function) -> Option<hir::CallableMaterialization> {
-    let hir::FunctionEmission::Materialized { .. } = &function.emission else {
-        return None;
-    };
-    Some(function.materialization)
+    match function.materialization.context() {
+        hir::CallableMaterializationContext::NoSubstitution => None,
+        hir::CallableMaterializationContext::Application(_)
+        | hir::CallableMaterializationContext::InitializationApplication(_) => {
+            Some(function.materialization)
+        }
+    }
 }
 
 impl Lowerer {
