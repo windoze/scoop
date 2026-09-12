@@ -4,11 +4,14 @@ use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::ConeIdentity;
 use scoop_lir::CanonicalLirFoundation;
 use scoop_mir::CanonicalMirFoundation;
-use scoop_wire::{WireEncode, encode};
+use scoop_wire::{HashError, WireEncode, encode};
 
 use crate::{
-    MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataEnvelopeError, MetadataLocation,
-    MetadataSection, MetadataSectionError, SlibMember, SlibMemberRecordError, SlibMemberRole,
+    ArtifactFingerprint, BootstrapManifest, BootstrapManifestError, CanonicalSlibArchive,
+    CompatibilityRecord, ConeRecord, DependencyRecord, ManifestSection, MemberPurposeSet,
+    MemberStableKey, MetadataEnvelope, MetadataEnvelopeError, MetadataLocation, MetadataSection,
+    MetadataSectionError, ProducerRecord, SemanticFingerprintError, SemanticFingerprintRecord,
+    SlibMember, SlibMemberId, SlibMemberRecordError, SlibMemberRole, SlibWriteError,
     hir_identity_foundation_capability, lir_identity_foundation_capability,
     mir_identity_foundation_capability,
 };
@@ -194,16 +197,277 @@ impl fmt::Display for IdentityFoundationMetadataError {
 
 impl std::error::Error for IdentityFoundationMetadataError {}
 
+/// Complete input for the deliberately non-publishable foundation artifact.
+///
+/// The builder owns only graph-envelope data and typed opaque members. Its IR
+/// payloads remain borrowed from the stage-owned canonical projections.
+pub struct IdentityFoundationArtifactInput<'foundation> {
+    producer: ProducerRecord,
+    cone: ConeRecord,
+    selection: scoop_lir::ValidatedLirTargetSelection,
+    hir: &'foundation CanonicalHirFoundation,
+    mir: &'foundation CanonicalMirFoundation,
+    lir: &'foundation CanonicalLirFoundation,
+    direct_dependencies: Vec<DependencyRecord>,
+    auxiliary_members: Vec<SlibMember>,
+    manifest_sections: Vec<ManifestSection>,
+}
+
+impl<'foundation> IdentityFoundationArtifactInput<'foundation> {
+    pub const fn new(
+        producer: ProducerRecord,
+        cone: ConeRecord,
+        selection: scoop_lir::ValidatedLirTargetSelection,
+        hir: &'foundation CanonicalHirFoundation,
+        mir: &'foundation CanonicalMirFoundation,
+        lir: &'foundation CanonicalLirFoundation,
+    ) -> Self {
+        Self {
+            producer,
+            cone,
+            selection,
+            hir,
+            mir,
+            lir,
+            direct_dependencies: Vec::new(),
+            auxiliary_members: Vec::new(),
+            manifest_sections: Vec::new(),
+        }
+    }
+
+    pub fn with_direct_dependencies(mut self, dependencies: Vec<DependencyRecord>) -> Self {
+        self.direct_dependencies = dependencies;
+        self
+    }
+
+    pub fn with_auxiliary_members(mut self, members: Vec<SlibMember>) -> Self {
+        self.auxiliary_members = members;
+        self
+    }
+
+    pub fn with_manifest_sections(mut self, sections: Vec<ManifestSection>) -> Self {
+        self.manifest_sections = sections;
+        self
+    }
+}
+
+/// Canonical bytes of an identity-foundation artifact.
+///
+/// This type intentionally exposes neither a publication marker nor a Link
+/// proof. The only semantic promotion available to a consumer starts again at
+/// [`crate::DecodedSlibEnvelope`].
+#[derive(Debug, Eq, PartialEq)]
+pub struct IdentityFoundationArtifact {
+    archive: CanonicalSlibArchive,
+    artifact_fingerprint: ArtifactFingerprint,
+}
+
+impl IdentityFoundationArtifact {
+    pub fn write(
+        input: IdentityFoundationArtifactInput<'_>,
+    ) -> Result<Self, IdentityFoundationArtifactError> {
+        let IdentityFoundationArtifactInput {
+            producer,
+            cone,
+            selection,
+            hir,
+            mir,
+            lir,
+            direct_dependencies,
+            mut auxiliary_members,
+            manifest_sections,
+        } = input;
+        validate_manifest_sections(&manifest_sections)?;
+        validate_auxiliary_members(cone.identity(), &auxiliary_members)?;
+
+        let compatibility = CompatibilityRecord::identity_foundation(selection)
+            .map_err(IdentityFoundationArtifactError::Compatibility)?;
+        let metadata = IdentityFoundationMetadata::new(hir, mir, lir)
+            .map_err(IdentityFoundationArtifactError::Metadata)?;
+        let semantic_fingerprints = SemanticFingerprintRecord::identity_foundation(
+            &compatibility,
+            &direct_dependencies,
+            metadata.hir_section(),
+            metadata.mir_section(),
+            metadata.lir_section(),
+        )
+        .map_err(IdentityFoundationArtifactError::SemanticFingerprints)?;
+        let mut members = metadata
+            .into_members(cone.identity())
+            .map_err(IdentityFoundationArtifactError::Metadata)?;
+        members
+            .try_reserve_exact(auxiliary_members.len())
+            .map_err(|_| IdentityFoundationArtifactError::Allocation)?;
+        members.append(&mut auxiliary_members);
+
+        let manifest = BootstrapManifest::new(
+            producer,
+            compatibility,
+            cone,
+            direct_dependencies,
+            &members,
+            semantic_fingerprints,
+            manifest_sections,
+        )
+        .map_err(IdentityFoundationArtifactError::Manifest)?;
+        let artifact_fingerprint = manifest.artifact_fingerprint();
+        let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members)
+            .map_err(IdentityFoundationArtifactError::Archive)?;
+        Ok(Self {
+            archive,
+            artifact_fingerprint,
+        })
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.artifact_fingerprint
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.archive.as_bytes()
+    }
+}
+
+fn validate_manifest_sections(
+    sections: &[ManifestSection],
+) -> Result<(), IdentityFoundationArtifactError> {
+    if let Some((index, section)) = sections
+        .iter()
+        .enumerate()
+        .find(|(_, section)| section.required_for().contains(MemberPurposeSet::COMPILE))
+    {
+        return Err(
+            IdentityFoundationArtifactError::CompileRequiredManifestSection {
+                index,
+                capability: section.capability().clone(),
+            },
+        );
+    }
+    Ok(())
+}
+
+fn validate_auxiliary_members(
+    cone: ConeIdentity,
+    members: &[SlibMember],
+) -> Result<(), IdentityFoundationArtifactError> {
+    for (index, member) in members.iter().enumerate() {
+        if let Some(location) = match member.record().role() {
+            SlibMemberRole::HirMetadata => Some(MetadataLocation::Hir),
+            SlibMemberRole::MirMetadata => Some(MetadataLocation::Mir),
+            SlibMemberRole::LirMetadata => Some(MetadataLocation::Lir),
+            SlibMemberRole::LinkObject { .. }
+            | SlibMemberRole::DiagnosticAttachment { .. }
+            | SlibMemberRole::ExtensionBlob { .. } => None,
+        } {
+            return Err(IdentityFoundationArtifactError::ReservedMetadataMember {
+                index,
+                location,
+            });
+        }
+        let expected = member
+            .expected_id(cone)
+            .map_err(IdentityFoundationArtifactError::MemberIdentity)?;
+        let actual = member.record().id();
+        if actual != expected {
+            return Err(IdentityFoundationArtifactError::MemberConeMismatch {
+                index,
+                expected,
+                actual,
+            });
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug)]
+pub enum IdentityFoundationArtifactError {
+    Compatibility(HashError),
+    Metadata(IdentityFoundationMetadataError),
+    SemanticFingerprints(SemanticFingerprintError),
+    CompileRequiredManifestSection {
+        index: usize,
+        capability: scoop_identity::CapabilityId,
+    },
+    ReservedMetadataMember {
+        index: usize,
+        location: MetadataLocation,
+    },
+    MemberIdentity(HashError),
+    MemberConeMismatch {
+        index: usize,
+        expected: SlibMemberId,
+        actual: SlibMemberId,
+    },
+    Manifest(BootstrapManifestError),
+    Archive(SlibWriteError),
+    Allocation,
+}
+
+impl fmt::Display for IdentityFoundationArtifactError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Compatibility(source) => {
+                write!(
+                    formatter,
+                    "cannot derive foundation compatibility: {source}"
+                )
+            }
+            Self::Metadata(source) => source.fmt(formatter),
+            Self::SemanticFingerprints(source) => {
+                write!(
+                    formatter,
+                    "cannot fingerprint foundation metadata: {source}"
+                )
+            }
+            Self::CompileRequiredManifestSection { index, capability } => write!(
+                formatter,
+                "foundation manifest section {index} ({}/{}/{}) requires Compile",
+                capability.namespace(),
+                capability.name(),
+                capability.major_version(),
+            ),
+            Self::ReservedMetadataMember { index, location } => write!(
+                formatter,
+                "auxiliary member {index} attempts to replace the canonical {location} metadata member"
+            ),
+            Self::MemberIdentity(source) => {
+                write!(
+                    formatter,
+                    "cannot derive auxiliary member identity: {source}"
+                )
+            }
+            Self::MemberConeMismatch {
+                index,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "auxiliary member {index} belongs to another Cone: expected {expected}, found {actual}"
+            ),
+            Self::Manifest(source) => write!(formatter, "invalid foundation manifest: {source}"),
+            Self::Archive(source) => write!(formatter, "cannot write foundation archive: {source}"),
+            Self::Allocation => {
+                formatter.write_str("failed to allocate foundation artifact member table")
+            }
+        }
+    }
+}
+
+impl std::error::Error for IdentityFoundationArtifactError {}
+
 #[cfg(test)]
 mod tests {
     use scoop_hir::ValidatedHirFoundationWire;
-    use scoop_identity::ConeCoordinate;
+    use scoop_identity::{CapabilityId, ConeCoordinate};
     use scoop_lir::ValidatedLirFoundationWire;
     use scoop_mir::ValidatedMirFoundationWire;
     use scoop_wire::{DecodeLimits, decode_canonical};
 
     use super::*;
-    use crate::{DecodedMetadataEnvelope, MetadataLocation};
+    use crate::{
+        ConeKind, ConeSourceForm, DecodedMetadataEnvelope, DecodedSlibEnvelope,
+        ExtensionRequirement, LogicalMemberKey, ManifestSection, MetadataLocation,
+    };
 
     #[test]
     fn canonical_foundations_are_sealed_in_their_typed_metadata_members() {
@@ -245,6 +509,142 @@ mod tests {
         assert!(matches!(
             members[2].record().role(),
             SlibMemberRole::LirMetadata
+        ));
+    }
+
+    #[test]
+    fn foundation_writer_produces_a_reproducible_graph_artifact() {
+        let hir = CanonicalHirFoundation::empty();
+        let mir = CanonicalMirFoundation::empty();
+        let lir = CanonicalLirFoundation::empty();
+        let selection = scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+        let cone = ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap();
+        let diagnostic_capability = CapabilityId::new("org.scoop-lang.test", "dump", 1).unwrap();
+        let extension_capability = CapabilityId::new("org.scoop-lang.test", "opaque", 1).unwrap();
+        let diagnostic = SlibMember::new(
+            cone.identity(),
+            MemberStableKey::DiagnosticAttachment {
+                capability: diagnostic_capability.clone(),
+                logical_key: LogicalMemberKey::new(b"dump".to_vec()).unwrap(),
+            },
+            SlibMemberRole::DiagnosticAttachment {
+                capability: diagnostic_capability,
+            },
+            b"diagnostic".to_vec(),
+        )
+        .unwrap();
+        let extension = SlibMember::new(
+            cone.identity(),
+            MemberStableKey::ExtensionBlob {
+                capability: extension_capability.clone(),
+                logical_key: LogicalMemberKey::new(b"opaque".to_vec()).unwrap(),
+            },
+            SlibMemberRole::ExtensionBlob {
+                capability: extension_capability,
+                requirement: ExtensionRequirement::Optional,
+            },
+            b"opaque".to_vec(),
+        )
+        .unwrap();
+        let write = |members| {
+            IdentityFoundationArtifact::write(
+                IdentityFoundationArtifactInput::new(
+                    ProducerRecord::new("test").unwrap(),
+                    cone.clone(),
+                    selection,
+                    &hir,
+                    &mir,
+                    &lir,
+                )
+                .with_auxiliary_members(members),
+            )
+            .unwrap()
+        };
+
+        let forward = write(vec![diagnostic.clone(), extension.clone()]);
+        let reverse = write(vec![extension, diagnostic]);
+        assert_eq!(forward, reverse);
+        let graph =
+            DecodedSlibEnvelope::open(forward.as_bytes(), DecodeLimits::default(), selection)
+                .unwrap()
+                .validate_graph()
+                .unwrap();
+        assert_eq!(graph.identity(), cone.identity());
+        assert_eq!(graph.artifact_fingerprint(), forward.artifact_fingerprint());
+    }
+
+    #[test]
+    fn foundation_writer_rejects_inputs_that_cannot_form_its_profile() {
+        let hir = CanonicalHirFoundation::empty();
+        let mir = CanonicalMirFoundation::empty();
+        let lir = CanonicalLirFoundation::empty();
+        let selection = scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+        let cone = ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap();
+        let other_cone = ConeCoordinate::reserved_single_file().identity().unwrap();
+        let capability = CapabilityId::new("org.scoop-lang.test", "opaque", 1).unwrap();
+        let foreign_member = SlibMember::new(
+            other_cone,
+            MemberStableKey::ExtensionBlob {
+                capability: capability.clone(),
+                logical_key: LogicalMemberKey::new(b"foreign".to_vec()).unwrap(),
+            },
+            SlibMemberRole::ExtensionBlob {
+                capability: capability.clone(),
+                requirement: ExtensionRequirement::Optional,
+            },
+            Vec::new(),
+        )
+        .unwrap();
+        let input = || {
+            IdentityFoundationArtifactInput::new(
+                ProducerRecord::new("test").unwrap(),
+                cone.clone(),
+                selection,
+                &hir,
+                &mir,
+                &lir,
+            )
+        };
+
+        assert!(matches!(
+            IdentityFoundationArtifact::write(input().with_auxiliary_members(vec![foreign_member])),
+            Err(IdentityFoundationArtifactError::MemberConeMismatch { index: 0, .. })
+        ));
+
+        let metadata_member = SlibMember::new(
+            cone.identity(),
+            MemberStableKey::HirMetadata,
+            SlibMemberRole::HirMetadata,
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(matches!(
+            IdentityFoundationArtifact::write(
+                input().with_auxiliary_members(vec![metadata_member])
+            ),
+            Err(IdentityFoundationArtifactError::ReservedMetadataMember {
+                index: 0,
+                location: MetadataLocation::Hir,
+            })
+        ));
+
+        let compile_section =
+            ManifestSection::new(capability, MemberPurposeSet::COMPILE, Vec::new()).unwrap();
+        assert!(matches!(
+            IdentityFoundationArtifact::write(
+                input().with_manifest_sections(vec![compile_section])
+            ),
+            Err(IdentityFoundationArtifactError::CompileRequiredManifestSection { index: 0, .. })
         ));
     }
 
