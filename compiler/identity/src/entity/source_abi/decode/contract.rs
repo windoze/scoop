@@ -1,6 +1,8 @@
 use std::fmt;
 
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{
+    Decoder, Encoder, WireDecode, WireEncode, WireError, domain_separated_cbor_hash_stream_length,
+};
 
 use super::{
     DecodedSourceExternFunctionAbi, DecodedSourceNativeLibraryBinding, decode_sum_header,
@@ -319,6 +321,10 @@ impl DecodedSourceNativeExternalContractRecord {
         &self,
     ) -> Result<PersistentSourceNativeExternalContractId, scoop_wire::HashError> {
         crate::ids::derive_persistent_id("scoop-source-native-contract-id-v1", &self.key)
+    }
+
+    pub(crate) fn candidate_hash_stream_length(&self) -> Result<u64, scoop_wire::HashError> {
+        domain_separated_cbor_hash_stream_length("scoop-source-native-contract-id-v1", &self.key)
     }
 
     pub fn resolve<R, E>(

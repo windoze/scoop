@@ -105,6 +105,45 @@ fn commits_a_complete_identity_transaction() {
 }
 
 #[test]
+fn identity_hash_is_charged_before_registration() {
+    let decoded = decoded_source_type();
+    let hash_work = {
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+        pending.register(IdentityLayer::Hir, &decoded).unwrap();
+        meter.usage().validation_work_units
+    };
+    assert_eq!(hash_work, 2);
+
+    for (limit, accepted) in [
+        (hash_work - 1, false),
+        (hash_work, true),
+        (hash_work + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            validation_work_units: limit,
+            ..DecodeLimits::default()
+        });
+        let result = {
+            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+            pending.register(IdentityLayer::Hir, &decoded)
+        };
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert!(matches!(
+                result,
+                Err(IdentityValidationError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::ValidationWorkUnits,
+                        limit,
+                        observed: hash_work,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
 fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
     let decoded = decoded_source_type();
     let limits = DecodeLimits {
@@ -144,7 +183,7 @@ fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
         if accepted {
             assert_eq!(meter.usage().logical_heap_bytes, 96);
             assert_eq!(meter.usage().decoded_edges, 1);
-            assert_eq!(meter.usage().validation_work_units, 3);
+            assert_eq!(meter.usage().validation_work_units, 7);
         } else {
             assert!(matches!(
                 result,

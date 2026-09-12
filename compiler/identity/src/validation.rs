@@ -8,7 +8,10 @@ use std::fmt;
 use std::sync::Arc;
 
 use scoop_wire::budget::{GRAPH_EDGE_BYTES, READY_SET_ELEMENT_BYTES};
-use scoop_wire::{BudgetMeter, Digest256, HashError, WireError, WireErrorKind, WirePath};
+use scoop_wire::{
+    BudgetMeter, Digest256, HashError, WireError, WireErrorKind, WirePath,
+    domain_separated_hash_stream_length,
+};
 
 use crate::ids::PersistentIdConstruction;
 use crate::{
@@ -230,6 +233,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         D: DecodedIdentityKey<I>,
     {
         self.require_registration_phase()?;
+        self.charge_candidate_hashes::<I, D>(record.key())?;
         let expected = match record.key().candidate_identity() {
             Ok(expected) => expected,
             Err(error) => {
@@ -256,6 +260,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedSourceNativeExternalContractRecord,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
+        self.charge_source_native_contract_hash(record)?;
         let expected = record.candidate_identity().map_err(|error| {
             self.phase = ValidationPhase::Poisoned;
             IdentityValidationError::Hash {
@@ -280,6 +285,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedRuntimeIdentityRecord<PersistentCallableBodyId>,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
+        self.charge_callable_body_hash(record)?;
         let decoded = record.decoded_id();
         if let Err(error) = record.clone().validate_key::<DecodedCallableBodyKey>() {
             return match error {
@@ -312,6 +318,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
+        self.charge_candidate_hashes::<I, D>(record.key())?;
 
         let resolved = {
             let mut resolver = PendingIdentityResolver {
@@ -348,6 +355,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError> {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
+        self.charge_source_native_contract_hash(record)?;
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
@@ -382,6 +390,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError> {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
+        self.charge_callable_body_hash(record)?;
         let decoded = match record.decode_key::<DecodedCallableBodyKey>() {
             Ok(decoded) => decoded,
             Err(error) => {
@@ -523,6 +532,81 @@ impl<'meter> PendingIdentityValidation<'meter> {
             ValidationPhase::Resolving => self.fail(IdentityValidationError::RegistrationClosed),
             ValidationPhase::Poisoned => Err(IdentityValidationError::Poisoned),
         }
+    }
+
+    fn charge_candidate_hashes<I, D>(&mut self, key: &D) -> Result<(), IdentityValidationError>
+    where
+        I: PersistentId,
+        D: DecodedIdentityKey<I>,
+    {
+        let lengths = match key.candidate_hash_stream_lengths() {
+            Ok(lengths) => lengths,
+            Err(error) => {
+                return self.fail(IdentityValidationError::Hash {
+                    kind: I::KIND,
+                    error,
+                });
+            }
+        };
+        self.charge_hash_streams(lengths)
+    }
+
+    fn charge_source_native_contract_hash(
+        &mut self,
+        record: &DecodedSourceNativeExternalContractRecord,
+    ) -> Result<(), IdentityValidationError> {
+        let length = match record.candidate_hash_stream_length() {
+            Ok(length) => length,
+            Err(error) => {
+                return self.fail(IdentityValidationError::Hash {
+                    kind: PersistentSourceNativeExternalContractId::KIND,
+                    error,
+                });
+            }
+        };
+        self.charge_hash_streams((length, None))
+    }
+
+    fn charge_callable_body_hash(
+        &mut self,
+        record: &DecodedRuntimeIdentityRecord<PersistentCallableBodyId>,
+    ) -> Result<(), IdentityValidationError> {
+        let payload_length = match u64::try_from(record.key_bytes().len()) {
+            Ok(length) => length,
+            Err(_) => {
+                return self.fail(IdentityValidationError::Hash {
+                    kind: PersistentCallableBodyId::KIND,
+                    error: HashError::LengthOverflow,
+                });
+            }
+        };
+        let length =
+            match domain_separated_hash_stream_length("scoop-callable-body-v1", payload_length) {
+                Ok(length) => length,
+                Err(error) => {
+                    return self.fail(IdentityValidationError::Hash {
+                        kind: PersistentCallableBodyId::KIND,
+                        error,
+                    });
+                }
+            };
+        self.charge_hash_streams((length, None))
+    }
+
+    fn charge_hash_streams(
+        &mut self,
+        lengths: (u64, Option<u64>),
+    ) -> Result<(), IdentityValidationError> {
+        for length in [Some(lengths.0), lengths.1].into_iter().flatten() {
+            let result = match self.meter.as_deref_mut() {
+                Some(meter) => meter.charge_sha256(length, &self.resource_path),
+                None => Ok(()),
+            };
+            if let Err(error) = result {
+                return self.fail(IdentityValidationError::Resource(error));
+            }
+        }
+        Ok(())
     }
 
     fn insert_candidate(
