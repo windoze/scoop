@@ -170,7 +170,7 @@ fn validate_foundation(
     for (index, record) in c_abi_signatures.into_iter().enumerate() {
         resolved_signatures.push(
             record
-                .resolve(identities)
+                .resolve_verified(identities)
                 .map_err(|error| LirFoundationValidationError::CAbiSignature { index, error })?,
         );
     }
@@ -182,7 +182,7 @@ fn validate_foundation(
     for (index, record) in c_abi_layouts.into_iter().enumerate() {
         resolved_layouts.push(
             record
-                .resolve(identities)
+                .resolve_verified(identities)
                 .map_err(|error| LirFoundationValidationError::CAbiLayout { index, error })?,
         );
     }
@@ -194,7 +194,7 @@ fn validate_foundation(
     for (index, record) in native_contracts.into_iter().enumerate() {
         resolved_contracts.push(
             record
-                .resolve(identities)
+                .resolve_verified(identities)
                 .map_err(|error| LirFoundationValidationError::NativeContract { index, error })?,
         );
     }

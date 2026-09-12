@@ -4,13 +4,16 @@ use scoop_wire::{
 
 use super::*;
 use crate::{
+    CanonicalCAbiFunctionSignature, CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprintRecord,
     CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity, DeclarationScope,
-    DecodedCborIdentityRecord, DecodedExactTypeKey, DecodedSourceDeclarationKey,
-    DecodedSourceNativeExternalContractRecord, DefinitionOwnerChain, ExactTypeKey, PackagePath,
-    PersistentExactTypeId, PersistentFunctionId, PersistentSourceNativeExternalContractId,
-    PersistentTypeId, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention,
-    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
-    SourceNativeExternalContract, SourceNativeExternalContractKey,
+    DecodedCanonicalCAbiSignatureFingerprintRecord, DecodedCborIdentityRecord, DecodedExactTypeKey,
+    DecodedNativeExternalContractRecord, DecodedSourceDeclarationKey,
+    DecodedSourceNativeExternalContractRecord, DefinitionOwnerChain, ExactTypeKey,
+    NativeExternalContract, NativeExternalContractRecord, NativeExternalSymbolKey,
+    NativeLibraryBinding, PackagePath, PersistentExactTypeId, PersistentFunctionId,
+    PersistentSourceNativeExternalContractId, PersistentTypeId, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceCallingConvention, SourceDeclarationKey, SourceDeclarationSite,
+    SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractKey,
     SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
     SourceNominalKind,
 };
@@ -137,6 +140,115 @@ fn identity_hash_is_charged_before_registration() {
                         resource: ResourceKind::ValidationWorkUnits,
                         limit,
                         observed: hash_work,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
+fn c_abi_leaf_hashes_are_precharged_at_each_transaction_phase() {
+    let record = CanonicalCAbiSignatureFingerprintRecord::new(
+        CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void),
+    )
+    .unwrap();
+    let decoded = decode_canonical::<DecodedCanonicalCAbiSignatureFingerprintRecord>(
+        &encode(&record).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    let hash_length = decoded.candidate_hash_stream_length().unwrap();
+    let hash_work = (hash_length + 72) / 64;
+    let expected = hash_work * 3 + 1;
+
+    for (limit, accepted) in [
+        (expected - 1, false),
+        (expected, true),
+        (expected + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            validation_work_units: limit,
+            ..DecodeLimits::default()
+        });
+        let result = {
+            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+            pending
+                .register_c_abi_signature(IdentityLayer::Lir, &decoded)
+                .unwrap();
+            pending.resolve_c_abi_signature(&decoded).unwrap();
+            pending.finish()
+        };
+        assert_eq!(result.is_ok(), accepted);
+        if accepted {
+            assert_eq!(meter.usage().validation_work_units, expected);
+        } else {
+            assert!(matches!(
+                result,
+                Err(IdentityValidationError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::ValidationWorkUnits,
+                        limit,
+                        observed: expected,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
+fn native_contract_leaf_hashes_are_precharged_without_a_source_dependency() {
+    let source = source_native_contract_record();
+    let symbol = NativeExternalSymbolKey::darwin_macho_external(
+        &SourceNativeSymbol::new("native_entry").unwrap(),
+    )
+    .unwrap();
+    let contract = NativeExternalContract::c_function(
+        NativeLibraryBinding::DefaultNativeNamespace,
+        CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void),
+    );
+    let record = NativeExternalContractRecord::new(source.id(), symbol, contract).unwrap();
+    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(
+        &encode(&record).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    let (symbol_length, fingerprint_length) = decoded
+        .fingerprint_hash_plan()
+        .unwrap()
+        .hash_stream_lengths()
+        .unwrap();
+    let hash_work = (symbol_length + 72) / 64
+        + (fingerprint_length.expect("native fingerprint hash length") + 72) / 64;
+    let expected = hash_work * 3 + 1;
+
+    for (limit, accepted) in [
+        (expected - 1, false),
+        (expected, true),
+        (expected + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            validation_work_units: limit,
+            ..DecodeLimits::default()
+        });
+        let result = {
+            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+            pending
+                .register_native_external_contract(IdentityLayer::Lir, &decoded)
+                .unwrap();
+            pending.resolve_native_external_contract(&decoded).unwrap();
+            pending.finish()
+        };
+        assert_eq!(result.is_ok(), accepted);
+        if accepted {
+            assert_eq!(meter.usage().validation_work_units, expected);
+        } else {
+            assert!(matches!(
+                result,
+                Err(IdentityValidationError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::ValidationWorkUnits,
+                        limit,
+                        observed: expected,
                     }
             ));
         }

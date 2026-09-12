@@ -1,16 +1,14 @@
 //! Untrusted Wire CBOR representation of the LIR identity foundation.
 
-use std::collections::BTreeSet;
-
 use scoop_identity::{
     DecodedCanonicalCAbiLayoutFingerprintRecord, DecodedCanonicalCAbiSignatureFingerprintRecord,
     DecodedCborIdentityRecord, DecodedDispatchTableKey, DecodedExactTypeKey,
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeUnitKey, DecodedImmortalObjectKey,
     DecodedLayoutKey, DecodedNativeExternalContractRecord, DecodedNativeLinkRequirementKey,
     DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey, DecodedOdrMemberKey,
-    DecodedPersistentId, DecodedPersistentSymbolRequestTable, DecodedRuntimeIdentityRecord,
-    DecodedSafepointSiteKey, DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey,
-    IdentityLayer, IdentityValidationError, PendingIdentityValidation,
+    DecodedPersistentSymbolRequestTable, DecodedRuntimeIdentityRecord, DecodedSafepointSiteKey,
+    DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey, IdentityLayer,
+    IdentityValidationError, PendingIdentityValidation,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -105,38 +103,13 @@ impl DecodedLirFoundation {
         validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
         for record in &self.decoded.c_abi_signatures {
-            let fingerprint = record.candidate_fingerprint().map_err(|error| {
-                invalid_leaf(
-                    record.decoded_fingerprint(),
-                    format!("invalid canonical C ABI signature fingerprint: {error}"),
-                )
-            })?;
-            verify_leaf(record.decoded_fingerprint(), fingerprint)?;
-            validation.register_verified_leaf(IdentityLayer::Lir, fingerprint)?;
+            validation.register_c_abi_signature(IdentityLayer::Lir, record)?;
         }
         for record in &self.decoded.c_abi_layouts {
-            let fingerprint = record.candidate_fingerprint().map_err(|error| {
-                invalid_leaf(
-                    record.decoded_fingerprint(),
-                    format!("invalid canonical C ABI layout fingerprint: {error}"),
-                )
-            })?;
-            verify_leaf(record.decoded_fingerprint(), fingerprint)?;
-            validation.register_verified_leaf(IdentityLayer::Lir, fingerprint)?;
+            validation.register_c_abi_layout(IdentityLayer::Lir, record)?;
         }
-        let mut native_fingerprints = BTreeSet::new();
         for record in &self.decoded.native_contracts {
-            let fingerprint = record.candidate_fingerprint().map_err(|error| {
-                invalid_leaf(
-                    record.decoded_fingerprint(),
-                    format!("invalid native external contract fingerprint: {error}"),
-                )
-            })?;
-            verify_leaf(record.decoded_fingerprint(), fingerprint)?;
-            native_fingerprints.insert(fingerprint);
-        }
-        for fingerprint in native_fingerprints {
-            validation.register_verified_leaf(IdentityLayer::Lir, fingerprint)?;
+            validation.register_native_external_contract(IdentityLayer::Lir, record)?;
         }
 
         macro_rules! register_tables {
@@ -204,80 +177,18 @@ impl DecodedLirFoundation {
             native_link_requirements,
         );
         for record in &self.decoded.c_abi_layouts {
-            let fingerprint = record.candidate_fingerprint().map_err(|error| {
-                invalid_leaf(
-                    record.decoded_fingerprint(),
-                    format!("invalid canonical C ABI layout fingerprint: {error}"),
-                )
-            })?;
-            validation.resolve_verified_leaf(fingerprint, |resolver| {
-                record
-                    .clone()
-                    .resolve(resolver)
-                    .map(|record| record.layout().clone())
-            })?;
+            validation.resolve_c_abi_layout(record)?;
         }
         for record in &self.decoded.c_abi_signatures {
-            let fingerprint = record.candidate_fingerprint().map_err(|error| {
-                invalid_leaf(
-                    record.decoded_fingerprint(),
-                    format!("invalid canonical C ABI signature fingerprint: {error}"),
-                )
-            })?;
-            validation.resolve_verified_leaf(fingerprint, |resolver| {
-                record
-                    .clone()
-                    .resolve(resolver)
-                    .map(|record| record.signature().clone())
-            })?;
+            validation.resolve_c_abi_signature(record)?;
         }
-        let mut resolved_native_fingerprints = BTreeSet::new();
         for record in &self.decoded.native_contracts {
-            let fingerprint = record.candidate_fingerprint().map_err(|error| {
-                invalid_leaf(
-                    record.decoded_fingerprint(),
-                    format!("invalid native external contract fingerprint: {error}"),
-                )
-            })?;
-            if resolved_native_fingerprints.insert(fingerprint) {
-                validation.resolve_verified_leaf(fingerprint, |resolver| {
-                    record.clone().resolve(resolver).map(|record| {
-                        scoop_identity::NativeExternalContractFingerprintInput::new(
-                            record.symbol_id(),
-                            record.contract().clone(),
-                        )
-                    })
-                })?;
-            }
+            validation.resolve_native_external_contract(record)?;
         }
         // A strong definition plan may reconstruct a generated bridge atom;
         // definition atoms in turn depend on their plans.
         resolve_tables!(definition_plans, definition_atoms);
         Ok(())
-    }
-}
-
-fn verify_leaf<I: PersistentId>(
-    decoded: DecodedPersistentId<I>,
-    expected: I,
-) -> Result<(), IdentityValidationError> {
-    decoded.verify(expected).map(drop).map_err(|mismatch| {
-        IdentityValidationError::IdentityMismatch {
-            kind: I::KIND,
-            expected: *mismatch.expected().as_array(),
-            actual: *mismatch.actual(),
-        }
-    })
-}
-
-fn invalid_leaf<I: PersistentId>(
-    decoded: DecodedPersistentId<I>,
-    reason: String,
-) -> IdentityValidationError {
-    IdentityValidationError::InvalidRecord {
-        kind: I::KIND,
-        id: *decoded.as_array(),
-        reason,
     }
 }
 

@@ -305,6 +305,16 @@ impl CanonicalCAbiSignatureFingerprintRecord {
     pub const fn signature(&self) -> &CanonicalCAbiFunctionSignature {
         &self.signature
     }
+
+    pub(crate) const fn from_verified(
+        fingerprint: CanonicalCAbiSignatureFingerprint,
+        signature: CanonicalCAbiFunctionSignature,
+    ) -> Self {
+        Self {
+            fingerprint,
+            signature,
+        }
+    }
 }
 
 impl WireEncode for CanonicalCAbiSignatureFingerprintRecord {
@@ -507,6 +517,16 @@ impl CanonicalCAbiLayoutFingerprintRecord {
 
     pub const fn layout(&self) -> &CanonicalCAbiLayout {
         &self.layout
+    }
+
+    pub(crate) const fn from_verified(
+        fingerprint: CanonicalCAbiLayoutFingerprint,
+        layout: CanonicalCAbiLayout,
+    ) -> Self {
+        Self {
+            fingerprint,
+            layout,
+        }
     }
 }
 

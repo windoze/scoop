@@ -160,6 +160,14 @@ impl NativeExternalContractFingerprintInput {
             contract,
         }
     }
+
+    pub const fn symbol_id(&self) -> PersistentNativeExternalSymbolId {
+        self.symbol_id
+    }
+
+    pub const fn contract(&self) -> &NativeExternalContract {
+        &self.contract
+    }
 }
 
 impl WireEncode for NativeExternalContractFingerprintInput {
@@ -234,6 +242,22 @@ impl NativeExternalContractRecord {
 
     pub fn contract(&self) -> &NativeExternalContract {
         &self.contract
+    }
+
+    pub(crate) const fn from_verified(
+        source: PersistentSourceNativeExternalContractId,
+        symbol_id: PersistentNativeExternalSymbolId,
+        symbol_key: NativeExternalSymbolKey,
+        fingerprint: NativeExternalContractFingerprint,
+        contract: NativeExternalContract,
+    ) -> Self {
+        Self {
+            source,
+            symbol_id,
+            symbol_key,
+            fingerprint,
+            contract,
+        }
     }
 }
 

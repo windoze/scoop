@@ -1,5 +1,6 @@
 use scoop_wire::{
     Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length,
 };
 
 use super::{CanonicalCAbiResolutionError, DecodedCanonicalCStorageType};
@@ -7,7 +8,7 @@ use crate::{
     CanonicalCAbiFunctionSignature, CanonicalCAbiLayoutFingerprint, CanonicalCAbiParameter,
     CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprint,
     CanonicalCAbiSignatureFingerprintRecord, DecodedPersistentId, PersistentExactTypeId,
-    PersistentIdResolver, TargetCallingConvention,
+    PersistentIdResolver, PersistentKeyResolver, TargetCallingConvention,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -204,6 +205,10 @@ impl DecodedCanonicalCAbiSignatureFingerprintRecord {
             .map(|digest| CanonicalCAbiSignatureFingerprint(*digest.as_array()))
     }
 
+    pub(crate) fn candidate_hash_stream_length(&self) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length("scoop-c-abi-signature-v1", &self.signature)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -219,6 +224,30 @@ impl DecodedCanonicalCAbiSignatureFingerprintRecord {
             .verify(record.fingerprint)
             .map_err(CanonicalCAbiResolutionError::SignatureFingerprint)?;
         Ok(record)
+    }
+
+    pub fn resolve_verified<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<CanonicalCAbiSignatureFingerprintRecord, CanonicalCAbiResolutionError<E>>
+    where
+        R: PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
+            + PersistentKeyResolver<
+                CanonicalCAbiSignatureFingerprint,
+                CanonicalCAbiFunctionSignature,
+                Error = E,
+            >,
+    {
+        let fingerprint = resolver
+            .resolve(self.fingerprint)
+            .map_err(CanonicalCAbiResolutionError::Reference)?;
+        let signature = resolver
+            .resolve_key(self.fingerprint)
+            .map_err(CanonicalCAbiResolutionError::Reference)?;
+        Ok(CanonicalCAbiSignatureFingerprintRecord::from_verified(
+            fingerprint,
+            signature,
+        ))
     }
 }
 

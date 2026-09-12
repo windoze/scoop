@@ -2,18 +2,22 @@ use std::fmt;
 
 use scoop_wire::{
     Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
-    domain_separated_cbor_hash,
+    domain_separated_cbor_hash, domain_separated_cbor_hash_stream_length,
 };
 
-use super::{NativeExternAbi, NativeExternalContract, NativeExternalContractRecord};
+use super::{
+    NativeExternAbi, NativeExternalContract, NativeExternalContractFingerprintInput,
+    NativeExternalContractRecord,
+};
 use crate::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiResolutionError,
     DecodedCanonicalCAbiFunctionSignature, DecodedCanonicalCStorageType,
     DecodedCanonicalScoopAbiFunctionSignature, DecodedNativeExternalSymbolKey,
     DecodedNativeLibraryBinding, DecodedPersistentId, NativeExternalContractFingerprint,
-    NativeLinkRequirementId, NativeLinkValidationError, PersistentExactTypeId,
-    PersistentIdMismatch, PersistentIdResolver, PersistentNativeExternalSymbolId,
-    PersistentSourceNativeExternalContractId, ScoopAbiResolutionError, TargetCallingConvention,
+    NativeExternalSymbolKey, NativeLinkRequirementId, NativeLinkValidationError,
+    PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver, PersistentKeyResolver,
+    PersistentNativeExternalSymbolId, PersistentSourceNativeExternalContractId,
+    ScoopAbiResolutionError, TargetCallingConvention,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -247,20 +251,51 @@ impl DecodedNativeExternalContractRecord {
     pub fn candidate_fingerprint(
         &self,
     ) -> Result<NativeExternalContractFingerprint, NativeExternalContractFingerprintError> {
+        self.fingerprint_hash_plan()?.candidate_fingerprint()
+    }
+
+    pub(crate) fn fingerprint_hash_plan(
+        &self,
+    ) -> Result<NativeExternalContractFingerprintHashPlan<'_>, NativeExternalContractFingerprintError>
+    {
         let symbol_key = self
             .symbol_key
             .clone()
             .validate()
             .map_err(NativeExternalContractFingerprintError::SymbolKey)?;
-        let symbol_id = PersistentNativeExternalSymbolId::from_key(&symbol_key)
-            .map_err(NativeExternalContractFingerprintError::Hash)?;
-        let input = DecodedNativeExternalContractFingerprintInput {
-            symbol_id,
+        Ok(NativeExternalContractFingerprintHashPlan {
+            symbol_key,
+            decoded_symbol_id: self.symbol_id,
             contract: &self.contract,
-        };
-        domain_separated_cbor_hash("scoop-native-external-contract-v1", &input)
-            .map(|digest| NativeExternalContractFingerprint(*digest.as_array()))
-            .map_err(NativeExternalContractFingerprintError::Hash)
+        })
+    }
+
+    pub(crate) fn resolve_fingerprint_input<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<NativeExternalContractFingerprintInput, NativeExternalContractResolutionError<E>>
+    where
+        R: PersistentIdResolver<NativeLinkRequirementId, Error = E>
+            + PersistentIdResolver<PersistentExactTypeId, Error = E>
+            + PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>,
+    {
+        let symbol_key = self
+            .symbol_key
+            .validate()
+            .map_err(NativeExternalContractResolutionError::SymbolKey)?;
+        let contract = self.contract.resolve(resolver)?;
+        let symbol_id = PersistentNativeExternalSymbolId::from_key(&symbol_key)
+            .map_err(NativeExternalContractResolutionError::Hash)?;
+        self.symbol_id
+            .verify(symbol_id)
+            .map_err(NativeExternalContractResolutionError::SymbolId)?;
+        let input = NativeExternalContractFingerprintInput::new(symbol_id, contract);
+        let fingerprint = NativeExternalContractFingerprint::from_input(&input)
+            .map_err(NativeExternalContractResolutionError::Hash)?;
+        self.fingerprint
+            .verify(fingerprint)
+            .map_err(NativeExternalContractResolutionError::Fingerprint)?;
+        Ok(input)
     }
 
     pub fn resolve<R, E>(
@@ -291,11 +326,106 @@ impl DecodedNativeExternalContractRecord {
             .map_err(NativeExternalContractResolutionError::Fingerprint)?;
         Ok(record)
     }
+
+    pub fn resolve_verified<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<NativeExternalContractRecord, NativeExternalContractResolutionError<E>>
+    where
+        R: PersistentIdResolver<PersistentSourceNativeExternalContractId, Error = E>
+            + PersistentIdResolver<NativeExternalContractFingerprint, Error = E>
+            + PersistentKeyResolver<
+                NativeExternalContractFingerprint,
+                NativeExternalContractFingerprintInput,
+                Error = E,
+            >,
+    {
+        let source = resolver
+            .resolve(self.source)
+            .map_err(NativeExternalContractResolutionError::Reference)?;
+        let symbol_key = self
+            .symbol_key
+            .validate()
+            .map_err(NativeExternalContractResolutionError::SymbolKey)?;
+        let fingerprint = resolver
+            .resolve(self.fingerprint)
+            .map_err(NativeExternalContractResolutionError::Reference)?;
+        let input = resolver
+            .resolve_key(self.fingerprint)
+            .map_err(NativeExternalContractResolutionError::Reference)?;
+        self.symbol_id
+            .verify(input.symbol_id())
+            .map_err(NativeExternalContractResolutionError::SymbolId)?;
+        Ok(NativeExternalContractRecord::from_verified(
+            source,
+            input.symbol_id(),
+            symbol_key,
+            fingerprint,
+            input.contract().clone(),
+        ))
+    }
+}
+
+pub(crate) struct NativeExternalContractFingerprintHashPlan<'record> {
+    symbol_key: NativeExternalSymbolKey,
+    decoded_symbol_id: DecodedPersistentId<PersistentNativeExternalSymbolId>,
+    contract: &'record DecodedNativeExternalContract,
+}
+
+impl NativeExternalContractFingerprintHashPlan<'_> {
+    pub(crate) fn hash_stream_lengths(
+        &self,
+    ) -> Result<(u64, Option<u64>), NativeExternalContractFingerprintError> {
+        let symbol_length = domain_separated_cbor_hash_stream_length(
+            "scoop-native-link-symbol-v1",
+            &self.symbol_key,
+        )
+        .map_err(NativeExternalContractFingerprintError::Hash)?;
+        let fingerprint_input = DecodedNativeExternalContractFingerprintLengthInput {
+            symbol_id: self.decoded_symbol_id,
+            contract: self.contract,
+        };
+        let fingerprint_length = domain_separated_cbor_hash_stream_length(
+            "scoop-native-external-contract-v1",
+            &fingerprint_input,
+        )
+        .map_err(NativeExternalContractFingerprintError::Hash)?;
+        Ok((symbol_length, Some(fingerprint_length)))
+    }
+
+    pub(crate) fn candidate_fingerprint(
+        &self,
+    ) -> Result<NativeExternalContractFingerprint, NativeExternalContractFingerprintError> {
+        let symbol_id = PersistentNativeExternalSymbolId::from_key(&self.symbol_key)
+            .map_err(NativeExternalContractFingerprintError::Hash)?;
+        let input = DecodedNativeExternalContractFingerprintInput {
+            symbol_id,
+            contract: self.contract,
+        };
+        domain_separated_cbor_hash("scoop-native-external-contract-v1", &input)
+            .map(|digest| NativeExternalContractFingerprint(*digest.as_array()))
+            .map_err(NativeExternalContractFingerprintError::Hash)
+    }
 }
 
 struct DecodedNativeExternalContractFingerprintInput<'a> {
     symbol_id: PersistentNativeExternalSymbolId,
     contract: &'a DecodedNativeExternalContract,
+}
+
+struct DecodedNativeExternalContractFingerprintLengthInput<'a> {
+    symbol_id: DecodedPersistentId<PersistentNativeExternalSymbolId>,
+    contract: &'a DecodedNativeExternalContract,
+}
+
+impl WireEncode for DecodedNativeExternalContractFingerprintLengthInput<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.symbol_id.encode(encoder)?;
+        encoder.field(2)?;
+        self.contract.encode(encoder)
+    }
 }
 
 impl WireEncode for DecodedNativeExternalContractFingerprintInput<'_> {

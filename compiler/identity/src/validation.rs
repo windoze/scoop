@@ -15,9 +15,13 @@ use scoop_wire::{
 
 use crate::ids::PersistentIdConstruction;
 use crate::{
-    CallableBodyKey, CborIdentityKey, CborIdentityRecord, DecodedCallableBodyKey,
-    DecodedCborIdentityRecord, DecodedPersistentId, DecodedRuntimeIdentityRecord,
-    DecodedSourceNativeExternalContractRecord, PersistentCallableBodyId, PersistentId,
+    CallableBodyKey, CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint,
+    CborIdentityKey, CborIdentityRecord, DecodedCallableBodyKey,
+    DecodedCanonicalCAbiLayoutFingerprintRecord, DecodedCanonicalCAbiSignatureFingerprintRecord,
+    DecodedCborIdentityRecord, DecodedNativeExternalContractRecord, DecodedPersistentId,
+    DecodedRuntimeIdentityRecord, DecodedSourceNativeExternalContractRecord,
+    NativeExternalContractFingerprint, NativeExternalContractFingerprintError,
+    NativeExternalContractFingerprintInput, PersistentCallableBodyId, PersistentId,
     PersistentIdResolver, PersistentKeyResolver, PersistentSourceNativeExternalContractId,
     RuntimeIdentityKey, RuntimeIdentityRecord, RuntimeIdentityRecordValidationError,
     SourceNativeExternalContractKey,
@@ -183,20 +187,42 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.insert_resolved_leaf(id)
     }
 
-    /// Adds a hash identity whose canonical preimage was verified by its
-    /// owning decoded record before graph registration.
-    ///
-    /// The caller must subsequently supply the resolved preimage through
-    /// [`Self::resolve_verified_leaf`]. Keeping these fingerprints in the
-    /// ordinary layer delta makes them participate in typed remap and
-    /// semantic-key conflict detection just like every other identity kind.
-    pub fn register_verified_leaf<I: PersistentId>(
+    pub fn register_c_abi_signature(
         &mut self,
         layer: IdentityLayer,
-        id: I,
+        record: &DecodedCanonicalCAbiSignatureFingerprintRecord,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
-        self.insert_candidate(layer, IdentityNode::trusted(id))
+        let (fingerprint, _) = self.verify_c_abi_signature(record)?;
+        self.insert_candidate(layer, IdentityNode::trusted(fingerprint))
+    }
+
+    pub fn register_c_abi_layout(
+        &mut self,
+        layer: IdentityLayer,
+        record: &DecodedCanonicalCAbiLayoutFingerprintRecord,
+    ) -> Result<(), IdentityValidationError> {
+        self.require_registration_phase()?;
+        let (fingerprint, _) = self.verify_c_abi_layout(record)?;
+        self.insert_candidate(layer, IdentityNode::trusted(fingerprint))
+    }
+
+    pub fn register_native_external_contract(
+        &mut self,
+        layer: IdentityLayer,
+        record: &DecodedNativeExternalContractRecord,
+    ) -> Result<(), IdentityValidationError> {
+        self.require_registration_phase()?;
+        let (fingerprint, _) = self.verify_native_external_contract(record)?;
+        let node = IdentityNode::trusted(fingerprint);
+        match self.candidates.get(&node) {
+            None => self.insert_candidate(layer, node),
+            Some(candidate) if candidate.layer == Some(layer) && !candidate.resolved => Ok(()),
+            Some(_) => self.fail(IdentityValidationError::DuplicateIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            }),
+        }
     }
 
     fn insert_resolved_leaf<I: PersistentId>(
@@ -443,12 +469,79 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.store_resolved_key::<PersistentCallableBodyId, CallableBodyKey>(node, resolved)
     }
 
-    /// Resolves the canonical preimage of a previously verified hash leaf.
-    /// References observed by the callback are added to the same dependency
-    /// graph as ordinary identity records.
-    pub fn resolve_verified_leaf<I, K, E>(
+    pub fn resolve_c_abi_layout(
+        &mut self,
+        record: &DecodedCanonicalCAbiLayoutFingerprintRecord,
+    ) -> Result<(), IdentityValidationError> {
+        let (fingerprint, hash_length) = self.verify_c_abi_layout(record)?;
+        self.resolve_verified_leaf(fingerprint, (hash_length, None), |resolver| {
+            record
+                .clone()
+                .resolve(resolver)
+                .map(|record| record.layout().clone())
+        })
+    }
+
+    pub fn resolve_c_abi_signature(
+        &mut self,
+        record: &DecodedCanonicalCAbiSignatureFingerprintRecord,
+    ) -> Result<(), IdentityValidationError> {
+        let (fingerprint, hash_length) = self.verify_c_abi_signature(record)?;
+        self.resolve_verified_leaf(fingerprint, (hash_length, None), |resolver| {
+            record
+                .clone()
+                .resolve(resolver)
+                .map(|record| record.signature().clone())
+        })
+    }
+
+    pub fn resolve_native_external_contract(
+        &mut self,
+        record: &DecodedNativeExternalContractRecord,
+    ) -> Result<(), IdentityValidationError> {
+        let (fingerprint, hash_lengths) = self.verify_native_external_contract(record)?;
+        let node = IdentityNode::trusted(fingerprint);
+        let first_preimage = self.start_shared_resolution(node)?;
+        self.charge_hash_streams(hash_lengths)?;
+        let resolved = {
+            let mut resolver = PendingIdentityResolver {
+                current: node,
+                candidates: &mut self.candidates,
+                canonical_keys: &self.canonical_keys,
+                meter: self.meter.as_deref_mut(),
+                resource_error: &mut self.resource_error,
+                resource_path: &self.resource_path,
+            };
+            record.clone().resolve_fingerprint_input(&mut resolver)
+        };
+        self.require_no_resource_error()?;
+        let resolved = match resolved {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                return self.fail(IdentityValidationError::InvalidRecord {
+                    kind: node.kind,
+                    id: node.bytes,
+                    reason: error.to_string(),
+                });
+            }
+        };
+        if first_preimage {
+            self.store_resolved_key::<
+                NativeExternalContractFingerprint,
+                NativeExternalContractFingerprintInput,
+            >(node, resolved)
+        } else {
+            self.require_matching_resolved_key::<
+                NativeExternalContractFingerprint,
+                NativeExternalContractFingerprintInput,
+            >(node, &resolved)
+        }
+    }
+
+    fn resolve_verified_leaf<I, K, E>(
         &mut self,
         id: I,
+        hash_lengths: (u64, Option<u64>),
         resolve: impl FnOnce(&mut PendingIdentityResolver<'_>) -> Result<K, E>,
     ) -> Result<(), IdentityValidationError>
     where
@@ -458,6 +551,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     {
         let node = IdentityNode::trusted(id);
         self.start_resolution(node)?;
+        self.charge_hash_streams(hash_lengths)?;
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
@@ -531,6 +625,117 @@ impl<'meter> PendingIdentityValidation<'meter> {
             ValidationPhase::Registering => Ok(()),
             ValidationPhase::Resolving => self.fail(IdentityValidationError::RegistrationClosed),
             ValidationPhase::Poisoned => Err(IdentityValidationError::Poisoned),
+        }
+    }
+
+    fn verify_c_abi_signature(
+        &mut self,
+        record: &DecodedCanonicalCAbiSignatureFingerprintRecord,
+    ) -> Result<(CanonicalCAbiSignatureFingerprint, u64), IdentityValidationError> {
+        let hash_length = match record.candidate_hash_stream_length() {
+            Ok(length) => length,
+            Err(error) => {
+                return self.fail(IdentityValidationError::Hash {
+                    kind: CanonicalCAbiSignatureFingerprint::KIND,
+                    error,
+                });
+            }
+        };
+        self.charge_hash_streams((hash_length, None))?;
+        let fingerprint = match record.candidate_fingerprint() {
+            Ok(fingerprint) => fingerprint,
+            Err(error) => {
+                return self.fail(IdentityValidationError::Hash {
+                    kind: CanonicalCAbiSignatureFingerprint::KIND,
+                    error,
+                });
+            }
+        };
+        self.verify_decoded_leaf(record.decoded_fingerprint(), fingerprint)?;
+        Ok((fingerprint, hash_length))
+    }
+
+    fn verify_c_abi_layout(
+        &mut self,
+        record: &DecodedCanonicalCAbiLayoutFingerprintRecord,
+    ) -> Result<(CanonicalCAbiLayoutFingerprint, u64), IdentityValidationError> {
+        let hash_length = match record.candidate_hash_stream_length() {
+            Ok(length) => length,
+            Err(error) => {
+                return self.fail(IdentityValidationError::Hash {
+                    kind: CanonicalCAbiLayoutFingerprint::KIND,
+                    error,
+                });
+            }
+        };
+        self.charge_hash_streams((hash_length, None))?;
+        let fingerprint = match record.candidate_fingerprint() {
+            Ok(fingerprint) => fingerprint,
+            Err(error) => {
+                return self.fail(IdentityValidationError::Hash {
+                    kind: CanonicalCAbiLayoutFingerprint::KIND,
+                    error,
+                });
+            }
+        };
+        self.verify_decoded_leaf(record.decoded_fingerprint(), fingerprint)?;
+        Ok((fingerprint, hash_length))
+    }
+
+    fn verify_native_external_contract(
+        &mut self,
+        record: &DecodedNativeExternalContractRecord,
+    ) -> Result<(NativeExternalContractFingerprint, (u64, Option<u64>)), IdentityValidationError>
+    {
+        let plan = match record.fingerprint_hash_plan() {
+            Ok(plan) => plan,
+            Err(error) => return self.fail_native_fingerprint(record, error),
+        };
+        let hash_lengths = match plan.hash_stream_lengths() {
+            Ok(lengths) => lengths,
+            Err(error) => return self.fail_native_fingerprint(record, error),
+        };
+        self.charge_hash_streams(hash_lengths)?;
+        let fingerprint = match plan.candidate_fingerprint() {
+            Ok(fingerprint) => fingerprint,
+            Err(error) => return self.fail_native_fingerprint(record, error),
+        };
+        self.verify_decoded_leaf(record.decoded_fingerprint(), fingerprint)?;
+        Ok((fingerprint, hash_lengths))
+    }
+
+    fn fail_native_fingerprint<T>(
+        &mut self,
+        record: &DecodedNativeExternalContractRecord,
+        error: NativeExternalContractFingerprintError,
+    ) -> Result<T, IdentityValidationError> {
+        match error {
+            NativeExternalContractFingerprintError::Hash(error) => {
+                self.fail(IdentityValidationError::Hash {
+                    kind: NativeExternalContractFingerprint::KIND,
+                    error,
+                })
+            }
+            error => self.fail(IdentityValidationError::InvalidRecord {
+                kind: NativeExternalContractFingerprint::KIND,
+                id: *record.decoded_fingerprint().as_array(),
+                reason: error.to_string(),
+            }),
+        }
+    }
+
+    fn verify_decoded_leaf<I: PersistentId>(
+        &mut self,
+        decoded: DecodedPersistentId<I>,
+        expected: I,
+    ) -> Result<(), IdentityValidationError> {
+        match decoded.verify(expected) {
+            Ok(_) => Ok(()),
+            Err(mismatch) => self.fail(IdentityValidationError::IdentityMismatch {
+                kind: I::KIND,
+                expected: *mismatch.expected().as_array(),
+                actual: *mismatch.actual(),
+            }),
         }
     }
 
@@ -650,6 +855,27 @@ impl<'meter> PendingIdentityValidation<'meter> {
         }
     }
 
+    fn start_shared_resolution(
+        &mut self,
+        node: IdentityNode,
+    ) -> Result<bool, IdentityValidationError> {
+        if self.phase == ValidationPhase::Poisoned {
+            return Err(IdentityValidationError::Poisoned);
+        }
+        self.phase = ValidationPhase::Resolving;
+        match self.candidates.get(&node) {
+            Some(candidate) if candidate.layer.is_some() => Ok(!candidate.resolved),
+            Some(_) => self.fail(IdentityValidationError::AlreadyResolved {
+                kind: node.kind,
+                id: node.bytes,
+            }),
+            None => self.fail(IdentityValidationError::UnregisteredIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            }),
+        }
+    }
+
     fn store_resolved_key<I, K>(
         &mut self,
         node: IdentityNode,
@@ -671,6 +897,30 @@ impl<'meter> PendingIdentityValidation<'meter> {
             .expect("registered identity disappeared")
             .resolved = true;
         Ok(())
+    }
+
+    fn require_matching_resolved_key<I, K>(
+        &mut self,
+        node: IdentityNode,
+        key: &K,
+    ) -> Result<(), IdentityValidationError>
+    where
+        I: PersistentId + 'static,
+        K: Eq + 'static,
+    {
+        let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
+        match self.canonical_keys.get(&slot) {
+            Some(existing) if existing.equals(key) => Ok(()),
+            Some(_) => self.fail(IdentityValidationError::IdentityCollision {
+                kind: node.kind,
+                id: node.bytes,
+            }),
+            None => self.fail(IdentityValidationError::InvalidRecord {
+                kind: node.kind,
+                id: node.bytes,
+                reason: "resolved identity is missing its canonical key".to_owned(),
+            }),
+        }
     }
 
     fn fail<T>(&mut self, error: IdentityValidationError) -> Result<T, IdentityValidationError> {
@@ -1014,6 +1264,10 @@ pub enum IdentityValidationError {
         kind: &'static str,
         id: [u8; 32],
     },
+    IdentityCollision {
+        kind: &'static str,
+        id: [u8; 32],
+    },
     UnregisteredIdentity {
         kind: &'static str,
         id: [u8; 32],
@@ -1058,6 +1312,13 @@ impl fmt::Display for IdentityValidationError {
             }
             Self::DuplicateIdentity { kind, id } => {
                 write!(formatter, "duplicate {kind} identity ")?;
+                write_hex(id, formatter)
+            }
+            Self::IdentityCollision { kind, id } => {
+                write!(
+                    formatter,
+                    "conflicting canonical keys share {kind} identity "
+                )?;
                 write_hex(id, formatter)
             }
             Self::UnregisteredIdentity { kind, id } => {

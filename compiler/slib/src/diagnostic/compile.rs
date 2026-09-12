@@ -31,7 +31,9 @@ impl SlibDiagnostic for IdentityValidationError {
             Self::DependencyCycle { kind, id } => {
                 identity_diagnostic(SlibErrorCode::IdentityCycle, kind, id)
             }
-            Self::AlreadyResolved { kind, id } | Self::InvalidRecord { kind, id, .. } => {
+            Self::AlreadyResolved { kind, id }
+            | Self::IdentityCollision { kind, id }
+            | Self::InvalidRecord { kind, id, .. } => {
                 identity_diagnostic(SlibErrorCode::IdentityInvalid, kind, id)
             }
             Self::Hash { .. } | Self::RegistrationClosed | Self::Poisoned => {

@@ -2,14 +2,14 @@ use std::num::NonZeroU64;
 
 use scoop_wire::{
     Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
-    domain_separated_cbor_hash,
+    domain_separated_cbor_hash, domain_separated_cbor_hash_stream_length,
 };
 
 use super::{CanonicalCAbiResolutionError, DecodedCanonicalCStorageType};
 use crate::{
     CLayoutByteAlignment, CLayoutOverride, CanonicalCAbiLayout, CanonicalCAbiLayoutField,
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord, DecodedPersistentId,
-    PersistentExactTypeId, PersistentFieldId, PersistentIdResolver,
+    PersistentExactTypeId, PersistentFieldId, PersistentIdResolver, PersistentKeyResolver,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -201,6 +201,10 @@ impl DecodedCanonicalCAbiLayoutFingerprintRecord {
             .map(|digest| CanonicalCAbiLayoutFingerprint(*digest.as_array()))
     }
 
+    pub(crate) fn candidate_hash_stream_length(&self) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length("scoop-c-abi-layout-v1", &self.layout)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -217,6 +221,26 @@ impl DecodedCanonicalCAbiLayoutFingerprintRecord {
             .verify(record.fingerprint)
             .map_err(CanonicalCAbiResolutionError::LayoutFingerprint)?;
         Ok(record)
+    }
+
+    pub fn resolve_verified<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiResolutionError<E>>
+    where
+        R: PersistentIdResolver<CanonicalCAbiLayoutFingerprint, Error = E>
+            + PersistentKeyResolver<CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayout, Error = E>,
+    {
+        let fingerprint = resolver
+            .resolve(self.fingerprint)
+            .map_err(CanonicalCAbiResolutionError::Reference)?;
+        let layout = resolver
+            .resolve_key(self.fingerprint)
+            .map_err(CanonicalCAbiResolutionError::Reference)?;
+        Ok(CanonicalCAbiLayoutFingerprintRecord::from_verified(
+            fingerprint,
+            layout,
+        ))
     }
 }
 
