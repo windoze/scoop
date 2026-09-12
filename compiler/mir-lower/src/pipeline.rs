@@ -19,6 +19,7 @@ impl Lowerer {
         // id must exist before interface applications are transposed.
         self.lower_interfaces(module);
         self.shell = type_context(
+            module.cone,
             &self.structs.defs,
             &self.enums.defs,
             &self.classes,
@@ -298,6 +299,7 @@ impl Lowerer {
         let generated_exact_types = self.generated_exact_types(&boxed_types);
         let option_core = self.enums.all_option_core(module);
         let mut output = mir::Module {
+            cone: module.cone,
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,

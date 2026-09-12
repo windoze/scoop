@@ -78,6 +78,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         itables: vec![],
     });
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

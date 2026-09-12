@@ -41,6 +41,7 @@ impl Lowerer {
             "every parsed source has exactly one lowering source descriptor"
         );
         let primary_user_file = self.primary_user_file();
+        let current_cone = self.current_cone();
         let core_diagnostic_file = self.core_diagnostic_file();
         self.top_level_namespaces.initialize_sources(
             self.intrinsic_sources.iter().map(|source| source.kind),
@@ -782,6 +783,7 @@ impl Lowerer {
             }
         };
         let module = hir::Module {
+            cone: current_cone,
             nominal_identities,
             property_identities,
             property_accessor_identities,

@@ -118,6 +118,7 @@ fn closure_abi_module() -> Module {
     });
 
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -315,6 +316,7 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
         "an elided ZST call still defines its logical result temporary"
     );
     let module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

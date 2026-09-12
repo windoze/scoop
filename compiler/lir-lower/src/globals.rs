@@ -74,6 +74,7 @@ pub(super) fn lower_globals(
                 StorageGlobal::Local(lir_id)
             }
             mir::GlobalStorage::Extern {
+                source_contract: _,
                 library,
                 native_symbol,
                 thread_local,

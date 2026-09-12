@@ -189,12 +189,45 @@ fn concrete_owner(identity: &hir::HirNominalIdentity) -> hir::NativeBoundaryNomi
 
 #[test]
 fn source_native_contracts_cover_functions_and_globals_without_arena_identity() {
-    let first = lower_user(native_contract_fixture(false)).expect("native contract fixture lowers");
-    let shifted =
-        lower_user(native_contract_fixture(true)).expect("shifted native contract fixture lowers");
-    let records = source_native_contracts(&first);
-    assert_eq!(records, source_native_contracts(&shifted));
+    let first =
+        lower_user_output(native_contract_fixture(false)).expect("native contract fixture lowers");
+    let shifted = lower_user_output(native_contract_fixture(true))
+        .expect("shifted native contract fixture lowers");
+    let records = source_native_contracts(&first.export);
+    assert_eq!(records, source_native_contracts(&shifted.export));
     assert_eq!(records.len(), 5);
+    assert_eq!(first.export.cone, first.local.cone);
+    let mut concrete_records = first
+        .local
+        .extern_functions
+        .iter()
+        .filter(|(_, function)| {
+            matches!(function.source_name.as_str(), "nativeAdd" | "nativeWrite")
+        })
+        .map(|(_, function)| {
+            (
+                function.source_name.clone(),
+                function.source_contract.clone(),
+            )
+        })
+        .chain(first.local.globals.iter().filter_map(|(_, global)| {
+            if !matches!(
+                global.name.as_str(),
+                "readOnly" | "mutableData" | "mutableTls"
+            ) {
+                return None;
+            }
+            let hir::concrete::GlobalStorage::Extern {
+                source_contract, ..
+            } = &global.storage
+            else {
+                return None;
+            };
+            Some((global.name.clone(), source_contract.as_ref().clone()))
+        }))
+        .collect::<Vec<_>>();
+    concrete_records.sort_by(|left, right| left.0.cmp(&right.0));
+    assert_eq!(concrete_records, records);
 
     let contract = |name: &str| {
         records

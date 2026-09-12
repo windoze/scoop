@@ -422,6 +422,19 @@ impl Lowerer {
             .expect("a lowering input always contains a current-unit source")
     }
 
+    pub(crate) fn current_cone(&self) -> scoop_identity::ConeIdentity {
+        let primary = self.primary_user_file();
+        let cone = self.intrinsic_sources[primary].identity.cone();
+        assert!(
+            self.intrinsic_sources
+                .iter()
+                .filter(|source| source.kind == SourceKind::CurrentUnit)
+                .all(|source| source.identity.cone() == cone),
+            "all current-unit sources must belong to one Cone"
+        );
+        cone
+    }
+
     pub(crate) fn primary_core_file(&self) -> Option<usize> {
         self.intrinsic_sources
             .iter()

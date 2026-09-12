@@ -558,6 +558,7 @@ fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
         body: Body::unreachable(Arena::new()),
     });
     let mut module = Module {
+        cone: ConeIdentity::SINGLE_FILE,
         functions,
         extern_functions: Arena::new(),
         globals: Arena::new(),

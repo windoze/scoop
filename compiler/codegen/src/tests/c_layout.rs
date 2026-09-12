@@ -440,6 +440,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         terminator: Terminator::Return { value: None },
     });
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs,

@@ -195,6 +195,11 @@ pub enum LegacyCombinedSourcesError {
         duplicate_index: usize,
         identity: scoop_identity::SourceIdentity,
     },
+    MixedCurrentCones {
+        first: scoop_identity::ConeIdentity,
+        source_index: usize,
+        actual: scoop_identity::ConeIdentity,
+    },
 }
 
 impl std::fmt::Display for LegacyCombinedSourcesError {
@@ -209,6 +214,14 @@ impl std::fmt::Display for LegacyCombinedSourcesError {
                 "source {duplicate_index} duplicates source {first_index} identity {}/{}",
                 identity.cone(),
                 identity.logical_path()
+            ),
+            Self::MixedCurrentCones {
+                first,
+                source_index,
+                actual,
+            } => write!(
+                formatter,
+                "current source {source_index} belongs to Cone {actual}, expected {first}",
             ),
         }
     }
@@ -225,6 +238,17 @@ impl<'a> LegacyCombinedSources<'a> {
         user_sources: ast::AllParsedSources,
         mut source_details: impl FnMut(&scoop_identity::SourceIdentity) -> CurrentSourceDetails<'a>,
     ) -> Result<Self, LegacyCombinedSourcesError> {
+        let first_cone = user_sources.sources().first().identity().cone();
+        for (source_index, source) in user_sources.sources().iter().enumerate().skip(1) {
+            let actual = source.identity().cone();
+            if actual != first_cone {
+                return Err(LegacyCombinedSourcesError::MixedCurrentCones {
+                    first: first_cone,
+                    source_index,
+                    actual,
+                });
+            }
+        }
         let mut seen = Vec::with_capacity(core.len() + user_sources.sources().len());
         for (index, identity) in core
             .iter()

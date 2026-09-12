@@ -507,6 +507,7 @@ fn root_plan_test_module(
     entry_index: usize,
 ) -> Module {
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::new(),
         initialization_units: Arena::new(),
         structs: scoop_lir::StructDefs::default(),

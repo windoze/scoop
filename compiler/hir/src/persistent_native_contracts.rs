@@ -64,6 +64,17 @@ pub struct HirSourceNativeContracts {
 }
 
 impl HirSourceNativeContracts {
+    /// Resolve the total contract relation by its typed local owner.
+    pub fn get(
+        &self,
+        owner: HirSourceNativeContractOwner,
+    ) -> Option<&SourceNativeExternalContractRecord> {
+        self.contracts
+            .iter()
+            .find(|contract| contract.owner == owner)
+            .map(HirSourceNativeContract::record)
+    }
+
     pub fn from_declarations(
         inputs: HirSourceNativeContractInputs<'_>,
     ) -> Result<Self, HirSourceNativeContractError> {

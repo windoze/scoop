@@ -513,6 +513,7 @@ pub enum GlobalStorage {
         initializer: HirConstantImage,
     },
     Extern {
+        source_contract: Box<SourceNativeExternalContractRecord>,
         library: String,
         native_symbol: String,
         thread_local: bool,

@@ -123,6 +123,7 @@ fn barrier_module() -> Module {
         terminator: Terminator::Br(header),
     };
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

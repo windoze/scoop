@@ -13,9 +13,61 @@ use scoop_identity::{
     PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFunctionId,
     PersistentPropertyId, PersistentTypeId, SignatureCallableShape, SignatureTypeKey,
     SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
-    SourceNominalKind, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractKey,
+    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
+    SourceNominalKind, SourceScoopAbiFunctionSignature, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
+
+fn test_source_native_contract(
+    source_name: &str,
+    native_symbol: &str,
+    abi: mir::ExternAbi,
+) -> SourceNativeExternalContractRecord {
+    let identifier = format!(
+        "test{}",
+        format!("{source_name}:{native_symbol}")
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let abi = match abi {
+        mir::ExternAbi::C => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
+            Vec::new(),
+            SourceCAbiReturn::Void,
+        )),
+        mir::ExternAbi::Scoop => SourceExternFunctionAbi::Scoop {
+            signature: SourceScoopAbiFunctionSignature::new(
+                Vec::new(),
+                SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+            ),
+            gc_effect: scoop_identity::GcEffect::Managed,
+        },
+    };
+    SourceNativeExternalContractRecord::new(
+        SourceNativeExternalContractKey::function(&declaration).unwrap(),
+        SourceNativeExternalContract::Function {
+            symbol: SourceNativeSymbol::new(native_symbol).unwrap(),
+            library: SourceNativeLibraryBinding::DefaultNativeNamespace,
+            abi,
+            calling_convention: scoop_identity::SourceCallingConvention::Cdecl,
+        },
+    )
+    .unwrap()
+}
 
 fn lower(module: &mir::Module) -> lir::Module {
     super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
@@ -595,6 +647,7 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .into_iter()
         .collect::<Vec<_>>();
     builder.extern_functions.alloc(mir::ExternFunction {
+        source_contract: test_source_native_contract("integers", "integers", mir::ExternAbi::C),
         source_name: "integers".to_string(),
         native_symbol: "integers".to_string(),
         library: String::new(),
@@ -668,6 +721,11 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
     let code_payload = mir::Type::FunPtr(native_signature);
     let code_option = builder.option_enum("Option<FunPtr>", code_payload.clone());
     builder.extern_functions.alloc(mir::ExternFunction {
+        source_contract: test_source_native_contract(
+            "nullablePointers",
+            "nullable_pointers",
+            mir::ExternAbi::C,
+        ),
         source_name: "nullablePointers".to_string(),
         native_symbol: "nullable_pointers".to_string(),
         library: String::new(),
@@ -749,6 +807,7 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
         ],
     });
     builder.extern_functions.alloc(mir::ExternFunction {
+        source_contract: test_source_native_contract("lookalike", "lookalike", mir::ExternAbi::C),
         source_name: "lookalike".to_string(),
         native_symbol: "lookalike".to_string(),
         library: String::new(),

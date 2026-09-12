@@ -18,6 +18,7 @@ pub struct Function {
 
 #[derive(Debug)]
 pub struct ExternFunction {
+    pub source_contract: SourceNativeExternalContractRecord,
     pub source_name: String,
     pub native_symbol: String,
     pub library: String,

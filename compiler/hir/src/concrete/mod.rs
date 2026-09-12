@@ -14,8 +14,9 @@ pub use scoop_identity::{
     OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
     OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
     PersistentExactTypeId, PersistentGeneratedCallableId, PersistentInitializationUnitId,
-    PersistentLocalValueId, SpecializationKey, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment, SyntheticLocalRole,
+    PersistentLocalValueId, SourceNativeExternalContractRecord, SpecializationKey,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    SyntheticLocalRole,
 };
 
 pub use super::{

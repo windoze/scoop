@@ -1,6 +1,8 @@
 use super::*;
 
 pub struct Module {
+    /// Producer Cone used for every generated Strong definition.
+    pub cone: scoop_identity::ConeIdentity,
     pub globals: Arena<Global>,
     pub initialization_units: Arena<InitializationUnit>,
     /// Struct definitions with complete physical layouts (indexed by

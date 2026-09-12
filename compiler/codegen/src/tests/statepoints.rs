@@ -293,6 +293,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     };
 
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -384,6 +385,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         },
     });
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

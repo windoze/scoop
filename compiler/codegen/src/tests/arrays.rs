@@ -191,6 +191,7 @@ fn arrays_module() -> Module {
     });
 
     Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

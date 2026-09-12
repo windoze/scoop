@@ -51,6 +51,9 @@ pub enum MethodDispatch {
 
 #[derive(Debug, Clone)]
 pub struct ExternFunction {
+    /// Target-independent source contract retained as the typed owner of the
+    /// target-specific native contract produced by LIR lowering.
+    pub source_contract: SourceNativeExternalContractRecord,
     pub source_name: String,
     pub native_symbol: String,
     pub library: String,

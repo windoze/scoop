@@ -25,6 +25,7 @@ pub(super) fn fn_name(function: &hir::Function) -> String {
 /// being populated. Its arena allocation order mirrors the output arenas, so
 /// stage-local type ids remain valid when the final module is assembled.
 pub(super) fn type_context(
+    cone: mir::ConeIdentity,
     structs: &Arena<mir::StructDef>,
     enums: &Arena<mir::EnumDef>,
     classes: &Arena<mir::ClassDef>,
@@ -100,6 +101,7 @@ pub(super) fn type_context(
         body: mir::Body::unreachable(Arena::new()),
     });
     mir::Module {
+        cone,
         functions,
         extern_functions: Arena::new(),
         globals: Arena::new(),

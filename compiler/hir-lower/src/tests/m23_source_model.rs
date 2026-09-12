@@ -287,6 +287,46 @@ fn combined_source_input_rejects_duplicate_semantic_identities() {
 }
 
 #[test]
+fn combined_source_input_rejects_multiple_current_cones() {
+    let first_identity = test_source_identity("src/first.scoop");
+    let first_cone = first_identity.cone();
+    let first = ast::IdentifiedParsedSource::new(first_identity, file(Vec::new()));
+    let other_cone = scoop_identity::ConeCoordinate::new("test", "other", "0.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let second_identity = scoop_identity::SourceIdentity::new(
+        other_cone,
+        scoop_identity::NormalizedSourcePath::new("src/second.scoop").unwrap(),
+    )
+    .unwrap();
+    let second = ast::IdentifiedParsedSource::new(second_identity, file(Vec::new()));
+    let parsed =
+        ast::AllParsedSources::try_new(ast::NonEmptyVec::new(first, vec![second])).unwrap();
+
+    let error = LegacyCombinedSources::try_new(
+        Vec::new(),
+        hir::IntrinsicProviderId::from_raw(29),
+        parsed,
+        |_| CurrentSourceDetails {
+            display_locator: "source.scoop",
+            source_text: "",
+        },
+    )
+    .err()
+    .expect("one lowering unit cannot mix current Cones");
+
+    assert_eq!(
+        error,
+        LegacyCombinedSourcesError::MixedCurrentCones {
+            first: first_cone,
+            source_index: 1,
+            actual: other_cone,
+        }
+    );
+}
+
+#[test]
 fn same_qualified_package_shares_internal_declarations_across_sources() {
     let core = core_file();
     let first = with_package(file(vec![fun("shared", Vec::new())]), &["dev", "app"]);

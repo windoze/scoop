@@ -652,6 +652,7 @@ impl<'a> Concretizer<'a> {
             .expect("validated concretization produces a total local-value identity relation");
 
         let module = concrete::Module {
+            cone: self.source.cone,
             types: self.types,
             exact_type_identities,
             local_value_identities,

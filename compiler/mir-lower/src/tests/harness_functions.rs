@@ -880,6 +880,7 @@ impl Harness {
             )
             .expect("the empty MIR test callback relation is valid");
         let module = hir::Module {
+            cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             nominal_identities,
             property_identities,
             property_accessor_identities,

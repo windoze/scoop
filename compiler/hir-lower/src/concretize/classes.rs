@@ -520,6 +520,21 @@ impl Concretizer<'_> {
 
     pub(super) fn lower_extern_functions(&mut self) {
         for (source_id, source) in self.source.extern_functions.iter() {
+            let owner = self
+                .source
+                .functions
+                .iter()
+                .find_map(|(function_id, function)| {
+                    matches!(&function.kind, export::FunctionKind::Extern(id) if *id == source_id)
+                        .then_some(function_id)
+                })
+                .expect("every extern declaration has one source function owner");
+            let source_contract = self
+                .source
+                .source_native_contracts
+                .get(export::HirSourceNativeContractOwner::Function(owner))
+                .expect("every extern function has a source-native contract")
+                .clone();
             let params = source
                 .params
                 .iter()
@@ -527,6 +542,7 @@ impl Concretizer<'_> {
                 .collect();
             let return_type = self.lower_type(source.return_type, &[]);
             let id = self.extern_functions.alloc(concrete::ExternFunction {
+                source_contract,
                 source_name: source.source_name.clone(),
                 native_symbol: source.native_symbol.clone(),
                 library: source.library.clone(),
@@ -546,7 +562,7 @@ impl Concretizer<'_> {
         // to any global regardless of declaration order.
         for (source_id, source) in self.source.globals.iter() {
             let ty = self.lower_type(source.ty, &[]);
-            let storage = self.lower_global_storage(&source.storage);
+            let storage = self.lower_global_storage(source_id, &source.storage);
             let storage_owner = self.property_storage_owner(source_id, source);
             let id = self.globals.alloc(concrete::Global {
                 name: source.name.clone(),
@@ -596,6 +612,7 @@ impl Concretizer<'_> {
 
     pub(super) fn lower_global_storage(
         &mut self,
+        global: export::GlobalId,
         storage: &export::GlobalStorage,
     ) -> concrete::GlobalStorage {
         match storage {
@@ -625,6 +642,13 @@ impl Concretizer<'_> {
                 native_symbol,
                 thread_local,
             } => concrete::GlobalStorage::Extern {
+                source_contract: Box::new(
+                    self.source
+                        .source_native_contracts
+                        .get(export::HirSourceNativeContractOwner::Global(global))
+                        .expect("every extern global has a source-native contract")
+                        .clone(),
+                ),
                 library: library.clone(),
                 native_symbol: native_symbol.clone(),
                 thread_local: *thread_local,

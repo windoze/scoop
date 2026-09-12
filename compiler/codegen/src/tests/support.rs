@@ -857,6 +857,7 @@ pub(super) fn values_module() -> Module {
     };
 
     Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

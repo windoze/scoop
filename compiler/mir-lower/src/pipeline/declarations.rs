@@ -123,6 +123,7 @@ impl Lowerer {
                 &mut self.shell,
             );
             let id = self.extern_functions.alloc(mir::ExternFunction {
+                source_contract: extern_.source_contract.clone(),
                 source_name: extern_.source_name.clone(),
                 native_symbol: extern_.native_symbol.clone(),
                 library: extern_.library.clone(),
@@ -230,10 +231,12 @@ impl Lowerer {
                     ),
                 },
                 hir::GlobalStorage::Extern {
+                    source_contract,
                     library,
                     native_symbol,
                     thread_local,
                 } => mir::GlobalStorage::Extern {
+                    source_contract: source_contract.clone(),
                     library: library.clone(),
                     native_symbol: native_symbol.clone(),
                     thread_local: *thread_local,

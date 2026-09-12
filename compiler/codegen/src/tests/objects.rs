@@ -145,6 +145,7 @@ pub(super) fn classes_module() -> Module {
     });
 
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -394,6 +395,7 @@ pub(super) fn heap_module() -> Module {
     };
 
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

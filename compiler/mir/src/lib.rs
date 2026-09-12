@@ -14,9 +14,10 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub use scoop_identity::{
-    CallableOwner, ImmortalObjectKey, ImmortalObjectOwner, OdrGroupId, PersistentExactTypeId,
-    PersistentInitializationUnitId, PropertyOwner, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    CallableOwner, ConeIdentity, ImmortalObjectKey, ImmortalObjectOwner, OdrGroupId,
+    PersistentExactTypeId, PersistentInitializationUnitId, PropertyOwner,
+    SourceNativeExternalContractRecord, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 mod ids;

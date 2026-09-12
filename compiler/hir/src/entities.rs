@@ -2,6 +2,10 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Cone whose declarations and generated definitions this module emits.
+    /// Imported/core sources may also be present, so this cannot be inferred
+    /// from the source table.
+    pub cone: scoop_identity::ConeIdentity,
     /// Total persistent identity relation for every nominal declaration in
     /// the five export arenas. Local arena ids remain request-scoped and are
     /// never used as emission or cross-Cone identity.

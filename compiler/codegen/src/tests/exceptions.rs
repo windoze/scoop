@@ -195,6 +195,7 @@ pub(super) fn exceptions_module() -> Module {
     };
 
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),

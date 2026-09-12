@@ -271,6 +271,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     let (layouts, well_known_layouts) =
         layouts(&context, &identity_roots, module, &enums, &layout_types);
     lir::Module {
+        cone: module.cone,
         globals,
         initialization_units,
         structs,

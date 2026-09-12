@@ -1704,6 +1704,7 @@ mod tests {
     fn module_with_types(structs: StructDefs, enums: EnumDefs) -> Module {
         let mut local_functions = scoop_lir::LocalFunctionIdentities::default();
         Module {
+            cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             globals: Arena::new(),
             initialization_units: Arena::new(),
             structs,

@@ -118,6 +118,11 @@ impl Builder {
         return_type: mir::Type,
     ) -> mir::ExternFunctionId {
         self.extern_functions.alloc(mir::ExternFunction {
+            source_contract: test_source_native_contract(
+                source_name,
+                native_symbol,
+                mir::ExternAbi::Scoop,
+            ),
             source_name: source_name.to_string(),
             native_symbol: native_symbol.to_string(),
             library: String::new(),
@@ -137,6 +142,11 @@ impl Builder {
         return_type: mir::Type,
     ) -> mir::ExternFunctionId {
         self.extern_functions.alloc(mir::ExternFunction {
+            source_contract: test_source_native_contract(
+                source_name,
+                native_symbol,
+                mir::ExternAbi::C,
+            ),
             source_name: source_name.to_string(),
             native_symbol: native_symbol.to_string(),
             library: String::new(),
@@ -507,6 +517,7 @@ impl Builder {
         )
         .unwrap();
         mir::Module {
+            cone: ConeIdentity::SINGLE_FILE,
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: Arena::new(),
