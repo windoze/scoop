@@ -120,6 +120,7 @@ mod persistent_accessors;
 mod persistent_aliases;
 mod persistent_callbacks;
 mod persistent_constructor_identities;
+mod persistent_definition_origins;
 mod persistent_dispatch;
 mod persistent_enum_members;
 mod persistent_export_bindings;
@@ -460,6 +461,10 @@ pub(crate) struct Lowerer {
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
+    /// Source locations aligned with the checked source-field refs. Field
+    /// resolution may reject individual AST entries, so raw source ordinals
+    /// are not a valid substitute for this typed relation.
+    pub(crate) struct_field_spans: HashMap<hir::StructFieldRef, Span>,
     pub(crate) struct_constructors: Arena<hir::StructConstructor>,
     pub(crate) struct_constructor_applications: Arena<hir::StructConstructorApplication>,
     pub(crate) struct_constructor_application_by_key: HashMap<
@@ -470,6 +475,8 @@ pub(crate) struct Lowerer {
     pub(crate) struct_application_by_key:
         HashMap<(StructId, Vec<TypeId>), hir::StructApplicationId>,
     pub(crate) enums: Arena<EnumDecl>,
+    pub(crate) enum_variant_spans: HashMap<hir::EnumVariantRef, Span>,
+    pub(crate) enum_variant_field_spans: HashMap<hir::EnumVariantFieldRef, Span>,
     pub(crate) enum_applications: Arena<hir::EnumApplication>,
     pub(crate) enum_application_by_key: HashMap<(EnumId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Arena<ClassDecl>,

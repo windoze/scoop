@@ -49,6 +49,10 @@ pub struct Module {
     /// Target-independent persistent contract for every source extern
     /// function and global.
     pub source_native_contracts: HirSourceNativeContracts,
+    /// Canonical foundation origins for every persistent subject established
+    /// before exact callable materialization. Local-value origins are derived
+    /// alongside LocalConcrete HIR and therefore live outside this relation.
+    pub export_definition_origins: HirExportDefinitionOrigins,
     /// Explicit public source API. Internal/private implementation entities
     /// elsewhere in this module are not downstream declaration candidates.
     pub public_surface: PublicSemanticSurface,

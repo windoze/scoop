@@ -187,6 +187,44 @@ fn private_declaration_does_not_cross_user_source_slots() {
 }
 
 #[test]
+fn definition_origins_use_semantic_source_identity_when_spans_are_identical() {
+    let core = core_file();
+    let first = file(vec![fun("firstSource", Vec::new())]);
+    let second = file(vec![fun("main", Vec::new())]);
+
+    let output = lower_user_sources(&core, &first, &[(&second, "second.scoop")])
+        .expect("both source declarations must lower");
+    let module = output.export;
+    for (name, expected_source) in [
+        ("firstSource", test_source_identity("src/first.scoop")),
+        ("main", test_source_identity("src/second.scoop")),
+    ] {
+        let (function, _) = module
+            .functions
+            .iter()
+            .find(|(_, function)| function.name == name)
+            .unwrap_or_else(|| panic!("missing function {name}"));
+        let hir::HirSourceFunctionIdentity::Plain(identity) = module.function_identities[function]
+            .source_identity()
+            .expect("the function is source-defined")
+        else {
+            panic!("the function is non-generic")
+        };
+        let subject = scoop_identity::DefinitionOriginSubject::Function(identity.id());
+        let origin = module
+            .export_definition_origins
+            .get(subject)
+            .expect("every source function has one definition origin")
+            .origin();
+        assert_eq!(origin.source(), &expected_source);
+        assert_eq!(
+            origin.span(),
+            scoop_identity::SourceSpan::new(0, 0).unwrap()
+        );
+    }
+}
+
+#[test]
 fn a_later_user_source_does_not_gain_core_intrinsic_authority() {
     let core = core_file();
     let first = file(Vec::new());

@@ -904,6 +904,7 @@ impl Harness {
             dispatch_slot_identities,
             source_context_identities,
             source_native_contracts,
+            export_definition_origins: hir::HirExportDefinitionOrigins::default(),
             public_surface,
             source_files,
             source_contexts,

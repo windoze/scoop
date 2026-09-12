@@ -758,6 +758,29 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let export_definition_origins = match crate::persistent_definition_origins::build(
+            &self,
+            &nominal_identities,
+            &property_identities,
+            &property_accessor_identities,
+            &type_alias_identities,
+            &enum_member_identities,
+            &field_identities,
+            &initialization_unit_identities,
+            &constructor_identities,
+            &function_identities,
+            &callback_registration_identities,
+            &local_binding_identities,
+            &source_native_contracts,
+            &source_context_identities,
+        ) {
+            Ok(origins) => origins,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let module = hir::Module {
             nominal_identities,
             property_identities,
@@ -776,6 +799,7 @@ impl Lowerer {
             dispatch_slot_identities,
             source_context_identities,
             source_native_contracts,
+            export_definition_origins,
             public_surface,
             source_files,
             source_contexts: self.source_contexts,

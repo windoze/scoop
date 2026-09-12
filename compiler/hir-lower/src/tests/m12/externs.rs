@@ -260,11 +260,11 @@ fn native_boundary_witness_is_the_exact_transitive_source_nominal_closure() {
             .all(|pair| { pair[0].owner().compare_sort_key(pair[1].owner()).is_lt() })
     );
 
-    let header = source_struct(&module, "NativeHeader");
-    let payload = source_enum(&module, "NativePayload");
-    let boxed = source_struct(&module, "NativeBox");
-    let envelope = source_struct(&module, "NativeEnvelope");
-    let unrelated = source_struct(&module, "UnrelatedNativeShape");
+    let header = source_struct(module, "NativeHeader");
+    let payload = source_enum(module, "NativePayload");
+    let boxed = source_struct(module, "NativeBox");
+    let envelope = source_struct(module, "NativeEnvelope");
+    let unrelated = source_struct(module, "UnrelatedNativeShape");
     let record = |owner| {
         records
             .iter()

@@ -111,6 +111,9 @@ pub use persistent_native_contracts::*;
 mod persistent_native_boundary;
 pub use persistent_native_boundary::*;
 
+mod persistent_definition_origins;
+pub use persistent_definition_origins::*;
+
 mod persistent_aliases;
 pub use persistent_aliases::*;
 
