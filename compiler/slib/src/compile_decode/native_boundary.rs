@@ -1,5 +1,6 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 use std::fmt;
+use std::hash::Hash;
 
 use scoop_hir::NativeBoundaryNominalOwner;
 use scoop_identity::{
@@ -11,7 +12,7 @@ use scoop_identity::{
     SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceExternFunctionAbi,
     SourceNativeExternalContract, SourceScoopAbiFunctionSignature,
 };
-use scoop_wire::WirePath;
+use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::StructurallyValidatedFoundations;
 
@@ -45,37 +46,59 @@ fn validate_source_closure(
 ) -> Result<(), NativeBoundaryCompileError> {
     let graph = &foundations.identities;
     let meter = foundations.graph.envelope.meter_mut();
-    let exact_types = records_by_id([
-        graph.records::<PersistentExactTypeId, ExactTypeKey>(
-            IdentityLayer::Hir,
-            meter,
-            &WirePath::root().field(15),
+    let exact_types = records_by_id(
+        [
+            graph
+                .records::<PersistentExactTypeId, ExactTypeKey>(
+                    IdentityLayer::Hir,
+                    meter,
+                    &WirePath::root().field(15),
+                )
+                .map_err(NativeBoundaryCompileError::Identity)?,
+            graph
+                .records::<PersistentExactTypeId, ExactTypeKey>(
+                    IdentityLayer::Mir,
+                    meter,
+                    &WirePath::root().field(1),
+                )
+                .map_err(NativeBoundaryCompileError::Identity)?,
+            graph
+                .records::<PersistentExactTypeId, ExactTypeKey>(
+                    IdentityLayer::Lir,
+                    meter,
+                    &WirePath::root().field(1),
+                )
+                .map_err(NativeBoundaryCompileError::Identity)?,
+        ],
+        meter,
+        &WirePath::root().field(15),
+    )?;
+    let callable_applications = records_by_id(
+        std::iter::once(
+            graph
+                .records::<PersistentCallableApplicationId, CallableApplicationKey>(
+                    IdentityLayer::Hir,
+                    meter,
+                    &WirePath::root().field(17),
+                )
+                .map_err(NativeBoundaryCompileError::Identity)?,
         ),
-        graph.records::<PersistentExactTypeId, ExactTypeKey>(
-            IdentityLayer::Mir,
-            meter,
-            &WirePath::root().field(1),
+        meter,
+        &WirePath::root().field(17),
+    )?;
+    let initialization_units = records_by_id(
+        std::iter::once(
+            graph
+                .records::<PersistentInitializationUnitId, InitializationUnitKey>(
+                    IdentityLayer::Hir,
+                    meter,
+                    &WirePath::root().field(21),
+                )
+                .map_err(NativeBoundaryCompileError::Identity)?,
         ),
-        graph.records::<PersistentExactTypeId, ExactTypeKey>(
-            IdentityLayer::Lir,
-            meter,
-            &WirePath::root().field(1),
-        ),
-    ])?;
-    let callable_applications = records_by_id(std::iter::once(
-        graph.records::<PersistentCallableApplicationId, CallableApplicationKey>(
-            IdentityLayer::Hir,
-            meter,
-            &WirePath::root().field(17),
-        ),
-    ))?;
-    let initialization_units = records_by_id(std::iter::once(
-        graph.records::<PersistentInitializationUnitId, InitializationUnitKey>(
-            IdentityLayer::Hir,
-            meter,
-            &WirePath::root().field(21),
-        ),
-    ))?;
+        meter,
+        &WirePath::root().field(21),
+    )?;
     let callback_registrations = graph
         .records::<scoop_identity::PersistentCallbackRegistrationId, CallbackRegistrationKey>(
             IdentityLayer::Hir,
@@ -124,12 +147,12 @@ fn validate_source_closure(
         )?;
     }
 
-    let definitions = foundations
-        .hir
-        .native_boundary_types()
-        .iter()
-        .map(|definition| (definition.owner(), definition))
-        .collect::<BTreeMap<_, _>>();
+    let definitions = index_records(
+        foundations.hir.native_boundary_types(),
+        scoop_hir::NativeBoundaryTypeDefinitionRecord::owner,
+        meter,
+        &WirePath::root().field(30),
+    )?;
     let mut expanded = BTreeSet::new();
     while let Some(owner) = required.pop_first() {
         if !expanded.insert(owner) {
@@ -157,7 +180,8 @@ fn validate_source_closure(
     if let Some(owner) = definitions
         .keys()
         .copied()
-        .find(|owner| !expanded.contains(owner))
+        .filter(|owner| !expanded.contains(owner))
+        .min()
     {
         return Err(NativeBoundaryCompileError::UnrelatedDefinition { owner });
     }
@@ -165,19 +189,45 @@ fn validate_source_closure(
 }
 
 fn records_by_id<I, K>(
-    results: impl IntoIterator<Item = Result<Vec<CborIdentityRecord<I, K>>, IdentityValidationError>>,
-) -> Result<BTreeMap<I, K>, NativeBoundaryCompileError>
+    record_sets: impl IntoIterator<Item = Vec<CborIdentityRecord<I, K>>>,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<HashMap<I, K>, NativeBoundaryCompileError>
 where
-    I: scoop_identity::PersistentId + Ord,
-    K: Clone,
+    I: scoop_identity::PersistentId + Eq + Hash,
 {
-    let mut records = BTreeMap::new();
-    for result in results {
-        for record in result.map_err(NativeBoundaryCompileError::Identity)? {
+    let mut records = HashMap::new();
+    for record_set in record_sets {
+        for record in record_set {
+            if records.contains_key(&record.id()) {
+                continue;
+            }
+            meter
+                .try_reserve_map_slots(&mut records, 1, path)
+                .map_err(NativeBoundaryCompileError::Resource)?;
             records.insert(record.id(), record.into_key());
         }
     }
     Ok(records)
+}
+
+fn index_records<'record, K, V>(
+    records: &'record [V],
+    key: impl Fn(&V) -> K,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<HashMap<K, &'record V>, NativeBoundaryCompileError>
+where
+    K: Eq + Hash,
+{
+    let mut index = HashMap::new();
+    meter
+        .try_reserve_map_slots(&mut index, records.len(), path)
+        .map_err(NativeBoundaryCompileError::Resource)?;
+    for record in records {
+        index.insert(key(record), record);
+    }
+    Ok(index)
 }
 
 fn collect_source_contract(
@@ -269,9 +319,9 @@ fn collect_signature_type(
 #[allow(clippy::too_many_arguments)]
 fn collect_materialization_context(
     context: CallableMaterializationContext,
-    exact_types: &BTreeMap<PersistentExactTypeId, ExactTypeKey>,
-    callable_applications: &BTreeMap<PersistentCallableApplicationId, CallableApplicationKey>,
-    initialization_units: &BTreeMap<PersistentInitializationUnitId, InitializationUnitKey>,
+    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
+    callable_applications: &HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
+    initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited_callable_applications: &mut BTreeSet<PersistentCallableApplicationId>,
     visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
@@ -302,9 +352,9 @@ fn collect_materialization_context(
 #[allow(clippy::too_many_arguments)]
 fn collect_callable_application(
     application: PersistentCallableApplicationId,
-    exact_types: &BTreeMap<PersistentExactTypeId, ExactTypeKey>,
-    callable_applications: &BTreeMap<PersistentCallableApplicationId, CallableApplicationKey>,
-    initialization_units: &BTreeMap<PersistentInitializationUnitId, InitializationUnitKey>,
+    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
+    callable_applications: &HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
+    initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited_callable_applications: &mut BTreeSet<PersistentCallableApplicationId>,
     visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
@@ -351,8 +401,8 @@ fn collect_callable_application(
 
 fn collect_initialization_application(
     unit: PersistentInitializationUnitId,
-    exact_types: &BTreeMap<PersistentExactTypeId, ExactTypeKey>,
-    initialization_units: &BTreeMap<PersistentInitializationUnitId, InitializationUnitKey>,
+    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
+    initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited_exact_types: &mut BTreeSet<PersistentExactTypeId>,
 ) -> Result<(), NativeBoundaryCompileError> {
@@ -372,7 +422,7 @@ fn collect_initialization_application(
 
 fn collect_exact_type(
     exact: PersistentExactTypeId,
-    exact_types: &BTreeMap<PersistentExactTypeId, ExactTypeKey>,
+    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
     visited: &mut BTreeSet<PersistentExactTypeId>,
 ) -> Result<(), NativeBoundaryCompileError> {
@@ -403,6 +453,7 @@ fn collect_exact_type(
 #[derive(Debug)]
 pub enum NativeBoundaryCompileError {
     Identity(IdentityValidationError),
+    Resource(WireError),
     MissingCallableApplication {
         application: PersistentCallableApplicationId,
     },
@@ -425,6 +476,7 @@ impl fmt::Display for NativeBoundaryCompileError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Identity(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
             Self::MissingCallableApplication { application } => write!(
                 formatter,
                 "native boundary references missing callable application {application}"
@@ -452,4 +504,13 @@ impl fmt::Display for NativeBoundaryCompileError {
     }
 }
 
-impl std::error::Error for NativeBoundaryCompileError {}
+impl std::error::Error for NativeBoundaryCompileError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Identity(error) => Some(error),
+            Self::Resource(error) => Some(error),
+            Self::Target(error) => Some(error),
+            _ => None,
+        }
+    }
+}

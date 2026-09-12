@@ -244,6 +244,85 @@ fn compile_recomputes_a_target_native_function_contract() {
 }
 
 #[test]
+fn native_boundary_lookup_indexes_have_inclusive_heap_boundaries() {
+    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
+    let expected = {
+        let validated = crate::DecodedSlibEnvelope::open(
+            artifact.as_bytes(),
+            DecodeLimits::default(),
+            selection,
+        )
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_identity_foundations()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_structure()
+        .unwrap()
+        .validate_native_boundary_source()
+        .unwrap()
+        .validate_target()
+        .unwrap();
+        validated.foundations().decode_usage().logical_heap_bytes
+    };
+
+    for (limit, accepted) in [
+        (expected - 1, false),
+        (expected, true),
+        (expected + 1, true),
+    ] {
+        let structured = crate::DecodedSlibEnvelope::open(
+            artifact.as_bytes(),
+            DecodeLimits {
+                logical_heap_bytes: limit,
+                ..DecodeLimits::default()
+            },
+            selection,
+        )
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_identity_foundations()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_structure()
+        .unwrap();
+        let result = match structured.validate_native_boundary_source() {
+            Ok(source) => source.validate_target(),
+            Err(error) => Err(error),
+        };
+        assert_eq!(result.is_ok(), accepted);
+        if accepted {
+            assert_eq!(
+                result
+                    .unwrap()
+                    .foundations()
+                    .decode_usage()
+                    .logical_heap_bytes,
+                expected
+            );
+        } else {
+            assert!(matches!(
+                result,
+                Err(NativeBoundaryCompileError::Resource(ref error))
+                    if matches!(
+                        error.kind(),
+                        WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::LogicalHeapBytes,
+                            limit: actual_limit,
+                            observed,
+                        } if *actual_limit == limit && *observed == expected
+                    )
+            ));
+        }
+    }
+}
+
+#[test]
 fn compile_rejects_a_structurally_valid_but_wrong_target_symbol() {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let artifact = native_function_artifact("different_target_symbol");

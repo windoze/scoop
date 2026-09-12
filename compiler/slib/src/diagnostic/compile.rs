@@ -74,6 +74,7 @@ impl SlibDiagnostic for NativeBoundaryCompileError {
     fn diagnostic(&self) -> SlibDiagnosticRecord {
         match self {
             Self::Identity(error) => error.diagnostic(),
+            Self::Resource(error) => error.diagnostic(),
             Self::MissingCallableApplication { application } => identity_diagnostic(
                 SlibErrorCode::ReferenceMissing,
                 "callable-application",

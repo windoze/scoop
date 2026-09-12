@@ -468,10 +468,10 @@ mod tests {
         let owner = CoreNativeBoundaryNominal::Unit.concrete_id().unwrap();
         let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(owner)).unwrap();
         let exact = record.id();
-        let exact_types = BTreeMap::from([(exact, record.into_key())]);
-        let callable_applications = BTreeMap::new();
-        let initialization_units = BTreeMap::new();
-        let definitions = BTreeMap::new();
+        let exact_types = HashMap::from([(exact, record.into_key())]);
+        let callable_applications = HashMap::new();
+        let initialization_units = HashMap::new();
+        let definitions = HashMap::new();
         let mut normalizer = NativeBoundaryNormalizer::new(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             &exact_types,
@@ -541,14 +541,14 @@ mod tests {
                 .id()
         };
         let owner_exact = exact(owner);
-        let exact_types = BTreeMap::from([
+        let exact_types = HashMap::from([
             (owner_exact, ExactTypeKey::Nominal(owner)),
             (exact(u8_owner), ExactTypeKey::Nominal(u8_owner)),
             (exact(u64_owner), ExactTypeKey::Nominal(u64_owner)),
         ]);
-        let callable_applications = BTreeMap::new();
-        let initialization_units = BTreeMap::new();
-        let definitions = BTreeMap::from([(definition.owner(), &definition)]);
+        let callable_applications = HashMap::new();
+        let initialization_units = HashMap::new();
+        let definitions = HashMap::from([(definition.owner(), &definition)]);
         let mut normalizer = NativeBoundaryNormalizer::new(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             &exact_types,
