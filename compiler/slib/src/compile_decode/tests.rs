@@ -360,6 +360,50 @@ fn native_boundary_validation_hash_work_has_inclusive_boundaries() {
 }
 
 #[test]
+fn native_boundary_validation_relation_cost_has_inclusive_boundaries() {
+    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
+    let expected = validate_native_boundary_with_limits(&artifact, DecodeLimits::default())
+        .unwrap()
+        .foundations()
+        .decode_usage()
+        .decoded_edges;
+
+    for (limit, accepted) in [
+        (expected - 1, false),
+        (expected, true),
+        (expected + 1, true),
+    ] {
+        let result = validate_native_boundary_with_limits(
+            &artifact,
+            DecodeLimits {
+                decoded_edges: limit,
+                ..DecodeLimits::default()
+            },
+        );
+        assert_eq!(result.is_ok(), accepted);
+        if accepted {
+            assert_eq!(
+                result.unwrap().foundations().decode_usage().decoded_edges,
+                expected
+            );
+        } else {
+            assert!(matches!(
+                result,
+                Err(NativeBoundaryCompileError::Resource(ref error))
+                    if matches!(
+                        error.kind(),
+                        WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::DecodedEdges,
+                            limit: actual_limit,
+                            observed,
+                        } if *actual_limit == limit && *observed == expected
+                    )
+            ));
+        }
+    }
+}
+
+#[test]
 fn compile_rejects_a_structurally_valid_but_wrong_target_symbol() {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let artifact = native_function_artifact("different_target_symbol");

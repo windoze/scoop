@@ -208,15 +208,19 @@ fn validate_target_normalization(
     require_equal_records(
         &expected_contracts,
         &actual_contracts,
+        normalizer.meter,
+        &WirePath::root().field(14),
         NativeBoundaryTargetError::NativeContractMismatch,
     )?;
 
     for bridge in foundations.lir.callback_bridges() {
+        charge_relations(normalizer.meter, 1, &WirePath::root().field(13))?;
         let application = callback_applications.get(&bridge.application()).ok_or(
             NativeBoundaryTargetError::MissingCallbackApplication {
                 application: bridge.application(),
             },
         )?;
+        charge_relations(normalizer.meter, 1, &WirePath::root().field(25))?;
         let registration = callback_registrations
             .get(&application.registration())
             .ok_or(NativeBoundaryTargetError::MissingCallbackRegistration {
@@ -240,6 +244,7 @@ fn validate_target_normalization(
 
         let expected_managed =
             normalizer.managed_signature(registration.managed_signature(), &binders)?;
+        charge_relations(normalizer.meter, 1, &WirePath::root().field(10))?;
         let actual = application_records.get(&bridge.application()).ok_or(
             NativeBoundaryTargetError::MissingCallbackApplication {
                 application: bridge.application(),
@@ -258,39 +263,45 @@ fn validate_target_normalization(
     require_equal_records(
         &normalizer.expected_signatures,
         &actual_signatures,
+        normalizer.meter,
+        &WirePath::root().field(15),
         NativeBoundaryTargetError::CAbiSignatureSetMismatch,
     )?;
 
     require_equal_records(
         &normalizer.expected_layouts,
         &actual_layouts,
+        normalizer.meter,
+        &WirePath::root().field(16),
         NativeBoundaryTargetError::CAbiLayoutSetMismatch,
     )?;
 
-    if actual_requirements.len() != normalizer.expected_requirements.len()
-        || normalizer
-            .expected_requirements
-            .iter()
-            .any(|(key, value)| actual_requirements.get(key) != Some(value))
-    {
-        return Err(NativeBoundaryTargetError::NativeRequirementSetMismatch.into());
-    }
-    Ok(())
+    require_equal_records(
+        &normalizer.expected_requirements,
+        &actual_requirements,
+        normalizer.meter,
+        &WirePath::root().field(20),
+        NativeBoundaryTargetError::NativeRequirementSetMismatch,
+    )
 }
 
-fn require_equal_records<K, V>(
+fn require_equal_records<K, V, A>(
     expected: &HashMap<K, V>,
-    actual: &HashMap<K, &V>,
+    actual: &HashMap<K, A>,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
     error: NativeBoundaryTargetError,
 ) -> Result<(), NativeBoundaryCompileError>
 where
     K: Eq + std::hash::Hash,
     V: Eq,
+    A: std::borrow::Borrow<V>,
 {
+    charge_relations(meter, expected.len(), path)?;
     if expected.len() != actual.len()
         || expected
             .iter()
-            .any(|(key, value)| actual.get(key).copied() != Some(value))
+            .any(|(key, value)| actual.get(key).map(std::borrow::Borrow::borrow) != Some(value))
     {
         Err(error.into())
     } else {
@@ -314,6 +325,23 @@ where
             .map_err(NativeBoundaryCompileError::Resource)?;
     }
     Ok(records.insert(key, value))
+}
+
+fn charge_relations(
+    meter: &mut BudgetMeter,
+    count: usize,
+    path: &WirePath,
+) -> Result<(), NativeBoundaryCompileError> {
+    let count = u64::try_from(count).map_err(|_| {
+        NativeBoundaryCompileError::Resource(scoop_wire::WireError::new(
+            scoop_wire::WireErrorKind::IntegerOutOfRange,
+            path.clone(),
+            None,
+        ))
+    })?;
+    meter
+        .charge_edges(count, path)
+        .map_err(NativeBoundaryCompileError::Resource)
 }
 
 fn metered_vec<T>(
@@ -347,6 +375,7 @@ fn push_binder_group(
     arguments: &[PersistentExactTypeId],
     path: &WirePath,
 ) -> Result<(), NativeBoundaryCompileError> {
+    charge_relations(meter, arguments.len(), path)?;
     meter
         .try_reserve_collection_slots(binders, 1, path)
         .map_err(NativeBoundaryCompileError::Resource)?;
@@ -673,6 +702,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         self.meter
             .check_semantic_depth(depth, &path)
             .map_err(NativeBoundaryCompileError::Resource)?;
+        charge_relations(self.meter, 1, &path)?;
         let key = match source {
             SignatureTypeKey::Binder { depth, index } => {
                 let group = binders
@@ -789,6 +819,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
         visiting: &mut MeteredVisitingSet<PersistentCallableApplicationId>,
     ) -> Result<(), NativeBoundaryCompileError> {
+        charge_relations(self.meter, 1, &WirePath::root().field(17))?;
         if !visiting.push(application, self.meter, &WirePath::root().field(17))? {
             return Err(NativeBoundaryTargetError::CallableApplicationCycle { application }.into());
         }
@@ -808,6 +839,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         match owner {
             CallableInstantiationOwner::NoOwner => {}
             CallableInstantiationOwner::ExactNominalOwner(owner) => {
+                charge_relations(self.meter, 1, &WirePath::root().field(17))?;
                 let key = self
                     .exact_types
                     .get(&owner)
@@ -837,6 +869,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         unit: PersistentInitializationUnitId,
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
     ) -> Result<(), NativeBoundaryCompileError> {
+        charge_relations(self.meter, 1, &WirePath::root().field(21))?;
         let key = self
             .initialization_units
             .get(&unit)

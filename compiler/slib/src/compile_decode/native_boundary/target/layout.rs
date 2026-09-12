@@ -5,6 +5,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<CanonicalCStorageType, NativeBoundaryCompileError> {
+        let path = WirePath::root().field(16);
+        charge_relations(self.meter, 1, &path)?;
         enum Shape {
             Boolean,
             DataPointer(PersistentExactTypeId),
@@ -33,7 +35,11 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 bit_width: scoop_identity::IntegerBitWidth::Bits64,
             });
         }
-        let shape = match self.exact(exact)? {
+        let key = self
+            .exact_types
+            .get(&exact)
+            .ok_or(NativeBoundaryTargetError::MissingExactType { exact })?;
+        let shape = match key {
             ExactTypeKey::Nominal(owner)
                 if Some(*owner) == CoreNativeBoundaryNominal::Boolean.concrete_id() =>
             {
@@ -44,7 +50,13 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             ExactTypeKey::NominalApplication { origin, arguments }
                 if Some(*origin) == CoreNativeBoundaryNominal::Option.generic_id() =>
             {
-                match self.exact(arguments.as_slice()[0])? {
+                charge_relations(self.meter, 1, &path)?;
+                let payload = arguments.as_slice()[0];
+                let payload_key = self
+                    .exact_types
+                    .get(&payload)
+                    .ok_or(NativeBoundaryTargetError::MissingExactType { exact: payload })?;
+                match payload_key {
                     ExactTypeKey::RawPointer(pointee) => Shape::NullableDataPointer(*pointee),
                     ExactTypeKey::NativeFunctionPointer { .. } => Shape::NullableCodePointer,
                     _ => Shape::Unsupported,
@@ -96,6 +108,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<CanonicalCAbiLayoutFingerprint, NativeBoundaryCompileError> {
+        charge_relations(self.meter, 1, &WirePath::root().field(16))?;
         if let Some(fingerprint) = self.layouts_by_type.get(&exact) {
             return Ok(*fingerprint);
         }
@@ -165,7 +178,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     fn c_storage_layout(
-        &self,
+        &mut self,
         storage: CanonicalCStorageType,
     ) -> Result<(u64, u64), NativeBoundaryCompileError> {
         match storage {
@@ -186,6 +199,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 Ok((layout.size_bytes(), layout.alignment_bytes()))
             }
             CanonicalCStorageType::Struct { layout, .. } => {
+                charge_relations(self.meter, 1, &WirePath::root().field(16))?;
                 let record = self
                     .expected_layouts
                     .get(&layout)
@@ -249,6 +263,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<PhysicalType, NativeBoundaryCompileError> {
+        charge_relations(self.meter, 1, &WirePath::root().field(1))?;
         if let Some(layout) = self.scoop_layouts.get(&exact) {
             return Ok(*layout);
         }
@@ -460,6 +475,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         ),
         NativeBoundaryCompileError,
     > {
+        let path = WirePath::root().field(1);
+        charge_relations(self.meter, 1, &path)?;
         let mut binders = Vec::new();
         let key = self
             .exact_types
@@ -469,16 +486,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             ExactTypeKey::Nominal(owner) => NativeBoundaryNominalOwner::Concrete(*owner),
             ExactTypeKey::NominalApplication { origin, arguments } => {
                 let owner = NativeBoundaryNominalOwner::GenericTemplate(*origin);
-                push_binder_group(
-                    self.meter,
-                    &mut binders,
-                    arguments.as_slice(),
-                    &WirePath::root().field(1),
-                )?;
+                push_binder_group(self.meter, &mut binders, arguments.as_slice(), &path)?;
                 owner
             }
             _ => return Err(NativeBoundaryTargetError::ExpectedNominal { exact }.into()),
         };
+        charge_relations(self.meter, 1, &path)?;
         self.definitions
             .get(&owner)
             .copied()
