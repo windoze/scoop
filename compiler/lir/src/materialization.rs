@@ -162,6 +162,10 @@ impl OdrGroupProvenance {
 }
 
 impl MaterializationIdentity {
+    pub(crate) const fn cone_owned() -> Self {
+        Self(MaterializationIdentityKind::ConeOwned)
+    }
+
     pub(crate) fn symbol(
         &self,
         key: PersistentSymbolKey,

@@ -370,7 +370,7 @@ fn initialization_display_name_survives_lir_lowering() {
 }
 
 #[test]
-fn nominal_descriptor_symbols_use_typed_application_identity() {
+fn nominal_descriptor_symbols_use_exact_type_identity() {
     let mut builder = Builder::new();
     let class_a = builder.class("Same", None, &[], Vec::new(), Vec::new());
     let class_b = builder.class("Same", None, &[], Vec::new(), Vec::new());
@@ -474,41 +474,29 @@ fn nominal_descriptor_symbols_use_typed_application_identity() {
         mir::SourceCallableMaterializations::checked(source_callables).unwrap();
     install_generated_exact_types(&mut source);
     install_callable_signatures(&mut source);
-    let expected = [
-        mir::encode_type(&source, &mir::Type::Class(class_a)).unwrap(),
-        mir::encode_type(&source, &mir::Type::Class(class_b)).unwrap(),
-        mir::encode_type(&source, &mir::Type::Interface(interface_a)).unwrap(),
-        mir::encode_type(&source, &mir::Type::Interface(interface_b)).unwrap(),
-        closure_a.as_str().to_string(),
-        closure_b.as_str().to_string(),
-    ]
-    .map(|identity| format!("scoop_td_{identity}"));
     let module = lower(&source);
 
-    let symbols = module
+    let descriptors = module
         .meta
         .type_descriptors
         .iter()
         .filter(|(_, descriptor)| {
             matches!(descriptor.name.as_str(), "Same" | "View" | "SameClosure")
         })
-        .map(|(_, descriptor)| descriptor.symbol.as_str())
+        .map(|(_, descriptor)| descriptor)
         .collect::<Vec<_>>();
+    assert_eq!(descriptors.len(), 6);
+    let symbols = descriptors
+        .iter()
+        .map(|descriptor| descriptor.identity.symbol())
+        .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(symbols.len(), 6);
-    for expected in expected {
-        assert!(symbols.contains(&expected.as_str()), "missing {expected}");
+    for descriptor in descriptors {
+        assert_eq!(
+            descriptor.identity.symbol_request().unwrap().key(),
+            scoop_identity::PersistentSymbolKey::TypeDescriptor(descriptor.identity.exact_type())
+        );
     }
-    assert_eq!(
-        module
-            .meta
-            .type_descriptors
-            .iter()
-            .find(|(_, descriptor)| descriptor.name == "String")
-            .expect("intrinsic String descriptor")
-            .1
-            .symbol,
-        lir::STRING_TD_SYMBOL
-    );
 }
 
 #[test]
@@ -636,7 +624,7 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
     });
     let main = builder.main(Arena::new(), Vec::new());
     let mut mir_module = builder.finish(main);
-    mir_module.function_types.alloc(mir::FunctionType {
+    let native_signature = mir_module.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: mir::IntegerKind::ALL
             .map(mir::Type::Integer)
@@ -644,6 +632,10 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
             .collect(),
         return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
     });
+    let forbidden_descriptor_name = format!(
+        "function<{}>",
+        mir::type_name(&mir_module, &mir::Type::Function(native_signature))
+    );
     let module = lower(&mir_module);
     let (_, function) = module.extern_functions.iter().next().expect("one C extern");
     let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
@@ -676,9 +668,7 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         ]
     );
     assert!(
-        descriptor_values(&module).all(|descriptor| {
-            descriptor.name != "function$FI8_I16_I32_I64_V8_V16_V32_V64RV64X"
-        }),
+        descriptor_values(&module).all(|descriptor| descriptor.name != forbidden_descriptor_name),
         "a native FunPtr signature must not fabricate a managed TypeDescriptor"
     );
 }

@@ -53,9 +53,6 @@ impl SafepointSiteRef {
     }
 }
 
-/// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
-pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
-
 /// Runtime trap (M3: `!!` on `None`; M8: real exceptions).
 pub const TRAP_SYMBOL: &str = "scoop_rt_trap";
 

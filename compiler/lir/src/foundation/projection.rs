@@ -70,7 +70,7 @@ impl CanonicalLirFoundation {
                 .collect(),
         )?;
         foundation.project_global_identities(&module.globals)?;
-        foundation.project_global_symbols(&module.globals)?;
+        foundation.project_symbols(&module.meta.type_descriptors, &module.globals)?;
         foundation.set_runtime_types(
             module
                 .meta
@@ -178,8 +178,9 @@ impl CanonicalLirFoundation {
         )
     }
 
-    fn project_global_symbols(
+    fn project_symbols(
         &mut self,
+        descriptors: &la_arena::Arena<crate::TypeDescriptor>,
         globals: &la_arena::Arena<crate::Global>,
     ) -> Result<(), LirFoundationBuildError> {
         let requests = self
@@ -187,6 +188,11 @@ impl CanonicalLirFoundation {
             .requests()
             .iter()
             .copied()
+            .chain(
+                descriptors
+                    .iter()
+                    .filter_map(|(_, descriptor)| descriptor.identity.symbol_request()),
+            )
             .chain(
                 globals
                     .iter()
@@ -392,7 +398,6 @@ mod tests {
         let interface_vtable = VtableRecord::new(&interface_identity, Vec::new()).unwrap();
         let interface = descriptors.alloc(TypeDescriptor {
             name: "Interface".to_string(),
-            symbol: "interface".to_string(),
             identity: interface_identity,
             size: 0,
             align: 0,
@@ -418,7 +423,6 @@ mod tests {
         ];
         descriptors.alloc(TypeDescriptor {
             name: "Owner".to_string(),
-            symbol: "owner".to_string(),
             identity: owner_identity,
             size: 0,
             align: 0,
@@ -435,6 +439,9 @@ mod tests {
                 descriptors.iter().map(|(_, descriptor)| descriptor),
                 std::iter::empty(),
             )
+            .unwrap();
+        foundation
+            .project_symbols(&descriptors, &Arena::new())
             .unwrap();
 
         assert_eq!(foundation.odr_groups.len(), 1);
@@ -460,6 +467,17 @@ mod tests {
                 .odr_members
                 .iter()
                 .all(|member| member.key().group() == foundation.odr_groups[0].id())
+        );
+        assert_eq!(foundation.symbol_requests.requests().len(), 2);
+        assert!(
+            foundation
+                .symbol_requests
+                .requests()
+                .iter()
+                .all(|request| matches!(
+                    request.key(),
+                    scoop_identity::PersistentSymbolKey::TypeDescriptor(_)
+                ))
         );
     }
 
@@ -524,7 +542,7 @@ mod tests {
                 globals.iter().map(|(_, global)| global),
             )
             .unwrap();
-        foundation.project_global_symbols(&globals).unwrap();
+        foundation.project_symbols(&Arena::new(), &globals).unwrap();
 
         assert!(foundation.odr_groups.is_empty());
         assert_eq!(foundation.odr_members.len(), 2);
@@ -680,7 +698,7 @@ mod tests {
 
         let mut foundation = CanonicalLirFoundation::empty();
         foundation.project_global_identities(&globals).unwrap();
-        foundation.project_global_symbols(&globals).unwrap();
+        foundation.project_symbols(&Arena::new(), &globals).unwrap();
 
         assert_eq!(foundation.immortal_objects, vec![expected]);
         assert!(foundation.static_storages.is_empty());

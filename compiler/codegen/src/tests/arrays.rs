@@ -220,11 +220,13 @@ fn arrays_module() -> Module {
 #[test]
 fn emits_m5_arrays() {
     let module = arrays_module();
+    let int_array_symbol = type_descriptor_symbol(&module, "MutableArray<Int>");
+    let point_array_symbol = type_descriptor_symbol(&module, "MutableArray<Point>");
     let ir = ir_of(&module);
     assert!(
         ir.lines().any(|line| {
             line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
-                && line.contains("scoop_td_MutableArray<Int>")
+                && line.contains(&int_array_symbol)
         }),
         "Int clone must receive the target nominal descriptor:\n{ir}"
     );
@@ -237,7 +239,7 @@ fn emits_m5_arrays() {
     assert!(
         ir.lines().any(|line| {
             line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
-                && line.contains("scoop_td_MutableArray<Point>")
+                && line.contains(&point_array_symbol)
         }),
         "Point clone must receive the target nominal descriptor:\n{ir}"
     );

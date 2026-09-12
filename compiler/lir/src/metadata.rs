@@ -332,8 +332,6 @@ pub struct DispatchEntry {
 pub struct TypeDescriptor {
     /// Human-readable type name used in metadata dumps.
     pub name: String,
-    /// Global symbol, e.g. `scoop_td_Point`.
-    pub symbol: String,
     /// Complete persistent-to-runtime identity selected by lir-lower.
     /// Codegen consumes the typed runtime id and foundation projection keeps
     /// the full exact-type relation; neither infers it from arena position or
@@ -359,6 +357,26 @@ pub struct TypeDescriptor {
 pub struct TypeDescriptorIdentity {
     runtime_type: RuntimeTypeMappingRecord,
     materialization: MaterializationIdentity,
+    symbol: TypeDescriptorSymbol,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RuntimeAbiTypeDescriptorSymbol {
+    CoreString,
+}
+
+impl RuntimeAbiTypeDescriptorSymbol {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CoreString => "scoop_td_String",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum TypeDescriptorSymbol {
+    Persistent(MaterializedSymbol),
+    RuntimeAbi(RuntimeAbiTypeDescriptorSymbol),
 }
 
 impl TypeDescriptorIdentity {
@@ -367,10 +385,30 @@ impl TypeDescriptorIdentity {
         root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         let materialization = root.type_descriptor(runtime_type.exact_type())?;
+        let symbol = TypeDescriptorSymbol::Persistent(
+            materialization
+                .symbol(scoop_identity::PersistentSymbolKey::TypeDescriptor(
+                    runtime_type.exact_type(),
+                ))
+                .expect("type-descriptor symbols admit their materialization linkage"),
+        );
         Ok(Self {
             runtime_type,
             materialization,
+            symbol,
         })
+    }
+
+    /// Bind the one TypeDescriptor currently named by the C runtime ABI.
+    /// Its semantic/runtime identity remains the exact String type; only its
+    /// linker spelling belongs to the runtime ABI rather than the persistent
+    /// Scoop mangling namespace.
+    pub fn runtime_core_string(runtime_type: RuntimeTypeMappingRecord) -> Self {
+        Self {
+            runtime_type,
+            materialization: MaterializationIdentity::cone_owned(),
+            symbol: TypeDescriptorSymbol::RuntimeAbi(RuntimeAbiTypeDescriptorSymbol::CoreString),
+        }
     }
 
     pub const fn runtime_type(&self) -> RuntimeTypeMappingRecord {
@@ -379,6 +417,27 @@ impl TypeDescriptorIdentity {
 
     pub const fn exact_type(&self) -> scoop_identity::PersistentExactTypeId {
         self.runtime_type.exact_type()
+    }
+
+    pub const fn symbol_request(&self) -> Option<scoop_identity::PersistentSymbolRequest> {
+        match &self.symbol {
+            TypeDescriptorSymbol::Persistent(symbol) => Some(symbol.request()),
+            TypeDescriptorSymbol::RuntimeAbi(_) => None,
+        }
+    }
+
+    pub const fn runtime_abi_symbol(&self) -> Option<RuntimeAbiTypeDescriptorSymbol> {
+        match &self.symbol {
+            TypeDescriptorSymbol::Persistent(_) => None,
+            TypeDescriptorSymbol::RuntimeAbi(symbol) => Some(*symbol),
+        }
+    }
+
+    pub fn symbol(&self) -> &str {
+        match &self.symbol {
+            TypeDescriptorSymbol::Persistent(symbol) => symbol.as_str(),
+            TypeDescriptorSymbol::RuntimeAbi(symbol) => symbol.as_str(),
+        }
     }
 
     pub const fn lir_odr_group_record(
@@ -1232,7 +1291,8 @@ pub struct EnumFieldRepr {
 
 #[derive(Debug)]
 pub enum GlobalInit {
-    /// A `ScoopString` constant: header points at `STRING_TD_SYMBOL`.
+    /// A `ScoopString` constant whose header points at the typed String
+    /// descriptor selected by `WellKnownTypeDescriptors`.
     StringConst {
         identity: ImmortalObjectIdentity,
         value: String,

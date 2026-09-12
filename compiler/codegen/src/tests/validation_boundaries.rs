@@ -599,7 +599,7 @@ fn safepoint_validation_rejects_an_identity_owned_by_another_body() {
 }
 
 #[test]
-fn runtime_type_validation_rejects_two_descriptors_for_one_exact_type() {
+fn runtime_abi_type_descriptor_symbol_is_reserved_for_core_string() {
     let mut module = values_module();
     let identity = module
         .meta
@@ -612,7 +612,6 @@ fn runtime_type_validation_rejects_two_descriptors_for_one_exact_type() {
         .clone();
     module.meta.type_descriptors.alloc(TypeDescriptor {
         name: "DuplicateString".to_string(),
-        symbol: "scoop_td_DuplicateString".to_string(),
         identity,
         size: 24,
         align: 8,
@@ -622,7 +621,7 @@ fn runtime_type_validation_rejects_two_descriptors_for_one_exact_type() {
         itables: Vec::new(),
     });
 
-    assert_module_validation_error(&module, "duplicate runtime type mapping identity");
+    assert_module_validation_error(&module, "reserved for core String");
 }
 
 #[test]

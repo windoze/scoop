@@ -630,15 +630,18 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     std::fs::remove_file(&bridge_source).ok();
     assert!(status.success(), "generated callback C must compile");
 
+    let array_outer_symbol = type_descriptor_symbol(&module, "ArrayOuter");
     let ir = ir_of(&module);
     assert!(
         ir.contains("getelementptr i8, ptr addrspace(1) %managed_object, i64 32"),
         "over-aligned array data must start at offset 32:\n{ir}"
     );
     assert!(
-        ir.contains(
-            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
-        ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_ArrayOuter, i64 64)"),
+        ir.contains(&format!(
+            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @\"{array_outer_symbol}\", i64 64)"
+        )) && ir.contains(&format!(
+            "@scoop_runtime_alloc_slow(ptr @\"{array_outer_symbol}\", i64 64)"
+        )),
         "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
     );
 }

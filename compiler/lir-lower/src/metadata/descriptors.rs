@@ -14,13 +14,6 @@ pub(crate) fn class_order(module: &mir::Module) -> Vec<mir::ClassId> {
     order
 }
 
-/// The global symbol of a TypeDescriptor. Callers supply either a fixed
-/// runtime ABI name or an already encoded typed identity; source-facing
-/// nominal display names never enter this helper.
-pub(crate) fn td_symbol(identity: &str) -> String {
-    format!("scoop_td_{identity}")
-}
-
 #[derive(Default)]
 pub(crate) struct TypeDescriptorRefs {
     classes: HashMap<mir::ClassId, lir::TypeDescriptorRef>,
@@ -94,8 +87,6 @@ pub(crate) fn type_descriptors(
     let mut refs = TypeDescriptorRefs::default();
     for (interface, def) in module.interfaces.iter() {
         let ty = mir::Type::Interface(interface);
-        let encoded = mir::encode_type(module, &ty)
-            .expect("MIR interface applications have source type encodings");
         let runtime_type = runtime_type(module, &ty);
         let root = identity_roots.for_type(&ty);
         let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
@@ -104,7 +95,6 @@ pub(crate) fn type_descriptors(
             .expect("validated interface exact type must derive a vtable identity");
         let id = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
-            symbol: td_symbol(&encoded),
             identity,
             size: 0,
             align: 0,
@@ -127,20 +117,16 @@ pub(crate) fn type_descriptors(
         .collect::<Vec<_>>();
     function_types.sort_by_key(|(_, identity)| *identity);
     for (id, exact_type) in function_types {
-        let name = format!(
-            "function${}",
-            mir::encode_type(module, &mir::Type::Function(id))
-                .expect("MIR function types have a compact-v2 source encoding")
-        );
+        let ty = mir::Type::Function(id);
+        let name = format!("function<{}>", mir::type_name(module, &ty));
         let runtime_type = lir::RuntimeTypeMappingRecord::new(exact_type)
             .expect("validated function exact type must derive a nonzero runtime id");
-        let root = identity_roots.for_type(&mir::Type::Function(id));
+        let root = identity_roots.for_type(&ty);
         let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
             .expect("validated function exact type must derive descriptor identities");
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated function exact type must derive a vtable identity");
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
-            symbol: td_symbol(&name),
             name,
             identity,
             size: 0,
@@ -206,7 +192,6 @@ pub(crate) fn type_descriptors(
             .collect();
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
-            symbol: td_symbol(def.link_stem.as_str()),
             identity,
             size,
             align,
@@ -248,8 +233,15 @@ pub(crate) fn class_type_descriptor(
     };
     let runtime_type = runtime_type(module, &descriptor_type);
     let root = identity_roots.for_type(&descriptor_type);
-    let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
-        .expect("validated class exact type must derive descriptor identities");
+    let identity = if matches!(
+        def.representation,
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+    ) {
+        lir::TypeDescriptorIdentity::runtime_core_string(runtime_type)
+    } else {
+        lir::TypeDescriptorIdentity::new(runtime_type, root)
+            .expect("validated class exact type must derive descriptor identities")
+    };
     let (size, align, scan) = class_layout(context, module, enums, def);
     let scan = match &def.representation {
         mir::ClassRepresentation::Intrinsic(
@@ -285,16 +277,6 @@ pub(crate) fn class_type_descriptor(
         .collect();
     lir::TypeDescriptor {
         name: def.name.clone(),
-        symbol: if matches!(
-            def.representation,
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
-        ) {
-            lir::STRING_TD_SYMBOL.to_string()
-        } else {
-            let encoded = mir::encode_type(module, &mir::Type::Class(id))
-                .expect("MIR class applications have source type encodings");
-            td_symbol(&encoded)
-        },
         identity,
         size,
         align,

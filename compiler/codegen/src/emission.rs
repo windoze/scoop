@@ -123,8 +123,14 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .meta
         .type_descriptors
         .iter()
-        .map(|(_, descriptor)| llvm.add_global(td_ty, None, &descriptor.symbol))
-        .collect();
+        .map(|(_, descriptor)| {
+            let global = llvm.add_global(td_ty, None, descriptor.identity.symbol());
+            if let Some(request) = descriptor.identity.symbol_request() {
+                apply_persistent_linkage(&global, request)?;
+            }
+            Ok(global)
+        })
+        .collect::<Result<_, CodegenError>>()?;
     let external_type_tds: Vec<GlobalValue> = module
         .meta
         .external_type_descriptors

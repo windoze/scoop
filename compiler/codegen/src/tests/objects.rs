@@ -98,7 +98,6 @@ pub(super) fn classes_module() -> Module {
     let mut meta = string_metadata();
     let describable = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Describable".to_string(),
-        symbol: "scoop_td_Describable".to_string(),
         identity: type_descriptor_identity("Describable"),
         size: 0,
         align: 8,
@@ -109,7 +108,6 @@ pub(super) fn classes_module() -> Module {
     });
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Shape".to_string(),
-        symbol: "scoop_td_Shape".to_string(),
         identity: type_descriptor_identity("Shape"),
         size: 24,
         align: 8,
@@ -125,7 +123,6 @@ pub(super) fn classes_module() -> Module {
     });
     meta.type_descriptors.alloc(TypeDescriptor {
         name: "Point".to_string(),
-        symbol: "scoop_td_Point".to_string(),
         identity: type_descriptor_identity("Point"),
         size: 32,
         align: 8,
@@ -191,7 +188,6 @@ pub(super) fn heap_module() -> Module {
     let mut meta = string_metadata();
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         name: "Point".to_string(),
-        symbol: "scoop_td_Point".to_string(),
         identity: type_descriptor_identity("Point"),
         size: 32,
         align: 8,
@@ -231,7 +227,7 @@ pub(super) fn heap_module() -> Module {
 
     // fun @scoop_main() -> void (M9 16-byte header, fields at byte
     // offsets 16 and 24):
-    //   t0 = scoop_rt_alloc(@scoop_td_Point, 32)  (typed TD operand)
+    //   t0 = scoop_rt_alloc(@TypeDescriptor(Point), 32)  (typed TD operand)
     //   heap_store t0 +16, 42     (i64 field)
     //   heap_store t0 +24, t0     (ptr field)
     //   t1 = heap_load t0 +0 : ptr   (object header: the TD)
@@ -239,8 +235,8 @@ pub(super) fn heap_module() -> Module {
     //   t3 = heap_load t0 +24 : ptr  (field 2)
     //   t4 = heap_load t1 +40 : ptr  (TD field 5: the vtable pointer)
     //   t5 = aggregate (t2) : {i64}
-    //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8, none)  (by-value payload)
-    //   t7 = scoop_rt_is_instance(t6, @scoop_td_Point) : i1
+    //   t6 = scoop_rt_box(@TypeDescriptor(Point), t5, 8, none)  (by-value payload)
+    //   t7 = scoop_rt_is_instance(t6, @TypeDescriptor(Point)) : i1
     //   call_indirect t4[0](t3); println_int t2; println_boolean t7
     let mut temps = Arena::default();
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR });

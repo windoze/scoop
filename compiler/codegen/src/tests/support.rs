@@ -136,6 +136,19 @@ pub(super) fn type_descriptor_identity(name: &str) -> scoop_lir::TypeDescriptorI
     .unwrap()
 }
 
+pub(super) fn type_descriptor<'a>(module: &'a Module, name: &str) -> &'a TypeDescriptor {
+    module
+        .meta
+        .type_descriptors
+        .iter()
+        .find_map(|(_, descriptor)| (descriptor.name == name).then_some(descriptor))
+        .unwrap_or_else(|| panic!("missing test TypeDescriptor {name}"))
+}
+
+pub(super) fn type_descriptor_symbol(module: &Module, name: &str) -> String {
+    type_descriptor(module, name).identity.symbol().to_string()
+}
+
 pub(super) fn layout_identity(
     name: &str,
     role: scoop_identity::RepresentationRole,
@@ -626,8 +639,7 @@ pub(super) fn string_metadata() -> LirMeta {
     let mut type_descriptors = Arena::new();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
         name: "String".to_string(),
-        symbol: scoop_lir::STRING_TD_SYMBOL.to_string(),
-        identity: type_descriptor_identity("String"),
+        identity: scoop_lir::TypeDescriptorIdentity::runtime_core_string(runtime_type("String")),
         size: 24,
         align: 8,
         scan: TypeDescriptorScan::Fixed(RefScan::None),
@@ -662,7 +674,6 @@ pub(super) fn array_type(
 ) -> ArrayTypeId {
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         name: name.to_string(),
-        symbol: format!("scoop_td_{name}"),
         identity: type_descriptor_identity(name),
         size: element_size,
         align: element_align,

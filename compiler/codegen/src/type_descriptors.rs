@@ -115,14 +115,17 @@ fn emit_type_descriptor<'ctx>(
     let i64_ty = context.i64_type();
     let ptr = ptr_ty(context);
     let ref_offsets: BasicValueEnum = match &descriptor.scan {
-        TypeDescriptorScan::Fixed(scan) => {
-            emit_ref_scan(context, llvm, &format!("{}.refs", descriptor.symbol), scan)
-                .map_or_else(|| ptr.const_null().into(), Into::into)
-        }
+        TypeDescriptorScan::Fixed(scan) => emit_ref_scan(
+            context,
+            llvm,
+            &format!("{}.refs", descriptor.identity.symbol()),
+            scan,
+        )
+        .map_or_else(|| ptr.const_null().into(), Into::into),
         TypeDescriptorScan::ArrayElement { stride, scan } => emit_ref_scan(
             context,
             llvm,
-            &format!("{}.element", descriptor.symbol),
+            &format!("{}.element", descriptor.identity.symbol()),
             scan,
         )
         .map_or_else(
@@ -133,8 +136,12 @@ fn emit_type_descriptor<'ctx>(
                     i64_ty.const_int(*stride, false),
                     element_scan.const_to_int(i64_ty),
                 ]);
-                private_const_global(llvm, &format!("{}.refs", descriptor.symbol), words.into())
-                    .into()
+                private_const_global(
+                    llvm,
+                    &format!("{}.refs", descriptor.identity.symbol()),
+                    words.into(),
+                )
+                .into()
             },
         ),
     };
@@ -147,7 +154,7 @@ fn emit_type_descriptor<'ctx>(
     let vtable = emit_fn_table(
         context,
         llvm,
-        &format!("{}.vtable", descriptor.symbol),
+        &format!("{}.vtable", descriptor.identity.symbol()),
         descriptor.vtable.slots(),
         &module.functions,
         &module.meta.external_callables,
@@ -163,7 +170,7 @@ fn emit_type_descriptor<'ctx>(
             let slots = emit_fn_table(
                 context,
                 llvm,
-                &format!("{}.itables.{record_index}", descriptor.symbol),
+                &format!("{}.itables.{record_index}", descriptor.identity.symbol()),
                 record.slots(),
                 &module.functions,
                 &module.meta.external_callables,
@@ -173,7 +180,7 @@ fn emit_type_descriptor<'ctx>(
         let array = entry_ty.const_array(&entries);
         let itable_global = private_const_global(
             llvm,
-            &format!("{}.itables", descriptor.symbol),
+            &format!("{}.itables", descriptor.identity.symbol()),
             array.into(),
         );
         (itable_global.into(), descriptor.itables.len() as u64)
@@ -181,7 +188,7 @@ fn emit_type_descriptor<'ctx>(
     let name = private_c_string(
         context,
         llvm,
-        &format!("{}.name", descriptor.symbol),
+        &format!("{}.name", descriptor.identity.symbol()),
         &descriptor.name,
     );
     global.set_constant(true);

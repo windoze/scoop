@@ -357,7 +357,7 @@ pub fn dump(module: &Module) -> String {
             "  td td{} {} @{} type-id={} size={} parent={} vtable=[{}] itables=[{}]\n",
             id.into_raw(),
             td.name,
-            td.symbol,
+            td.identity.symbol(),
             td.identity.runtime_type().runtime_type().get(),
             td.size,
             parent,

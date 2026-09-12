@@ -23,18 +23,22 @@ fn llvm_lowering_consumes_the_profile_managed_address_space() {
 
 #[test]
 fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
-    let ir = ir_of(&values_module());
+    let module = values_module();
+    let string_symbol = type_descriptor_symbol(&module, "String");
+    let definition = format!("@{string_symbol} =");
+    let ir = ir_of(&module);
     assert_eq!(
-        ir.match_indices("@scoop_td_String =").count(),
+        ir.match_indices(&definition).count(),
         1,
         "String must have exactly one descriptor definition"
     );
-    assert!(ir.contains("@scoop_td_String ="));
+    assert!(ir.contains(&definition));
 }
 
 #[test]
 fn emits_complete_image_root_and_immortal_tables() {
     let mut module = values_module();
+    let string_symbol = type_descriptor_symbol(&module, "String");
     let storage_identity = static_storage_identity("managedGlobal");
     let storage_symbol = storage_identity.symbol().to_string();
     let immortal_symbols = module
@@ -85,7 +89,7 @@ fn emits_complete_image_root_and_immortal_tables() {
                 "ptr addrspacecast (ptr addrspace(1) @\"{}\" to ptr)",
                 immortal_symbols[1]
             ))
-            && ir.contains("ptr @scoop_td_String"),
+            && ir.contains(&format!("ptr @{string_symbol}")),
         "immortal object descriptor table is incomplete:\n{ir}"
     );
     assert!(

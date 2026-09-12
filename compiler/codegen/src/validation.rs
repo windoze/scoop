@@ -15,6 +15,7 @@ use scoop_abi::validate_scoop_abi;
 use variants::validate_variant_primitives;
 
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
+    validate_type_descriptor_symbols(module)?;
     scoop_lir::CanonicalLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("invalid LIR identity foundation: {error}")))?;
     executable_entry(module)?;
@@ -30,6 +31,40 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_foreign_callbacks(module)?;
     validate_safepoint_identities(module)?;
     validate_call_root_plans(module)
+}
+
+fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError> {
+    let TypeDescriptorRef::Local(string) = module.meta.well_known_type_descriptors.string else {
+        return Err(CodegenError(
+            "the executable runtime requires a local core String TypeDescriptor".to_string(),
+        ));
+    };
+    if arena_index(string) >= module.meta.type_descriptors.len() {
+        return Err(CodegenError(format!(
+            "the core String TypeDescriptor reference {} is out of bounds",
+            arena_index(string)
+        )));
+    }
+
+    for (id, descriptor) in module.meta.type_descriptors.iter() {
+        if id == string {
+            if descriptor.identity.runtime_abi_symbol()
+                != Some(scoop_lir::RuntimeAbiTypeDescriptorSymbol::CoreString)
+            {
+                return Err(CodegenError(
+                    "the core String TypeDescriptor must use its typed runtime ABI symbol"
+                        .to_string(),
+                ));
+            }
+        } else if let Some(symbol) = descriptor.identity.runtime_abi_symbol() {
+            return Err(CodegenError(format!(
+                "type descriptor `{}` illegally uses runtime ABI symbol `{}` reserved for core String",
+                descriptor.name,
+                symbol.as_str()
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn executable_entry(module: &Module) -> Result<&Function, CodegenError> {

@@ -142,7 +142,11 @@ fn lowers_hello_world() {
         string_layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
     );
-    assert_eq!(string_descriptor.symbol, lir::STRING_TD_SYMBOL);
+    assert_eq!(
+        string_descriptor.identity.runtime_abi_symbol(),
+        Some(lir::RuntimeAbiTypeDescriptorSymbol::CoreString)
+    );
+    assert_eq!(string_descriptor.identity.symbol_request(), None);
     assert_eq!(
         string_descriptor.identity.runtime_type(),
         string_runtime_type
@@ -150,7 +154,9 @@ fn lowers_hello_world() {
     assert!(string_descriptor.vtable.slots().is_empty());
     assert_eq!(
         descriptor_values(&module)
-            .filter(|descriptor| descriptor.symbol == lir::STRING_TD_SYMBOL)
+            .filter(
+                |descriptor| descriptor.identity.exact_type() == string_runtime_type.exact_type()
+            )
             .count(),
         1
     );
