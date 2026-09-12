@@ -5,6 +5,7 @@ mod callable;
 mod callable_body;
 mod callback;
 mod core_builtin;
+mod core_native;
 mod dispatch;
 mod enum_variant;
 mod exact_signature;
@@ -70,6 +71,7 @@ pub use callback::{
     DecodedCallbackRegistrationKey, DecodedSignatureCallableShape, SignatureCallableShape,
 };
 pub use core_builtin::CoreBuiltinNominal;
+pub use core_native::CoreNativeBoundaryNominal;
 pub use dispatch::{
     DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,
     DispatchIdentityResolutionError, DispatchRole, DispatchSlotKey, DispatchTableKey,
