@@ -19,6 +19,8 @@ use crate::{
     mir_identity_foundation_capability,
 };
 
+const IDENTITY_FOUNDATION_HANDLER_BASE_WORK: u64 = 64;
+
 mod error;
 pub use error::{FoundationStructureValidationError, IdentityFoundationDecodeError};
 mod native_boundary;
@@ -131,7 +133,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
 
         let hir = decode_canonical_with_meter::<DecodedHirFoundation>(
             hir_section.payload(),
-            self.envelope.meter_mut(),
+            foundation_handler_meter(&mut self.envelope, MetadataLocation::Hir)?,
         )
         .map_err(|source| IdentityFoundationDecodeError::InnerFoundation {
             location: MetadataLocation::Hir,
@@ -139,7 +141,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
         })?;
         let mir = decode_canonical_with_meter::<DecodedMirFoundation>(
             mir_section.payload(),
-            self.envelope.meter_mut(),
+            foundation_handler_meter(&mut self.envelope, MetadataLocation::Mir)?,
         )
         .map_err(|source| IdentityFoundationDecodeError::InnerFoundation {
             location: MetadataLocation::Mir,
@@ -147,20 +149,24 @@ impl<'input> ValidatedGraphArtifact<'input> {
         })?;
         let lir = decode_canonical_with_meter::<DecodedLirFoundation>(
             lir_section.payload(),
-            self.envelope.meter_mut(),
+            foundation_handler_meter(&mut self.envelope, MetadataLocation::Lir)?,
         )
         .map_err(|source| IdentityFoundationDecodeError::InnerFoundation {
             location: MetadataLocation::Lir,
             source,
         })?;
 
-        let actual = SemanticFingerprintRecord::decoded_identity_foundation(
-            self.envelope.manifest().compatibility(),
-            self.direct_dependencies(),
-            hir_section,
-            mir_section,
-            lir_section,
-        )
+        let actual = {
+            let (manifest, meter) = self.envelope.manifest_and_meter();
+            SemanticFingerprintRecord::decoded_identity_foundation(
+                manifest.compatibility(),
+                manifest.direct_dependencies(),
+                hir_section,
+                mir_section,
+                lir_section,
+                meter,
+            )
+        }
         .map_err(IdentityFoundationDecodeError::SemanticFingerprints)?;
         let expected = self.envelope.manifest().semantic_fingerprints();
         require_semantic_fingerprint(
@@ -186,6 +192,17 @@ impl<'input> ValidatedGraphArtifact<'input> {
             lir,
         })
     }
+}
+
+fn foundation_handler_meter<'envelope, 'input>(
+    envelope: &'envelope mut crate::DecodedSlibEnvelope<'input>,
+    location: MetadataLocation,
+) -> Result<&'envelope mut scoop_wire::BudgetMeter, IdentityFoundationDecodeError> {
+    let meter = envelope.meter_mut();
+    meter
+        .charge_work(IDENTITY_FOUNDATION_HANDLER_BASE_WORK, &WirePath::root())
+        .map_err(|source| IdentityFoundationDecodeError::InnerFoundation { location, source })?;
+    Ok(meter)
 }
 
 fn require_semantic_fingerprint(

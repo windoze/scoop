@@ -134,6 +134,10 @@ impl<'input> DecodedSlibEnvelope<'input> {
     pub(crate) fn meter_mut(&mut self) -> &mut BudgetMeter {
         &mut self.meter
     }
+
+    pub(crate) fn manifest_and_meter(&mut self) -> (&BootstrapManifest, &mut BudgetMeter) {
+        (&self.manifest, &mut self.meter)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

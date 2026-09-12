@@ -1,7 +1,10 @@
 use std::fmt;
 
 use scoop_identity::{CapabilityId, ConeIdentity};
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
+use scoop_wire::{
+    BudgetMeter, Encoder, HashError, WireEncode, WireError, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length,
+};
 
 use crate::{
     CompatibilityRecord, DecodedMetadataSection, DependencyRecord, HirFingerprint, LirFingerprint,
@@ -59,6 +62,7 @@ pub enum SemanticFingerprintError {
     DuplicateDependency { identity: ConeIdentity },
     DependencyTableAllocation { requested_slots: usize },
     Hash(HashError),
+    Resource(WireError),
 }
 
 impl fmt::Display for SemanticFingerprintError {
@@ -78,11 +82,22 @@ impl fmt::Display for SemanticFingerprintError {
                 "failed to allocate semantic fingerprint dependency table with {requested_slots} slots"
             ),
             Self::Hash(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for SemanticFingerprintError {}
+impl std::error::Error for SemanticFingerprintError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Hash(error) => Some(error),
+            Self::Resource(error) => Some(error),
+            Self::WrongFoundationSection { .. }
+            | Self::DuplicateDependency { .. }
+            | Self::DependencyTableAllocation { .. } => None,
+        }
+    }
+}
 
 impl SemanticFingerprintRecord {
     pub fn identity_foundation(
@@ -92,7 +107,9 @@ impl SemanticFingerprintRecord {
         mir: &MetadataSection,
         lir: &MetadataSection,
     ) -> Result<Self, SemanticFingerprintError> {
-        identity_foundation_fingerprints(compatibility, direct_dependencies, hir, mir, lir)
+        validate_foundation_sections(hir, mir, lir)?;
+        let dependencies = OrderedDependencies::sorted(direct_dependencies)?;
+        identity_foundation_fingerprints(compatibility, hir, mir, lir, &dependencies, None)
     }
 
     pub(crate) fn decoded_identity_foundation(
@@ -101,31 +118,58 @@ impl SemanticFingerprintRecord {
         hir: &DecodedMetadataSection<'_>,
         mir: &DecodedMetadataSection<'_>,
         lir: &DecodedMetadataSection<'_>,
+        meter: &mut BudgetMeter,
     ) -> Result<Self, SemanticFingerprintError> {
-        identity_foundation_fingerprints(compatibility, direct_dependencies, hir, mir, lir)
+        validate_foundation_sections(hir, mir, lir)?;
+        let dependencies = OrderedDependencies::canonical(direct_dependencies);
+        identity_foundation_fingerprints(compatibility, hir, mir, lir, &dependencies, Some(meter))
     }
 }
 
 fn identity_foundation_fingerprints<S: FoundationSection>(
     compatibility: &CompatibilityRecord,
-    direct_dependencies: &[DependencyRecord],
     hir: &S,
     mir: &S,
     lir: &S,
+    dependencies: &OrderedDependencies<'_>,
+    mut meter: Option<&mut BudgetMeter>,
 ) -> Result<SemanticFingerprintRecord, SemanticFingerprintError> {
-    validate_foundation_section(FoundationLayer::Hir, hir)?;
-    validate_foundation_section(FoundationLayer::Mir, mir)?;
-    validate_foundation_section(FoundationLayer::Lir, lir)?;
-    let dependencies = SortedDependencies::new(direct_dependencies)?;
-
-    let hir = calculate_layer_fingerprint(FoundationLayer::Hir, compatibility, hir, &dependencies)?;
-    let mir = calculate_layer_fingerprint(FoundationLayer::Mir, compatibility, mir, &dependencies)?;
-    let lir = calculate_layer_fingerprint(FoundationLayer::Lir, compatibility, lir, &dependencies)?;
+    let hir = calculate_layer_fingerprint(
+        FoundationLayer::Hir,
+        compatibility,
+        hir,
+        dependencies,
+        meter.as_deref_mut(),
+    )?;
+    let mir = calculate_layer_fingerprint(
+        FoundationLayer::Mir,
+        compatibility,
+        mir,
+        dependencies,
+        meter.as_deref_mut(),
+    )?;
+    let lir = calculate_layer_fingerprint(
+        FoundationLayer::Lir,
+        compatibility,
+        lir,
+        dependencies,
+        meter,
+    )?;
     Ok(SemanticFingerprintRecord::from_foundation_digests(
         HirFingerprint::from_array(*hir.as_array()),
         MirFingerprint::from_array(*mir.as_array()),
         LirFingerprint::from_array(*lir.as_array()),
     ))
+}
+
+fn validate_foundation_sections<S: FoundationSection>(
+    hir: &S,
+    mir: &S,
+    lir: &S,
+) -> Result<(), SemanticFingerprintError> {
+    validate_foundation_section(FoundationLayer::Hir, hir)?;
+    validate_foundation_section(FoundationLayer::Mir, mir)?;
+    validate_foundation_section(FoundationLayer::Lir, lir)
 }
 
 trait FoundationSection {
@@ -181,7 +225,8 @@ fn calculate_layer_fingerprint<S: FoundationSection>(
     layer: FoundationLayer,
     compatibility: &CompatibilityRecord,
     section: &S,
-    dependencies: &SortedDependencies<'_>,
+    dependencies: &OrderedDependencies<'_>,
+    meter: Option<&mut BudgetMeter>,
 ) -> Result<scoop_wire::Digest256, SemanticFingerprintError> {
     let input = LayerFingerprintInput {
         context: LayerFingerprintContext {
@@ -199,6 +244,13 @@ fn calculate_layer_fingerprint<S: FoundationSection>(
             dependencies,
         },
     };
+    if let Some(meter) = meter {
+        let stream_length = domain_separated_cbor_hash_stream_length(layer.domain(), &input)
+            .map_err(SemanticFingerprintError::Hash)?;
+        meter
+            .charge_sha256(stream_length, &Default::default())
+            .map_err(SemanticFingerprintError::Resource)?;
+    }
     domain_separated_cbor_hash(layer.domain(), &input).map_err(SemanticFingerprintError::Hash)
 }
 
@@ -228,12 +280,17 @@ impl FoundationLayer {
     }
 }
 
-struct SortedDependencies<'dependency> {
-    entries: Vec<&'dependency DependencyRecord>,
+enum DependencyEntries<'dependency> {
+    Canonical(&'dependency [DependencyRecord]),
+    Sorted(Vec<&'dependency DependencyRecord>),
 }
 
-impl<'dependency> SortedDependencies<'dependency> {
-    fn new(
+struct OrderedDependencies<'dependency> {
+    entries: DependencyEntries<'dependency>,
+}
+
+impl<'dependency> OrderedDependencies<'dependency> {
+    fn sorted(
         dependencies: &'dependency [DependencyRecord],
     ) -> Result<Self, SemanticFingerprintError> {
         let mut entries = Vec::new();
@@ -252,7 +309,22 @@ impl<'dependency> SortedDependencies<'dependency> {
                 identity: pair[0].identity(),
             });
         }
-        Ok(Self { entries })
+        Ok(Self {
+            entries: DependencyEntries::Sorted(entries),
+        })
+    }
+
+    const fn canonical(dependencies: &'dependency [DependencyRecord]) -> Self {
+        Self {
+            entries: DependencyEntries::Canonical(dependencies),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match &self.entries {
+            DependencyEntries::Canonical(entries) => entries.len(),
+            DependencyEntries::Sorted(entries) => entries.len(),
+        }
     }
 }
 
@@ -349,27 +421,45 @@ fn encode_layer_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 
 struct SupportEdges<'dependency> {
     layer: FoundationLayer,
-    dependencies: &'dependency SortedDependencies<'dependency>,
+    dependencies: &'dependency OrderedDependencies<'dependency>,
 }
 
 impl WireEncode for SupportEdges<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(self.dependencies.entries.len() as u64)?;
+        encoder.array(self.dependencies.len() as u64)?;
         let role = SupportEdgeRoleId::all_direct();
-        for dependency in &self.dependencies.entries {
-            encoder.map(3)?;
-            encoder.field(1)?;
-            dependency.identity().encode(encoder)?;
-            encoder.field(2)?;
-            role.encode(encoder)?;
-            encoder.field(3)?;
-            match self.layer {
-                FoundationLayer::Hir => dependency.hir_fingerprint().encode(encoder)?,
-                FoundationLayer::Mir => dependency.mir_fingerprint().encode(encoder)?,
-                FoundationLayer::Lir => dependency.lir_fingerprint().encode(encoder)?,
+        match &self.dependencies.entries {
+            DependencyEntries::Canonical(entries) => {
+                for dependency in *entries {
+                    encode_support_edge(encoder, self.layer, &role, dependency)?;
+                }
+            }
+            DependencyEntries::Sorted(entries) => {
+                for dependency in entries {
+                    encode_support_edge(encoder, self.layer, &role, dependency)?;
+                }
             }
         }
         Ok(())
+    }
+}
+
+fn encode_support_edge(
+    encoder: &mut Encoder,
+    layer: FoundationLayer,
+    role: &SupportEdgeRoleId,
+    dependency: &DependencyRecord,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(3)?;
+    encoder.field(1)?;
+    dependency.identity().encode(encoder)?;
+    encoder.field(2)?;
+    role.encode(encoder)?;
+    encoder.field(3)?;
+    match layer {
+        FoundationLayer::Hir => dependency.hir_fingerprint().encode(encoder),
+        FoundationLayer::Mir => dependency.mir_fingerprint().encode(encoder),
+        FoundationLayer::Lir => dependency.lir_fingerprint().encode(encoder),
     }
 }
 
@@ -396,6 +486,7 @@ impl WireEncode for LayerFingerprintInput<'_> {
 mod tests {
     use scoop_identity::ConeCoordinate;
     use scoop_lir::ValidatedLirTargetSelection;
+    use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
 
     use super::*;
     use crate::{MemberPurposeSet, MetadataSection};
@@ -455,6 +546,52 @@ mod tests {
             fingerprints.lir().to_string(),
             "1146795f5298d4df3d1e887e8b181e2d9a1f6314ef96c560d88826cd76fc18dd"
         );
+    }
+
+    #[test]
+    fn semantic_hash_work_has_inclusive_boundaries() {
+        let compatibility = compatibility();
+        let hir = section(FoundationLayer::Hir, b"hir");
+        let dependencies = OrderedDependencies::sorted(&[]).unwrap();
+        let work = {
+            let mut meter = BudgetMeter::new(DecodeLimits::default());
+            calculate_layer_fingerprint(
+                FoundationLayer::Hir,
+                &compatibility,
+                &hir,
+                &dependencies,
+                Some(&mut meter),
+            )
+            .unwrap();
+            meter.usage().validation_work_units
+        };
+        assert!(work > 0);
+
+        for (limit, accepted) in [(work - 1, false), (work, true), (work + 1, true)] {
+            let mut meter = BudgetMeter::new(DecodeLimits {
+                validation_work_units: limit,
+                ..DecodeLimits::default()
+            });
+            let result = calculate_layer_fingerprint(
+                FoundationLayer::Hir,
+                &compatibility,
+                &hir,
+                &dependencies,
+                Some(&mut meter),
+            );
+            assert_eq!(result.is_ok(), accepted);
+            if !accepted {
+                assert!(matches!(
+                    result,
+                    Err(SemanticFingerprintError::Resource(ref error))
+                        if error.kind() == &WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::ValidationWorkUnits,
+                            limit,
+                            observed: work,
+                        }
+                ));
+            }
+        }
     }
 
     #[test]

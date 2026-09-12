@@ -9,7 +9,7 @@ use crate::{
     BootstrapManifestValidationError, CompatibilitySchemaKind, CompatibilityValidationError,
     GraphValidationError, IdentityFoundationDecodeError, MetadataLocation, MetadataReadError,
     MetadataSectionError, MetadataSectionValidationError, ProducerRecordError, SchemaKind,
-    SemanticFingerprintValidationError, SlibMemberId, SlibReadError,
+    SemanticFingerprintError, SemanticFingerprintValidationError, SlibMemberId, SlibReadError,
 };
 
 /// Closed stable diagnostic codes for the M23-2 `.slib` reader and validators.
@@ -524,6 +524,9 @@ impl SlibDiagnostic for IdentityFoundationDecodeError {
             Self::InnerFoundation { location, source } => source
                 .diagnostic()
                 .with_origin(SlibPrimaryOrigin::Metadata(*location)),
+            Self::SemanticFingerprints(SemanticFingerprintError::Resource(error)) => {
+                error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest)
+            }
             Self::SemanticFingerprints(_) => root_diagnostic(
                 SlibErrorCode::FingerprintMismatch,
                 SlibPrimaryOrigin::Manifest,
