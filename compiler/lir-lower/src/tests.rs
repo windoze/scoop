@@ -104,6 +104,7 @@ fn test_source_native_data_contract(
     source_name: &str,
     native_symbol: &str,
     storage: SignatureTypeKey,
+    library: SourceNativeLibraryBinding,
 ) -> SourceNativeExternalContractRecord {
     let identifier = format!(
         "test{}",
@@ -126,7 +127,7 @@ fn test_source_native_data_contract(
         SourceNativeExternalContractKey::property(&declaration).unwrap(),
         SourceNativeExternalContract::ReadOnlyData {
             symbol: SourceNativeSymbol::new(native_symbol).unwrap(),
-            library: SourceNativeLibraryBinding::DefaultNativeNamespace,
+            library,
             storage,
         },
     )
@@ -704,13 +705,65 @@ fn no_gc_effect_is_preserved_in_lir() {
 }
 
 #[test]
+fn scoop_extern_produces_one_exact_target_contract() {
+    let mut builder = Builder::new();
+    let external = builder.managed_scoop_extern("read", "scoop_read", vec![INT], INT);
+    let source_contract = builder.extern_functions[external].source_contract.id();
+    let main = builder.main(Arena::new(), Vec::new());
+    let source = builder.finish(main);
+    let exact_int = source
+        .meta
+        .source_exact_types
+        .get(&INT)
+        .expect("Int has an exact identity")
+        .identity_record()
+        .id();
+
+    let module = lower(&source);
+    let storage = scoop_identity::CanonicalScoopStorage::new(
+        exact_int,
+        4,
+        std::num::NonZeroU64::new(4).unwrap(),
+        scoop_identity::ScoopAbiValueShape::Scalar,
+    );
+    let signature = scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+        ExactCallableSignature::new(Effect::Ordinary, None, vec![exact_int], exact_int),
+        vec![scoop_identity::ScoopAbiArgument::direct(storage).unwrap()],
+        scoop_identity::ScoopAbiReturn::direct(storage).unwrap(),
+        scoop_identity::GcEffect::Managed,
+    )
+    .unwrap();
+    let expected = scoop_identity::NativeExternalContractRecord::new(
+        source_contract,
+        scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+            &SourceNativeSymbol::new("scoop_read").unwrap(),
+        )
+        .unwrap(),
+        scoop_identity::NativeExternalContract::scoop_function(
+            scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+            signature,
+            scoop_identity::TargetCallingConvention::Cdecl,
+        ),
+    )
+    .unwrap();
+
+    assert_eq!(module.meta.native_externals.contracts(), &[expected]);
+    assert!(module.meta.native_externals.link_requirements().is_empty());
+    let counts = lir::CanonicalLirFoundation::from_module(&module)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.native_contracts, 1);
+    assert_eq!(counts.native_link_requirements, 0);
+}
+
+#[test]
 fn c_abi_preserves_all_eight_exact_integer_kinds() {
     let mut builder = Builder::new();
     let params = mir::IntegerKind::ALL
         .map(mir::Type::Integer)
         .into_iter()
         .collect::<Vec<_>>();
-    builder.extern_functions.alloc(mir::ExternFunction {
+    let integers = builder.extern_functions.alloc(mir::ExternFunction {
         source_contract: test_source_native_contract("integers", "integers", mir::ExternAbi::C),
         source_name: "integers".to_string(),
         native_symbol: "integers".to_string(),
@@ -721,12 +774,16 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         params: params.clone(),
         return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
     });
-    builder.c_extern(
+    let same_integers = builder.c_extern(
         "sameIntegers",
         "same_integers",
         params,
         mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
     );
+    let source_contracts = [
+        builder.extern_functions[integers].source_contract.id(),
+        builder.extern_functions[same_integers].source_contract.id(),
+    ];
     let main = builder.main(Arena::new(), Vec::new());
     let mut mir_module = builder.finish(main);
     let native_signature = mir_module.function_types.alloc(mir::FunctionType {
@@ -836,6 +893,23 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         &[expected_signature]
     );
     assert!(module.meta.canonical_c_abi.layouts().is_empty());
+    assert_eq!(module.meta.native_externals.contracts().len(), 2);
+    for source_contract in source_contracts {
+        assert!(
+            module
+                .meta
+                .native_externals
+                .contracts()
+                .iter()
+                .any(|contract| contract.source() == source_contract),
+            "each source C extern must have one target contract"
+        );
+    }
+    let counts = lir::CanonicalLirFoundation::from_module(&module)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.c_abi_signatures, 1);
+    assert_eq!(counts.native_contracts, 2);
 }
 
 #[test]
@@ -951,18 +1025,26 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     let ExactTypeKey::Nominal(nominal) = exact.key() else {
         panic!("a non-generic test struct has a nominal exact identity")
     };
+    let library = scoop_identity::CanonicalNativeLibraryName::new("native-headers").unwrap();
+    let expected_requirement = scoop_identity::CborIdentityRecord::from_key(
+        scoop_identity::NativeLinkRequirementKey::target_default(library.clone()),
+    )
+    .unwrap();
+    let source_contract = test_source_native_data_contract(
+        "header",
+        "native_header",
+        SignatureTypeKey::Nominal(*nominal),
+        SourceNativeLibraryBinding::LogicalLibrary(library),
+    );
+    let source_contract_id = source_contract.id();
     source.globals.alloc(mir::Global {
         name: "header".to_string(),
         storage_owner: mir::StaticStorageOwner::PropertyBacking(property_owner("header")),
         ty: mir::Type::Struct(header),
         mutable: false,
         storage: mir::GlobalStorage::Extern {
-            source_contract: Box::new(test_source_native_data_contract(
-                "header",
-                "native_header",
-                SignatureTypeKey::Nominal(*nominal),
-            )),
-            library: String::new(),
+            source_contract: Box::new(source_contract),
+            library: "native-headers".to_string(),
             native_symbol: "native_header".to_string(),
             thread_local: false,
         },
@@ -971,13 +1053,26 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     let module = lower(&source);
     assert!(module.meta.canonical_c_abi.signatures().is_empty());
     assert_eq!(module.meta.canonical_c_abi.layouts().len(), 1);
+    let native_contracts = module.meta.native_externals.contracts();
+    assert_eq!(native_contracts.len(), 1);
+    assert_eq!(native_contracts[0].source(), source_contract_id);
     assert_eq!(
-        lir::CanonicalLirFoundation::from_module(&module)
-            .unwrap()
-            .counts()
-            .c_abi_layouts,
-        1
+        native_contracts[0]
+            .symbol_key()
+            .native_link_symbol()
+            .as_bytes(),
+        b"_native_header"
     );
+    assert_eq!(
+        module.meta.native_externals.link_requirements(),
+        &[expected_requirement]
+    );
+    let counts = lir::CanonicalLirFoundation::from_module(&module)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.c_abi_layouts, 1);
+    assert_eq!(counts.native_contracts, 1);
+    assert_eq!(counts.native_link_requirements, 1);
 }
 
 #[test]

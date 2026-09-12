@@ -81,6 +81,10 @@ impl CanonicalLirFoundation {
         )?;
         foundation.set_c_abi_signatures(module.meta.canonical_c_abi.signatures().to_vec())?;
         foundation.set_c_abi_layouts(module.meta.canonical_c_abi.layouts().to_vec())?;
+        foundation.set_native_contracts(module.meta.native_externals.contracts().to_vec())?;
+        foundation.set_native_link_requirements(
+            module.meta.native_externals.link_requirements().to_vec(),
+        )?;
         Ok(foundation)
     }
 

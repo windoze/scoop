@@ -249,6 +249,8 @@ pub struct LirMeta {
     /// Complete canonical C source-storage leaf records used by native
     /// functions, globals, and callbacks in this module.
     pub canonical_c_abi: CanonicalCAbiMetadata,
+    /// Complete target-normalized contracts for source extern declarations.
+    pub native_externals: NativeExternalMetadata,
     /// Non-optional identities selected from typed intrinsic declarations.
     pub well_known_layouts: WellKnownLayouts,
     pub well_known_type_descriptors: WellKnownTypeDescriptors,

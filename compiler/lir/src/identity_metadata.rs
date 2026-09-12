@@ -76,6 +76,96 @@ impl fmt::Display for CanonicalCAbiMetadataError {
 
 impl std::error::Error for CanonicalCAbiMetadataError {}
 
+/// Target-normalized source extern contracts and the logical native libraries
+/// they require. Contract sources remain HIR-owned typed identities; this
+/// relation only adds target symbol, storage, and link semantics.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct NativeExternalMetadata {
+    contracts: Vec<scoop_identity::NativeExternalContractRecord>,
+    link_requirements: Vec<
+        scoop_identity::CborIdentityRecord<
+            scoop_identity::NativeLinkRequirementId,
+            scoop_identity::NativeLinkRequirementKey,
+        >,
+    >,
+}
+
+impl NativeExternalMetadata {
+    pub fn checked(
+        mut contracts: Vec<scoop_identity::NativeExternalContractRecord>,
+        mut link_requirements: Vec<
+            scoop_identity::CborIdentityRecord<
+                scoop_identity::NativeLinkRequirementId,
+                scoop_identity::NativeLinkRequirementKey,
+            >,
+        >,
+    ) -> Result<Self, NativeExternalMetadataError> {
+        contracts.sort_by_key(scoop_identity::NativeExternalContractRecord::source);
+        if let Some(pair) = contracts
+            .windows(2)
+            .find(|pair| pair[0].source() == pair[1].source())
+        {
+            return Err(if pair[0] == pair[1] {
+                NativeExternalMetadataError::DuplicateContractSource
+            } else {
+                NativeExternalMetadataError::ContractSourceCollision
+            });
+        }
+
+        link_requirements.sort_by_key(scoop_identity::CborIdentityRecord::id);
+        link_requirements.dedup();
+        if link_requirements
+            .windows(2)
+            .any(|pair| pair[0].id() == pair[1].id())
+        {
+            return Err(NativeExternalMetadataError::LinkRequirementCollision);
+        }
+
+        Ok(Self {
+            contracts,
+            link_requirements,
+        })
+    }
+
+    pub fn contracts(&self) -> &[scoop_identity::NativeExternalContractRecord] {
+        &self.contracts
+    }
+
+    pub fn link_requirements(
+        &self,
+    ) -> &[scoop_identity::CborIdentityRecord<
+        scoop_identity::NativeLinkRequirementId,
+        scoop_identity::NativeLinkRequirementKey,
+    >] {
+        &self.link_requirements
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NativeExternalMetadataError {
+    DuplicateContractSource,
+    ContractSourceCollision,
+    LinkRequirementCollision,
+}
+
+impl fmt::Display for NativeExternalMetadataError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::DuplicateContractSource => {
+                "one source native contract was normalized more than once"
+            }
+            Self::ContractSourceCollision => {
+                "one source native contract normalized to conflicting target contracts"
+            }
+            Self::LinkRequirementCollision => {
+                "different native link requirements have the same identity"
+            }
+        })
+    }
+}
+
+impl std::error::Error for NativeExternalMetadataError {}
+
 /// The deterministic runtime type id derived from one persistent exact type.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RuntimeTypeMappingRecord {
