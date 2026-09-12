@@ -152,6 +152,34 @@ fn canonical_record_materialization_precharges_exact_slot_budget() {
 }
 
 #[test]
+fn canonical_record_materialization_shares_the_validated_key() {
+    let decoded = decoded_source_type();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending.resolve(&decoded).unwrap();
+    let graph = pending.finish().unwrap();
+    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
+    let first = graph
+        .records::<PersistentTypeId, SourceDeclarationKey>(
+            IdentityLayer::Hir,
+            &mut meter,
+            &WirePath::root(),
+        )
+        .unwrap();
+    let second = graph
+        .records::<PersistentTypeId, SourceDeclarationKey>(
+            IdentityLayer::Hir,
+            &mut meter,
+            &WirePath::root(),
+        )
+        .unwrap();
+
+    assert!(std::ptr::eq(first[0].key(), second[0].key()));
+}
+
+#[test]
 fn identity_hash_is_charged_before_registration() {
     let decoded = decoded_source_type();
     let hash_work = {

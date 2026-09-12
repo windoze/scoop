@@ -103,17 +103,23 @@ impl CanonicalKeySlot {
     }
 }
 
-trait ErasedCanonicalKey: Any {
+trait ErasedCanonicalKey: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
     fn equals(&self, other: &dyn ErasedCanonicalKey) -> bool;
 }
 
 impl<T> ErasedCanonicalKey for T
 where
-    T: Any + Eq,
+    T: Any + Eq + Send + Sync,
 {
     fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
 
@@ -551,7 +557,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError>
     where
         I: PersistentId + 'static,
-        K: Eq + 'static,
+        K: Eq + Send + Sync + 'static,
         E: fmt::Display,
     {
         let node = IdentityNode::trusted(id);
@@ -909,7 +915,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError>
     where
         I: PersistentId + 'static,
-        K: Eq + 'static,
+        K: Eq + Send + Sync + 'static,
     {
         let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
         if self.canonical_keys.contains_key(&slot) {
@@ -987,7 +993,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError>
     where
         I: PersistentId + 'static,
-        K: Eq + 'static,
+        K: Eq + Send + Sync + 'static,
     {
         let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
         match self.canonical_keys.get(&slot) {
@@ -1180,7 +1186,7 @@ impl ValidatedIdentityGraph {
     ) -> Result<Vec<CborIdentityRecord<I, K>>, IdentityValidationError>
     where
         I: PersistentId + 'static,
-        K: CborIdentityKey<I> + Clone + 'static,
+        K: CborIdentityKey<I> + Send + Sync + 'static,
     {
         let record_count = self
             .candidates
@@ -1209,12 +1215,15 @@ impl ValidatedIdentityGraph {
                 continue;
             }
             let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
-            let Some(key) = self
-                .canonical_keys
-                .get(&slot)
-                .and_then(|key| key.as_any().downcast_ref::<K>())
-            else {
+            let Some(key) = self.canonical_keys.get(&slot).cloned() else {
                 continue;
+            };
+            let Ok(key) = key.into_any().downcast::<K>() else {
+                return Err(IdentityValidationError::InvalidRecord {
+                    kind: I::KIND,
+                    id: node.bytes,
+                    reason: "validated identity has the wrong concrete key type".to_owned(),
+                });
             };
             let Some(id) = candidate.trusted_id.downcast_ref::<I>().copied() else {
                 return Err(IdentityValidationError::InvalidRecord {
@@ -1223,7 +1232,7 @@ impl ValidatedIdentityGraph {
                     reason: "validated identity has the wrong concrete id type".to_owned(),
                 });
             };
-            let record = CborIdentityRecord::from_verified(id, key.clone());
+            let record = CborIdentityRecord::from_verified_shared(id, key);
             records.push(record);
         }
         records.sort_by_key(CborIdentityRecord::id);

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::sync::Arc;
 
 use scoop_wire::{
     Decoder, Encoder, RuntimeDecode, RuntimeDecodeError, RuntimeEncode, RuntimeEncodeError,
@@ -36,18 +37,21 @@ pub trait RuntimeIdentityKey<I: PersistentId>:
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CborIdentityRecord<I: PersistentId, K> {
     id: I,
-    key: K,
+    key: Arc<K>,
 }
 
 impl<I: PersistentId, K: CborIdentityKey<I>> CborIdentityRecord<I, K> {
     pub fn from_key(key: K) -> Result<Self, K::Error> {
         let id = key.derive_identity()?;
-        Ok(Self { id, key })
+        Ok(Self {
+            id,
+            key: Arc::new(key),
+        })
     }
 }
 
 impl<I: PersistentId, K> CborIdentityRecord<I, K> {
-    pub(crate) const fn from_verified(id: I, key: K) -> Self {
+    pub(crate) fn from_verified_shared(id: I, key: Arc<K>) -> Self {
         Self { id, key }
     }
 
@@ -55,12 +59,15 @@ impl<I: PersistentId, K> CborIdentityRecord<I, K> {
         self.id
     }
 
-    pub const fn key(&self) -> &K {
-        &self.key
+    pub fn key(&self) -> &K {
+        self.key.as_ref()
     }
 
-    pub fn into_key(self) -> K {
-        self.key
+    pub fn into_key(self) -> K
+    where
+        K: Clone,
+    {
+        Arc::unwrap_or_clone(self.key)
     }
 }
 
@@ -111,7 +118,10 @@ impl<I: PersistentId, K> DecodedCborIdentityRecord<I, K> {
             .id
             .verify(expected)
             .map_err(IdentityRecordResolutionError::Id)?;
-        Ok(CborIdentityRecord { id, key })
+        Ok(CborIdentityRecord {
+            id,
+            key: Arc::new(key),
+        })
     }
 }
 
@@ -127,7 +137,10 @@ impl<I: PersistentId, K: CborIdentityKey<I>> DecodedCborIdentityRecord<I, K> {
             .id
             .verify(expected)
             .map_err(IdentityRecordValidationError::Id)?;
-        Ok(CborIdentityRecord { id, key: self.key })
+        Ok(CborIdentityRecord {
+            id,
+            key: Arc::new(self.key),
+        })
     }
 }
 

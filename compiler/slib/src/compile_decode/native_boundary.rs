@@ -212,6 +212,7 @@ fn records_by_id<I, K>(
 ) -> Result<HashMap<I, K>, NativeBoundaryCompileError>
 where
     I: scoop_identity::PersistentId + Eq + Hash,
+    K: Clone,
 {
     let mut records = HashMap::new();
     for record_set in record_sets {

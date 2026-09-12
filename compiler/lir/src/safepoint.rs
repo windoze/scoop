@@ -41,15 +41,15 @@ impl SafepointIdentity {
         self.runtime
     }
 
-    pub const fn owner(&self) -> scoop_identity::PersistentCallableBodyId {
+    pub fn owner(&self) -> scoop_identity::PersistentCallableBodyId {
         self.site.key().owner()
     }
 
-    pub const fn role(&self) -> SafepointSiteRole {
+    pub fn role(&self) -> SafepointSiteRole {
         self.site.key().role()
     }
 
-    pub const fn ordinal(&self) -> u32 {
+    pub fn ordinal(&self) -> u32 {
         self.site.key().ordinal()
     }
 }
