@@ -248,7 +248,12 @@ fn validate_foundation(
         );
     }
 
-    validate_safepoints(&callable_bodies, &safepoint_sites, &resolved_safepoints)?;
+    validate_safepoints(
+        &callable_bodies,
+        &safepoint_sites,
+        &resolved_safepoints,
+        meter,
+    )?;
     validate_native_contracts(identities, &resolved_contracts, meter)?;
     validate_bridges(
         identities,

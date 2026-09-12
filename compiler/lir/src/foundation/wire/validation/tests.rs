@@ -12,12 +12,13 @@ use scoop_identity::{
     NativeLibraryBinding, ObjectDefinitionPlanKey, PackagePath, PendingIdentityValidation,
     PersistentCallbackApplicationId, PersistentCallbackRegistrationId, PersistentExactTypeId,
     PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, RuntimeIdentityRecord, SafepointSiteKey,
-    SafepointSiteRole, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
-    SourceCAbiReturn, SourceCallingConvention, SourceDeclarationKey, SourceDeclarationSite,
-    SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractKey,
-    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
-    SourceNominalKind, StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentSymbolRequestTable, PersistentTypeId, RuntimeIdentityRecord, RuntimeTypeId,
+    SafepointId, SafepointSiteKey, SafepointSiteRole, SignatureCallableShape, SignatureTypeKey,
+    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention, SourceDeclarationKey,
+    SourceDeclarationSite, SourceExternFunctionAbi, SourceNativeExternalContract,
+    SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
+    SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
+    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     ValidatedIdentityGraph,
 };
@@ -89,6 +90,27 @@ fn rejects_a_gap_in_role_local_safepoint_ordinals() {
                 ..
             }
         ))
+    ));
+}
+
+#[test]
+fn rejects_an_unbounded_safepoint_ordinal_scan_through_the_work_budget() {
+    let (decoded, mut identities, _) = callback_fixture(&[u32::MAX], 0);
+    let prior_hash_work = (RuntimeTypeId::hash_stream_length().unwrap() + 72) / 64
+        + (SafepointId::hash_stream_length().unwrap() + 72) / 64;
+    let observed = prior_hash_work + u64::from(u32::MAX) + 1;
+
+    let error = decoded
+        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        LirFoundationValidationError::Resource(ref error)
+            if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
+                resource: scoop_wire::ResourceKind::ValidationWorkUnits,
+                limit: DecodeLimits::default().validation_work_units,
+                observed,
+            }
     ));
 }
 

@@ -1,4 +1,6 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::hash::Hash;
 
 use crate::{WireError, WireErrorKind, WirePath};
 
@@ -268,6 +270,52 @@ impl BudgetMeter {
             .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
         self.try_reserve_exact(values, additional, COLLECTION_ELEMENT_BYTES, path)
     }
+
+    pub fn try_reserve_map_slots<K: Eq + Hash, V>(
+        &mut self,
+        values: &mut HashMap<K, V>,
+        additional: usize,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        let additional = u64::try_from(additional)
+            .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        self.charge_heap(product(additional, COLLECTION_ELEMENT_BYTES, path)?, path)?;
+        let capacity = usize::try_from(additional)
+            .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        values.try_reserve(capacity).map_err(|_| {
+            WireError::new(
+                WireErrorKind::ResourceAllocation {
+                    requested_logical_bytes: additional.saturating_mul(COLLECTION_ELEMENT_BYTES),
+                    requested_slots: additional,
+                },
+                path.clone(),
+                None,
+            )
+        })
+    }
+
+    pub fn try_reserve_set_slots<T: Eq + Hash>(
+        &mut self,
+        values: &mut HashSet<T>,
+        additional: usize,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        let additional = u64::try_from(additional)
+            .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        self.charge_heap(product(additional, COLLECTION_ELEMENT_BYTES, path)?, path)?;
+        let capacity = usize::try_from(additional)
+            .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        values.try_reserve(capacity).map_err(|_| {
+            WireError::new(
+                WireErrorKind::ResourceAllocation {
+                    requested_logical_bytes: additional.saturating_mul(COLLECTION_ELEMENT_BYTES),
+                    requested_slots: additional,
+                },
+                path.clone(),
+                None,
+            )
+        })
+    }
 }
 
 fn ceil_log2(value: u64) -> u64 {
@@ -321,6 +369,8 @@ fn limit_error(resource: ResourceKind, limit: u64, observed: u64, path: &WirePat
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{HashMap, HashSet};
+
     use super::{BudgetMeter, DecodeLimits, DecodeUsage, ResourceKind};
     use crate::{WireErrorKind, WirePath};
 
@@ -369,6 +419,37 @@ mod tests {
             });
             let mut values = Vec::<u8>::new();
             let result = meter.try_reserve_collection_slots(&mut values, 1, &path);
+            assert_eq!(result.is_ok(), accepted);
+            if !accepted {
+                assert_eq!(
+                    result.unwrap_err().kind(),
+                    &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::LogicalHeapBytes,
+                        limit,
+                        observed: required,
+                    }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn hash_index_reservation_has_inclusive_boundaries() {
+        let path = WirePath::root().field(12);
+        let required = 2 * super::COLLECTION_ELEMENT_BYTES;
+        for (limit, accepted) in [
+            (required - 1, false),
+            (required, true),
+            (required + 1, true),
+        ] {
+            let mut meter = BudgetMeter::new(DecodeLimits {
+                logical_heap_bytes: limit,
+                ..DecodeLimits::default()
+            });
+            let mut map = HashMap::<u8, u8>::new();
+            let mut set = HashSet::<u8>::new();
+            meter.try_reserve_map_slots(&mut map, 1, &path).unwrap();
+            let result = meter.try_reserve_set_slots(&mut set, 1, &path);
             assert_eq!(result.is_ok(), accepted);
             if !accepted {
                 assert_eq!(
