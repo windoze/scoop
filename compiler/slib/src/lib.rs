@@ -35,3 +35,6 @@ pub use foundation::*;
 
 mod semantic;
 pub use semantic::*;
+
+mod diagnostic;
+pub use diagnostic::*;

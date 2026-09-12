@@ -25,7 +25,7 @@ use super::*;
 use crate::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, HirFingerprint,
     IdentityFoundationArtifact, IdentityFoundationArtifactInput, LirFingerprint, ManifestSection,
-    MirFingerprint, ProducerRecord,
+    MirFingerprint, ProducerRecord, SlibDiagnostic, SlibErrorCode,
 };
 
 #[test]
@@ -218,6 +218,10 @@ fn direct_dependency_native_boundary_requires_the_closure_capability() {
             owner: scoop_hir::NativeBoundaryNominalOwner::Concrete(_)
         }
     ));
+    assert_eq!(
+        error.diagnostic().code(),
+        SlibErrorCode::CapabilityNativeBoundaryClosureRequired
+    );
     assert!(
         error
             .to_string()

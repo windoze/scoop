@@ -5,6 +5,25 @@ use std::fmt;
 pub struct WirePath(Vec<PathSegment>);
 
 impl WirePath {
+    pub fn root() -> Self {
+        Self::default()
+    }
+
+    pub fn field(mut self, field: u32) -> Self {
+        self.0.push(PathSegment::Field(field));
+        self
+    }
+
+    pub fn index(mut self, index: u64) -> Self {
+        self.0.push(PathSegment::Index(index));
+        self
+    }
+
+    pub fn key(mut self, kind: &'static str, bytes: [u8; 32]) -> Self {
+        self.0.push(PathSegment::Key { kind, bytes });
+        self
+    }
+
     pub fn segments(&self) -> &[PathSegment] {
         &self.0
     }

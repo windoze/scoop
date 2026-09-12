@@ -3,8 +3,8 @@ use scoop_identity::ConeCoordinate;
 use super::*;
 use crate::{
     CompatibilityRecord, ConeKind, ConeRecord, ConeSourceForm, HirFingerprint, LirFingerprint,
-    MemberStableKey, MirFingerprint, ProducerRecord, SemanticFingerprintRecord, SlibMemberRecord,
-    SlibMemberRole,
+    MemberStableKey, MirFingerprint, ProducerRecord, SemanticFingerprintRecord, SlibDiagnostic,
+    SlibErrorCode, SlibMemberRecord, SlibMemberRole, SlibPrimaryOrigin,
 };
 
 fn selection() -> ValidatedLirTargetSelection {
@@ -117,11 +117,20 @@ fn envelope_rejects_manifest_and_member_corruption() {
         .position(|window| window == b"SCOOPSLIB")
         .unwrap();
     bad_manifest[magic] = b'X';
+    let error = DecodedSlibEnvelope::open(&bad_manifest, DecodeLimits::default(), selection())
+        .expect_err("corrupted manifest magic must fail");
     assert!(matches!(
-        DecodedSlibEnvelope::open(&bad_manifest, DecodeLimits::default(), selection()),
-        Err(SlibReadError::Manifest(error))
-            if *error == BootstrapManifestValidationError::BadMagic
+        &error,
+        SlibReadError::Manifest(error)
+            if **error == BootstrapManifestValidationError::BadMagic
     ));
+    let diagnostic = error.diagnostic();
+    assert_eq!(diagnostic.code(), SlibErrorCode::WireNonCanonical);
+    assert_eq!(diagnostic.path().to_string(), "$.1");
+    assert_eq!(
+        diagnostic.primary_origin(),
+        Some(&SlibPrimaryOrigin::Manifest)
+    );
 
     let mut bad_member = archive.as_bytes().to_vec();
     let payload = b"unique HIR payload";
@@ -130,10 +139,16 @@ fn envelope_rejects_manifest_and_member_corruption() {
         .position(|window| window == payload)
         .unwrap();
     bad_member[offset] ^= 1;
+    let error = DecodedSlibEnvelope::open(&bad_member, DecodeLimits::default(), selection())
+        .expect_err("corrupted member payload must fail");
     assert!(matches!(
-        DecodedSlibEnvelope::open(&bad_member, DecodeLimits::default(), selection()),
-        Err(SlibReadError::Directory(
-            ArchiveReadError::MemberDigestMismatch { .. }
-        ))
+        &error,
+        SlibReadError::Directory(ArchiveReadError::MemberDigestMismatch { .. })
+    ));
+    let diagnostic = error.diagnostic();
+    assert_eq!(diagnostic.code(), SlibErrorCode::FingerprintMismatch);
+    assert!(matches!(
+        diagnostic.primary_origin(),
+        Some(SlibPrimaryOrigin::Member(_))
     ));
 }

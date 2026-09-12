@@ -11,7 +11,7 @@ use crate::MemberPurposeSet;
 const INITIAL_SCHEMA: u32 = 1;
 const MAX_SECTION_PAYLOAD_BYTES: u64 = 268_435_456;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MetadataLocation {
     Hir,
     Mir,
