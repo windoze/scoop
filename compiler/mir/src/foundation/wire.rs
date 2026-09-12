@@ -12,6 +12,12 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use super::*;
 use crate::{DecodedCallableSignatureRecord, DecodedCallbackApplicationRecord};
 
+mod validation;
+pub use validation::{
+    CallbackApplicationRelationError, MirFoundationReferenceError, MirFoundationValidationError,
+    ValidatedMirFoundation,
+};
+
 type DecodedExactTypeRecord = DecodedCborIdentityRecord<PersistentExactTypeId, DecodedExactTypeKey>;
 type DecodedGeneratedCallableRecord =
     DecodedCborIdentityRecord<PersistentGeneratedCallableId, DecodedGeneratedCallableKey>;
