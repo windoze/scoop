@@ -33,7 +33,7 @@ impl WireEncode for NativeExternAbi {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum NativeExternalContractKind {
+pub enum NativeExternalContract {
     Function {
         library: NativeLibraryBinding,
         abi: NativeExternAbi,
@@ -57,20 +57,17 @@ enum NativeExternalContractKind {
     },
 }
 
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NativeExternalContract(NativeExternalContractKind);
-
 impl NativeExternalContract {
     pub fn c_function(
         library: NativeLibraryBinding,
         signature: CanonicalCAbiFunctionSignature,
     ) -> Self {
         let calling_convention = signature.calling_convention();
-        Self(NativeExternalContractKind::Function {
+        Self::Function {
             library,
             abi: NativeExternAbi::C(signature),
             calling_convention,
-        })
+        }
     }
 
     pub fn scoop_function(
@@ -78,46 +75,46 @@ impl NativeExternalContract {
         signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: TargetCallingConvention,
     ) -> Self {
-        Self(NativeExternalContractKind::Function {
+        Self::Function {
             library,
             abi: NativeExternAbi::Scoop(signature),
             calling_convention,
-        })
+        }
     }
 
     pub const fn read_only_data(
         library: NativeLibraryBinding,
         storage: CanonicalCStorageType,
     ) -> Self {
-        Self(NativeExternalContractKind::ReadOnlyData { library, storage })
+        Self::ReadOnlyData { library, storage }
     }
 
     pub const fn mutable_data(
         library: NativeLibraryBinding,
         storage: CanonicalCStorageType,
     ) -> Self {
-        Self(NativeExternalContractKind::MutableData { library, storage })
+        Self::MutableData { library, storage }
     }
 
     pub const fn read_only_tls(
         library: NativeLibraryBinding,
         storage: CanonicalCStorageType,
     ) -> Self {
-        Self(NativeExternalContractKind::ReadOnlyTls { library, storage })
+        Self::ReadOnlyTls { library, storage }
     }
 
     pub const fn mutable_tls(
         library: NativeLibraryBinding,
         storage: CanonicalCStorageType,
     ) -> Self {
-        Self(NativeExternalContractKind::MutableTls { library, storage })
+        Self::MutableTls { library, storage }
     }
 }
 
 impl WireEncode for NativeExternalContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match &self.0 {
-            NativeExternalContractKind::Function {
+        match self {
+            Self::Function {
                 library,
                 abi,
                 calling_convention,
@@ -131,16 +128,16 @@ impl WireEncode for NativeExternalContract {
                 encoder.field(3)?;
                 calling_convention.encode(encoder)
             }
-            NativeExternalContractKind::ReadOnlyData { library, storage } => {
+            Self::ReadOnlyData { library, storage } => {
                 encode_data_contract(encoder, 2, library, storage)
             }
-            NativeExternalContractKind::MutableData { library, storage } => {
+            Self::MutableData { library, storage } => {
                 encode_data_contract(encoder, 3, library, storage)
             }
-            NativeExternalContractKind::ReadOnlyTls { library, storage } => {
+            Self::ReadOnlyTls { library, storage } => {
                 encode_data_contract(encoder, 4, library, storage)
             }
-            NativeExternalContractKind::MutableTls { library, storage } => {
+            Self::MutableTls { library, storage } => {
                 encode_data_contract(encoder, 5, library, storage)
             }
         }

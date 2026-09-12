@@ -83,107 +83,91 @@ impl WireEncode for CanonicalScoopStorage {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum ScoopAbiArgumentKind {
-    ElidedZst,
-    Direct,
-    Indirect,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ScoopAbiArgument {
-    kind: ScoopAbiArgumentKind,
-    storage: CanonicalScoopStorage,
+pub enum ScoopAbiArgument {
+    ElidedZst(CanonicalScoopStorage),
+    Direct(CanonicalScoopStorage),
+    Indirect(CanonicalScoopStorage),
 }
 
 impl ScoopAbiArgument {
     pub fn elided_zst(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_zero_size(storage)?;
-        Ok(Self {
-            kind: ScoopAbiArgumentKind::ElidedZst,
-            storage,
-        })
+        Ok(Self::ElidedZst(storage))
     }
 
     pub fn direct(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Scalar)?;
-        Ok(Self {
-            kind: ScoopAbiArgumentKind::Direct,
-            storage,
-        })
+        Ok(Self::Direct(storage))
     }
 
     pub fn indirect(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
-        Ok(Self {
-            kind: ScoopAbiArgumentKind::Indirect,
-            storage,
-        })
+        Ok(Self::Indirect(storage))
     }
 
     pub const fn storage(self) -> CanonicalScoopStorage {
-        self.storage
+        match self {
+            Self::ElidedZst(storage) | Self::Direct(storage) | Self::Indirect(storage) => storage,
+        }
     }
 }
 
 impl WireEncode for ScoopAbiArgument {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        let tag = match self.kind {
-            ScoopAbiArgumentKind::ElidedZst => 1,
-            ScoopAbiArgumentKind::Direct => 2,
-            ScoopAbiArgumentKind::Indirect => 3,
+        let (tag, storage) = match self {
+            Self::ElidedZst(storage) => (1, storage),
+            Self::Direct(storage) => (2, storage),
+            Self::Indirect(storage) => (3, storage),
         };
-        encode_value_sum(encoder, tag, &self.storage)
+        encode_value_sum(encoder, tag, storage)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum ScoopAbiReturnKind {
+pub enum ScoopAbiReturn {
     UnitVoid,
     ElidedZst(CanonicalScoopStorage),
     Direct(CanonicalScoopStorage),
     Indirect(CanonicalScoopStorage),
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ScoopAbiReturn(ScoopAbiReturnKind);
-
 impl ScoopAbiReturn {
     pub const fn unit_void() -> Self {
-        Self(ScoopAbiReturnKind::UnitVoid)
+        Self::UnitVoid
     }
 
     pub fn elided_zst(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_zero_size(storage)?;
-        Ok(Self(ScoopAbiReturnKind::ElidedZst(storage)))
+        Ok(Self::ElidedZst(storage))
     }
 
     pub fn direct(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Scalar)?;
-        Ok(Self(ScoopAbiReturnKind::Direct(storage)))
+        Ok(Self::Direct(storage))
     }
 
     pub fn indirect(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
-        Ok(Self(ScoopAbiReturnKind::Indirect(storage)))
+        Ok(Self::Indirect(storage))
     }
 
     fn storage(self) -> Option<CanonicalScoopStorage> {
-        match self.0 {
-            ScoopAbiReturnKind::UnitVoid => None,
-            ScoopAbiReturnKind::ElidedZst(storage)
-            | ScoopAbiReturnKind::Direct(storage)
-            | ScoopAbiReturnKind::Indirect(storage) => Some(storage),
+        match self {
+            Self::UnitVoid => None,
+            Self::ElidedZst(storage) | Self::Direct(storage) | Self::Indirect(storage) => {
+                Some(storage)
+            }
         }
     }
 }
 
 impl WireEncode for ScoopAbiReturn {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self.0 {
-            ScoopAbiReturnKind::UnitVoid => encode_empty_sum(encoder, 1),
-            ScoopAbiReturnKind::ElidedZst(storage) => encode_value_sum(encoder, 2, &storage),
-            ScoopAbiReturnKind::Direct(storage) => encode_value_sum(encoder, 3, &storage),
-            ScoopAbiReturnKind::Indirect(storage) => encode_value_sum(encoder, 4, &storage),
+        match self {
+            Self::UnitVoid => encode_empty_sum(encoder, 1),
+            Self::ElidedZst(storage) => encode_value_sum(encoder, 2, storage),
+            Self::Direct(storage) => encode_value_sum(encoder, 3, storage),
+            Self::Indirect(storage) => encode_value_sum(encoder, 4, storage),
         }
     }
 }
@@ -229,6 +213,14 @@ impl CanonicalScoopAbiFunctionSignature {
 
     pub fn signature(&self) -> &ExactCallableSignature {
         &self.signature
+    }
+
+    pub fn arguments(&self) -> &[ScoopAbiArgument] {
+        &self.arguments
+    }
+
+    pub const fn result(&self) -> ScoopAbiReturn {
+        self.result
     }
 
     pub const fn gc_effect(&self) -> GcEffect {

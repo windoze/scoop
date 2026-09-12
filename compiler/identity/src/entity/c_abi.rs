@@ -169,6 +169,10 @@ impl CanonicalCAbiParameter {
         })
     }
 
+    pub const fn storage(self) -> CanonicalCStorageType {
+        self.storage
+    }
+
     pub const fn source_exact_type(&self) -> PersistentExactTypeId {
         self.source_exact_type
     }
@@ -247,6 +251,14 @@ impl CanonicalCAbiFunctionSignature {
 
     pub const fn calling_convention(&self) -> TargetCallingConvention {
         self.calling_convention
+    }
+
+    pub fn parameters(&self) -> &[CanonicalCAbiParameter] {
+        &self.parameters
+    }
+
+    pub const fn result(&self) -> CanonicalCAbiReturn {
+        self.result
     }
 }
 
@@ -366,6 +378,18 @@ impl CanonicalCAbiLayoutField {
             storage,
         }
     }
+
+    pub const fn field(self) -> PersistentFieldId {
+        self.field
+    }
+
+    pub const fn offset(self) -> u64 {
+        self.offset
+    }
+
+    pub const fn storage(self) -> CanonicalCStorageType {
+        self.storage
+    }
 }
 
 impl WireEncode for CanonicalCAbiLayoutField {
@@ -407,6 +431,30 @@ impl CanonicalCAbiLayout {
             packed,
             fields,
         }
+    }
+
+    pub const fn exact_type(&self) -> PersistentExactTypeId {
+        self.exact_type
+    }
+
+    pub const fn byte_size(&self) -> u64 {
+        self.byte_size
+    }
+
+    pub const fn alignment(&self) -> NonZeroU64 {
+        self.alignment
+    }
+
+    pub const fn aligned(&self) -> CLayoutOverride {
+        self.aligned
+    }
+
+    pub const fn packed(&self) -> CLayoutOverride {
+        self.packed
+    }
+
+    pub fn fields(&self) -> &[CanonicalCAbiLayoutField] {
+        &self.fields
     }
 }
 
