@@ -52,13 +52,13 @@ impl PersistentKeyResolver<PersistentSourceContextId, SourceContextKey> for Reso
     fn resolve_key(
         &mut self,
         id: DecodedPersistentId<PersistentSourceContextId>,
-    ) -> Result<SourceContextKey, Self::Error> {
+    ) -> Result<std::sync::Arc<SourceContextKey>, Self::Error> {
         for key in context_keys() {
             let expected = PersistentSourceContextId::from_key(&key).unwrap();
             if expected.as_array() == id.as_array() {
                 return id
                     .verify(expected)
-                    .map(|_| key)
+                    .map(|_| std::sync::Arc::new(key))
                     .map_err(|_| ResolutionError);
             }
         }

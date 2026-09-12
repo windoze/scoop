@@ -67,12 +67,12 @@ impl PersistentKeyResolver<GeneratedBridgeAtomId, GeneratedBridgeAtomKey> for Re
     fn resolve_key(
         &mut self,
         id: crate::DecodedPersistentId<GeneratedBridgeAtomId>,
-    ) -> Result<GeneratedBridgeAtomKey, Self::Error> {
+    ) -> Result<std::sync::Arc<GeneratedBridgeAtomKey>, Self::Error> {
         let expected =
             GeneratedBridgeAtomId::from_key(&self.bridge).map_err(|_| ResolutionError)?;
         id.verify(expected)
             .map_err(|_: PersistentIdMismatch<GeneratedBridgeAtomId>| ResolutionError)?;
-        Ok(self.bridge)
+        Ok(std::sync::Arc::new(self.bridge))
     }
 }
 

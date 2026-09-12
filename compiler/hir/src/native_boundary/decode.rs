@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use scoop_identity::{
     DecodedCLayoutOverride, DecodedPersistentId, DecodedSignatureTypeKey, EnumVariantFieldKey,
@@ -44,7 +45,10 @@ enum DecodedOwnerKind {
 }
 
 impl DecodedNativeBoundaryNominalOwner {
-    fn resolve<R, E>(self, resolver: &mut R) -> Result<(DecodedOwnerKind, SourceDeclarationKey), E>
+    fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<(DecodedOwnerKind, Arc<SourceDeclarationKey>), E>
     where
         R: NativeBoundaryResolver<E>,
     {

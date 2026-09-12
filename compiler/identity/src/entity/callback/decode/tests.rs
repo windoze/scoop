@@ -54,7 +54,7 @@ impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey> 
     fn resolve_key(
         &mut self,
         _id: crate::DecodedPersistentId<PersistentGeneratedCallableId>,
-    ) -> Result<GeneratedCallableKey, Self::Error> {
+    ) -> Result<std::sync::Arc<GeneratedCallableKey>, Self::Error> {
         Err(ResolutionError)
     }
 }
@@ -65,12 +65,12 @@ impl PersistentKeyResolver<PersistentCallbackRegistrationId, CallbackRegistratio
     fn resolve_key(
         &mut self,
         id: crate::DecodedPersistentId<PersistentCallbackRegistrationId>,
-    ) -> Result<CallbackRegistrationKey, Self::Error> {
+    ) -> Result<std::sync::Arc<CallbackRegistrationKey>, Self::Error> {
         let expected = PersistentCallbackRegistrationId::from_key(&self.registration)
             .map_err(|_| ResolutionError)?;
         id.verify(expected)
             .map_err(|_: PersistentIdMismatch<PersistentCallbackRegistrationId>| ResolutionError)?;
-        Ok(self.registration.clone())
+        Ok(std::sync::Arc::new(self.registration.clone()))
     }
 }
 

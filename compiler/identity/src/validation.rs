@@ -553,7 +553,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         &mut self,
         id: I,
         hash_lengths: (u64, Option<u64>),
-        resolve: impl FnOnce(&mut PendingIdentityResolver<'_>) -> Result<K, E>,
+        resolve: impl FnOnce(&mut PendingIdentityResolver<'_>) -> Result<Arc<K>, E>,
     ) -> Result<(), IdentityValidationError>
     where
         I: PersistentId + 'static,
@@ -576,7 +576,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         };
         self.require_no_resource_error()?;
         match resolved {
-            Ok(key) => self.store_resolved_key::<I, K>(node, key),
+            Ok(key) => self.store_resolved_key_arc::<I, K>(node, key),
             Err(error) => self.fail(IdentityValidationError::InvalidRecord {
                 kind: node.kind,
                 id: node.bytes,
@@ -917,6 +917,18 @@ impl<'meter> PendingIdentityValidation<'meter> {
         I: PersistentId + 'static,
         K: Eq + Send + Sync + 'static,
     {
+        self.store_resolved_key_arc::<I, K>(node, Arc::new(key))
+    }
+
+    fn store_resolved_key_arc<I, K>(
+        &mut self,
+        node: IdentityNode,
+        key: Arc<K>,
+    ) -> Result<(), IdentityValidationError>
+    where
+        I: PersistentId + 'static,
+        K: Eq + Send + Sync + 'static,
+    {
         let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
         if self.canonical_keys.contains_key(&slot) {
             return self.fail(IdentityValidationError::AlreadyResolved {
@@ -931,7 +943,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
             });
         }
         self.reserve_canonical_key_slot()?;
-        self.canonical_keys.insert(slot, Arc::new(key));
+        self.canonical_keys.insert(slot, key);
         let Some(candidate) = self.candidates.get_mut(&node) else {
             return self.fail(IdentityValidationError::UnregisteredIdentity {
                 kind: node.kind,
@@ -1134,17 +1146,17 @@ where
 impl<I, K> PersistentKeyResolver<I, K> for PendingIdentityResolver<'_>
 where
     I: PersistentId + PersistentIdConstruction + 'static,
-    K: Clone + 'static,
+    K: Send + Sync + 'static,
 {
     type Error = IdentityReferenceError;
 
-    fn resolve_key(&mut self, id: DecodedPersistentId<I>) -> Result<K, Self::Error> {
+    fn resolve_key(&mut self, id: DecodedPersistentId<I>) -> Result<Arc<K>, Self::Error> {
         let resolved = <Self as PersistentIdResolver<I>>::resolve(self, id)?;
         let slot = CanonicalKeySlot::new::<I, K>(*resolved.as_array());
         self.canonical_keys
             .get(&slot)
-            .and_then(|key| key.as_any().downcast_ref::<K>())
             .cloned()
+            .and_then(|key| key.into_any().downcast::<K>().ok())
             .ok_or(IdentityReferenceError::KeyUnavailable {
                 kind: I::KIND,
                 id: *resolved.as_array(),
@@ -1328,17 +1340,17 @@ where
 impl<I, K> PersistentKeyResolver<I, K> for ValidatedIdentityGraph
 where
     I: PersistentId + PersistentIdConstruction + 'static,
-    K: Clone + 'static,
+    K: Send + Sync + 'static,
 {
     type Error = IdentityReferenceError;
 
-    fn resolve_key(&mut self, id: DecodedPersistentId<I>) -> Result<K, Self::Error> {
+    fn resolve_key(&mut self, id: DecodedPersistentId<I>) -> Result<Arc<K>, Self::Error> {
         let resolved = <Self as PersistentIdResolver<I>>::resolve(self, id)?;
         let slot = CanonicalKeySlot::new::<I, K>(*resolved.as_array());
         self.canonical_keys
             .get(&slot)
-            .and_then(|key| key.as_any().downcast_ref::<K>())
             .cloned()
+            .and_then(|key| key.into_any().downcast::<K>().ok())
             .ok_or(IdentityReferenceError::KeyUnavailable {
                 kind: I::KIND,
                 id: *resolved.as_array(),

@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -222,7 +223,7 @@ impl<E: std::error::Error + 'static> std::error::Error for EnumVariantFieldResol
 fn resolve_source_owner<R, E>(
     owner: DecodedNominalDeclarationOwner,
     resolver: &mut R,
-) -> Result<SourceDeclarationKey, EnumVariantResolutionError<E>>
+) -> Result<Arc<SourceDeclarationKey>, EnumVariantResolutionError<E>>
 where
     R: PersistentKeyResolver<PersistentTypeId, SourceDeclarationKey, Error = E>
         + PersistentKeyResolver<PersistentGenericTypeId, SourceDeclarationKey, Error = E>,

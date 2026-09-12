@@ -74,14 +74,14 @@ impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey> 
     fn resolve_key(
         &mut self,
         id: DecodedPersistentId<PersistentGeneratedCallableId>,
-    ) -> Result<GeneratedCallableKey, Self::Error> {
+    ) -> Result<std::sync::Arc<GeneratedCallableKey>, Self::Error> {
         self.generated
             .iter()
             .find(|key| {
                 PersistentGeneratedCallableId::from_key(key)
                     .is_ok_and(|expected| expected.as_array() == id.as_array())
             })
-            .cloned()
+            .map(|key| std::sync::Arc::new(key.clone()))
             .ok_or(ResolutionError)
     }
 }

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::num::NonZeroU64;
+use std::sync::Arc;
 
 use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
 
@@ -295,7 +296,7 @@ impl CanonicalCAbiSignatureFingerprint {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalCAbiSignatureFingerprintRecord {
     fingerprint: CanonicalCAbiSignatureFingerprint,
-    signature: CanonicalCAbiFunctionSignature,
+    signature: Arc<CanonicalCAbiFunctionSignature>,
 }
 
 impl CanonicalCAbiSignatureFingerprintRecord {
@@ -303,7 +304,7 @@ impl CanonicalCAbiSignatureFingerprintRecord {
         let fingerprint = CanonicalCAbiSignatureFingerprint::from_signature(&signature)?;
         Ok(Self {
             fingerprint,
-            signature,
+            signature: Arc::new(signature),
         })
     }
 
@@ -311,17 +312,17 @@ impl CanonicalCAbiSignatureFingerprintRecord {
         self.fingerprint
     }
 
-    pub const fn signature(&self) -> &CanonicalCAbiFunctionSignature {
+    pub fn signature(&self) -> &CanonicalCAbiFunctionSignature {
         &self.signature
     }
 
-    pub(crate) fn into_signature(self) -> CanonicalCAbiFunctionSignature {
+    pub(crate) fn into_signature(self) -> Arc<CanonicalCAbiFunctionSignature> {
         self.signature
     }
 
-    pub(crate) const fn from_verified(
+    pub(crate) fn from_verified(
         fingerprint: CanonicalCAbiSignatureFingerprint,
-        signature: CanonicalCAbiFunctionSignature,
+        signature: Arc<CanonicalCAbiFunctionSignature>,
     ) -> Self {
         Self {
             fingerprint,
@@ -516,7 +517,7 @@ impl CanonicalCAbiLayoutFingerprint {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalCAbiLayoutFingerprintRecord {
     fingerprint: CanonicalCAbiLayoutFingerprint,
-    layout: CanonicalCAbiLayout,
+    layout: Arc<CanonicalCAbiLayout>,
 }
 
 impl CanonicalCAbiLayoutFingerprintRecord {
@@ -524,7 +525,7 @@ impl CanonicalCAbiLayoutFingerprintRecord {
         let fingerprint = CanonicalCAbiLayoutFingerprint::from_layout(&layout)?;
         Ok(Self {
             fingerprint,
-            layout,
+            layout: Arc::new(layout),
         })
     }
 
@@ -532,17 +533,17 @@ impl CanonicalCAbiLayoutFingerprintRecord {
         self.fingerprint
     }
 
-    pub const fn layout(&self) -> &CanonicalCAbiLayout {
+    pub fn layout(&self) -> &CanonicalCAbiLayout {
         &self.layout
     }
 
-    pub(crate) fn into_layout(self) -> CanonicalCAbiLayout {
+    pub(crate) fn into_layout(self) -> Arc<CanonicalCAbiLayout> {
         self.layout
     }
 
-    pub(crate) const fn from_verified(
+    pub(crate) fn from_verified(
         fingerprint: CanonicalCAbiLayoutFingerprint,
-        layout: CanonicalCAbiLayout,
+        layout: Arc<CanonicalCAbiLayout>,
     ) -> Self {
         Self {
             fingerprint,

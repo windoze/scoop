@@ -51,8 +51,8 @@ macro_rules! source_key_resolver {
             fn resolve_key(
                 &mut self,
                 id: DecodedPersistentId<$id>,
-            ) -> Result<SourceDeclarationKey, Self::Error> {
-                resolve_source_key(id, $derive)
+            ) -> Result<std::sync::Arc<SourceDeclarationKey>, Self::Error> {
+                resolve_source_key(id, $derive).map(std::sync::Arc::new)
             }
         }
     };

@@ -30,12 +30,12 @@ impl PersistentKeyResolver<PersistentFunctionId, SourceDeclarationKey> for Resol
     fn resolve_key(
         &mut self,
         id: crate::DecodedPersistentId<PersistentFunctionId>,
-    ) -> Result<SourceDeclarationKey, Self::Error> {
+    ) -> Result<std::sync::Arc<SourceDeclarationKey>, Self::Error> {
         let expected = PersistentFunctionId::from_source_declaration(&self.function)
             .map_err(|_| ResolutionError)?;
         id.verify(expected)
             .map_err(|_: PersistentIdMismatch<PersistentFunctionId>| ResolutionError)?;
-        Ok(self.function.clone())
+        Ok(std::sync::Arc::new(self.function.clone()))
     }
 }
 
@@ -45,12 +45,12 @@ impl PersistentKeyResolver<PersistentPropertyId, SourceDeclarationKey> for Resol
     fn resolve_key(
         &mut self,
         id: crate::DecodedPersistentId<PersistentPropertyId>,
-    ) -> Result<SourceDeclarationKey, Self::Error> {
+    ) -> Result<std::sync::Arc<SourceDeclarationKey>, Self::Error> {
         let expected = PersistentPropertyId::from_source_declaration(&self.property)
             .map_err(|_| ResolutionError)?;
         id.verify(expected)
             .map_err(|_: PersistentIdMismatch<PersistentPropertyId>| ResolutionError)?;
-        Ok(self.property.clone())
+        Ok(std::sync::Arc::new(self.property.clone()))
     }
 }
 

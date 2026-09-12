@@ -1,5 +1,6 @@
 use std::fmt;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use scoop_wire::{
     Decoder, Digest256, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder,
@@ -44,7 +45,7 @@ pub trait PersistentIdResolver<I: PersistentId> {
 pub trait PersistentKeyResolver<I: PersistentId, K> {
     type Error;
 
-    fn resolve_key(&mut self, id: DecodedPersistentId<I>) -> Result<K, Self::Error>;
+    fn resolve_key(&mut self, id: DecodedPersistentId<I>) -> Result<Arc<K>, Self::Error>;
 }
 
 pub(crate) trait PersistentIdConstruction: PersistentId {

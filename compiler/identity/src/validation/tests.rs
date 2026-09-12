@@ -527,7 +527,13 @@ fn commits_a_source_native_contract_in_the_same_transaction() {
         SourceNativeExternalContractKey,
     >>::resolve_key(&mut graph, decoded_contract.decoded_id())
     .unwrap();
-    assert_eq!(key, contract.key());
+    let same_key = <ValidatedIdentityGraph as PersistentKeyResolver<
+        PersistentSourceNativeExternalContractId,
+        SourceNativeExternalContractKey,
+    >>::resolve_key(&mut graph, decoded_contract.decoded_id())
+    .unwrap();
+    assert!(std::sync::Arc::ptr_eq(&key, &same_key));
+    assert_eq!(key.as_ref(), &contract.key());
 }
 
 #[test]

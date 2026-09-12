@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -244,7 +245,7 @@ where
 fn resolve_source_owner<R, E>(
     owner: DecodedNominalDeclarationOwner,
     resolver: &mut R,
-) -> Result<SourceDeclarationKey, FieldIdentityResolutionError<E>>
+) -> Result<Arc<SourceDeclarationKey>, FieldIdentityResolutionError<E>>
 where
     R: PersistentKeyResolver<PersistentTypeId, SourceDeclarationKey, Error = E>
         + PersistentKeyResolver<PersistentGenericTypeId, SourceDeclarationKey, Error = E>,

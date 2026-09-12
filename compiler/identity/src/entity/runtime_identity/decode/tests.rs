@@ -70,13 +70,13 @@ impl PersistentKeyResolver<PersistentInitializationUnitId, InitializationUnitKey
     fn resolve_key(
         &mut self,
         id: crate::DecodedPersistentId<PersistentInitializationUnitId>,
-    ) -> Result<InitializationUnitKey, Self::Error> {
+    ) -> Result<std::sync::Arc<InitializationUnitKey>, Self::Error> {
         let delegated = delegated_unit();
         if id.verify(delegated_unit_id()).is_ok() {
-            return Ok(delegated);
+            return Ok(std::sync::Arc::new(delegated));
         }
         id.verify(initialization_unit_id())
-            .map(|_| initialization_unit())
+            .map(|_| std::sync::Arc::new(initialization_unit()))
             .map_err(|_: PersistentIdMismatch<PersistentInitializationUnitId>| ResolutionError)
     }
 }

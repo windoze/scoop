@@ -67,10 +67,15 @@ macro_rules! resolve_fixture_key {
             fn resolve_key(
                 &mut self,
                 decoded: DecodedPersistentId<$id>,
-            ) -> Result<$key, Self::Error> {
+            ) -> Result<std::sync::Arc<$key>, Self::Error> {
                 self.$field
                     .iter()
-                    .find_map(|(id, key)| decoded.verify(*id).ok().map(|_| key.clone()))
+                    .find_map(|(id, key)| {
+                        decoded
+                            .verify(*id)
+                            .ok()
+                            .map(|_| std::sync::Arc::new(key.clone()))
+                    })
                     .ok_or(ResolutionError)
             }
         }

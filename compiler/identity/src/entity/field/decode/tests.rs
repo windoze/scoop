@@ -38,14 +38,14 @@ impl PersistentKeyResolver<PersistentTypeId, SourceDeclarationKey> for Resolver 
     fn resolve_key(
         &mut self,
         id: DecodedPersistentId<PersistentTypeId>,
-    ) -> Result<SourceDeclarationKey, Self::Error> {
+    ) -> Result<std::sync::Arc<SourceDeclarationKey>, Self::Error> {
         self.source
             .iter()
             .find(|key| {
                 PersistentTypeId::from_source_declaration(key)
                     .is_ok_and(|expected| expected.as_array() == id.as_array())
             })
-            .cloned()
+            .map(|key| std::sync::Arc::new(key.clone()))
             .ok_or(ResolutionError)
     }
 }
@@ -56,14 +56,14 @@ impl PersistentKeyResolver<PersistentGenericTypeId, SourceDeclarationKey> for Re
     fn resolve_key(
         &mut self,
         id: DecodedPersistentId<PersistentGenericTypeId>,
-    ) -> Result<SourceDeclarationKey, Self::Error> {
+    ) -> Result<std::sync::Arc<SourceDeclarationKey>, Self::Error> {
         self.source
             .iter()
             .find(|key| {
                 PersistentGenericTypeId::from_source_declaration(key)
                     .is_ok_and(|expected| expected.as_array() == id.as_array())
             })
-            .cloned()
+            .map(|key| std::sync::Arc::new(key.clone()))
             .ok_or(ResolutionError)
     }
 }
@@ -74,14 +74,14 @@ impl PersistentKeyResolver<PersistentTypeId, GeneratedNominalKey> for Resolver {
     fn resolve_key(
         &mut self,
         id: DecodedPersistentId<PersistentTypeId>,
-    ) -> Result<GeneratedNominalKey, Self::Error> {
+    ) -> Result<std::sync::Arc<GeneratedNominalKey>, Self::Error> {
         self.generated
             .iter()
             .find(|key| {
                 PersistentTypeId::from_generated_key(key)
                     .is_ok_and(|expected| expected.as_array() == id.as_array())
             })
-            .cloned()
+            .map(|key| std::sync::Arc::new(key.clone()))
             .ok_or(ResolutionError)
     }
 }

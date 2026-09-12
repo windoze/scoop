@@ -49,11 +49,11 @@ impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey> 
     fn resolve_key(
         &mut self,
         id: crate::DecodedPersistentId<PersistentGeneratedCallableId>,
-    ) -> Result<GeneratedCallableKey, Self::Error> {
+    ) -> Result<std::sync::Arc<GeneratedCallableKey>, Self::Error> {
         let key = static_storage_bridge_key();
         id.verify(PersistentGeneratedCallableId::from_key(&key).unwrap())
             .map_err(|_: PersistentIdMismatch<PersistentGeneratedCallableId>| ResolutionError)?;
-        Ok(key)
+        Ok(std::sync::Arc::new(key))
     }
 }
 
@@ -80,11 +80,11 @@ impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey>
     fn resolve_key(
         &mut self,
         id: crate::DecodedPersistentId<PersistentGeneratedCallableId>,
-    ) -> Result<GeneratedCallableKey, Self::Error> {
+    ) -> Result<std::sync::Arc<GeneratedCallableKey>, Self::Error> {
         let key = wrong_static_storage_bridge_key();
         id.verify(PersistentGeneratedCallableId::from_key(&key).unwrap())
             .map_err(|_: PersistentIdMismatch<PersistentGeneratedCallableId>| ResolutionError)?;
-        Ok(key)
+        Ok(std::sync::Arc::new(key))
     }
 }
 

@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -438,7 +439,10 @@ fn resolve_origin_fields<R, E>(
     span: DecodedSourceSpan,
     context: DecodedPersistentId<PersistentSourceContextId>,
     resolver: &mut R,
-) -> Result<(crate::SourceIdentity, SourceSpan, SourceContextKey), SourceOriginResolutionError<E>>
+) -> Result<
+    (crate::SourceIdentity, SourceSpan, Arc<SourceContextKey>),
+    SourceOriginResolutionError<E>,
+>
 where
     R: PersistentIdResolver<ConeIdentity, Error = E>
         + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
