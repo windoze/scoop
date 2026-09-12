@@ -27,5 +27,8 @@ pub use graph::*;
 mod metadata;
 pub use metadata::*;
 
+mod foundation;
+pub use foundation::*;
+
 mod semantic;
 pub use semantic::*;
