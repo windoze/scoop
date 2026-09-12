@@ -157,6 +157,40 @@ fn validates_callback_identity_record_and_signature_as_one_relation() {
 }
 
 #[test]
+fn callback_validation_heap_cost_has_inclusive_boundaries() {
+    let fixture = callback_fixture(true, CallbackMode::Reusable);
+    let encoded_length = u64::try_from(encode(&fixture.canonical).unwrap().len()).unwrap();
+    let required = encoded_length * 2 + 12 * scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
+
+    for (limit, accepted) in [
+        (required - 1, false),
+        (required, true),
+        (required + 1, true),
+    ] {
+        let decoded = decode(&fixture.canonical);
+        let mut identities = validate_identities(&decoded, &fixture);
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            logical_heap_bytes: limit,
+            ..DecodeLimits::default()
+        });
+
+        let result = decoded.validate(&mut identities, &mut meter);
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert!(matches!(
+                result.unwrap_err(),
+                MirFoundationValidationError::Resource(ref error)
+                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
+                        resource: scoop_wire::ResourceKind::LogicalHeapBytes,
+                        limit,
+                        observed: required,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
 fn rejects_a_callback_identity_without_its_semantic_record() {
     let fixture = callback_fixture(false, CallbackMode::Reusable);
     let decoded = decode(&fixture.canonical);

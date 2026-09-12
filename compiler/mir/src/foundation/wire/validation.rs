@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use scoop_identity::{
@@ -207,65 +207,120 @@ fn validate_callback_applications(
     signatures: &[CallableSignatureRecord],
     meter: &mut BudgetMeter,
 ) -> Result<(), MirFoundationValidationError> {
-    let identity_keys = identity_records
-        .iter()
-        .map(|record| (record.id(), record.key()))
-        .collect::<BTreeMap<_, _>>();
-    let registrations = identities
+    let identity_path = WirePath::root().field(9);
+    let mut identity_keys = HashMap::new();
+    meter
+        .try_reserve_map_slots(&mut identity_keys, identity_records.len(), &identity_path)
+        .map_err(MirFoundationValidationError::Resource)?;
+    identity_keys.extend(
+        identity_records
+            .iter()
+            .map(|record| (record.id(), record.key())),
+    );
+
+    let registration_records = identities
         .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(
             IdentityLayer::Hir,
             meter,
             &WirePath::root().field(25),
         )
-        .map_err(MirFoundationValidationError::Identity)?
-        .into_iter()
-        .map(|record| (record.id(), record))
-        .collect::<BTreeMap<_, _>>();
-    let mut generated = identities
+        .map_err(MirFoundationValidationError::Identity)?;
+    let registration_path = WirePath::root().field(10);
+    let mut registrations = HashMap::new();
+    meter
+        .try_reserve_map_slots(
+            &mut registrations,
+            registration_records.len(),
+            &registration_path,
+        )
+        .map_err(MirFoundationValidationError::Resource)?;
+    registrations.extend(
+        registration_records
+            .iter()
+            .map(|record| (record.id(), record.key())),
+    );
+
+    let hir_generated = identities
         .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(
             IdentityLayer::Hir,
             meter,
             &WirePath::root().field(18),
         )
         .map_err(MirFoundationValidationError::Identity)?;
+    let mir_generated = identities
+        .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(
+            IdentityLayer::Mir,
+            meter,
+            &WirePath::root().field(2),
+        )
+        .map_err(MirFoundationValidationError::Identity)?;
+    let generated_path = WirePath::root().field(2);
+    let mut generated = HashMap::new();
+    meter
+        .try_reserve_map_slots(&mut generated, hir_generated.len(), &generated_path)
+        .map_err(MirFoundationValidationError::Resource)?;
     generated.extend(
-        identities
-            .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(
-                IdentityLayer::Mir,
-                meter,
-                &WirePath::root().field(2),
-            )
-            .map_err(MirFoundationValidationError::Identity)?,
+        hir_generated
+            .iter()
+            .map(|record| (record.id(), record.key())),
     );
-    let generated = generated
-        .into_iter()
-        .map(|record| (record.id(), record))
-        .collect::<BTreeMap<_, _>>();
-    let mut members = identities
+    meter
+        .try_reserve_map_slots(&mut generated, mir_generated.len(), &generated_path)
+        .map_err(MirFoundationValidationError::Resource)?;
+    generated.extend(
+        mir_generated
+            .iter()
+            .map(|record| (record.id(), record.key())),
+    );
+
+    let hir_members = identities
         .records::<OdrMemberId, OdrMemberKey>(
             IdentityLayer::Hir,
             meter,
             &WirePath::root().field(28),
         )
         .map_err(MirFoundationValidationError::Identity)?;
-    members.extend(
-        identities
-            .records::<OdrMemberId, OdrMemberKey>(
-                IdentityLayer::Mir,
-                meter,
-                &WirePath::root().field(12),
-            )
-            .map_err(MirFoundationValidationError::Identity)?,
-    );
-    let members = members
-        .into_iter()
-        .map(|record| (record.id(), record))
-        .collect::<BTreeMap<_, _>>();
+    let mir_members = identities
+        .records::<OdrMemberId, OdrMemberKey>(
+            IdentityLayer::Mir,
+            meter,
+            &WirePath::root().field(12),
+        )
+        .map_err(MirFoundationValidationError::Identity)?;
+    let member_path = WirePath::root().field(12);
+    let mut members = HashMap::new();
+    meter
+        .try_reserve_map_slots(&mut members, hir_members.len(), &member_path)
+        .map_err(MirFoundationValidationError::Resource)?;
+    members.extend(hir_members.iter().map(|record| (record.id(), record.key())));
+    meter
+        .try_reserve_map_slots(&mut members, mir_members.len(), &member_path)
+        .map_err(MirFoundationValidationError::Resource)?;
+    members.extend(mir_members.iter().map(|record| (record.id(), record.key())));
 
-    let mut seen = BTreeMap::new();
+    let signature_path = WirePath::root().field(7);
+    let mut signatures_by_subject = HashMap::new();
+    meter
+        .try_reserve_map_slots(
+            &mut signatures_by_subject,
+            signatures.len(),
+            &signature_path,
+        )
+        .map_err(MirFoundationValidationError::Resource)?;
+    for signature in signatures {
+        signatures_by_subject
+            .entry(signature.subject())
+            .or_insert(signature);
+    }
+
+    let record_path = WirePath::root().field(10);
+    let mut seen = HashSet::new();
+    meter
+        .try_reserve_set_slots(&mut seen, records.len(), &record_path)
+        .map_err(MirFoundationValidationError::Resource)?;
     for record in records {
         let application = record.application();
-        if seen.insert(application, ()).is_some() {
+        if !seen.insert(application) {
             return Err(CallbackApplicationRelationError::DuplicateRecord { application }.into());
         }
         let key = identity_keys
@@ -277,16 +332,15 @@ fn validate_callback_applications(
                 registration: key.registration(),
             },
         )?;
-        if record.mode() != registration.key().mode() {
+        if record.mode() != registration.mode() {
             return Err(CallbackApplicationRelationError::ModeMismatch { application }.into());
         }
-        let signature = signatures
-            .iter()
-            .find(|signature| signature.subject() == record.managed_adapter())
-            .ok_or(CallbackApplicationRelationError::MissingManagedSignature {
+        let signature = signatures_by_subject.get(&record.managed_adapter()).ok_or(
+            CallbackApplicationRelationError::MissingManagedSignature {
                 application,
                 subject: record.managed_adapter(),
-            })?;
+            },
+        )?;
         if signature.signature() != record.managed_signature() {
             return Err(
                 CallbackApplicationRelationError::ManagedSignatureMismatch { application }.into(),
@@ -299,7 +353,7 @@ fn validate_callback_applications(
             },
         )?;
         if !matches!(
-            generated.get(&adapter).map(|record| record.key()),
+            generated.get(&adapter),
             Some(GeneratedCallableKey::ForeignCallbackManagedAdapter { application: owner })
                 if *owner == application
         ) {
@@ -310,26 +364,24 @@ fn validate_callback_applications(
             .into());
         }
     }
-    if let Some(application) = identity_keys
-        .keys()
-        .find(|application| !seen.contains_key(application))
+    if let Some(application) = identity_records
+        .iter()
+        .map(CborIdentityRecord::id)
+        .find(|application| !seen.contains(application))
     {
-        return Err(CallbackApplicationRelationError::MissingRecord {
-            application: *application,
-        }
-        .into());
+        return Err(CallbackApplicationRelationError::MissingRecord { application }.into());
     }
     Ok(())
 }
 
 fn managed_adapter_identity(
     subject: CallableSignatureSubject,
-    members: &BTreeMap<OdrMemberId, CborIdentityRecord<OdrMemberId, OdrMemberKey>>,
+    members: &HashMap<OdrMemberId, &OdrMemberKey>,
 ) -> Option<PersistentGeneratedCallableId> {
     match subject {
         CallableSignatureSubject::Strong(CallableOwner::Generated(id)) => Some(id),
         CallableSignatureSubject::Odr(member) => {
-            match members.get(&member.member())?.key().discriminator() {
+            match members.get(&member.member())?.discriminator() {
                 OdrMemberDiscriminator::GeneratedCallable(id) => Some(*id),
                 _ => None,
             }
