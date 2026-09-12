@@ -107,6 +107,37 @@ fn validate_identities(
     pending.finish().unwrap()
 }
 
+fn validate_origins_only(
+    fixture: &Fixture,
+    meter: &mut BudgetMeter,
+) -> Result<(), HirFoundationValidationError> {
+    let foundation = &fixture.canonical;
+    origins::validate(
+        fixture.coordinate.identity().unwrap(),
+        &foundation.sources,
+        &foundation.types,
+        &foundation.generic_types,
+        &foundation.functions,
+        &foundation.generic_functions,
+        &foundation.constructors,
+        &foundation.properties,
+        &foundation.extension_properties,
+        &foundation.type_aliases,
+        &foundation.property_accessors,
+        &foundation.fields,
+        &foundation.enum_variants,
+        &foundation.enum_variant_fields,
+        &foundation.generated_callables,
+        &foundation.initialization_units,
+        &foundation.local_bindings,
+        &foundation.local_values,
+        &foundation.callback_registrations,
+        &foundation.source_native_contracts,
+        &foundation.definition_origins,
+        meter,
+    )
+}
+
 #[test]
 fn validates_the_complete_hir_foundation_atomically() {
     let fixture = fixture(true, true);
@@ -146,6 +177,36 @@ fn source_context_index_has_inclusive_heap_boundaries() {
             &fixture.canonical.sources,
             &mut meter,
         );
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert!(matches!(
+                result.unwrap_err(),
+                HirFoundationValidationError::Resource(ref error)
+                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
+                        resource: scoop_wire::ResourceKind::LogicalHeapBytes,
+                        limit,
+                        observed: required,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
+fn definition_origin_indexes_have_inclusive_heap_boundaries() {
+    let fixture = fixture(true, true);
+    let required = 3 * scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
+
+    for (limit, accepted) in [
+        (required - 1, false),
+        (required, true),
+        (required + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            logical_heap_bytes: limit,
+            ..DecodeLimits::default()
+        });
+        let result = validate_origins_only(&fixture, &mut meter);
         assert_eq!(result.is_ok(), accepted);
         if !accepted {
             assert!(matches!(

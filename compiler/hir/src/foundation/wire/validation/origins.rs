@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use scoop_identity::{
@@ -7,6 +7,7 @@ use scoop_identity::{
     NominalDeclarationOwner, PersistentGeneratedCallableId, PropertyOwner, SourceDeclarationKey,
     SourceIdentity, SourceNativeExternalContractRecord, SourceNativeExternalOwner,
 };
+use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
 
 use super::super::super::{
     CallbackRegistrationRecord, ConstructorRecord, EnumVariantFieldRecord, EnumVariantRecord,
@@ -14,30 +15,32 @@ use super::super::super::{
     GenericFunctionRecord, GenericTypeRecord, InitializationUnitRecord, LocalBindingRecord,
     LocalValueRecord, PropertyAccessorRecord, PropertyRecord, TypeAliasRecord, TypeRecord,
 };
+use super::HirFoundationValidationError;
 use crate::SourceRecord;
 
-#[derive(Clone, Debug)]
-enum OriginExpectation {
+#[derive(Clone, Copy, Debug)]
+enum OriginExpectation<'a> {
     Direct {
         cone: ConeIdentity,
-        source: Option<SourceIdentity>,
+        source: Option<&'a SourceIdentity>,
     },
     SameSource(DefinitionOriginSubject),
 }
 
-impl OriginExpectation {
-    fn declaration(key: &SourceDeclarationKey) -> Self {
+impl<'a> OriginExpectation<'a> {
+    fn declaration(key: &'a SourceDeclarationKey) -> Self {
         Self::Direct {
             cone: key.origin(),
-            source: key.scope().source().cloned(),
+            source: key.scope().source(),
         }
     }
 }
 
-struct OriginRequirements {
-    required: BTreeMap<DefinitionOriginSubject, OriginExpectation>,
-    optional: BTreeMap<DefinitionOriginSubject, OriginExpectation>,
-    generated: BTreeMap<PersistentGeneratedCallableId, GeneratedCallableKey>,
+struct OriginRequirements<'a> {
+    required: HashMap<DefinitionOriginSubject, OriginExpectation<'a>>,
+    optional: HashMap<DefinitionOriginSubject, OriginExpectation<'a>>,
+    generated: HashMap<PersistentGeneratedCallableId, &'a GeneratedCallableKey>,
+    visiting: HashSet<PersistentGeneratedCallableId>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -63,8 +66,68 @@ pub(super) fn validate(
     callback_registrations: &[CallbackRegistrationRecord],
     native_contracts: &[SourceNativeExternalContractRecord],
     origins: &[DefinitionOriginRecord],
-) -> Result<(), DefinitionOriginValidationError> {
-    let mut requirements = OriginRequirements::new(generated_callables);
+    meter: &mut BudgetMeter,
+) -> Result<(), HirFoundationValidationError> {
+    let path = WirePath::root().field(29);
+    let mut source_variants = HashSet::new();
+    let source_variant_count = enum_variants
+        .iter()
+        .filter(|record| record.key().source_owner().is_some())
+        .count();
+    meter
+        .try_reserve_set_slots(&mut source_variants, source_variant_count, &path)
+        .map_err(HirFoundationValidationError::Resource)?;
+    source_variants.extend(
+        enum_variants
+            .iter()
+            .filter(|record| record.key().source_owner().is_some())
+            .map(|record| record.id()),
+    );
+
+    let required_count = checked_sum(
+        [
+            types
+                .iter()
+                .filter(|record| record.key().origin() != ConeIdentity::CORE)
+                .count(),
+            generic_types.len(),
+            functions.len(),
+            generic_functions.len(),
+            constructors.len(),
+            properties.len(),
+            extension_properties.len(),
+            type_aliases.len(),
+            property_accessors.len(),
+            fields
+                .iter()
+                .filter(|record| record.key().source_owner().is_some())
+                .count(),
+            source_variant_count,
+            enum_variant_fields
+                .iter()
+                .filter(|record| source_variants.contains(&record.key().variant()))
+                .count(),
+            initialization_units.len(),
+            local_bindings.len(),
+            local_values
+                .iter()
+                .filter(|record| {
+                    matches!(
+                        record.key().selector(),
+                        LocalValueSelector::This
+                            | LocalValueSelector::Parameter { .. }
+                            | LocalValueSelector::LocalDeclaration { .. }
+                            | LocalValueSelector::BoundReceiver { .. }
+                    )
+                })
+                .count(),
+            callback_registrations.len(),
+            native_contracts.len(),
+        ],
+        &path,
+    )?;
+    let mut requirements =
+        OriginRequirements::new(generated_callables, required_count, meter, &path)?;
 
     for record in types {
         if record.key().origin() != ConeIdentity::CORE {
@@ -116,11 +179,6 @@ pub(super) fn validate(
             )?;
         }
     }
-    let source_variants = enum_variants
-        .iter()
-        .filter(|record| record.key().source_owner().is_some())
-        .map(|record| record.id())
-        .collect::<BTreeSet<_>>();
     for record in enum_variant_fields {
         if source_variants.contains(&record.key().variant()) {
             requirements.require(
@@ -143,7 +201,7 @@ pub(super) fn validate(
             DefinitionOriginSubject::LocalBinding(record.id()),
             OriginExpectation::Direct {
                 cone: artifact,
-                source: Some(record.key().source().clone()),
+                source: Some(record.key().source()),
             },
         )?;
     }
@@ -156,7 +214,7 @@ pub(super) fn validate(
                 | LocalValueSelector::BoundReceiver { .. }
         ) {
             let anchor = requirements
-                .materialization_subject(record.key().owner())
+                .materialization_subject(record.key().owner(), meter, &path)?
                 .ok_or(DefinitionOriginValidationError::MissingSourceAnchor {
                     subject: DefinitionOriginSubject::LocalValue(record.id()),
                 })?;
@@ -169,7 +227,7 @@ pub(super) fn validate(
     for record in callback_registrations {
         let subject = DefinitionOriginSubject::CallbackRegistration(record.id());
         let anchor = requirements
-            .callable_subject(record.key().parent().template(), &mut BTreeSet::new())
+            .callable_subject(record.key().parent().template(), meter, &path)?
             .ok_or(DefinitionOriginValidationError::MissingSourceAnchor { subject })?;
         requirements.require(subject, OriginExpectation::SameSource(anchor))?;
     }
@@ -181,30 +239,54 @@ pub(super) fn validate(
     }
     for record in generated_callables {
         let subject = DefinitionOriginSubject::GeneratedCallable(record.id());
-        if let Some(anchor) = requirements.generated_subject(record.id(), &mut BTreeSet::new()) {
+        if let Some(anchor) = requirements.generated_subject(record.id(), meter, &path)? {
             requirements.allow(subject, OriginExpectation::SameSource(anchor))?;
         }
     }
 
-    validate_records(artifact, sources, requirements, origins)
+    validate_records(artifact, sources, requirements, origins, meter)
 }
 
-impl OriginRequirements {
-    fn new(generated: &[GeneratedCallableRecord]) -> Self {
-        Self {
-            required: BTreeMap::new(),
-            optional: BTreeMap::new(),
-            generated: generated
+impl<'a> OriginRequirements<'a> {
+    fn new(
+        generated_records: &'a [GeneratedCallableRecord],
+        required_count: usize,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Self, HirFoundationValidationError> {
+        let mut required = HashMap::new();
+        meter
+            .try_reserve_map_slots(&mut required, required_count, path)
+            .map_err(HirFoundationValidationError::Resource)?;
+        let mut optional = HashMap::new();
+        meter
+            .try_reserve_map_slots(&mut optional, generated_records.len(), path)
+            .map_err(HirFoundationValidationError::Resource)?;
+        let mut generated = HashMap::new();
+        meter
+            .try_reserve_map_slots(&mut generated, generated_records.len(), path)
+            .map_err(HirFoundationValidationError::Resource)?;
+        generated.extend(
+            generated_records
                 .iter()
-                .map(|record| (record.id(), record.key().clone()))
-                .collect(),
-        }
+                .map(|record| (record.id(), record.key())),
+        );
+        let mut visiting = HashSet::new();
+        meter
+            .try_reserve_set_slots(&mut visiting, generated_records.len(), path)
+            .map_err(HirFoundationValidationError::Resource)?;
+        Ok(Self {
+            required,
+            optional,
+            generated,
+            visiting,
+        })
     }
 
     fn require(
         &mut self,
         subject: DefinitionOriginSubject,
-        expectation: OriginExpectation,
+        expectation: OriginExpectation<'a>,
     ) -> Result<(), DefinitionOriginValidationError> {
         if self.required.insert(subject, expectation).is_some() {
             Err(DefinitionOriginValidationError::DuplicateRequirement { subject })
@@ -216,7 +298,7 @@ impl OriginRequirements {
     fn allow(
         &mut self,
         subject: DefinitionOriginSubject,
-        expectation: OriginExpectation,
+        expectation: OriginExpectation<'a>,
     ) -> Result<(), DefinitionOriginValidationError> {
         if self.optional.insert(subject, expectation).is_some() {
             Err(DefinitionOriginValidationError::DuplicateRequirement { subject })
@@ -226,119 +308,169 @@ impl OriginRequirements {
     }
 
     fn materialization_subject(
-        &self,
+        &mut self,
         materialization: CallableMaterialization,
-    ) -> Option<DefinitionOriginSubject> {
-        self.callable_subject(materialization.template(), &mut BTreeSet::new())
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
+        self.callable_subject(materialization.template(), meter, path)
     }
 
     fn callable_subject(
-        &self,
+        &mut self,
         owner: CallableTemplateOwner,
-        visiting: &mut BTreeSet<PersistentGeneratedCallableId>,
-    ) -> Option<DefinitionOriginSubject> {
-        match owner {
-            CallableTemplateOwner::Function(id) => Some(DefinitionOriginSubject::Function(id)),
-            CallableTemplateOwner::GenericFunction(id) => {
-                Some(DefinitionOriginSubject::GenericFunction(id))
-            }
-            CallableTemplateOwner::Constructor(id) => {
-                Some(DefinitionOriginSubject::Constructor(id))
-            }
-            CallableTemplateOwner::Accessor(id) => {
-                Some(DefinitionOriginSubject::PropertyAccessor(id))
-            }
-            CallableTemplateOwner::Generated(id) => self.generated_subject(id, visiting),
-            CallableTemplateOwner::VariantConstructor(id) => {
-                Some(DefinitionOriginSubject::EnumVariant(id))
-            }
-        }
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
+        self.visiting.clear();
+        self.resolve_callable_subject(owner, meter, path)
     }
 
     fn generated_subject(
-        &self,
+        &mut self,
         id: PersistentGeneratedCallableId,
-        visiting: &mut BTreeSet<PersistentGeneratedCallableId>,
-    ) -> Option<DefinitionOriginSubject> {
-        if !visiting.insert(id) {
-            return None;
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
+        self.visiting.clear();
+        self.resolve_callable_subject(CallableTemplateOwner::Generated(id), meter, path)
+    }
+
+    fn resolve_callable_subject(
+        &mut self,
+        mut owner: CallableTemplateOwner,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
+        let mut depth = 1_u64;
+        loop {
+            meter
+                .check_semantic_depth(depth, path)
+                .map_err(HirFoundationValidationError::Resource)?;
+            match owner {
+                CallableTemplateOwner::Function(id) => {
+                    return Ok(Some(DefinitionOriginSubject::Function(id)));
+                }
+                CallableTemplateOwner::GenericFunction(id) => {
+                    return Ok(Some(DefinitionOriginSubject::GenericFunction(id)));
+                }
+                CallableTemplateOwner::Constructor(id) => {
+                    return Ok(Some(DefinitionOriginSubject::Constructor(id)));
+                }
+                CallableTemplateOwner::Accessor(id) => {
+                    return Ok(Some(DefinitionOriginSubject::PropertyAccessor(id)));
+                }
+                CallableTemplateOwner::VariantConstructor(id) => {
+                    return Ok(Some(DefinitionOriginSubject::EnumVariant(id)));
+                }
+                CallableTemplateOwner::Generated(id) => {
+                    if !self.visiting.insert(id) {
+                        return Ok(None);
+                    }
+                    meter
+                        .charge_edges(1, path)
+                        .map_err(HirFoundationValidationError::Resource)?;
+                    let Some(key) = self.generated.get(&id) else {
+                        return Ok(None);
+                    };
+                    match key {
+                        GeneratedCallableKey::Lexical { parent, .. }
+                        | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => {
+                            owner = parent.template();
+                        }
+                        GeneratedCallableKey::Initialization { unit, .. } => {
+                            return Ok(Some(DefinitionOriginSubject::InitializationUnit(*unit)));
+                        }
+                        GeneratedCallableKey::StaticNoGcCallbackStorageBridge {
+                            source, ..
+                        }
+                        | GeneratedCallableKey::CoroutineDriver {
+                            source_callable: source,
+                        }
+                        | GeneratedCallableKey::CoroutineAdapter {
+                            source_callable: source,
+                            ..
+                        }
+                        | GeneratedCallableKey::DispatchAdjust { target: source, .. } => {
+                            owner = source.template();
+                        }
+                        GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
+                            return Ok(Some(DefinitionOriginSubject::Constructor(*constructor)));
+                        }
+                        GeneratedCallableKey::DerivedEquality { .. }
+                        | GeneratedCallableKey::FunctionAdapter { .. }
+                        | GeneratedCallableKey::DynamicFunctionAdapter { .. }
+                        | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }
+                        | GeneratedCallableKey::ContinuationShell { .. }
+                        | GeneratedCallableKey::CoroutineStart { .. }
+                        | GeneratedCallableKey::FunctionBridge { .. }
+                        | GeneratedCallableKey::BoxingAdjust { .. } => return Ok(None),
+                    }
+                    depth = depth.checked_add(1).ok_or_else(|| {
+                        HirFoundationValidationError::Resource(WireError::new(
+                            WireErrorKind::IntegerOutOfRange,
+                            path.clone(),
+                            None,
+                        ))
+                    })?;
+                }
+            }
         }
-        let result = match self.generated.get(&id)? {
-            GeneratedCallableKey::Lexical { parent, .. }
-            | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => {
-                self.callable_subject(parent.template(), visiting)
-            }
-            GeneratedCallableKey::Initialization { unit, .. } => {
-                Some(DefinitionOriginSubject::InitializationUnit(*unit))
-            }
-            GeneratedCallableKey::StaticNoGcCallbackStorageBridge { source, .. }
-            | GeneratedCallableKey::CoroutineDriver {
-                source_callable: source,
-            }
-            | GeneratedCallableKey::CoroutineAdapter {
-                source_callable: source,
-                ..
-            }
-            | GeneratedCallableKey::DispatchAdjust { target: source, .. } => {
-                self.callable_subject(source.template(), visiting)
-            }
-            GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
-                Some(DefinitionOriginSubject::Constructor(*constructor))
-            }
-            GeneratedCallableKey::DerivedEquality { .. }
-            | GeneratedCallableKey::FunctionAdapter { .. }
-            | GeneratedCallableKey::DynamicFunctionAdapter { .. }
-            | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }
-            | GeneratedCallableKey::ContinuationShell { .. }
-            | GeneratedCallableKey::CoroutineStart { .. }
-            | GeneratedCallableKey::FunctionBridge { .. }
-            | GeneratedCallableKey::BoxingAdjust { .. } => None,
-        };
-        visiting.remove(&id);
-        result
     }
 }
 
 fn validate_records(
     artifact: ConeIdentity,
     sources: &[SourceRecord],
-    requirements: OriginRequirements,
+    requirements: OriginRequirements<'_>,
     origins: &[DefinitionOriginRecord],
-) -> Result<(), DefinitionOriginValidationError> {
-    let source_records = sources
-        .iter()
-        .map(|source| (source.identity().clone(), source))
-        .collect::<BTreeMap<_, _>>();
-    let mut actual = BTreeMap::new();
+    meter: &mut BudgetMeter,
+) -> Result<(), HirFoundationValidationError> {
+    let source_path = WirePath::root().field(1);
+    let mut source_records = HashMap::new();
+    meter
+        .try_reserve_map_slots(&mut source_records, sources.len(), &source_path)
+        .map_err(HirFoundationValidationError::Resource)?;
+    source_records.extend(sources.iter().map(|source| (source.identity(), source)));
+    let origin_path = WirePath::root().field(29);
+    let mut actual = HashMap::new();
+    meter
+        .try_reserve_map_slots(&mut actual, origins.len(), &origin_path)
+        .map_err(HirFoundationValidationError::Resource)?;
     for record in origins {
         if actual.insert(record.subject(), record).is_some() {
             return Err(DefinitionOriginValidationError::DuplicateSubject {
                 subject: record.subject(),
-            });
+            }
+            .into());
         }
         if !requirements.required.contains_key(&record.subject())
             && !requirements.optional.contains_key(&record.subject())
         {
             return Err(DefinitionOriginValidationError::UnexpectedSubject {
                 subject: record.subject(),
-            });
+            }
+            .into());
         }
     }
     if let Some(subject) = requirements
         .required
         .keys()
-        .find(|subject| !actual.contains_key(subject))
+        .filter(|subject| !actual.contains_key(subject))
+        .min()
     {
-        return Err(DefinitionOriginValidationError::MissingSubject { subject: *subject });
+        return Err(DefinitionOriginValidationError::MissingSubject { subject: *subject }.into());
     }
 
     for record in origins {
         let subject = record.subject();
-        let expectation = requirements
+        let Some(expectation) = requirements
             .required
             .get(&subject)
             .or_else(|| requirements.optional.get(&subject))
-            .expect("origin membership was checked above");
+        else {
+            return Err(DefinitionOriginValidationError::UnexpectedSubject { subject }.into());
+        };
         let source = record.origin().source();
         match expectation {
             OriginExpectation::Direct {
@@ -350,21 +482,25 @@ fn validate_records(
                         subject,
                         expected: *cone,
                         actual: source.cone(),
-                    });
+                    }
+                    .into());
                 }
                 if let Some(expected) = exact
-                    && source != expected
+                    && source != *expected
                 {
                     return Err(DefinitionOriginValidationError::SourceMismatch {
                         subject,
-                        expected: Box::new(expected.clone()),
+                        expected: Box::new((*expected).clone()),
                         actual: Box::new(source.clone()),
-                    });
+                    }
+                    .into());
                 }
             }
             OriginExpectation::SameSource(anchor) => {
                 let Some(anchor_record) = actual.get(anchor) else {
-                    return Err(DefinitionOriginValidationError::MissingSourceAnchor { subject });
+                    return Err(
+                        DefinitionOriginValidationError::MissingSourceAnchor { subject }.into(),
+                    );
                 };
                 let expected = anchor_record.origin().source();
                 if source != expected {
@@ -372,7 +508,8 @@ fn validate_records(
                         subject,
                         expected: Box::new(expected.clone()),
                         actual: Box::new(source.clone()),
-                    });
+                    }
+                    .into());
                 }
             }
         }
@@ -380,7 +517,8 @@ fn validate_records(
             return Err(DefinitionOriginValidationError::UnknownSource {
                 subject,
                 source: Box::new(source.clone()),
-            });
+            }
+            .into());
         };
         let span = record.origin().span();
         source_record
@@ -392,6 +530,35 @@ fn validate_records(
             })?;
     }
     Ok(())
+}
+
+fn checked_sum(
+    counts: impl IntoIterator<Item = usize>,
+    path: &WirePath,
+) -> Result<usize, HirFoundationValidationError> {
+    let count = counts.into_iter().try_fold(0_u64, |total, count| {
+        let count = u64::try_from(count).map_err(|_| {
+            HirFoundationValidationError::Resource(WireError::new(
+                WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ))
+        })?;
+        total.checked_add(count).ok_or_else(|| {
+            HirFoundationValidationError::Resource(WireError::new(
+                WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ))
+        })
+    })?;
+    usize::try_from(count).map_err(|_| {
+        HirFoundationValidationError::Resource(WireError::new(
+            WireErrorKind::IntegerOutOfRange,
+            path.clone(),
+            None,
+        ))
+    })
 }
 
 fn property_subject(owner: PropertyOwner) -> DefinitionOriginSubject {
@@ -425,6 +592,76 @@ fn native_owner_subject(owner: SourceNativeExternalOwner) -> DefinitionOriginSub
     match owner {
         SourceNativeExternalOwner::Function(id) => DefinitionOriginSubject::Function(id),
         SourceNativeExternalOwner::Property(id) => DefinitionOriginSubject::Property(id),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use scoop_identity::{
+        CanonicalIdentifier, CborIdentityRecord, DeclarationScope, DefinitionOwnerChain,
+        LexicalCallableParent, LexicalCallableRole, PackagePath, PersistentFunctionId,
+        SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+        StructuralPathSegment,
+    };
+    use scoop_wire::{DecodeLimits, ResourceKind};
+
+    use super::*;
+
+    #[test]
+    fn generated_origin_walk_obeys_the_semantic_depth_limit() {
+        let function_key = SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("origin_depth_root").unwrap(),
+            0,
+            None,
+            Vec::new(),
+        );
+        let function = PersistentFunctionId::from_source_declaration(&function_key).unwrap();
+        let parent_key = GeneratedCallableKey::Lexical {
+            parent: LexicalCallableParent::function(function),
+            role: LexicalCallableRole::LambdaBody,
+            path: StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, 0),
+                [],
+            ),
+        };
+        let parent = CborIdentityRecord::from_key(parent_key).unwrap();
+        let child = CborIdentityRecord::from_key(GeneratedCallableKey::Lexical {
+            parent: LexicalCallableParent::from_generated_key(parent.key()).unwrap(),
+            role: LexicalCallableRole::AnonymousFunctionBody,
+            path: StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, 1),
+                [],
+            ),
+        })
+        .unwrap();
+        let child_id = child.id();
+        let records = vec![parent, child];
+        let path = WirePath::root().field(29);
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            semantic_recursion: 1,
+            ..DecodeLimits::default()
+        });
+        let mut requirements = OriginRequirements::new(&records, 0, &mut meter, &path).unwrap();
+
+        let error = requirements
+            .generated_subject(child_id, &mut meter, &path)
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            HirFoundationValidationError::Resource(ref error)
+                if error.kind() == &WireErrorKind::LimitExceeded {
+                    resource: ResourceKind::SemanticRecursion,
+                    limit: 1,
+                    observed: 2,
+                }
+        ));
     }
 }
 

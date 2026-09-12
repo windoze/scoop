@@ -248,6 +248,7 @@ fn validate_foundation(
         &callback_registrations,
         &contracts,
         &origins,
+        meter,
     )?;
 
     let mut boundary_types = Vec::new();
