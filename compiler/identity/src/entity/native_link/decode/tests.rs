@@ -37,7 +37,10 @@ fn native_external_symbol_key_round_trips_and_validates_normalization() {
         DecodeLimits::default(),
     )
     .unwrap();
-    assert_eq!(decoded.validate().unwrap(), key);
+    let allocation = decoded.native_link_symbol.0.as_ptr();
+    let decoded = decoded.validate().unwrap();
+    assert_eq!(decoded.native_link_symbol().as_bytes().as_ptr(), allocation);
+    assert_eq!(decoded, key);
 
     let record: CborIdentityRecord<PersistentNativeExternalSymbolId, _> =
         CborIdentityRecord::from_key(key.clone()).unwrap();

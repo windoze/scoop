@@ -49,6 +49,22 @@ impl NativeLinkSymbol {
         Ok(Self(symbol))
     }
 
+    fn from_owned_darwin_macho_external(
+        symbol: Vec<u8>,
+    ) -> Result<Self, NativeLinkValidationError> {
+        let logical = symbol
+            .strip_prefix(b"_")
+            .ok_or(NativeLinkValidationError::MissingMachOExternalPrefix)?;
+        SourceNativeSymbol::validate_bytes(logical)
+            .map_err(NativeLinkValidationError::SourceSymbol)?;
+        if logical.first() == Some(&0x01) {
+            return Err(NativeLinkValidationError::LinkSymbol(
+                NativeLinkSymbolError::LlvmEscapePrefix,
+            ));
+        }
+        Ok(Self(symbol))
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
@@ -80,6 +96,13 @@ impl NativeExternalSymbolKey {
             target_profile: TargetProfileWireId::darwin_aarch64(),
             native_link_symbol: NativeLinkSymbol::darwin_macho_external(logical)?,
         })
+    }
+
+    fn from_validated_darwin_macho_external(native_link_symbol: NativeLinkSymbol) -> Self {
+        Self {
+            target_profile: TargetProfileWireId::darwin_aarch64(),
+            native_link_symbol,
+        }
     }
 
     pub fn target_profile(&self) -> &TargetProfileWireId {
@@ -116,8 +139,12 @@ pub struct CanonicalNativeGroupName(String);
 
 impl CanonicalNativeGroupName {
     pub fn new(value: &str) -> Result<Self, CanonicalNativeNameError> {
-        super::native_name::validate_native_name(value)?;
-        Ok(Self(value.to_owned()))
+        Self::from_owned(value.to_owned())
+    }
+
+    fn from_owned(value: String) -> Result<Self, CanonicalNativeNameError> {
+        super::native_name::validate_native_name(&value)?;
+        Ok(Self(value))
     }
 
     pub fn as_str(&self) -> &str {

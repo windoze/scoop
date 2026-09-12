@@ -9,8 +9,7 @@ use super::{
 use crate::{
     CanonicalNativeNameError, CapabilityIdError, CapabilityRefinementError,
     DecodedCanonicalNativeLibraryName, DecodedCapabilityId, DecodedPersistentId,
-    NativeLinkRequirementId, PersistentIdResolver, SourceNativeSymbol, SourceNativeSymbolError,
-    TargetProfileWireId,
+    NativeLinkRequirementId, PersistentIdResolver, SourceNativeSymbolError, TargetProfileWireId,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -18,20 +17,7 @@ pub struct DecodedNativeLinkSymbol(Vec<u8>);
 
 impl DecodedNativeLinkSymbol {
     pub fn validate_darwin(self) -> Result<NativeLinkSymbol, NativeLinkValidationError> {
-        let logical = self.validate_darwin_logical()?;
-        NativeLinkSymbol::darwin_macho_external(&logical)
-            .map_err(NativeLinkValidationError::LinkSymbol)
-    }
-
-    fn validate_darwin_logical(self) -> Result<SourceNativeSymbol, NativeLinkValidationError> {
-        let logical = self
-            .0
-            .strip_prefix(b"_")
-            .ok_or(NativeLinkValidationError::MissingMachOExternalPrefix)?;
-        let logical = String::from_utf8(logical.to_vec()).map_err(|_| {
-            NativeLinkValidationError::SourceSymbol(SourceNativeSymbolError::InvalidUtf8)
-        })?;
-        SourceNativeSymbol::new(&logical).map_err(NativeLinkValidationError::SourceSymbol)
+        NativeLinkSymbol::from_owned_darwin_macho_external(self.0)
     }
 }
 
@@ -56,9 +42,11 @@ pub struct DecodedNativeExternalSymbolKey {
 impl DecodedNativeExternalSymbolKey {
     pub fn validate(self) -> Result<NativeExternalSymbolKey, NativeLinkValidationError> {
         resolve_target_profile(self.target_profile)?;
-        let logical = self.native_link_symbol.validate_darwin_logical()?;
-        NativeExternalSymbolKey::darwin_macho_external(&logical)
-            .map_err(NativeLinkValidationError::LinkSymbol)
+        Ok(
+            NativeExternalSymbolKey::from_validated_darwin_macho_external(
+                self.native_link_symbol.validate_darwin()?,
+            ),
+        )
     }
 }
 
@@ -87,7 +75,7 @@ pub struct DecodedCanonicalNativeGroupName(String);
 
 impl DecodedCanonicalNativeGroupName {
     pub fn validate(self) -> Result<CanonicalNativeGroupName, CanonicalNativeNameError> {
-        CanonicalNativeGroupName::new(&self.0)
+        CanonicalNativeGroupName::from_owned(self.0)
     }
 }
 

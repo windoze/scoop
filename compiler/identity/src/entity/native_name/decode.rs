@@ -31,8 +31,7 @@ pub struct DecodedSourceNativeSymbol(Vec<u8>);
 
 impl DecodedSourceNativeSymbol {
     pub fn validate(self) -> Result<SourceNativeSymbol, SourceNativeSymbolError> {
-        let value = String::from_utf8(self.0).map_err(|_| SourceNativeSymbolError::InvalidUtf8)?;
-        SourceNativeSymbol::new(&value)
+        SourceNativeSymbol::from_owned(self.0)
     }
 }
 
@@ -74,7 +73,10 @@ mod tests {
             DecodeLimits::default(),
         )
         .unwrap();
-        assert_eq!(decoded.validate().unwrap(), symbol);
+        let allocation = decoded.0.as_ptr();
+        let decoded = decoded.validate().unwrap();
+        assert_eq!(decoded.as_bytes().as_ptr(), allocation);
+        assert_eq!(decoded, symbol);
     }
 
     #[test]

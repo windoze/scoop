@@ -35,16 +35,28 @@ pub struct SourceNativeSymbol(Vec<u8>);
 
 impl SourceNativeSymbol {
     pub fn new(value: &str) -> Result<Self, SourceNativeSymbolError> {
+        Self::from_owned(value.as_bytes().to_vec())
+    }
+
+    pub(crate) fn from_owned(value: Vec<u8>) -> Result<Self, SourceNativeSymbolError> {
+        Self::validate_bytes(&value)?;
+        Ok(Self(value))
+    }
+
+    pub(crate) fn validate_bytes(value: &[u8]) -> Result<(), SourceNativeSymbolError> {
         if value.is_empty() {
             return Err(SourceNativeSymbolError::Empty);
         }
         if value.len() > 4_095 {
             return Err(SourceNativeSymbolError::TooLong);
         }
-        if value.as_bytes().contains(&0) {
+        if std::str::from_utf8(value).is_err() {
+            return Err(SourceNativeSymbolError::InvalidUtf8);
+        }
+        if value.contains(&0) {
             return Err(SourceNativeSymbolError::Nul);
         }
-        Ok(Self(value.as_bytes().to_vec()))
+        Ok(())
     }
 
     pub fn as_bytes(&self) -> &[u8] {
