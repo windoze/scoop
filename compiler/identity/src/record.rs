@@ -63,6 +63,11 @@ impl<I: PersistentId, K> CborIdentityRecord<I, K> {
         self.key.as_ref()
     }
 
+    /// Consumes the record while preserving its shared canonical-key allocation.
+    pub fn into_shared_key(self) -> Arc<K> {
+        self.key
+    }
+
     pub fn into_key(self) -> K
     where
         K: Clone,

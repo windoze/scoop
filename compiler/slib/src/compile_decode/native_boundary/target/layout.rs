@@ -39,7 +39,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             .exact_types
             .get(&exact)
             .ok_or(NativeBoundaryTargetError::MissingExactType { exact })?;
-        let shape = match key {
+        let shape = match key.as_ref() {
             ExactTypeKey::Nominal(owner)
                 if Some(*owner) == CoreNativeBoundaryNominal::Boolean.concrete_id() =>
             {
@@ -56,7 +56,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                     .exact_types
                     .get(&payload)
                     .ok_or(NativeBoundaryTargetError::MissingExactType { exact: payload })?;
-                match payload_key {
+                match payload_key.as_ref() {
                     ExactTypeKey::RawPointer(pointee) => Shape::NullableDataPointer(*pointee),
                     ExactTypeKey::NativeFunctionPointer { .. } => Shape::NullableCodePointer,
                     _ => Shape::Unsupported,
@@ -443,7 +443,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     fn niche_pointer_kind(&self, exact: PersistentExactTypeId) -> Option<scoop_lir::PointerKind> {
-        match self.exact_types.get(&exact) {
+        match self.exact_types.get(&exact).map(Arc::as_ref) {
             Some(ExactTypeKey::Function { .. }) => Some(scoop_lir::PointerKind::Managed),
             Some(ExactTypeKey::RawPointer(_)) => Some(scoop_lir::PointerKind::Raw),
             Some(ExactTypeKey::NativeFunctionPointer { .. }) => Some(scoop_lir::PointerKind::Code),
@@ -482,7 +482,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             .exact_types
             .get(&exact)
             .ok_or(NativeBoundaryTargetError::MissingExactType { exact })?;
-        let owner = match key {
+        let owner = match key.as_ref() {
             ExactTypeKey::Nominal(owner) => NativeBoundaryNominalOwner::Concrete(*owner),
             ExactTypeKey::NominalApplication { origin, arguments } => {
                 let owner = NativeBoundaryNominalOwner::GenericTemplate(*origin);
@@ -505,12 +505,13 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     ) -> Result<&ExactTypeKey, NativeBoundaryCompileError> {
         self.exact_types
             .get(&exact)
+            .map(Arc::as_ref)
             .ok_or(NativeBoundaryTargetError::MissingExactType { exact }.into())
     }
 
     pub(super) fn is_unit(&self, exact: PersistentExactTypeId) -> bool {
         matches!(
-            self.exact_types.get(&exact),
+            self.exact_types.get(&exact).map(Arc::as_ref),
             Some(ExactTypeKey::Nominal(owner))
                 if Some(*owner) == CoreNativeBoundaryNominal::Unit.concrete_id()
         )
@@ -533,7 +534,7 @@ mod tests {
         let owner = CoreNativeBoundaryNominal::Unit.concrete_id().unwrap();
         let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(owner)).unwrap();
         let exact = record.id();
-        let exact_types = HashMap::from([(exact, record.into_key())]);
+        let exact_types = HashMap::from([(exact, record.into_shared_key())]);
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
         let definitions = HashMap::new();
@@ -609,9 +610,9 @@ mod tests {
         };
         let owner_exact = exact(owner);
         let exact_types = HashMap::from([
-            (owner_exact, ExactTypeKey::Nominal(owner)),
-            (exact(u8_owner), ExactTypeKey::Nominal(u8_owner)),
-            (exact(u64_owner), ExactTypeKey::Nominal(u64_owner)),
+            (owner_exact, Arc::new(ExactTypeKey::Nominal(owner))),
+            (exact(u8_owner), Arc::new(ExactTypeKey::Nominal(u8_owner))),
+            (exact(u64_owner), Arc::new(ExactTypeKey::Nominal(u64_owner))),
         ]);
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
@@ -662,9 +663,9 @@ mod tests {
         .unwrap();
         let root_id = root.id();
         let exact_types = HashMap::from([
-            (leaf.id(), leaf.into_key()),
-            (middle.id(), middle.into_key()),
-            (root_id, root.into_key()),
+            (leaf.id(), leaf.into_shared_key()),
+            (middle.id(), middle.into_shared_key()),
+            (root_id, root.into_shared_key()),
         ]);
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();

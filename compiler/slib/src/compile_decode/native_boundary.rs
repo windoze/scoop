@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
+use std::sync::Arc;
 
 use scoop_hir::NativeBoundaryNominalOwner;
 use scoop_identity::{
@@ -209,10 +210,9 @@ fn records_by_id<I, K>(
     record_sets: impl IntoIterator<Item = Vec<CborIdentityRecord<I, K>>>,
     meter: &mut BudgetMeter,
     path: &WirePath,
-) -> Result<HashMap<I, K>, NativeBoundaryCompileError>
+) -> Result<HashMap<I, Arc<K>>, NativeBoundaryCompileError>
 where
     I: scoop_identity::PersistentId + Eq + Hash,
-    K: Clone,
 {
     let mut records = HashMap::new();
     for record_set in record_sets {
@@ -223,7 +223,7 @@ where
             meter
                 .try_reserve_map_slots(&mut records, 1, path)
                 .map_err(NativeBoundaryCompileError::Resource)?;
-            records.insert(record.id(), record.into_key());
+            records.insert(record.id(), record.into_shared_key());
         }
     }
     Ok(records)
@@ -477,9 +477,9 @@ fn collect_signature_type(
 #[allow(clippy::too_many_arguments)]
 fn collect_materialization_context(
     context: CallableMaterializationContext,
-    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
-    callable_applications: &HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
-    initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
+    exact_types: &HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
+    callable_applications: &HashMap<PersistentCallableApplicationId, Arc<CallableApplicationKey>>,
+    initialization_units: &HashMap<PersistentInitializationUnitId, Arc<InitializationUnitKey>>,
     state: &mut SourceClosureState<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
     match context {
@@ -509,9 +509,9 @@ fn collect_materialization_context(
 #[allow(clippy::too_many_arguments)]
 fn collect_callable_application(
     application: PersistentCallableApplicationId,
-    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
-    callable_applications: &HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
-    initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
+    exact_types: &HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
+    callable_applications: &HashMap<PersistentCallableApplicationId, Arc<CallableApplicationKey>>,
+    initialization_units: &HashMap<PersistentInitializationUnitId, Arc<InitializationUnitKey>>,
     state: &mut SourceClosureState<'_>,
     depth: u64,
 ) -> Result<u64, NativeBoundaryCompileError> {
@@ -569,8 +569,8 @@ fn collect_callable_application(
 
 fn collect_initialization_application(
     unit: PersistentInitializationUnitId,
-    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
-    initialization_units: &HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
+    exact_types: &HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
+    initialization_units: &HashMap<PersistentInitializationUnitId, Arc<InitializationUnitKey>>,
     state: &mut SourceClosureState<'_>,
     depth: u64,
 ) -> Result<u64, NativeBoundaryCompileError> {
@@ -586,7 +586,7 @@ fn collect_initialization_application(
     let mut height = 1;
     if let InitializationUnitKey::GenericDelegatedExtensionApplication {
         receiver_arguments, ..
-    } = key
+    } = key.as_ref()
     {
         for argument in receiver_arguments.as_slice() {
             state.charge_relation(&path)?;
@@ -600,7 +600,7 @@ fn collect_initialization_application(
 
 fn collect_exact_type(
     exact: PersistentExactTypeId,
-    exact_types: &HashMap<PersistentExactTypeId, ExactTypeKey>,
+    exact_types: &HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
     state: &mut SourceClosureState<'_>,
     depth: u64,
 ) -> Result<u64, NativeBoundaryCompileError> {
@@ -614,7 +614,7 @@ fn collect_exact_type(
         .get(&exact)
         .ok_or(NativeBoundaryCompileError::MissingExactType { exact })?;
     let mut height = 1;
-    match key {
+    match key.as_ref() {
         ExactTypeKey::Nominal(owner) => {
             state.charge_relation(&path)?;
             state.require_owner(NativeBoundaryNominalOwner::Concrete(*owner), &path)?;
@@ -733,6 +733,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn canonical_key_index_reuses_identity_graph_allocations() {
+        let owner = CoreBuiltinNominal::Unit.identity_record().id();
+        let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(owner)).unwrap();
+        let id = record.id();
+        let expected = record.clone().into_shared_key();
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
+        let indexed =
+            records_by_id(std::iter::once(vec![record]), &mut meter, &WirePath::root()).unwrap();
+
+        assert!(Arc::ptr_eq(indexed.get(&id).unwrap(), &expected));
+    }
+
+    #[test]
     fn required_owner_queue_has_inclusive_heap_boundaries() {
         let ty = SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id());
         let path = WirePath::root().field(26);
@@ -827,8 +841,10 @@ mod tests {
         let parent = CborIdentityRecord::from_key(ExactTypeKey::RawPointer(leaf.id())).unwrap();
         let leaf_id = leaf.id();
         let parent_id = parent.id();
-        let exact_types =
-            HashMap::from([(leaf_id, leaf.into_key()), (parent_id, parent.into_key())]);
+        let exact_types = HashMap::from([
+            (leaf_id, leaf.into_shared_key()),
+            (parent_id, parent.into_shared_key()),
+        ]);
         let mut meter = BudgetMeter::new(DecodeLimits {
             semantic_recursion: 1,
             ..DecodeLimits::default()
@@ -859,7 +875,7 @@ mod tests {
         let unit = CoreBuiltinNominal::Unit.identity_record().id();
         let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(unit)).unwrap();
         let exact = record.id();
-        let exact_types = HashMap::from([(exact, record.into_key())]);
+        let exact_types = HashMap::from([(exact, record.into_shared_key())]);
         let mut meter = BudgetMeter::new(DecodeLimits::default());
         {
             let mut state = SourceClosureState::new(&mut meter);

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU64;
+use std::sync::Arc;
 
 use scoop_hir::{
     NativeBoundaryCLayoutPolicy, NativeBoundaryNominalOwner, NativeBoundaryNominalShape,
@@ -445,9 +446,10 @@ where
 struct NativeBoundaryNormalizer<'a> {
     target: scoop_lir::LirTargetProfile,
     meter: &'a mut BudgetMeter,
-    exact_types: &'a HashMap<PersistentExactTypeId, ExactTypeKey>,
-    callable_applications: &'a HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
-    initialization_units: &'a HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
+    exact_types: &'a HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
+    callable_applications:
+        &'a HashMap<PersistentCallableApplicationId, Arc<CallableApplicationKey>>,
+    initialization_units: &'a HashMap<PersistentInitializationUnitId, Arc<InitializationUnitKey>>,
     definitions: &'a HashMap<NativeBoundaryNominalOwner, &'a NativeBoundaryTypeDefinitionRecord>,
     expected_signatures:
         HashMap<CanonicalCAbiSignatureFingerprint, CanonicalCAbiSignatureFingerprintRecord>,
@@ -463,9 +465,15 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     fn new(
         target: scoop_lir::LirTargetProfile,
         meter: &'a mut BudgetMeter,
-        exact_types: &'a HashMap<PersistentExactTypeId, ExactTypeKey>,
-        callable_applications: &'a HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
-        initialization_units: &'a HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
+        exact_types: &'a HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
+        callable_applications: &'a HashMap<
+            PersistentCallableApplicationId,
+            Arc<CallableApplicationKey>,
+        >,
+        initialization_units: &'a HashMap<
+            PersistentInitializationUnitId,
+            Arc<InitializationUnitKey>,
+        >,
         definitions: &'a HashMap<
             NativeBoundaryNominalOwner,
             &'a NativeBoundaryTypeDefinitionRecord,
@@ -781,7 +789,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         let exact =
             PersistentExactTypeId::from_key(&key).map_err(NativeBoundaryTargetError::Hash)?;
         match self.exact_types.get(&exact) {
-            Some(actual) if actual == &key => Ok(exact),
+            Some(actual) if actual.as_ref() == &key => Ok(exact),
             _ => Err(NativeBoundaryTargetError::MissingExactType { exact }.into()),
         }
     }
@@ -844,7 +852,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                     .exact_types
                     .get(&owner)
                     .ok_or(NativeBoundaryTargetError::MissingExactType { exact: owner })?;
-                if let ExactTypeKey::NominalApplication { arguments, .. } = key {
+                if let ExactTypeKey::NominalApplication { arguments, .. } = key.as_ref() {
                     push_binder_group(
                         self.meter,
                         binders,
@@ -877,7 +885,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         if let InitializationUnitKey::GenericDelegatedExtensionApplication {
             receiver_arguments,
             ..
-        } = key
+        } = key.as_ref()
         {
             push_binder_group(
                 self.meter,
