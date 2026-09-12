@@ -93,13 +93,11 @@ resolve_fixture_key!(
 );
 
 impl NativeBoundaryResolver<ResolutionError> for Resolver {
-    fn native_boundary_binder_parameter_counts(
+    fn native_boundary_type_parameter_count(
         &mut self,
         declaration: &SourceDeclarationKey,
-    ) -> Result<Vec<u32>, ResolutionError> {
-        Ok(vec![
-            declaration.duplicate_signature().type_parameter_count(),
-        ])
+    ) -> Result<u32, ResolutionError> {
+        Ok(declaration.duplicate_signature().type_parameter_count())
     }
 }
 

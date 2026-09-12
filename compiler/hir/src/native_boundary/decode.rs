@@ -25,11 +25,10 @@ pub trait NativeBoundaryResolver<E>:
     + PersistentKeyResolver<PersistentEnumVariantId, EnumVariantIdentityKey, Error = E>
     + PersistentKeyResolver<PersistentEnumVariantFieldId, EnumVariantFieldKey, Error = E>
 {
-    /// Returns binder parameter counts from the current nominal outward.
-    fn native_boundary_binder_parameter_counts(
+    fn native_boundary_type_parameter_count(
         &mut self,
         declaration: &SourceDeclarationKey,
-    ) -> Result<Vec<u32>, E>;
+    ) -> Result<u32, E>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -395,11 +394,11 @@ impl DecodedNativeBoundaryTypeDefinitionRecord {
             .resolve(resolver)
             .map_err(NativeBoundaryResolutionError::Reference)?;
         let shape = self.shape.resolve(resolver)?;
-        let binder_parameter_counts = resolver
-            .native_boundary_binder_parameter_counts(&declaration)
+        let type_parameter_count = resolver
+            .native_boundary_type_parameter_count(&declaration)
             .map_err(NativeBoundaryResolutionError::Reference)?;
         let record =
-            NativeBoundaryTypeDefinitionRecord::new(&declaration, &binder_parameter_counts, shape)
+            NativeBoundaryTypeDefinitionRecord::new(&declaration, &[type_parameter_count], shape)
                 .map_err(NativeBoundaryResolutionError::Definition)?;
         let actual_owner_kind = match record.owner() {
             NativeBoundaryNominalOwner::Concrete(_) => DecodedOwnerKind::Concrete,

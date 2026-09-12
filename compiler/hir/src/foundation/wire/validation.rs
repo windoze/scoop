@@ -431,13 +431,11 @@ fn validate_source_contexts(
 }
 
 impl NativeBoundaryResolver<IdentityReferenceError> for ValidatedIdentityGraph {
-    fn native_boundary_binder_parameter_counts(
+    fn native_boundary_type_parameter_count(
         &mut self,
         declaration: &SourceDeclarationKey,
-    ) -> Result<Vec<u32>, IdentityReferenceError> {
-        Ok(vec![
-            declaration.duplicate_signature().type_parameter_count(),
-        ])
+    ) -> Result<u32, IdentityReferenceError> {
+        Ok(declaration.duplicate_signature().type_parameter_count())
     }
 }
 
