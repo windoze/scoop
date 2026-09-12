@@ -77,8 +77,8 @@ impl IdentityNode {
     }
 }
 
-#[derive(Debug)]
 struct Candidate {
+    trusted_id: Arc<dyn Any>,
     layer: Option<IdentityLayer>,
     resolved: bool,
     dependency_count: u64,
@@ -179,7 +179,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
 
     /// Adds an identity that was established by a trusted authority rather
     /// than declared by one of the artifact's delta tables.
-    pub fn register_authority<I: PersistentId>(
+    pub fn register_authority<I: PersistentId + 'static>(
         &mut self,
         id: I,
     ) -> Result<(), IdentityValidationError> {
@@ -194,7 +194,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
         let (fingerprint, _) = self.verify_c_abi_signature(record)?;
-        self.insert_candidate(layer, IdentityNode::trusted(fingerprint))
+        self.insert_candidate(layer, fingerprint)
     }
 
     pub fn register_c_abi_layout(
@@ -204,7 +204,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
         let (fingerprint, _) = self.verify_c_abi_layout(record)?;
-        self.insert_candidate(layer, IdentityNode::trusted(fingerprint))
+        self.insert_candidate(layer, fingerprint)
     }
 
     pub fn register_native_external_contract(
@@ -216,7 +216,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         let (fingerprint, _) = self.verify_native_external_contract(record)?;
         let node = IdentityNode::trusted(fingerprint);
         match self.candidates.get(&node) {
-            None => self.insert_candidate(layer, node),
+            None => self.insert_candidate(layer, fingerprint),
             Some(candidate) if candidate.layer == Some(layer) && !candidate.resolved => Ok(()),
             Some(_) => self.fail(IdentityValidationError::DuplicateIdentity {
                 kind: node.kind,
@@ -225,7 +225,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         }
     }
 
-    fn insert_resolved_leaf<I: PersistentId>(
+    fn insert_resolved_leaf<I: PersistentId + 'static>(
         &mut self,
         id: I,
     ) -> Result<(), IdentityValidationError> {
@@ -239,6 +239,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.candidates.insert(
             node,
             Candidate {
+                trusted_id: Arc::new(id),
                 layer: None,
                 resolved: true,
                 dependency_count: 0,
@@ -277,7 +278,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
             });
         }
 
-        self.insert_candidate(layer, IdentityNode::decoded(record.decoded_id()))
+        self.insert_candidate(layer, expected)
     }
 
     pub fn register_source_native_contract(
@@ -302,7 +303,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 actual: *mismatch.actual(),
             });
         }
-        self.insert_candidate(layer, IdentityNode::decoded(decoded))
+        self.insert_candidate(layer, expected)
     }
 
     pub fn register_callable_body(
@@ -313,23 +314,26 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.require_registration_phase()?;
         self.charge_callable_body_hash(record)?;
         let decoded = record.decoded_id();
-        if let Err(error) = record.clone().validate_key::<DecodedCallableBodyKey>() {
-            return match error {
-                RuntimeIdentityRecordValidationError::Id(mismatch) => {
-                    self.fail(IdentityValidationError::IdentityMismatch {
+        let validated = match record.clone().validate_key::<DecodedCallableBodyKey>() {
+            Ok(validated) => validated,
+            Err(error) => {
+                return match error {
+                    RuntimeIdentityRecordValidationError::Id(mismatch) => {
+                        self.fail(IdentityValidationError::IdentityMismatch {
+                            kind: PersistentCallableBodyId::KIND,
+                            expected: *mismatch.expected().as_array(),
+                            actual: *mismatch.actual(),
+                        })
+                    }
+                    error => self.fail(IdentityValidationError::InvalidRecord {
                         kind: PersistentCallableBodyId::KIND,
-                        expected: *mismatch.expected().as_array(),
-                        actual: *mismatch.actual(),
-                    })
-                }
-                error => self.fail(IdentityValidationError::InvalidRecord {
-                    kind: PersistentCallableBodyId::KIND,
-                    id: *decoded.as_array(),
-                    reason: error.to_string(),
-                }),
-            };
-        }
-        self.insert_candidate(layer, IdentityNode::decoded(decoded))
+                        id: *decoded.as_array(),
+                        reason: error.to_string(),
+                    }),
+                };
+            }
+        };
+        self.insert_candidate(layer, validated.0.id())
     }
 
     /// Resolves and rehashes one previously registered record.
@@ -814,11 +818,12 @@ impl<'meter> PendingIdentityValidation<'meter> {
         Ok(())
     }
 
-    fn insert_candidate(
+    fn insert_candidate<I: PersistentId + 'static>(
         &mut self,
         layer: IdentityLayer,
-        node: IdentityNode,
+        id: I,
     ) -> Result<(), IdentityValidationError> {
+        let node = IdentityNode::trusted(id);
         if self.candidates.contains_key(&node) {
             return self.fail(IdentityValidationError::DuplicateIdentity {
                 kind: node.kind,
@@ -828,6 +833,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.candidates.insert(
             node,
             Candidate {
+                trusted_id: Arc::new(id),
                 layer: Some(layer),
                 resolved: false,
                 dependency_count: 0,
@@ -1078,7 +1084,6 @@ impl ValidatedIdentityGraph {
     where
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Clone + 'static,
-        K::Error: fmt::Display,
     {
         let mut records = Vec::new();
         for (node, candidate) in &self.candidates {
@@ -1093,20 +1098,14 @@ impl ValidatedIdentityGraph {
             else {
                 continue;
             };
-            let record = CborIdentityRecord::from_key(key.clone()).map_err(|error| {
-                IdentityValidationError::InvalidRecord {
+            let Some(id) = candidate.trusted_id.downcast_ref::<I>().copied() else {
+                return Err(IdentityValidationError::InvalidRecord {
                     kind: I::KIND,
                     id: node.bytes,
-                    reason: error.to_string(),
-                }
-            })?;
-            if record.id().as_array() != &node.bytes {
-                return Err(IdentityValidationError::IdentityMismatch {
-                    kind: I::KIND,
-                    expected: *record.id().as_array(),
-                    actual: node.bytes,
+                    reason: "validated identity has the wrong concrete id type".to_owned(),
                 });
-            }
+            };
+            let record = CborIdentityRecord::from_verified(id, key.clone());
             records.push(record);
         }
         Ok(records)
@@ -1121,7 +1120,6 @@ impl ValidatedIdentityGraph {
     where
         I: PersistentId + 'static,
         K: RuntimeIdentityKey<I> + Clone + 'static,
-        K::Error: fmt::Display,
     {
         let mut records = Vec::new();
         for (node, candidate) in &self.candidates {
@@ -1136,20 +1134,20 @@ impl ValidatedIdentityGraph {
             else {
                 continue;
             };
-            let record = RuntimeIdentityRecord::from_key(key).map_err(|error| {
+            let Some(id) = candidate.trusted_id.downcast_ref::<I>().copied() else {
+                return Err(IdentityValidationError::InvalidRecord {
+                    kind: I::KIND,
+                    id: node.bytes,
+                    reason: "validated identity has the wrong concrete id type".to_owned(),
+                });
+            };
+            let record = RuntimeIdentityRecord::from_verified_key(id, key).map_err(|error| {
                 IdentityValidationError::InvalidRecord {
                     kind: I::KIND,
                     id: node.bytes,
                     reason: error.to_string(),
                 }
             })?;
-            if record.id().as_array() != &node.bytes {
-                return Err(IdentityValidationError::IdentityMismatch {
-                    kind: I::KIND,
-                    expected: *record.id().as_array(),
-                    actual: node.bytes,
-                });
-            }
             records.push(record);
         }
         Ok(records)

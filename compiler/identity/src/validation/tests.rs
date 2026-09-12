@@ -324,6 +324,7 @@ fn stable_kahn_uses_no_input_driven_recursion() {
         candidates.insert(
             node,
             Candidate {
+                trusted_id: Arc::new(bytes),
                 layer: Some(IdentityLayer::Hir),
                 resolved: true,
                 dependency_count: u64::from(index != 0),

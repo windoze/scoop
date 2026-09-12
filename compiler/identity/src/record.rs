@@ -47,6 +47,10 @@ impl<I: PersistentId, K: CborIdentityKey<I>> CborIdentityRecord<I, K> {
 }
 
 impl<I: PersistentId, K> CborIdentityRecord<I, K> {
+    pub(crate) const fn from_verified(id: I, key: K) -> Self {
+        Self { id, key }
+    }
+
     pub const fn id(&self) -> I {
         self.id
     }
@@ -165,6 +169,13 @@ impl<I: PersistentId> RuntimeIdentityRecord<I> {
 
     pub const fn id(&self) -> I {
         self.id
+    }
+
+    pub(crate) fn from_verified_key<K: RuntimeEncode>(
+        id: I,
+        key: &K,
+    ) -> Result<Self, RuntimeEncodeError> {
+        encode_runtime(key).map(|key_bytes| Self { id, key_bytes })
     }
 }
 
