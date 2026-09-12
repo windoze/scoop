@@ -127,6 +127,7 @@ mod persistent_fields;
 mod persistent_functions;
 mod persistent_initialization_units;
 mod persistent_local_bindings;
+mod persistent_native_boundary;
 mod persistent_native_contracts;
 mod persistent_nominals;
 mod persistent_object_values;
@@ -289,9 +290,12 @@ pub fn lower_legacy_combined_sources(
         .with_intrinsic_sources(sources, policy)
         .run(&files)?;
     let local = concretize::lower(&export);
+    let native_boundary_types = crate::persistent_native_boundary::build(&export, &local)
+        .map_err(native_boundary_diagnostic)?;
     Ok(hir::Output {
         export,
         local,
+        native_boundary_types,
         warnings,
     })
 }
@@ -308,11 +312,21 @@ pub fn lower_legacy_combined_executable(
         .with_intrinsic_sources(sources, policy)
         .run_legacy_executable(&files)?;
     let local = concretize::lower_legacy_executable(&export);
+    let native_boundary_types =
+        crate::persistent_native_boundary::build(export.module(), local.module())
+            .map_err(native_boundary_diagnostic)?;
     Ok(hir::LegacyExecutableOutput {
         export,
         local,
+        native_boundary_types,
         warnings,
     })
+}
+
+fn native_boundary_diagnostic(
+    error: persistent_native_boundary::PersistentNativeBoundaryTypeError,
+) -> Vec<Diagnostic> {
+    vec![Diagnostic::at(Span { start: 0, end: 0 }, error.to_string())]
 }
 
 fn materialize_combined_sources(

@@ -2,7 +2,10 @@ use std::ops::Deref;
 
 use scoop_ast::Diagnostic;
 
-use crate::{ExportHir, FunctionGenericity, FunctionId, FunctionKind, LocalConcreteHir, concrete};
+use crate::{
+    ExportHir, FunctionGenericity, FunctionId, FunctionKind, HirNativeBoundaryTypeDefinitions,
+    LocalConcreteHir, concrete,
+};
 
 /// Why an HIR graph cannot be wrapped as a legacy executable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,6 +116,7 @@ impl Deref for LegacyExecutableLocalHir {
 pub struct LegacyExecutableOutput {
     pub export: LegacyExecutableExportHir,
     pub local: LegacyExecutableLocalHir,
+    pub native_boundary_types: HirNativeBoundaryTypeDefinitions,
     pub warnings: Vec<Diagnostic>,
 }
 

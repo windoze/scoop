@@ -131,17 +131,24 @@ fn every_source_callable_and_constructor_uses_explicit_temporaries() {
 }
 
 fn callback_registration(mode: &str) -> ast::Expr {
+    callback_registration_with_value(mode, ty_named("Int"))
+}
+
+fn callback_registration_with_value(mode: &str, value_type: ast::TypeRef) -> ast::Expr {
     let native_signature = ty_function(
         false,
-        vec![ty_named("Int"), ty_generic("Ptr", vec![ty_named("Unit")])],
-        ty_named("Int"),
+        vec![
+            value_type.clone(),
+            ty_generic("Ptr", vec![ty_named("Unit")]),
+        ],
+        value_type.clone(),
     );
     let callback = ast::Expr::Lambda {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
             target: pat_bind("value"),
-            ty: Some(ty_named("Int")),
+            ty: Some(value_type),
             span: sp(),
         }]),
         body: block(vec![stmt(var("value"))]),
@@ -268,6 +275,67 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
     assert!(matches!(
         local_init(main, "registered").kind,
         hir::ExprKind::ForeignCallbackRegister { .. }
+    ));
+}
+
+#[test]
+fn callback_signature_adds_its_source_nominals_to_the_native_boundary_witness() {
+    let mut payload = struct_decl("CallbackPayload", vec![("value", ty_named("Int"))]);
+    let Decl::Struct(declaration) = &mut payload else {
+        unreachable!("struct_decl creates a struct")
+    };
+    declaration.annotations.push(ast::Annotation {
+        name: ident("CLayout"),
+        args: Vec::new(),
+        span: sp(),
+    });
+    let without_callback = lower_user_output(file(vec![payload.clone(), fun("main", vec![])]))
+        .expect("the unused callback payload lowers");
+    let with_callback = lower_user_output(file(vec![
+        payload,
+        fun(
+            "main",
+            vec![unsafe_block(vec![val(
+                "registered",
+                callback_registration_with_value("Reusable", ty_named("CallbackPayload")),
+            )])],
+        ),
+    ]))
+    .expect("the callback payload is C-safe and lowers");
+    let module = with_callback.export.module();
+    let payload = module
+        .structs
+        .iter()
+        .find_map(|(id, declaration)| (declaration.name == "CallbackPayload").then_some(id))
+        .expect("CallbackPayload declaration exists");
+    let owner = hir::NativeBoundaryNominalOwner::Concrete(
+        module.nominal_identities[payload]
+            .concrete_type_id()
+            .expect("CallbackPayload is a concrete source nominal"),
+    );
+
+    assert!(
+        without_callback
+            .native_boundary_types
+            .records()
+            .iter()
+            .all(|record| record.owner() != owner)
+    );
+    let record = with_callback
+        .native_boundary_types
+        .records()
+        .iter()
+        .find(|record| record.owner() == owner)
+        .expect("callback signature contributes its payload witness");
+    assert!(matches!(
+        record.shape(),
+        hir::NativeBoundaryNominalShape::Struct {
+            c_layout: hir::NativeBoundaryCLayoutPolicy::CLayout {
+                aligned: scoop_identity::CLayoutOverride::Natural,
+                packed: scoop_identity::CLayoutOverride::Natural,
+            },
+            fields,
+        } if fields.len() == 1
     ));
 }
 

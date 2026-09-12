@@ -111,6 +111,82 @@ fn native_contract_fixture(with_unrelated_prefix: bool) -> ast::SourceFile {
     file(declarations)
 }
 
+fn native_boundary_fixture(with_unrelated_prefix: bool) -> ast::SourceFile {
+    let header = annotate_struct(
+        struct_decl(
+            "NativeHeader",
+            vec![("tag", ty_named("Int")), ("size", ty_named("Long"))],
+        ),
+        vec![c_layout(8, 1)],
+    );
+    let payload = enum_decl(
+        "NativePayload",
+        vec![],
+        vec![
+            variant_unit("Empty"),
+            variant_named(
+                "Pair",
+                vec![("left", ty_named("Int")), ("right", ty_named("Long"))],
+            ),
+        ],
+    );
+    let boxed = generic_struct_decl("NativeBox", vec!["T"], vec![("value", ty_named("T"))]);
+    let envelope = struct_decl(
+        "NativeEnvelope",
+        vec![
+            (
+                "header",
+                ty_generic("NativeBox", vec![ty_named("NativeHeader")]),
+            ),
+            ("payload", ty_named("NativePayload")),
+        ],
+    );
+    let unrelated = struct_decl("UnrelatedNativeShape", vec![("value", ty_named("UInt"))]);
+    let round_trip = extern_fun(
+        "nativeEnvelopeRoundTrip",
+        vec![("value", ty_named("NativeEnvelope"))],
+        Some(ty_named("NativeEnvelope")),
+        extern_annotation("fixture_native", "native_envelope_round_trip", "scoop"),
+    );
+    let mut declarations = vec![
+        header,
+        payload,
+        boxed,
+        envelope,
+        unrelated,
+        round_trip,
+        fun("main", vec![]),
+    ];
+    if with_unrelated_prefix {
+        declarations.insert(0, fun("prefixOnly", vec![]));
+    }
+    file(declarations)
+}
+
+fn source_struct(module: &hir::Module, name: &str) -> hir::StructId {
+    module
+        .structs
+        .iter()
+        .find_map(|(id, declaration)| (declaration.name == name).then_some(id))
+        .unwrap_or_else(|| panic!("missing source struct {name}"))
+}
+
+fn source_enum(module: &hir::Module, name: &str) -> hir::EnumId {
+    module
+        .enums
+        .iter()
+        .find_map(|(id, declaration)| (declaration.name == name).then_some(id))
+        .unwrap_or_else(|| panic!("missing source enum {name}"))
+}
+
+fn concrete_owner(identity: &hir::HirNominalIdentity) -> hir::NativeBoundaryNominalOwner {
+    hir::NativeBoundaryNominalOwner::Concrete(
+        identity
+            .concrete_type_id()
+            .expect("the test nominal is non-generic and source-backed"),
+    )
+}
+
 #[test]
 fn source_native_contracts_cover_functions_and_globals_without_arena_identity() {
     let first = lower_user(native_contract_fixture(false)).expect("native contract fixture lowers");
@@ -163,6 +239,132 @@ fn source_native_contracts_cover_functions_and_globals_without_arena_identity() 
         contract("mutableTls"),
         scoop_identity::SourceNativeExternalContract::MutableTls { .. }
     ));
+}
+
+#[test]
+fn native_boundary_witness_is_the_exact_transitive_source_nominal_closure() {
+    let output = lower_user_output(native_boundary_fixture(false))
+        .expect("native boundary aggregate fixture lowers");
+    let shifted = lower_user_output(native_boundary_fixture(true))
+        .expect("unrelated prefix must not affect the native boundary witness");
+    assert_eq!(
+        output.native_boundary_types.records(),
+        shifted.native_boundary_types.records()
+    );
+
+    let module = output.export.module();
+    let records = output.native_boundary_types.records();
+    assert!(
+        records
+            .windows(2)
+            .all(|pair| { pair[0].owner().compare_sort_key(pair[1].owner()).is_lt() })
+    );
+
+    let header = source_struct(&module, "NativeHeader");
+    let payload = source_enum(&module, "NativePayload");
+    let boxed = source_struct(&module, "NativeBox");
+    let envelope = source_struct(&module, "NativeEnvelope");
+    let unrelated = source_struct(&module, "UnrelatedNativeShape");
+    let record = |owner| {
+        records
+            .iter()
+            .find(|record| record.owner() == owner)
+            .unwrap_or_else(|| panic!("missing native boundary witness for {owner:?}"))
+    };
+
+    let header_record = record(concrete_owner(&module.nominal_identities[header]));
+    let hir::NativeBoundaryNominalShape::Struct { c_layout, fields } = header_record.shape() else {
+        panic!("NativeHeader must retain its struct source shape")
+    };
+    assert_eq!(
+        *c_layout,
+        hir::NativeBoundaryCLayoutPolicy::CLayout {
+            aligned: scoop_identity::CLayoutOverride::Bytes(
+                scoop_identity::CLayoutByteAlignment::Bytes8,
+            ),
+            packed: scoop_identity::CLayoutOverride::Bytes(
+                scoop_identity::CLayoutByteAlignment::Bytes1,
+            ),
+        }
+    );
+    let expected_header_fields = (0..2)
+        .map(|index| {
+            let field = hir::StructFieldRef::checked(&module.structs, header, index)
+                .expect("NativeHeader field exists");
+            module.field_identities[field].id()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        fields.iter().map(|field| field.field()).collect::<Vec<_>>(),
+        expected_header_fields
+    );
+
+    let boxed_owner = hir::NativeBoundaryNominalOwner::GenericTemplate(
+        module.nominal_identities[boxed]
+            .generic_type_id()
+            .expect("NativeBox is a generic source nominal"),
+    );
+    let boxed_record = record(boxed_owner);
+    assert_eq!(boxed_record.type_parameter_count(), 1);
+    let hir::NativeBoundaryNominalShape::Struct { fields, .. } = boxed_record.shape() else {
+        panic!("NativeBox must retain its struct source shape")
+    };
+    assert!(matches!(
+        fields.as_slice(),
+        [field]
+            if field.ty()
+                == &scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }
+    ));
+
+    let envelope_record = record(concrete_owner(&module.nominal_identities[envelope]));
+    let hir::NativeBoundaryNominalShape::Struct { fields, .. } = envelope_record.shape() else {
+        panic!("NativeEnvelope must retain its struct source shape")
+    };
+    assert_eq!(fields.len(), 2);
+    assert!(matches!(
+        fields.first().map(|field| field.ty()),
+        Some(scoop_identity::SignatureTypeKey::NominalApplication { origin, arguments })
+            if Some(*origin) == module.nominal_identities[boxed].generic_type_id()
+                && arguments.as_slice().len() == 1
+    ));
+
+    let payload_record = record(concrete_owner(&module.nominal_identities[payload]));
+    let hir::NativeBoundaryNominalShape::Enum { variants } = payload_record.shape() else {
+        panic!("NativePayload must retain its enum source shape")
+    };
+    assert_eq!(variants.len(), 2);
+    let empty = hir::EnumVariantRef::checked(&module.enums, payload, 0)
+        .expect("NativePayload.Empty exists");
+    let pair =
+        hir::EnumVariantRef::checked(&module.enums, payload, 1).expect("NativePayload.Pair exists");
+    assert_eq!(
+        variants[0].variant(),
+        module.enum_member_identities[empty].id()
+    );
+    assert_eq!(
+        variants[1].variant(),
+        module.enum_member_identities[pair].id()
+    );
+    let expected_pair_fields = (0..2)
+        .map(|index| {
+            let field = hir::EnumVariantFieldRef::checked(&module.enums, pair, index)
+                .expect("NativePayload.Pair field exists");
+            module.enum_member_identities[field].id()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        variants[1]
+            .fields()
+            .iter()
+            .map(|field| field.field())
+            .collect::<Vec<_>>(),
+        expected_pair_fields
+    );
+    assert!(
+        records
+            .iter()
+            .all(|record| record.owner() != concrete_owner(&module.nominal_identities[unrelated]))
+    );
 }
 
 #[test]

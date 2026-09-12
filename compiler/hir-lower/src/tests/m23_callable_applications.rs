@@ -356,6 +356,10 @@ fn parameter_free_callback_has_one_persistent_application() {
 #[test]
 fn generic_callback_site_is_distinct_for_each_enclosing_application() {
     let output = lower_user_output(file(vec![
+        struct_decl(
+            "CallbackApplicationPayload",
+            vec![("value", ty_named("Int"))],
+        ),
         fun_sig(
             "register",
             vec!["T"],
@@ -370,7 +374,10 @@ fn generic_callback_site_is_distinct_for_each_enclosing_application() {
             "main",
             vec![
                 stmt(call("register", vec![int_lit(1)])),
-                stmt(call("register", vec![str_lit("value")])),
+                stmt(call(
+                    "register",
+                    vec![call("CallbackApplicationPayload", vec![int_lit(2)])],
+                )),
             ],
         ),
     ]))
@@ -413,4 +420,26 @@ fn generic_callback_site_is_distinct_for_each_enclosing_application() {
         .collect::<HashSet<_>>();
     assert_eq!(callback_applications.len(), 2);
     assert_eq!(module.callback_applications.len(), 2);
+
+    let payload = output
+        .export
+        .structs
+        .iter()
+        .find_map(|(id, declaration)| {
+            (declaration.name == "CallbackApplicationPayload").then_some(id)
+        })
+        .expect("CallbackApplicationPayload declaration exists");
+    let owner = hir::NativeBoundaryNominalOwner::Concrete(
+        output.export.nominal_identities[payload]
+            .concrete_type_id()
+            .expect("CallbackApplicationPayload is concrete"),
+    );
+    assert!(
+        output
+            .native_boundary_types
+            .records()
+            .iter()
+            .any(|record| record.owner() == owner),
+        "a callback application's exact type arguments belong to its witness closure"
+    );
 }

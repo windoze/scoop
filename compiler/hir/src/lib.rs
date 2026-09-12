@@ -29,6 +29,9 @@ pub type LocalConcreteHir = concrete::Module;
 pub struct Output {
     pub export: ExportHir,
     pub local: LocalConcreteHir,
+    /// Exact native-boundary witness derived from both the source graph and
+    /// the concrete callback-application graph.
+    pub native_boundary_types: HirNativeBoundaryTypeDefinitions,
     /// Non-fatal source diagnostics produced while constructing this output.
     /// They are not part of either HIR graph or serialized metadata.
     pub warnings: Vec<Diagnostic>,
@@ -104,6 +107,9 @@ pub use persistent_source_contexts::*;
 
 mod persistent_native_contracts;
 pub use persistent_native_contracts::*;
+
+mod persistent_native_boundary;
+pub use persistent_native_boundary::*;
 
 mod persistent_aliases;
 pub use persistent_aliases::*;
