@@ -50,17 +50,17 @@ struct DecodedMirFoundationWire {
 /// spelling. Unverified identity bytes remain private until the three layers
 /// are identity-checked, remapped, and committed atomically.
 #[derive(Debug)]
-pub struct ValidatedMirFoundationWire {
+pub struct DecodedMirFoundation {
     decoded: DecodedMirFoundationWire,
 }
 
-impl WireEncode for ValidatedMirFoundationWire {
+impl WireEncode for DecodedMirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         self.decoded.encode(encoder)
     }
 }
 
-impl WireDecode for ValidatedMirFoundationWire {
+impl WireDecode for DecodedMirFoundation {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         DecodedMirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
     }
@@ -136,8 +136,7 @@ mod tests {
     fn decodes_the_exact_empty_foundation_product() {
         let bytes = encode(&CanonicalMirFoundation::empty()).unwrap();
         let validated =
-            decode_canonical::<ValidatedMirFoundationWire>(&bytes, DecodeLimits::default())
-                .unwrap();
+            decode_canonical::<DecodedMirFoundation>(&bytes, DecodeLimits::default()).unwrap();
         let decoded = validated.decoded;
 
         assert!(decoded.exact_types.is_empty());
@@ -160,8 +159,8 @@ mod tests {
         assert_eq!(bytes[0], 0xac);
         bytes[0] = 0xab;
 
-        let error = decode_canonical::<ValidatedMirFoundationWire>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+        let error =
+            decode_canonical::<DecodedMirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -181,8 +180,8 @@ mod tests {
             + 2;
         bytes[second_field] = 3;
 
-        let error = decode_canonical::<ValidatedMirFoundationWire>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+        let error =
+            decode_canonical::<DecodedMirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {

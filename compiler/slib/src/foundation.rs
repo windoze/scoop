@@ -457,10 +457,10 @@ impl std::error::Error for IdentityFoundationArtifactError {}
 
 #[cfg(test)]
 mod tests {
-    use scoop_hir::ValidatedHirFoundationWire;
+    use scoop_hir::DecodedHirFoundation;
     use scoop_identity::{CapabilityId, ConeCoordinate};
-    use scoop_lir::ValidatedLirFoundationWire;
-    use scoop_mir::ValidatedMirFoundationWire;
+    use scoop_lir::DecodedLirFoundation;
+    use scoop_mir::DecodedMirFoundation;
     use scoop_wire::{DecodeLimits, decode_canonical};
 
     use super::*;
@@ -478,17 +478,17 @@ mod tests {
         )
         .unwrap();
 
-        assert_layer::<ValidatedHirFoundationWire>(
+        assert_layer::<DecodedHirFoundation>(
             foundations.hir_envelope(),
             foundations.hir_section(),
             MetadataLocation::Hir,
         );
-        assert_layer::<ValidatedMirFoundationWire>(
+        assert_layer::<DecodedMirFoundation>(
             foundations.mir_envelope(),
             foundations.mir_section(),
             MetadataLocation::Mir,
         );
-        assert_layer::<ValidatedLirFoundationWire>(
+        assert_layer::<DecodedLirFoundation>(
             foundations.lir_envelope(),
             foundations.lir_section(),
             MetadataLocation::Lir,

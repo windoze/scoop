@@ -19,7 +19,7 @@ use crate::{
 };
 
 mod wire;
-pub use wire::ValidatedMirFoundationWire;
+pub use wire::DecodedMirFoundation;
 mod projection;
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;

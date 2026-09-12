@@ -1,9 +1,9 @@
 use std::fmt;
 
-use scoop_hir::ValidatedHirFoundationWire;
+use scoop_hir::DecodedHirFoundation;
 use scoop_identity::{CapabilityId, ConeCoordinate, ConeIdentity};
-use scoop_lir::ValidatedLirFoundationWire;
-use scoop_mir::ValidatedMirFoundationWire;
+use scoop_lir::DecodedLirFoundation;
+use scoop_mir::DecodedMirFoundation;
 use scoop_wire::{DecodeUsage, WireError, decode_canonical_with_meter};
 
 use crate::{
@@ -22,9 +22,9 @@ use crate::{
 #[derive(Debug)]
 pub struct DecodedIdentityFoundations<'input> {
     graph: ValidatedGraphArtifact<'input>,
-    hir: ValidatedHirFoundationWire,
-    mir: ValidatedMirFoundationWire,
-    lir: ValidatedLirFoundationWire,
+    hir: DecodedHirFoundation,
+    mir: DecodedMirFoundation,
+    lir: DecodedLirFoundation,
 }
 
 impl<'input> ValidatedGraphArtifact<'input> {
@@ -90,7 +90,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
         let lir_section =
             required_foundation_section(&lir_envelope, lir_identity_foundation_capability())?;
 
-        let hir = decode_canonical_with_meter::<ValidatedHirFoundationWire>(
+        let hir = decode_canonical_with_meter::<DecodedHirFoundation>(
             hir_section.payload(),
             self.envelope.meter_mut(),
         )
@@ -98,7 +98,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
             location: MetadataLocation::Hir,
             source,
         })?;
-        let mir = decode_canonical_with_meter::<ValidatedMirFoundationWire>(
+        let mir = decode_canonical_with_meter::<DecodedMirFoundation>(
             mir_section.payload(),
             self.envelope.meter_mut(),
         )
@@ -106,7 +106,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
             location: MetadataLocation::Mir,
             source,
         })?;
-        let lir = decode_canonical_with_meter::<ValidatedLirFoundationWire>(
+        let lir = decode_canonical_with_meter::<DecodedLirFoundation>(
             lir_section.payload(),
             self.envelope.meter_mut(),
         )
@@ -186,15 +186,15 @@ impl DecodedIdentityFoundations<'_> {
         self.graph.decode_usage()
     }
 
-    pub const fn hir_wire(&self) -> &ValidatedHirFoundationWire {
+    pub const fn hir_wire(&self) -> &DecodedHirFoundation {
         &self.hir
     }
 
-    pub const fn mir_wire(&self) -> &ValidatedMirFoundationWire {
+    pub const fn mir_wire(&self) -> &DecodedMirFoundation {
         &self.mir
     }
 
-    pub const fn lir_wire(&self) -> &ValidatedLirFoundationWire {
+    pub const fn lir_wire(&self) -> &DecodedLirFoundation {
         &self.lir
     }
 }

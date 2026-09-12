@@ -23,7 +23,7 @@ use scoop_wire::{Encoder, WireEncode};
 use crate::{NativeBoundaryTypeDefinitionRecord, SourceRecord, SourceRecordError};
 
 mod wire;
-pub use wire::ValidatedHirFoundationWire;
+pub use wire::DecodedHirFoundation;
 mod counts;
 mod projection;
 pub use counts::HirFoundationCounts;

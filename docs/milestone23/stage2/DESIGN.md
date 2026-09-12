@@ -1767,15 +1767,16 @@ foundation中的layout/scan/dispatch table只有identity key，没有可被consu
 
 ### 9.3 IR crate API
 
-每个IR crate公开三类、且只公开三类边界：
+每个IR crate公开以下彼此不可替代的边界：
 
 ```text
 Canonical*Foundation               // lowerer构造的arena-independent projection
-Validated*FoundationWire           // decode + structural validation后的临时graph
+Decoded*Foundation                 // canonical wire decode后的未验证临时graph
+Validated*Foundation               // structural validation后的不可变临时graph
 Imported*Set + Imported*Id family  // commit后的session-local world
 ```
 
-encoder只接收`Canonical*Foundation`，不接收`Module`；decoder不直接写semantic world。`ImportedHirSet`、`ImportedMirSet`、`ImportedLirSet`各有独立arena/id family，它们不与current entity、LocalConcrete entity或相互的id互转。M23-2的imported set只提供identity/origin查询，API命名不使用`ExportHir`、`LinkableLir`或其他强于它已证明内容的词。
+encoder只接收`Canonical*Foundation`，不接收`Module`；decoder不直接写semantic world。`Decoded*Foundation`只证明closed canonical wire spelling，不能以类型名冒充structural validation proof。`ImportedHirSet`、`ImportedMirSet`、`ImportedLirSet`各有独立arena/id family，它们不与current entity、LocalConcrete entity或相互的id互转。M23-2的imported set只提供identity/origin查询，API命名不使用`ExportHir`、`LinkableLir`或其他强于它已证明内容的词。
 
 ## 10. deterministic normal `ar`
 

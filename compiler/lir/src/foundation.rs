@@ -22,7 +22,7 @@ use crate::{CallbackBridgeRecord, RuntimeTypeMappingRecord, SafepointMappingReco
 use scoop_identity::PersistentSymbolRequestTable;
 
 mod wire;
-pub use wire::ValidatedLirFoundationWire;
+pub use wire::DecodedLirFoundation;
 
 mod projection;
 

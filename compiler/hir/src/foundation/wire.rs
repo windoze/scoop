@@ -106,17 +106,17 @@ struct DecodedHirFoundationWire {
 /// reference closure, typed remap, and atomic commit are performed when this
 /// temporary graph is converted into an imported HIR set.
 #[derive(Debug)]
-pub struct ValidatedHirFoundationWire {
+pub struct DecodedHirFoundation {
     decoded: DecodedHirFoundationWire,
 }
 
-impl WireEncode for ValidatedHirFoundationWire {
+impl WireEncode for DecodedHirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         self.decoded.encode(encoder)
     }
 }
 
-impl WireDecode for ValidatedHirFoundationWire {
+impl WireDecode for DecodedHirFoundation {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         DecodedHirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
     }
@@ -228,8 +228,7 @@ mod tests {
     fn decodes_the_exact_empty_foundation_product() {
         let bytes = encode(&CanonicalHirFoundation::empty()).unwrap();
         let validated =
-            decode_canonical::<ValidatedHirFoundationWire>(&bytes, DecodeLimits::default())
-                .unwrap();
+            decode_canonical::<DecodedHirFoundation>(&bytes, DecodeLimits::default()).unwrap();
         let decoded = validated.decoded;
 
         assert!(decoded.sources.is_empty());
@@ -270,8 +269,8 @@ mod tests {
         assert_eq!(&bytes[..2], &[0xb8, 30]);
         bytes[1] = 29;
 
-        let error = decode_canonical::<ValidatedHirFoundationWire>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+        let error =
+            decode_canonical::<DecodedHirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -291,8 +290,8 @@ mod tests {
             + 2;
         bytes[second_field] = 3;
 
-        let error = decode_canonical::<ValidatedHirFoundationWire>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+        let error =
+            decode_canonical::<DecodedHirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {

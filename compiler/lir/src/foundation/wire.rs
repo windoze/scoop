@@ -73,17 +73,17 @@ struct DecodedLirFoundationWire {
 /// spelling. Unverified identity bytes remain private until cross-layer
 /// identity validation, typed remap, and atomic commit all succeed.
 #[derive(Debug)]
-pub struct ValidatedLirFoundationWire {
+pub struct DecodedLirFoundation {
     decoded: DecodedLirFoundationWire,
 }
 
-impl WireEncode for ValidatedLirFoundationWire {
+impl WireEncode for DecodedLirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         self.decoded.encode(encoder)
     }
 }
 
-impl WireDecode for ValidatedLirFoundationWire {
+impl WireDecode for DecodedLirFoundation {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         DecodedLirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
     }
@@ -180,8 +180,7 @@ mod tests {
     fn decodes_the_exact_empty_foundation_product() {
         let bytes = encode(&CanonicalLirFoundation::empty()).unwrap();
         let validated =
-            decode_canonical::<ValidatedLirFoundationWire>(&bytes, DecodeLimits::default())
-                .unwrap();
+            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
         let decoded = validated.decoded;
 
         assert!(decoded.exact_types.is_empty());
@@ -213,8 +212,8 @@ mod tests {
         assert_eq!(&bytes[..2], &[0xb6, 1]);
         bytes[0] = 0xb5;
 
-        let error = decode_canonical::<ValidatedLirFoundationWire>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+        let error =
+            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -234,8 +233,8 @@ mod tests {
             + 2;
         bytes[second_field] = 3;
 
-        let error = decode_canonical::<ValidatedLirFoundationWire>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+        let error =
+            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {
