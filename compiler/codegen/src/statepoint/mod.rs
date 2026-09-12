@@ -29,7 +29,7 @@ use la_arena::RawIdx;
 use scoop_lir::GcEffect;
 
 use crate::CodegenError;
-use crate::TargetProfile;
+use crate::ValidatedBackendProfile;
 use crate::target::ManagedAddressSpace;
 
 const GC_STRATEGY: &str = "statepoint-example";

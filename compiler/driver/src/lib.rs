@@ -68,7 +68,7 @@ pub fn compile_file_with_options(
     out_dir: &Path,
     options: &CompileOptions,
 ) -> Result<CompileSuccess, Vec<Diagnostic>> {
-    let target_profile = scoop_codegen::TargetProfile::resolve_host()
+    let target_profile = scoop_codegen::ResolvedTargetProfile::resolve_host()
         .map_err(|error| vec![no_span(0, format!("target configuration failed: {error}"))])?;
     let inputs = load_inputs(path)?;
     let user_index = inputs.len() - 1;
@@ -170,7 +170,7 @@ pub fn compile_file_with_options(
     })?;
     let mir_dump = scoop_mir::dump(&mir);
 
-    let lir = scoop_lir_lower::lower(&mir, target_profile.lir_target_profile());
+    let lir = scoop_lir_lower::lower(&mir, target_profile.lir_target());
     let lir_dump = scoop_lir::dump(&lir);
 
     let build = (|| -> Result<(StageDumps, PathBuf), Vec<Diagnostic>> {
@@ -187,7 +187,7 @@ pub fn compile_file_with_options(
         let object = out_dir.join(format!("{stem}.o"));
         let binary = out_dir.join(stem);
 
-        scoop_codegen::emit_object(&lir, &object, target_profile)
+        scoop_codegen::emit_object(&lir, &object, target_profile.backend())
             .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
 
         let bridge_object = match scoop_codegen::c_bridge_source(&lir).map_err(|e| {
@@ -205,13 +205,18 @@ pub fn compile_file_with_options(
                         format!("cannot write C bridge {}: {error}", source_path.display()),
                     )]
                 })?;
-                compile_c_bridge(&source_path, &object_path, target_profile, user_index)?;
+                compile_c_bridge(
+                    &source_path,
+                    &object_path,
+                    target_profile.c_bridge_toolchain(),
+                    user_index,
+                )?;
                 Some(object_path)
             }
             None => None,
         };
 
-        let runtime_lib = build_runtime(user_index, target_profile)?;
+        let runtime_lib = build_runtime(user_index, target_profile.runtime_build())?;
         let mut libraries = Vec::new();
         for (_, extern_) in lir.extern_functions.iter() {
             if !extern_.library.is_empty() && !libraries.contains(&extern_.library) {
@@ -230,7 +235,7 @@ pub fn compile_file_with_options(
             libraries: &libraries,
             library_paths: &options.library_paths,
             binary: &binary,
-            target_profile,
+            profile: target_profile.final_link(),
             file: user_index,
         })?;
 

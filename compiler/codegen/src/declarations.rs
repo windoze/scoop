@@ -11,7 +11,7 @@ pub(crate) fn declare_function<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &StructDefs,
     enums: &EnumDefs,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
     function: &Function,
 ) -> Result<(), CodegenError> {
     let managed_address_space = profile.managed_address_space_contract();

@@ -13,7 +13,7 @@ use roots::{gc_live_root_identities, gc_live_roots, verify_statepoint_shape};
 pub(crate) fn verify_rewritten(
     module: &LlvmModule<'_>,
     expected: &ExpectedSafepoints,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
 ) -> Result<(), CodegenError> {
     verify_function_policies(module, expected, profile)?;
     let managed_address_space = profile.managed_address_space_contract();

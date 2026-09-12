@@ -7,13 +7,13 @@ mod eh_artifact;
 pub(super) fn compile_c_bridge(
     source: &Path,
     object: &Path,
-    target_profile: scoop_codegen::TargetProfile,
+    toolchain: scoop_codegen::ValidatedCBridgeToolchainProfile,
     file: usize,
 ) -> Result<(), Vec<Diagnostic>> {
-    let output = Command::new("cc")
+    let output = Command::new(toolchain.compiler_driver())
         .arg("-target")
-        .arg(target_profile.canonical_triple())
-        .arg("-std=c11")
+        .arg(toolchain.canonical_triple())
+        .args(toolchain.compiler_args())
         .arg("-c")
         .arg(source)
         .arg("-o")
@@ -22,7 +22,10 @@ pub(super) fn compile_c_bridge(
         .map_err(|error| {
             vec![no_span(
                 file,
-                format!("failed to run C bridge compiler `cc`: {error}"),
+                format!(
+                    "failed to run C bridge compiler `{}`: {error}",
+                    toolchain.compiler_driver()
+                ),
             )]
         })?;
     if !output.status.success() {
@@ -44,7 +47,7 @@ pub(super) fn compile_c_bridge(
 /// `docs/milestone1/DESIGN.md` section 2.7).
 pub(super) fn build_runtime(
     file: usize,
-    target_profile: scoop_codegen::TargetProfile,
+    profile: scoop_codegen::ValidatedRuntimeBuildProfile,
 ) -> Result<PathBuf, Vec<Diagnostic>> {
     let root = workspace_root();
     let out_dir = root.join("target/scoop-rt");
@@ -58,11 +61,11 @@ pub(super) fn build_runtime(
         )]
     })?;
     let mut build = cc::Build::new();
-    for source in target_profile.runtime_sources() {
+    for source in profile.runtime_sources() {
         build.file(root.join(source));
     }
     build.include(root.join("runtime/include"));
-    for flag in target_profile.runtime_c_flags() {
+    for flag in profile.runtime_c_flags() {
         build.flag(flag);
     }
     build
@@ -70,8 +73,8 @@ pub(super) fn build_runtime(
         // The driver is not a build script: cargo does not provide
         // TARGET/HOST here, so set them explicitly and silence cargo
         // metadata output.
-        .target(target_profile.canonical_triple())
-        .host(target_profile.canonical_triple())
+        .target(profile.canonical_triple())
+        .host(profile.canonical_triple())
         .cargo_metadata(false)
         // Outside a build script there is no OPT_LEVEL/DEBUG either.
         .opt_level(0)
@@ -95,7 +98,7 @@ pub(super) struct LinkRequest<'a> {
     pub(super) libraries: &'a [String],
     pub(super) library_paths: &'a [PathBuf],
     pub(super) binary: &'a Path,
-    pub(super) target_profile: scoop_codegen::TargetProfile,
+    pub(super) profile: scoop_codegen::ValidatedFinalLinkProfile,
     pub(super) file: usize,
 }
 
@@ -107,20 +110,18 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
         libraries,
         library_paths,
         binary,
-        target_profile,
+        profile,
         file,
     } = request;
-    verify_target_linker_eh_contract(target_profile, libraries).map_err(|errors| {
+    verify_target_linker_eh_contract(profile, libraries).map_err(|errors| {
         errors
             .into_iter()
             .map(|error| no_span(file, format!("linker EH contract failed: {error}")))
             .collect::<Vec<_>>()
     })?;
 
-    let mut command = Command::new("cc");
-    command
-        .arg("-target")
-        .arg(target_profile.canonical_triple());
+    let mut command = Command::new(profile.linker_driver());
+    command.arg("-target").arg(profile.canonical_triple());
     command.arg(object);
     if let Some(bridge_object) = bridge_object {
         command.arg(bridge_object);
@@ -132,12 +133,16 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
     for library in libraries {
         command.arg(format!("-l{library}"));
     }
-    command.args(target_profile.linker_args());
-    let output = command
-        .arg("-o")
-        .arg(binary)
-        .output()
-        .map_err(|e| vec![no_span(file, format!("failed to run the linker `cc`: {e}"))])?;
+    command.args(profile.linker_args());
+    let output = command.arg("-o").arg(binary).output().map_err(|error| {
+        vec![no_span(
+            file,
+            format!(
+                "failed to run linker `{}`: {error}",
+                profile.linker_driver()
+            ),
+        )]
+    })?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(vec![no_span(
@@ -149,7 +154,7 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
             ),
         )]);
     }
-    verify_target_executable_eh_contract(target_profile, binary).map_err(|errors| {
+    verify_target_executable_eh_contract(profile, binary).map_err(|errors| {
         errors
             .into_iter()
             .map(|error| {
@@ -163,21 +168,21 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
 }
 
 fn verify_target_linker_eh_contract(
-    target_profile: scoop_codegen::TargetProfile,
+    profile: scoop_codegen::ValidatedFinalLinkProfile,
     libraries: &[String],
 ) -> Result<(), Vec<String>> {
-    match target_profile.id() {
+    match profile.id() {
         scoop_codegen::TargetProfileId::DarwinAarch64 => {
-            eh_artifact::verify_linker_arguments(libraries, target_profile.linker_args())
+            eh_artifact::verify_linker_arguments(libraries, profile.linker_args())
         }
     }
 }
 
 fn verify_target_executable_eh_contract(
-    target_profile: scoop_codegen::TargetProfile,
+    profile: scoop_codegen::ValidatedFinalLinkProfile,
     binary: &Path,
 ) -> Result<(), Vec<String>> {
-    match target_profile.id() {
+    match profile.id() {
         scoop_codegen::TargetProfileId::DarwinAarch64 => eh_artifact::verify_executable(binary),
     }
 }

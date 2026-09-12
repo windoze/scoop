@@ -1080,7 +1080,7 @@ NativeBoundaryTypeDefinitionRecordV1 {
 
 数组顺序就是source declaration order；不能按field/variant id排序后伪造顺序。Concrete/GenericTemplate owner、parameter count、source kind、field/variant owner与完整集合必须逐项等于同artifact的identity records；field type允许合法binder，但depth/index必须落入owner binder stack。Reference只接受class/interface/object/annotation class且不携带field列表；Struct/Enum分别只接受对应source kind。`CLayout`只接受带该annotation的struct并保存已完成constant evaluation的规范override，其他struct必须用`NotCLayout`。trusted core registry以相同逻辑提供`Unit`、Boolean、定宽integer、`Option`、`Ptr`/`FunPtr`、`PinnedPtr`/`GcHandle`及其他可命名core nominal的sealed witness，普通artifact不能覆写；tuple、managed function、raw/native pointer的结构边直接来自`ExactTypeKey`。
 
-每个artifact的record集合精确覆盖其source extern、callback registration/application与target contract所引用exact/signature type的传递source-nominal闭包；无关额外record拒绝，避免改变fingerprint却没有用途。对generic application，validator从exact key的arguments按binder位置替换上述source shape，再按语言规范与`ValidatedLirTargetSelectionV1`重算：C-FFI-safe predicate、C storage/layout、Scoop value size/alignment/shape及Elided/Direct/Indirect选择。若闭包边指向direct dependency且当前profile没有相应closure proof，Graph仍可成功，但M23-2单artifactCompile以`SLIB_CAPABILITY_NATIVE_BOUNDARY_CLOSURE_REQUIRED`稳定失败，不返回“部分验证”的ABI对象；M23-6的`ValidatedArtifactClosure<Compile>`取得依赖witness与通用layout/scan section后完成它。M23-3的core-only profile只允许当前Cone加trusted core可闭合的boundary witness，不能跳过缺项。
+每个artifact的record集合精确覆盖其source extern、callback registration/application与target contract所引用exact/signature type的传递source-nominal闭包；无关额外record拒绝，避免改变fingerprint却没有用途。对generic application，validator从exact key的arguments按binder位置替换上述source shape，再按语言规范与`ValidatedLirTargetSelection`重算：C-FFI-safe predicate、C storage/layout、Scoop value size/alignment/shape及Elided/Direct/Indirect选择。若闭包边指向direct dependency且当前profile没有相应closure proof，Graph仍可成功，但M23-2单artifactCompile以`SLIB_CAPABILITY_NATIVE_BOUNDARY_CLOSURE_REQUIRED`稳定失败，不返回“部分验证”的ABI对象；M23-6的`ValidatedArtifactClosure<Compile>`取得依赖witness与通用layout/scan section后完成它。M23-3的core-only profile只允许当前Cone加trusted core可闭合的boundary witness，不能跳过缺项。
 
 LIR在当前LIR target profile下完成native symbol/calling-convention与canonical C storage/bridge正规化后产生唯一target-specific leaf。以下所有product按列出的field编号编码，所有sum仍使用`0=非零tag`：
 
@@ -1122,7 +1122,7 @@ CanonicalCAbiFunctionSignature {
 }
 ```
 
-当前Darwin/AArch64 profile只登记`TargetCallingConvention::Cdecl=1`。这份signature是canonical C**源码storage contract**，刻意不手写或持久化平台register class、integer extension、`byval`/`sret`等真实C ABI分类；所有C function/global/callback都由M12的canonical generated-C bridge交给`ValidatedCBridgeToolchainProfileV1`指定的system C compiler完成该侧lowering，Scoop侧桥接入口使用本设计已经类型化的storage ABI。decoder从exact type与C layout closure重算每项storage，并由后续generated-bridge capability验证bridge source/object及其compiler/toolchain evidence；不能从host ABI默认值补一个pass mode。`CanonicalCAbiSignatureFingerprint = DomainSeparatedCborHash("scoop-c-abi-signature-v1", CanonicalCAbiFunctionSignature)`。
+当前Darwin/AArch64 profile只登记`TargetCallingConvention::Cdecl=1`。这份signature是canonical C**源码storage contract**，刻意不手写或持久化平台register class、integer extension、`byval`/`sret`等真实C ABI分类；所有C function/global/callback都由M12的canonical generated-C bridge交给`ValidatedCBridgeToolchainProfile`指定的system C compiler完成该侧lowering，Scoop侧桥接入口使用本设计已经类型化的storage ABI。decoder从exact type与C layout closure重算每项storage，并由后续generated-bridge capability验证bridge source/object及其compiler/toolchain evidence；不能从host ABI默认值补一个pass mode。`CanonicalCAbiSignatureFingerprint = DomainSeparatedCborHash("scoop-c-abi-signature-v1", CanonicalCAbiFunctionSignature)`。
 
 ```text
 CanonicalCAbiLayoutField {
@@ -1512,16 +1512,16 @@ BackendProfileFingerprint = 03ab3ae611e31f2ac7dde6486deea185c981f5313b939f5cf936
 请求级完整选择使用另一种不可部分构造的product，而不是把上述任一leaf继续膨胀：
 
 ```text
-ResolvedTargetProfileV1 {
-    lir_target: ValidatedLirTargetProfileV1,          // field 1
-    backend: ValidatedBackendProfileV1,               // field 2
-    c_bridge_toolchain: ValidatedCBridgeToolchainProfileV1, // field 3
-    runtime_build: ValidatedRuntimeBuildProfileV1,    // field 4
-    final_link: ValidatedTargetLinkProfileV1,          // field 5
+ResolvedTargetProfile {
+    lir_target: LirTargetProfile,          // field 1
+    backend: ValidatedBackendProfile,               // field 2
+    c_bridge_toolchain: ValidatedCBridgeToolchainProfile, // field 3
+    runtime_build: ValidatedRuntimeBuildProfile,    // field 4
+    final_link: ValidatedFinalLinkProfile,          // field 5
 }
 ```
 
-registry原子解析五个projection并证明canonical triple、object format、deployment、calling-convention、pointer/storage ABI、compiler output与link input互相相容；不存在“先取host默认值、后来再补”的构造器。M23-2只构造并持久化前两项组成的`ValidatedLirTargetSelectionV1`，不伪造完整`ResolvedTargetProfileV1`；后三项由后续required capability分别冻结，并进入Code、RuntimeArtifact/RuntimeImage和ResolvedLinkPlan fingerprint。`lir-lower`只接收`lir_target`，Scoop codegen接收`lir_target + backend`，generated-C producer接收`lir_target + c_bridge_toolchain`，runtime-build接收`lir_target + c_bridge_toolchain + runtime_build`，program-link接收`lir_target + final_link`以及已经验证的其他stage产物。任一stage都不能从host、另一projection或已生成object反推自己缺少的项。
+registry原子解析五个projection并证明canonical triple、object format、deployment、calling-convention、pointer/storage ABI、compiler output与link input互相相容；不存在“先取host默认值、后来再补”的构造器。M23-2只构造并持久化前两项组成的`ValidatedLirTargetSelection`，不伪造完整`ResolvedTargetProfile`；后三项由后续required capability分别冻结，并进入Code、RuntimeArtifact/RuntimeImage和ResolvedLinkPlan fingerprint。`lir-lower`只接收`lir_target`，Scoop codegen接收`lir_target + backend`，generated-C producer接收`lir_target + c_bridge_toolchain`，runtime-build接收`lir_target + c_bridge_toolchain + runtime_build`，program-link接收`lir_target + final_link`以及已经验证的其他stage产物。任一stage都不能从host、另一projection或已生成object反推自己缺少的项。
 
 `ConeRecordV1`字段为`1=coordinate, 2=identity, 3=kind, 4=source_form`。kind tag为`Library=1, Executable=2`，source form为`Manifest=1, SingleFile=2`。reader重算Cone identity；`SingleFile`必须使用reserved coordinate，其他artifact不得使用它。M23-2 foundation不因kind强制main或可发布性，这两个证明由M23-3增加。
 

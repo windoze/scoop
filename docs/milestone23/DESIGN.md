@@ -374,7 +374,7 @@ PersistentCallbackApplicationId =
                             CallbackApplicationKey)
 ```
 
-HIR registration的signature/managed shape允许合法binder，只标识一次source conversion site；MIR application必须按context完成全部替换。`NoSubstitution`只接binder-free site，普通generic callable使用能回溯registration parent的`Application`，generic delegated initializer/ensure使用同property与完整receiver arguments的`InitializationApplication`。MIR以application为主键保存exact managed signature、mode及固定`{closure, result storage, roots, throwable} -> u32 status` storage ABI；LIR再把该application的source C signature按`ValidatedLirTargetSelectionV1`正规化，并保存`{application, CanonicalCAbiSignatureFingerprint, GeneratedBridgeUnitId}`。不同application可以复用同一个`CallbackTrampoline(signature,index)` unit，不得复制unit identity或把registration误作concrete application。
+HIR registration的signature/managed shape允许合法binder，只标识一次source conversion site；MIR application必须按context完成全部替换。`NoSubstitution`只接binder-free site，普通generic callable使用能回溯registration parent的`Application`，generic delegated initializer/ensure使用同property与完整receiver arguments的`InitializationApplication`。MIR以application为主键保存exact managed signature、mode及固定`{closure, result storage, roots, throwable} -> u32 status` storage ABI；LIR再把该application的source C signature按`ValidatedLirTargetSelection`正规化，并保存`{application, CanonicalCAbiSignatureFingerprint, GeneratedBridgeUnitId}`。不同application可以复用同一个`CallbackTrampoline(signature,index)` unit，不得复制unit identity或把registration误作concrete application。
 
 编译器生成实体使用typed owner path：closure/local function/default expansion helper以owner persistent callable + structural definition path；box/adapter/coroutine frame以生成角色 + exact source/target type；global/string/init storage以所属声明或content role。只有file-private/top-level hidden且语义允许同名的实体才把normalized Cone-relative source identity纳入key。
 
@@ -655,23 +655,23 @@ native linker只按目标符号工作，不会检查两个Cone是否把同一`@E
 target选择不是一个可由各stage自行补字段的`TargetProfile`袋子。driver/registry原子构造以下完整product并验证canonical triple、object format、deployment、calling convention、pointer/storage ABI、compiler输出与link输入互相相容：
 
 ```text
-ResolvedTargetProfileV1 {
-    lir_target: ValidatedLirTargetProfileV1,               // field 1
-    backend: ValidatedBackendProfileV1,                    // field 2
-    c_bridge_toolchain: ValidatedCBridgeToolchainProfileV1,// field 3
-    runtime_build: ValidatedRuntimeBuildProfileV1,         // field 4
-    final_link: ValidatedTargetLinkProfileV1,               // field 5
+ResolvedTargetProfile {
+    lir_target: LirTargetProfile,               // field 1
+    backend: ValidatedBackendProfile,                    // field 2
+    c_bridge_toolchain: ValidatedCBridgeToolchainProfile,// field 3
+    runtime_build: ValidatedRuntimeBuildProfile,         // field 4
+    final_link: ValidatedFinalLinkProfile,               // field 5
 }
 
-ValidatedLirTargetSelectionV1 = {
-    lir_target: ValidatedLirTargetProfileV1,
-    backend: ValidatedBackendProfileV1,
+ValidatedLirTargetSelection = {
+    lir_target: LirTargetProfile,
+    backend: ValidatedBackendProfile,
 }
 ```
 
-M23-2只构造并持久化前两项组成的`ValidatedLirTargetSelectionV1`，不伪造完整profile；后三项由后续required capability冻结：`c_bridge_toolchain`进入generated-bridge Code fingerprint，`lir_target + c_bridge_toolchain + runtime_build`进入`RuntimeArtifactFingerprint`并只经该validated产物继续影响RuntimeImage/Graph，`lir_target + final_link`进入`ResolvedLinkPlanFingerprint`。`lir-lower`只接收`lir_target`，Scoop codegen接收`lir_target + backend`，generated-C producer接收`lir_target + c_bridge_toolchain`，runtime-build接收`lir_target + c_bridge_toolchain + runtime_build`，program-link接收`lir_target + final_link`以及已经验证的其他stage产物。任一stage不得从host默认、另一projection或既有object反推缺少的项。
+M23-2只构造并持久化前两项组成的`ValidatedLirTargetSelection`，不伪造完整profile；后三项由后续required capability冻结：`c_bridge_toolchain`进入generated-bridge Code fingerprint，`lir_target + c_bridge_toolchain + runtime_build`进入`RuntimeArtifactFingerprint`并只经该validated产物继续影响RuntimeImage/Graph，`lir_target + final_link`进入`ResolvedLinkPlanFingerprint`。`lir-lower`只接收`lir_target`，Scoop codegen接收`lir_target + backend`，generated-C producer接收`lir_target + c_bridge_toolchain`，runtime-build接收`lir_target + c_bridge_toolchain + runtime_build`，program-link接收`lir_target + final_link`以及已经验证的其他stage产物。任一stage不得从host默认、另一projection或既有object反推缺少的项。
 
-HIR先解析省略的`name`并保存source-level extern contract；LIR在`ValidatedLirTargetSelectionV1`下完成native symbol/calling-convention与canonical storage正规化后生成：
+HIR先解析省略的`name`并保存source-level extern contract；LIR在`ValidatedLirTargetSelection`下完成native symbol/calling-convention与canonical storage正规化后生成：
 
 ```text
 NativeExternalSymbolKey = {
@@ -1119,9 +1119,9 @@ program descriptor verifier只允许schema声明的program record、image/root/c
 
 ```text
 ValidatedRuntimeArtifact {
-    lir_target: ValidatedLirTargetProfileV1,
-    c_bridge_toolchain: ValidatedCBridgeToolchainProfileV1,
-    runtime_build: ValidatedRuntimeBuildProfileV1,
+    lir_target: LirTargetProfile,
+    c_bridge_toolchain: ValidatedCBridgeToolchainProfile,
+    runtime_build: ValidatedRuntimeBuildProfile,
     runtime_abi: RuntimeAbiFingerprint,
     objects: NonEmpty<ValidatedRuntimeObject>,
     definitions: CanonicalRuntimeDefinitionSet,
@@ -1328,7 +1328,7 @@ reader的基础语义purpose由类型参数选择`Graph`、`Compile`或`Link`之
 - producer compiler版本（仅诊断）、language ABI、runtime ABI、mangling/identity version；
 - canonical Cone coordinate、`ConeIdentity`、Cone kind；
 - exact direct dependency records及编译时三层semantic fingerprints；
-- `ResolvedTargetProfileV1`五投影中的LIR target id/fingerprint与backend id/fingerprint进入compatibility；C-bridge toolchain、runtime-build与final-link profile由其后续required capability、runtime artifact或resolved link plan分别承诺，不能伪装成前两项。每个native object的object format由自己的member record携带并必须与对应投影兼容；
+- `ResolvedTargetProfile`五投影中的LIR target id/fingerprint与backend id/fingerprint进入compatibility；C-bridge toolchain、runtime-build与final-link profile由其后续required capability、runtime artifact或resolved link plan分别承诺，不能伪装成前两项。每个native object的object format由自己的member record携带并必须与对应投影兼容；
 - 每个**非manifest** member的完整`SlibMemberRecord`，包括typed id/stable key、role/capability/purpose、byte length与SHA-256；manifest不能包含自身member hash，物理archive name只由canonical目录ordinal派生。由目录可重算的required-capability摘要若为快速拒绝而冗余保存，reader必须逐项证明相等；
 - public/re-export/prelude index摘要、source table摘要；
 - ODR records、每个ObjectDefinition/patch intent/generated-bridge unit到`SlibMemberId`/actual offset或member的完整materialization relation、按member分区的全部strong/ODR `DefinitionAtomRange`、每个ODR record引用的精确range子集、typed digest graph、runtime type/Safepoint/callable-body full-id映射、六类runtime registration record摘要，以及每条记录都带member id的完整`DefinedLinkSymbolOwner`/`UndefinedSymbolRequirement` index；
@@ -1581,15 +1581,15 @@ slib-read:  ExplicitSlibPaths + ArtifactPurpose<P> + DiagnosticsPolicy
 parser:    IdentifiedSourceInput -> IdentifiedParsedSource
 hir-lower: CurrentConeParsedSources + ImportedHirSet -> ExportHir + LocalConcreteHir + CrossConeUseSet
 mir-lower: LocalConcreteHir + SelectedImportedMir -> Mir + MirMeta
-driver:     TargetSelectionRequest -> ResolvedTargetProfileV1
-lir-lower: Mir + SelectedImportedLir + ResolvedTargetProfileV1.lir_target
+driver:     TargetSelectionRequest -> ResolvedTargetProfile
+lir-lower: Mir + SelectedImportedLir + ResolvedTargetProfile.lir_target
             -> Lir + LirMeta
 codegen:   CurrentConeLir(with member-independent definition/digest plans)
-           + ResolvedTargetProfileV1.{lir_target, backend}
+           + ResolvedTargetProfile.{lir_target, backend}
            -> ProvisionalLinkObjectMembers + MemberMaterializationIndex
               + GeneratedNativeMemberInputs
 native:    GeneratedNativeMemberInputs
-           + ResolvedTargetProfileV1.{lir_target, c_bridge_toolchain}
+           + ResolvedTargetProfile.{lir_target, c_bridge_toolchain}
            -> ProvisionalLinkObjectMembers + MemberMaterializationIndex
 object:    ProvisionalLinkObjectMembers + CurrentConeLir.ObjectDefinitionPlan
            + MemberMaterializationIndex
@@ -1606,12 +1606,12 @@ slib:      manifest semantic inputs + ExportHirMeta + MirMeta + LirMeta
 scoop:     RootManifest + Locator/Search/CachePolicy
            -> ResolvedBuildGraph
               + dependency-first sequence<ScoopcInvocation> + RootSlib
-runtime:   ResolvedTargetProfileV1.{lir_target, c_bridge_toolchain,
+runtime:   ResolvedTargetProfile.{lir_target, c_bridge_toolchain,
                                     runtime_build}
            -> ValidatedRuntimeArtifact
 program-link:
            ValidatedArtifactClosure<Link> + ValidatedRuntimeArtifact
-           + ResolvedTargetProfileV1.{lir_target, final_link}
+           + ResolvedTargetProfile.{lir_target, final_link}
            + NativeLocatorPolicy
            -> VerifiedProgramDescriptorObject + ResolvedLinkPlan
               + FinalLinkEvidence + VerifiedExecutable
@@ -1682,7 +1682,7 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
 
 每次`scoopc`成功后，`scoop`重新读取完整输出，分别构造Compile与Link view，并核对计划中的coordinate、dependency fingerprint、target与cache key，再原子发布cache entry。子进程失败时不再启动其dependent，也不运行link；已经完成的独立artifact可留在content-addressed cache。`scoopc`以结构化诊断通道报告typed error/warning，`scoop`只排序、标注Cone并汇总，不解析或改写面向人的stderr文本。library root只有在同一双view门禁通过后才以其`.slib`结束；executable root也先完整生成并验证同类`.slib`，再把保留的Link closure交给同一个program-link stage。
 
-对executable root，`scoop`还负责取得runtime输入：它从同一个`ResolvedTargetProfileV1`投影出`lir_target + c_bridge_toolchain + runtime_build`，选择受信任runtime source set并调用`compiler/runtime-build`。该组件按这三项固定的target/storage ABI、C compiler identity/flags与source/build rules独立构建，逐object验证并按3.7的精确七字段preimage计算`RuntimeArtifactFingerprint`，最终只返回不可伪造的`ValidatedRuntimeArtifact`。M23不接受外部prebuilt runtime bundle或raw `.a`，也不缓存这层结果。program-link从不打开runtime源码、不调用C compiler；显式`scoop link`同样先走这一步，而`scoopc`完全不参与。
+对executable root，`scoop`还负责取得runtime输入：它从同一个`ResolvedTargetProfile`投影出`lir_target + c_bridge_toolchain + runtime_build`，选择受信任runtime source set并调用`compiler/runtime-build`。该组件按这三项固定的target/storage ABI、C compiler identity/flags与source/build rules独立构建，逐object验证并按3.7的精确七字段preimage计算`RuntimeArtifactFingerprint`，最终只返回不可伪造的`ValidatedRuntimeArtifact`。M23不接受外部prebuilt runtime bundle或raw `.a`，也不缓存这层结果。program-link从不打开runtime源码、不调用C compiler；显式`scoop link`同样先走这一步，而`scoopc`完全不参与。
 
 program-link只消费一个`ValidatedArtifactClosure<Link>`（其中root已证明为executable）、`ValidatedRuntimeArtifact`、target/link profile与输出路径；不读取source manifest、locator、cache或编译残留IR。`scoop link`的dependency参数顺序同样不参与结果，stage自行验证root唯一、闭包完整及canonical graph。它按`ConeIdentity`去重，比较全部ODR record，按3.7合并并逐字段核对extern/native member contract，再按canonical Cone order及每个目录的`SlibMemberId`顺序提取每个`LinkObject`恰好一次；known Link-required blob handler只能产生4.1封闭的native library requirement。opaque/diagnostic/unknown optional成员绝不提取或传给native linker，archive物理名与`.o`后缀也不参与选择。物化member时使用program-link创建的私有临时根，以Cone identity分区并以完整`SlibMemberId`生成create-new文件；不同artifact中相同`mNNNNNNNN` raw name不得覆盖，symlink、既有文件或路径逃逸一律失败。native linker argv的稳定顺序仍来自typed Cone/member key，而不是临时路径枚举顺序。
 

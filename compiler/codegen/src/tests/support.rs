@@ -523,8 +523,10 @@ pub(super) fn refresh_module_safepoints(module: &mut Module) {
     }
 }
 
-pub(super) fn host_profile() -> TargetProfile {
-    TargetProfile::resolve_host().expect("supported host target")
+pub(super) fn host_profile() -> ValidatedBackendProfile {
+    ResolvedTargetProfile::resolve_host()
+        .expect("supported host target")
+        .backend()
 }
 
 pub(super) fn host_managed_address_space() -> ManagedAddressSpace {

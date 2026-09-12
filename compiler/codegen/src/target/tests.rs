@@ -28,11 +28,11 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
         "arm64-apple-darwin25.6.0",
         "aarch64-apple-macosx14.0.0",
     ] {
-        let profile = TargetProfile::resolve(triple).expect(triple);
-        assert_eq!(profile, TargetProfile::DARWIN_AARCH64);
+        let profile = ResolvedTargetProfile::resolve(triple).expect(triple);
+        assert_eq!(profile, ResolvedTargetProfile::DARWIN_AARCH64);
         assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
         assert_eq!(
-            profile.lir_target_profile(),
+            profile.lir_target(),
             scoop_lir::LirTargetProfile::DARWIN_AARCH64
         );
         assert_eq!(
@@ -40,26 +40,37 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
             scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
         );
         assert_eq!(
-            profile.backend_profile(),
+            profile.backend().backend_profile(),
             scoop_lir::BackendProfile::LLVM_22_1
         );
-        profile
+        let backend = profile.backend();
+        backend
             .validate_lir_target_profile(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
             .expect("the selected codegen and LIR profiles agree");
-        assert_eq!(profile.canonical_triple(), "aarch64-apple-darwin");
-        assert_eq!(profile.managed_address_space(), 1);
-        assert_eq!(profile.stack_map_version(), 3);
+        assert_eq!(backend.canonical_triple(), "aarch64-apple-darwin");
+        assert_eq!(backend.managed_address_space(), 1);
+        assert_eq!(backend.stack_map_version(), 3);
+        let c_bridge = profile.c_bridge_toolchain();
+        assert_eq!(c_bridge.canonical_triple(), "aarch64-apple-darwin");
+        assert_eq!(c_bridge.compiler_driver(), "cc");
+        assert_eq!(c_bridge.compiler_args(), ["-std=c11"]);
+        let runtime = profile.runtime_build();
+        assert_eq!(runtime.canonical_triple(), "aarch64-apple-darwin");
         assert_eq!(
-            profile.runtime_c_flags(),
+            runtime.runtime_c_flags(),
             [
                 "-pthread",
                 "-fno-omit-frame-pointer",
                 "-fno-optimize-sibling-calls",
             ]
         );
-        assert_eq!(profile.linker_args(), ["-pthread"]);
+        let final_link = profile.final_link();
+        assert_eq!(final_link.id(), TargetProfileId::DarwinAarch64);
+        assert_eq!(final_link.canonical_triple(), "aarch64-apple-darwin");
+        assert_eq!(final_link.linker_driver(), "cc");
+        assert_eq!(final_link.linker_args(), ["-pthread"]);
         assert_eq!(
-            profile.eh_profile(),
+            backend.eh_profile(),
             EhProfile {
                 unwind_model: UnwindModel::ItaniumDwarf,
                 personality_abi: PersonalityAbi::ScoopLsdaSubset,
@@ -74,7 +85,7 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
             }
         );
         assert_eq!(
-            profile.runtime_sources(),
+            runtime.runtime_sources(),
             [
                 "runtime/src/rt.c",
                 "runtime/src/eh.c",
@@ -116,7 +127,7 @@ fn unsupported_targets_are_rejected_before_codegen() {
         "aarch64-unknown-linux-gnu",
         "aarch64-apple-ios",
     ] {
-        let error = TargetProfile::resolve(triple).expect_err(triple);
+        let error = ResolvedTargetProfile::resolve(triple).expect_err(triple);
         assert!(
             error.0.contains("unsupported target"),
             "unexpected error for {triple}: {error}"
@@ -126,23 +137,24 @@ fn unsupported_targets_are_rejected_before_codegen() {
 
 #[test]
 fn profile_creates_the_canonical_aarch64_machine() {
-    let profile = TargetProfile::resolve("arm64-apple-darwin").expect("profile");
-    let machine = profile.create_target_machine().expect("target machine");
+    let profile = ResolvedTargetProfile::resolve("arm64-apple-darwin").expect("profile");
+    let backend = profile.backend();
+    let machine = backend.create_target_machine().expect("target machine");
     assert_eq!(
         machine
             .get_triple()
             .as_str()
             .to_str()
             .expect("UTF-8 triple"),
-        profile.canonical_triple()
+        backend.canonical_triple()
     );
 }
 
 #[test]
 fn llvm_host_identity_resolves_through_the_target_registry() {
     assert_eq!(
-        TargetProfile::resolve_host().expect("supported host profile"),
-        TargetProfile::DARWIN_AARCH64
+        ResolvedTargetProfile::resolve_host().expect("supported host profile"),
+        ResolvedTargetProfile::DARWIN_AARCH64
     );
 }
 

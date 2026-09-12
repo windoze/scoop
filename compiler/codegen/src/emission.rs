@@ -1,11 +1,11 @@
 use super::*;
 
 /// Translate `module` to LLVM IR and emit an object file at `output` using the
-/// complete target profile selected by the driver.
+/// validated backend projection selected by the driver.
 pub fn emit_object(
     module: &Module,
     output: &Path,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
 ) -> Result<(), CodegenError> {
     validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
@@ -35,7 +35,10 @@ pub fn emit_object(
 /// This is the same mechanical target-specific translation and statepoint
 /// rewrite used by [`emit_object`]. Source-language and upstream IR semantics
 /// must already be explicit in `module`.
-pub fn render_llvm_ir(module: &Module, profile: TargetProfile) -> Result<String, CodegenError> {
+pub fn render_llvm_ir(
+    module: &Module,
+    profile: ValidatedBackendProfile,
+) -> Result<String, CodegenError> {
     validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     let expected_safepoints = statepoint::expectations(module)?;
@@ -49,7 +52,7 @@ fn prepare_llvm_module<'ctx>(
     context: &'ctx Context,
     module: &Module,
     machine: &TargetMachine,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
     validation::validate_executable_entry(module)?;
@@ -75,7 +78,9 @@ fn prepare_llvm_module<'ctx>(
 /// code receives a profile selected by the driver.
 #[cfg(test)]
 pub(crate) fn host_target_machine() -> Result<TargetMachine, CodegenError> {
-    TargetProfile::resolve_host()?.create_target_machine()
+    ResolvedTargetProfile::resolve_host()?
+        .backend()
+        .create_target_machine()
 }
 
 /// Translate `module` to an (unverified) LLVM module: globals,
@@ -84,7 +89,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     context: &'ctx Context,
     module: &Module,
     machine: &TargetMachine,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     validation::validate_module(module)?;

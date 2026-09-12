@@ -90,8 +90,10 @@ pub(super) fn lower_program(source: &str) -> (scoop_mir::Module, scoop_lir::Modu
         )
     });
     let mir = scoop_mir_lower::lower(&hir.local);
-    let profile = scoop_codegen::TargetProfile::resolve_host().expect("supported host profile");
-    let lir = scoop_lir_lower::lower(&mir, profile.lir_target_profile());
-    let llvm = scoop_codegen::render_llvm_ir(&lir, profile).expect("render verified LLVM IR");
+    let profile =
+        scoop_codegen::ResolvedTargetProfile::resolve_host().expect("supported host profile");
+    let lir = scoop_lir_lower::lower(&mir, profile.lir_target());
+    let llvm =
+        scoop_codegen::render_llvm_ir(&lir, profile.backend()).expect("render verified LLVM IR");
     (mir, lir, llvm)
 }

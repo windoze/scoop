@@ -1,12 +1,12 @@
 use super::*;
 
 /// Apply the LLVM GC strategy from typed LIR and the frame policy from the
-/// complete target profile.
+/// validated backend projection.
 pub(crate) fn configure_function(
     context: &Context,
     function: FunctionValue<'_>,
     effect: GcEffect,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
 ) {
     if effect == GcEffect::Managed {
         function.set_gc(GC_STRATEGY);

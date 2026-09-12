@@ -99,7 +99,11 @@ use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;
 use target::ManagedAddressSpace;
-pub use target::{LlvmVersion, TargetProfile, TargetProfileId, linked_llvm_version};
+pub use target::{
+    LlvmVersion, ResolvedTargetProfile, TargetProfileId, ValidatedBackendProfile,
+    ValidatedCBridgeToolchainProfile, ValidatedFinalLinkProfile, ValidatedRuntimeBuildProfile,
+    linked_llvm_version,
+};
 pub(crate) use type_descriptors::{emit_ref_scan, emit_type_descriptors, type_descriptor_global};
 
 fn align_up(value: u64, align: u64) -> u64 {

@@ -6,7 +6,7 @@ use super::*;
 pub(super) fn verify_function_policies(
     module: &LlvmModule<'_>,
     expected: &ExpectedSafepoints,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
 ) -> Result<(), CodegenError> {
     for (symbol, effect) in &expected.functions {
         let function = module.get_function(symbol).ok_or_else(|| {
