@@ -1,4 +1,6 @@
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{
+    BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath, decode_canonical, encode,
+};
 
 use super::*;
 use crate::{
@@ -100,6 +102,97 @@ fn commits_a_complete_identity_transaction() {
         .records::<PersistentTypeId, SourceDeclarationKey>(IdentityLayer::Hir)
         .unwrap();
     assert_eq!(records, vec![source_type_record()]);
+}
+
+#[test]
+fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
+    let decoded = decoded_source_type();
+    let limits = DecodeLimits {
+        decoded_edges: 0,
+        ..DecodeLimits::default()
+    };
+    let mut meter = BudgetMeter::new(limits);
+    let error = {
+        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+        pending.register_authority(ConeIdentity::CORE).unwrap();
+        pending.register(IdentityLayer::Hir, &decoded).unwrap();
+        pending.resolve(&decoded).unwrap_err()
+    };
+    assert!(matches!(
+        error,
+        IdentityValidationError::Resource(ref error)
+            if error.kind() == &WireErrorKind::LimitExceeded {
+                resource: ResourceKind::DecodedEdges,
+                limit: 0,
+                observed: 1,
+            }
+    ));
+
+    for (limit, accepted) in [(95, false), (96, true), (97, true)] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            logical_heap_bytes: limit,
+            ..DecodeLimits::default()
+        });
+        let result = {
+            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+            pending.register_authority(ConeIdentity::CORE).unwrap();
+            pending.register(IdentityLayer::Hir, &decoded).unwrap();
+            pending.resolve(&decoded).unwrap();
+            pending.finish()
+        };
+        assert_eq!(result.is_ok(), accepted);
+        if accepted {
+            assert_eq!(meter.usage().logical_heap_bytes, 96);
+            assert_eq!(meter.usage().decoded_edges, 1);
+            assert_eq!(meter.usage().validation_work_units, 3);
+        } else {
+            assert!(matches!(
+                result,
+                Err(IdentityValidationError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::LogicalHeapBytes,
+                        limit: 95,
+                        observed: 96,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
+fn stable_kahn_uses_no_input_driven_recursion() {
+    const NODE_COUNT: u64 = 16_384;
+    let mut candidates = BTreeMap::new();
+    for index in 0..NODE_COUNT {
+        let mut bytes = [0_u8; 32];
+        bytes[24..].copy_from_slice(&index.to_be_bytes());
+        let node = IdentityNode {
+            kind: "test",
+            bytes,
+        };
+        candidates.insert(
+            node,
+            Candidate {
+                layer: Some(IdentityLayer::Hir),
+                resolved: true,
+                dependency_count: u64::from(index != 0),
+                dependents: Vec::new(),
+            },
+        );
+    }
+    let nodes = candidates.keys().copied().collect::<Vec<_>>();
+    for pair in nodes.windows(2) {
+        candidates
+            .get_mut(&pair[0])
+            .unwrap()
+            .dependents
+            .push(pair[1]);
+    }
+
+    assert_eq!(
+        find_cycle(&mut candidates, NODE_COUNT, &WirePath::default()).unwrap(),
+        None
+    );
 }
 
 #[test]

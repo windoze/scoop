@@ -132,7 +132,7 @@ impl DecodedHirFoundation {
     /// Registers every HIR-owned identity before any layer starts resolution.
     pub fn register_identities(
         &self,
-        validation: &mut PendingIdentityValidation,
+        validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! register_tables {
             ($($table:ident),+ $(,)?) => {
@@ -180,7 +180,7 @@ impl DecodedHirFoundation {
     /// their candidates.
     pub fn resolve_identities(
         &self,
-        validation: &mut PendingIdentityValidation,
+        validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! resolve_tables {
             ($($table:ident),+ $(,)?) => {

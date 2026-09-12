@@ -10,7 +10,7 @@ use scoop_identity::{
 };
 use scoop_lir::{DecodedLirFoundation, ImportedLirSet, ValidatedLirFoundation};
 use scoop_mir::{DecodedMirFoundation, ImportedMirSet, ValidatedMirFoundation};
-use scoop_wire::{DecodeUsage, decode_canonical_with_meter};
+use scoop_wire::{DecodeUsage, WireError, WireErrorKind, WirePath, decode_canonical_with_meter};
 
 use crate::{
     ArtifactFingerprint, DecodedMetadataEnvelope, DependencyRecord, MemberPurposeSet,
@@ -250,12 +250,11 @@ fn validate_foundation_identities<'input>(
     foundations: DecodedIdentityFoundations<'input>,
 ) -> Result<IdentityCheckedFoundations<'input>, IdentityValidationError> {
     let DecodedIdentityFoundations {
-        graph,
+        mut graph,
         hir,
         mir,
         lir,
     } = foundations;
-    let mut validation = PendingIdentityValidation::new();
     let mut authorities = BTreeSet::from([ConeIdentity::CORE, graph.identity()]);
     authorities.extend(
         graph
@@ -263,6 +262,7 @@ fn validate_foundation_identities<'input>(
             .iter()
             .map(DependencyRecord::identity),
     );
+    let mut validation = PendingIdentityValidation::with_meter(graph.envelope.meter_mut());
     for authority in authorities {
         validation.register_authority(authority)?;
     }
@@ -308,6 +308,10 @@ impl<'input> IdentityCheckedFoundations<'input> {
 
     pub fn identity_count(&self) -> usize {
         self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
     }
 
     pub const fn hir_wire(&self) -> &DecodedHirFoundation {
@@ -378,6 +382,10 @@ impl StructurallyValidatedFoundations<'_> {
         self.identities.identity_count()
     }
 
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
     pub const fn hir(&self) -> &ValidatedHirFoundation {
         &self.hir
     }
@@ -430,7 +438,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
     ) -> Result<ValidatedCompileArtifact<'input, IdentityFoundationProfile>, CompileCommitError>
     {
         let StructurallyValidatedFoundations {
-            graph,
+            mut graph,
             identities,
             hir,
             mir,
@@ -442,6 +450,18 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
             *semantic.mir().as_array(),
             *semantic.lir().as_array(),
         );
+        let remap_count = u64::try_from(identities.declared_identity_count()).map_err(|_| {
+            CompileCommitError::Resource(WireError::new(
+                WireErrorKind::IntegerOutOfRange,
+                WirePath::default(),
+                None,
+            ))
+        })?;
+        graph
+            .envelope
+            .meter_mut()
+            .charge_pending_remap(remap_count, &WirePath::default())
+            .map_err(CompileCommitError::Resource)?;
         let imported = session
             .import(graph.identity(), fingerprint, &identities)
             .map_err(CompileCommitError::SemanticImport)?;
@@ -490,20 +510,29 @@ impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<'_, P> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CompileCommitError {
+    Resource(WireError),
     SemanticImport(SemanticIdentityImportError),
 }
 
 impl fmt::Display for CompileCommitError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
             Self::SemanticImport(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for CompileCommitError {}
+impl std::error::Error for CompileCommitError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Resource(error) => Some(error),
+            Self::SemanticImport(error) => Some(error),
+        }
+    }
+}
 
 fn reject_compile_required_manifest_sections(
     graph: &ValidatedGraphArtifact<'_>,

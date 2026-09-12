@@ -18,7 +18,8 @@ use scoop_identity::{
 };
 use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::CanonicalMirFoundation;
-use scoop_wire::{DecodeLimits, encode};
+use scoop_wire::budget::PENDING_REMAP_ENTRY_BYTES;
+use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind, encode};
 
 use super::*;
 use crate::{
@@ -325,6 +326,63 @@ fn compile_commit_reuses_world_ids_and_rejects_origin_conflicts_atomically() {
     ));
     assert_eq!(session.origin_count(), origins);
     assert_eq!(session.entity_count(), entities);
+}
+
+#[test]
+fn compile_commit_charges_pending_remap_at_inclusive_heap_boundary() {
+    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    let artifact = foundation_artifact(
+        ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        None,
+    );
+    let baseline =
+        foundations_ready_to_commit(artifact.as_bytes(), selection, DecodeLimits::default());
+    let before_commit = baseline.foundations().decode_usage().logical_heap_bytes;
+    let remap_count = u64::try_from(baseline.foundations().declared_identity_count()).unwrap();
+    let expected = before_commit + remap_count * PENDING_REMAP_ENTRY_BYTES;
+
+    for (limit, accepted) in [
+        (expected - 1, false),
+        (expected, true),
+        (expected + 1, true),
+    ] {
+        let ready = foundations_ready_to_commit(
+            artifact.as_bytes(),
+            selection,
+            DecodeLimits {
+                logical_heap_bytes: limit,
+                ..DecodeLimits::default()
+            },
+        );
+        let mut session = SemanticIdentitySession::new();
+        match ready.commit(&mut session) {
+            Ok(compiled) => {
+                assert!(accepted);
+                assert_eq!(compiled.decode_usage().logical_heap_bytes, expected);
+                assert_eq!(session.origin_count(), 1);
+                assert_eq!(session.entity_count(), remap_count as usize);
+            }
+            Err(error) => {
+                assert!(!accepted);
+                assert!(matches!(
+                    error,
+                    CompileCommitError::Resource(ref error)
+                        if error.kind() == &(WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::LogicalHeapBytes,
+                            limit,
+                            observed: expected,
+                        })
+                ));
+                assert_eq!(session.origin_count(), 0);
+                assert_eq!(session.entity_count(), 0);
+            }
+        }
+    }
 }
 
 #[test]
@@ -725,6 +783,27 @@ fn compile<'input>(
         .validate_target()
         .unwrap()
         .commit(session)
+        .unwrap()
+}
+
+fn foundations_ready_to_commit<'input>(
+    bytes: &'input [u8],
+    selection: ValidatedLirTargetSelection,
+    limits: DecodeLimits,
+) -> NativeBoundaryValidatedFoundations<'input> {
+    crate::DecodedSlibEnvelope::open(bytes, limits, selection)
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_identity_foundations()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_structure()
+        .unwrap()
+        .validate_native_boundary_source()
+        .unwrap()
+        .validate_target()
         .unwrap()
 }
 

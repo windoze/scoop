@@ -77,7 +77,7 @@ impl DecodedMirFoundation {
     /// Registers every MIR-owned identity before cross-layer resolution.
     pub fn register_identities(
         &self,
-        validation: &mut PendingIdentityValidation,
+        validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! register_tables {
             ($($table:ident),+ $(,)?) => {
@@ -106,7 +106,7 @@ impl DecodedMirFoundation {
     /// candidates and HIR identities supplied the earlier-layer keys.
     pub fn resolve_identities(
         &self,
-        validation: &mut PendingIdentityValidation,
+        validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! resolve_tables {
             ($($table:ident),+ $(,)?) => {

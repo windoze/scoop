@@ -105,10 +105,15 @@ impl SemanticIdentitySession {
             return Err(SemanticIdentityImportError::OriginConflict { origin });
         }
 
-        let mut entries = graph
-            .canonical_keys
-            .iter()
-            .filter_map(|(slot, key)| {
+        let declared_count = graph.declared_identity_count();
+        let mut entries = Vec::new();
+        entries.try_reserve_exact(declared_count).map_err(|_| {
+            SemanticIdentityImportError::Allocation {
+                requested_slots: declared_count,
+            }
+        })?;
+        for (slot, key) in &graph.canonical_keys {
+            if let Some(layer) = {
                 let node = IdentityNode {
                     kind: slot.kind,
                     bytes: slot.bytes,
@@ -116,16 +121,13 @@ impl SemanticIdentitySession {
                 graph
                     .candidates
                     .get(&node)
-                    .and_then(|candidate| candidate.layer.map(|layer| (*slot, layer, key)))
-            })
-            .collect::<Vec<_>>();
+                    .and_then(|candidate| candidate.layer)
+            } {
+                entries.push((*slot, layer, key));
+            }
+        }
         entries.sort_unstable_by_key(|(slot, _, _)| (slot.kind, slot.bytes));
 
-        let declared_count = graph
-            .candidates
-            .values()
-            .filter(|candidate| candidate.layer.is_some())
-            .count();
         if entries.len() != declared_count {
             return Err(SemanticIdentityImportError::MissingCanonicalKey);
         }

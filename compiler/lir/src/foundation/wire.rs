@@ -102,7 +102,7 @@ impl DecodedLirFoundation {
     /// Registers every LIR-owned identity before cross-layer resolution.
     pub fn register_identities(
         &self,
-        validation: &mut PendingIdentityValidation,
+        validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
         for record in &self.decoded.c_abi_signatures {
             let fingerprint = record.candidate_fingerprint().map_err(|error| {
@@ -173,7 +173,7 @@ impl DecodedLirFoundation {
     /// all earlier-layer keys.
     pub fn resolve_identities(
         &self,
-        validation: &mut PendingIdentityValidation,
+        validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! resolve_tables {
             ($($table:ident),+ $(,)?) => {

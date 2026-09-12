@@ -1,11 +1,14 @@
 //! Atomic validation for persistent identity graphs decoded from artifacts.
 
 use std::any::{Any, TypeId};
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use scoop_wire::{Digest256, HashError};
+use scoop_wire::budget::{GRAPH_EDGE_BYTES, READY_SET_ELEMENT_BYTES};
+use scoop_wire::{BudgetMeter, Digest256, HashError, WireError, WireErrorKind, WirePath};
 
 use crate::ids::PersistentIdConstruction;
 use crate::{
@@ -71,7 +74,8 @@ impl IdentityNode {
 struct Candidate {
     layer: Option<IdentityLayer>,
     resolved: bool,
-    dependencies: BTreeSet<IdentityNode>,
+    dependency_count: u64,
+    dependents: Vec<IdentityNode>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -124,24 +128,45 @@ enum ValidationPhase {
 /// Callers first register every HIR/MIR/LIR identity record, then resolve each
 /// registered record. No trusted id or canonical record is exposed until
 /// [`Self::finish`] succeeds.
-pub struct PendingIdentityValidation {
+pub struct PendingIdentityValidation<'meter> {
     candidates: BTreeMap<IdentityNode, Candidate>,
     canonical_keys: HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
     phase: ValidationPhase,
+    meter: Option<&'meter mut BudgetMeter>,
+    resource_error: Option<WireError>,
+    resource_path: WirePath,
 }
 
-impl Default for PendingIdentityValidation {
+impl Default for PendingIdentityValidation<'static> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PendingIdentityValidation {
+impl PendingIdentityValidation<'static> {
     pub fn new() -> Self {
         Self {
             candidates: BTreeMap::new(),
             canonical_keys: HashMap::new(),
             phase: ValidationPhase::Registering,
+            meter: None,
+            resource_error: None,
+            resource_path: WirePath::default(),
+        }
+    }
+}
+
+impl<'meter> PendingIdentityValidation<'meter> {
+    /// Starts an artifact-reader transaction backed by the artifact's shared
+    /// resource meter.
+    pub fn with_meter(meter: &'meter mut BudgetMeter) -> Self {
+        Self {
+            candidates: BTreeMap::new(),
+            canonical_keys: HashMap::new(),
+            phase: ValidationPhase::Registering,
+            meter: Some(meter),
+            resource_error: None,
+            resource_path: WirePath::default(),
         }
     }
 
@@ -187,7 +212,8 @@ impl PendingIdentityValidation {
             Candidate {
                 layer: None,
                 resolved: true,
-                dependencies: BTreeSet::new(),
+                dependency_count: 0,
+                dependents: Vec::new(),
             },
         );
         Ok(())
@@ -292,12 +318,16 @@ impl PendingIdentityValidation {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
+                meter: self.meter.as_deref_mut(),
+                resource_error: &mut self.resource_error,
+                resource_path: &self.resource_path,
             };
             record.clone().resolve(|key| {
                 key.resolve_identity_key(&mut resolver)
                     .map_err(IdentityKeyResolutionError)
             })
         };
+        self.require_no_resource_error()?;
 
         let resolved = match resolved {
             Ok(resolved) => resolved,
@@ -323,9 +353,13 @@ impl PendingIdentityValidation {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
+                meter: self.meter.as_deref_mut(),
+                resource_error: &mut self.resource_error,
+                resource_path: &self.resource_path,
             };
             record.clone().resolve(&mut resolver)
         };
+        self.require_no_resource_error()?;
         let resolved = match resolved {
             Ok(resolved) => resolved,
             Err(error) => {
@@ -363,9 +397,13 @@ impl PendingIdentityValidation {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
+                meter: self.meter.as_deref_mut(),
+                resource_error: &mut self.resource_error,
+                resource_path: &self.resource_path,
             };
             decoded.resolve(&mut resolver)
         };
+        self.require_no_resource_error()?;
         let resolved = match resolved {
             Ok(resolved) => resolved,
             Err(error) => {
@@ -416,9 +454,13 @@ impl PendingIdentityValidation {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
+                meter: self.meter.as_deref_mut(),
+                resource_error: &mut self.resource_error,
+                resource_path: &self.resource_path,
             };
             resolve(&mut resolver)
         };
+        self.require_no_resource_error()?;
         match resolved {
             Ok(key) => self.store_resolved_key::<I, K>(node, key),
             Err(error) => self.fail(IdentityValidationError::InvalidRecord {
@@ -445,7 +487,24 @@ impl PendingIdentityValidation {
                 id: node.bytes,
             });
         }
-        if let Some(node) = find_cycle(&self.candidates) {
+        let node_count = u64::try_from(self.candidates.len())
+            .map_err(|_| resource_error(WireErrorKind::IntegerOutOfRange, &self.resource_path))?;
+        let edge_count = self
+            .candidates
+            .values()
+            .try_fold(0_u64, |count, candidate| {
+                count
+                    .checked_add(candidate.dependency_count)
+                    .ok_or_else(|| {
+                        resource_error(WireErrorKind::IntegerOutOfRange, &self.resource_path)
+                    })
+            })?;
+        if let Some(meter) = self.meter.as_deref_mut() {
+            meter
+                .charge_stable_kahn(node_count, edge_count, &self.resource_path)
+                .map_err(IdentityValidationError::Resource)?;
+        }
+        if let Some(node) = find_cycle(&mut self.candidates, node_count, &self.resource_path)? {
             return Err(IdentityValidationError::DependencyCycle {
                 kind: node.kind,
                 id: node.bytes,
@@ -482,7 +541,8 @@ impl PendingIdentityValidation {
             Candidate {
                 layer: Some(layer),
                 resolved: false,
-                dependencies: BTreeSet::new(),
+                dependency_count: 0,
+                dependents: Vec::new(),
             },
         );
         Ok(())
@@ -533,6 +593,13 @@ impl PendingIdentityValidation {
         self.phase = ValidationPhase::Poisoned;
         Err(error)
     }
+
+    fn require_no_resource_error(&mut self) -> Result<(), IdentityValidationError> {
+        match self.resource_error.take() {
+            Some(error) => self.fail(IdentityValidationError::Resource(error)),
+            None => Ok(()),
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -540,6 +607,9 @@ pub struct PendingIdentityResolver<'validation> {
     current: IdentityNode,
     candidates: &'validation mut BTreeMap<IdentityNode, Candidate>,
     canonical_keys: &'validation HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
+    meter: Option<&'validation mut BudgetMeter>,
+    resource_error: &'validation mut Option<WireError>,
+    resource_path: &'validation WirePath,
 }
 
 impl<I> PersistentIdResolver<I> for PendingIdentityResolver<'_>
@@ -572,11 +642,50 @@ where
                 id: target.bytes,
             });
         }
-        self.candidates
-            .get_mut(&self.current)
+        let next_dependency_count = match self
+            .candidates
+            .get(&self.current)
             .expect("current identity disappeared")
-            .dependencies
-            .insert(target);
+            .dependency_count
+            .checked_add(1)
+        {
+            Some(count) => count,
+            None => {
+                *self.resource_error = Some(WireError::new(
+                    WireErrorKind::IntegerOutOfRange,
+                    self.resource_path.clone(),
+                    None,
+                ));
+                return Err(IdentityReferenceError::ResourceLimit);
+            }
+        };
+        if let Some(meter) = self.meter.as_deref_mut()
+            && let Err(error) = meter.charge_edges(1, self.resource_path)
+        {
+            *self.resource_error = Some(error);
+            return Err(IdentityReferenceError::ResourceLimit);
+        }
+        let target_candidate = self
+            .candidates
+            .get_mut(&target)
+            .expect("resolved identity target disappeared");
+        if target_candidate.dependents.try_reserve_exact(1).is_err() {
+            *self.resource_error = Some(WireError::new(
+                WireErrorKind::ResourceAllocation {
+                    requested_logical_bytes: GRAPH_EDGE_BYTES,
+                    requested_slots: 1,
+                },
+                self.resource_path.clone(),
+                None,
+            ));
+            return Err(IdentityReferenceError::ResourceLimit);
+        }
+        target_candidate.dependents.push(self.current);
+        let source_candidate = self
+            .candidates
+            .get_mut(&self.current)
+            .expect("current identity disappeared");
+        source_candidate.dependency_count = next_dependency_count;
         Ok(I::from_digest(Digest256::from_array(target.bytes)))
     }
 }
@@ -615,6 +724,15 @@ pub struct ValidatedIdentityGraph {
 impl ValidatedIdentityGraph {
     pub fn identity_count(&self) -> usize {
         self.candidates.len()
+    }
+
+    /// Number of artifact-declared identities that require a session-local
+    /// remap entry. Trusted authority leaves are excluded.
+    pub fn declared_identity_count(&self) -> usize {
+        self.candidates
+            .values()
+            .filter(|candidate| candidate.layer.is_some())
+            .count()
     }
 
     /// Reconstructs the canonical records introduced by one layer and key
@@ -760,6 +878,8 @@ pub enum IdentityReferenceError {
         kind: &'static str,
         id: [u8; 32],
     },
+    #[doc(hidden)]
+    ResourceLimit,
 }
 
 impl fmt::Display for IdentityReferenceError {
@@ -786,6 +906,7 @@ impl fmt::Display for IdentityReferenceError {
                 write_hex(id, formatter)?;
                 formatter.write_str(" is not available in dependency-first order")
             }
+            Self::ResourceLimit => formatter.write_str("identity resource limit exceeded"),
         }
     }
 }
@@ -830,6 +951,7 @@ pub enum IdentityValidationError {
         kind: &'static str,
         id: [u8; 32],
     },
+    Resource(WireError),
 }
 
 impl fmt::Display for IdentityValidationError {
@@ -878,11 +1000,19 @@ impl fmt::Display for IdentityValidationError {
                 )?;
                 write_hex(id, formatter)
             }
+            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for IdentityValidationError {}
+impl std::error::Error for IdentityValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Resource(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug)]
 struct IdentityKeyResolutionError(String);
@@ -895,38 +1025,61 @@ impl fmt::Display for IdentityKeyResolutionError {
 
 impl std::error::Error for IdentityKeyResolutionError {}
 
-fn find_cycle(candidates: &BTreeMap<IdentityNode, Candidate>) -> Option<IdentityNode> {
-    fn visit(
-        node: IdentityNode,
-        candidates: &BTreeMap<IdentityNode, Candidate>,
-        visiting: &mut BTreeSet<IdentityNode>,
-        visited: &mut BTreeSet<IdentityNode>,
-    ) -> Option<IdentityNode> {
-        if visited.contains(&node) {
-            return None;
+fn find_cycle(
+    candidates: &mut BTreeMap<IdentityNode, Candidate>,
+    node_count: u64,
+    path: &WirePath,
+) -> Result<Option<IdentityNode>, IdentityValidationError> {
+    let capacity = usize::try_from(node_count)
+        .map_err(|_| resource_error(WireErrorKind::IntegerOutOfRange, path))?;
+    let mut ready_storage = Vec::new();
+    ready_storage.try_reserve_exact(capacity).map_err(|_| {
+        IdentityValidationError::Resource(WireError::new(
+            WireErrorKind::ResourceAllocation {
+                requested_logical_bytes: node_count.saturating_mul(READY_SET_ELEMENT_BYTES),
+                requested_slots: node_count,
+            },
+            path.clone(),
+            None,
+        ))
+    })?;
+    let mut ready = BinaryHeap::from(ready_storage);
+    for (node, candidate) in candidates.iter() {
+        if candidate.dependency_count == 0 {
+            ready.push(Reverse(*node));
         }
-        if !visiting.insert(node) {
-            return Some(node);
-        }
-        let candidate = candidates.get(&node)?;
-        for dependency in &candidate.dependencies {
-            if let Some(cycle) = visit(*dependency, candidates, visiting, visited) {
-                return Some(cycle);
-            }
-        }
-        visiting.remove(&node);
-        visited.insert(node);
-        None
     }
 
-    let mut visiting = BTreeSet::new();
-    let mut visited = BTreeSet::new();
-    for node in candidates.keys() {
-        if let Some(cycle) = visit(*node, candidates, &mut visiting, &mut visited) {
-            return Some(cycle);
+    let mut completed = 0_u64;
+    while let Some(Reverse(node)) = ready.pop() {
+        completed += 1;
+        let dependents = std::mem::take(
+            &mut candidates
+                .get_mut(&node)
+                .expect("ready identity disappeared")
+                .dependents,
+        );
+        for dependent in dependents {
+            let candidate = candidates
+                .get_mut(&dependent)
+                .expect("identity dependent disappeared");
+            candidate.dependency_count -= 1;
+            if candidate.dependency_count == 0 {
+                ready.push(Reverse(dependent));
+            }
         }
     }
-    None
+    if completed == node_count {
+        Ok(None)
+    } else {
+        Ok(candidates
+            .iter()
+            .find_map(|(node, candidate)| (candidate.dependency_count != 0).then_some(*node)))
+    }
+}
+
+fn resource_error(kind: WireErrorKind, path: &WirePath) -> IdentityValidationError {
+    IdentityValidationError::Resource(WireError::new(kind, path.clone(), None))
 }
 
 fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
