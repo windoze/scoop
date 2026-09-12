@@ -126,8 +126,9 @@ pub use materialization::{
 };
 pub use native_contract::{
     DecodedNativeExternAbi, DecodedNativeExternalContract, DecodedNativeExternalContractRecord,
-    NativeExternAbi, NativeExternalContract, NativeExternalContractFingerprintInput,
-    NativeExternalContractRecord, NativeExternalContractResolutionError,
+    NativeExternAbi, NativeExternalContract, NativeExternalContractFingerprintError,
+    NativeExternalContractFingerprintInput, NativeExternalContractRecord,
+    NativeExternalContractResolutionError,
 };
 pub use native_link::{
     CanonicalNativeGroupName, DecodedCanonicalNativeGroupName, DecodedNativeExternalSymbolKey,

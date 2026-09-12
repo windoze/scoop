@@ -14,7 +14,7 @@ mod decode;
 
 pub use decode::{
     DecodedNativeExternAbi, DecodedNativeExternalContract, DecodedNativeExternalContractRecord,
-    NativeExternalContractResolutionError,
+    NativeExternalContractFingerprintError, NativeExternalContractResolutionError,
 };
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

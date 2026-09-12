@@ -112,6 +112,10 @@ fn c_abi_signature_fingerprint_record_round_trips_and_verifies_hash() {
         DecodeLimits::default(),
     )
     .unwrap();
+    assert_eq!(
+        decoded.candidate_fingerprint().unwrap(),
+        record.fingerprint()
+    );
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), record);
 
     let mut bytes = encode(&record).unwrap();

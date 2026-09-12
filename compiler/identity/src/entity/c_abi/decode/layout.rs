@@ -1,6 +1,9 @@
 use std::num::NonZeroU64;
 
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{
+    Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
+    domain_separated_cbor_hash,
+};
 
 use super::{CanonicalCAbiResolutionError, DecodedCanonicalCStorageType};
 use crate::{
@@ -190,6 +193,17 @@ pub struct DecodedCanonicalCAbiLayoutFingerprintRecord {
 }
 
 impl DecodedCanonicalCAbiLayoutFingerprintRecord {
+    pub const fn decoded_fingerprint(&self) -> DecodedPersistentId<CanonicalCAbiLayoutFingerprint> {
+        self.fingerprint
+    }
+
+    /// Recomputes the typed fingerprint directly from the canonical decoded
+    /// preimage. Persistent references remain untrusted until `resolve`.
+    pub fn candidate_fingerprint(&self) -> Result<CanonicalCAbiLayoutFingerprint, HashError> {
+        domain_separated_cbor_hash("scoop-c-abi-layout-v1", &self.layout)
+            .map(|digest| CanonicalCAbiLayoutFingerprint(*digest.as_array()))
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

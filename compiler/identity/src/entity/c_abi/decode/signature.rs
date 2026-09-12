@@ -1,4 +1,6 @@
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{
+    Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, domain_separated_cbor_hash,
+};
 
 use super::{CanonicalCAbiResolutionError, DecodedCanonicalCStorageType};
 use crate::{
@@ -192,6 +194,19 @@ pub struct DecodedCanonicalCAbiSignatureFingerprintRecord {
 }
 
 impl DecodedCanonicalCAbiSignatureFingerprintRecord {
+    pub const fn decoded_fingerprint(
+        &self,
+    ) -> DecodedPersistentId<CanonicalCAbiSignatureFingerprint> {
+        self.fingerprint
+    }
+
+    /// Recomputes the typed fingerprint directly from the canonical decoded
+    /// preimage. Persistent references remain untrusted until `resolve`.
+    pub fn candidate_fingerprint(&self) -> Result<CanonicalCAbiSignatureFingerprint, HashError> {
+        domain_separated_cbor_hash("scoop-c-abi-signature-v1", &self.signature)
+            .map(|digest| CanonicalCAbiSignatureFingerprint(*digest.as_array()))
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

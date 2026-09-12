@@ -123,6 +123,28 @@ impl PendingIdentityValidation {
         id: I,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
+        self.insert_resolved_leaf(id)
+    }
+
+    /// Adds a hash identity whose canonical preimage was verified by its
+    /// owning decoded record before graph registration.
+    ///
+    /// Unlike an identity delta this leaf has no separately addressable key
+    /// table. Its owning foundation validator must still resolve every
+    /// reference carried by the preimage before the semantic world is
+    /// committed.
+    pub fn register_verified_leaf<I: PersistentId>(
+        &mut self,
+        id: I,
+    ) -> Result<(), IdentityValidationError> {
+        self.require_registration_phase()?;
+        self.insert_resolved_leaf(id)
+    }
+
+    fn insert_resolved_leaf<I: PersistentId>(
+        &mut self,
+        id: I,
+    ) -> Result<(), IdentityValidationError> {
         let node = IdentityNode::trusted(id);
         if self.candidates.contains_key(&node) {
             return self.fail(IdentityValidationError::DuplicateIdentity {

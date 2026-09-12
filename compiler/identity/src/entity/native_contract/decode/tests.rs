@@ -80,6 +80,10 @@ fn native_contract_record_round_trips_and_verifies_derived_ids() {
     )
     .unwrap();
 
+    assert_eq!(
+        decoded.candidate_fingerprint().unwrap(),
+        record.fingerprint()
+    );
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), record);
 }
 

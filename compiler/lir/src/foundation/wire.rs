@@ -1,14 +1,16 @@
 //! Untrusted Wire CBOR representation of the LIR identity foundation.
 
+use std::collections::BTreeSet;
+
 use scoop_identity::{
     DecodedCanonicalCAbiLayoutFingerprintRecord, DecodedCanonicalCAbiSignatureFingerprintRecord,
     DecodedCborIdentityRecord, DecodedDispatchTableKey, DecodedExactTypeKey,
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeUnitKey, DecodedImmortalObjectKey,
     DecodedLayoutKey, DecodedNativeExternalContractRecord, DecodedNativeLinkRequirementKey,
     DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey, DecodedOdrMemberKey,
-    DecodedPersistentSymbolRequestTable, DecodedRuntimeIdentityRecord, DecodedSafepointSiteKey,
-    DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey, IdentityLayer,
-    IdentityValidationError, PendingIdentityValidation,
+    DecodedPersistentId, DecodedPersistentSymbolRequestTable, DecodedRuntimeIdentityRecord,
+    DecodedSafepointSiteKey, DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey,
+    IdentityLayer, IdentityValidationError, PendingIdentityValidation,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -96,6 +98,41 @@ impl DecodedLirFoundation {
         &self,
         validation: &mut PendingIdentityValidation,
     ) -> Result<(), IdentityValidationError> {
+        for record in &self.decoded.c_abi_signatures {
+            let fingerprint = record.candidate_fingerprint().map_err(|error| {
+                invalid_leaf(
+                    record.decoded_fingerprint(),
+                    format!("invalid canonical C ABI signature fingerprint: {error}"),
+                )
+            })?;
+            verify_leaf(record.decoded_fingerprint(), fingerprint)?;
+            validation.register_verified_leaf(fingerprint)?;
+        }
+        for record in &self.decoded.c_abi_layouts {
+            let fingerprint = record.candidate_fingerprint().map_err(|error| {
+                invalid_leaf(
+                    record.decoded_fingerprint(),
+                    format!("invalid canonical C ABI layout fingerprint: {error}"),
+                )
+            })?;
+            verify_leaf(record.decoded_fingerprint(), fingerprint)?;
+            validation.register_verified_leaf(fingerprint)?;
+        }
+        let mut native_fingerprints = BTreeSet::new();
+        for record in &self.decoded.native_contracts {
+            let fingerprint = record.candidate_fingerprint().map_err(|error| {
+                invalid_leaf(
+                    record.decoded_fingerprint(),
+                    format!("invalid native external contract fingerprint: {error}"),
+                )
+            })?;
+            verify_leaf(record.decoded_fingerprint(), fingerprint)?;
+            native_fingerprints.insert(fingerprint);
+        }
+        for fingerprint in native_fingerprints {
+            validation.register_verified_leaf(fingerprint)?;
+        }
+
         macro_rules! register_tables {
             ($($table:ident),+ $(,)?) => {
                 $(for record in &self.decoded.$table {
@@ -164,6 +201,30 @@ impl DecodedLirFoundation {
         // definition atoms in turn depend on their plans.
         resolve_tables!(definition_plans, definition_atoms);
         Ok(())
+    }
+}
+
+fn verify_leaf<I: PersistentId>(
+    decoded: DecodedPersistentId<I>,
+    expected: I,
+) -> Result<(), IdentityValidationError> {
+    decoded.verify(expected).map(drop).map_err(|mismatch| {
+        IdentityValidationError::IdentityMismatch {
+            kind: I::KIND,
+            expected: *mismatch.expected().as_array(),
+            actual: *mismatch.actual(),
+        }
+    })
+}
+
+fn invalid_leaf<I: PersistentId>(
+    decoded: DecodedPersistentId<I>,
+    reason: String,
+) -> IdentityValidationError {
+    IdentityValidationError::InvalidRecord {
+        kind: I::KIND,
+        id: *decoded.as_array(),
+        reason,
     }
 }
 
@@ -251,9 +312,14 @@ fn encode_table_field<T: WireEncode>(
 #[cfg(test)]
 mod tests {
     use scoop_identity::{
-        CallableBodyKey, CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
-        PackagePath, PersistentFunctionId, RuntimeIdentityRecord, SourceDeclarationKey,
-        SourceDeclarationSite, StrongCallableDefinitionOwner,
+        CallableBodyKey, CanonicalCAbiFunctionSignature, CanonicalCAbiReturn,
+        CanonicalCAbiSignatureFingerprintRecord, CanonicalIdentifier, CborIdentityRecord,
+        ConeIdentity, DeclarationScope, DefinitionOwnerChain, GeneratedBridgeUnitKey,
+        NativeExternalContract, NativeExternalContractRecord, NativeExternalSymbolKey,
+        NativeLibraryBinding, PackagePath, PersistentFunctionId,
+        PersistentSourceNativeExternalContractId, RuntimeIdentityRecord, SourceDeclarationKey,
+        SourceDeclarationSite, SourceNativeExternalContractKey, SourceNativeSymbol,
+        StrongCallableDefinitionOwner,
     };
     use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
@@ -329,6 +395,122 @@ mod tests {
                 .unwrap(),
             vec![record]
         );
+    }
+
+    #[test]
+    fn verified_signature_fingerprint_is_available_to_bridge_identity_resolution() {
+        let signature =
+            CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void);
+        let signature = CanonicalCAbiSignatureFingerprintRecord::new(signature).unwrap();
+        let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::CallbackTrampoline {
+            signature: signature.fingerprint(),
+            context_index: scoop_identity::CallbackParameterIndex::new(0),
+        })
+        .unwrap();
+        let mut canonical = CanonicalLirFoundation::empty();
+        canonical.set_c_abi_signatures(vec![signature]).unwrap();
+        canonical.set_bridge_units(vec![unit.clone()]).unwrap();
+        let decoded = decode_canonical::<DecodedLirFoundation>(
+            &encode(&canonical).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let mut validation = PendingIdentityValidation::new();
+
+        decoded.register_identities(&mut validation).unwrap();
+        decoded.resolve_identities(&mut validation).unwrap();
+
+        let graph = validation.finish().unwrap();
+        assert_eq!(
+            graph
+                .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(IdentityLayer::Lir)
+                .unwrap(),
+            vec![unit]
+        );
+    }
+
+    #[test]
+    fn verified_native_contract_fingerprint_is_available_to_bridge_identity_resolution() {
+        let declaration = SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("native").unwrap(),
+            0,
+            None,
+            Vec::new(),
+        );
+        let source = PersistentSourceNativeExternalContractId::from_key(
+            &SourceNativeExternalContractKey::function(&declaration).unwrap(),
+        )
+        .unwrap();
+        let signature =
+            CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void);
+        let contract = NativeExternalContractRecord::new(
+            source,
+            NativeExternalSymbolKey::darwin_macho_external(
+                &SourceNativeSymbol::new("native").unwrap(),
+            )
+            .unwrap(),
+            NativeExternalContract::c_function(
+                NativeLibraryBinding::DefaultNativeNamespace,
+                signature,
+            ),
+        )
+        .unwrap();
+        let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
+            contract.fingerprint(),
+        ))
+        .unwrap();
+        let mut canonical = CanonicalLirFoundation::empty();
+        canonical.set_native_contracts(vec![contract]).unwrap();
+        canonical.set_bridge_units(vec![unit.clone()]).unwrap();
+        let decoded = decode_canonical::<DecodedLirFoundation>(
+            &encode(&canonical).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let mut validation = PendingIdentityValidation::new();
+
+        decoded.register_identities(&mut validation).unwrap();
+        decoded.resolve_identities(&mut validation).unwrap();
+
+        assert_eq!(
+            validation
+                .finish()
+                .unwrap()
+                .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(IdentityLayer::Lir)
+                .unwrap(),
+            vec![unit]
+        );
+    }
+
+    #[test]
+    fn rejects_an_unverified_signature_fingerprint_leaf() {
+        let signature = CanonicalCAbiSignatureFingerprintRecord::new(
+            CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void),
+        )
+        .unwrap();
+        let fingerprint = *signature.fingerprint().as_array();
+        let mut canonical = CanonicalLirFoundation::empty();
+        canonical.set_c_abi_signatures(vec![signature]).unwrap();
+        let mut bytes = encode(&canonical).unwrap();
+        let offset = bytes
+            .windows(fingerprint.len())
+            .position(|window| window == fingerprint)
+            .unwrap();
+        bytes[offset] ^= 1;
+        let decoded =
+            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+
+        assert!(matches!(
+            decoded.register_identities(&mut PendingIdentityValidation::new()),
+            Err(IdentityValidationError::IdentityMismatch { .. })
+        ));
     }
 
     #[test]

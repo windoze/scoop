@@ -1,6 +1,9 @@
 use std::fmt;
 
-use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{
+    Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
+    domain_separated_cbor_hash,
+};
 
 use super::{NativeExternAbi, NativeExternalContract, NativeExternalContractRecord};
 use crate::{
@@ -235,6 +238,34 @@ pub struct DecodedNativeExternalContractRecord {
 }
 
 impl DecodedNativeExternalContractRecord {
+    pub const fn decoded_fingerprint(
+        &self,
+    ) -> DecodedPersistentId<NativeExternalContractFingerprint> {
+        self.fingerprint
+    }
+
+    /// Recomputes the contract fingerprint from the normalized symbol key and
+    /// canonical decoded contract preimage. Persistent references inside the
+    /// contract remain untrusted until `resolve`.
+    pub fn candidate_fingerprint(
+        &self,
+    ) -> Result<NativeExternalContractFingerprint, NativeExternalContractFingerprintError> {
+        let symbol_key = self
+            .symbol_key
+            .clone()
+            .validate()
+            .map_err(NativeExternalContractFingerprintError::SymbolKey)?;
+        let symbol_id = PersistentNativeExternalSymbolId::from_key(&symbol_key)
+            .map_err(NativeExternalContractFingerprintError::Hash)?;
+        let input = DecodedNativeExternalContractFingerprintInput {
+            symbol_id,
+            contract: &self.contract,
+        };
+        domain_separated_cbor_hash("scoop-native-external-contract-v1", &input)
+            .map(|digest| NativeExternalContractFingerprint(*digest.as_array()))
+            .map_err(NativeExternalContractFingerprintError::Hash)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -265,6 +296,38 @@ impl DecodedNativeExternalContractRecord {
         Ok(record)
     }
 }
+
+struct DecodedNativeExternalContractFingerprintInput<'a> {
+    symbol_id: PersistentNativeExternalSymbolId,
+    contract: &'a DecodedNativeExternalContract,
+}
+
+impl WireEncode for DecodedNativeExternalContractFingerprintInput<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.symbol_id.encode(encoder)?;
+        encoder.field(2)?;
+        self.contract.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NativeExternalContractFingerprintError {
+    SymbolKey(NativeLinkValidationError),
+    Hash(HashError),
+}
+
+impl fmt::Display for NativeExternalContractFingerprintError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SymbolKey(error) => error.fmt(formatter),
+            Self::Hash(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for NativeExternalContractFingerprintError {}
 
 impl WireEncode for DecodedNativeExternalContractRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
