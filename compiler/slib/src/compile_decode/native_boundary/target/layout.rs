@@ -87,7 +87,10 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         if let Some(fingerprint) = self.layouts_by_type.get(&exact) {
             return Ok(*fingerprint);
         }
-        if !self.visiting_c_layouts.insert(exact) {
+        if !self
+            .visiting_c_layouts
+            .push(exact, self.meter, &WirePath::root().field(16))?
+        {
             return Err(NativeBoundaryTargetError::CLayoutCycle { exact }.into());
         }
         let (definition, binders) = self.definition(exact)?;
@@ -132,8 +135,20 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         let record = CanonicalCAbiLayoutFingerprintRecord::new(layout)
             .map_err(NativeBoundaryTargetError::Hash)?;
         let fingerprint = record.fingerprint();
-        self.expected_layouts.insert(fingerprint, record);
-        self.layouts_by_type.insert(exact, fingerprint);
+        insert_metered(
+            self.meter,
+            &mut self.expected_layouts,
+            fingerprint,
+            record,
+            &WirePath::root().field(16),
+        )?;
+        insert_metered(
+            self.meter,
+            &mut self.layouts_by_type,
+            exact,
+            fingerprint,
+            &WirePath::root().field(16),
+        )?;
         self.visiting_c_layouts.remove(&exact);
         Ok(fingerprint)
     }
@@ -224,7 +239,10 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         if let Some(layout) = self.scoop_layouts.get(&exact) {
             return Ok(*layout);
         }
-        if !self.visiting_scoop_layouts.insert(exact) {
+        if !self
+            .visiting_scoop_layouts
+            .push(exact, self.meter, &WirePath::root().field(1))?
+        {
             return Err(NativeBoundaryTargetError::ScoopLayoutCycle { exact }.into());
         }
         let key = self.exact(exact)?.clone();
@@ -279,7 +297,13 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             }
         };
         self.visiting_scoop_layouts.remove(&exact);
-        self.scoop_layouts.insert(exact, layout);
+        insert_metered(
+            self.meter,
+            &mut self.scoop_layouts,
+            exact,
+            layout,
+            &WirePath::root().field(1),
+        )?;
         Ok(layout)
     }
 
@@ -472,8 +496,10 @@ mod tests {
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
         let definitions = HashMap::new();
+        let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
         let mut normalizer = NativeBoundaryNormalizer::new(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            &mut meter,
             &exact_types,
             &callable_applications,
             &initialization_units,
@@ -549,8 +575,10 @@ mod tests {
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
         let definitions = HashMap::from([(definition.owner(), &definition)]);
+        let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
         let mut normalizer = NativeBoundaryNormalizer::new(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            &mut meter,
             &exact_types,
             &callable_applications,
             &initialization_units,
@@ -575,5 +603,60 @@ mod tests {
                 .collect::<Vec<_>>(),
             [0, 1]
         );
+    }
+
+    #[test]
+    fn scoop_layout_walk_has_inclusive_semantic_depth_boundaries() {
+        let unit = CoreNativeBoundaryNominal::Unit.concrete_id().unwrap();
+        let leaf = CborIdentityRecord::from_key(ExactTypeKey::Nominal(unit)).unwrap();
+        let middle = CborIdentityRecord::from_key(ExactTypeKey::Tuple(NonEmptyVec::from_first(
+            leaf.id(),
+            [],
+        )))
+        .unwrap();
+        let root = CborIdentityRecord::from_key(ExactTypeKey::Tuple(NonEmptyVec::from_first(
+            middle.id(),
+            [],
+        )))
+        .unwrap();
+        let root_id = root.id();
+        let exact_types = HashMap::from([
+            (leaf.id(), leaf.into_key()),
+            (middle.id(), middle.into_key()),
+            (root_id, root.into_key()),
+        ]);
+        let callable_applications = HashMap::new();
+        let initialization_units = HashMap::new();
+        let definitions = HashMap::new();
+
+        for (limit, accepted) in [(2, false), (3, true), (4, true)] {
+            let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits {
+                semantic_recursion: limit,
+                ..scoop_wire::DecodeLimits::default()
+            });
+            let result = {
+                let mut normalizer = NativeBoundaryNormalizer::new(
+                    scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+                    &mut meter,
+                    &exact_types,
+                    &callable_applications,
+                    &initialization_units,
+                    &definitions,
+                );
+                normalizer.scoop_layout(root_id)
+            };
+            assert_eq!(result.is_ok(), accepted);
+            if !accepted {
+                assert!(matches!(
+                    result,
+                    Err(NativeBoundaryCompileError::Resource(ref error))
+                        if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
+                            resource: scoop_wire::ResourceKind::SemanticRecursion,
+                            limit: 2,
+                            observed: 3,
+                        }
+                ));
+            }
+        }
     }
 }

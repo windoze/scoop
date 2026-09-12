@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU64;
 
 use scoop_hir::{
@@ -23,7 +23,7 @@ use scoop_identity::{
     SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractRecord,
     SourceNativeLibraryBinding, SourceScoopAbiFunctionSignature, TargetCallingConvention,
 };
-use scoop_wire::WirePath;
+use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
     NativeBoundaryCompileError, NativeBoundarySourceValidatedFoundations, index_records,
@@ -147,21 +147,60 @@ fn validate_target_normalization(
         &WirePath::root().field(30),
     )?;
 
-    let mut normalizer = NativeBoundaryNormalizer::new(
-        target,
-        &exact_types,
-        &callable_applications,
-        &initialization_units,
-        &definitions,
-    );
-
     let actual_contracts = index_records(
         foundations.lir.native_contracts(),
         NativeExternalContractRecord::source,
         meter,
         &WirePath::root().field(14),
     )?;
-    let mut expected_contracts = BTreeMap::new();
+    let application_records = index_records(
+        foundations.mir.callback_application_records(),
+        scoop_mir::CallbackApplicationRecord::application,
+        meter,
+        &WirePath::root().field(10),
+    )?;
+    let actual_signatures = index_records(
+        foundations.lir.c_abi_signatures(),
+        CanonicalCAbiSignatureFingerprintRecord::fingerprint,
+        meter,
+        &WirePath::root().field(15),
+    )?;
+    let actual_layouts = index_records(
+        foundations.lir.c_abi_layouts(),
+        CanonicalCAbiLayoutFingerprintRecord::fingerprint,
+        meter,
+        &WirePath::root().field(16),
+    )?;
+    let actual_requirements = records_by_id(
+        std::iter::once(
+            graph
+                .records::<NativeLinkRequirementId, NativeLinkRequirementKey>(
+                    IdentityLayer::Lir,
+                    meter,
+                    &WirePath::root().field(20),
+                )
+                .map_err(NativeBoundaryCompileError::Identity)?,
+        ),
+        meter,
+        &WirePath::root().field(20),
+    )?;
+    let mut expected_contracts = HashMap::new();
+    meter
+        .try_reserve_map_slots(
+            &mut expected_contracts,
+            foundations.hir.source_native_contracts().len(),
+            &WirePath::root().field(14),
+        )
+        .map_err(NativeBoundaryCompileError::Resource)?;
+    let mut normalizer = NativeBoundaryNormalizer::new(
+        target,
+        meter,
+        &exact_types,
+        &callable_applications,
+        &initialization_units,
+        &definitions,
+    );
+
     for source in foundations.hir.source_native_contracts() {
         let expected = normalizer.normalize_external(source)?;
         expected_contracts.insert(expected.source(), expected);
@@ -172,12 +211,6 @@ fn validate_target_normalization(
         NativeBoundaryTargetError::NativeContractMismatch,
     )?;
 
-    let application_records = index_records(
-        foundations.mir.callback_application_records(),
-        scoop_mir::CallbackApplicationRecord::application,
-        meter,
-        &WirePath::root().field(10),
-    )?;
     for bridge in foundations.lir.callback_bridges() {
         let application = callback_applications.get(&bridge.application()).ok_or(
             NativeBoundaryTargetError::MissingCallbackApplication {
@@ -197,9 +230,13 @@ fn validate_target_normalization(
             }
             .into());
         }
-        normalizer
-            .expected_signatures
-            .insert(expected.fingerprint(), expected);
+        insert_metered(
+            normalizer.meter,
+            &mut normalizer.expected_signatures,
+            expected.fingerprint(),
+            expected,
+            &WirePath::root().field(15),
+        )?;
 
         let expected_managed =
             normalizer.managed_signature(registration.managed_signature(), &binders)?;
@@ -218,43 +255,18 @@ fn validate_target_normalization(
         }
     }
 
-    let actual_signatures = index_records(
-        foundations.lir.c_abi_signatures(),
-        CanonicalCAbiSignatureFingerprintRecord::fingerprint,
-        meter,
-        &WirePath::root().field(15),
-    )?;
     require_equal_records(
         &normalizer.expected_signatures,
         &actual_signatures,
         NativeBoundaryTargetError::CAbiSignatureSetMismatch,
     )?;
 
-    let actual_layouts = index_records(
-        foundations.lir.c_abi_layouts(),
-        CanonicalCAbiLayoutFingerprintRecord::fingerprint,
-        meter,
-        &WirePath::root().field(16),
-    )?;
     require_equal_records(
         &normalizer.expected_layouts,
         &actual_layouts,
         NativeBoundaryTargetError::CAbiLayoutSetMismatch,
     )?;
 
-    let actual_requirements = records_by_id(
-        std::iter::once(
-            graph
-                .records::<NativeLinkRequirementId, NativeLinkRequirementKey>(
-                    IdentityLayer::Lir,
-                    meter,
-                    &WirePath::root().field(20),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-        ),
-        meter,
-        &WirePath::root().field(20),
-    )?;
     if actual_requirements.len() != normalizer.expected_requirements.len()
         || normalizer
             .expected_requirements
@@ -267,7 +279,7 @@ fn validate_target_normalization(
 }
 
 fn require_equal_records<K, V>(
-    expected: &BTreeMap<K, V>,
+    expected: &HashMap<K, V>,
     actual: &HashMap<K, &V>,
     error: NativeBoundaryTargetError,
 ) -> Result<(), NativeBoundaryCompileError>
@@ -286,26 +298,102 @@ where
     }
 }
 
+fn insert_metered<K, V>(
+    meter: &mut BudgetMeter,
+    records: &mut HashMap<K, V>,
+    key: K,
+    value: V,
+    path: &WirePath,
+) -> Result<Option<V>, NativeBoundaryCompileError>
+where
+    K: Eq + std::hash::Hash,
+{
+    if !records.contains_key(&key) {
+        meter
+            .try_reserve_map_slots(records, 1, path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
+    }
+    Ok(records.insert(key, value))
+}
+
+struct MeteredVisitingSet<T> {
+    entries: HashSet<T>,
+    charged_capacity: usize,
+}
+
+impl<T> MeteredVisitingSet<T>
+where
+    T: Copy + Eq + std::hash::Hash,
+{
+    fn new() -> Self {
+        Self {
+            entries: HashSet::new(),
+            charged_capacity: 0,
+        }
+    }
+
+    fn push(
+        &mut self,
+        value: T,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<bool, NativeBoundaryCompileError> {
+        if self.entries.contains(&value) {
+            return Ok(false);
+        }
+        let next_len = self.entries.len().checked_add(1).ok_or_else(|| {
+            NativeBoundaryCompileError::Resource(scoop_wire::WireError::new(
+                scoop_wire::WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ))
+        })?;
+        let depth = u64::try_from(next_len).map_err(|_| {
+            NativeBoundaryCompileError::Resource(scoop_wire::WireError::new(
+                scoop_wire::WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ))
+        })?;
+        meter
+            .check_semantic_depth(depth, path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
+        if next_len > self.charged_capacity {
+            meter
+                .try_reserve_set_slots(&mut self.entries, next_len - self.charged_capacity, path)
+                .map_err(NativeBoundaryCompileError::Resource)?;
+            self.charged_capacity = next_len;
+        }
+        self.entries.insert(value);
+        Ok(true)
+    }
+
+    fn remove(&mut self, value: &T) {
+        self.entries.remove(value);
+    }
+}
+
 struct NativeBoundaryNormalizer<'a> {
     target: scoop_lir::LirTargetProfile,
+    meter: &'a mut BudgetMeter,
     exact_types: &'a HashMap<PersistentExactTypeId, ExactTypeKey>,
     callable_applications: &'a HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
     initialization_units: &'a HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
     definitions: &'a HashMap<NativeBoundaryNominalOwner, &'a NativeBoundaryTypeDefinitionRecord>,
     expected_signatures:
-        BTreeMap<CanonicalCAbiSignatureFingerprint, CanonicalCAbiSignatureFingerprintRecord>,
-    expected_layouts:
-        BTreeMap<CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord>,
-    layouts_by_type: BTreeMap<PersistentExactTypeId, CanonicalCAbiLayoutFingerprint>,
-    visiting_c_layouts: BTreeSet<PersistentExactTypeId>,
-    scoop_layouts: BTreeMap<PersistentExactTypeId, PhysicalType>,
-    visiting_scoop_layouts: BTreeSet<PersistentExactTypeId>,
-    expected_requirements: BTreeMap<NativeLinkRequirementId, NativeLinkRequirementKey>,
+        HashMap<CanonicalCAbiSignatureFingerprint, CanonicalCAbiSignatureFingerprintRecord>,
+    expected_layouts: HashMap<CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord>,
+    layouts_by_type: HashMap<PersistentExactTypeId, CanonicalCAbiLayoutFingerprint>,
+    visiting_c_layouts: MeteredVisitingSet<PersistentExactTypeId>,
+    scoop_layouts: HashMap<PersistentExactTypeId, PhysicalType>,
+    visiting_scoop_layouts: MeteredVisitingSet<PersistentExactTypeId>,
+    expected_requirements: HashMap<NativeLinkRequirementId, NativeLinkRequirementKey>,
 }
 
 impl<'a> NativeBoundaryNormalizer<'a> {
     fn new(
         target: scoop_lir::LirTargetProfile,
+        meter: &'a mut BudgetMeter,
         exact_types: &'a HashMap<PersistentExactTypeId, ExactTypeKey>,
         callable_applications: &'a HashMap<PersistentCallableApplicationId, CallableApplicationKey>,
         initialization_units: &'a HashMap<PersistentInitializationUnitId, InitializationUnitKey>,
@@ -316,17 +404,18 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     ) -> Self {
         Self {
             target,
+            meter,
             exact_types,
             callable_applications,
             initialization_units,
             definitions,
-            expected_signatures: BTreeMap::new(),
-            expected_layouts: BTreeMap::new(),
-            layouts_by_type: BTreeMap::new(),
-            visiting_c_layouts: BTreeSet::new(),
-            scoop_layouts: BTreeMap::new(),
-            visiting_scoop_layouts: BTreeSet::new(),
-            expected_requirements: BTreeMap::new(),
+            expected_signatures: HashMap::new(),
+            expected_layouts: HashMap::new(),
+            layouts_by_type: HashMap::new(),
+            visiting_c_layouts: MeteredVisitingSet::new(),
+            scoop_layouts: HashMap::new(),
+            visiting_scoop_layouts: MeteredVisitingSet::new(),
+            expected_requirements: HashMap::new(),
         }
     }
 
@@ -347,8 +436,13 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 SourceExternFunctionAbi::C(signature) => {
                     let record = self.c_signature(signature, &[])?;
                     let signature = record.signature().clone();
-                    self.expected_signatures
-                        .insert(record.fingerprint(), record);
+                    insert_metered(
+                        self.meter,
+                        &mut self.expected_signatures,
+                        record.fingerprint(),
+                        record,
+                        &WirePath::root().field(15),
+                    )?;
                     NativeExternalContract::c_function(library, signature)
                 }
                 SourceExternFunctionAbi::Scoop {
@@ -394,7 +488,13 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 let key = NativeLinkRequirementKey::target_default(name.clone());
                 let record = CborIdentityRecord::from_key(key.clone())
                     .map_err(NativeBoundaryTargetError::Hash)?;
-                self.expected_requirements.insert(record.id(), key);
+                insert_metered(
+                    self.meter,
+                    &mut self.expected_requirements,
+                    record.id(),
+                    key,
+                    &WirePath::root().field(20),
+                )?;
                 Ok(NativeLibraryBinding::Requirement(record.id()))
             }
         }
@@ -563,20 +663,20 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     fn binders(
-        &self,
+        &mut self,
         context: CallableMaterializationContext,
     ) -> Result<Vec<Vec<PersistentExactTypeId>>, NativeBoundaryCompileError> {
         let mut binders = Vec::new();
-        let mut visiting = BTreeSet::new();
+        let mut visiting = MeteredVisitingSet::new();
         self.append_context_binders(context, &mut binders, &mut visiting)?;
         Ok(binders)
     }
 
     fn append_context_binders(
-        &self,
+        &mut self,
         context: CallableMaterializationContext,
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
-        visiting: &mut BTreeSet<PersistentCallableApplicationId>,
+        visiting: &mut MeteredVisitingSet<PersistentCallableApplicationId>,
     ) -> Result<(), NativeBoundaryCompileError> {
         match context {
             CallableMaterializationContext::NoSubstitution => Ok(()),
@@ -590,12 +690,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     fn append_application_binders(
-        &self,
+        &mut self,
         application: PersistentCallableApplicationId,
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
-        visiting: &mut BTreeSet<PersistentCallableApplicationId>,
+        visiting: &mut MeteredVisitingSet<PersistentCallableApplicationId>,
     ) -> Result<(), NativeBoundaryCompileError> {
-        if !visiting.insert(application) {
+        if !visiting.push(application, self.meter, &WirePath::root().field(17))? {
             return Err(NativeBoundaryTargetError::CallableApplicationCycle { application }.into());
         }
         let key = self
@@ -605,7 +705,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         if let CallableArguments::Arguments(arguments) = key.callable_arguments() {
             binders.push(arguments.as_slice().to_vec());
         }
-        match key.instantiation_owner() {
+        let owner = key.instantiation_owner();
+        match owner {
             CallableInstantiationOwner::NoOwner => {}
             CallableInstantiationOwner::ExactNominalOwner(owner) => {
                 if let ExactTypeKey::NominalApplication { arguments, .. } = self.exact(owner)? {
@@ -624,7 +725,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     fn append_initialization_binders(
-        &self,
+        &mut self,
         unit: PersistentInitializationUnitId,
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
     ) -> Result<(), NativeBoundaryCompileError> {
