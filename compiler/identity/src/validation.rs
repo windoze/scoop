@@ -2,8 +2,7 @@
 
 use std::any::{Any, TypeId};
 use std::cmp::Reverse;
-use std::collections::BinaryHeap;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BinaryHeap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
@@ -55,7 +54,7 @@ impl fmt::Display for IdentityLayer {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct IdentityNode {
     kind: &'static str,
     bytes: [u8; 32],
@@ -136,7 +135,7 @@ enum ValidationPhase {
 /// registered record. No trusted id or canonical record is exposed until
 /// [`Self::finish`] succeeds.
 pub struct PendingIdentityValidation<'meter> {
-    candidates: BTreeMap<IdentityNode, Candidate>,
+    candidates: HashMap<IdentityNode, Candidate>,
     canonical_keys: HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
     phase: ValidationPhase,
     meter: Option<&'meter mut BudgetMeter>,
@@ -153,7 +152,7 @@ impl Default for PendingIdentityValidation<'static> {
 impl PendingIdentityValidation<'static> {
     pub fn new() -> Self {
         Self {
-            candidates: BTreeMap::new(),
+            candidates: HashMap::new(),
             canonical_keys: HashMap::new(),
             phase: ValidationPhase::Registering,
             meter: None,
@@ -168,7 +167,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     /// resource meter.
     pub fn with_meter(meter: &'meter mut BudgetMeter) -> Self {
         Self {
-            candidates: BTreeMap::new(),
+            candidates: HashMap::new(),
             canonical_keys: HashMap::new(),
             phase: ValidationPhase::Registering,
             meter: Some(meter),
@@ -236,6 +235,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 id: node.bytes,
             });
         }
+        self.reserve_candidate_slot()?;
         self.candidates.insert(
             node,
             Candidate {
@@ -584,10 +584,13 @@ impl<'meter> PendingIdentityValidation<'meter> {
         if self.phase == ValidationPhase::Poisoned {
             return Err(IdentityValidationError::Poisoned);
         }
-        if let Some((node, _)) = self
+        if let Some(node) = self
             .candidates
             .iter()
-            .find(|(_, candidate)| candidate.layer.is_some() && !candidate.resolved)
+            .filter_map(|(node, candidate)| {
+                (candidate.layer.is_some() && !candidate.resolved).then_some(*node)
+            })
+            .min()
         {
             return Err(IdentityValidationError::UnresolvedIdentity {
                 kind: node.kind,
@@ -617,7 +620,6 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 id: node.bytes,
             });
         }
-        self.canonical_keys.shrink_to_fit();
         Ok(ValidatedIdentityGraph {
             candidates: self.candidates,
             canonical_keys: self.canonical_keys,
@@ -830,6 +832,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 id: node.bytes,
             });
         }
+        self.reserve_candidate_slot()?;
         self.candidates.insert(
             node,
             Candidate {
@@ -892,17 +895,72 @@ impl<'meter> PendingIdentityValidation<'meter> {
         K: Eq + 'static,
     {
         let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
-        if self.canonical_keys.insert(slot, Arc::new(key)).is_some() {
+        if self.canonical_keys.contains_key(&slot) {
             return self.fail(IdentityValidationError::AlreadyResolved {
                 kind: node.kind,
                 id: node.bytes,
             });
         }
-        self.candidates
-            .get_mut(&node)
-            .expect("registered identity disappeared")
-            .resolved = true;
+        if !self.candidates.contains_key(&node) {
+            return self.fail(IdentityValidationError::UnregisteredIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            });
+        }
+        self.reserve_canonical_key_slot()?;
+        self.canonical_keys.insert(slot, Arc::new(key));
+        let Some(candidate) = self.candidates.get_mut(&node) else {
+            return self.fail(IdentityValidationError::UnregisteredIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            });
+        };
+        candidate.resolved = true;
         Ok(())
+    }
+
+    fn reserve_candidate_slot(&mut self) -> Result<(), IdentityValidationError> {
+        let result = match self.meter.as_deref_mut() {
+            Some(meter) => {
+                meter.try_reserve_map_slots(&mut self.candidates, 1, &self.resource_path)
+            }
+            None => self.candidates.try_reserve(1).map_err(|_| {
+                WireError::new(
+                    WireErrorKind::ResourceAllocation {
+                        requested_logical_bytes: COLLECTION_ELEMENT_BYTES,
+                        requested_slots: 1,
+                    },
+                    self.resource_path.clone(),
+                    None,
+                )
+            }),
+        };
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => self.fail(IdentityValidationError::Resource(error)),
+        }
+    }
+
+    fn reserve_canonical_key_slot(&mut self) -> Result<(), IdentityValidationError> {
+        let result = match self.meter.as_deref_mut() {
+            Some(meter) => {
+                meter.try_reserve_map_slots(&mut self.canonical_keys, 1, &self.resource_path)
+            }
+            None => self.canonical_keys.try_reserve(1).map_err(|_| {
+                WireError::new(
+                    WireErrorKind::ResourceAllocation {
+                        requested_logical_bytes: COLLECTION_ELEMENT_BYTES,
+                        requested_slots: 1,
+                    },
+                    self.resource_path.clone(),
+                    None,
+                )
+            }),
+        };
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => self.fail(IdentityValidationError::Resource(error)),
+        }
     }
 
     fn require_matching_resolved_key<I, K>(
@@ -945,7 +1003,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
 #[doc(hidden)]
 pub struct PendingIdentityResolver<'validation> {
     current: IdentityNode,
-    candidates: &'validation mut BTreeMap<IdentityNode, Candidate>,
+    candidates: &'validation mut HashMap<IdentityNode, Candidate>,
     canonical_keys: &'validation HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
     meter: Option<&'validation mut BudgetMeter>,
     resource_error: &'validation mut Option<WireError>,
@@ -971,24 +1029,28 @@ where
         let source_layer = self
             .candidates
             .get(&self.current)
-            .expect("current identity disappeared")
-            .layer
-            .expect("authority cannot own an identity record");
-        if target_layer.is_some_and(|layer| layer > source_layer) {
+            .and_then(|candidate| candidate.layer)
+            .ok_or(IdentityReferenceError::Missing {
+                kind: self.current.kind,
+                id: self.current.bytes,
+            })?;
+        if let Some(target_layer) = target_layer
+            && target_layer > source_layer
+        {
             return Err(IdentityReferenceError::FutureLayer {
                 source: source_layer,
-                target: target_layer.expect("checked as present"),
+                target: target_layer,
                 kind: target.kind,
                 id: target.bytes,
             });
         }
-        let next_dependency_count = match self
-            .candidates
-            .get(&self.current)
-            .expect("current identity disappeared")
-            .dependency_count
-            .checked_add(1)
-        {
+        let Some(source_candidate) = self.candidates.get(&self.current) else {
+            return Err(IdentityReferenceError::Missing {
+                kind: self.current.kind,
+                id: self.current.bytes,
+            });
+        };
+        let next_dependency_count = match source_candidate.dependency_count.checked_add(1) {
             Some(count) => count,
             None => {
                 *self.resource_error = Some(WireError::new(
@@ -1005,10 +1067,12 @@ where
             *self.resource_error = Some(error);
             return Err(IdentityReferenceError::ResourceLimit);
         }
-        let target_candidate = self
-            .candidates
-            .get_mut(&target)
-            .expect("resolved identity target disappeared");
+        let Some(target_candidate) = self.candidates.get_mut(&target) else {
+            return Err(IdentityReferenceError::Missing {
+                kind: target.kind,
+                id: target.bytes,
+            });
+        };
         if target_candidate.dependents.try_reserve_exact(1).is_err() {
             *self.resource_error = Some(WireError::new(
                 WireErrorKind::ResourceAllocation {
@@ -1021,10 +1085,12 @@ where
             return Err(IdentityReferenceError::ResourceLimit);
         }
         target_candidate.dependents.push(self.current);
-        let source_candidate = self
-            .candidates
-            .get_mut(&self.current)
-            .expect("current identity disappeared");
+        let Some(source_candidate) = self.candidates.get_mut(&self.current) else {
+            return Err(IdentityReferenceError::Missing {
+                kind: self.current.kind,
+                id: self.current.bytes,
+            });
+        };
         source_candidate.dependency_count = next_dependency_count;
         Ok(I::from_digest(Digest256::from_array(target.bytes)))
     }
@@ -1057,7 +1123,7 @@ where
 /// every reference resolved to the same or an earlier layer, and the complete
 /// dependency graph is acyclic.
 pub struct ValidatedIdentityGraph {
-    candidates: BTreeMap<IdentityNode, Candidate>,
+    candidates: HashMap<IdentityNode, Candidate>,
     canonical_keys: HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
 }
 
@@ -1087,19 +1153,12 @@ impl ValidatedIdentityGraph {
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Clone + 'static,
     {
-        let first = IdentityNode {
-            kind: I::KIND,
-            bytes: [0; 32],
-        };
-        let last = IdentityNode {
-            kind: I::KIND,
-            bytes: [u8::MAX; 32],
-        };
         let record_count = self
             .candidates
-            .range(first..=last)
+            .iter()
             .filter(|(node, candidate)| {
-                candidate.layer == Some(layer)
+                node.kind == I::KIND
+                    && candidate.layer == Some(layer)
                     && self
                         .canonical_keys
                         .contains_key(&CanonicalKeySlot::new::<I, K>(node.bytes))
@@ -1116,8 +1175,8 @@ impl ValidatedIdentityGraph {
         meter
             .try_reserve_exact(&mut records, record_count, COLLECTION_ELEMENT_BYTES, path)
             .map_err(IdentityValidationError::Resource)?;
-        for (node, candidate) in self.candidates.range(first..=last) {
-            if candidate.layer != Some(layer) {
+        for (node, candidate) in &self.candidates {
+            if node.kind != I::KIND || candidate.layer != Some(layer) {
                 continue;
             }
             let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
@@ -1138,6 +1197,7 @@ impl ValidatedIdentityGraph {
             let record = CborIdentityRecord::from_verified(id, key.clone());
             records.push(record);
         }
+        records.sort_by_key(CborIdentityRecord::id);
         Ok(records)
     }
 
@@ -1153,19 +1213,12 @@ impl ValidatedIdentityGraph {
         I: PersistentId + 'static,
         K: RuntimeIdentityKey<I> + Clone + 'static,
     {
-        let first = IdentityNode {
-            kind: I::KIND,
-            bytes: [0; 32],
-        };
-        let last = IdentityNode {
-            kind: I::KIND,
-            bytes: [u8::MAX; 32],
-        };
         let record_count = self
             .candidates
-            .range(first..=last)
+            .iter()
             .filter(|(node, candidate)| {
-                candidate.layer == Some(layer)
+                node.kind == I::KIND
+                    && candidate.layer == Some(layer)
                     && self
                         .canonical_keys
                         .contains_key(&CanonicalKeySlot::new::<I, K>(node.bytes))
@@ -1182,8 +1235,8 @@ impl ValidatedIdentityGraph {
         meter
             .try_reserve_exact(&mut records, record_count, COLLECTION_ELEMENT_BYTES, path)
             .map_err(IdentityValidationError::Resource)?;
-        for (node, candidate) in self.candidates.range(first..=last) {
-            if candidate.layer != Some(layer) {
+        for (node, candidate) in &self.candidates {
+            if node.kind != I::KIND || candidate.layer != Some(layer) {
                 continue;
             }
             let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
@@ -1210,6 +1263,7 @@ impl ValidatedIdentityGraph {
             })?;
             records.push(record);
         }
+        records.sort_by_key(RuntimeIdentityRecord::id);
         Ok(records)
     }
 }
@@ -1429,7 +1483,7 @@ impl fmt::Display for IdentityKeyResolutionError {
 impl std::error::Error for IdentityKeyResolutionError {}
 
 fn find_cycle(
-    candidates: &mut BTreeMap<IdentityNode, Candidate>,
+    candidates: &mut HashMap<IdentityNode, Candidate>,
     node_count: u64,
     path: &WirePath,
 ) -> Result<Option<IdentityNode>, IdentityValidationError> {
@@ -1455,18 +1509,27 @@ fn find_cycle(
 
     let mut completed = 0_u64;
     while let Some(Reverse(node)) = ready.pop() {
-        completed += 1;
-        let dependents = std::mem::take(
-            &mut candidates
-                .get_mut(&node)
-                .expect("ready identity disappeared")
-                .dependents,
-        );
+        completed = completed
+            .checked_add(1)
+            .ok_or_else(|| resource_error(WireErrorKind::IntegerOutOfRange, path))?;
+        let Some(candidate) = candidates.get_mut(&node) else {
+            return Err(IdentityValidationError::UnregisteredIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            });
+        };
+        let dependents = std::mem::take(&mut candidate.dependents);
         for dependent in dependents {
-            let candidate = candidates
-                .get_mut(&dependent)
-                .expect("identity dependent disappeared");
-            candidate.dependency_count -= 1;
+            let Some(candidate) = candidates.get_mut(&dependent) else {
+                return Err(IdentityValidationError::UnregisteredIdentity {
+                    kind: dependent.kind,
+                    id: dependent.bytes,
+                });
+            };
+            candidate.dependency_count = candidate
+                .dependency_count
+                .checked_sub(1)
+                .ok_or_else(|| resource_error(WireErrorKind::IntegerOutOfRange, path))?;
             if candidate.dependency_count == 0 {
                 ready.push(Reverse(dependent));
             }
@@ -1477,7 +1540,8 @@ fn find_cycle(
     } else {
         Ok(candidates
             .iter()
-            .find_map(|(node, candidate)| (candidate.dependency_count != 0).then_some(*node)))
+            .filter_map(|(node, candidate)| (candidate.dependency_count != 0).then_some(*node))
+            .min())
     }
 }
 

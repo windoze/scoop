@@ -323,7 +323,7 @@ fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
             }
     ));
 
-    for (limit, accepted) in [(95, false), (96, true), (97, true)] {
+    for (limit, accepted) in [(191, false), (192, true), (193, true)] {
         let mut meter = BudgetMeter::new(DecodeLimits {
             logical_heap_bytes: limit,
             ..DecodeLimits::default()
@@ -337,7 +337,7 @@ fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
         };
         assert_eq!(result.is_ok(), accepted);
         if accepted {
-            assert_eq!(meter.usage().logical_heap_bytes, 96);
+            assert_eq!(meter.usage().logical_heap_bytes, 192);
             assert_eq!(meter.usage().decoded_edges, 1);
             assert_eq!(meter.usage().validation_work_units, 7);
         } else {
@@ -346,8 +346,8 @@ fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
                 Err(IdentityValidationError::Resource(ref error))
                     if error.kind() == &WireErrorKind::LimitExceeded {
                         resource: ResourceKind::LogicalHeapBytes,
-                        limit: 95,
-                        observed: 96,
+                        limit: 191,
+                        observed: 192,
                     }
             ));
         }
@@ -357,7 +357,8 @@ fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
 #[test]
 fn stable_kahn_uses_no_input_driven_recursion() {
     const NODE_COUNT: u64 = 16_384;
-    let mut candidates = BTreeMap::new();
+    let mut candidates = HashMap::new();
+    let mut nodes = Vec::new();
     for index in 0..NODE_COUNT {
         let mut bytes = [0_u8; 32];
         bytes[24..].copy_from_slice(&index.to_be_bytes());
@@ -365,6 +366,7 @@ fn stable_kahn_uses_no_input_driven_recursion() {
             kind: "test",
             bytes,
         };
+        nodes.push(node);
         candidates.insert(
             node,
             Candidate {
@@ -376,7 +378,6 @@ fn stable_kahn_uses_no_input_driven_recursion() {
             },
         );
     }
-    let nodes = candidates.keys().copied().collect::<Vec<_>>();
     for pair in nodes.windows(2) {
         candidates
             .get_mut(&pair[0])
