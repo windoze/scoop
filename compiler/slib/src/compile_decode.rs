@@ -356,11 +356,11 @@ impl<'input> IdentityCheckedFoundations<'input> {
             mir,
             lir,
         } = self;
-        let coordinate = graph.coordinate().clone();
         let producer = graph.identity();
-        let meter = graph.envelope.meter_mut();
+        let (manifest, meter) = graph.envelope.manifest_and_meter();
+        let coordinate = manifest.cone().coordinate();
         let hir = hir
-            .validate(&coordinate, &mut identities, meter)
+            .validate(coordinate, &mut identities, meter)
             .map_err(FoundationStructureValidationError::Hir)?;
         let mir = mir
             .validate(&mut identities, meter)

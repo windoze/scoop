@@ -406,12 +406,24 @@ fn validate_source_contexts(
     meter
         .try_reserve_set_slots(&mut known, sources.len(), &path)
         .map_err(HirFoundationValidationError::Resource)?;
-    known.extend(sources.iter().map(|source| source.identity().clone()));
+    known.extend(sources.iter().map(SourceRecord::identity));
     for context in contexts {
         if !known.contains(context.key().source()) {
+            let source = context.key().source();
+            let owned_bytes =
+                u64::try_from(source.logical_path().as_str().len()).map_err(|_| {
+                    HirFoundationValidationError::Resource(scoop_wire::WireError::new(
+                        scoop_wire::WireErrorKind::IntegerOutOfRange,
+                        path.clone(),
+                        None,
+                    ))
+                })?;
+            meter
+                .charge_owned_bytes(owned_bytes, &path)
+                .map_err(HirFoundationValidationError::Resource)?;
             return Err(HirFoundationValidationError::UnknownContextSource {
                 context: *context.id().as_array(),
-                source: context.key().source().clone(),
+                source: source.clone(),
             });
         }
     }

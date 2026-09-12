@@ -193,6 +193,51 @@ fn source_context_index_has_inclusive_heap_boundaries() {
 }
 
 #[test]
+fn absent_source_diagnostic_copy_has_inclusive_owned_byte_boundaries() {
+    let fixture = fixture(true, true);
+    let required = u64::try_from(
+        fixture.canonical.source_contexts[0]
+            .key()
+            .source()
+            .logical_path()
+            .as_str()
+            .len(),
+    )
+    .unwrap();
+
+    for (limit, accepted) in [
+        (required - 1, false),
+        (required, true),
+        (required + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            owned_bytes: limit,
+            ..DecodeLimits::default()
+        });
+        let error = validate_source_contexts(&fixture.canonical.source_contexts, &[], &mut meter)
+            .unwrap_err();
+
+        if accepted {
+            assert!(matches!(
+                error,
+                HirFoundationValidationError::UnknownContextSource { .. }
+            ));
+            assert_eq!(meter.usage().owned_bytes, required);
+        } else {
+            assert!(matches!(
+                error,
+                HirFoundationValidationError::Resource(ref error)
+                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
+                        resource: scoop_wire::ResourceKind::OwnedBytes,
+                        limit,
+                        observed: required,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
 fn definition_origin_indexes_have_inclusive_heap_boundaries() {
     let fixture = fixture(true, true);
     let required = 3 * scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
