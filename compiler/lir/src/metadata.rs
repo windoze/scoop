@@ -246,6 +246,9 @@ pub struct LirMeta {
     /// Complete target capabilities used to compute every physical layout in
     /// this metadata. Codegen must consume the matching full target profile.
     pub target_profile: LirTargetProfile,
+    /// Complete canonical C source-storage leaf records used by native
+    /// functions, globals, and callbacks in this module.
+    pub canonical_c_abi: CanonicalCAbiMetadata,
     /// Non-optional identities selected from typed intrinsic declarations.
     pub well_known_layouts: WellKnownLayouts,
     pub well_known_type_descriptors: WellKnownTypeDescriptors,

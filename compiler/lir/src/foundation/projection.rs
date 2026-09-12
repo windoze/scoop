@@ -79,6 +79,8 @@ impl CanonicalLirFoundation {
                 .map(|(_, descriptor)| descriptor.identity.runtime_type())
                 .collect(),
         )?;
+        foundation.set_c_abi_signatures(module.meta.canonical_c_abi.signatures().to_vec())?;
+        foundation.set_c_abi_layouts(module.meta.canonical_c_abi.layouts().to_vec())?;
         Ok(foundation)
     }
 

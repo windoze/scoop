@@ -100,6 +100,39 @@ fn test_source_native_contract(
     .unwrap()
 }
 
+fn test_source_native_data_contract(
+    source_name: &str,
+    native_symbol: &str,
+    storage: SignatureTypeKey,
+) -> SourceNativeExternalContractRecord {
+    let identifier = format!(
+        "test{}",
+        source_name
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::property(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+    );
+    SourceNativeExternalContractRecord::new(
+        SourceNativeExternalContractKey::property(&declaration).unwrap(),
+        SourceNativeExternalContract::ReadOnlyData {
+            symbol: SourceNativeSymbol::new(native_symbol).unwrap(),
+            library: SourceNativeLibraryBinding::DefaultNativeNamespace,
+            storage,
+        },
+    )
+    .unwrap()
+}
+
 fn lower(module: &mir::Module) -> lir::Module {
     super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
 }
@@ -685,9 +718,15 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         abi: mir::ExternAbi::C,
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
-        params,
+        params: params.clone(),
         return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
     });
+    builder.c_extern(
+        "sameIntegers",
+        "same_integers",
+        params,
+        mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+    );
     let main = builder.main(Arena::new(), Vec::new());
     let mut mir_module = builder.finish(main);
     let native_signature = mir_module.function_types.alloc(mir::FunctionType {
@@ -703,7 +742,11 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         mir::type_name(&mir_module, &mir::Type::Function(native_signature))
     );
     let module = lower(&mir_module);
-    let (_, function) = module.extern_functions.iter().next().expect("one C extern");
+    let (_, function) = module
+        .extern_functions
+        .iter()
+        .next()
+        .expect("at least one C extern");
     let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
         panic!("C declaration remains a C bridge")
     };
@@ -736,6 +779,204 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
     assert!(
         descriptor_values(&module).all(|descriptor| descriptor.name != forbidden_descriptor_name),
         "a native FunPtr signature must not fabricate a managed TypeDescriptor"
+    );
+
+    let expected_parameters = mir::IntegerKind::ALL
+        .into_iter()
+        .map(|kind| {
+            let ty = mir::Type::Integer(kind);
+            let exact_type = mir_module
+                .meta
+                .source_exact_types
+                .get(&ty)
+                .expect("every source integer has an exact identity")
+                .identity_record()
+                .id();
+            let storage = scoop_identity::CanonicalCStorageType::Integer {
+                exact_type,
+                signedness: match kind.signedness() {
+                    mir::IntegerSignedness::Signed => scoop_identity::Signedness::Signed,
+                    mir::IntegerSignedness::Unsigned => scoop_identity::Signedness::Unsigned,
+                },
+                bit_width: match kind.width() {
+                    mir::IntegerWidth::W8 => scoop_identity::IntegerBitWidth::Bits8,
+                    mir::IntegerWidth::W16 => scoop_identity::IntegerBitWidth::Bits16,
+                    mir::IntegerWidth::W32 => scoop_identity::IntegerBitWidth::Bits32,
+                    mir::IntegerWidth::W64 => scoop_identity::IntegerBitWidth::Bits64,
+                },
+            };
+            scoop_identity::CanonicalCAbiParameter::new(exact_type, storage).unwrap()
+        })
+        .collect();
+    let return_type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_64);
+    let return_exact = mir_module
+        .meta
+        .source_exact_types
+        .get(&return_type)
+        .expect("the source return type has an exact identity")
+        .identity_record()
+        .id();
+    let expected_signature = scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            expected_parameters,
+            scoop_identity::CanonicalCAbiReturn::value(
+                return_exact,
+                scoop_identity::CanonicalCStorageType::Integer {
+                    exact_type: return_exact,
+                    signedness: scoop_identity::Signedness::Unsigned,
+                    bit_width: scoop_identity::IntegerBitWidth::Bits64,
+                },
+            )
+            .unwrap(),
+        ),
+    )
+    .unwrap();
+    assert_eq!(
+        module.meta.canonical_c_abi.signatures(),
+        &[expected_signature]
+    );
+    assert!(module.meta.canonical_c_abi.layouts().is_empty());
+}
+
+#[test]
+fn canonical_c_abi_metadata_handles_struct_function_pointer_recursion() {
+    let mut builder = Builder::new();
+    let node_id = mir::StructId::from_raw(
+        u32::try_from(builder.structs.len())
+            .expect("test struct arena length fits u32")
+            .into(),
+    );
+    let handler_signature = builder.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: vec![mir::Type::Struct(node_id)],
+        return_type: mir::Type::Unit,
+    });
+    let handler_type = mir::Type::FunPtr(handler_signature);
+    let node = builder.c_strukt(
+        "Node",
+        mir::MirCLayoutValue::Natural,
+        mir::MirCLayoutValue::Natural,
+        false,
+        &[("handler", handler_type.clone())],
+    );
+    assert_eq!(node, node_id);
+    builder.c_extern(
+        "visitNode",
+        "visit_node",
+        vec![mir::Type::Struct(node)],
+        mir::Type::Unit,
+    );
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut source = builder.finish(main);
+    register_test_source_exact_type(&mut source, handler_type.clone());
+    let node_exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Struct(node))
+        .expect("Node has an exact identity")
+        .identity_record()
+        .id();
+    let handler_exact = source
+        .meta
+        .source_exact_types
+        .get(&handler_type)
+        .expect("Node handler has an exact identity")
+        .identity_record()
+        .id();
+
+    let module = lower(&source);
+    let expected_layout = scoop_identity::CanonicalCAbiLayoutFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiLayout::new(
+            node_exact,
+            8,
+            std::num::NonZeroU64::new(8).unwrap(),
+            scoop_identity::CLayoutOverride::Natural,
+            scoop_identity::CLayoutOverride::Natural,
+            vec![scoop_identity::CanonicalCAbiLayoutField::new(
+                test_field_identity("Node", "handler"),
+                0,
+                scoop_identity::CanonicalCStorageType::CodePointer {
+                    exact_type: handler_exact,
+                    storage: scoop_identity::CPointerStorage::Direct,
+                },
+            )],
+        ),
+    )
+    .unwrap();
+    let expected_signature = scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            vec![
+                scoop_identity::CanonicalCAbiParameter::new(
+                    node_exact,
+                    scoop_identity::CanonicalCStorageType::Struct {
+                        exact_type: node_exact,
+                        layout: expected_layout.fingerprint(),
+                    },
+                )
+                .unwrap(),
+            ],
+            scoop_identity::CanonicalCAbiReturn::Void,
+        ),
+    )
+    .unwrap();
+
+    assert_eq!(module.meta.canonical_c_abi.layouts(), &[expected_layout]);
+    assert_eq!(
+        module.meta.canonical_c_abi.signatures(),
+        &[expected_signature]
+    );
+    let foundation = lir::CanonicalLirFoundation::from_module(&module).unwrap();
+    assert_eq!(foundation.counts().c_abi_layouts, 1);
+    assert_eq!(foundation.counts().c_abi_signatures, 1);
+}
+
+#[test]
+fn canonical_c_abi_metadata_includes_external_global_layouts() {
+    let mut builder = Builder::new();
+    let header = builder.c_strukt(
+        "Header",
+        mir::MirCLayoutValue::A8,
+        mir::MirCLayoutValue::A1,
+        false,
+        &[("flag", mir::Type::Boolean), ("value", INT)],
+    );
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut source = builder.finish(main);
+    let exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Struct(header))
+        .expect("Header has an exact identity")
+        .identity_record();
+    let ExactTypeKey::Nominal(nominal) = exact.key() else {
+        panic!("a non-generic test struct has a nominal exact identity")
+    };
+    source.globals.alloc(mir::Global {
+        name: "header".to_string(),
+        storage_owner: mir::StaticStorageOwner::PropertyBacking(property_owner("header")),
+        ty: mir::Type::Struct(header),
+        mutable: false,
+        storage: mir::GlobalStorage::Extern {
+            source_contract: Box::new(test_source_native_data_contract(
+                "header",
+                "native_header",
+                SignatureTypeKey::Nominal(*nominal),
+            )),
+            library: String::new(),
+            native_symbol: "native_header".to_string(),
+            thread_local: false,
+        },
+    });
+
+    let module = lower(&source);
+    assert!(module.meta.canonical_c_abi.signatures().is_empty());
+    assert_eq!(module.meta.canonical_c_abi.layouts().len(), 1);
+    assert_eq!(
+        lir::CanonicalLirFoundation::from_module(&module)
+            .unwrap()
+            .counts()
+            .c_abi_layouts,
+        1
     );
 }
 
@@ -984,6 +1225,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             module.foreign_callback_adapters[adapter].signature_subject(),
         )])
         .unwrap();
+    register_test_source_exact_type(&mut module, mir::Type::Ptr(Box::new(mir::Type::Unit)));
     install_callable_signatures(&mut module);
 
     let lowered = lower(&module);

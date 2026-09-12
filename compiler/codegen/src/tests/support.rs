@@ -649,6 +649,7 @@ pub(super) fn string_metadata() -> LirMeta {
     });
     LirMeta {
         target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
         well_known_layouts: WellKnownLayouts {
             string: string_layout,
         },

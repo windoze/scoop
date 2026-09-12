@@ -167,6 +167,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums);
+    let canonical_c_abi = native_abi::lower(module, &structs);
     // Classify every final MIR function before any body is lowered. Callee
     // definitions and all statically selected call sites reuse these exact
     // signatures rather than independently rebuilding a physical ABI.
@@ -286,6 +287,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         entry: local_function_map[&module.entry],
         meta: lir::LirMeta {
             target_profile: context.target_profile(),
+            canonical_c_abi,
             well_known_layouts,
             well_known_type_descriptors,
             arrays,
@@ -333,6 +335,7 @@ mod globals;
 mod initialization;
 mod locals;
 mod metadata;
+mod native_abi;
 mod runtime;
 mod safepoints;
 mod target;

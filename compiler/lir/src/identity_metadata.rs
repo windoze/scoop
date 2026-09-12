@@ -10,6 +10,72 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+/// Canonical target-specific C storage signatures and layouts required by
+/// this LIR module. Repeated boundary uses share one record; a digest collision
+/// with a different preimage is rejected before the metadata becomes visible.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CanonicalCAbiMetadata {
+    signatures: Vec<scoop_identity::CanonicalCAbiSignatureFingerprintRecord>,
+    layouts: Vec<scoop_identity::CanonicalCAbiLayoutFingerprintRecord>,
+}
+
+impl CanonicalCAbiMetadata {
+    pub fn checked(
+        mut signatures: Vec<scoop_identity::CanonicalCAbiSignatureFingerprintRecord>,
+        mut layouts: Vec<scoop_identity::CanonicalCAbiLayoutFingerprintRecord>,
+    ) -> Result<Self, CanonicalCAbiMetadataError> {
+        signatures.sort_by_key(|record| record.fingerprint());
+        signatures.dedup();
+        if signatures
+            .windows(2)
+            .any(|pair| pair[0].fingerprint() == pair[1].fingerprint())
+        {
+            return Err(CanonicalCAbiMetadataError::SignatureCollision);
+        }
+
+        layouts.sort_by_key(|record| record.fingerprint());
+        layouts.dedup();
+        if layouts
+            .windows(2)
+            .any(|pair| pair[0].fingerprint() == pair[1].fingerprint())
+        {
+            return Err(CanonicalCAbiMetadataError::LayoutCollision);
+        }
+
+        Ok(Self {
+            signatures,
+            layouts,
+        })
+    }
+
+    pub fn signatures(&self) -> &[scoop_identity::CanonicalCAbiSignatureFingerprintRecord] {
+        &self.signatures
+    }
+
+    pub fn layouts(&self) -> &[scoop_identity::CanonicalCAbiLayoutFingerprintRecord] {
+        &self.layouts
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CanonicalCAbiMetadataError {
+    SignatureCollision,
+    LayoutCollision,
+}
+
+impl fmt::Display for CanonicalCAbiMetadataError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::SignatureCollision => {
+                "different canonical C ABI signatures have the same fingerprint"
+            }
+            Self::LayoutCollision => "different canonical C ABI layouts have the same fingerprint",
+        })
+    }
+}
+
+impl std::error::Error for CanonicalCAbiMetadataError {}
+
 /// The deterministic runtime type id derived from one persistent exact type.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RuntimeTypeMappingRecord {

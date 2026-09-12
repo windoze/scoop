@@ -106,7 +106,7 @@ pub(super) fn c_return_type(
     }
 }
 
-fn exact_option_payload<'a>(
+pub(super) fn exact_option_payload<'a>(
     module: &'a mir::Module,
     id: mir::EnumId,
     arguments: &'a [mir::Type],

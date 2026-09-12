@@ -1719,6 +1719,7 @@ mod tests {
             entry: scoop_lir::LocalFunctionRef::Managed(local_functions.alloc_managed()),
             meta: scoop_lir::LirMeta {
                 target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+                canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
                 well_known_layouts: scoop_lir::WellKnownLayouts {
                     string: scoop_lir::LayoutId::from_raw(0.into()),
                 },
