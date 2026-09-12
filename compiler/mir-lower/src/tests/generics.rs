@@ -103,19 +103,13 @@ fn monomorphization_metadata_preserves_persistent_materializations() {
     let mut registry = InstanceRegistry::default();
     let hir_function = |raw: u32| hir::concrete::FunctionId::from_raw(raw.into());
     let mir_function = |raw: u32| mir::FunctionId::from_raw(raw.into());
-    for (index, (symbol, name)) in [
-        ("scoop.identity$U", "identity"),
-        ("scoop.identity$A", "identity"),
-        ("scoop.Box$A.get", "Box.get"),
-        ("scoop.Host$A.convert$U", "Host.convert"),
-    ]
-    .into_iter()
-    .enumerate()
+    for (index, name) in ["identity", "identity", "Box.get", "Host.convert"]
+        .into_iter()
+        .enumerate()
     {
         registry.record(
             hir_function(index as u32),
             mir_function(index as u32),
-            symbol.to_string(),
             name.to_string(),
             materializations[index],
         );
@@ -435,21 +429,14 @@ fn print_overloads_are_ordinary_calls() {
         .collect();
     // The overloads are the first six MIR functions (declaration
     // order: the three `print`s, then the three `println`s), and
-    // each overload's symbol carries the parameter encoding.
+    // each call retains the overload selected by HIR.
     assert_eq!(callees, module.top_level[..6]);
-    let symbols: Vec<&str> = callees
+    let names: Vec<&str> = callees
         .iter()
-        .map(|&id| module.functions[id].symbol.as_str())
+        .map(|&id| module.functions[id].name.as_str())
         .collect();
     assert_eq!(
-        symbols,
-        [
-            "scoop.print.S",
-            "scoop.print.I32",
-            "scoop.print.B",
-            "scoop.println.S",
-            "scoop.println.I32",
-            "scoop.println.B",
-        ]
+        names,
+        ["print", "print", "print", "println", "println", "println",]
     );
 }

@@ -106,20 +106,6 @@ impl IntegerKind {
             (IntegerSignedness::Unsigned, IntegerWidth::W64) => "ULong",
         }
     }
-
-    /// Exact type code in the M22 `compact-v2` mangling schema.
-    pub const fn compact_v2_code(self) -> &'static str {
-        match (self.signedness, self.width) {
-            (IntegerSignedness::Signed, IntegerWidth::W8) => "I8",
-            (IntegerSignedness::Signed, IntegerWidth::W16) => "I16",
-            (IntegerSignedness::Signed, IntegerWidth::W32) => "I32",
-            (IntegerSignedness::Signed, IntegerWidth::W64) => "I64",
-            (IntegerSignedness::Unsigned, IntegerWidth::W8) => "V8",
-            (IntegerSignedness::Unsigned, IntegerWidth::W16) => "V16",
-            (IntegerSignedness::Unsigned, IntegerWidth::W32) => "V32",
-            (IntegerSignedness::Unsigned, IntegerWidth::W64) => "V64",
-        }
-    }
 }
 
 /// A width-matched source integer constant.

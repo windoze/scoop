@@ -11,9 +11,6 @@ pub struct Function {
     /// Whether this body participates in managed GC instrumentation.
     pub gc_effect: GcEffect,
     pub name: String,
-    /// Mangled symbol; `scoop.<name>`, `scoop.<name>$<args>` for
-    /// monomorphized instances, or `scoop_main` for the entry.
-    pub symbol: String,
     pub params: Vec<Param>,
     pub return_ty: Type,
     pub body: Body,

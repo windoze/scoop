@@ -2,32 +2,11 @@
 
 use super::*;
 
-#[derive(Debug, Clone)]
-pub(super) struct FunctionInstance {
-    materialization: hir::CallableMaterialization,
-    arguments: hir::NonEmptyVec<hir::TypeId>,
-    symbol: hir::InstanceSymbol,
-}
-
-impl FunctionInstance {
-    pub(super) const fn symbol(&self) -> hir::InstanceSymbol {
-        self.symbol
-    }
-
-    pub(super) fn all_arguments(&self) -> &[hir::TypeId] {
-        self.arguments.as_slice()
-    }
-}
-
-pub(super) fn function_instance(function: &hir::Function) -> Option<FunctionInstance> {
-    let hir::FunctionEmission::Materialized { arguments, symbol } = &function.emission else {
+pub(super) fn function_instance(function: &hir::Function) -> Option<hir::CallableMaterialization> {
+    let hir::FunctionEmission::Materialized { .. } = &function.emission else {
         return None;
     };
-    Some(FunctionInstance {
-        materialization: function.materialization,
-        arguments: arguments.clone(),
-        symbol: *symbol,
-    })
+    Some(function.materialization)
 }
 
 impl Lowerer {
@@ -37,15 +16,14 @@ impl Lowerer {
         hir_id: hir::FunctionId,
         mir_id: mir::FunctionId,
     ) {
-        let Some(instance) = function_instance(&module.functions[hir_id]) else {
+        let Some(materialization) = function_instance(&module.functions[hir_id]) else {
             return;
         };
         self.instances.record(
             hir_id,
             mir_id,
-            self.functions[mir_id].symbol.clone(),
             self.functions[mir_id].name.clone(),
-            instance.materialization,
+            materialization,
         );
     }
 }
@@ -64,13 +42,11 @@ impl InstanceRegistry {
         &mut self,
         hir_function: hir::FunctionId,
         function: mir::FunctionId,
-        symbol: String,
         display_name: String,
         materialization: hir::CallableMaterialization,
     ) -> mir::MonomorphizedFunctionId {
         let id = self.meta.alloc(mir::MonomorphizedFunction {
             function,
-            symbol,
             display_name,
             materialization,
         });

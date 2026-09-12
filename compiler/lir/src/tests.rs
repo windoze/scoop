@@ -777,7 +777,7 @@ fn machine_scalars_keep_closed_domains_and_frozen_i64_encodings() {
 }
 
 #[test]
-fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
+fn source_integer_kinds_have_exact_width_identity() {
     use super::{IntegerKind, IntegerSignedness, IntegerWidth};
 
     let expected = [
@@ -786,7 +786,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W8,
             "Int8",
-            "I8",
             LirType::I8,
         ),
         (
@@ -794,7 +793,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W16,
             "Int16",
-            "I16",
             LirType::I16,
         ),
         (
@@ -802,7 +800,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W32,
             "Int",
-            "I32",
             LirType::I32,
         ),
         (
@@ -810,7 +807,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W64,
             "Long",
-            "I64",
             LirType::I64,
         ),
         (
@@ -818,7 +814,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W8,
             "UInt8",
-            "V8",
             LirType::I8,
         ),
         (
@@ -826,7 +821,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W16,
             "UInt16",
-            "V16",
             LirType::I16,
         ),
         (
@@ -834,7 +828,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W32,
             "UInt",
-            "V32",
             LirType::I32,
         ),
         (
@@ -842,17 +835,15 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W64,
             "ULong",
-            "V64",
             LirType::I64,
         ),
     ];
 
     assert_eq!(IntegerKind::ALL.len(), expected.len());
-    for (kind, signedness, width, name, code, scalar) in expected {
+    for (kind, signedness, width, name, scalar) in expected {
         assert_eq!(kind.signedness(), signedness);
         assert_eq!(kind.width(), width);
         assert_eq!(kind.canonical_name(), name);
-        assert_eq!(kind.compact_v2_code(), code);
         assert_eq!(kind.scalar_type(), scalar);
         assert_eq!(width.bytes(), u64::from(width.bits() / 8));
         assert_eq!(width.shift_mask(), u64::from(width.bits() - 1));

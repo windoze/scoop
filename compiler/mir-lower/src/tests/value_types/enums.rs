@@ -204,7 +204,7 @@ Module
   enum Option$I32
     Some(_1: Int)
     None()
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       val o: Option$I32<Int>
         Type Option$I32<Int>
@@ -228,7 +228,7 @@ Module
       goto bb2
     bb2 if.merge.2
       return
-  entry @scoop_main
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
@@ -280,7 +280,7 @@ Module
     Some(_1: Int)
     None()
   class UnwrapException vtable=0 itables=0
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       val o: Option$I32<Int>
         Type Option$I32<Int>
@@ -306,7 +306,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.C15_UnwrapExceptionX.$c0 direct
+      call @fn1 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -317,10 +317,10 @@ Module
         Type Int
         Local $uw.2
       return
-  fun init.UnwrapException.$c0 @scoop.init.C15_UnwrapExceptionX.$c0(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c0 @fn1(this: UnwrapException) -> Unit
     bb0 entry
       return
-  entry @scoop_main
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));

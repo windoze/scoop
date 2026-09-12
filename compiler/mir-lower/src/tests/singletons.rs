@@ -119,10 +119,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         declaration.singleton_value,
         mir::SingletonValueId::from_raw(0_u32.into())
     );
-    assert_eq!(
-        module.globals[root.global].symbol,
-        "scoop.singleton.Registry"
-    );
+    assert_eq!(module.globals[root.global].name, "$singleton$Registry");
     assert_eq!(
         module.globals[root.global].storage_owner,
         mir::StaticStorageOwner::SingletonPublishedRoot(expected_singleton_owner)

@@ -7,7 +7,7 @@ use scoop_ast::Span;
 use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
-use super::{GeneratedNominalLinkRole, Lowerer, generated_nominal_link_stem};
+use super::Lowerer;
 
 mod adapters;
 mod construction;
@@ -98,11 +98,10 @@ fn transform_function(
     let source_return = coroutine_meta.source_return.clone();
     let source_signature = coroutine_meta.logical_signature.clone();
     let step_ty = lowerer.functions[function_id].return_ty.clone();
-    let (source_name, source_symbol, old_params, mut body) = {
+    let (source_name, old_params, mut body) = {
         let function = &mut lowerer.functions[function_id];
         (
             function.name.clone(),
-            function.symbol.clone(),
             std::mem::take(&mut function.params),
             std::mem::replace(&mut function.body, mir::Body::unreachable(Arena::new())),
         )
@@ -212,17 +211,8 @@ fn transform_function(
         name: "failure".to_string(),
         ty: failure_slot_ty,
     });
-    let frame_name = format!("CoroutineFrame${}", encode_symbol_component(&source_symbol));
-    let frame_class = generated_class(
-        lowerer,
-        GeneratedNominalLinkRole::CoroutineFrame {
-            source_symbol: &source_symbol,
-        },
-        frame_name,
-        frame_fields,
-        Vec::new(),
-        Vec::new(),
-    );
+    let frame_name = format!("CoroutineFrame<{source_name}>");
+    let frame_class = generated_class(lowerer, frame_name, frame_fields, Vec::new(), Vec::new());
     let state_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 0)
         .expect("the generated coroutine frame has a state field");
     let completion_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 1)
@@ -282,7 +272,6 @@ fn transform_function(
     let driver = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
         name: format!("{source_name}$drive"),
-        symbol: format!("{source_symbol}$drive"),
         params: Vec::new(),
         return_ty: step_ty.clone(),
         body: mir::Body::unreachable(Arena::new()),
@@ -349,7 +338,7 @@ fn transform_function(
             continuation,
             outer_resume,
             outer_failure,
-            &source_symbol,
+            &source_name,
             driver,
             source_materialization,
             source_odr_group,

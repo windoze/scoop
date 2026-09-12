@@ -1,5 +1,5 @@
 use super::super::*;
-use super::type_name;
+use super::{function_ref, string_ref, type_name};
 
 pub(super) fn dump_expr(
     module: &Module,
@@ -12,10 +12,7 @@ pub(super) fn dump_expr(
     out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
     match &expr.kind {
         ExprKind::StringConst(id) => {
-            out.push_str(&format!(
-                "{pad}StringConst @{}\n",
-                module.strings[*id].symbol
-            ));
+            out.push_str(&format!("{pad}StringConst {}\n", string_ref(*id)));
         }
         ExprKind::IntegerLiteral(value) => {
             let digits = usize::from(value.width().bytes()) * 2;
@@ -453,16 +450,16 @@ pub(super) fn dump_call(
 ) {
     let pad = "  ".repeat(indent);
     let callee = match &call.target.callee {
-        Callee::User(id) => format!("@{}", module.functions[*id].symbol),
-        Callee::Monomorphized(id) => format!("@{}", module.meta.instances[*id].symbol),
+        Callee::User(id) => function_ref(*id),
+        Callee::Monomorphized(id) => function_ref(module.meta.instances[*id].function),
         Callee::Extern(id) => format!(
             "extern{} @{}",
             id.into_raw(),
             module.extern_functions[*id].native_symbol
         ),
         Callee::CoroutineSuspend { register } => format!(
-            "@coroutine_suspend[register=@{}]",
-            module.meta.instances[*register].symbol
+            "@coroutine_suspend[register={}]",
+            function_ref(module.meta.instances[*register].function)
         ),
         Callee::Closure(function_type) => {
             format!(

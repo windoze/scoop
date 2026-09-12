@@ -5,10 +5,10 @@ use super::*;
 /// body, `handled()` in the catch, `cleanup()` in the finally.
 fn try_shell(finally: bool) -> (Builder, mir::FunctionId, mir::FunctionId, mir::FunctionId) {
     let mut b = Builder::new();
-    let helper = b.user_fn("helper", "scoop.helper", Arena::new(), vec![]);
-    let handled = b.user_fn("handled", "scoop.handled", Arena::new(), vec![]);
+    let helper = b.user_fn("helper", Arena::new(), vec![]);
+    let handled = b.user_fn("handled", Arena::new(), vec![]);
     let cleanup = if finally {
-        b.user_fn("cleanup", "scoop.cleanup", Arena::new(), vec![])
+        b.user_fn("cleanup", Arena::new(), vec![])
     } else {
         helper
     };
@@ -27,7 +27,6 @@ fn try_catch_lowers_to_invoke_landingpad_and_rethrow() {
     let e = locals.alloc(local("e", mir::Type::Class(my_error)));
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         single_catch_body(
@@ -133,7 +132,6 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
     let callee_second = callee_locals.alloc(local("second", reference_ty.clone()));
     let callee = b.user_fn_body(
         "callee",
-        "scoop.callee",
         vec![
             param("first", reference_ty.clone(), callee_first),
             param("second", reference_ty.clone(), callee_second),
@@ -178,7 +176,6 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         vec![
             param("both", reference_ty.clone(), live_on_both_edges),
             param("argumentOnly", reference_ty, argument_only),

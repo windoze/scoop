@@ -10,8 +10,7 @@ impl Lowerer {
     pub(crate) fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
         let class_id = self.boxed.order[index];
         let payload = self.classes[class_id].declared_fields()[0].ty.clone();
-        let encoded = mir::encode_type(&self.shell, &payload)
-            .expect("boxed payloads are source-level MIR types");
+        let payload_name = mir::type_name(&self.shell, &payload);
         debug_assert!(self.classes[class_id].vtable.is_empty());
         let interfaces = self.classes[class_id].interfaces.clone();
         for iface in interfaces {
@@ -25,7 +24,8 @@ impl Lowerer {
             let mut slots = Vec::new();
             let mut identities = Vec::new();
             for index in method_indices {
-                let (thunk, identity) = self.build_thunk(module, &payload, &encoded, iface, index);
+                let (thunk, identity) =
+                    self.build_thunk(module, &payload, &payload_name, iface, index);
                 slots.push(mir::TableSlot::Function(thunk));
                 identities.push((index, thunk, identity));
             }
@@ -60,13 +60,12 @@ impl Lowerer {
     /// take `this` by value at MIR; the pointer convention of the receiver is
     /// a codegen ABI matter. The implementation
     /// is selected by its typed concrete-HIR conformance entry, so overloads
-    /// never require a name/signature search. The thunk symbol carries the
-    /// parameter encoding when the interface overloads the name.
+    /// never require a name/signature search.
     pub(crate) fn build_thunk(
         &mut self,
         module: &hir::Module,
         payload: &mir::Type,
-        encoded: &str,
+        payload_name: &str,
         iface: mir::InterfaceId,
         method_index: usize,
     ) -> (mir::FunctionId, mir::BoxingAdjustIdentity) {
@@ -272,32 +271,16 @@ impl Lowerer {
                 )),
             }
         };
-        let encoding = mir::encode_params(&self.shell, &target_params)
-            .expect("interface method parameters are source-level MIR types");
-        let iface_name = self.interfaces.defs[iface].name.clone();
-        let iface_identity = mir::encode_type(&self.shell, &mir::Type::Interface(iface))
-            .expect("boxed interface targets have source type encodings");
-        // An interface overloading the method name needs the parameter
-        // encoding to keep the thunk symbols distinct.
-        let overloaded = module.interfaces[hir_iface]
-            .methods
+        let parameter_names = target_params
             .iter()
-            .filter(|sig| sig.name == signature.name)
-            .count()
-            > 1;
-        let name = if overloaded {
-            format!("thunk.{encoded}.{iface_name}.{}.{encoding}", signature.name)
-        } else {
-            format!("thunk.{encoded}.{iface_name}.{}", signature.name)
-        };
-        let symbol = if overloaded {
-            format!(
-                "scoop.thunk.{encoded}.{iface_identity}.{}.{encoding}",
-                signature.name
-            )
-        } else {
-            format!("scoop.thunk.{encoded}.{iface_identity}.{}", signature.name)
-        };
+            .map(|ty| mir::type_name(&self.shell, ty))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let iface_name = self.interfaces.defs[iface].name.clone();
+        let name = format!(
+            "thunk<{payload_name}> {iface_name}.{}({parameter_names})",
+            signature.name
+        );
         let lowered = cfg::lower(
             smir::Body {
                 locals,
@@ -312,7 +295,6 @@ impl Lowerer {
         );
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            symbol,
             name,
             params,
             return_ty: return_ty.clone(),
@@ -340,7 +322,6 @@ impl Lowerer {
                     .map(|member| member.key().group()),
                 logical_signature: identity.signature_record().signature().clone(),
                 source_return: return_ty,
-                instance: None,
             });
         }
         (id, identity)

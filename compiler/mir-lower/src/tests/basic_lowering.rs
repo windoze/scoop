@@ -36,27 +36,31 @@ fn lowers_hello_world() {
     assert_eq!(helper.name, "helper");
     assert_eq!(main.name, "main");
 
-    // Mangling: entry is the fixed `scoop_main`, others `scoop.<name>`.
-    assert_eq!(main.symbol, mir::ENTRY_SYMBOL);
-    assert_eq!(helper.symbol, "scoop.helper");
     assert_eq!(module.entry, module.top_level[3]);
+    assert!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(module.top_level[2])
+            .is_some()
+    );
+    assert!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(module.entry)
+            .is_some()
+    );
 
     // String literals became numbered global constants (in lowering
     // order: function bodies are lowered in declaration order, so
     // core's `println(String)` contributes its `"\n"` first).
-    let strings: Vec<(&str, &str)> = module
+    let strings: Vec<&str> = module
         .strings
         .iter()
-        .map(|(_, s)| (s.value.as_str(), s.symbol.as_str()))
+        .map(|(_, s)| s.value.as_str())
         .collect();
-    assert_eq!(
-        strings,
-        [
-            ("\n", "scoop.str.0"),
-            ("!", "scoop.str.1"),
-            ("hello, world", "scoop.str.2")
-        ]
-    );
+    assert_eq!(strings, ["\n", "!", "hello, world"]);
     assert_eq!(
         module
             .strings
@@ -73,38 +77,38 @@ fn lowers_hello_world() {
     let expected = "\
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  fun print @scoop.print(message: String) -> Unit
+  fun print @fn0(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
         Local message
       return
-  fun println @scoop.println(message: String) -> Unit
+  fun println @fn1(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
         Local message
       call extern0 @scoop_rt_write direct
         Type String
-        StringConst @scoop.str.0
+        StringConst @str0
       return
-  fun helper @scoop.helper() -> Unit
+  fun helper @fn2() -> Unit
     bb0 entry
-      call @scoop.print direct
+      call @fn0 direct
         Type String
-        StringConst @scoop.str.1
+        StringConst @str1
       return
-  fun main @scoop_main() -> Unit
+  fun main @fn3() -> Unit
     bb0 entry
-      call @scoop.println direct
+      call @fn1 direct
         Type String
-        StringConst @scoop.str.2
-      call @scoop.helper direct
+        StringConst @str2
+      call @fn2 direct
       return
-  str @scoop.str.0 \"\\n\"
-  str @scoop.str.1 \"!\"
-  str @scoop.str.2 \"hello, world\"
-  entry @scoop_main
+  str @str0 \"\\n\"
+  str @str1 \"!\"
+  str @str2 \"hello, world\"
+  entry @fn3
 ";
     assert_eq!(dump(&module), expected);
 }
@@ -146,15 +150,12 @@ fn repeated_literals_get_separate_constants_deterministically() {
 
     let hir_module = legacy_executable(hir_module, main_id);
     let module = lower(&hir_module);
-    let symbols: Vec<&str> = module
+    let values: Vec<&str> = module
         .strings
         .iter()
-        .map(|(_, s)| s.symbol.as_str())
+        .map(|(_, s)| s.value.as_str())
         .collect();
-    assert_eq!(
-        symbols,
-        ["scoop.str.0", "scoop.str.1", "scoop.str.2", "scoop.str.3"]
-    );
+    assert_eq!(values, ["\n", "!", "hello, world", "hello, world"]);
 }
 
 #[test]

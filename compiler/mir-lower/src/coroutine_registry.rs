@@ -11,7 +11,6 @@ pub(super) struct SuspendSource {
     pub(super) odr_group: Option<hir::OdrGroupId>,
     pub(super) logical_signature: hir::ExactCallableSignature,
     pub(super) source_return: mir::Type,
-    pub(super) instance: Option<mir::MonomorphizedFunctionId>,
 }
 
 #[derive(Default)]
@@ -79,9 +78,7 @@ impl CoroutineRegistry {
             let step = &self.steps[*id];
             return (*id, mir::Type::Enum(step.enum_id(), Vec::new()));
         }
-        let encoded = mir::encode_type(shell, result)
-            .expect("coroutine result types are source-level MIR types");
-        let name = format!("CoroutineStep${encoded}");
+        let name = format!("CoroutineStep<{}>", mir::type_name(shell, result));
         let result_gc_free = mir_type_gc_free(result, structs, enums);
         let mut variants = Vec::new();
         let completed_index = next_index(&variants);
@@ -102,23 +99,19 @@ impl CoroutineRegistry {
             gc_free: true,
             fields: Vec::new(),
         });
-        let link_stem =
-            generated_nominal_link_stem(shell, GeneratedNominalLinkRole::CoroutineStep(result));
         let enum_id = enums.defs.alloc(mir::EnumDef {
-            link_stem: link_stem.clone(),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: result_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
-            link_stem,
             name,
             type_arguments: Vec::new(),
             gc_free: result_gc_free,
             variants: Vec::new(),
         });
-        assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
+        assert_eq!(enum_id, shell_id, "the type context mirrors enum ids");
         let completed = enums.variant_ref(enum_id, completed_index);
         let completed_payload = enums.variant_field_ref(completed, completed_payload_index);
         let suspended = enums.variant_ref(enum_id, suspended_index);
@@ -181,9 +174,7 @@ impl CoroutineRegistry {
             let slot = &self.slots[*id];
             return (*id, mir::Type::Enum(slot.enum_id(), Vec::new()));
         }
-        let encoded = mir::encode_type(shell, value)
-            .expect("coroutine slot types are source-level MIR types");
-        let name = format!("CoroutineSlot${encoded}");
+        let name = format!("CoroutineSlot<{}>", mir::type_name(shell, value));
         let value_gc_free = mir_type_gc_free(value, structs, enums);
         let mut variants = Vec::new();
         let empty_index = next_index(&variants);
@@ -204,23 +195,19 @@ impl CoroutineRegistry {
             gc_free: value_gc_free,
             fields: value_fields,
         });
-        let link_stem =
-            generated_nominal_link_stem(shell, GeneratedNominalLinkRole::CoroutineSlot(value));
         let enum_id = enums.defs.alloc(mir::EnumDef {
-            link_stem: link_stem.clone(),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: value_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
-            link_stem,
             name,
             type_arguments: Vec::new(),
             gc_free: value_gc_free,
             variants: Vec::new(),
         });
-        assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
+        assert_eq!(enum_id, shell_id, "the type context mirrors enum ids");
         let empty = enums.variant_ref(enum_id, empty_index);
         let value_variant = enums.variant_ref(enum_id, value_index);
         let value_payload = enums.variant_field_ref(value_variant, value_payload_index);
@@ -256,8 +243,7 @@ impl CoroutineRegistry {
         {
             return (found.success(), found.failure());
         }
-        let encoded = mir::encode_type(shell, result)
-            .expect("continuation result types are source-level MIR types");
+        let result_name = mir::type_name(shell, result);
         let mut resume_locals = Arena::new();
         let receiver = resume_locals.alloc(mir::Local {
             name: "this".to_string(),
@@ -271,8 +257,7 @@ impl CoroutineRegistry {
         });
         let resume = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            name: format!("Continuation.resume${encoded}"),
-            symbol: format!("scoop.Continuation.resume${encoded}"),
+            name: format!("Continuation.resume<{result_name}>"),
             params: vec![
                 mir::Param {
                     name: "this".to_string(),
@@ -301,8 +286,7 @@ impl CoroutineRegistry {
         });
         let failure = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            name: format!("Continuation.resumeWithException${encoded}"),
-            symbol: format!("scoop.Continuation.resumeWithException${encoded}"),
+            name: format!("Continuation.resumeWithException<{result_name}>"),
             params: vec![
                 mir::Param {
                     name: "this".to_string(),
@@ -519,12 +503,10 @@ impl CoroutineRegistry {
             },
             unwind: Some(catch_pad),
         });
-        let encoded = mir::encode_type(shell, result)
-            .expect("coroutine result types are source-level MIR types");
+        let result_name = mir::type_name(shell, result);
         let function = functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            name: format!("startCoroutine${encoded}"),
-            symbol: format!("scoop.coroutine.start${encoded}"),
+            name: format!("startCoroutine<{result_name}>"),
             params: vec![
                 mir::Param {
                     name: "task".to_string(),

@@ -12,7 +12,6 @@ impl Lowerer {
             let raw = source_id.into_raw().into_u32();
             let global = self.globals.alloc(mir::Global {
                 name: format!("$init$failure${raw}"),
-                symbol: format!("scoop.init.failure.{raw}"),
                 storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(
                     module.initialization_units[source.unit].identity.id(),
                 ),
@@ -251,7 +250,6 @@ impl Lowerer {
             };
             let id = self.globals.alloc(mir::Global {
                 name: global.name.clone(),
-                symbol: mir::mangle_global(&global.name),
                 storage_owner,
                 ty,
                 mutable: global.mutable,

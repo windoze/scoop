@@ -9,16 +9,16 @@ mod functions;
 impl Lowerer {
     pub(super) fn run(mut self, module: &hir::Module) -> mir::Module {
         // Struct / class / interface ids first (types can reference
-        // any of them regardless of declaration order), then the
-        // mangling shell (their names for `encode_type`), then the
-        // field types themselves — which can instantiate enums.
+        // any of them regardless of declaration order), then the temporary
+        // type context, then the field types themselves — which can
+        // instantiate enums.
         self.reserve_nominal_ids(module);
         self.lower_structs(module);
         self.declare_classes(module);
         // Concrete interface type arguments may name classes, so every class
         // id must exist before interface applications are transposed.
         self.lower_interfaces(module);
-        self.shell = mangling_shell(
+        self.shell = type_context(
             &self.structs.defs,
             &self.enums.defs,
             &self.classes,
@@ -178,7 +178,6 @@ impl Lowerer {
                     ),
                     logical_signature: exact_function_signature(module, hir_id),
                     source_return: return_ty.clone(),
-                    instance: self.instances.get(hir_id),
                 });
             }
             let function = &mut self.functions[mir_id];
@@ -229,7 +228,6 @@ impl Lowerer {
                     ),
                     logical_signature: exact_function_signature(module, hir_id),
                     source_return: return_ty,
-                    instance: self.instances.get(hir_id),
                 });
             }
         }

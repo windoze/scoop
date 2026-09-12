@@ -11,7 +11,6 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
     let this = method_locals.alloc(local("this", mir::Type::Class(c)));
     let m = b.user_fn_body(
         "C.m",
-        "scoop.C.m",
         vec![param("this", mir::Type::Class(c), this)],
         INT,
         returning_body(method_locals, int_expr(1)),
@@ -81,7 +80,6 @@ fn interface_calls_look_up_the_itable() {
     let this = shell_locals.alloc(local("this", mir::Type::Interface(iface)));
     let label = b.decl_fn(
         "Describable.label",
-        "scoop.Describable.label",
         vec![param("this", mir::Type::Interface(iface), this)],
         INT,
     );
@@ -147,7 +145,6 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let base_m_this = m_locals.alloc(local("this", INT));
     let base_m = b.user_fn_full(
         "Base.m",
-        "scoop.Base.m",
         vec![param("this", INT, base_m_this)],
         mir::Type::Unit,
         m_locals,
@@ -157,7 +154,6 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let derived_m_this = dm_locals.alloc(local("this", INT));
     let derived_m = b.user_fn_full(
         "Derived.m",
-        "scoop.Derived.m",
         vec![param("this", INT, derived_m_this)],
         mir::Type::Unit,
         dm_locals,
@@ -167,7 +163,6 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let derived_m2_this = dm2_locals.alloc(local("this", INT));
     let derived_m2 = b.user_fn_full(
         "Derived.m2",
-        "scoop.Derived.m2",
         vec![param("this", INT, derived_m2_this)],
         mir::Type::Unit,
         dm2_locals,

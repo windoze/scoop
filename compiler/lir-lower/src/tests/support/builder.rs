@@ -57,7 +57,6 @@ impl Builder {
             fields: Vec::new(),
         });
         let id = self.enums.alloc(mir::EnumDef {
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             type_arguments: vec![payload],
             gc_free: payload_gc_free,
@@ -105,11 +104,9 @@ impl Builder {
                 [],
             ),
         );
-        let symbol = format!("scoop.str.{}", self.strings.len());
         self.strings.alloc(mir::StringConst {
             identity,
             value: value.to_string(),
-            symbol,
         })
     }
 
@@ -158,7 +155,6 @@ impl Builder {
     ) -> mir::StructId {
         let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
         self.structs.alloc(mir::StructDef {
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             type_arguments: Vec::new(),
             gc_free,
@@ -186,7 +182,6 @@ impl Builder {
     ) -> mir::StructId {
         let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
         self.structs.alloc(mir::StructDef {
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             type_arguments: Vec::new(),
             gc_free,
@@ -211,7 +206,6 @@ impl Builder {
                 self.functions.alloc(mir::Function {
                     gc_effect: mir::GcEffect::Managed,
                     name: format!("{name}.{method}"),
-                    symbol: format!("test.{name}.{method}"),
                     params: Vec::new(),
                     return_ty: mir::Type::Unit,
                     body: mir::Body::unreachable(Arena::new()),
@@ -219,7 +213,6 @@ impl Builder {
             })
             .collect();
         self.interfaces.alloc(mir::InterfaceDef {
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             type_arguments: Vec::new(),
             methods,
@@ -236,7 +229,6 @@ impl Builder {
     ) -> mir::ClassId {
         self.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Declared {
@@ -263,7 +255,6 @@ impl Builder {
     ) -> mir::ClassId {
         self.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
-            link_stem: nominal_link_stem(name),
             name: name.to_string(),
             type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Intrinsic(match kind {
@@ -292,14 +283,12 @@ impl Builder {
     pub(in crate::tests) fn decl_fn(
         &mut self,
         name: &str,
-        symbol: &str,
         params: Vec<mir::Param>,
         return_ty: mir::Type,
     ) -> mir::FunctionId {
         self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: name.to_string(),
-            symbol: symbol.to_string(),
             params,
             return_ty,
             body: mir::Body::unreachable(Arena::new()),
@@ -309,24 +298,15 @@ impl Builder {
     pub(in crate::tests) fn user_fn(
         &mut self,
         name: &str,
-        symbol: &str,
         locals: Arena<mir::Local>,
         statements: Vec<mir::Statement>,
     ) -> mir::FunctionId {
-        self.user_fn_full(
-            name,
-            symbol,
-            Vec::new(),
-            mir::Type::Unit,
-            locals,
-            statements,
-        )
+        self.user_fn_full(name, Vec::new(), mir::Type::Unit, locals, statements)
     }
 
     pub(in crate::tests) fn user_fn_full(
         &mut self,
         name: &str,
-        symbol: &str,
         params: Vec<mir::Param>,
         return_ty: mir::Type,
         locals: Arena<mir::Local>,
@@ -347,7 +327,6 @@ impl Builder {
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: name.to_string(),
-            symbol: symbol.to_string(),
             params,
             return_ty,
             body: mir::Body {
@@ -364,7 +343,6 @@ impl Builder {
     pub(in crate::tests) fn user_fn_body(
         &mut self,
         name: &str,
-        symbol: &str,
         params: Vec<mir::Param>,
         return_ty: mir::Type,
         body: mir::Body,
@@ -372,7 +350,6 @@ impl Builder {
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: name.to_string(),
-            symbol: symbol.to_string(),
             params,
             return_ty,
             body,
@@ -386,7 +363,7 @@ impl Builder {
         locals: Arena<mir::Local>,
         statements: Vec<mir::Statement>,
     ) -> mir::FunctionId {
-        self.user_fn("main", mir::ENTRY_SYMBOL, locals, statements)
+        self.user_fn("main", locals, statements)
     }
 
     pub(in crate::tests) fn finish(mut self, entry: mir::FunctionId) -> mir::Module {
@@ -401,7 +378,6 @@ impl Builder {
             .chain([("Boolean", mir::IntrinsicTypeRepresentation::Boolean)])
         {
             self.structs.alloc(mir::StructDef {
-                link_stem: nominal_link_stem(name),
                 name: name.to_string(),
                 type_arguments: Vec::new(),
                 gc_free: true,
@@ -410,7 +386,6 @@ impl Builder {
         }
         self.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
-            link_stem: nominal_link_stem("String"),
             name: "String".to_string(),
             type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Intrinsic(

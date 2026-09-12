@@ -12,7 +12,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let result = Type::Integer(IntegerKind::SIGNED_32);
     register_test_exact_type(&mut module, &result);
     let throwable = module.classes.alloc(ClassDef {
-        link_stem: nominal_link_stem(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Open,
         name: "Throwable".to_string(),
@@ -25,7 +24,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         itables: Vec::new(),
     });
     let continuation = module.interfaces.alloc(InterfaceDef {
-        link_stem: nominal_link_stem(),
         name: "Continuation".to_string(),
         type_arguments: vec![result.clone()],
         methods: Vec::new(),
@@ -33,7 +31,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     register_test_exact_type(&mut module, &Type::Interface(continuation));
     register_test_exact_type(&mut module, &Type::Unit);
     let adapter = module.classes.alloc(ClassDef {
-        link_stem: nominal_link_stem(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "ContinuationAdapter".to_string(),
@@ -47,7 +44,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     });
 
     let step_enum = module.enums.alloc(EnumDef {
-        link_stem: nominal_link_stem(),
         name: "CoroutineStep<Int>".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -85,7 +81,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let wrapper = module.functions.alloc(Function {
         gc_effect: GcEffect::Managed,
         name: "pending".to_string(),
-        symbol: "scoop.pending".to_string(),
         params: vec![Param {
             name: "$completion".to_string(),
             ty: Type::Boolean,
@@ -118,7 +113,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     });
 
     let frame_class = module.classes.alloc(ClassDef {
-        link_stem: nominal_link_stem(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "CoroutineFrame$pending".to_string(),
@@ -313,7 +307,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let driver = module.functions.alloc(Function {
         gc_effect: GcEffect::Managed,
         name: "pending$drive".to_string(),
-        symbol: "scoop.pending$drive".to_string(),
         params: vec![
             Param {
                 name: "$frame".to_string(),
@@ -411,7 +404,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
 fn slot(module: &mut Module, name: &str, value: Type) -> (CoroutineSlotId, Type) {
     register_test_exact_type(module, &value);
     let enumeration = module.enums.alloc(EnumDef {
-        link_stem: nominal_link_stem(),
         name: name.to_string(),
         type_arguments: Vec::new(),
         gc_free: false,
@@ -451,7 +443,6 @@ fn callback(module: &mut Module, name: &str, adapter: ClassId, value: Type) -> F
     module.functions.alloc(Function {
         gc_effect: GcEffect::Managed,
         name: name.to_string(),
-        symbol: format!("scoop.{name}"),
         params: vec![
             Param {
                 name: "this".to_string(),

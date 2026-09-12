@@ -125,12 +125,12 @@ Module
   class Root vtable=0 itables=0
   class Base vtable=0 itables=0
   class Point vtable=0 itables=0
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       assign $new.1
         Type Point
         ClassAlloc Point
-      call @scoop.init.C5_PointX.$c2 direct
+      call @fn3 direct
         Type Point
         Local $new.1
         Type Int
@@ -139,7 +139,7 @@ Module
         Type Point
         Local $new.1
       return
-  fun init.Root.$c0 @scoop.init.C4_RootX.$c0(this: Root, label: String) -> Unit
+  fun init.Root.$c0 @fn1(this: Root, label: String) -> Unit
     bb0 entry
       field_set 0
         Type Root
@@ -147,39 +147,39 @@ Module
         Type String
         Local label
       return
-  fun init.Base.$c1 @scoop.init.C4_BaseX.$c1(this: Base, name: String) -> Unit
+  fun init.Base.$c1 @fn2(this: Base, name: String) -> Unit
     bb0 entry
-      call @scoop.init.C4_RootX.$c0 direct
+      call @fn1 direct
         Type Root
         Retype Root
           Type Base
           Local this
         Type String
-        StringConst @scoop.str.0
+        StringConst @str0
       field_set 1
         Type Base
         Local this
         Type String
         Local name
       return
-  fun init.Point.$c2 @scoop.init.C5_PointX.$c2(this: Point, x: Int) -> Unit
+  fun init.Point.$c2 @fn3(this: Point, x: Int) -> Unit
     bb0 entry
-      call @scoop.init.C4_BaseX.$c1 direct
+      call @fn2 direct
         Type Base
         Retype Base
           Type Point
           Local this
         Type String
-        StringConst @scoop.str.1
+        StringConst @str1
       field_set 2
         Type Point
         Local this
         Type Int
         Local x
       return
-  str @scoop.str.0 \"root\"
-  str @scoop.str.1 \"point\"
-  entry @scoop_main
+  str @str0 \"root\"
+  str @str1 \"point\"
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
 }
@@ -195,7 +195,7 @@ fn abstract_classes_keep_an_initializer_for_derived_delegation() {
         module
             .functions
             .iter()
-            .any(|(_, f)| f.symbol == "scoop.init.C4_BaseX.$c0")
+            .any(|(_, f)| f.name == "init.Base.$c0")
     );
 }
 

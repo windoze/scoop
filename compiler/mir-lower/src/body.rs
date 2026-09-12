@@ -57,7 +57,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) boxed: &'a mut BoxedRegistry,
     /// MIR class arena (boxed value types are appended here).
     pub(super) classes: &'a mut Arena<mir::ClassDef>,
-    /// Mangling shell (enum / struct names for `encode_type`).
+    /// Type context kept in arena lockstep with output definitions.
     pub(super) shell: &'a mut mir::Module,
     /// HIR local -> MIR local (same declaration order per body).
     pub(super) local_map: HashMap<hir::LocalId, mir::LocalId>,

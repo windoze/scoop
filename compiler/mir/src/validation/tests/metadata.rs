@@ -28,7 +28,6 @@ fn module_validation_rejects_a_descriptor_class_without_an_exact_identity() {
     let (mut module, _) = module_with_variants(Vec::new());
     let class = module.classes.alloc(ClassDef {
         modifier: ClassModifier::Final,
-        link_stem: nominal_link_stem(),
         name: "MissingIdentity".to_string(),
         type_arguments: Vec::new(),
         representation: ClassRepresentation::Declared {
@@ -287,7 +286,6 @@ fn support_function(module: &mut Module, params: Vec<Type>) -> FunctionId {
     module.functions.alloc(Function {
         gc_effect: GcEffect::Managed,
         name: "coroutineSupport".to_string(),
-        symbol: "scoop.coroutine.support".to_string(),
         params,
         return_ty: Type::Unit,
         body: Body::unreachable(locals),
@@ -409,13 +407,11 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
     );
     let mut interfaces = Arena::new();
     let continuation = interfaces.alloc(InterfaceDef {
-        link_stem: nominal_link_stem(),
         name: "Continuation".to_string(),
         type_arguments: vec![result.clone()],
         methods: Vec::new(),
     });
     let task = interfaces.alloc(InterfaceDef {
-        link_stem: nominal_link_stem(),
         name: "SuspendTask".to_string(),
         type_arguments: vec![result.clone()],
         methods: Vec::new(),
@@ -423,7 +419,6 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
     module.interfaces = interfaces;
     let throwable = module.classes.alloc(ClassDef {
         modifier: ClassModifier::Final,
-        link_stem: nominal_link_stem(),
         name: "Throwable".to_string(),
         type_arguments: Vec::new(),
         representation: ClassRepresentation::Declared {

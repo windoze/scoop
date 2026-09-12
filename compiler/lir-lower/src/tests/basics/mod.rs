@@ -14,7 +14,6 @@ fn hello_world() -> mir::Module {
     );
     let helper = b.user_fn(
         "helper",
-        "scoop.helper",
         Arena::new(),
         vec![call_stmt(extern_call(write, vec![string_expr(bang)]))],
     );

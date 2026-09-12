@@ -64,7 +64,6 @@ fn if_else_becomes_basic_blocks() {
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {
@@ -163,7 +162,6 @@ fn while_becomes_basic_blocks() {
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {
@@ -269,7 +267,6 @@ fn and_short_circuits_through_blocks() {
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {
@@ -371,7 +368,6 @@ fn or_short_circuits_through_blocks() {
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {
@@ -494,7 +490,6 @@ fn explicit_loop_header_poll_survives_coroutine_like_multi_entry_cfg_and_pruning
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         params,
         mir::Type::Unit,
         mir::Body {
@@ -575,7 +570,6 @@ fn loop_header_poll_carries_live_managed_root() {
     );
     let function = b.user_fn_body(
         "loopLiveRoot",
-        "scoop.loopLiveRoot",
         params,
         mir::Type::String,
         mir::Body {
@@ -635,7 +629,6 @@ fn unmarked_cycle_does_not_synthesize_a_loop_header_poll() {
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {
@@ -675,7 +668,6 @@ fn no_gc_function_ignores_explicit_loop_header_poll_targets() {
     );
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {

@@ -67,7 +67,6 @@ impl Lowerer {
                 }
             };
             let mir_id = self.structs.defs.alloc(mir::StructDef {
-                link_stem: lower_nominal_link_stem(&decl.link_stem),
                 name: decl.name.clone(),
                 type_arguments: Vec::new(),
                 gc_free: decl.gc_free,
@@ -79,9 +78,7 @@ impl Lowerer {
     }
 
     /// Fill the exact arguments of eagerly reserved struct/class
-    /// applications after the initial mangling shell contains every nominal
-    /// base stem. Type encodings can then recurse through applications without
-    /// consulting display names.
+    /// applications after the initial type context contains every nominal.
     pub(super) fn fill_nominal_type_arguments(&mut self, module: &hir::Module) {
         for (hir_id, declaration) in module.structs.iter() {
             let types = Types {
@@ -151,7 +148,7 @@ impl Lowerer {
         }
     }
 
-    /// Fill the MIR struct field types. This runs after the mangling shell
+    /// Fill the MIR struct field types. This runs after the type context
     /// exists because field types can reference concrete enums.
     pub(super) fn fill_struct_fields(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
@@ -270,7 +267,6 @@ impl Lowerer {
             };
             let mir_id = self.classes.alloc(mir::ClassDef {
                 modifier,
-                link_stem: lower_nominal_link_stem(&decl.link_stem),
                 name: decl.name.clone(),
                 type_arguments: Vec::new(),
                 representation,
@@ -283,7 +279,7 @@ impl Lowerer {
     }
 
     /// Resolve base classes and concrete interface applications after the
-    /// mangling shell contains every class name. Interface type arguments may
+    /// type context contains every class name. Interface type arguments may
     /// themselves be class types.
     pub(super) fn fill_class_hierarchy(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.classes.iter() {
@@ -324,99 +320,7 @@ impl Lowerer {
         }
     }
 
-    /// A declared function's symbol: `scoop.<name>` (the fixed
-    /// `scoop_main` for the entry point). When the name is shared by
-    /// overloads (M7), the parameter encoding is appended so each
-    /// overload gets a distinct LLVM symbol: `scoop.show.I`,
-    /// `scoop.println.S`, `scoop.Doc.describe.I` for methods (see
-    /// `mir::mangle_overload`). vtable / itable slots and thunk calls
-    /// reference functions by id, so they pick the final symbol up
-    /// from the arena automatically.
-    pub(super) fn declare_symbol(
-        &mut self,
-        module: &hir::Module,
-        hir_id: hir::FunctionId,
-    ) -> String {
-        let function = &module.functions[hir_id];
-        let link_stem = fn_link_stem(function);
-        if let Some(instance) = function_instance(function) {
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            };
-            let arguments = instance
-                .all_arguments()
-                .iter()
-                .map(|argument| {
-                    types.lower(
-                        *argument,
-                        &mut self.source_exact_types,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect::<Vec<_>>();
-            return match instance.symbol() {
-                hir::InstanceSymbol::Unique => {
-                    mir::mangle_instance(&self.shell, link_stem.as_str(), &arguments)
-                }
-                hir::InstanceSymbol::Overloaded { discriminator } => mir::mangle_generic_overload(
-                    &self.shell,
-                    link_stem.as_str(),
-                    &arguments,
-                    discriminator,
-                ),
-            }
-            .expect("local-concrete source instances have source-mangleable types");
-        }
-        if hir_id == self.entry || !self.overloaded_link_stems.contains(link_stem) {
-            return mir::mangle_function(link_stem.as_str(), hir_id == self.entry);
-        }
-        // A method's receiver (parameter 0, hir-lower's contract) is
-        // not part of the overload signature: `Doc.describe(Int)`
-        // encodes as `scoop.Doc.describe.I`.
-        let skip = usize::from(function.method.is_some());
-        let params = self.lower_params(module, &function.params[skip..]);
-        mir::mangle_overload(&self.shell, link_stem.as_str(), &params)
-            .expect("local-concrete source overloads have source-mangleable parameters")
-    }
-
-    /// Lower a parameter list to MIR types (concrete enum definitions are
-    /// transposed lazily on first reference).
-    pub(super) fn lower_params(
-        &mut self,
-        module: &hir::Module,
-        params: &[hir::Param],
-    ) -> Vec<mir::Type> {
-        let types = Types {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-        };
-        params
-            .iter()
-            .map(|param| {
-                types.lower(
-                    param.ty,
-                    &mut self.source_exact_types,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                )
-            })
-            .collect()
-    }
-
-    /// Declare one local-concrete user function (body filled later):
-    /// `scoop.<name>`, `scoop.<Type>.<name>` for members, or the fixed
-    /// entry symbol `scoop_main` that the C runtime calls (`main` is
-    /// never instantiated from a generic template, hir-lower guarantees it);
-    /// overloads get the
-    /// parameter encoding appended (`declare_symbol`).
+    /// Declare one local-concrete user function; its body is filled later.
     pub(super) fn declare_function(
         &mut self,
         module: &hir::Module,
@@ -424,11 +328,9 @@ impl Lowerer {
     ) -> mir::FunctionId {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
-        let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
             gc_effect: lower_gc_effect(function.attributes.gc_effect),
             name,
-            symbol,
             // Filled in when the body is lowered below.
             params: Vec::new(),
             return_ty: mir::Type::Unit,

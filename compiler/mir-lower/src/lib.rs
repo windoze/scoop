@@ -1,4 +1,4 @@
-//! MIR stage: concrete-HIR lowering, name mangling, call-kind annotation,
+//! MIR stage: concrete-HIR lowering, callable materialization, call-kind annotation,
 //! vtable/itable construction, suspend-to-state-machine lowering.
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.3 and
@@ -15,8 +15,8 @@
 //! all errors were already reported by hir-lower.
 //!
 //! M3: generic templates are monomorphized by HIR lowering. MIR receives
-//! only local-concrete functions and records their source type arguments
-//! for metadata and stable symbol mangling; no generic template or
+//! only local-concrete functions and records their typed source identities
+//! for metadata; no generic template or
 //! unresolved type parameter can enter this stage.
 //!
 //! M4: enums and pattern matching. Every concrete enum application has
@@ -50,14 +50,8 @@
 //! M7/M14: print/println and primitive formatting/equality are ordinary core
 //! functions. Their representation-level helpers are ordinary Scoop-ABI
 //! extern declarations, so no formatting/equality runtime kind exists in the
-//! compiler. Mangling is overload-aware: a name shared by
-//! several plainly-mangled functions gets the parameter encoding
-//! appended (`scoop.show.I`, `scoop.println.S`; the receiver is not
-//! part of a method's overload signature), while unique names keep the
-//! plain `scoop.<name>` form and instances keep `$` (`scoop.show$I`),
-//! so overload and instance symbols never collide. Dispatch is keyed
-//! by signature the same way: vtable / itable slots and call-kind
-//! annotation use `name(<param encoding>)`, so each overload gets its
+//! compiler. Dispatch is keyed by typed source identity: vtable / itable
+//! slots and call-kind annotation use the resolved virtual family, so each overload gets its
 //! own slot and an override replaces the base slot with the matching
 //! signature in place. `toString`, hashing, and equality are ordinary
 //! Scoop declarations; this stage has no capability-specific channels.
@@ -79,9 +73,9 @@
 //! interface gets an itable record whose slots follow the interface's
 //! method declaration order. Method calls are annotated by the
 //! receiver's static type: class receiver → `Virtual`, interface
-//! receiver → `Interface`, value type → `Direct`; member functions
-//! are mangled qualified (`scoop.Point.describe`) so same-named
-//! methods never collide. A direct `super` call carries a distinct HIR proof
+//! receiver → `Interface`, value type → `Direct`; distinct source callables
+//! retain distinct typed identities even when their display names match. A direct
+//! `super` call carries a distinct HIR proof
 //! and always becomes `CallKind::Direct`. Every value type that reaches `Any` / an
 //! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box$<ty>`):
 //! its vtable contains only ordinary virtual methods, and its itable
@@ -106,6 +100,7 @@ use scoop_mir as mir;
 
 mod cfg;
 mod closures;
+mod context;
 mod coroutine;
 mod coroutine_registry;
 mod dispatch;
@@ -121,24 +116,22 @@ mod singletons;
 mod source_callables;
 mod strings;
 mod structured;
-mod symbols;
 mod types;
 
+use context::*;
 use globals::*;
 use local_values::*;
 use lowering_support::*;
 use source_callables::*;
 use strings::StringRegistry;
-use symbols::*;
 
 use coroutine_registry::{CoroutineRegistry, SuspendSource};
-use instances::{InstanceRegistry, function_instance};
+use instances::InstanceRegistry;
 use structured as smir;
 use types::{
-    BoxedRegistry, EnumRegistry, GeneratedNominalLinkRole, InterfaceRegistry,
-    SourceExactTypeRegistry, StructRegistry, Types, exact_function_identity,
-    generated_nominal_link_stem, is_boxable, is_reference_mir, lower_integer_constant,
-    lower_integer_kind, lower_nominal_link_stem, mir_type_gc_free, raise_integer_kind, remap_idx,
+    BoxedRegistry, EnumRegistry, InterfaceRegistry, SourceExactTypeRegistry, StructRegistry, Types,
+    exact_function_identity, is_boxable, is_reference_mir, lower_integer_constant,
+    lower_integer_kind, mir_type_gc_free, raise_integer_kind, remap_idx,
 };
 
 /// Lower a complete legacy executable HIR graph to MIR.
@@ -179,8 +172,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
         boxed: BoxedRegistry::default(),
         ctors: HashMap::new(),
         struct_ctors: HashMap::new(),
-        shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
-        overloaded_link_stems: overloaded_link_stems(module),
+        shell: type_context(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         source_exact_types: SourceExactTypeRegistry::default(),
         source_callables: SourceCallableRegistry::default(),
         local_values: LocalValueRegistry::default(),
@@ -255,14 +247,8 @@ struct Lowerer {
     ctors: HashMap<hir::ClassConstructorId, mir::FunctionId>,
     /// Local-concrete value constructor -> MIR hidden callable.
     struct_ctors: HashMap<hir::StructConstructorId, mir::FunctionId>,
-    /// Mangling shell: the struct / enum / class / interface names
-    /// `mir::encode_type` reads, kept in sync with the real arenas
-    /// (same ids).
+    /// Type context kept in arena lockstep with definitions while lowering.
     shell: mir::Module,
-    /// Typed link stems shared by more than one plainly-mangled function (M7
-    /// overloads): each of them gets the parameter encoding appended
-    /// to its symbol (see `declare_symbol`).
-    overloaded_link_stems: HashSet<hir::CallableLinkStem>,
     /// Exact HIR type relations registered as types cross into MIR.
     source_exact_types: SourceExactTypeRegistry,
     /// Typed MIR locations of callables transposed from LocalConcrete HIR.

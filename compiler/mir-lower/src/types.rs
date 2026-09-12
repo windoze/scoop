@@ -10,10 +10,6 @@ pub(super) fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
     la_arena::Idx::from_raw(id.into_raw())
 }
 
-pub(super) fn lower_nominal_link_stem(stem: &hir::NominalLinkStem) -> mir::NominalLinkStem {
-    mir::NominalLinkStem::from_session_local_encoding(stem.as_str().to_string())
-}
-
 pub(super) fn exact_function_identity(
     module: &hir::Module,
     function: mir::FunctionTypeId,
@@ -93,116 +89,6 @@ impl SourceExactTypeRegistry {
     }
 }
 
-/// Closed roles for MIR-only nominal entities. Callers provide typed source
-/// identities or MIR types; generated link stems never derive from display
-/// names or arena ids masquerading as names.
-pub(super) enum GeneratedNominalLinkRole<'a> {
-    Boxed(&'a mir::Type),
-    CoroutineStep(&'a mir::Type),
-    CoroutineSlot(&'a mir::Type),
-    CoroutineFrame {
-        source_symbol: &'a str,
-    },
-    CoroutineAdapter {
-        source_symbol: &'a str,
-        state: mir::CoroutineSuspendStateId,
-    },
-    LambdaClosure {
-        invoke_symbol: &'a str,
-    },
-    AnonymousClosure {
-        invoke_symbol: &'a str,
-    },
-    CallableReferenceClosure(hir::CallableReferenceId),
-    FunctionAdapterClosure {
-        source: mir::FunctionTypeId,
-        target: mir::FunctionTypeId,
-    },
-    DynamicFunctionAdapterClosure {
-        target: mir::FunctionTypeId,
-    },
-}
-
-pub(super) fn generated_nominal_link_stem(
-    module: &mir::Module,
-    role: GeneratedNominalLinkRole<'_>,
-) -> mir::NominalLinkStem {
-    fn field(output: &mut String, tag: char, value: &str) {
-        use std::fmt::Write;
-        write!(output, "{tag}{}:{value}", value.len()).expect("writing a String is infallible");
-    }
-
-    fn encoded_type(module: &mir::Module, ty: &mir::Type) -> String {
-        mir::encode_type(module, ty).expect("generated nominals use source-level MIR types")
-    }
-
-    let mut encoding = String::from("$generated$");
-    match role {
-        GeneratedNominalLinkRole::Boxed(payload) => {
-            field(&mut encoding, 'r', "box");
-            field(&mut encoding, 't', &encoded_type(module, payload));
-        }
-        GeneratedNominalLinkRole::CoroutineStep(result) => {
-            field(&mut encoding, 'r', "coroutine-step");
-            field(&mut encoding, 't', &encoded_type(module, result));
-        }
-        GeneratedNominalLinkRole::CoroutineSlot(value) => {
-            field(&mut encoding, 'r', "coroutine-slot");
-            field(&mut encoding, 't', &encoded_type(module, value));
-        }
-        GeneratedNominalLinkRole::CoroutineFrame { source_symbol } => {
-            field(&mut encoding, 'r', "coroutine-frame");
-            field(&mut encoding, 'c', source_symbol);
-        }
-        GeneratedNominalLinkRole::CoroutineAdapter {
-            source_symbol,
-            state,
-        } => {
-            field(&mut encoding, 'r', "coroutine-adapter");
-            field(&mut encoding, 'c', source_symbol);
-            field(&mut encoding, 's', &state.get().to_string());
-        }
-        GeneratedNominalLinkRole::LambdaClosure { invoke_symbol } => {
-            field(&mut encoding, 'r', "lambda-closure");
-            field(&mut encoding, 'c', invoke_symbol);
-        }
-        GeneratedNominalLinkRole::AnonymousClosure { invoke_symbol } => {
-            field(&mut encoding, 'r', "anonymous-closure");
-            field(&mut encoding, 'c', invoke_symbol);
-        }
-        GeneratedNominalLinkRole::CallableReferenceClosure(reference) => {
-            field(&mut encoding, 'r', "callable-reference-closure");
-            field(
-                &mut encoding,
-                'i',
-                &reference.into_raw().into_u32().to_string(),
-            );
-        }
-        GeneratedNominalLinkRole::FunctionAdapterClosure { source, target } => {
-            field(&mut encoding, 'r', "function-adapter-closure");
-            field(
-                &mut encoding,
-                's',
-                &encoded_type(module, &mir::Type::Function(source)),
-            );
-            field(
-                &mut encoding,
-                't',
-                &encoded_type(module, &mir::Type::Function(target)),
-            );
-        }
-        GeneratedNominalLinkRole::DynamicFunctionAdapterClosure { target } => {
-            field(&mut encoding, 'r', "dynamic-function-adapter-closure");
-            field(
-                &mut encoding,
-                't',
-                &encoded_type(module, &mir::Type::Function(target)),
-            );
-        }
-    }
-    mir::NominalLinkStem::from_session_local_encoding(encoding)
-}
-
 pub(super) const fn lower_integer_kind(kind: hir::IntegerKind) -> mir::IntegerKind {
     let signedness = match kind.signedness() {
         hir::IntegerSignedness::Signed => mir::IntegerSignedness::Signed,
@@ -269,13 +155,11 @@ impl InterfaceRegistry {
         let decl = &module.interfaces[hir_id];
         let name = decl.name.clone();
         let id = self.defs.alloc(mir::InterfaceDef {
-            link_stem: lower_nominal_link_stem(&decl.link_stem),
             name: name.clone(),
             type_arguments: args.clone(),
             methods: Vec::new(),
         });
         shell.interfaces.alloc(mir::InterfaceDef {
-            link_stem: lower_nominal_link_stem(&decl.link_stem),
             name: name.clone(),
             type_arguments: args.clone(),
             methods: Vec::new(),
@@ -428,14 +312,12 @@ impl EnumRegistry {
         let decl = &types.module.enums[hir_id];
         let name = decl.name.clone();
         let id = self.defs.alloc(mir::EnumDef {
-            link_stem: lower_nominal_link_stem(&decl.link_stem),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: decl.gc_free,
             variants: Vec::new(),
         });
         shell.enums.alloc(mir::EnumDef {
-            link_stem: lower_nominal_link_stem(&decl.link_stem),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: decl.gc_free,
@@ -564,14 +446,9 @@ impl BoxedRegistry {
             self.entries.iter().all(|entry| entry.payload != *payload),
             "one MIR source type must retain one exact type identity"
         );
-        let encoded = mir::encode_type(shell, payload)
-            .expect("box payloads always use source-level MIR types");
-        let name = format!("box${encoded}");
-        let link_stem =
-            generated_nominal_link_stem(shell, GeneratedNominalLinkRole::Boxed(payload));
+        let name = format!("box<{}>", mir::type_name(shell, payload));
         let id = classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
-            link_stem: link_stem.clone(),
             name: name.clone(),
             type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Declared {
@@ -587,7 +464,6 @@ impl BoxedRegistry {
         });
         shell.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
-            link_stem,
             name,
             type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Declared {

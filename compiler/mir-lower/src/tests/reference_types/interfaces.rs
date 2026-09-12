@@ -29,14 +29,14 @@ fn boxed_interfaces_come_from_the_declaration() {
     );
     let module = lower(&h.finish(main));
 
-    let boxed = boxed_class(&module, "box$D1_SX");
+    let boxed = boxed_class(&module, "box<S>");
     assert_eq!(boxed.interfaces.len(), 1);
     assert_eq!(boxed.itables.len(), 1);
     let record = &boxed.itables[0];
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(
         slot_fn(&module, &record.slots[0]),
-        "scoop.thunk.D1_SX.J11_DescribableX.describe"
+        "thunk<S> Describable.describe()"
     );
 }
 
@@ -123,18 +123,18 @@ fn abstract_methods_lower_to_trap_stubs() {
     // The abstract method is emitted (the abstract class's vtable
     // slot references it) and traps like a pure-virtual stub.
     let base_def = &module.classes[class_index(0)];
-    assert_eq!(slot_fn(&module, &base_def.vtable[0]), "scoop.Base.id");
+    assert_eq!(slot_fn(&module, &base_def.vtable[0]), "Base.id");
     let stub = module
         .functions
         .iter()
         .map(|(_, f)| f)
-        .find(|f| f.symbol == "scoop.Base.id")
+        .find(|f| f.name == "Base.id")
         .expect("the abstract method is emitted");
     assert!(
         module
             .top_level
             .iter()
-            .any(|&id| module.functions[id].symbol == "scoop.Base.id")
+            .any(|&id| module.functions[id].name == "Base.id")
     );
     assert!(matches!(
         stub.body.blocks[stub.body.entry].terminator,
@@ -166,8 +166,8 @@ fn interface_implementations_resolve_qualified_method_names() {
     assert_eq!(doc_def.itables.len(), 1);
     assert_eq!(
         slot_fn(&module, &doc_def.itables[0].slots[0]),
-        "scoop.Doc.describe"
+        "Doc.describe"
     );
     // The implementing method is a vtable method too.
-    assert_eq!(slot_fn(&module, &doc_def.vtable[0]), "scoop.Doc.describe");
+    assert_eq!(slot_fn(&module, &doc_def.vtable[0]), "Doc.describe");
 }

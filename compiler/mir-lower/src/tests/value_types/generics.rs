@@ -39,7 +39,7 @@ fn params_and_return_translate() {
     let module = lower(&h.finish(main));
 
     let add_fn = &module.functions[module.top_level[0]];
-    assert_eq!(add_fn.symbol, "scoop.add");
+    assert_eq!(add_fn.name, "add");
     assert_eq!(add_fn.params.len(), 2);
     let int_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
     assert_eq!(add_fn.params[0].ty, int_ty);
@@ -90,8 +90,8 @@ fn monomorphizes_generic_functions() {
     assert_eq!(module.top_level.len(), 3);
     let int_instance = &module.functions[module.top_level[1]];
     let string_instance = &module.functions[module.top_level[2]];
-    assert_eq!(int_instance.symbol, "scoop.identity$I32");
-    assert_eq!(string_instance.symbol, "scoop.identity$S");
+    assert_eq!(int_instance.name, "identity");
+    assert_eq!(string_instance.name, "identity");
 
     // The instance signature, locals and body are fully
     // substituted — no `Param` survives.
@@ -126,11 +126,10 @@ fn monomorphizes_generic_functions() {
         "the same template parameter has a distinct value in each materialization"
     );
 
-    // MIR gives every materialized body its own typed identity and
-    // records symbol -> generic source provenance in the meta.
+    // MIR gives every materialized body its own typed identity and records
+    // its generic source provenance in metadata.
     assert_eq!(module.meta.instances.len(), 2);
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
-    assert_eq!(int_meta.symbol, "scoop.identity$I32");
     assert_eq!(int_meta.display_name, "identity");
     let int_source = module
         .meta
@@ -297,8 +296,8 @@ fn nested_generic_calls_extend_the_worklist() {
     assert_eq!(module.top_level.len(), 3);
     let forward_i = &module.functions[module.top_level[1]];
     let inner_i = &module.functions[module.top_level[2]];
-    assert_eq!(forward_i.symbol, "scoop.forward$I32");
-    assert_eq!(inner_i.symbol, "scoop.inner$I32");
+    assert_eq!(forward_i.name, "forward");
+    assert_eq!(inner_i.name, "inner");
     let (call, destination) = statement_call(&entry_statements(&forward_i.body)[0]);
     let destination = destination.expect("inner$I32 returns Int");
     assert_eq!(
@@ -322,7 +321,7 @@ fn nested_generic_calls_extend_the_worklist() {
 }
 
 #[test]
-fn instance_symbols_encode_enum_and_tuple_arguments() {
+fn instance_identities_and_types_preserve_enum_and_tuple_arguments() {
     let mut h = Harness::new();
     let f = identity_fn(&mut h, "f");
     let (int, string) = (h.int, h.string);
@@ -339,13 +338,10 @@ fn instance_symbols_encode_enum_and_tuple_arguments() {
     h.instantiate(f, vec![pair]);
     let module = lower(&h.finish(main));
 
-    let symbols: Vec<&str> = module.top_level[1..]
-        .iter()
-        .map(|&id| module.functions[id].symbol.as_str())
-        .collect();
-    // An enum argument encodes the category, length-delimited
-    // instance name, and complete argument list (`mir::encode_type`).
-    assert_eq!(symbols, ["scoop.f$E6_OptionAI32X", "scoop.f$TI32_SX"]);
+    assert_eq!(module.meta.instances.len(), 2);
+    let first = &module.meta.instances[instance_id(&module, module.top_level[1])];
+    let second = &module.meta.instances[instance_id(&module, module.top_level[2])];
+    assert_ne!(first.materialization, second.materialization);
     // Substitution recurses into enum / tuple types.
     let option_instance = &module.functions[module.top_level[1]];
     let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {

@@ -77,7 +77,6 @@ fn lower_variant_primitives(
     );
     let main = builder.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {
@@ -235,7 +234,6 @@ fn typed_variant_primitives_lower_through_niche_layout() {
     );
     let main = builder.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         mir::Body {

@@ -15,7 +15,6 @@ pub(super) fn generate_failure_method(
     outer_resume: mir::FunctionId,
     outer_failure: mir::FunctionId,
     driver: mir::FunctionId,
-    source_symbol: &str,
     state: mir::CoroutineSuspendStateId,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
@@ -197,7 +196,6 @@ pub(super) fn generate_failure_method(
     let function = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resumeWithException${state}"),
-        symbol: format!("{source_symbol}$resume_exception${state}"),
         params: vec![
             mir::Param {
                 name: "this".to_string(),

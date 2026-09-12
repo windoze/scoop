@@ -213,7 +213,6 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
     let backing_owner = property_owner("managedRoot");
     module.globals.alloc(mir::Global {
         name: "managedRoot".to_string(),
-        symbol: "scoop.global.managedRoot".to_string(),
         storage_owner: mir::StaticStorageOwner::PropertyBacking(backing_owner),
         ty: mir::Type::String,
         mutable: true,
@@ -227,7 +226,6 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
     let delegate_owner = property_owner("managedDelegate");
     module.globals.alloc(mir::Global {
         name: "managedDelegate".to_string(),
-        symbol: "scoop.global.managedDelegate".to_string(),
         storage_owner: mir::StaticStorageOwner::PropertyDelegate(delegate_owner),
         ty: mir::Type::String,
         mutable: false,
@@ -240,7 +238,6 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
     let singleton_owner = persistent_type("TestSingleton");
     module.globals.alloc(mir::Global {
         name: "singletonRoot".to_string(),
-        symbol: "scoop.global.singletonRoot".to_string(),
         storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(singleton_owner),
         ty: mir::Type::String,
         mutable: true,

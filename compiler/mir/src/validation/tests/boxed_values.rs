@@ -7,7 +7,6 @@ fn module_with_box() -> Module {
     let payload = Type::Unit;
     let class = module.classes.alloc(ClassDef {
         modifier: ClassModifier::Final,
-        link_stem: nominal_link_stem(),
         name: "box$U".to_string(),
         type_arguments: Vec::new(),
         representation: ClassRepresentation::Declared {

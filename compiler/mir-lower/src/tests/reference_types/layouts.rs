@@ -104,7 +104,7 @@ fn vtable_layout_copies_the_base_prefix_and_replaces_overrides() {
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    let vtable_symbols = |def: &mir::ClassDef| {
+    let vtable_names = |def: &mir::ClassDef| {
         def.vtable
             .iter()
             .map(|slot| slot_fn(&module, slot))
@@ -113,14 +113,14 @@ fn vtable_layout_copies_the_base_prefix_and_replaces_overrides() {
     // Ordinary member functions are the whole vtable; Any does not
     // reserve compiler-owned slots.
     assert_eq!(
-        vtable_symbols(&module.classes[class_index(0)]),
-        ["scoop.Base.m1", "scoop.Base.m2"]
+        vtable_names(&module.classes[class_index(0)]),
+        ["Base.m1", "Base.m2"]
     );
     // The base prefix is preserved; the override replaces slot 1
     // in place; the new method appends at slot 2.
     assert_eq!(
-        vtable_symbols(&module.classes[class_index(1)]),
-        ["scoop.Base.m1", "scoop.Derived.m2", "scoop.Derived.m3"]
+        vtable_names(&module.classes[class_index(1)]),
+        ["Base.m1", "Derived.m2", "Derived.m3"]
     );
 }
 
@@ -157,7 +157,7 @@ fn itables_follow_the_interface_method_order() {
         .iter()
         .map(|slot| slot_fn(&module, slot))
         .collect();
-    assert_eq!(slots, ["scoop.C.a", "scoop.C.b"]);
+    assert_eq!(slots, ["C.a", "C.b"]);
 
     let derived_def = &module.classes[class_index(1)];
     assert_eq!(derived_def.itables.len(), 1);
@@ -169,5 +169,5 @@ fn itables_follow_the_interface_method_order() {
         .collect();
     // The override dispatches to the derived implementation; the
     // inherited method keeps the base's.
-    assert_eq!(slots, ["scoop.C.a", "scoop.D.b"]);
+    assert_eq!(slots, ["C.a", "D.b"]);
 }

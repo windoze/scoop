@@ -9,7 +9,6 @@ fn function_signatures_params_and_calls() {
     let y = locals.alloc(local("y", INT));
     let add = b.user_fn_body(
         "add",
-        "scoop.add",
         vec![param("x", INT, x), param("y", INT, y)],
         INT,
         returning_body(
@@ -180,7 +179,6 @@ fn return_inside_a_branch_seals_its_block() {
     );
     let f = b.user_fn_body(
         "f",
-        "scoop.f",
         vec![param("x", INT, x)],
         INT,
         mir::Body {

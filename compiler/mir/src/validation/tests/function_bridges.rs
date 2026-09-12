@@ -21,7 +21,6 @@ fn module_with_function_bridge() -> Module {
     let function = module.functions.alloc(Function {
         gc_effect: GcEffect::Managed,
         name: "$function.bridge".to_string(),
-        symbol: "scoop.$function.bridge".to_string(),
         params: vec![Param {
             name: "value".to_string(),
             ty: Type::Unit,

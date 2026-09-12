@@ -100,16 +100,13 @@ impl BodyLowerer<'_> {
             target_signature.parameter_types.len(),
             "function variance preserves arity"
         );
-        let source_name = mir::encode_type(self.shell, &mir::Type::Function(source))
-            .expect("closure adapter sources are source-level MIR types");
-        let target_name = mir::encode_type(self.shell, &mir::Type::Function(target))
-            .expect("closure adapter targets are source-level MIR types");
+        let source_name = mir::type_name(self.shell, &mir::Type::Function(source));
+        let target_name = mir::type_name(self.shell, &mir::Type::Function(target));
         let name = format!("$Closure$adapter${source_name}${target_name}");
 
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
-            symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
             return_ty: target_signature.return_type.clone(),
             body: mir::Body::unreachable(Arena::new()),
@@ -119,10 +116,6 @@ impl BodyLowerer<'_> {
             .closure_invokes
             .alloc(mir::ClosureInvokeFunction { function });
         let class = self.closure_classes.alloc(mir::ClosureClass {
-            link_stem: generated_nominal_link_stem(
-                self.shell,
-                GeneratedNominalLinkRole::FunctionAdapterClosure { source, target },
-            ),
             name,
             function_type: target,
             invoke,
@@ -260,7 +253,6 @@ impl BodyLowerer<'_> {
                 odr_group: Some(identity.odr_group_record().id()),
                 logical_signature: identity.callable_signature_record().signature().clone(),
                 source_return: self.shell.function_types[target].return_type.clone(),
-                instance: None,
             });
         }
         adapter
@@ -294,12 +286,10 @@ impl BodyLowerer<'_> {
             self.function_bridge_targets.push(target);
         }
         let signature = self.shell.function_types[target].clone();
-        let encoded = mir::encode_type(self.shell, &mir::Type::Function(target))
-            .expect("dynamic adapter targets are source-level MIR types");
+        let target_name = mir::type_name(self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            name: format!("$dynamic_adapter.{encoded}"),
-            symbol: format!("scoop.$dynamic_adapter.{encoded}"),
+            name: format!("$dynamic_adapter.{target_name}"),
             params: Vec::new(),
             return_ty: signature.return_type.clone(),
             body: mir::Body::unreachable(Arena::new()),
@@ -309,11 +299,7 @@ impl BodyLowerer<'_> {
             .closure_invokes
             .alloc(mir::ClosureInvokeFunction { function });
         let class = self.closure_classes.alloc(mir::ClosureClass {
-            link_stem: generated_nominal_link_stem(
-                self.shell,
-                GeneratedNominalLinkRole::DynamicFunctionAdapterClosure { target },
-            ),
-            name: format!("$Closure$dynamic_adapter${encoded}"),
+            name: format!("$Closure$dynamic_adapter${target_name}"),
             function_type: target,
             invoke,
             captures: vec![mir::Field {
@@ -424,7 +410,6 @@ impl BodyLowerer<'_> {
                 odr_group: Some(identity.odr_group_record().id()),
                 logical_signature: identity.callable_signature_record().signature().clone(),
                 source_return: signature.return_type,
-                instance: None,
             });
         }
         adapter

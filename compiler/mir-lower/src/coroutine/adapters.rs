@@ -27,7 +27,7 @@ pub(super) fn generate_adapter(
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
     outer_failure: mir::FunctionId,
-    source_symbol: &str,
+    source_name: &str,
     driver: mir::FunctionId,
     source: hir::CallableMaterialization,
     source_odr_group: Option<hir::OdrGroupId>,
@@ -38,10 +38,7 @@ pub(super) fn generate_adapter(
 ) -> GeneratedAdapter {
     let protocol = lowerer.coroutine_protocol(module, result);
     let continuation = lowerer.interfaces.mir_id(protocol.continuation);
-    let name = format!(
-        "CoroutineAdapter${}${state}",
-        encode_symbol_component(source_symbol)
-    );
+    let name = format!("CoroutineAdapter<{source_name}>${state}");
     let mut fields = vec![
         mir::Field {
             name: "frame".to_string(),
@@ -86,17 +83,7 @@ pub(super) fn generate_adapter(
         )
     }
     .expect("a suspension site has one persistent continuation-adapter identity");
-    let class = generated_class(
-        lowerer,
-        GeneratedNominalLinkRole::CoroutineAdapter {
-            source_symbol,
-            state,
-        },
-        name,
-        fields,
-        vec![continuation],
-        Vec::new(),
-    );
+    let class = generated_class(lowerer, name, fields, vec![continuation], Vec::new());
     let resume = generate_resume_method(
         lowerer,
         module,
@@ -109,7 +96,6 @@ pub(super) fn generate_adapter(
         outer_resume,
         outer_failure,
         driver,
-        source_symbol,
         state,
         result,
         safe_latches.as_ref().map(|(success, _)| success.clone()),
@@ -126,7 +112,6 @@ pub(super) fn generate_adapter(
         outer_resume,
         outer_failure,
         driver,
-        source_symbol,
         state,
         safe_latches.as_ref().map(|(_, failure)| failure.clone()),
     );

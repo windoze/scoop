@@ -438,7 +438,6 @@ impl ForeignCallbackOperation {
 #[derive(Debug, Clone)]
 pub struct Global {
     pub name: String,
-    pub symbol: String,
     /// Semantic owner used by LIR to derive the one persistent static-storage
     /// identity appropriate for the final physical layout.
     pub storage_owner: StaticStorageOwner,
@@ -517,7 +516,6 @@ pub struct InitializationFailureRoot {
 
 #[derive(Debug)]
 pub struct ObjectDef {
-    pub link_stem: NominalLinkStem,
     pub name: String,
     pub object_type: ObjectTypeId,
     pub singleton_value: SingletonValueId,
@@ -1443,7 +1441,6 @@ impl CoroutineResumePoint {
 #[derive(Debug)]
 pub struct MonomorphizedFunction {
     pub function: FunctionId,
-    pub symbol: String,
     pub display_name: String,
     pub materialization: scoop_identity::CallableMaterialization,
 }
@@ -1459,6 +1456,4 @@ pub struct StringConst {
     /// Canonical, arena-independent identity seed for this immutable object.
     pub identity: ImmortalObjectKey,
     pub value: String,
-    /// Mangled global symbol, e.g. `scoop.str.0`.
-    pub symbol: String,
 }

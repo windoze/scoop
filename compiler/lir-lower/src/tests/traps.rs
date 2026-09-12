@@ -111,7 +111,6 @@ fn trap_calls_branch_to_a_shared_trap_block() {
     );
     let f = b.user_fn_body(
         "f",
-        "scoop.f",
         vec![param("o", option_ty, o)],
         INT,
         mir::Body {

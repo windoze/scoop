@@ -15,7 +15,6 @@ pub(super) fn generate_resume_method(
     outer_resume: mir::FunctionId,
     outer_failure: mir::FunctionId,
     driver: mir::FunctionId,
-    source_symbol: &str,
     state: mir::CoroutineSuspendStateId,
     result: &mir::Type,
     latch: Option<FrameSlot>,
@@ -200,7 +199,6 @@ pub(super) fn generate_resume_method(
     let function = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resume${state}"),
-        symbol: format!("{source_symbol}$resume${state}"),
         params: vec![
             mir::Param {
                 name: "this".to_string(),

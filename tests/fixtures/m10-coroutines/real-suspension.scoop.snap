@@ -910,16 +910,16 @@ Module
   enum Option$V64
     Some(_1: ULong)
     None()
-  enum CoroutineStep$I32
+  enum CoroutineStep<Int>
     Completed(value: Int)
     Suspended()
-  enum CoroutineSlot$I32
+  enum CoroutineSlot<Int>
     Empty()
     Value(value: Int)
-  enum CoroutineSlot$C38_$local$u0:p0:r5:classn13:SuspendedTaskX
+  enum CoroutineSlot<SuspendedTask>
     Empty()
     Value(value: SuspendedTask)
-  enum CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX
+  enum CoroutineSlot<Throwable>
     Empty()
     Value(value: Throwable)
   class IntRange vtable=0 itables=1
@@ -942,8 +942,8 @@ Module
   class GateRegistration vtable=0 itables=1
   class SuspendedTask vtable=0 itables=1
   class RecordingCompletion vtable=0 itables=1
-  class CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 vtable=0 itables=0
-  class CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1 vtable=0 itables=1
+  class CoroutineFrame<SuspendedTask.run> vtable=0 itables=0
+  class CoroutineAdapter<SuspendedTask.run>$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface Iterable$I32
@@ -963,13 +963,13 @@ Module
   generated_exact_type get3 location=enum9 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
   generated_exact_type get4 location=enum7 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
   generated_exact_type get5 location=class21 nominal_id=72361029dd3d161809266076adc16e5a668a4ec7e1c5a498a22b031530eaa477 exact_id=c76132362cfca318b28d34756e1f6d29685995896247b771d6bc22393f759a00
-  generated_callable gc0 function=@scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 id=148500e545c114aba6aaee9942c21e9c352adb6cd49d412bc31574eb322511fe
-  generated_callable gc1 function=@scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$drive id=3653db4da8b954ac1afa4f91ffd956db8fde74beec3cc24e3bfb0767e1470107
-  generated_callable gc2 function=@scoop.Continuation.resumeWithException$I32 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
-  generated_callable gc3 function=@scoop.coroutine.start$I32 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
-  generated_callable gc4 function=@scoop.Continuation.resume$I32 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
-  generated_callable gc5 function=@scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 id=e5ffa85cbde616936d8624eefce292d99422abccd6200585005f69a92d43d34c
-  fun Int8.rangeTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn7:rangeTo(this: Int8, endpoint: Int8) -> IntRange
+  generated_callable gc0 function=@fn119 id=148500e545c114aba6aaee9942c21e9c352adb6cd49d412bc31574eb322511fe
+  generated_callable gc1 function=@fn115 id=3653db4da8b954ac1afa4f91ffd956db8fde74beec3cc24e3bfb0767e1470107
+  generated_callable gc2 function=@fn117 id=b071a3a749c5f7a378d930ef76d783f3aaf6bd03ccb8d4624a4a7118f62d1145
+  generated_callable gc3 function=@fn114 id=b0b05e43823d7186f12ce61d468d5504012c1e5fd8a0be5acd4f89d13ad0d9d5
+  generated_callable gc4 function=@fn116 id=b193313f614aff66a1cf12aea6972fb049a59ba154c8862fbfa37504e76779d5
+  generated_callable gc5 function=@fn118 id=e5ffa85cbde616936d8624eefce292d99422abccd6200585005f69a92d43d34c
+  fun Int8.rangeTo @fn0(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1014,7 +1014,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1030,7 +1030,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int8.rangeUntil @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn10:rangeUntil(this: Int8, endpoint: Int8) -> IntRange
+  fun Int8.rangeUntil @fn1(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1075,7 +1075,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1091,7 +1091,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int8.until @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn5:until(this: Int8, endpoint: Int8) -> IntRange
+  fun Int8.until @fn2(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1136,7 +1136,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1152,7 +1152,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int8.downTo @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn6:downTo(this: Int8, endpoint: Int8) -> IntRange
+  fun Int8.downTo @fn3(this: Int8, endpoint: Int8) -> IntRange
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1197,7 +1197,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1213,7 +1213,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int8.toString @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn8:toString(this: Int8) -> String
+  fun Int8.toString @fn4(this: Int8) -> String
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1232,7 +1232,7 @@ Module
       return
         Type String
         Local $call.1
-  fun Int8.hash @scoop.$local$c0:p0:S7:n4:Int8r8:functionq8:ordinaryn4:hash(this: Int8) -> Long
+  fun Int8.hash @fn5(this: Int8) -> Long
     bb0 entry
       val $receiver: Int8
         Type Int8
@@ -1251,7 +1251,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun Int16.rangeTo @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn7:rangeTo(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.rangeTo @fn6(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1296,7 +1296,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1312,7 +1312,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int16.rangeUntil @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn10:rangeUntil(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.rangeUntil @fn7(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1357,7 +1357,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1373,7 +1373,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int16.until @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn5:until(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.until @fn8(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1418,7 +1418,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1434,7 +1434,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int16.downTo @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn6:downTo(this: Int16, endpoint: Int16) -> IntRange
+  fun Int16.downTo @fn9(this: Int16, endpoint: Int16) -> IntRange
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1479,7 +1479,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1495,7 +1495,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int16.toString @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn8:toString(this: Int16) -> String
+  fun Int16.toString @fn10(this: Int16) -> String
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1514,7 +1514,7 @@ Module
       return
         Type String
         Local $call.1
-  fun Int16.hash @scoop.$local$c0:p0:S8:n5:Int16r8:functionq8:ordinaryn4:hash(this: Int16) -> Long
+  fun Int16.hash @fn11(this: Int16) -> Long
     bb0 entry
       val $receiver: Int16
         Type Int16
@@ -1533,7 +1533,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun Int.rangeTo @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn7:rangeTo(this: Int, endpoint: Int) -> IntRange
+  fun Int.rangeTo @fn12(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1568,7 +1568,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1584,7 +1584,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int.rangeUntil @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn10:rangeUntil(this: Int, endpoint: Int) -> IntRange
+  fun Int.rangeUntil @fn13(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1619,7 +1619,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1635,7 +1635,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int.until @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn5:until(this: Int, endpoint: Int) -> IntRange
+  fun Int.until @fn14(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1670,7 +1670,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1686,7 +1686,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int.downTo @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn6:downTo(this: Int, endpoint: Int) -> IntRange
+  fun Int.downTo @fn15(this: Int, endpoint: Int) -> IntRange
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1721,7 +1721,7 @@ Module
       assign $new.1
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.1
         Type Int
@@ -1737,7 +1737,7 @@ Module
       return
         Type IntRange
         Local $new.1
-  fun Int.toString @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn8:toString(this: Int) -> String
+  fun Int.toString @fn16(this: Int) -> String
     bb0 entry
       val $receiver: Int
         Type Int
@@ -1756,7 +1756,7 @@ Module
       return
         Type String
         Local $call.1
-  fun Int.hash @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn4:hash(this: Int) -> Long
+  fun Int.hash @fn17(this: Int) -> Long
     bb0 entry
       val $receiver: Int
         Type Int
@@ -1775,7 +1775,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun Long.rangeTo @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn7:rangeTo(this: Long, endpoint: Long) -> LongRange
+  fun Long.rangeTo @fn18(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1810,7 +1810,7 @@ Module
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
+      call @fn94 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1826,7 +1826,7 @@ Module
       return
         Type LongRange
         Local $new.1
-  fun Long.rangeUntil @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn10:rangeUntil(this: Long, endpoint: Long) -> LongRange
+  fun Long.rangeUntil @fn19(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1861,7 +1861,7 @@ Module
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
+      call @fn94 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1877,7 +1877,7 @@ Module
       return
         Type LongRange
         Local $new.1
-  fun Long.until @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn5:until(this: Long, endpoint: Long) -> LongRange
+  fun Long.until @fn20(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1912,7 +1912,7 @@ Module
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
+      call @fn94 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1928,7 +1928,7 @@ Module
       return
         Type LongRange
         Local $new.1
-  fun Long.downTo @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn6:downTo(this: Long, endpoint: Long) -> LongRange
+  fun Long.downTo @fn21(this: Long, endpoint: Long) -> LongRange
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1963,7 +1963,7 @@ Module
       assign $new.1
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
+      call @fn94 direct
         Type LongRange
         Local $new.1
         Type Long
@@ -1979,7 +1979,7 @@ Module
       return
         Type LongRange
         Local $new.1
-  fun Long.toString @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn8:toString(this: Long) -> String
+  fun Long.toString @fn22(this: Long) -> String
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -1993,7 +1993,7 @@ Module
       return
         Type String
         Local $call.1
-  fun Long.hash @scoop.$local$c0:p0:S7:n4:Longr8:functionq8:ordinaryn4:hash(this: Long) -> Long
+  fun Long.hash @fn23(this: Long) -> Long
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -2007,7 +2007,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun UInt8.rangeTo @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn7:rangeTo(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.rangeTo @fn24(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2052,7 +2052,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2068,7 +2068,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.rangeUntil @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn10:rangeUntil(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.rangeUntil @fn25(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2113,7 +2113,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2129,7 +2129,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.until @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn5:until(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.until @fn26(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2174,7 +2174,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2190,7 +2190,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.downTo @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn6:downTo(this: UInt8, endpoint: UInt8) -> UIntRange
+  fun UInt8.downTo @fn27(this: UInt8, endpoint: UInt8) -> UIntRange
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2235,7 +2235,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2251,7 +2251,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt8.toString @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn8:toString(this: UInt8) -> String
+  fun UInt8.toString @fn28(this: UInt8) -> String
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2270,7 +2270,7 @@ Module
       return
         Type String
         Local $call.1
-  fun UInt8.hash @scoop.$local$c0:p0:S8:n5:UInt8r8:functionq8:ordinaryn4:hash(this: UInt8) -> Long
+  fun UInt8.hash @fn29(this: UInt8) -> Long
     bb0 entry
       val $receiver: UInt8
         Type UInt8
@@ -2289,7 +2289,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun UInt16.rangeTo @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn7:rangeTo(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.rangeTo @fn30(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2334,7 +2334,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2350,7 +2350,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.rangeUntil @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn10:rangeUntil(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.rangeUntil @fn31(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2395,7 +2395,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2411,7 +2411,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.until @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn5:until(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.until @fn32(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2456,7 +2456,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2472,7 +2472,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.downTo @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn6:downTo(this: UInt16, endpoint: UInt16) -> UIntRange
+  fun UInt16.downTo @fn33(this: UInt16, endpoint: UInt16) -> UIntRange
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2517,7 +2517,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2533,7 +2533,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt16.toString @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn8:toString(this: UInt16) -> String
+  fun UInt16.toString @fn34(this: UInt16) -> String
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2552,7 +2552,7 @@ Module
       return
         Type String
         Local $call.1
-  fun UInt16.hash @scoop.$local$c0:p0:S9:n6:UInt16r8:functionq8:ordinaryn4:hash(this: UInt16) -> Long
+  fun UInt16.hash @fn35(this: UInt16) -> Long
     bb0 entry
       val $receiver: UInt16
         Type UInt16
@@ -2571,7 +2571,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun UInt.rangeTo @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn7:rangeTo(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.rangeTo @fn36(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2606,7 +2606,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2622,7 +2622,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt.rangeUntil @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn10:rangeUntil(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.rangeUntil @fn37(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2657,7 +2657,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2673,7 +2673,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt.until @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn5:until(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.until @fn38(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2708,7 +2708,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2724,7 +2724,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt.downTo @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn6:downTo(this: UInt, endpoint: UInt) -> UIntRange
+  fun UInt.downTo @fn39(this: UInt, endpoint: UInt) -> UIntRange
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -2759,7 +2759,7 @@ Module
       assign $new.1
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.1
         Type UInt
@@ -2775,7 +2775,7 @@ Module
       return
         Type UIntRange
         Local $new.1
-  fun UInt.toString @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn8:toString(this: UInt) -> String
+  fun UInt.toString @fn40(this: UInt) -> String
     bb0 entry
       val $receiver: UInt
         Type UInt
@@ -2794,7 +2794,7 @@ Module
       return
         Type String
         Local $call.1
-  fun UInt.hash @scoop.$local$c0:p0:S7:n4:UIntr8:functionq8:ordinaryn4:hash(this: UInt) -> Long
+  fun UInt.hash @fn41(this: UInt) -> Long
     bb0 entry
       val $receiver: UInt
         Type UInt
@@ -2813,7 +2813,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun ULong.rangeTo @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn7:rangeTo(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.rangeTo @fn42(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -2848,7 +2848,7 @@ Module
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
+      call @fn98 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -2864,7 +2864,7 @@ Module
       return
         Type ULongRange
         Local $new.1
-  fun ULong.rangeUntil @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn10:rangeUntil(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.rangeUntil @fn43(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -2899,7 +2899,7 @@ Module
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
+      call @fn98 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -2915,7 +2915,7 @@ Module
       return
         Type ULongRange
         Local $new.1
-  fun ULong.until @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn5:until(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.until @fn44(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -2950,7 +2950,7 @@ Module
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
+      call @fn98 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -2966,7 +2966,7 @@ Module
       return
         Type ULongRange
         Local $new.1
-  fun ULong.downTo @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn6:downTo(this: ULong, endpoint: ULong) -> ULongRange
+  fun ULong.downTo @fn45(this: ULong, endpoint: ULong) -> ULongRange
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -3001,7 +3001,7 @@ Module
       assign $new.1
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
+      call @fn98 direct
         Type ULongRange
         Local $new.1
         Type ULong
@@ -3017,7 +3017,7 @@ Module
       return
         Type ULongRange
         Local $new.1
-  fun ULong.toString @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn8:toString(this: ULong) -> String
+  fun ULong.toString @fn46(this: ULong) -> String
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -3031,7 +3031,7 @@ Module
       return
         Type String
         Local $call.1
-  fun ULong.hash @scoop.$local$c0:p0:S8:n5:ULongr8:functionq8:ordinaryn4:hash(this: ULong) -> Long
+  fun ULong.hash @fn47(this: ULong) -> Long
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -3045,7 +3045,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun Boolean.equals @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn6:equals(this: Boolean, other: Boolean) -> Boolean
+  fun Boolean.equals @fn48(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       val $argument.0: Boolean
         Type Boolean
@@ -3067,7 +3067,7 @@ Module
       return
         Type Boolean
         Local $call.1
-  fun Boolean.toString @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn8:toString(this: Boolean) -> String
+  fun Boolean.toString @fn49(this: Boolean) -> String
     bb0 entry
       val $argument.0: Boolean
         Type Boolean
@@ -3081,7 +3081,7 @@ Module
       return
         Type String
         Local $call.1
-  fun Boolean.hash @scoop.$local$c0:p0:S10:n7:Booleanr8:functionq8:ordinaryn4:hash(this: Boolean) -> Long
+  fun Boolean.hash @fn50(this: Boolean) -> Long
     bb0 entry
       val $argument.0: Boolean
         Type Boolean
@@ -3095,7 +3095,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun IntRange.iterator @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn8:iterator(this: IntRange) -> Iterator$I32
+  fun IntRange.iterator @fn51(this: IntRange) -> Iterator$I32
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -3146,7 +3146,7 @@ Module
       assign $new.1
         Type IntRangeIterator
         ClassAlloc IntRangeIterator
-      call @scoop.init.C41_$local$c0:p0:r5:classn16:IntRangeIteratorX.$c3 direct
+      call @fn93 direct
         Type IntRangeIterator
         Local $new.1
         Type Int
@@ -3164,7 +3164,7 @@ Module
       return
         Type IntRangeIterator
         Local $new.1
-  fun IntRange.step @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn4:step(this: IntRange, value: Int) -> IntRange
+  fun IntRange.step @fn52(this: IntRange, value: Int) -> IntRange
     bb0 entry
       val $receiver: Int
         Type Int
@@ -3189,7 +3189,7 @@ Module
     bb1 if.then.1
       val $argument.0: String
         Type String
-        StringConst @scoop.str.0
+        StringConst @str0
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -3201,7 +3201,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
+      call @fn106 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -3251,7 +3251,7 @@ Module
       assign $new.2
         Type IntRange
         ClassAlloc IntRange
-      call @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2 direct
+      call @fn92 direct
         Type IntRange
         Local $new.2
         Type Int
@@ -3267,7 +3267,7 @@ Module
       return
         Type IntRange
         Local $new.2
-  fun IntRange.contains @scoop.$local$c0:p0:C11:n8:IntRanger8:functionq8:ordinaryn8:contains(this: IntRange, value: Int) -> Boolean
+  fun IntRange.contains @fn53(this: IntRange, value: Int) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -3450,7 +3450,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -3598,7 +3598,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -3616,7 +3616,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun IntRangeIterator.next @scoop.$local$c0:p0:C20:n16:IntRangeIteratorr8:functionq8:ordinaryn4:next(this: IntRangeIterator) -> Option$I32<Int>
+  fun IntRangeIterator.next @fn54(this: IntRangeIterator) -> Option$I32<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4071,7 +4071,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun LongRange.iterator @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn8:iterator(this: LongRange) -> Iterator$I64
+  fun LongRange.iterator @fn55(this: LongRange) -> Iterator$I64
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -4122,7 +4122,7 @@ Module
       assign $new.1
         Type LongRangeIterator
         ClassAlloc LongRangeIterator
-      call @scoop.init.C42_$local$c0:p0:r5:classn17:LongRangeIteratorX.$c5 direct
+      call @fn95 direct
         Type LongRangeIterator
         Local $new.1
         Type Long
@@ -4140,7 +4140,7 @@ Module
       return
         Type LongRangeIterator
         Local $new.1
-  fun LongRange.step @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn4:step(this: LongRange, value: Long) -> LongRange
+  fun LongRange.step @fn56(this: LongRange, value: Long) -> LongRange
     bb0 entry
       val $receiver: Long
         Type Long
@@ -4165,7 +4165,7 @@ Module
     bb1 if.then.1
       val $argument.0: String
         Type String
-        StringConst @scoop.str.1
+        StringConst @str1
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -4177,7 +4177,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
+      call @fn106 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -4227,7 +4227,7 @@ Module
       assign $new.2
         Type LongRange
         ClassAlloc LongRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4 direct
+      call @fn94 direct
         Type LongRange
         Local $new.2
         Type Long
@@ -4243,7 +4243,7 @@ Module
       return
         Type LongRange
         Local $new.2
-  fun LongRange.contains @scoop.$local$c0:p0:C12:n9:LongRanger8:functionq8:ordinaryn8:contains(this: LongRange, value: Long) -> Boolean
+  fun LongRange.contains @fn57(this: LongRange, value: Long) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4426,7 +4426,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -4574,7 +4574,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -4592,7 +4592,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun LongRangeIterator.next @scoop.$local$c0:p0:C21:n17:LongRangeIteratorr8:functionq8:ordinaryn4:next(this: LongRangeIterator) -> Option$I64<Long>
+  fun LongRangeIterator.next @fn58(this: LongRangeIterator) -> Option$I64<Long>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5047,7 +5047,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun UIntRange.iterator @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn8:iterator(this: UIntRange) -> Iterator$V32
+  fun UIntRange.iterator @fn59(this: UIntRange) -> Iterator$V32
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -5098,7 +5098,7 @@ Module
       assign $new.1
         Type UIntRangeIterator
         ClassAlloc UIntRangeIterator
-      call @scoop.init.C42_$local$c0:p0:r5:classn17:UIntRangeIteratorX.$c7 direct
+      call @fn97 direct
         Type UIntRangeIterator
         Local $new.1
         Type UInt
@@ -5116,7 +5116,7 @@ Module
       return
         Type UIntRangeIterator
         Local $new.1
-  fun UIntRange.step @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn4:step(this: UIntRange, value: UInt) -> UIntRange
+  fun UIntRange.step @fn60(this: UIntRange, value: UInt) -> UIntRange
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5128,7 +5128,7 @@ Module
     bb1 if.then.1
       val $argument.0: String
         Type String
-        StringConst @scoop.str.2
+        StringConst @str2
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -5140,7 +5140,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
+      call @fn106 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -5190,7 +5190,7 @@ Module
       assign $new.2
         Type UIntRange
         ClassAlloc UIntRange
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6 direct
+      call @fn96 direct
         Type UIntRange
         Local $new.2
         Type UInt
@@ -5206,7 +5206,7 @@ Module
       return
         Type UIntRange
         Local $new.2
-  fun UIntRange.contains @scoop.$local$c0:p0:C12:n9:UIntRanger8:functionq8:ordinaryn8:contains(this: UIntRange, value: UInt) -> Boolean
+  fun UIntRange.contains @fn61(this: UIntRange, value: UInt) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5374,7 +5374,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -5507,7 +5507,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -5525,7 +5525,7 @@ Module
             Local $div.4
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
-  fun UIntRangeIterator.next @scoop.$local$c0:p0:C21:n17:UIntRangeIteratorr8:functionq8:ordinaryn4:next(this: UIntRangeIterator) -> Option$V32<UInt>
+  fun UIntRangeIterator.next @fn62(this: UIntRangeIterator) -> Option$V32<UInt>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5954,7 +5954,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun ULongRange.iterator @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn8:iterator(this: ULongRange) -> Iterator$V64
+  fun ULongRange.iterator @fn63(this: ULongRange) -> Iterator$V64
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -6005,7 +6005,7 @@ Module
       assign $new.1
         Type ULongRangeIterator
         ClassAlloc ULongRangeIterator
-      call @scoop.init.C43_$local$c0:p0:r5:classn18:ULongRangeIteratorX.$c9 direct
+      call @fn99 direct
         Type ULongRangeIterator
         Local $new.1
         Type ULong
@@ -6023,7 +6023,7 @@ Module
       return
         Type ULongRangeIterator
         Local $new.1
-  fun ULongRange.step @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn4:step(this: ULongRange, value: ULong) -> ULongRange
+  fun ULongRange.step @fn64(this: ULongRange, value: ULong) -> ULongRange
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6035,7 +6035,7 @@ Module
     bb1 if.then.1
       val $argument.0: String
         Type String
-        StringConst @scoop.str.3
+        StringConst @str3
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -6047,7 +6047,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16 direct
+      call @fn106 direct
         Type IllegalArgumentException
         Local $new.1
         Type Option$S<String>
@@ -6097,7 +6097,7 @@ Module
       assign $new.2
         Type ULongRange
         ClassAlloc ULongRange
-      call @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8 direct
+      call @fn98 direct
         Type ULongRange
         Local $new.2
         Type ULong
@@ -6113,7 +6113,7 @@ Module
       return
         Type ULongRange
         Local $new.2
-  fun ULongRange.contains @scoop.$local$c0:p0:C14:n10:ULongRanger8:functionq8:ordinaryn8:contains(this: ULongRange, value: ULong) -> Boolean
+  fun ULongRange.contains @fn65(this: ULongRange, value: ULong) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6281,7 +6281,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -6414,7 +6414,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14 direct
+      call @fn104 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -6432,7 +6432,7 @@ Module
             Local $div.4
           Type ULong
           IntegerLiteral ULong value=0 bits=0x0000000000000000
-  fun ULongRangeIterator.next @scoop.$local$c0:p0:C22:n18:ULongRangeIteratorr8:functionq8:ordinaryn4:next(this: ULongRangeIterator) -> Option$V64<ULong>
+  fun ULongRangeIterator.next @fn66(this: ULongRangeIterator) -> Option$V64<ULong>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -6861,7 +6861,7 @@ Module
       goto bb37
     bb37 if.merge.37
       goto bb34
-  fun String.equals @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn6:equals(this: String, other: String) -> Boolean
+  fun String.equals @fn67(this: String, other: String) -> Boolean
     bb0 entry
       val $argument.0: String
         Type String
@@ -6883,12 +6883,12 @@ Module
       return
         Type Boolean
         Local $call.1
-  fun String.toString @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn8:toString(this: String) -> String
+  fun String.toString @fn68(this: String) -> String
     bb0 entry
       return
         Type String
         Local this
-  fun String.hash @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn4:hash(this: String) -> Long
+  fun String.hash @fn69(this: String) -> Long
     bb0 entry
       val $argument.0: String
         Type String
@@ -6902,7 +6902,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun Gate.complete @scoop.$local$u0:p0:C7:n4:Gater8:functionq8:ordinaryn8:complete(this: Gate, value: Int) -> Unit
+  fun Gate.complete @fn70(this: Gate, value: Int) -> Unit
     bb0 entry
       val $opt.1: Option$J16_Continuation$I32X<Continuation$I32>
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -6925,7 +6925,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @scoop.init.C40_$local$c0:p0:r5:classn15:UnwrapExceptionX.$c12 direct
+      call @fn102 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -6949,13 +6949,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.$local$c0:p0:I16:n12:Continuationr8:functionq8:ordinaryn6:resume$I32 interface Continuation$I32[0]
+      call @fn78 interface Continuation$I32[0]
         Type Continuation$I32
         Local $receiver
         Type Int
         Local $parameter.value
       return
-  fun GateRegistration.register @scoop.$local$u0:p0:C20:n16:GateRegistrationr8:functionq8:ordinaryn8:register(this: GateRegistration, continuation: Continuation$I32) -> Unit
+  fun GateRegistration.register @fn71(this: GateRegistration, continuation: Continuation$I32) -> Unit
     bb0 entry
       val $argument.0: Continuation$I32
         Type Continuation$I32
@@ -6973,47 +6973,47 @@ Module
           Type Continuation$I32
           Local $parameter._1
       return
-  fun SuspendedTask.run @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend(this: SuspendedTask, $completion: Continuation$I32) -> CoroutineStep$I32
+  fun SuspendedTask.run @fn72(this: SuspendedTask, $completion: Continuation$I32) -> CoroutineStep<Int>
     bb0 entry
-      val $frame: CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
-        ClassAlloc CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+      val $frame: CoroutineFrame<SuspendedTask.run>
+        Type CoroutineFrame<SuspendedTask.run>
+        ClassAlloc CoroutineFrame<SuspendedTask.run>
       field_set 0
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       field_set 1
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
         Type Continuation$I32
         Local $completion
       field_set 2
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
-        Type CoroutineSlot$I32
-        VariantConstruct CoroutineSlot$I32 v0
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v0
       field_set 3
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
-        Type CoroutineSlot$C38_$local$u0:p0:r5:classn13:SuspendedTaskX
-        VariantConstruct CoroutineSlot$C38_$local$u0:p0:r5:classn13:SuspendedTaskX v1
+        Type CoroutineSlot<SuspendedTask>
+        VariantConstruct CoroutineSlot<SuspendedTask> v1
           Type SuspendedTask
           Local this
       field_set 4
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
-        Type CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX
-        VariantConstruct CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX v0
-      call $step: CoroutineStep$I32 = @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$drive direct
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<Int> = @fn115 direct
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Initial)
       return
-        Type CoroutineStep$I32
+        Type CoroutineStep<Int>
         Local $step
-  fun RecordingCompletion.resume @scoop.$local$u0:p0:C23:n19:RecordingCompletionr8:functionq8:ordinaryn6:resume(this: RecordingCompletion, value: Int) -> Unit
+  fun RecordingCompletion.resume @fn73(this: RecordingCompletion, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -7021,23 +7021,23 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 direct
+      call @fn77 direct
         Type Int
         Local $parameter.value
       return
-  fun RecordingCompletion.resumeWithException @scoop.$local$u0:p0:C23:n19:RecordingCompletionr8:functionq8:ordinaryn19:resumeWithException(this: RecordingCompletion, exception: Throwable) -> Unit
+  fun RecordingCompletion.resumeWithException @fn74(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.4
+        StringConst @str4
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S direct
+      call @fn76 direct
         Type String
         Local $parameter.value
       return
-  fun main @scoop_main() -> Unit
+  fun main @fn75() -> Unit
     bb0 entry
       val $argument.0: Option$J16_Continuation$I32X<Continuation$I32>
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -7048,7 +7048,7 @@ Module
       assign $new.1
         Type Gate
         ClassAlloc Gate
-      call @scoop.init.C28_$local$u0:p0:r5:classn4:GateX.$c18 direct
+      call @fn109 direct
         Type Gate
         Local $new.1
         Type Option$J16_Continuation$I32X<Continuation$I32>
@@ -7065,7 +7065,7 @@ Module
       assign $new.2
         Type SuspendedTask
         ClassAlloc SuspendedTask
-      call @scoop.init.C38_$local$u0:p0:r5:classn13:SuspendedTaskX.$c20 direct
+      call @fn111 direct
         Type SuspendedTask
         Local $new.2
         Type Gate
@@ -7076,7 +7076,7 @@ Module
       assign $new.3
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @scoop.init.C44_$local$u0:p0:r5:classn19:RecordingCompletionX.$c21 direct
+      call @fn112 direct
         Type RecordingCompletion
         Local $new.3
       val $argument.1: Continuation$I32
@@ -7088,18 +7088,18 @@ Module
       val $parameter.completion: Continuation$I32
         Type Continuation$I32
         Local $argument.1
-      call @scoop.coroutine.start$I32 direct
+      call @fn114 direct
         Type SuspendTask$I32
         Local $parameter.task
         Type Continuation$I32
         Local $parameter.completion
       val $argument.0: String
         Type String
-        StringConst @scoop.str.5
+        StringConst @str5
       val $parameter.value: String
         Type String
         Local $argument.0
-      call @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S direct
+      call @fn76 direct
         Type String
         Local $parameter.value
       val $receiver: Gate
@@ -7111,18 +7111,18 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @scoop.$local$u0:p0:C7:n4:Gater8:functionq8:ordinaryn8:complete direct
+      call @fn70 direct
         Type Gate
         Local $receiver
         Type Int
         Local $parameter.value
       return
-  fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S(value: String) -> Unit
+  fun println @fn76(value: String) -> Unit
     bb0 entry
       val $receiver: String
         Type String
         Local value
-      call $argument.0: String = @scoop.$local$c0:p0:C9:n6:Stringr8:functionq8:ordinaryn8:toString direct
+      call $argument.0: String = @fn68 direct
         Type String
         Local $receiver
       val $parameter.message: String
@@ -7133,7 +7133,7 @@ Module
         Local $parameter.message
       val $argument.0: String
         Type String
-        StringConst @scoop.str.6
+        StringConst @str6
       val $parameter.message: String
         Type String
         Local $argument.0
@@ -7141,12 +7141,12 @@ Module
         Type String
         Local $parameter.message
       return
-  fun println @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32(value: Int) -> Unit
+  fun println @fn77(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
         Type Int
         Local value
-      call $argument.0: String = @scoop.$local$c0:p0:S6:n3:Intr8:functionq8:ordinaryn8:toString direct
+      call $argument.0: String = @fn16 direct
         Type Int
         Local $receiver
       val $parameter.message: String
@@ -7157,7 +7157,7 @@ Module
         Local $parameter.message
       val $argument.0: String
         Type String
-        StringConst @scoop.str.7
+        StringConst @str7
       val $parameter.message: String
         Type String
         Local $argument.0
@@ -7165,7 +7165,7 @@ Module
         Type String
         Local $parameter.message
       return
-  fun init.IntRange.$c2 @scoop.init.C32_$local$c0:p0:r5:classn8:IntRangeX.$c2(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.IntRange.$c2 @fn92(this: IntRange, first: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type IntRange
@@ -7193,7 +7193,7 @@ Module
         Type Boolean
         Local inclusive
       return
-  fun init.IntRangeIterator.$c3 @scoop.init.C41_$local$c0:p0:r5:classn16:IntRangeIteratorX.$c3(this: IntRangeIterator, current: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.IntRangeIterator.$c3 @fn93(this: IntRangeIterator, current: Int, endpoint: Int, stride: Int, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type IntRangeIterator
@@ -7226,7 +7226,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.LongRange.$c4 @scoop.init.C33_$local$c0:p0:r5:classn9:LongRangeX.$c4(this: LongRange, first: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.LongRange.$c4 @fn94(this: LongRange, first: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type LongRange
@@ -7254,7 +7254,7 @@ Module
         Type Boolean
         Local inclusive
       return
-  fun init.LongRangeIterator.$c5 @scoop.init.C42_$local$c0:p0:r5:classn17:LongRangeIteratorX.$c5(this: LongRangeIterator, current: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.LongRangeIterator.$c5 @fn95(this: LongRangeIterator, current: Long, endpoint: Long, stride: Long, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type LongRangeIterator
@@ -7287,7 +7287,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.UIntRange.$c6 @scoop.init.C33_$local$c0:p0:r5:classn9:UIntRangeX.$c6(this: UIntRange, first: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.UIntRange.$c6 @fn96(this: UIntRange, first: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type UIntRange
@@ -7315,7 +7315,7 @@ Module
         Type Boolean
         Local inclusive
       return
-  fun init.UIntRangeIterator.$c7 @scoop.init.C42_$local$c0:p0:r5:classn17:UIntRangeIteratorX.$c7(this: UIntRangeIterator, current: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.UIntRangeIterator.$c7 @fn97(this: UIntRangeIterator, current: UInt, endpoint: UInt, stride: UInt, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type UIntRangeIterator
@@ -7348,7 +7348,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ULongRange.$c8 @scoop.init.C35_$local$c0:p0:r5:classn10:ULongRangeX.$c8(this: ULongRange, first: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean) -> Unit
+  fun init.ULongRange.$c8 @fn98(this: ULongRange, first: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ULongRange
@@ -7376,7 +7376,7 @@ Module
         Type Boolean
         Local inclusive
       return
-  fun init.ULongRangeIterator.$c9 @scoop.init.C43_$local$c0:p0:r5:classn18:ULongRangeIteratorX.$c9(this: ULongRangeIterator, current: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
+  fun init.ULongRangeIterator.$c9 @fn99(this: ULongRangeIterator, current: ULong, endpoint: ULong, stride: ULong, descending: Boolean, inclusive: Boolean, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ULongRangeIterator
@@ -7409,12 +7409,12 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.Throwable.$c10 @scoop.init.C33_$local$c0:p0:r5:classn9:ThrowableX.$c10(this: Throwable) -> Unit
+  fun init.Throwable.$c10 @fn100(this: Throwable) -> Unit
     bb0 entry
       return
-  fun init.Exception.$c11 @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11(this: Exception, message: Option$S<String>) -> Unit
+  fun init.Exception.$c11 @fn101(this: Exception, message: Option$S<String>) -> Unit
     bb0 entry
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:ThrowableX.$c10 direct
+      call @fn100 direct
         Type Throwable
         Retype Throwable
           Type Exception
@@ -7425,11 +7425,11 @@ Module
         Type Option$S<String>
         Local message
       return
-  fun init.UnwrapException.$c12 @scoop.init.C40_$local$c0:p0:r5:classn15:UnwrapExceptionX.$c12(this: UnwrapException) -> Unit
+  fun init.UnwrapException.$c12 @fn102(this: UnwrapException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.8
+        StringConst @str8
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -7441,7 +7441,7 @@ Module
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
+      call @fn101 direct
         Type Exception
         Retype Exception
           Type UnwrapException
@@ -7449,11 +7449,11 @@ Module
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ClassCastException.$c13 @scoop.init.C43_$local$c0:p0:r5:classn18:ClassCastExceptionX.$c13(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c13 @fn103(this: ClassCastException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.9
+        StringConst @str9
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -7465,7 +7465,7 @@ Module
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
+      call @fn101 direct
         Type Exception
         Retype Exception
           Type ClassCastException
@@ -7473,11 +7473,11 @@ Module
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.ArithmeticException.$c14 @scoop.init.C44_$local$c0:p0:r5:classn19:ArithmeticExceptionX.$c14(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c14 @fn104(this: ArithmeticException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.10
+        StringConst @str10
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -7489,7 +7489,7 @@ Module
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
+      call @fn101 direct
         Type Exception
         Retype Exception
           Type ArithmeticException
@@ -7497,11 +7497,11 @@ Module
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IndexOutOfBoundsException.$c15 @scoop.init.C50_$local$c0:p0:r5:classn25:IndexOutOfBoundsExceptionX.$c15(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c15 @fn105(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.11
+        StringConst @str11
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -7513,7 +7513,7 @@ Module
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
+      call @fn101 direct
         Type Exception
         Retype Exception
           Type IndexOutOfBoundsException
@@ -7521,7 +7521,7 @@ Module
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c16 @scoop.init.C49_$local$c0:p0:r5:classn24:IllegalArgumentExceptionX.$c16(this: IllegalArgumentException, message: Option$S<String>) -> Unit
+  fun init.IllegalArgumentException.$c16 @fn106(this: IllegalArgumentException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -7529,7 +7529,7 @@ Module
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
+      call @fn101 direct
         Type Exception
         Retype Exception
           Type IllegalArgumentException
@@ -7537,7 +7537,7 @@ Module
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c17 @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c17(this: IllegalStateException, message: Option$S<String>) -> Unit
+  fun init.IllegalStateException.$c17 @fn107(this: IllegalStateException, message: Option$S<String>) -> Unit
     bb0 entry
       val $argument.0: Option$S<String>
         Type Option$S<String>
@@ -7545,7 +7545,7 @@ Module
       val $parameter.message: Option$S<String>
         Type Option$S<String>
         Local $argument.0
-      call @scoop.init.C33_$local$c0:p0:r5:classn9:ExceptionX.$c11 direct
+      call @fn101 direct
         Type Exception
         Retype Exception
           Type IllegalStateException
@@ -7553,11 +7553,11 @@ Module
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c22 @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c22(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c22 @fn108(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @scoop.str.12
+        StringConst @str12
       val $parameter._1: String
         Type String
         Local $argument.0
@@ -7566,13 +7566,13 @@ Module
         VariantConstruct Option$S<String> v0
           Type String
           Local $parameter._1
-      call @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c17 direct
+      call @fn107 direct
         Type IllegalStateException
         Local this
         Type Option$S<String>
         Local $parameter.message
       return
-  fun init.Gate.$c18 @scoop.init.C28_$local$u0:p0:r5:classn4:GateX.$c18(this: Gate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
+  fun init.Gate.$c18 @fn109(this: Gate, waiter: Option$J16_Continuation$I32X<Continuation$I32>) -> Unit
     bb0 entry
       field_set 0
         Type Gate
@@ -7580,7 +7580,7 @@ Module
         Type Option$J16_Continuation$I32X<Continuation$I32>
         Local waiter
       return
-  fun init.GateRegistration.$c19 @scoop.init.C41_$local$u0:p0:r5:classn16:GateRegistrationX.$c19(this: GateRegistration, gate: Gate) -> Unit
+  fun init.GateRegistration.$c19 @fn110(this: GateRegistration, gate: Gate) -> Unit
     bb0 entry
       field_set 0
         Type GateRegistration
@@ -7588,7 +7588,7 @@ Module
         Type Gate
         Local gate
       return
-  fun init.SuspendedTask.$c20 @scoop.init.C38_$local$u0:p0:r5:classn13:SuspendedTaskX.$c20(this: SuspendedTask, gate: Gate) -> Unit
+  fun init.SuspendedTask.$c20 @fn111(this: SuspendedTask, gate: Gate) -> Unit
     bb0 entry
       field_set 0
         Type SuspendedTask
@@ -7596,10 +7596,10 @@ Module
         Type Gate
         Local gate
       return
-  fun init.RecordingCompletion.$c21 @scoop.init.C44_$local$u0:p0:r5:classn19:RecordingCompletionX.$c21(this: RecordingCompletion) -> Unit
+  fun init.RecordingCompletion.$c21 @fn112(this: RecordingCompletion) -> Unit
     bb0 entry
       return
-  fun ctor.SourceLocation.$c5 @scoop.ctor.D40_$local$c0:p0:r6:structn14:SourceLocationX.$c5(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
+  fun ctor.SourceLocation.$c5 @fn113(file: String, line: Long, column: Long, functionName: String, typeName: String) -> SourceLocation <no-gc>
     bb0 entry
       return
         Type SourceLocation
@@ -7614,20 +7614,20 @@ Module
           Local functionName
           Type String
           Local typeName
-  fun startCoroutine$I32 @scoop.coroutine.start$I32(task: SuspendTask$I32, completion: Continuation$I32) -> Unit
+  fun startCoroutine<Int> @fn114(task: SuspendTask$I32, completion: Continuation$I32) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @scoop.$local$c0:p0:I16:n12:Continuationr8:functionq8:ordinaryn6:resume$I32 interface Continuation$I32[0]
+      call @fn78 interface Continuation$I32[0]
         Type Continuation$I32
         Local completion
         Type Int
         EnumField v0 f0
-          Type CoroutineStep$I32
+          Type CoroutineStep<Int>
           Local $step
       return
     bb2 failed
-      call @scoop.$local$c0:p0:I16:n12:Continuationr8:functionq8:ordinaryn19:resumeWithException$I32 interface Continuation$I32[1]
+      call @fn79 interface Continuation$I32[1]
         Type Continuation$I32
         Local completion
         Type Throwable
@@ -7642,7 +7642,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$I32 = @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend interface SuspendTask$I32[0]
+      call $step: CoroutineStep<Int> = @fn80 interface SuspendTask$I32[0]
         Type SuspendTask$I32
         Local task
         Type Continuation$I32
@@ -7652,11 +7652,11 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep$I32
+            Type CoroutineStep<Int>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun SuspendedTask.run$drive @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$drive($frame: CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep$I32
+  fun SuspendedTask.run$drive @fn115($frame: CoroutineFrame<SuspendedTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       val $argument.0: Gate
         Type Gate
@@ -7669,7 +7669,7 @@ Module
       assign $new.1
         Type GateRegistration
         ClassAlloc GateRegistration
-      call @scoop.init.C41_$local$u0:p0:r5:classn16:GateRegistrationX.$c19 direct
+      call @fn110 direct
         Type GateRegistration
         Local $new.1
         Type Gate
@@ -7681,33 +7681,33 @@ Module
         Type SuspendRegistration$I32
         Local $argument.0
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      val $safe_adapter.1: CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
-        ClassAlloc CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+      val $safe_adapter.1: CoroutineAdapter<SuspendedTask.run>$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
+        ClassAlloc CoroutineAdapter<SuspendedTask.run>$1
       field_set 0
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
       field_set 1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Registering)
       field_set 2
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
-        Type CoroutineSlot$I32
-        VariantConstruct CoroutineSlot$I32 v0
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v0
       field_set 3
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
-        Type CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX
-        VariantConstruct CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX v0
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
       goto bb2
     bb1 coroutine.post.1
       val $receiver: Int
@@ -7720,8 +7720,8 @@ Module
         Type Int
         Local $argument.0
       return
-        Type CoroutineStep$I32
-        VariantConstruct CoroutineStep$I32 v0
+        Type CoroutineStep<Int>
+        VariantConstruct CoroutineStep<Int> v0
           Type Int
           IntegerBinary add kind=Int
             Type Int
@@ -7729,51 +7729,51 @@ Module
             Type Int
             Local $parameter.other
     bb2 coroutine.register.1 unwind bb22
-      call @scoop.$local$c0:p0:I23:n19:SuspendRegistrationr8:functionq8:ordinaryn8:register$I32 interface SuspendRegistration$I32[0]
+      call @fn81 interface SuspendRegistration$I32[0]
         Type SuspendRegistration$I32
         Local $parameter.registration
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       val value: Int
         Type Int
         EnumField v1 f0
-          Type CoroutineSlot$I32
+          Type CoroutineSlot<Int>
           FieldAccess 2
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
       goto bb1
     bb4 coroutine.registered_failure.1
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       val $resume_exception.1: Throwable
         Type Throwable
         EnumField v1 f0
-          Type CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX
+          Type CoroutineSlot<Throwable>
           FieldAccess 3
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
       throw
         Type Throwable
         Local $resume_exception.1
     bb5 coroutine.registered_suspend.1
       return
-        Type CoroutineStep$I32
-        VariantConstruct CoroutineStep$I32 v1
+        Type CoroutineStep<Int>
+        VariantConstruct CoroutineStep<Int> v1
     bb6 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c22 direct
+      call @fn108 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -7783,7 +7783,7 @@ Module
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -7800,7 +7800,7 @@ Module
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -7819,7 +7819,7 @@ Module
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
@@ -7829,7 +7829,7 @@ Module
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
@@ -7841,7 +7841,7 @@ Module
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
@@ -7851,7 +7851,7 @@ Module
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
@@ -7859,7 +7859,7 @@ Module
       val $registration_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -7880,7 +7880,7 @@ Module
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -7895,7 +7895,7 @@ Module
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
     bb17 coroutine.registration_protocol.1
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local $safe_adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -7904,7 +7904,7 @@ Module
       val $registration_frame_claim.1: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           Local $frame
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -7925,7 +7925,7 @@ Module
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
@@ -7935,7 +7935,7 @@ Module
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           AtomicLoadAcquire kind=coroutine-adapter-state field=1
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
@@ -7949,7 +7949,7 @@ Module
       val $registration_claim.1: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local $safe_adapter.1
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -7966,29 +7966,29 @@ Module
       assign value
         Type Int
         EnumField v1 f0
-          Type CoroutineSlot$I32
+          Type CoroutineSlot<Int>
           FieldAccess 2
-            Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+            Type CoroutineFrame<SuspendedTask.run>
             Local $frame
       goto bb1
     bb24 coroutine.failure.1
       throw
         Type Throwable
         EnumField v1 f0
-          Type CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX
+          Type CoroutineSlot<Throwable>
           FieldAccess 4
-            Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+            Type CoroutineFrame<SuspendedTask.run>
             Local $frame
     bb25 coroutine.initial
       assign this
         Type SuspendedTask
         EnumField v1 f0
-          Type CoroutineSlot$C38_$local$u0:p0:r5:classn13:SuspendedTaskX
+          Type CoroutineSlot<SuspendedTask>
           FieldAccess 3
-            Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+            Type CoroutineFrame<SuspendedTask.run>
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         Local $frame
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Running)
@@ -7997,7 +7997,7 @@ Module
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c22 direct
+      call @fn108 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8027,12 +8027,12 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$resume$1(this: CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn118(this: CoroutineAdapter<SuspendedTask.run>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c22 direct
+      call @fn108 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8040,40 +8040,40 @@ Module
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @scoop.Continuation.resume$I32 interface Continuation$I32[0]
+      call @fn116 interface Continuation$I32[0]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           FieldAccess 0
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local this
         Type Int
         EnumField v0 f0
-          Type CoroutineStep$I32
+          Type CoroutineStep<Int>
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @scoop.Continuation.resumeWithException$I32 interface Continuation$I32[1]
+      call @fn117 interface Continuation$I32[1]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           FieldAccess 0
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local this
         Type Throwable
         Local $uncaught
@@ -8088,23 +8088,23 @@ Module
       goto bb3
     bb5 valid unwind bb4
       field_set 2
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
-        Type CoroutineSlot$I32
-        VariantConstruct CoroutineSlot$I32 v1
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v1
           Type Int
           Local value
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$I32 = @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$drive direct
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+      call $step: CoroutineStep<Int> = @fn115 direct
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -8113,13 +8113,13 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep$I32
+            Type CoroutineStep<Int>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -8128,9 +8128,9 @@ Module
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           FieldAccess 0
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -8147,7 +8147,7 @@ Module
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -8162,14 +8162,14 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
     bb9 latched
       field_set 2
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
-        Type CoroutineSlot$I32
-        VariantConstruct CoroutineSlot$I32 v1
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v1
           Type Int
           Local value
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
@@ -8178,7 +8178,7 @@ Module
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -8191,12 +8191,12 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun CoroutineAdapter.resumeWithException$1 @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1(this: CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn119(this: CoroutineAdapter<SuspendedTask.run>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call @scoop.init.C46_$local$c0:p0:r5:classn21:IllegalStateExceptionX.$c22 direct
+      call @fn108 direct
         Type IllegalStateException
         Local $protocol_error
       throw
@@ -8204,40 +8204,40 @@ Module
         Local $protocol_error
     bb1 completed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @scoop.Continuation.resume$I32 interface Continuation$I32[0]
+      call @fn116 interface Continuation$I32[0]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           FieldAccess 0
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local this
         Type Int
         EnumField v0 f0
-          Type CoroutineStep$I32
+          Type CoroutineStep<Int>
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @scoop.Continuation.resumeWithException$I32 interface Continuation$I32[1]
+      call @fn117 interface Continuation$I32[1]
         Type Continuation$I32
         FieldAccess 1
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           FieldAccess 0
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local this
         Type Throwable
         Local $uncaught
@@ -8252,23 +8252,23 @@ Module
       goto bb3
     bb5 valid unwind bb4
       field_set 4
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
-        Type CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX
-        VariantConstruct CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX v1
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v1
           Type Throwable
           Local exception
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep$I32 = @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$drive direct
-        Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+      call $step: CoroutineStep<Int> = @fn115 direct
+        Type CoroutineFrame<SuspendedTask.run>
         FieldAccess 0
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
@@ -8277,13 +8277,13 @@ Module
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep$I32
+            Type CoroutineStep<Int>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
     bb6 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
@@ -8292,9 +8292,9 @@ Module
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64
+          Type CoroutineFrame<SuspendedTask.run>
           FieldAccess 0
-            Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+            Type CoroutineAdapter<SuspendedTask.run>$1
             Local this
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
@@ -8311,7 +8311,7 @@ Module
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
@@ -8326,14 +8326,14 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
     bb9 latched
       field_set 3
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
-        Type CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX
-        VariantConstruct CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX v1
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v1
           Type Throwable
           Local exception
       atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+        Type CoroutineAdapter<SuspendedTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
@@ -8342,7 +8342,7 @@ Module
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1
+          Type CoroutineAdapter<SuspendedTask.run>$1
           Local this
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
@@ -8355,43 +8355,43 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  coroutine_step cs0 CoroutineStep$I32 result=Int
-  coroutine_slot cl0 CoroutineSlot$I32 value=Int
-  coroutine_slot cl1 CoroutineSlot$C38_$local$u0:p0:r5:classn13:SuspendedTaskX value=SuspendedTask
-  coroutine_slot cl2 CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX value=Throwable
+  coroutine_step cs0 CoroutineStep<Int> result=Int
+  coroutine_slot cl0 CoroutineSlot<Int> value=Int
+  coroutine_slot cl1 CoroutineSlot<SuspendedTask> value=SuspendedTask
+  coroutine_slot cl2 CoroutineSlot<Throwable> value=Throwable
   continuation_shell ch0 result=Int success=fn116 failure=fn117
   coroutine_start ct0 result=Int function=fn114
-  coroutine_saved cv0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=2 slot=cl0 value=Int
-  coroutine_saved cv1 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=3 slot=cl1 value=SuspendedTask
-  coroutine_failure cx0 class=CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 field=4 slot=cl2 throwable=Throwable
-  coroutine_frame cr0 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 id=72361029dd3d161809266076adc16e5a668a4ec7e1c5a498a22b031530eaa477 owner=cf0 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
-  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1 environment_id=38abc81c762f32ba90c670e8d20fd0196d417302a5cbfe638fa252ed9a7fb4ff resume=@scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$resume$1 success_id=e5ffa85cbde616936d8624eefce292d99422abccd6200585005f69a92d43d34c failure=@scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$resume_exception$1 failure_id=148500e545c114aba6aaee9942c21e9c352adb6cd49d412bc31574eb322511fe
+  coroutine_saved cv0 class=CoroutineFrame<SuspendedTask.run> field=2 slot=cl0 value=Int
+  coroutine_saved cv1 class=CoroutineFrame<SuspendedTask.run> field=3 slot=cl1 value=SuspendedTask
+  coroutine_failure cx0 class=CoroutineFrame<SuspendedTask.run> field=4 slot=cl2 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame<SuspendedTask.run> id=72361029dd3d161809266076adc16e5a668a4ec7e1c5a498a22b031530eaa477 owner=cf0 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter<SuspendedTask.run>$1 environment_id=38abc81c762f32ba90c670e8d20fd0196d417302a5cbfe638fa252ed9a7fb4ff resume=@fn118 success_id=e5ffa85cbde616936d8624eefce292d99422abccd6200585005f69a92d43d34c failure=@fn119 failure_id=148500e545c114aba6aaee9942c21e9c352adb6cd49d412bc31574eb322511fe
     success suspended.1 -> Fallthrough(bb1)
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.$local$u0:p0:C17:n13:SuspendedTaskr8:functionq8:ordinaryn3:run$suspend$drive id=3653db4da8b954ac1afa4f91ffd956db8fde74beec3cc24e3bfb0767e1470107 resumes=[cp0]
-  coroutine_fn cf1 @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend source_return=Int step=cs0 immediate
-  instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$S <- println
-  instance @scoop.$local$c0:p0:r8:functionq8:ordinaryn7:println$I32 <- println
-  instance @scoop.$local$c0:p0:I16:n12:Continuationr8:functionq8:ordinaryn6:resume$I32 <- Continuation.resume
-  instance @scoop.$local$c0:p0:I16:n12:Continuationr8:functionq8:ordinaryn19:resumeWithException$I32 <- Continuation.resumeWithException
-  instance @scoop.$local$c0:p0:I15:n11:SuspendTaskr8:functionq8:ordinaryn3:run$I32$suspend <- SuspendTask.run
-  instance @scoop.$local$c0:p0:I23:n19:SuspendRegistrationr8:functionq8:ordinaryn8:register$I32 <- SuspendRegistration.register
-  str @scoop.str.0 "illegal argument"
-  str @scoop.str.1 "illegal argument"
-  str @scoop.str.2 "illegal argument"
-  str @scoop.str.3 "illegal argument"
-  str @scoop.str.4 "failed"
-  str @scoop.str.5 "returned"
-  str @scoop.str.6 "\n"
-  str @scoop.str.7 "\n"
-  str @scoop.str.8 "unwrap on None"
-  str @scoop.str.9 "invalid cast"
-  str @scoop.str.10 "arithmetic error"
-  str @scoop.str.11 "array index out of bounds"
-  str @scoop.str.12 "illegal state"
-  entry @scoop_main
+  coroutine_fn cf0 @fn72 source_return=Int step=cs0 frame=cr0 driver=@fn115 id=3653db4da8b954ac1afa4f91ffd956db8fde74beec3cc24e3bfb0767e1470107 resumes=[cp0]
+  coroutine_fn cf1 @fn80 source_return=Int step=cs0 immediate
+  instance mi0 function=@fn76 <- println
+  instance mi1 function=@fn77 <- println
+  instance mi2 function=@fn78 <- Continuation.resume
+  instance mi3 function=@fn79 <- Continuation.resumeWithException
+  instance mi4 function=@fn80 <- SuspendTask.run
+  instance mi5 function=@fn81 <- SuspendRegistration.register
+  str @str0 "illegal argument"
+  str @str1 "illegal argument"
+  str @str2 "illegal argument"
+  str @str3 "illegal argument"
+  str @str4 "failed"
+  str @str5 "returned"
+  str @str6 "\n"
+  str @str7 "\n"
+  str @str8 "unwrap on None"
+  str @str9 "invalid cast"
+  str @str10 "arithmetic error"
+  str @str11 "array index out of bounds"
+  str @str12 "illegal state"
+  entry @fn75
 
 == lir ==
 Module
@@ -8414,10 +8414,10 @@ Module
   enum Option$I64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Option$V32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option$V64 tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum CoroutineStep$I32 tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  enum CoroutineSlot$I32 tagged size=16 align=8 variants=()@8+0 (i32)@8+4
-  enum CoroutineSlot$C38_$local$u0:p0:r5:classn13:SuspendedTaskX niche(kind=managed,payload_variant=1)
-  enum CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX niche(kind=managed,payload_variant=1)
+  enum CoroutineStep<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum CoroutineSlot<Int> tagged size=16 align=8 variants=()@8+0 (i32)@8+4
+  enum CoroutineSlot<SuspendedTask> niche(kind=managed,payload_variant=1)
+  enum CoroutineSlot<Throwable> niche(kind=managed,payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   extern ef1 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
   extern ef2 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
@@ -12571,8 +12571,8 @@ Module
   td td24 GateRegistration @scoop$1$td$f609be1a6053d0a32f48a1034d4c6bf64985e6be2d8f66609cc88fd406db8318 type-id=1461323566697580429 size=24 parent=none vtable=[] itables=[td11:[local-fn71]]
   td td25 SuspendedTask @scoop$1$td$bf36e29428a13b50471d040962e79681fcc5b8611c8747f6cb9f20e6477ae960 type-id=3885363111602722434 size=24 parent=none vtable=[] itables=[td12:[local-fn72]]
   td td26 RecordingCompletion @scoop$1$td$d30a4d789290392e58125a25f9e52c0fe74c88f51cd03cffc57bc6776c284c17 type-id=16347324576266081555 size=16 parent=none vtable=[] itables=[td10:[local-fn73, local-fn74]]
-  td td27 CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 @scoop$1$td$c76132362cfca318b28d34756e1f6d29685995896247b771d6bc22393f759a00 type-id=17509618438553342036 size=64 parent=none vtable=[] itables=[]
-  td td28 CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1 @scoop$1$td$a6d606f764580158469eed1e8c947d150583e0cb2ce801be2df2f5db56bbb1d7 type-id=6500321356728397004 size=56 parent=none vtable=[] itables=[td10:[local-fn102, local-fn103]]
+  td td27 CoroutineFrame<SuspendedTask.run> @scoop$1$td$c76132362cfca318b28d34756e1f6d29685995896247b771d6bc22393f759a00 type-id=17509618438553342036 size=64 parent=none vtable=[] itables=[]
+  td td28 CoroutineAdapter<SuspendedTask.run>$1 @scoop$1$td$a6d606f764580158469eed1e8c947d150583e0cb2ce801be2df2f5db56bbb1d7 type-id=6500321356728397004 size=56 parent=none vtable=[] itables=[td10:[local-fn102, local-fn103]]
   td td29 Exception @scoop$1$td$578917cec77e0c3bd418c4d82625c8d273753c6305b189f752db63b264d988a5 type-id=13357369519065266481 size=24 parent=td21 vtable=[] itables=[]
   td td30 UnwrapException @scoop$1$td$3e5281134cfedec025420fd79f1c4748321f748c77f8755860359f9bcd4fb6e3 type-id=9962206442593385615 size=24 parent=td29 vtable=[] itables=[]
   td td31 ClassCastException @scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b type-id=7035472777684325328 size=24 parent=td29 vtable=[] itables=[]
@@ -12597,10 +12597,10 @@ Module
   layout Option$I64 size=16 align=8 enum-scan=none
   layout Option$V32 size=16 align=8 enum-scan=none
   layout Option$V64 size=16 align=8 enum-scan=none
-  layout CoroutineStep$I32 size=16 align=8 enum-scan=none
-  layout CoroutineSlot$I32 size=16 align=8 enum-scan=none
-  layout CoroutineSlot$C38_$local$u0:p0:r5:classn13:SuspendedTaskX size=8 align=8 enum-scan=refs[0]
-  layout CoroutineSlot$C33_$local$c0:p0:r5:classn9:ThrowableX size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<Int> size=16 align=8 enum-scan=none
+  layout CoroutineSlot<Int> size=16 align=8 enum-scan=none
+  layout CoroutineSlot<SuspendedTask> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Throwable> size=8 align=8 enum-scan=refs[0]
   layout IntRange size=32 align=8 refs=[]
   layout IntRangeIterator size=32 align=8 refs=[]
   layout LongRange size=48 align=8 refs=[]
@@ -12621,8 +12621,8 @@ Module
   layout GateRegistration size=24 align=8 refs=[16]
   layout SuspendedTask size=24 align=8 refs=[16]
   layout RecordingCompletion size=16 align=8 refs=[]
-  layout CoroutineFrame$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64 size=64 align=8 refs=[24, 48, 56]
-  layout CoroutineAdapter$x73636f6f702e246c6f63616c2475303a70303a4331373a6e31333a53757370656e6465645461736b72383a66756e6374696f6e71383a6f7264696e6172796e333a72756e2473757370656e64$1 size=56 align=8 refs=[16, 48]
+  layout CoroutineFrame<SuspendedTask.run> size=64 align=8 refs=[24, 48, 56]
+  layout CoroutineAdapter<SuspendedTask.run>$1 size=56 align=8 refs=[16, 48]
   entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==

@@ -19,8 +19,8 @@ pub use scoop_identity::{
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
-mod symbols;
-pub use symbols::*;
+mod ids;
+pub use ids::*;
 
 mod integer;
 pub use integer::*;

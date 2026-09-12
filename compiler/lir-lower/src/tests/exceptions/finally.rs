@@ -55,7 +55,7 @@ fn finally_runs_on_the_normal_catch_and_rethrow_paths() {
     body.blocks[handler_cleanup]
         .statements
         .push(call_stmt(user_call(cleanup)));
-    let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
+    let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
     let module = lower(&b.finish(main));
     let dump = lir::dump(&module);
 
@@ -167,7 +167,6 @@ fn return_inside_try_runs_finally_before_returning() {
     );
     let f = b.user_fn_body(
         "f",
-        "scoop.f",
         Vec::new(),
         INT,
         mir::Body {

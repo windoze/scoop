@@ -87,7 +87,6 @@ impl BodyLowerer<'_> {
             return *callback;
         }
 
-        let callback_index = self.callback_bridges.len();
         let signature_def = self.shell.function_types[signature].clone();
         let source_name = self.functions[source].name.clone();
         let mut locals = Arena::new();
@@ -191,7 +190,6 @@ impl BodyLowerer<'_> {
         let bridge_function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::NoGc,
             name: format!("callback bridge for {source_name}"),
-            symbol: format!("scoop_callback_bridge_{callback_index}"),
             params,
             return_ty: mir::Type::Unit,
             body: mir::Body {
@@ -446,7 +444,6 @@ impl BodyLowerer<'_> {
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("foreign callback adapter {adapter_index}"),
-            symbol: format!("scoop_foreign_callback_adapter_{adapter_index}"),
             params,
             return_ty: mir::Type::MachineScalar(mir::MachineScalarKind::ForeignCallbackStatus),
             body: mir::Body {

@@ -98,7 +98,7 @@ Module
   enum Option$I32
     Some(_1: Int)
     None()
-  fun print @scoop.print(message: Int) -> Unit
+  fun print @fn0(message: Int) -> Unit
     bb0 entry
       call $call.1: String = extern1 @scoop_rt_long_to_string direct
         Type Long
@@ -109,16 +109,16 @@ Module
         Type String
         Local $call.1
       return
-  fun println @scoop.println(message: String) -> Unit
+  fun println @fn1(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
         Local message
       call extern0 @scoop_rt_write direct
         Type String
-        StringConst @scoop.str.0
+        StringConst @str0
       return
-  fun main @scoop_main() -> Unit
+  fun main @fn2() -> Unit
     bb0 entry
       val o: Option$I32<Int>
         Type Option$I32<Int>
@@ -142,7 +142,7 @@ Module
         VariantPayloadProject Option$I32 v0 f0
           Type Option$I32<Int>
           Local $pattern.subject.2
-      call @scoop.print direct
+      call @fn0 direct
         Type Int
         Local x
       goto bb3
@@ -158,17 +158,17 @@ Module
     bb3 pattern.merge.3
       return
     bb4 pattern.pass.4
-      call @scoop.println direct
+      call @fn1 direct
         Type String
-        StringConst @scoop.str.1
+        StringConst @str1
       goto bb6
     bb5 pattern.else.5
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  str @scoop.str.0 \"\\n\"
-  str @scoop.str.1 \"none\"
-  entry @scoop_main
+  str @str0 \"\\n\"
+  str @str1 \"none\"
+  entry @fn2
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
@@ -748,7 +748,7 @@ Module
   enum Option$I32
     Some(_1: Int)
     None()
-  fun print @scoop.print(message: Int) -> Unit
+  fun print @fn0(message: Int) -> Unit
     bb0 entry
       call $call.1: String = extern1 @scoop_rt_long_to_string direct
         Type Long
@@ -759,16 +759,16 @@ Module
         Type String
         Local $call.1
       return
-  fun println @scoop.println(message: String) -> Unit
+  fun println @fn1(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
         Local message
       call extern0 @scoop_rt_write direct
         Type String
-        StringConst @scoop.str.0
+        StringConst @str0
       return
-  fun main @scoop_main() -> Unit
+  fun main @fn2() -> Unit
     bb0 entry
       val $when.1: Option$I32<Int>
         Type Option$I32<Int>
@@ -802,28 +802,28 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 pattern.else.2
-      call @scoop.println direct
+      call @fn1 direct
         Type String
-        StringConst @scoop.str.2
+        StringConst @str2
       goto bb3
     bb3 pattern.merge.3
       return
     bb4 if.then.4
-      call @scoop.print direct
+      call @fn0 direct
         Type Int
         Local x
       goto bb6
     bb5 if.else.5
-      call @scoop.println direct
+      call @fn1 direct
         Type String
-        StringConst @scoop.str.1
+        StringConst @str1
       goto bb6
     bb6 if.merge.6
       goto bb3
-  str @scoop.str.0 \"\\n\"
-  str @scoop.str.1 \"neg\"
-  str @scoop.str.2 \"neg\"
-  entry @scoop_main
+  str @str0 \"\\n\"
+  str @str1 \"neg\"
+  str @str2 \"neg\"
+  entry @fn2
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
@@ -1207,7 +1207,7 @@ fn destructuring_val_declarations_extract_bindings() {
     let expected = "\
 Module
   struct Point (x: Int, y: Int)
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       val $bind.1: (Int, String)
         Type (Int, String)
@@ -1215,7 +1215,7 @@ Module
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
           Type String
-          StringConst @scoop.str.0
+          StringConst @str0
       val a: Int
         Type Int
         FieldAccess 0
@@ -1226,7 +1226,7 @@ Module
         FieldAccess 1
           Type (Int, String)
           Local $bind.1
-      call p: Point = @scoop.ctor.D5_PointX.$c0 direct
+      call p: Point = @fn8 direct
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
         Type Int
@@ -1240,7 +1240,7 @@ Module
           Type Point
           Local $bind.2
       return
-  fun ctor.Point.$c0 @scoop.ctor.D5_PointX.$c0(x: Int, y: Int) -> Point <no-gc>
+  fun ctor.Point.$c0 @fn8(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
         Type Point
@@ -1249,8 +1249,8 @@ Module
           Local x
           Type Int
           Local y
-  str @scoop.str.0 \"x\"
-  entry @scoop_main
+  str @str0 \"x\"
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
 }

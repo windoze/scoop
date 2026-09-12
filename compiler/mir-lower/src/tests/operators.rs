@@ -598,7 +598,7 @@ fn division_by_zero_throws_arithmetic_exception() {
     let expected = "\
 Module
   class ArithmeticException vtable=0 itables=0
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       val $div.1: Int
         Type Int
@@ -617,7 +617,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @scoop.init.C19_ArithmeticExceptionX.$c0 direct
+      call @fn1 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -668,10 +668,10 @@ Module
         Type Int
         Local $div.result.3
       return
-  fun init.ArithmeticException.$c0 @scoop.init.C19_ArithmeticExceptionX.$c0(this: ArithmeticException) -> Unit
+  fun init.ArithmeticException.$c0 @fn1(this: ArithmeticException) -> Unit
     bb0 entry
       return
-  entry @scoop_main
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
 }

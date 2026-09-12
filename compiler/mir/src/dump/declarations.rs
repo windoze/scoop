@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{block_number, dump_statements, dump_terminator, type_name};
+use super::{block_number, dump_statements, dump_terminator, function_ref, string_ref, type_name};
 
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
@@ -33,9 +33,8 @@ pub fn dump(module: &Module) -> String {
             ),
         };
         out.push_str(&format!(
-            "  global{} @{} {}: {} {storage}\n",
+            "  global{} {}: {} {storage}\n",
             id.into_raw().into_u32(),
-            global.symbol,
             global.name,
             type_name(module, &global.ty)
         ));
@@ -60,8 +59,8 @@ pub fn dump(module: &Module) -> String {
             id.into_raw().into_u32(),
             unit.stable_key,
             storage.into_raw().into_u32(),
-            module.functions[unit.initializer].symbol,
-            module.functions[unit.ensure].symbol,
+            function_ref(unit.initializer),
+            function_ref(unit.ensure),
             module.initialization_failure_roots[unit.failure_root]
                 .global
                 .into_raw()
@@ -106,10 +105,10 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, callback) in module.callback_bridges.iter() {
         out.push_str(&format!(
-            "  callback cb{} @{} -> @{} function_type{} id={}\n",
+            "  callback cb{} {} -> {} function_type{} id={}\n",
             id.into_raw().into_u32(),
-            module.functions[callback.source].symbol,
-            module.functions[callback.bridge_function].symbol,
+            function_ref(callback.source),
+            function_ref(callback.bridge_function),
             callback.signature.into_raw().into_u32(),
             callback.identity().callable_record().id(),
         ));
@@ -128,7 +127,7 @@ pub fn dump(module: &Module) -> String {
         let mode_enum = &module.enums[bridge.mode.enum_id()];
         let mode = &mode_enum.variants[bridge.mode.variant_index() as usize].name;
         out.push_str(&format!(
-            "  foreign_callback_bridge fcb{} family=fcf{} native=function_type{} managed=function_type{} context={} mode={}.{} adapter=@{}\n",
+            "  foreign_callback_bridge fcb{} family=fcf{} native=function_type{} managed=function_type{} context={} mode={}.{} adapter={}\n",
             id.into_raw().into_u32(),
             bridge.family.into_raw().into_u32(),
             bridge.native_signature.into_raw().into_u32(),
@@ -136,7 +135,7 @@ pub fn dump(module: &Module) -> String {
             bridge.context_index,
             mode_enum.name,
             mode,
-            module.functions[adapter.function].symbol,
+            function_ref(adapter.function),
         ));
     }
     for (_, def) in module.structs.iter() {
@@ -204,11 +203,11 @@ pub fn dump(module: &Module) -> String {
     for (id, def) in module.closure_classes.iter() {
         let invoke = module.closure_invoke_functions[def.invoke].function;
         out.push_str(&format!(
-            "  closure cc{} {} type=function_type{} invoke=@{} captures={}\n",
+            "  closure cc{} {} type=function_type{} invoke={} captures={}\n",
             id.into_raw().into_u32(),
             def.name,
             def.function_type.into_raw().into_u32(),
-            module.functions[invoke].symbol,
+            function_ref(invoke),
             def.captures.len()
         ));
         for bridge in &def.bridges {
@@ -224,9 +223,9 @@ pub fn dump(module: &Module) -> String {
                 .map(|generated| format!(" id={}", generated.identity().callable_record().id()))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "    bridge function_type{} -> @{}{}\n",
+                "    bridge function_type{} -> {}{}\n",
                 bridge.target.into_raw().into_u32(),
-                module.functions[bridge.function].symbol,
+                function_ref(bridge.function),
                 generated,
             ));
         }
@@ -251,8 +250,8 @@ pub fn dump(module: &Module) -> String {
     }
     for (index, identity) in module.meta.generated_callables.iter().enumerate() {
         out.push_str(&format!(
-            "  generated_callable gc{index} function=@{} id={}\n",
-            module.functions[identity.function()].symbol,
+            "  generated_callable gc{index} function={} id={}\n",
+            function_ref(identity.function()),
             identity.identity_record().id(),
         ));
     }
@@ -281,9 +280,9 @@ pub fn dump(module: &Module) -> String {
             .map(|p| format!("{}: {}", p.name, type_name(module, &p.ty)))
             .collect();
         out.push_str(&format!(
-            "  fun {} @{}({}) -> {}{}\n",
+            "  fun {} {}({}) -> {}{}\n",
             function.name,
-            function.symbol,
+            function_ref(id),
             params.join(", "),
             type_name(module, &function.return_ty),
             if function.gc_effect == GcEffect::NoGc {
@@ -413,16 +412,16 @@ pub fn dump(module: &Module) -> String {
         };
         let identity = point.identity();
         out.push_str(&format!(
-            "  coroutine_resume cp{} site={} result={} frame=cr{} adapter={} environment_id={} resume=@{} success_id={} failure=@{} failure_id={}\n",
+            "  coroutine_resume cp{} site={} result={} frame=cr{} adapter={} environment_id={} resume={} success_id={} failure={} failure_id={}\n",
             id.into_raw().into_u32(),
             point.site().get(),
             type_name(module, point.result()),
             point.frame().into_raw().into_u32(),
             module.classes[point.adapter()].name,
             identity.generated_type_record().id(),
-            module.functions[point.resume()].symbol,
+            function_ref(point.resume()),
             identity.success().callable_record().id(),
-            module.functions[point.resume_with_exception()].symbol,
+            function_ref(point.resume_with_exception()),
             identity.failure().callable_record().id()
         ));
         out.push_str(&format!(
@@ -461,9 +460,9 @@ pub fn dump(module: &Module) -> String {
                 driver_identity,
                 resume_points,
             } => format!(
-                " frame=cr{} driver=@{} id={} resumes=[{}]",
+                " frame=cr{} driver={} id={} resumes=[{}]",
                 frame.into_raw().into_u32(),
-                module.functions[*driver].symbol,
+                function_ref(*driver),
                 driver_identity.callable_record().id(),
                 resume_points
                     .iter()
@@ -473,24 +472,26 @@ pub fn dump(module: &Module) -> String {
             ),
         };
         out.push_str(&format!(
-            "  coroutine_fn cf{} @{} source_return={} step=cs{}{}\n",
+            "  coroutine_fn cf{} {} source_return={} step=cs{}{}\n",
             id.into_raw().into_u32(),
-            module.functions[coroutine.function].symbol,
+            function_ref(coroutine.function),
             type_name(module, &coroutine.source_return),
             coroutine.step.into_raw().into_u32(),
             lowering
         ));
     }
-    for (_, instance) in module.meta.instances.iter() {
+    for (id, instance) in module.meta.instances.iter() {
         out.push_str(&format!(
-            "  instance @{} <- {}\n",
-            instance.symbol, instance.display_name
+            "  instance mi{} function={} <- {}\n",
+            id.into_raw().into_u32(),
+            function_ref(instance.function),
+            instance.display_name
         ));
     }
-    for (_, string) in module.strings.iter() {
-        out.push_str(&format!("  str @{} {:?}\n", string.symbol, string.value));
+    for (id, string) in module.strings.iter() {
+        out.push_str(&format!("  str {} {:?}\n", string_ref(id), string.value));
     }
-    out.push_str(&format!("  entry @{ENTRY_SYMBOL}\n"));
+    out.push_str(&format!("  entry {}\n", function_ref(module.entry)));
     out
 }
 
@@ -539,7 +540,7 @@ fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
             format!("{}:0x{:x}", value.kind().canonical_name(), value.raw_bits())
         }
         MirConstantImage::Boolean(value) => value.to_string(),
-        MirConstantImage::String(id) => format!("@{}", module.strings[*id].symbol),
+        MirConstantImage::String(id) => string_ref(*id),
         MirConstantImage::PointerNull(MirPointerNull::Data) => "null<data>".to_string(),
         MirConstantImage::PointerNull(MirPointerNull::Code) => "null<code>".to_string(),
         MirConstantImage::EnumUnit { variant } => {

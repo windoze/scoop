@@ -175,7 +175,6 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         return_type: mir::Type::Unit,
     });
     let data_shell = builder.structs.alloc(mir::StructDef {
-        link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
         type_arguments: Vec::new(),
         name: "Ptr<UInt16>".to_string(),
         gc_free: true,
@@ -186,7 +185,6 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         ),
     });
     let code_shell = builder.structs.alloc(mir::StructDef {
-        link_stem: nominal_link_stem(format!("$test$nominal${}", line!())),
         type_arguments: Vec::new(),
         name: "FunPtr<(Int8, Ptr<Unit>) -> Unit>".to_string(),
         gc_free: true,

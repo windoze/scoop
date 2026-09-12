@@ -60,7 +60,6 @@ fn class_allocation_and_initializer_store_fields() {
     let s = ctor_locals.alloc(local("s", mir::Type::String));
     let ctor = b.user_fn_body(
         "init.Point.$c0",
-        "scoop.init.Point.$c0",
         vec![
             param("this", mir::Type::Class(point), this),
             param("x", INT, x),
@@ -298,7 +297,6 @@ fn a_trap_only_body_seals_the_function() {
     let this = locals.alloc(local("this", mir::Type::Any));
     let _stub = b.user_fn_full(
         "Base.id",
-        "scoop.Base.id",
         vec![param("this", mir::Type::Any, this)],
         INT,
         locals,

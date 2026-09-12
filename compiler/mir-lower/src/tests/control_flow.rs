@@ -70,7 +70,7 @@ fn try_and_throw_become_explicit_cfg() {
     let expected = "\
 Module
   class MyError vtable=0 itables=0
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       goto bb8
     bb1 try.unwind.1
@@ -103,7 +103,7 @@ Module
       assign $new.1
         Type MyError
         ClassAlloc MyError
-      call @scoop.init.C7_MyErrorX.$c0 direct
+      call @fn1 direct
         Type MyError
         Local $new.1
       throw unwind bb1
@@ -129,10 +129,10 @@ Module
       Type Int
       IntegerLiteral Int value=2 bits=0x00000002
       goto bb7
-  fun init.MyError.$c0 @scoop.init.C7_MyErrorX.$c0(this: MyError) -> Unit
+  fun init.MyError.$c0 @fn1(this: MyError) -> Unit
     bb0 entry
       return
-  entry @scoop_main
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
 }

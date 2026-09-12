@@ -880,10 +880,10 @@ fn class_index(raw: u32) -> mir::ClassId {
 
 // ---- M6: reference types ----
 
-/// The symbol a vtable / itable slot points at.
+/// The display name a vtable / itable slot points at.
 fn slot_fn<'a>(module: &'a mir::Module, slot: &mir::TableSlot) -> &'a str {
     match slot {
-        mir::TableSlot::Function(id) => &module.functions[*id].symbol,
+        mir::TableSlot::Function(id) => &module.functions[*id].name,
         mir::TableSlot::Runtime(function) => function.symbol(),
     }
 }

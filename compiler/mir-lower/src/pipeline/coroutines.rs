@@ -38,10 +38,6 @@ impl Lowerer {
                 }
             }
             function.return_ty = step_ty;
-            function.symbol = mir::mangle_suspend(&function.symbol);
-            if let Some(instance) = source.instance {
-                self.instances.meta[instance].symbol = function.symbol.clone();
-            }
             self.coroutines.functions.alloc(mir::CoroutineFunction {
                 function: source.function,
                 source: source.materialization,

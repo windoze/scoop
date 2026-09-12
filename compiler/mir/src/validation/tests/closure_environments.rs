@@ -100,7 +100,6 @@ pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, Cl
         })
         .collect();
     let class = module.closure_classes.alloc(ClosureClass {
-        link_stem: nominal_link_stem(),
         name: "$Closure$validation".to_string(),
         function_type,
         invoke,

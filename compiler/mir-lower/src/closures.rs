@@ -56,17 +56,10 @@ impl Lowerer {
             .expect("LocalConcrete lambda captures have complete persistent identities");
             let captures = order_closure_fields(&identity, semantic_fields);
             let invoke_function = self.function_map[&lambda.function];
-            let invoke_symbol = self.functions[invoke_function].symbol.clone();
             let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
                 function: invoke_function,
             });
             let class = self.closure_classes.alloc(mir::ClosureClass {
-                link_stem: generated_nominal_link_stem(
-                    &self.shell,
-                    GeneratedNominalLinkRole::LambdaClosure {
-                        invoke_symbol: &invoke_symbol,
-                    },
-                ),
                 name: format!("$Closure$lambda{}", id.into_raw()),
                 function_type,
                 invoke,
@@ -139,17 +132,10 @@ impl Lowerer {
             .expect("LocalConcrete anonymous captures have complete persistent identities");
             let captures = order_closure_fields(&identity, semantic_fields);
             let invoke_function = self.function_map[&anonymous.function];
-            let invoke_symbol = self.functions[invoke_function].symbol.clone();
             let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
                 function: invoke_function,
             });
             let class = self.closure_classes.alloc(mir::ClosureClass {
-                link_stem: generated_nominal_link_stem(
-                    &self.shell,
-                    GeneratedNominalLinkRole::AnonymousClosure {
-                        invoke_symbol: &invoke_symbol,
-                    },
-                ),
                 name: format!("$Closure$anonymous{}", id.into_raw()),
                 function_type,
                 invoke,
@@ -286,7 +272,6 @@ impl Lowerer {
             let function = self.functions.alloc(mir::Function {
                 gc_effect: mir::GcEffect::Managed,
                 name: format!("$reference.{}", id.into_raw()),
-                symbol: format!("scoop.$reference.{}", id.into_raw()),
                 params: Vec::new(),
                 return_ty: signature.return_type.clone(),
                 body: mir::Body::unreachable(Arena::new()),
@@ -298,10 +283,6 @@ impl Lowerer {
                 .closure_invokes
                 .alloc(mir::ClosureInvokeFunction { function });
             let class = self.closure_classes.alloc(mir::ClosureClass {
-                link_stem: generated_nominal_link_stem(
-                    &self.shell,
-                    GeneratedNominalLinkRole::CallableReferenceClosure(id),
-                ),
                 name: format!("$Closure$reference{}", id.into_raw()),
                 function_type,
                 invoke,
@@ -426,7 +407,6 @@ impl Lowerer {
                         reference.function_type,
                     ),
                     source_return: signature.return_type,
-                    instance: None,
                 });
             }
             self.reference_closures.insert(id, class);

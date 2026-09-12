@@ -71,9 +71,9 @@ Module
     Some(_1: S)
     None()
   class ClassCastException vtable=0 itables=0
-  class box$D1_SX vtable=0 itables=0
+  class box<S> vtable=0 itables=0
   generated_exact_type get0 location=class7 nominal_id=6099125bb7f1516dea4fcabb23b6a0e9d3dcea0fa10934e5a0d14e7901579ca6 exact_id=bdb2c0fdfd4d7a1b9055d0c0674d2081556c69e5c8c54f4dccca995dae9a150a
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       val is_s: Boolean
         Type Boolean
@@ -94,7 +94,7 @@ Module
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @scoop.init.C18_ClassCastExceptionX.$c0 direct
+      call @fn1 direct
         Type ClassCastException
         Local $new.1
       throw
@@ -136,17 +136,17 @@ Module
         Type Option$D1_SX<S>
         Local $cast.4
       return
-  fun init.ClassCastException.$c0 @scoop.init.C18_ClassCastExceptionX.$c0(this: ClassCastException) -> Unit
+  fun init.ClassCastException.$c0 @fn1(this: ClassCastException) -> Unit
     bb0 entry
       return
-  fun ctor.S.$c0 @scoop.ctor.D1_SX.$c0(x: Int) -> S <no-gc>
+  fun ctor.S.$c0 @fn8(x: Int) -> S <no-gc>
     bb0 entry
       return
         Type S
         StructInit S
           Type Int
           Local x
-  entry @scoop_main
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
 }

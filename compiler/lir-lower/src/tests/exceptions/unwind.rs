@@ -11,7 +11,6 @@ fn throw_outside_try_is_a_throw_instruction() {
     let mut ctor_locals = Arena::new();
     let make = b.user_fn_body(
         "makeError",
-        "scoop.makeError",
         Vec::new(),
         mir::Type::Class(my_error),
         returning_body(
@@ -26,7 +25,6 @@ fn throw_outside_try_is_a_throw_instruction() {
     let exception = main_locals.alloc(local("$call.1", mir::Type::Class(my_error)));
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         body_with_terminator(
@@ -111,7 +109,7 @@ fn throw_inside_try_invokes_to_the_own_landingpad() {
         exception: local_expr(e, mir::Type::Class(my_error)),
         unwind,
     };
-    let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
+    let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
     let module = lower(&b.finish(main));
 
     let function = &module.functions[module.entry.declaration().into_u32() as usize];
@@ -158,9 +156,9 @@ fn nested_trys_unwind_to_their_own_pads() {
     let mut b = Builder::new();
     let e1 = b.class("E1", None, &[], vec![], vec![]);
     let e2 = b.class("E2", None, &[], vec![], vec![]);
-    let a = b.user_fn("a", "scoop.a", Arena::new(), vec![]);
-    let bb = b.user_fn("b", "scoop.b", Arena::new(), vec![]);
-    let c = b.user_fn("c", "scoop.c", Arena::new(), vec![]);
+    let a = b.user_fn("a", Arena::new(), vec![]);
+    let bb = b.user_fn("b", Arena::new(), vec![]);
+    let c = b.user_fn("c", Arena::new(), vec![]);
     let mut locals = Arena::new();
     let e1_local = locals.alloc(local("e1", mir::Type::Class(e1)));
     let e2_local = locals.alloc(local("e2", mir::Type::Class(e2)));
@@ -288,7 +286,7 @@ fn nested_trys_unwind_to_their_own_pads() {
         },
         None,
     );
-    let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
+    let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
     let module = lower(&b.finish(main));
 
     let function = &module.functions[module.entry.declaration().into_u32() as usize];

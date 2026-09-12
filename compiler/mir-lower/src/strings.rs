@@ -33,11 +33,9 @@ impl StringRegistry {
             return id;
         }
 
-        let symbol = format!("scoop.str.{}", self.values.len());
         let id = self.values.alloc(mir::StringConst {
             identity: identity.clone(),
             value,
-            symbol,
         });
         let previous = self.by_identity.insert(identity, id);
         assert!(previous.is_none(), "new string identity was absent");

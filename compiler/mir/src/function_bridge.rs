@@ -370,9 +370,6 @@ mod tests {
         let target = FunctionTypeId::from_raw(1_u32.into());
         let function = FunctionId::from_raw(2_u32.into());
         let definition = ClosureClass {
-            link_stem: crate::NominalLinkStem::from_session_local_encoding(
-                "$bridge-test".to_string(),
-            ),
             name: "$BridgeTest".to_string(),
             function_type: source,
             invoke: ClosureInvokeFunctionId::from_raw(0_u32.into()),

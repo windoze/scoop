@@ -57,15 +57,14 @@ fn overridden_overload_replaces_the_base_slot_in_place() {
     // A: one slot per overload.
     let a_def = &module.classes[class_index(0)];
     assert_eq!(a_def.vtable.len(), 2);
-    assert_eq!(slot_fn(&module, &a_def.vtable[0]), "scoop.A.s.I32");
-    assert_eq!(slot_fn(&module, &a_def.vtable[1]), "scoop.A.s.S");
+    assert_eq!(slot_fn(&module, &a_def.vtable[0]), "A.s");
+    assert_eq!(slot_fn(&module, &a_def.vtable[1]), "A.s");
     // B: the `s(Int)` override replaces slot 0 in place; the
-    // inherited `s(String)` keeps slot 1. (`B.s` is a unique name
-    // in the module, so it keeps the plain symbol.)
+    // inherited `s(String)` keeps slot 1.
     let b_def = &module.classes[class_index(1)];
     assert_eq!(b_def.vtable.len(), 2);
-    assert_eq!(slot_fn(&module, &b_def.vtable[0]), "scoop.B.s");
-    assert_eq!(slot_fn(&module, &b_def.vtable[1]), "scoop.A.s.S");
+    assert_eq!(slot_fn(&module, &b_def.vtable[0]), "B.s");
+    assert_eq!(slot_fn(&module, &b_def.vtable[1]), "A.s");
 }
 
 #[test]
@@ -161,8 +160,8 @@ fn overloaded_interface_methods_get_one_itable_slot_each() {
     assert_eq!(c_def.itables.len(), 1);
     let record = &c_def.itables[0];
     assert_eq!(record.slots.len(), 2);
-    assert_eq!(slot_fn(&module, &record.slots[0]), "scoop.C.m.I32");
-    assert_eq!(slot_fn(&module, &record.slots[1]), "scoop.C.m.S");
+    assert_eq!(slot_fn(&module, &record.slots[0]), "C.m");
+    assert_eq!(slot_fn(&module, &record.slots[1]), "C.m");
 }
 
 #[test]
@@ -262,33 +261,39 @@ fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
     );
     let module = lower(&h.finish(main));
 
-    let boxed = boxed_class(&module, "box$D1_SX");
+    let boxed = boxed_class(&module, "box<S>");
     assert_eq!(boxed.itables.len(), 1);
     let record = &boxed.itables[0];
     assert_eq!(record.slots.len(), 2);
-    assert_eq!(
-        slot_fn(&module, &record.slots[0]),
-        "scoop.thunk.D1_SX.J5_MultiX.m.I32"
-    );
+    assert_eq!(slot_fn(&module, &record.slots[0]), "thunk<S> Multi.m(Int)");
     assert_eq!(
         slot_fn(&module, &record.slots[1]),
-        "scoop.thunk.D1_SX.J5_MultiX.m.S"
+        "thunk<S> Multi.m(String)"
     );
     // Each thunk tail-calls its own overload.
     let thunk_target = |slot: &mir::TableSlot| {
-        let symbol = slot_fn(&module, slot);
-        let thunk = module
-            .functions
-            .iter()
-            .map(|(_, f)| f)
-            .find(|f| f.symbol == symbol)
-            .expect("the thunk is a MIR function");
+        let mir::TableSlot::Function(thunk) = slot else {
+            panic!("the thunk is a MIR function")
+        };
+        let thunk = &module.functions[*thunk];
         let (call, _) = statement_call(&entry_statements(&thunk.body)[0]);
         let mir::Callee::User(target) = call.target.callee else {
             panic!("the thunk calls a user function")
         };
-        module.functions[target].symbol.clone()
+        (
+            module.functions[target].name.clone(),
+            module.functions[target].params[1].ty.clone(),
+        )
     };
-    assert_eq!(thunk_target(&record.slots[0]), "scoop.S.m.I32");
-    assert_eq!(thunk_target(&record.slots[1]), "scoop.S.m.S");
+    assert_eq!(
+        thunk_target(&record.slots[0]),
+        (
+            "S.m".to_string(),
+            mir::Type::Integer(mir::IntegerKind::SIGNED_32)
+        )
+    );
+    assert_eq!(
+        thunk_target(&record.slots[1]),
+        ("S.m".to_string(), mir::Type::String)
+    );
 }

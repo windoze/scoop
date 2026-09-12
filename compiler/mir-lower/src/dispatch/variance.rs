@@ -53,14 +53,11 @@ impl Lowerer {
         }
         let source_signature = self.shell.function_types[source].clone();
         let target_signature = self.shell.function_types[target].clone();
-        let source_name = mir::encode_type(&self.shell, &mir::Type::Function(source))
-            .expect("variance adapter sources are source-level MIR types");
-        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target))
-            .expect("variance adapter targets are source-level MIR types");
+        let source_name = mir::type_name(&self.shell, &mir::Type::Function(source));
+        let target_name = mir::type_name(&self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
-            symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
             return_ty: target_signature.return_type.clone(),
             body: mir::Body::unreachable(Arena::new()),
@@ -70,10 +67,6 @@ impl Lowerer {
             .closure_invokes
             .alloc(mir::ClosureInvokeFunction { function });
         let class = self.closure_classes.alloc(mir::ClosureClass {
-            link_stem: generated_nominal_link_stem(
-                &self.shell,
-                GeneratedNominalLinkRole::FunctionAdapterClosure { source, target },
-            ),
             name: format!("$Closure$adapter${source_name}${target_name}"),
             function_type: target,
             invoke,
@@ -212,7 +205,6 @@ impl Lowerer {
                 odr_group: Some(identity.odr_group_record().id()),
                 logical_signature: identity.callable_signature_record().signature().clone(),
                 source_return: target_signature.return_type,
-                instance: None,
             });
         }
         adapter

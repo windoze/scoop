@@ -26,7 +26,7 @@ fn boxing_only_materializes_the_payload_class() {
     let concrete = scoop_hir_lower::concretize_legacy_export(&export);
     let module = lower(&export);
 
-    let boxed = boxed_class(&module, "box$D1_SX");
+    let boxed = boxed_class(&module, "box<S>");
     assert_eq!(boxed.declared_fields().len(), 1);
     assert_eq!(boxed.declared_fields()[0].name, "value");
     assert_eq!(
@@ -88,9 +88,9 @@ fn boxing_only_materializes_the_payload_class() {
         module.classes[boxed_meta.class()].declared_fields()[0].ty,
         mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
     );
-    assert_eq!(module.classes[boxed_meta.class()].name, "box$D1_SX");
+    assert_eq!(module.classes[boxed_meta.class()].name, "box<S>");
     assert!(module.functions.iter().all(|(_, function)| {
-        !function.symbol.starts_with("scoop.eq.") && !function.symbol.starts_with("scoop.tostring.")
+        !function.name.starts_with("eq.") && !function.name.starts_with("tostring.")
     }));
 }
 
@@ -137,7 +137,7 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     let record = &boxed.itables[0];
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(record.slots.len(), 1);
-    let thunk_symbol = slot_fn(&module, &record.slots[0]);
+    let thunk_name = slot_fn(&module, &record.slots[0]);
     assert_eq!(module.meta.boxing_adjusts.len(), 1);
     let adjust = &module.meta.boxing_adjusts[0];
     assert_eq!(adjust.boxed(), boxed_meta.class());
@@ -188,23 +188,11 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
         scoop_identity::OptionalExactOwner::Present(interface_exact)
     );
     assert_eq!(module.validate(), Ok(()));
-    let payload = mir::encode_type(&module, boxed_meta.payload()).unwrap();
-    let interface = mir::encode_type(&module, &mir::Type::Interface(record.interface)).unwrap();
-    assert_eq!(
-        thunk_symbol,
-        format!("scoop.thunk.{payload}.{interface}.describe")
-    );
-    assert!(boxed.link_stem.as_str().contains(&payload));
-    assert!(!thunk_symbol.contains(".Describable."));
+    assert_eq!(thunk_name, "thunk<S> Describable.describe()");
 
     // The thunk takes the boxed object as `this`, unboxes it and
     // tail-calls the value method.
-    let thunk = module
-        .functions
-        .iter()
-        .map(|(_, f)| f)
-        .find(|f| f.symbol == thunk_symbol)
-        .expect("the thunk is a MIR function");
+    let thunk = &module.functions[thunk_id];
     assert_eq!(thunk.params.len(), 1);
     assert_eq!(thunk.params[0].ty, mir::Type::Any);
     assert_eq!(thunk.params[0].name, "this");
@@ -213,7 +201,7 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     let mir::Callee::User(impl_id) = call.target.callee else {
         panic!("the thunk calls a user function")
     };
-    assert_eq!(module.functions[impl_id].symbol, "scoop.S.describe");
+    assert_eq!(module.functions[impl_id].name, "S.describe");
     assert_eq!(call.args.len(), 1);
     assert!(matches!(&call.args[0].kind, mir::ExprKind::Unbox(operand)
             if matches!(operand.kind, mir::ExprKind::Local(local) if local == thunk.params[0].local)));

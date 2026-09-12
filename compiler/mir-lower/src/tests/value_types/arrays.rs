@@ -73,7 +73,7 @@ fn array_nodes_translate_one_to_one() {
     let expected = "\
 Module
   class IndexOutOfBoundsException vtable=0 itables=0
-  fun main @scoop_main() -> Unit
+  fun main @fn0() -> Unit
     bb0 entry
       val a: Array<Int>
         Type Array<Int>
@@ -121,7 +121,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @scoop.init.C25_IndexOutOfBoundsExceptionX.$c0 direct
+      call @fn1 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -182,7 +182,7 @@ Module
       assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @scoop.init.C25_IndexOutOfBoundsExceptionX.$c0 direct
+      call @fn1 direct
         Type IndexOutOfBoundsException
         Local $new.4
       throw
@@ -197,10 +197,10 @@ Module
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       return
-  fun init.IndexOutOfBoundsException.$c0 @scoop.init.C25_IndexOutOfBoundsExceptionX.$c0(this: IndexOutOfBoundsException) -> Unit
+  fun init.IndexOutOfBoundsException.$c0 @fn1(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       return
-  entry @scoop_main
+  entry @fn0
 ";
     assert_eq!(dump(&module), expected);
 }
@@ -250,7 +250,7 @@ fn array_assembly_preserves_typed_element_and_copy_parts() {
 }
 
 #[test]
-fn instance_symbols_encode_array_arguments() {
+fn instance_types_preserve_array_arguments() {
     let mut h = Harness::new();
     let f = identity_fn(&mut h, "f");
     let int = h.int;
@@ -267,12 +267,7 @@ fn instance_symbols_encode_array_arguments() {
     h.instantiate(f, vec![mutable_int]);
     let module = lower(&h.finish(main));
 
-    let symbols: Vec<&str> = module.top_level[1..]
-        .iter()
-        .map(|&id| module.functions[id].symbol.as_str())
-        .collect();
-    // `mir::encode_type`: `A<element>X` / `M<element>X`.
-    assert_eq!(symbols, ["scoop.f$AI32X", "scoop.f$MI32X"]);
+    assert_eq!(module.meta.instances.len(), 2);
     // Substitution recurses into the array element types.
     let array_instance = &module.functions[module.top_level[1]];
     assert_eq!(
