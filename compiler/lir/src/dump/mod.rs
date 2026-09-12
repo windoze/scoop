@@ -149,10 +149,7 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, extern_) in module.extern_functions.iter() {
         let (params, return_type, kind) = match &extern_.kind {
-            ExternFunctionKind::C {
-                bridge_symbol,
-                signature,
-            } => (
+            ExternFunctionKind::C { bridge, signature } => (
                 signature
                     .storage_params()
                     .iter()
@@ -161,8 +158,9 @@ pub fn dump(module: &Module) -> String {
                     .join(", "),
                 signature.storage_return_type().dump(),
                 format!(
-                    "c exact={} bridge=@{bridge_symbol} gc-leaf nounwind",
-                    signature.dump()
+                    "c exact={} bridge=@{} gc-leaf nounwind",
+                    signature.dump(),
+                    bridge.symbol()
                 ),
             ),
             ExternFunctionKind::Scoop {
@@ -252,8 +250,8 @@ pub fn dump(module: &Module) -> String {
             id.into_raw(),
             bridge.family.into_raw(),
             module.functions[bridge.adapter.declaration().into_u32() as usize].symbol(),
-            bridge.trampoline_symbol,
-            bridge.signature_symbol,
+            bridge.trampoline.entry().symbol(),
+            bridge.trampoline.signature_descriptor_symbol(),
             bridge.context_index,
             mode,
             params,

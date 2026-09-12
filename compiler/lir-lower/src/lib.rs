@@ -185,16 +185,24 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             (id, signature)
         })
         .collect::<HashMap<_, _>>();
-    let (extern_functions, extern_function_refs) =
-        lower_extern_functions(&context, module, &structs, &enums);
-    let (storage_globals, native_globals, native_global_bridges) = lower_globals(
+    let (extern_functions, extern_function_refs) = lower_extern_functions(
         &context,
-        &identity_roots,
         module,
-        &mut globals,
         &structs,
         &enums,
-        &string_global_map,
+        &native_abi.native_externals,
+    );
+    let (storage_globals, native_globals, native_global_bridges) = lower_globals(
+        GlobalLoweringInputs {
+            context: &context,
+            identity_roots: &identity_roots,
+            module,
+            structs: &structs,
+            enums: &enums,
+            string_globals: &string_global_map,
+            native_externals: &native_abi.native_externals,
+        },
+        &mut globals,
     );
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
@@ -214,8 +222,13 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         .collect::<HashMap<_, _>>();
     let callback_bridges = lower_callback_bridges(module, &structs, &enums, &local_function_map);
     let foreign_callback_families = lower_foreign_callback_families(module, &enums);
-    let foreign_callback_bridges =
-        lower_foreign_callback_bridges(module, &structs, &enums, &local_function_map);
+    let foreign_callback_bridges = lower_foreign_callback_bridges(
+        module,
+        &structs,
+        &enums,
+        &local_function_map,
+        &native_abi.callback_signatures,
+    );
     let initialization_units =
         lower_initialization_units(module, &storage_globals, &local_function_map);
     let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) = type_descriptors(

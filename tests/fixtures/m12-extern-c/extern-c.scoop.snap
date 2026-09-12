@@ -8648,17 +8648,17 @@ Module
   extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  extern ef10 nativeAdd @native_add(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
-  extern ef11 nativeAddUnsigned @native_add_unsigned(i64, i64) -> i64 <c exact=(ULong,ULong)->ULong bridge=@scoop_c_bridge_11 gc-leaf nounwind lib=fixture_native>
-  extern ef12 nativeDefault @nativeDefault(i64) -> i64 <c exact=(ULong)->ULong bridge=@scoop_c_bridge_12 gc-leaf nounwind lib=fixture_native>
-  extern ef13 extraDelta @extra_delta(i32) -> i32 <c exact=(Int)->Int bridge=@scoop_c_bridge_13 gc-leaf nounwind lib=fixture_extra>
-  extern ef14 nativeNot @native_not(i1) -> i1 <c exact=(Boolean)->Boolean bridge=@scoop_c_bridge_14 gc-leaf nounwind lib=fixture_native>
-  extern ef15 nativeSwap @native_swap(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop_c_bridge_15 gc-leaf nounwind lib=fixture_native>
-  extern ef16 nativeSink @native_sink(i32) -> void <c exact=(Int)->void bridge=@scoop_c_bridge_16 gc-leaf nounwind lib=fixture_native>
-  extern ef17 nativeApply @native_apply(i32, ptr<code>) -> i32 <c exact=(Int,code-ptr<(Int)->Int,direct>)->Int bridge=@scoop_c_bridge_17 gc-leaf nounwind lib=fixture_native>
-  extern ef18 nativeApplyPair @native_apply_pair(struct0, ptr<code>) -> struct0 <c exact=(c-struct0,code-ptr<(c-struct0)->c-struct0,direct>)->c-struct0 bridge=@scoop_c_bridge_18 gc-leaf nounwind lib=fixture_native>
-  extern ef19 nativeApplyOptional @native_apply_optional(i32, enum1) -> i32 <c exact=(Int,code-ptr<(Int)->Int,nullable=enum1<(Int)->Int>>)->Int bridge=@scoop_c_bridge_19 gc-leaf nounwind lib=fixture_native>
-  extern ef20 nativeRoundTripEnvelope @native_round_trip_envelope(struct1, ptr<code>) -> struct1 <c exact=(c-struct1,code-ptr<(c-struct1)->c-struct1,direct>)->c-struct1 bridge=@scoop_c_bridge_20 gc-leaf nounwind lib=fixture_native>
+  extern ef10 nativeAdd @native_add(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$5b2fa9b6ebdb5cf5ac9c78f502b3540ac0f1fe18a20b9ee8dd0def49a6130814 gc-leaf nounwind lib=fixture_native>
+  extern ef11 nativeAddUnsigned @native_add_unsigned(i64, i64) -> i64 <c exact=(ULong,ULong)->ULong bridge=@scoop$1$br$80537aef0ef5567734084dde3e8aefe8685ec97a4ef0af29ddd0462b5332d40e gc-leaf nounwind lib=fixture_native>
+  extern ef12 nativeDefault @nativeDefault(i64) -> i64 <c exact=(ULong)->ULong bridge=@scoop$1$br$89ddffbb641d50b5ef11e4ee306b5ee55589d4ce5a3d53a722dff41701f87aa1 gc-leaf nounwind lib=fixture_native>
+  extern ef13 extraDelta @extra_delta(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$e784a22babeea56d054b860a94ea202206714e6d7844084ee04e58b68c4acaa9 gc-leaf nounwind lib=fixture_extra>
+  extern ef14 nativeNot @native_not(i1) -> i1 <c exact=(Boolean)->Boolean bridge=@scoop$1$br$b3fb0986b36ec37f0fe8e4f4ccf2dcbc5158ac701bb47c92fbfac001110e7cf0 gc-leaf nounwind lib=fixture_native>
+  extern ef15 nativeSwap @native_swap(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$29739576c82416bdc63ad51d8e68762ff95227df1bbe6f4eef30fe1b18bdaacb gc-leaf nounwind lib=fixture_native>
+  extern ef16 nativeSink @native_sink(i32) -> void <c exact=(Int)->void bridge=@scoop$1$br$294f9af8c49d7141d45182bee205107f62fc1c36992cef938d128897264539b3 gc-leaf nounwind lib=fixture_native>
+  extern ef17 nativeApply @native_apply(i32, ptr<code>) -> i32 <c exact=(Int,code-ptr<(Int)->Int,direct>)->Int bridge=@scoop$1$br$1113272b141a3021060235e5f551af747c900e136e2c76a15fbd3ceada00a8e0 gc-leaf nounwind lib=fixture_native>
+  extern ef18 nativeApplyPair @native_apply_pair(struct0, ptr<code>) -> struct0 <c exact=(c-struct0,code-ptr<(c-struct0)->c-struct0,direct>)->c-struct0 bridge=@scoop$1$br$8c2a4dba51702f724f70ed815ca7c078173c69f0d5f7272ebb9d8e79e9785952 gc-leaf nounwind lib=fixture_native>
+  extern ef19 nativeApplyOptional @native_apply_optional(i32, enum1) -> i32 <c exact=(Int,code-ptr<(Int)->Int,nullable=enum1<(Int)->Int>>)->Int bridge=@scoop$1$br$c55fa44bb81ce05ae41db527f35903d8e5addfec80626c07be6e2675a38418b8 gc-leaf nounwind lib=fixture_native>
+  extern ef20 nativeRoundTripEnvelope @native_round_trip_envelope(struct1, ptr<code>) -> struct1 <c exact=(c-struct1,code-ptr<(c-struct1)->c-struct1,direct>)->c-struct1 bridge=@scoop$1$br$1733dbc6bd779148c9d5becd2f0d6a1ba35e15e579a4a0ca06727b5589e1144c gc-leaf nounwind lib=fixture_native>
   callback cb0 transform @scoop$1$cb$cc7bfde1d61b931b83ff79faffef511a3af67aa176d98d6e87564e445aa82551 -> @scoop_c_callback_0 c=(Int)->Int
   callback cb1 transform @scoop$1$cb$a271f4e7e07a368765551d7b504b0906f2f810a03de3ed8da424833e9f8b2a49 -> @scoop_c_callback_1 c=(c-struct0)->c-struct0
   callback cb2 transform @scoop$1$cb$f76030bb767f9666d29218050c92a3da35cc460829535a32f0fe4db17202f894 -> @scoop_c_callback_2 c=(c-struct1)->c-struct1

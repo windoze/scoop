@@ -297,7 +297,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     &storage_type,
                 )?;
                 let slot = self.entry_alloca(ty, "native_global_result")?;
-                let symbol = &self.native_global_bridges.gets[native.access.get()].symbol;
+                let symbol = self.native_global_bridges.gets[native.access.get()]
+                    .identity
+                    .symbol();
                 let callee = self.native_global_bridge(symbol);
                 let transition = self.publish_native_roots(
                     roots.as_slice(),
@@ -351,7 +353,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         native.source_name
                     )));
                 };
-                let symbol = &self.native_global_bridges.sets[set].symbol;
+                let symbol = self.native_global_bridges.sets[set].identity.symbol();
                 let callee = self.native_global_bridge(symbol);
                 let transition = self.publish_native_roots(
                     roots.as_slice(),
@@ -386,7 +388,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 let ty: BasicTypeEnum = ptr_ty(context).into();
                 let slot = self.entry_alloca(ty, "native_global_address")?;
-                let symbol = &self.native_global_bridges.addresses[native.access.address()].symbol;
+                let symbol = self.native_global_bridges.addresses[native.access.address()]
+                    .identity
+                    .symbol();
                 let callee = self.native_global_bridge(symbol);
                 let transition = self.publish_native_roots(
                     roots.as_slice(),

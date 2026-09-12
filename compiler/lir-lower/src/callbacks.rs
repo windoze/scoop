@@ -32,26 +32,31 @@ pub(super) fn lower_foreign_callback_bridges(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    callback_signatures: &HashMap<
+        mir::FunctionTypeId,
+        scoop_identity::CanonicalCAbiSignatureFingerprint,
+    >,
 ) -> Arena<lir::ForeignCallbackBridge> {
     let mut bridges = Arena::new();
-    let mut shared_trampolines: HashMap<(mir::FunctionTypeId, u32), (String, String)> =
-        HashMap::new();
+    let mut shared_trampolines: HashMap<_, lir::CallbackTrampolineIdentity> = HashMap::new();
     for (_, bridge) in module.foreign_callback_bridges.iter() {
         let signature = &module.function_types[bridge.native_signature];
         let adapter = &module.foreign_callback_adapters[bridge.adapter];
-        let key = (bridge.native_signature, bridge.context_index);
-        let (trampoline_symbol, signature_symbol) =
-            if let Some(symbols) = shared_trampolines.get(&key) {
-                symbols.clone()
-            } else {
-                let raw = shared_trampolines.len();
-                let symbols = (
-                    format!("scoop_foreign_callback_{raw}"),
-                    format!("scoop_foreign_callback_signature_{raw}"),
-                );
-                shared_trampolines.insert(key, symbols.clone());
-                symbols
-            };
+        let signature_fingerprint = callback_signatures[&bridge.native_signature];
+        let context_index = scoop_identity::CallbackParameterIndex::new(bridge.context_index);
+        let key = (signature_fingerprint, context_index);
+        let trampoline = if let Some(identity) = shared_trampolines.get(&key) {
+            identity.clone()
+        } else {
+            let identity = lir::CallbackTrampolineIdentity::new(
+                module.cone,
+                signature_fingerprint,
+                context_index,
+            )
+            .expect("validated foreign callback bridge identities are encodable");
+            shared_trampolines.insert(key, identity.clone());
+            identity
+        };
         let lir::LocalFunctionRef::Managed(adapter_function) = local_functions[&adapter.function]
         else {
             unreachable!("validated foreign callback adapters are managed")
@@ -60,8 +65,7 @@ pub(super) fn lower_foreign_callback_bridges(
             application: bridge.application(),
             family: lir::ForeignCallbackFamilyId::from_raw(bridge.family.into_raw()),
             adapter: adapter_function,
-            trampoline_symbol,
-            signature_symbol,
+            trampoline,
             params: signature
                 .parameter_types
                 .iter()

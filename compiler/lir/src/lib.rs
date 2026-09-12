@@ -38,6 +38,9 @@ pub use metadata::*;
 mod identity_metadata;
 pub use identity_metadata::*;
 
+mod generated_bridge;
+pub use generated_bridge::*;
+
 mod materialization;
 pub use materialization::*;
 

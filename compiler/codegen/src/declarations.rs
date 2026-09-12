@@ -259,7 +259,7 @@ pub(crate) fn declare_foreign_callback_trampoline<'ctx>(
         enums,
         managed_address_space,
         CCallbackDeclaration {
-            symbol: &callback.trampoline_symbol,
+            symbol: callback.trampoline.entry().symbol(),
             params: &callback.params,
             return_type: &callback.return_type,
         },

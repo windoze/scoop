@@ -236,8 +236,7 @@ fn malformed_callback_registration(corruption: CallbackRegistrationCorruption) -
             application: callback_application(0),
             family,
             adapter: managed_local_function_ref(adapter_index),
-            trampoline_symbol: "scoop.invalid_id_callback_trampoline".to_string(),
-            signature_symbol: "scoop.invalid_id_callback_signature".to_string(),
+            trampoline: callback_trampoline(1, 0),
             params: vec![scoop_lir::CType::DataPointer {
                 pointee: scoop_lir::CDataPointee::OpaqueVoid,
                 storage: scoop_lir::CDataPointerStorage::Direct,

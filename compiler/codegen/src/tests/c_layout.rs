@@ -244,8 +244,7 @@ pub(super) fn foreign_callback_family(module: &mut Module) -> scoop_lir::Foreign
 
 struct ForeignCallbackBridgeFixture<'a> {
     adapter: &'a str,
-    trampoline: &'a str,
-    signature: &'a str,
+    identity_seed: u8,
     params: Vec<scoop_lir::CType>,
     return_type: scoop_lir::CReturnType,
     context_index: u32,
@@ -256,9 +255,9 @@ fn add_foreign_callback_bridge(
     family: scoop_lir::ForeignCallbackFamilyId,
     fixture: ForeignCallbackBridgeFixture<'_>,
 ) {
-    let application = callback_application(
-        u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32"),
-    );
+    let ordinal =
+        u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32");
+    let application = callback_application(ordinal);
     let adapter_index = module.functions.len();
     module
         .functions
@@ -269,8 +268,7 @@ fn add_foreign_callback_bridge(
             application,
             family,
             adapter: managed_local_function_ref(adapter_index),
-            trampoline_symbol: fixture.trampoline.to_string(),
-            signature_symbol: fixture.signature.to_string(),
+            trampoline: callback_trampoline(fixture.identity_seed, fixture.context_index),
             params: fixture.params,
             return_type: fixture.return_type,
             context_index: fixture.context_index,
@@ -529,7 +527,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_0".to_string(),
+        bridge: outbound_bridge(1),
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Struct(outer)],
             return_type: c_value(scoop_lir::CType::Struct(outer)),
@@ -566,8 +564,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 application,
                 family: foreign_callback_family,
                 adapter: managed_local_function_ref(adapter_index),
-                trampoline_symbol: "scoop_foreign_callback_0".to_string(),
-                signature_symbol: "scoop_foreign_callback_signature_0".to_string(),
+                trampoline: callback_trampoline(2, 1),
                 params: vec![
                     scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                     c_opaque_pointer(),
@@ -577,6 +574,25 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 mode,
             });
     }
+    let outbound_symbol = match &module
+        .extern_functions
+        .iter()
+        .next()
+        .expect("C extern")
+        .1
+        .kind
+    {
+        scoop_lir::ExternFunctionKind::C { bridge, .. } => bridge.symbol().to_string(),
+        scoop_lir::ExternFunctionKind::Scoop { .. } => panic!("expected C extern"),
+    };
+    let foreign_trampoline = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("foreign callback bridge")
+        .1
+        .trampoline
+        .clone();
     let bridge = c_bridge_source(&module)
         .expect("C bridge")
         .expect("C extern needs a bridge");
@@ -597,7 +613,9 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         .native_symbol_normalization()
         .compiler_generated_object_symbol(callback_bridge_symbol);
     assert!(bridge.contains("extern scoop_c_layout_1 native_swap(scoop_c_layout_1);"));
-    assert!(bridge.contains("void scoop_c_bridge_0(void *result, const void *arg0)"));
+    assert!(bridge.contains(&format!(
+        "void {outbound_symbol}(void *result, const void *arg0)"
+    )));
     assert!(bridge.contains("memcpy(result, &native_result, sizeof(native_result));"));
     assert!(bridge.contains(&format!(
         "extern void scoop_callback_bridge_0(void *result, const void *arg0) __asm__(\"{callback_bridge_object_symbol}\");"
@@ -606,23 +624,30 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     assert!(bridge.contains("scoop_callback_bridge_0(&result, &arg0);"));
     assert_eq!(
         bridge
-            .matches("const unsigned char scoop_foreign_callback_signature_0 = 0;")
+            .matches(&format!(
+                "const unsigned char {} = 0;",
+                foreign_trampoline.signature_descriptor_symbol()
+            ))
             .count(),
         1,
         "one signature/context shape must emit one descriptor:\n{bridge}"
     );
     assert_eq!(
         bridge
-            .matches("int64_t scoop_foreign_callback_0(int64_t arg0, void *arg1)")
+            .matches(&format!(
+                "int64_t {}(int64_t arg0, void *arg1)",
+                foreign_trampoline.entry().symbol()
+            ))
             .count(),
         1,
         "registrations sharing a signature/context shape must share one trampoline:\n{bridge}"
     );
     assert!(bridge.contains("int64_t result = {0};"));
     assert!(bridge.contains("const void *arguments[1] = {&arg0};"));
-    assert!(bridge.contains(
-            "scoop_runtime_callback_invoke(arg1, &scoop_foreign_callback_signature_0, &result, arguments)"
-        ));
+    assert!(bridge.contains(&format!(
+        "scoop_runtime_callback_invoke(arg1, &{}, &result, arguments)",
+        foreign_trampoline.signature_descriptor_symbol()
+    )));
     let bridge_source = std::env::temp_dir().join(format!(
         "scoop_c_foreign_callback_bridge_{}.c",
         std::process::id()
@@ -662,7 +687,7 @@ fn c_extern_derives_physical_signature_from_exact_c_types() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_machine_size".to_string(),
+        bridge: outbound_bridge(3),
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Integer(IntegerKind::UNSIGNED_64)],
             return_type: scoop_lir::CReturnType::Void,
@@ -695,7 +720,7 @@ fn append_c_void_call(
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_consume".to_string(),
+        bridge: outbound_bridge(4),
         signature: scoop_lir::CFunctionType {
             params: vec![parameter],
             return_type: scoop_lir::CReturnType::Void,
@@ -809,10 +834,21 @@ fn exact_c_argument_storage_address_reaches_the_bridge_as_its_backing_alloca() {
         |storage| Value::CArgumentStorage(scoop_lir::CArgumentStorage::address_of(storage)),
     );
 
+    let bridge_symbol = match &module
+        .extern_functions
+        .iter()
+        .next()
+        .expect("C extern")
+        .1
+        .kind
+    {
+        scoop_lir::ExternFunctionKind::C { bridge, .. } => bridge.symbol().to_string(),
+        scoop_lir::ExternFunctionKind::Scoop { .. } => panic!("expected C extern"),
+    };
     let ir = ir_of(&module);
     assert!(
         ir.lines()
-            .any(|line| { line.contains("call void @scoop_c_bridge_consume(ptr %c_argument)") }),
+            .any(|line| line.contains(&format!("call void @\"{bridge_symbol}\"(ptr %c_argument)"))),
         "C bridge did not receive the exact backing alloca:\n{ir}"
     );
 }
@@ -824,14 +860,14 @@ fn native_global_derives_physical_storage_from_exact_c_type() {
         .native_global_bridges
         .gets
         .alloc(scoop_lir::NativeGlobalGetBridge {
-            symbol: "get_machine_global".to_string(),
+            identity: global_read_bridge(1),
         });
     let address =
         module
             .native_global_bridges
             .addresses
             .alloc(scoop_lir::NativeGlobalAddressBridge {
-                symbol: "address_machine_global".to_string(),
+                identity: global_address_bridge(1),
             });
     module.native_globals.alloc(scoop_lir::NativeGlobal {
         source_name: "machineGlobal".to_string(),
@@ -852,6 +888,57 @@ fn native_global_derives_physical_storage_from_exact_c_type() {
         .expect("exact global validates")
         .expect("native global emits a bridge");
     assert!(bridge.contains("extern uint64_t machine_global;"));
+}
+
+#[test]
+fn equivalent_native_global_contracts_share_generated_bridge_definitions() {
+    let mut module = values_module();
+    let read_identity = global_read_bridge(9);
+    let read_symbol = read_identity.symbol().to_string();
+    let address_identity = global_address_bridge(9);
+    let address_symbol = address_identity.symbol().to_string();
+
+    for source_name in ["firstGlobal", "secondGlobal"] {
+        let get = module
+            .native_global_bridges
+            .gets
+            .alloc(scoop_lir::NativeGlobalGetBridge {
+                identity: read_identity.clone(),
+            });
+        let address =
+            module
+                .native_global_bridges
+                .addresses
+                .alloc(scoop_lir::NativeGlobalAddressBridge {
+                    identity: address_identity.clone(),
+                });
+        module.native_globals.alloc(scoop_lir::NativeGlobal {
+            source_name: source_name.to_string(),
+            native_symbol: "shared_global".to_string(),
+            library: "fixture".to_string(),
+            c_type: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
+            thread_local: false,
+            access: scoop_lir::NativeGlobalAccess::ReadOnly { get, address },
+        });
+    }
+
+    let bridge = c_bridge_source(&module)
+        .expect("C bridge")
+        .expect("native global needs a bridge");
+    assert_eq!(
+        bridge
+            .matches(&format!("void {read_symbol}(void *result)"))
+            .count(),
+        1,
+        "one native contract must emit one read bridge:\n{bridge}"
+    );
+    assert_eq!(
+        bridge
+            .matches(&format!("void {address_symbol}(void *result)"))
+            .count(),
+        1,
+        "one native contract must emit one address bridge:\n{bridge}"
+    );
 }
 
 #[test]
@@ -1153,7 +1240,9 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
                 library: "fixture".to_string(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
-            bridge_symbol: format!("bridge_{name}"),
+            bridge: outbound_bridge(
+                u8::try_from(module.extern_functions.iter().count() + 10).unwrap(),
+            ),
             signature: scoop_lir::CFunctionType {
                 params: vec![ty.clone()],
                 return_type: c_value(ty.clone()),
@@ -1163,14 +1252,18 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
             .native_global_bridges
             .gets
             .alloc(scoop_lir::NativeGlobalGetBridge {
-                symbol: format!("get_{name}"),
+                identity: global_read_bridge(
+                    u8::try_from(module.native_globals.len() + 40).unwrap(),
+                ),
             });
         let address =
             module
                 .native_global_bridges
                 .addresses
                 .alloc(scoop_lir::NativeGlobalAddressBridge {
-                    symbol: format!("address_{name}"),
+                    identity: global_address_bridge(
+                        u8::try_from(module.native_globals.len() + 40).unwrap(),
+                    ),
                 });
         module.native_globals.alloc(scoop_lir::NativeGlobal {
             source_name: format!("global{name}"),
@@ -1410,8 +1503,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_narrow_adapter",
-            trampoline: "foreign_narrow",
-            signature: "foreign_narrow_signature",
+            identity_seed: 1,
             params: vec![
                 c_opaque_pointer(),
                 scoop_lir::CType::Integer(IntegerKind::SIGNED_16),
@@ -1421,6 +1513,16 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
             context_index: 0,
         },
     );
+    let foreign_bridge_symbol = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("foreign callback bridge")
+        .1
+        .trampoline
+        .entry()
+        .symbol()
+        .to_string();
 
     let ir = ir_of(&module);
     assert!(
@@ -1438,7 +1540,9 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
         "C _Bool callback result lost zeroext:\n{ir}"
     );
     assert!(
-        ir.contains("declare zeroext i8 @foreign_narrow(ptr, i16 signext, i1 zeroext)"),
+        ir.contains(&format!(
+            "declare zeroext i8 @\"{foreign_bridge_symbol}\"(ptr, i16 signext, i1 zeroext)"
+        )),
         "foreign callback boundary lost narrow integer ABI attributes:\n{ir}"
     );
 }
@@ -1481,8 +1585,7 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
             application: callback_application(0),
             family,
             adapter: managed_local_function_ref(0),
-            trampoline_symbol: "foreign_callback".to_string(),
-            signature_symbol: "foreign_callback_signature".to_string(),
+            trampoline: callback_trampoline(5, 0),
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
@@ -1599,8 +1702,7 @@ fn foreign_callback_bridge_mode_must_belong_to_its_family() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter",
-            trampoline: "foreign_callback",
-            signature: "foreign_callback_signature",
+            identity_seed: 1,
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
@@ -1741,8 +1843,7 @@ fn foreign_callback_bridge_rejects_out_of_bounds_context_index() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter",
-            trampoline: "foreign_callback",
-            signature: "foreign_callback_signature",
+            identity_seed: 1,
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 1,
@@ -1767,8 +1868,7 @@ fn foreign_callback_bridge_rejects_non_pointer_context() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter",
-            trampoline: "foreign_callback",
-            signature: "foreign_callback_signature",
+            identity_seed: 1,
             params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_64)],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
@@ -1793,8 +1893,7 @@ fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter_0",
-            trampoline: "shared_foreign_callback",
-            signature: "foreign_callback_signature_0",
+            identity_seed: 1,
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
@@ -1805,65 +1904,32 @@ fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter_1",
-            trampoline: "shared_foreign_callback",
-            signature: "foreign_callback_signature_1",
+            identity_seed: 1,
             params: vec![
-                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 c_opaque_pointer(),
+                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
             ],
             return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
-            context_index: 1,
+            context_index: 0,
         },
     );
 
+    let symbol = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .unwrap()
+        .1
+        .trampoline
+        .entry()
+        .symbol()
+        .to_string();
     let error = c_bridge_source(&module)
         .expect_err("a shared trampoline symbol must have one ABI description");
     assert!(
-        error
-            .0
-            .contains("trampoline symbol @shared_foreign_callback has conflicting ABI metadata"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_bridge_rejects_conflicting_signature_abi_metadata() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter_0",
-            trampoline: "foreign_callback_0",
-            signature: "shared_foreign_callback_signature",
-            params: vec![c_opaque_pointer()],
-            return_type: scoop_lir::CReturnType::Void,
-            context_index: 0,
-        },
-    );
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter_1",
-            trampoline: "foreign_callback_1",
-            signature: "shared_foreign_callback_signature",
-            params: vec![
-                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
-                c_opaque_pointer(),
-            ],
-            return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
-            context_index: 1,
-        },
-    );
-
-    let error = c_bridge_source(&module)
-        .expect_err("a shared signature symbol must have one ABI description");
-    assert!(
-        error.0.contains(
-            "signature symbol @shared_foreign_callback_signature has conflicting ABI metadata"
-        ),
+        error.0.contains(&format!(
+            "trampoline symbol @{symbol} has conflicting ABI metadata"
+        )),
         "unexpected error: {error}"
     );
 }

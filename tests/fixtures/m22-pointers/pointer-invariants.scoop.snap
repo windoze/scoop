@@ -7789,8 +7789,8 @@ Module
   extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  extern ef10 malloc @malloc(i64) -> ptr<raw> <c exact=(ULong)->data-ptr<opaque-void,direct> bridge=@scoop_c_bridge_10 gc-leaf nounwind>
-  extern ef11 free @free(ptr<raw>) -> void <c exact=(data-ptr<opaque-void,direct>)->void bridge=@scoop_c_bridge_11 gc-leaf nounwind>
+  extern ef10 malloc @malloc(i64) -> ptr<raw> <c exact=(ULong)->data-ptr<opaque-void,direct> bridge=@scoop$1$br$9dba15af52bcbe8591de1d2f1bffd62d5446987aad5a7815a21ec4df3de80198 gc-leaf nounwind>
+  extern ef11 free @free(ptr<raw>) -> void <c exact=(data-ptr<opaque-void,direct>)->void bridge=@scoop$1$br$253844b7f005533cea2b1e5c5f0ac3510500ad514d77d34ae809777df653ec7e gc-leaf nounwind>
   fun @scoop$1$cb$a6c098c45ae6a2501d57fe90a8a73a08568abf29ebbe60f1cbb41b428d628c3b(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8

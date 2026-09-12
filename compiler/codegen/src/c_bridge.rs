@@ -29,12 +29,9 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
     let mut out = c_layout_assertions(module)?;
     out.push_str("#include <string.h>\n\n");
     let mut declared_symbols = HashSet::new();
-    for (id, function) in c_externs {
-        let ExternFunctionKind::C {
-            bridge_symbol,
-            signature,
-        } = &function.kind
-        else {
+    let mut emitted_bridges = HashSet::new();
+    for (_, function) in c_externs {
+        let ExternFunctionKind::C { bridge, signature } = &function.kind else {
             unreachable!()
         };
         let params = &signature.params;
@@ -55,6 +52,9 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             out.push_str(";\n");
         }
 
+        if !emitted_bridges.insert(bridge.symbol()) {
+            continue;
+        }
         let has_result = !return_type.is_void();
         let mut wrapper_params = Vec::new();
         if has_result {
@@ -71,7 +71,7 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         }
         out.push_str(&format!(
             "void {}({}) {{\n",
-            bridge_symbol,
+            bridge.symbol(),
             wrapper_params.join(", ")
         ));
         for (index, parameter) in params.iter().enumerate() {
@@ -94,11 +94,14 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             out.push_str(&format!("  {}({arguments});\n", function.native_symbol));
         }
         out.push_str("}\n\n");
-        let _ = id;
     }
     for (_, global) in module.native_globals.iter() {
-        let get = &module.native_global_bridges.gets[global.access.get()].symbol;
-        let address = &module.native_global_bridges.addresses[global.access.address()].symbol;
+        let get = module.native_global_bridges.gets[global.access.get()]
+            .identity
+            .symbol();
+        let address = module.native_global_bridges.addresses[global.access.address()]
+            .identity
+            .symbol();
         let thread_local = if global.thread_local {
             "_Thread_local "
         } else {
@@ -108,21 +111,27 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             let declaration = renderer.declaration(&global.c_type, &global.native_symbol)?;
             out.push_str(&format!("extern {thread_local}{declaration};\n"));
         }
-        out.push_str(&format!(
-            "void {}(void *result) {{\n  memcpy(result, &{}, sizeof({}));\n}}\n\n",
-            get, global.native_symbol, global.native_symbol
-        ));
-        if let scoop_lir::NativeGlobalAccess::Mutable { set, .. } = global.access {
-            let setter = &module.native_global_bridges.sets[set].symbol;
+        if emitted_bridges.insert(get) {
             out.push_str(&format!(
-                "void {setter}(const void *value) {{\n  memcpy(&{}, value, sizeof({}));\n}}\n\n",
-                global.native_symbol, global.native_symbol
+                "void {}(void *result) {{\n  memcpy(result, &{}, sizeof({}));\n}}\n\n",
+                get, global.native_symbol, global.native_symbol
             ));
         }
-        out.push_str(&format!(
-            "void {}(void *result) {{\n  void *native_address = (void *)&{};\n  memcpy(result, &native_address, sizeof(native_address));\n}}\n\n",
-            address, global.native_symbol
-        ));
+        if let scoop_lir::NativeGlobalAccess::Mutable { set, .. } = global.access {
+            let setter = module.native_global_bridges.sets[set].identity.symbol();
+            if emitted_bridges.insert(setter) {
+                out.push_str(&format!(
+                    "void {setter}(const void *value) {{\n  memcpy(&{}, value, sizeof({}));\n}}\n\n",
+                    global.native_symbol, global.native_symbol
+                ));
+            }
+        }
+        if emitted_bridges.insert(address) {
+            out.push_str(&format!(
+                "void {}(void *result) {{\n  void *native_address = (void *)&{};\n  memcpy(result, &native_address, sizeof(native_address));\n}}\n\n",
+                address, global.native_symbol
+            ));
+        }
     }
     for (id, callback) in module.callback_bridges.iter() {
         let bridge_symbol =
@@ -196,12 +205,12 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
     }
     let mut emitted_foreign_trampolines = HashSet::new();
     for (_, callback) in module.foreign_callback_bridges.iter() {
-        if !emitted_foreign_trampolines.insert(callback.trampoline_symbol.as_str()) {
+        if !emitted_foreign_trampolines.insert(callback.trampoline.entry().symbol()) {
             continue;
         }
         out.push_str(&format!(
             "const unsigned char {} = 0;\n",
-            callback.signature_symbol
+            callback.trampoline.signature_descriptor_symbol()
         ));
         let callback_params = callback
             .params
@@ -215,7 +224,10 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         } else {
             &callback_params
         };
-        let declarator = format!("{}({callback_params})", callback.trampoline_symbol);
+        let declarator = format!(
+            "{}({callback_params})",
+            callback.trampoline.entry().symbol()
+        );
         out.push_str(&renderer.return_declaration(&callback.return_type, &declarator)?);
         out.push_str(" {\n");
         let has_result = !callback.return_type.is_void();
@@ -240,7 +252,7 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         out.push_str(&format!(
             "  (void)scoop_runtime_callback_invoke(arg{}, &{}, {}, {});\n",
             callback.context_index,
-            callback.signature_symbol,
+            callback.trampoline.signature_descriptor_symbol(),
             if has_result { "&result" } else { "NULL" },
             if argument_indices.is_empty() {
                 "NULL"

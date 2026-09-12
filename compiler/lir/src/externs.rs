@@ -20,7 +20,7 @@ pub struct ExternFunctionIdentity {
 #[derive(Debug)]
 pub struct CExternFunction {
     pub identity: ExternFunctionIdentity,
-    pub bridge_symbol: String,
+    pub bridge: GeneratedBridgeEntryIdentity,
     pub signature: CFunctionType,
 }
 
@@ -68,7 +68,7 @@ impl ExternFunctions {
             library: identity.library,
             calling_convention: identity.calling_convention,
             kind: ExternFunctionKind::C {
-                bridge_symbol: function.bridge_symbol,
+                bridge: function.bridge,
                 signature: function.signature,
             },
         }))
@@ -113,7 +113,7 @@ pub enum CallingConvention {
 #[derive(Debug)]
 pub enum ExternFunctionKind {
     C {
-        bridge_symbol: String,
+        bridge: GeneratedBridgeEntryIdentity,
         signature: CFunctionType,
     },
     Scoop {

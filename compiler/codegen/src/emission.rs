@@ -314,7 +314,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     }
     let mut declared_foreign_trampolines = HashSet::new();
     for (_, callback) in module.foreign_callback_bridges.iter() {
-        if !declared_foreign_trampolines.insert(callback.trampoline_symbol.as_str()) {
+        if !declared_foreign_trampolines.insert(callback.trampoline.entry().symbol()) {
             continue;
         }
         declare_foreign_callback_trampoline(
@@ -325,7 +325,11 @@ pub(crate) fn emit_llvm_module<'ctx>(
             managed_address_space,
             callback,
         )?;
-        let descriptor = llvm.add_global(context.i8_type(), None, &callback.signature_symbol);
+        let descriptor = llvm.add_global(
+            context.i8_type(),
+            None,
+            callback.trampoline.signature_descriptor_symbol(),
+        );
         descriptor.set_linkage(inkwell::module::Linkage::External);
     }
     // Meta TypeDescriptors reference module functions (vtable / itable

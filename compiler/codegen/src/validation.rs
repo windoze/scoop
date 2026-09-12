@@ -1038,30 +1038,33 @@ fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
         }
 
         let abi = (
-            bridge.signature_symbol.as_str(),
+            bridge.trampoline.signature_descriptor_symbol(),
             bridge.params.as_slice(),
             &bridge.return_type,
             bridge.context_index,
         );
-        if let Some(previous) = trampolines.insert(bridge.trampoline_symbol.as_str(), abi) {
+        if let Some(previous) = trampolines.insert(bridge.trampoline.entry().symbol(), abi) {
             if previous != abi {
                 return Err(CodegenError(format!(
                     "foreign callback trampoline symbol @{} has conflicting ABI metadata",
-                    bridge.trampoline_symbol
+                    bridge.trampoline.entry().symbol()
                 )));
             }
         }
         let signature_abi = (
-            bridge.trampoline_symbol.as_str(),
+            bridge.trampoline.entry().symbol(),
             bridge.params.as_slice(),
             &bridge.return_type,
             bridge.context_index,
         );
-        if let Some(previous) = signatures.insert(bridge.signature_symbol.as_str(), signature_abi) {
+        if let Some(previous) = signatures.insert(
+            bridge.trampoline.signature_descriptor_symbol(),
+            signature_abi,
+        ) {
             if previous != signature_abi {
                 return Err(CodegenError(format!(
                     "foreign callback signature symbol @{} has conflicting ABI metadata",
-                    bridge.signature_symbol
+                    bridge.trampoline.signature_descriptor_symbol()
                 )));
             }
         }

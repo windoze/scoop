@@ -131,6 +131,19 @@ impl NativeExternalMetadata {
         &self.contracts
     }
 
+    pub fn contract(
+        &self,
+        source: scoop_identity::PersistentSourceNativeExternalContractId,
+    ) -> Option<&scoop_identity::NativeExternalContractRecord> {
+        self.contracts
+            .binary_search_by_key(
+                &source,
+                scoop_identity::NativeExternalContractRecord::source,
+            )
+            .ok()
+            .map(|index| &self.contracts[index])
+    }
+
     pub fn link_requirements(
         &self,
     ) -> &[scoop_identity::CborIdentityRecord<

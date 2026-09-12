@@ -85,7 +85,50 @@ impl CanonicalLirFoundation {
         foundation.set_native_link_requirements(
             module.meta.native_externals.link_requirements().to_vec(),
         )?;
+        foundation.project_generated_bridges(module)?;
+        foundation.project_generated_bridge_symbols(module)?;
         Ok(foundation)
+    }
+
+    fn project_generated_bridges(
+        &mut self,
+        module: &Module,
+    ) -> Result<(), LirFoundationBuildError> {
+        let mut units = BTreeMap::new();
+        let mut atoms = BTreeMap::new();
+        let mut callbacks = Vec::new();
+
+        for (_, external) in module.extern_functions.iter() {
+            if let crate::ExternFunctionKind::C { bridge, .. } = &external.kind {
+                insert_generated_bridge_entry(&mut units, &mut atoms, bridge)?;
+            }
+        }
+        for (_, bridge) in module.native_global_bridges.gets.iter() {
+            insert_generated_bridge_entry(&mut units, &mut atoms, &bridge.identity)?;
+        }
+        for (_, bridge) in module.native_global_bridges.sets.iter() {
+            insert_generated_bridge_entry(&mut units, &mut atoms, &bridge.identity)?;
+        }
+        for (_, bridge) in module.native_global_bridges.addresses.iter() {
+            insert_generated_bridge_entry(&mut units, &mut atoms, &bridge.identity)?;
+        }
+        for (_, bridge) in module.foreign_callback_bridges.iter() {
+            insert_generated_bridge_entry(&mut units, &mut atoms, bridge.trampoline.entry())?;
+            insert_projected_identity(
+                &mut atoms,
+                Some(bridge.trampoline.signature_descriptor_record()),
+                LirFoundationTable::BridgeAtom,
+            )?;
+            callbacks.push(crate::CallbackBridgeRecord::new(
+                bridge.application,
+                bridge.trampoline.signature(),
+                bridge.trampoline.entry().unit(),
+            ));
+        }
+
+        self.set_bridge_units(units.into_values().collect())?;
+        self.set_bridge_atoms(atoms.into_values().collect())?;
+        self.set_callback_bridges(callbacks)
     }
 
     fn project_materializations<'identity, 'descriptor, 'global>(
@@ -212,6 +255,65 @@ impl CanonicalLirFoundation {
         Ok(())
     }
 
+    fn project_generated_bridge_symbols(
+        &mut self,
+        module: &Module,
+    ) -> Result<(), LirFoundationBuildError> {
+        let bridge_requests = module
+            .extern_functions
+            .iter()
+            .filter_map(|(_, external)| match &external.kind {
+                crate::ExternFunctionKind::C { bridge, .. } => Some(bridge.symbol_request()),
+                crate::ExternFunctionKind::Scoop { .. } => None,
+            })
+            .chain(
+                module
+                    .native_global_bridges
+                    .gets
+                    .iter()
+                    .map(|(_, bridge)| bridge.identity.symbol_request()),
+            )
+            .chain(
+                module
+                    .native_global_bridges
+                    .sets
+                    .iter()
+                    .map(|(_, bridge)| bridge.identity.symbol_request()),
+            )
+            .chain(
+                module
+                    .native_global_bridges
+                    .addresses
+                    .iter()
+                    .map(|(_, bridge)| bridge.identity.symbol_request()),
+            )
+            .chain(
+                module
+                    .foreign_callback_bridges
+                    .iter()
+                    .flat_map(|(_, bridge)| {
+                        [
+                            bridge.trampoline.entry().symbol_request(),
+                            bridge.trampoline.signature_descriptor_symbol_request(),
+                        ]
+                    }),
+            );
+        let requests = self
+            .symbol_requests
+            .requests()
+            .iter()
+            .copied()
+            .chain(bridge_requests)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        self.set_symbol_requests(
+            scoop_identity::PersistentSymbolRequestTable::new(requests)
+                .map_err(LirFoundationBuildError::SymbolRequest)?,
+        );
+        Ok(())
+    }
+
     fn from_functions(functions: &[Function]) -> Result<Self, LirFoundationBuildError> {
         let mut callable_bodies = Vec::with_capacity(functions.len());
         let safepoint_count = functions
@@ -250,6 +352,23 @@ impl CanonicalLirFoundation {
         );
         Ok(foundation)
     }
+}
+
+fn insert_generated_bridge_entry(
+    units: &mut BTreeMap<GeneratedBridgeUnitId, BridgeUnitRecord>,
+    atoms: &mut BTreeMap<GeneratedBridgeAtomId, BridgeAtomRecord>,
+    entry: &crate::GeneratedBridgeEntryIdentity,
+) -> Result<(), LirFoundationBuildError> {
+    insert_projected_identity(
+        units,
+        Some(entry.unit_record()),
+        LirFoundationTable::BridgeUnit,
+    )?;
+    insert_projected_identity(
+        atoms,
+        Some(entry.primary_record()),
+        LirFoundationTable::BridgeAtom,
+    )
 }
 
 fn insert_materialization_records(

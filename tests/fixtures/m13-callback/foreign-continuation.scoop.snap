@@ -8983,10 +8983,10 @@ Module
   extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  extern ef10 startOne @m13_start_one(ptr<code>, ptr<raw>, i32) -> ptr<raw> <c exact=(code-ptr<(Int,data-ptr<opaque-void,direct>)->Int,direct>,data-ptr<opaque-void,direct>,Int)->data-ptr<opaque-void,direct> bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
-  extern ef11 joinOne @m13_join_one(ptr<raw>) -> i32 <c exact=(data-ptr<opaque-void,direct>)->Int bridge=@scoop_c_bridge_11 gc-leaf nounwind lib=fixture_native>
+  extern ef10 startOne @m13_start_one(ptr<code>, ptr<raw>, i32) -> ptr<raw> <c exact=(code-ptr<(Int,data-ptr<opaque-void,direct>)->Int,direct>,data-ptr<opaque-void,direct>,Int)->data-ptr<opaque-void,direct> bridge=@scoop$1$br$e28cfc0f60fc77805bddf0ae1fff7eab6db7ba807cb21c98f72c8f0372fc45d1 gc-leaf nounwind lib=fixture_native>
+  extern ef11 joinOne @m13_join_one(ptr<raw>) -> i32 <c exact=(data-ptr<opaque-void,direct>)->Int bridge=@scoop$1$br$4360975c37940233f7ca664857f619aa6c17c0a36c05d2e02eae2c668251e112 gc-leaf nounwind lib=fixture_native>
   foreign_callback_family fcf0 callback=struct10 state=enum8 failure=enum9
-  foreign_callback_bridge fcb0 family=fcf0 @scoop$1$cb$82c45efb5dd8d2f4ae056ebf97ffd9749ff18c1074d4ff445f5af5a0303a18eb -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=1 mode=ForeignCallbackMode.OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
+  foreign_callback_bridge fcb0 family=fcf0 @scoop$1$cb$82c45efb5dd8d2f4ae056ebf97ffd9749ff18c1074d4ff445f5af5a0303a18eb -> @scoop$1$br$4b9a36cc56f1c77a64d6ec63b40ef631529c658f0d3db34102723d89e8697747 signature=@scoop$1$br$38221f3bbd20256fa5c86eaeeb219072bb13623caf13ada01cc9fa359174778f context=1 mode=ForeignCallbackMode.OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
   fun @scoop$1$cb$a6c098c45ae6a2501d57fe90a8a73a08568abf29ebbe60f1cbb41b428d628c3b(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8

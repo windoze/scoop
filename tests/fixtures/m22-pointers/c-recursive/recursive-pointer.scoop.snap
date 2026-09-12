@@ -7496,7 +7496,7 @@ Module
   extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  extern ef10 bumpNode @bump_node(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
+  extern ef10 bumpNode @bump_node(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$1ddf1286db6b79c695d43b67aefee5eb65976a08aba985bf788a3fc5a3885778 gc-leaf nounwind lib=fixture_native>
   fun @scoop$1$cb$a6c098c45ae6a2501d57fe90a8a73a08568abf29ebbe60f1cbb41b428d628c3b(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8

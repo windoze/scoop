@@ -11,6 +11,7 @@ pub(super) fn lower_extern_functions(
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
+    native_externals: &lir::NativeExternalMetadata,
 ) -> (
     lir::ExternFunctions,
     HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
@@ -30,7 +31,16 @@ pub(super) fn lower_extern_functions(
             mir::ExternAbi::C => LoweredExternFunctionRef::C(
                 functions.alloc_c(lir::CExternFunction {
                     identity: identity(),
-                    bridge_symbol: format!("scoop_c_bridge_{}", id.into_raw().into_u32()),
+                    bridge: lir::GeneratedBridgeEntryIdentity::new(
+                        module.cone,
+                        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
+                            native_externals
+                                .contract(extern_.source_contract.id())
+                                .expect("every C extern has one normalized target contract")
+                                .fingerprint(),
+                        ),
+                    )
+                    .expect("validated C extern bridge identities are encodable"),
                     signature: lir::CFunctionType {
                         params: extern_
                             .params

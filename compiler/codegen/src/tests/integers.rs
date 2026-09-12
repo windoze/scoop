@@ -146,7 +146,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_integer_widths".to_string(),
+        bridge: outbound_bridge(1),
         signature: scoop_lir::CFunctionType {
             params: IntegerKind::ALL
                 .iter()

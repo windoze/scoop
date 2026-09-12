@@ -7739,9 +7739,9 @@ Module
   extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  extern ef10 callContextFirst @m13_call_context_first(ptr<code>, ptr<raw>, i32) -> void <c exact=(code-ptr<(data-ptr<opaque-void,direct>,Int)->void,direct>,data-ptr<opaque-void,direct>,Int)->void bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
+  extern ef10 callContextFirst @m13_call_context_first(ptr<code>, ptr<raw>, i32) -> void <c exact=(code-ptr<(data-ptr<opaque-void,direct>,Int)->void,direct>,data-ptr<opaque-void,direct>,Int)->void bridge=@scoop$1$br$679f11b662e23dadccf56ff034353bde2552dff4765ab1220c2be75a51d74b72 gc-leaf nounwind lib=fixture_native>
   foreign_callback_family fcf0 callback=struct10 state=enum6 failure=enum7
-  foreign_callback_bridge fcb0 family=fcf0 @scoop$1$cb$8ccc33aadccf7175002f305f418def908c403ed14ac9ac4c58b5c788220f53fb -> @scoop_foreign_callback_0 signature=@scoop_foreign_callback_signature_0 context=0 mode=ForeignCallbackMode.Reusable c=(data-ptr<opaque-void,direct>,Int)->void
+  foreign_callback_bridge fcb0 family=fcf0 @scoop$1$cb$8ccc33aadccf7175002f305f418def908c403ed14ac9ac4c58b5c788220f53fb -> @scoop$1$br$02a885cccff4d99f16005910b214889ed4f3709ec85bccd83b6dc8292bcd9809 signature=@scoop$1$br$bad4c4737e1c2784aa23e4374db2109fb7cab8ac431c3ba0c483ac0411a39555 context=0 mode=ForeignCallbackMode.Reusable c=(data-ptr<opaque-void,direct>,Int)->void
   fun @scoop$1$cb$a6c098c45ae6a2501d57fe90a8a73a08568abf29ebbe60f1cbb41b428d628c3b(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8

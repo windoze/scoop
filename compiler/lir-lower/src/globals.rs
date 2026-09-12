@@ -6,19 +6,33 @@ pub(super) enum StorageGlobal {
     Native(lir::NativeGlobalId),
 }
 
+pub(super) struct GlobalLoweringInputs<'a> {
+    pub(super) context: &'a LoweringContext,
+    pub(super) identity_roots: &'a IdentityRoots<'a>,
+    pub(super) module: &'a mir::Module,
+    pub(super) structs: &'a lir::StructDefs,
+    pub(super) enums: &'a lir::EnumDefs,
+    pub(super) string_globals: &'a HashMap<mir::StringConstId, lir::GlobalId>,
+    pub(super) native_externals: &'a lir::NativeExternalMetadata,
+}
+
 pub(super) fn lower_globals(
-    context: &LoweringContext,
-    identity_roots: &IdentityRoots<'_>,
-    module: &mir::Module,
+    inputs: GlobalLoweringInputs<'_>,
     globals: &mut Arena<lir::Global>,
-    structs: &lir::StructDefs,
-    enums: &lir::EnumDefs,
-    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
 ) -> (
     HashMap<mir::GlobalId, StorageGlobal>,
     Arena<lir::NativeGlobal>,
     lir::NativeGlobalBridges,
 ) {
+    let GlobalLoweringInputs {
+        context,
+        identity_roots,
+        module,
+        structs,
+        enums,
+        string_globals,
+        native_externals,
+    } = inputs;
     let mut map = HashMap::new();
     let mut native = Arena::new();
     let mut bridges = lir::NativeGlobalBridges::default();
@@ -74,22 +88,37 @@ pub(super) fn lower_globals(
                 StorageGlobal::Local(lir_id)
             }
             mir::GlobalStorage::Extern {
-                source_contract: _,
+                source_contract,
                 library,
                 native_symbol,
                 thread_local,
             } => {
                 let c_type = c_ffi_type(module, structs, enums, &global.ty);
-                let raw = native.len() as u32;
+                let contract = native_externals
+                    .contract(source_contract.id())
+                    .expect("every native global has one normalized target contract")
+                    .fingerprint();
                 let get = bridges.gets.alloc(lir::NativeGlobalGetBridge {
-                    symbol: format!("scoop_c_global_get_{raw}"),
+                    identity: lir::GeneratedBridgeEntryIdentity::new(
+                        module.cone,
+                        scoop_identity::GeneratedBridgeUnitKey::GlobalRead(contract),
+                    )
+                    .expect("validated native-global read bridge identities are encodable"),
                 });
                 let address = bridges.addresses.alloc(lir::NativeGlobalAddressBridge {
-                    symbol: format!("scoop_c_global_address_{raw}"),
+                    identity: lir::GeneratedBridgeEntryIdentity::new(
+                        module.cone,
+                        scoop_identity::GeneratedBridgeUnitKey::GlobalAddress(contract),
+                    )
+                    .expect("validated native-global address bridge identities are encodable"),
                 });
                 let access = if global.mutable {
                     let set = bridges.sets.alloc(lir::NativeGlobalSetBridge {
-                        symbol: format!("scoop_c_global_set_{raw}"),
+                        identity: lir::GeneratedBridgeEntryIdentity::new(
+                            module.cone,
+                            scoop_identity::GeneratedBridgeUnitKey::GlobalWrite(contract),
+                        )
+                        .expect("validated native-global write bridge identities are encodable"),
                     });
                     lir::NativeGlobalAccess::Mutable { get, set, address }
                 } else {

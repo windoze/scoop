@@ -115,7 +115,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             scoop_lir::CallDestination::Runtime(function) => function.symbol(),
             scoop_lir::CallDestination::Extern(id) => match &self.extern_functions[id].kind {
-                ExternFunctionKind::C { bridge_symbol, .. } => bridge_symbol,
+                ExternFunctionKind::C { bridge, .. } => bridge.symbol(),
                 ExternFunctionKind::Scoop { .. } => &self.extern_functions[id].native_symbol,
             },
             scoop_lir::CallDestination::Dispatch { .. } => {

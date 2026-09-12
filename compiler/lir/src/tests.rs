@@ -648,6 +648,21 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
 #[test]
 fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     let mut functions = ExternFunctions::default();
+    let native_symbol = scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+        &scoop_identity::SourceNativeSymbol::new("c").unwrap(),
+    )
+    .unwrap();
+    let contract = scoop_identity::NativeExternalContractFingerprint::from_symbol_and_contract(
+        scoop_identity::PersistentNativeExternalSymbolId::from_key(&native_symbol).unwrap(),
+        scoop_identity::NativeExternalContract::c_function(
+            scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+            scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+                Vec::new(),
+                scoop_identity::CanonicalCAbiReturn::Void,
+            ),
+        ),
+    )
+    .unwrap();
     let c_ref: CExternFunctionRef = functions.alloc_c(CExternFunction {
         identity: ExternFunctionIdentity {
             source_name: "c".to_string(),
@@ -655,7 +670,11 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
         },
-        bridge_symbol: "c_bridge".to_string(),
+        bridge: super::GeneratedBridgeEntryIdentity::new(
+            scoop_identity::ConeIdentity::SINGLE_FILE,
+            scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract),
+        )
+        .unwrap(),
         signature: super::CFunctionType {
             params: Vec::new(),
             return_type: super::CReturnType::Void,

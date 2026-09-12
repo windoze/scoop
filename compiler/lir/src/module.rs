@@ -257,8 +257,7 @@ pub struct ForeignCallbackBridge {
     pub application: scoop_identity::PersistentCallbackApplicationId,
     pub family: ForeignCallbackFamilyId,
     pub adapter: ManagedLocalFunctionRef,
-    pub trampoline_symbol: String,
-    pub signature_symbol: String,
+    pub trampoline: CallbackTrampolineIdentity,
     pub params: Vec<CType>,
     pub return_type: CReturnType,
     pub context_index: u32,
@@ -342,17 +341,17 @@ pub struct NativeGlobalBridges {
 
 #[derive(Debug)]
 pub struct NativeGlobalGetBridge {
-    pub symbol: String,
+    pub identity: GeneratedBridgeEntryIdentity,
 }
 
 #[derive(Debug)]
 pub struct NativeGlobalSetBridge {
-    pub symbol: String,
+    pub identity: GeneratedBridgeEntryIdentity,
 }
 
 #[derive(Debug)]
 pub struct NativeGlobalAddressBridge {
-    pub symbol: String,
+    pub identity: GeneratedBridgeEntryIdentity,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

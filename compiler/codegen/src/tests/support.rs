@@ -37,6 +37,73 @@ pub(super) fn callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
     scoop_lir::CallableBodyIdentity::for_function(function).unwrap()
 }
 
+pub(super) fn outbound_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntryIdentity {
+    scoop_lir::GeneratedBridgeEntryIdentity::new(
+        ConeIdentity::SINGLE_FILE,
+        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(native_contract(seed)),
+    )
+    .unwrap()
+}
+
+pub(super) fn global_read_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntryIdentity {
+    scoop_lir::GeneratedBridgeEntryIdentity::new(
+        ConeIdentity::SINGLE_FILE,
+        scoop_identity::GeneratedBridgeUnitKey::GlobalRead(native_contract(seed)),
+    )
+    .unwrap()
+}
+
+pub(super) fn global_address_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntryIdentity {
+    scoop_lir::GeneratedBridgeEntryIdentity::new(
+        ConeIdentity::SINGLE_FILE,
+        scoop_identity::GeneratedBridgeUnitKey::GlobalAddress(native_contract(seed)),
+    )
+    .unwrap()
+}
+
+pub(super) fn callback_trampoline(
+    signature_seed: u8,
+    context_index: u32,
+) -> scoop_lir::CallbackTrampolineIdentity {
+    scoop_lir::CallbackTrampolineIdentity::new(
+        ConeIdentity::SINGLE_FILE,
+        c_signature(signature_seed).fingerprint(),
+        CallbackParameterIndex::new(context_index),
+    )
+    .unwrap()
+}
+
+fn native_contract(seed: u8) -> scoop_identity::NativeExternalContractFingerprint {
+    let symbol = scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+        &scoop_identity::SourceNativeSymbol::new(&format!("test_bridge_{seed}")).unwrap(),
+    )
+    .unwrap();
+    scoop_identity::NativeExternalContractFingerprint::from_symbol_and_contract(
+        scoop_identity::PersistentNativeExternalSymbolId::from_key(&symbol).unwrap(),
+        scoop_identity::NativeExternalContract::c_function(
+            scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+            c_signature(seed).signature().clone(),
+        ),
+    )
+    .unwrap()
+}
+
+fn c_signature(seed: u8) -> scoop_identity::CanonicalCAbiSignatureFingerprintRecord {
+    let exact_type = test_exact_type(&format!("bridgeSignature{seed}"));
+    let storage = scoop_identity::CanonicalCStorageType::Integer {
+        exact_type,
+        signedness: scoop_identity::Signedness::Signed,
+        bit_width: scoop_identity::IntegerBitWidth::Bits32,
+    };
+    scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            vec![scoop_identity::CanonicalCAbiParameter::new(exact_type, storage).unwrap()],
+            scoop_identity::CanonicalCAbiReturn::Void,
+        ),
+    )
+    .unwrap()
+}
+
 pub(super) fn odr_callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
     let exact_type = test_exact_type(&format!("odr{symbol}"));
     let generated = scoop_identity::CborIdentityRecord::from_key(

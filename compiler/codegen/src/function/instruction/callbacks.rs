@@ -72,7 +72,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .as_pointer_value();
                 let signature = self
                     .llvm
-                    .get_global(&bridge.signature_symbol)
+                    .get_global(bridge.trampoline.signature_descriptor_symbol())
                     .expect("foreign callback signature descriptor is declared")
                     .as_pointer_value();
                 let register = self.gc_leaf_fn(
@@ -111,7 +111,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .into_pointer_value();
                 let trampoline = self
                     .llvm
-                    .get_function(&bridge.trampoline_symbol)
+                    .get_function(bridge.trampoline.entry().symbol())
                     .expect("foreign callback trampoline is declared")
                     .as_global_value()
                     .as_pointer_value();

@@ -187,7 +187,7 @@ fn native_calls_publish_roots_transition_and_reload() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_wait".to_string(),
+        bridge: outbound_bridge(1),
         signature: scoop_lir::CFunctionType {
             params: Vec::new(),
             return_type: scoop_lir::CReturnType::Void,

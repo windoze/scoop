@@ -910,6 +910,8 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .counts();
     assert_eq!(counts.c_abi_signatures, 1);
     assert_eq!(counts.native_contracts, 2);
+    assert_eq!(counts.bridge_units, 2);
+    assert_eq!(counts.bridge_atoms, 2);
 }
 
 #[test]
@@ -1073,6 +1075,8 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     assert_eq!(counts.c_abi_layouts, 1);
     assert_eq!(counts.native_contracts, 1);
     assert_eq!(counts.native_link_requirements, 1);
+    assert_eq!(counts.bridge_units, 2);
+    assert_eq!(counts.bridge_atoms, 2);
 }
 
 #[test]
@@ -1324,15 +1328,29 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     install_callable_signatures(&mut module);
 
     let lowered = lower(&module);
-    assert_eq!(
-        lowered
-            .foreign_callback_bridges
-            .iter()
-            .next()
-            .expect("the callback bridge is retained")
-            .1
-            .application,
-        application
+    let lowered_bridge = lowered
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("the callback bridge is retained")
+        .1;
+    assert_eq!(lowered_bridge.application, application);
+    assert!(
+        lowered_bridge
+            .trampoline
+            .entry()
+            .symbol()
+            .starts_with("scoop$1$br$")
+    );
+    assert!(
+        lowered_bridge
+            .trampoline
+            .signature_descriptor_symbol()
+            .starts_with("scoop$1$br$")
+    );
+    assert_ne!(
+        lowered_bridge.trampoline.entry().symbol(),
+        lowered_bridge.trampoline.signature_descriptor_symbol()
     );
     let lowered_family = lowered.foreign_callback_families.iter().next().unwrap().1;
     assert_eq!(lowered_family.callback.into_raw(), callback.into_raw());
@@ -1358,6 +1376,12 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             .family,
         scoop_lir::ForeignCallbackFamilyId::from_raw(family.into_raw())
     );
+    let counts = lir::CanonicalLirFoundation::from_module(&lowered)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.bridge_units, 1);
+    assert_eq!(counts.bridge_atoms, 2);
+    assert_eq!(counts.callback_bridges, 1);
 }
 
 mod arrays;

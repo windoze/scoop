@@ -9068,19 +9068,19 @@ Module
   extern ef7 coreULongHash @scoop_rt_ulong_hash(i64) -> i64 <scoop managed nounwind>
   extern ef8 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
-  extern ef10 roundI8 @round_i8(i8) -> i8 <c exact=(Int8)->Int8 bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
-  extern ef11 roundI16 @round_i16(i16) -> i16 <c exact=(Int16)->Int16 bridge=@scoop_c_bridge_11 gc-leaf nounwind lib=fixture_native>
-  extern ef12 roundI32 @round_i32(i32) -> i32 <c exact=(Int)->Int bridge=@scoop_c_bridge_12 gc-leaf nounwind lib=fixture_native>
-  extern ef13 roundI64 @round_i64(i64) -> i64 <c exact=(Long)->Long bridge=@scoop_c_bridge_13 gc-leaf nounwind lib=fixture_native>
-  extern ef14 roundU8 @round_u8(i8) -> i8 <c exact=(UInt8)->UInt8 bridge=@scoop_c_bridge_14 gc-leaf nounwind lib=fixture_native>
-  extern ef15 roundU16 @round_u16(i16) -> i16 <c exact=(UInt16)->UInt16 bridge=@scoop_c_bridge_15 gc-leaf nounwind lib=fixture_native>
-  extern ef16 roundU32 @round_u32(i32) -> i32 <c exact=(UInt)->UInt bridge=@scoop_c_bridge_16 gc-leaf nounwind lib=fixture_native>
-  extern ef17 roundU64 @round_u64(i64) -> i64 <c exact=(ULong)->ULong bridge=@scoop_c_bridge_17 gc-leaf nounwind lib=fixture_native>
-  extern ef18 transformWidths @transform_widths(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop_c_bridge_18 gc-leaf nounwind lib=fixture_native>
-  extern ef19 verifyWrittenGlobals @verify_written_globals() -> i8 <c exact=()->UInt8 bridge=@scoop_c_bridge_19 gc-leaf nounwind lib=fixture_native>
-  extern ef20 verifyWrittenTls @verify_written_tls() -> i8 <c exact=()->UInt8 bridge=@scoop_c_bridge_20 gc-leaf nounwind lib=fixture_native>
-  extern ef21 applyU16 @apply_u16(i16, ptr<code>) -> i16 <c exact=(UInt16,code-ptr<(UInt16)->UInt16,direct>)->UInt16 bridge=@scoop_c_bridge_21 gc-leaf nounwind lib=fixture_native>
-  extern ef22 verifyWidthsCallback @verify_widths_callback(ptr<code>) -> i8 <c exact=(code-ptr<(c-struct0)->c-struct0,direct>)->UInt8 bridge=@scoop_c_bridge_22 gc-leaf nounwind lib=fixture_native>
+  extern ef10 roundI8 @round_i8(i8) -> i8 <c exact=(Int8)->Int8 bridge=@scoop$1$br$15d4b29591c0d10a574679161ae9c6faab1e9a34170da5684c3d7397c0b525b4 gc-leaf nounwind lib=fixture_native>
+  extern ef11 roundI16 @round_i16(i16) -> i16 <c exact=(Int16)->Int16 bridge=@scoop$1$br$9820a405027a37db30bdf21ea379368c7efa2179d1c33b0515ccda47e93f1dcf gc-leaf nounwind lib=fixture_native>
+  extern ef12 roundI32 @round_i32(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$4b4aabb1c809ca545e32244e396cd3b54ee1acd004f35ee657d2f2d7ed8b8722 gc-leaf nounwind lib=fixture_native>
+  extern ef13 roundI64 @round_i64(i64) -> i64 <c exact=(Long)->Long bridge=@scoop$1$br$8760c051d55a77a962eafafdd35e4d0f0c05916bd38b2ae79e45afd86ddce0f5 gc-leaf nounwind lib=fixture_native>
+  extern ef14 roundU8 @round_u8(i8) -> i8 <c exact=(UInt8)->UInt8 bridge=@scoop$1$br$64bf0681f1067e538858583da80409c753d670a7498791999e8995b822e08882 gc-leaf nounwind lib=fixture_native>
+  extern ef15 roundU16 @round_u16(i16) -> i16 <c exact=(UInt16)->UInt16 bridge=@scoop$1$br$9337c7c33ed886803891f0cc31a078f2661771d6f6092c7353c71533c4cfb575 gc-leaf nounwind lib=fixture_native>
+  extern ef16 roundU32 @round_u32(i32) -> i32 <c exact=(UInt)->UInt bridge=@scoop$1$br$28e825aa41fa3bd87d8df82b5b1b6ff62265202ed0934749c016eb9e593bd817 gc-leaf nounwind lib=fixture_native>
+  extern ef17 roundU64 @round_u64(i64) -> i64 <c exact=(ULong)->ULong bridge=@scoop$1$br$61a1494cc077c10a94f5aefbe71fd22c0c6f0260ca04d6212be9ba2415a80acc gc-leaf nounwind lib=fixture_native>
+  extern ef18 transformWidths @transform_widths(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$2f4491e048b6c1a870f9f9b7cdf8c8dbf573605e813e1df3490b4d058dbc1959 gc-leaf nounwind lib=fixture_native>
+  extern ef19 verifyWrittenGlobals @verify_written_globals() -> i8 <c exact=()->UInt8 bridge=@scoop$1$br$ee9516b9e90f749610fb8c2da6363548728ccafab8a354d2694e52fce7eb38ad gc-leaf nounwind lib=fixture_native>
+  extern ef20 verifyWrittenTls @verify_written_tls() -> i8 <c exact=()->UInt8 bridge=@scoop$1$br$5f153af5f41404324ec540c25a7d4942188e6711541c7de2b7be4e06e591548e gc-leaf nounwind lib=fixture_native>
+  extern ef21 applyU16 @apply_u16(i16, ptr<code>) -> i16 <c exact=(UInt16,code-ptr<(UInt16)->UInt16,direct>)->UInt16 bridge=@scoop$1$br$d87affeb2e1c20adcb54e4995ffed77b56d56499947b6fc4ae841494caf76bdd gc-leaf nounwind lib=fixture_native>
+  extern ef22 verifyWidthsCallback @verify_widths_callback(ptr<code>) -> i8 <c exact=(code-ptr<(c-struct0)->c-struct0,direct>)->UInt8 bridge=@scoop$1$br$4678ca5a4ca3466517f3412d4dba5ea7a84fa8bab3ac287e8e68d9ef61a0ab9d gc-leaf nounwind lib=fixture_native>
   callback cb0 incrementU16 @scoop$1$cb$853eb249eacec5ce64df5cdee7ceebc7d1e3f6fd8302a8ff35209fb17f33a2e9 -> @scoop_c_callback_0 c=(UInt16)->UInt16
   callback cb1 roundTripWidths @scoop$1$cb$7865d2faf9a75fd1e9f8f62fa4e6967d54454c04acc6140c7e5ae608fda717b5 -> @scoop_c_callback_1 c=(c-struct0)->c-struct0
   fun @scoop$1$cb$a6c098c45ae6a2501d57fe90a8a73a08568abf29ebbe60f1cbb41b428d628c3b(i8, i8) -> ptr<managed>

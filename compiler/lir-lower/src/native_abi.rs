@@ -13,6 +13,8 @@ type NativeLinkRequirementRecord = identity::CborIdentityRecord<
 pub(super) struct LoweredNativeAbi {
     pub(super) canonical_c_abi: lir::CanonicalCAbiMetadata,
     pub(super) native_externals: lir::NativeExternalMetadata,
+    pub(super) callback_signatures:
+        HashMap<mir::FunctionTypeId, identity::CanonicalCAbiSignatureFingerprint>,
 }
 
 /// Normalize every C boundary used by this module while the source exact-type
@@ -43,7 +45,7 @@ pub(super) fn lower(
         builder.add_function_type(callback.signature);
     }
     for (_, callback) in module.foreign_callback_bridges.iter() {
-        builder.add_function_type(callback.native_signature);
+        builder.add_callback_signature(callback.native_signature);
     }
 
     builder.finish()
@@ -58,6 +60,7 @@ struct CanonicalCAbiBuilder<'module> {
     layouts: Vec<identity::CanonicalCAbiLayoutFingerprintRecord>,
     contracts: Vec<identity::NativeExternalContractRecord>,
     link_requirements: Vec<NativeLinkRequirementRecord>,
+    callback_signatures: HashMap<mir::FunctionTypeId, identity::CanonicalCAbiSignatureFingerprint>,
     layout_fingerprints: HashMap<mir::StructId, identity::CanonicalCAbiLayoutFingerprint>,
     visiting_layouts: HashSet<mir::StructId>,
 }
@@ -78,6 +81,7 @@ impl<'module> CanonicalCAbiBuilder<'module> {
             layouts: Vec::new(),
             contracts: Vec::new(),
             link_requirements: Vec::new(),
+            callback_signatures: HashMap::new(),
             layout_fingerprints: HashMap::new(),
             visiting_layouts: HashSet::new(),
         }
@@ -92,6 +96,7 @@ impl<'module> CanonicalCAbiBuilder<'module> {
                 self.link_requirements,
             )
             .expect("validated source externs normalize to one target contract each"),
+            callback_signatures: self.callback_signatures,
         }
     }
 
@@ -192,11 +197,34 @@ impl<'module> CanonicalCAbiBuilder<'module> {
         self.add_signature(&signature.parameter_types, &signature.return_type);
     }
 
+    fn add_callback_signature(&mut self, id: mir::FunctionTypeId) {
+        let signature = &self.module.function_types[id];
+        let record = self.signature_record(&signature.parameter_types, &signature.return_type);
+        let fingerprint = record.fingerprint();
+        self.signatures.push(record);
+        let previous = self.callback_signatures.insert(id, fingerprint);
+        assert!(
+            previous.is_none_or(|previous| previous == fingerprint),
+            "one MIR function type has one canonical C ABI signature"
+        );
+    }
+
     fn add_signature(
         &mut self,
         parameter_types: &[mir::Type],
         return_type: &mir::Type,
     ) -> identity::CanonicalCAbiFunctionSignature {
+        let record = self.signature_record(parameter_types, return_type);
+        let signature = record.signature().clone();
+        self.signatures.push(record);
+        signature
+    }
+
+    fn signature_record(
+        &mut self,
+        parameter_types: &[mir::Type],
+        return_type: &mir::Type,
+    ) -> identity::CanonicalCAbiSignatureFingerprintRecord {
         let parameters = parameter_types
             .iter()
             .map(|ty| {
@@ -212,12 +240,10 @@ impl<'module> CanonicalCAbiBuilder<'module> {
             identity::CanonicalCAbiReturn::value(storage.exact_type(), storage)
                 .expect("canonical return storage retains its source exact type")
         };
-        let signature = identity::CanonicalCAbiFunctionSignature::cdecl(parameters, result);
-        self.signatures.push(
-            identity::CanonicalCAbiSignatureFingerprintRecord::new(signature.clone())
-                .expect("canonical C ABI signatures have encodable identities"),
-        );
-        signature
+        identity::CanonicalCAbiSignatureFingerprintRecord::new(
+            identity::CanonicalCAbiFunctionSignature::cdecl(parameters, result),
+        )
+        .expect("canonical C ABI signatures have encodable identities")
     }
 
     fn scoop_signature(
