@@ -306,6 +306,51 @@ fn rejects_an_origin_endpoint_absent_from_the_source_point_table() {
 }
 
 #[test]
+fn missing_point_diagnostic_copy_has_inclusive_owned_byte_boundaries() {
+    let fixture = fixture(true, false);
+    let required = u64::try_from(
+        fixture.canonical.sources[0]
+            .identity()
+            .logical_path()
+            .as_str()
+            .len(),
+    )
+    .unwrap();
+
+    for (limit, accepted) in [
+        (required - 1, false),
+        (required, true),
+        (required + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            owned_bytes: limit,
+            ..DecodeLimits::default()
+        });
+        let error = validate_origins_only(&fixture, &mut meter).unwrap_err();
+
+        if accepted {
+            assert!(matches!(
+                error,
+                HirFoundationValidationError::Origin(
+                    DefinitionOriginValidationError::MissingPoint { .. }
+                )
+            ));
+            assert_eq!(meter.usage().owned_bytes, required);
+        } else {
+            assert!(matches!(
+                error,
+                HirFoundationValidationError::Resource(ref error)
+                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
+                        resource: scoop_wire::ResourceKind::OwnedBytes,
+                        limit,
+                        observed: required,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
 fn rejects_semantically_noncanonical_table_order() {
     let fixture = fixture(true, true);
     let mut decoded = decode(&fixture.canonical);

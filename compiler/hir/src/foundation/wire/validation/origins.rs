@@ -488,10 +488,12 @@ fn validate_records(
                 if let Some(expected) = exact
                     && source != *expected
                 {
+                    let expected = copy_source_for_error(expected, meter, &origin_path)?;
+                    let actual = copy_source_for_error(source, meter, &origin_path)?;
                     return Err(DefinitionOriginValidationError::SourceMismatch {
                         subject,
-                        expected: Box::new((*expected).clone()),
-                        actual: Box::new(source.clone()),
+                        expected,
+                        actual,
                     }
                     .into());
                 }
@@ -504,10 +506,12 @@ fn validate_records(
                 };
                 let expected = anchor_record.origin().source();
                 if source != expected {
+                    let expected = copy_source_for_error(expected, meter, &origin_path)?;
+                    let actual = copy_source_for_error(source, meter, &origin_path)?;
                     return Err(DefinitionOriginValidationError::SourceMismatch {
                         subject,
-                        expected: Box::new(expected.clone()),
-                        actual: Box::new(source.clone()),
+                        expected,
+                        actual,
                     }
                     .into());
                 }
@@ -516,20 +520,39 @@ fn validate_records(
         let Some(source_record) = source_records.get(source) else {
             return Err(DefinitionOriginValidationError::UnknownSource {
                 subject,
-                source: Box::new(source.clone()),
+                source: copy_source_for_error(source, meter, &origin_path)?,
             }
             .into());
         };
         let span = record.origin().span();
-        source_record
-            .require_points([span.start_byte(), span.end_byte()])
-            .map_err(|error| DefinitionOriginValidationError::MissingPoint {
+        if let Err(error) = source_record.require_points([span.start_byte(), span.end_byte()]) {
+            return Err(DefinitionOriginValidationError::MissingPoint {
                 subject,
-                source: Box::new(source.clone()),
+                source: copy_source_for_error(source, meter, &origin_path)?,
                 byte_offset: error.byte_offset,
-            })?;
+            }
+            .into());
+        }
     }
     Ok(())
+}
+
+fn copy_source_for_error(
+    source: &SourceIdentity,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<Box<SourceIdentity>, HirFoundationValidationError> {
+    let owned_bytes = u64::try_from(source.logical_path().as_str().len()).map_err(|_| {
+        HirFoundationValidationError::Resource(WireError::new(
+            WireErrorKind::IntegerOutOfRange,
+            path.clone(),
+            None,
+        ))
+    })?;
+    meter
+        .charge_owned_bytes(owned_bytes, path)
+        .map_err(HirFoundationValidationError::Resource)?;
+    Ok(Box::new(source.clone()))
 }
 
 fn checked_sum(
