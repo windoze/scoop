@@ -220,7 +220,13 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             (*id, reference)
         })
         .collect::<HashMap<_, _>>();
-    let callback_bridges = lower_callback_bridges(module, &structs, &enums, &local_function_map);
+    let callback_bridges = lower_callback_bridges(
+        module,
+        &structs,
+        &enums,
+        &local_function_map,
+        &native_abi.callback_signatures,
+    );
     let foreign_callback_families = lower_foreign_callback_families(module, &enums);
     let foreign_callback_bridges = lower_foreign_callback_bridges(
         module,

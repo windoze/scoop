@@ -64,11 +64,51 @@ pub(super) fn global_address_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntry
 pub(super) fn callback_trampoline(
     signature_seed: u8,
     context_index: u32,
-) -> scoop_lir::CallbackTrampolineIdentity {
-    scoop_lir::CallbackTrampolineIdentity::new(
+) -> scoop_lir::ManagedCallbackTrampolineIdentity {
+    scoop_lir::ManagedCallbackTrampolineIdentity::new(
         ConeIdentity::SINGLE_FILE,
         c_signature(signature_seed).fingerprint(),
         CallbackParameterIndex::new(context_index),
+    )
+    .unwrap()
+}
+
+pub(super) fn static_callback_trampoline(seed: u8) -> scoop_lir::StaticCallbackTrampolineIdentity {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new(&format!("staticCallback{seed}")).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let source = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    let exact_type = test_exact_type(&format!("staticCallbackType{seed}"));
+    let storage_bridge = scoop_identity::StaticNoGcCallbackStorageBridgeId::from_key(
+        &scoop_identity::GeneratedCallableKey::StaticNoGcCallbackStorageBridge {
+            source: scoop_identity::CallableMaterialization::new(
+                scoop_identity::CallableTemplateOwner::Function(source),
+                scoop_identity::CallableMaterializationContext::NoSubstitution,
+            ),
+            signature: scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                vec![exact_type],
+                exact_type,
+            ),
+        },
+    )
+    .unwrap();
+    scoop_lir::StaticCallbackTrampolineIdentity::new(
+        ConeIdentity::SINGLE_FILE,
+        storage_bridge,
+        c_signature(seed).fingerprint(),
     )
     .unwrap()
 }

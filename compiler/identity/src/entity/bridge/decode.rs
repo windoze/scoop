@@ -1,3 +1,5 @@
+use std::fmt;
+
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
@@ -6,8 +8,10 @@ use super::{
 };
 use crate::{
     CallbackParameterIndex, CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint,
-    ConeIdentity, DecodedPersistentId, GeneratedBridgeUnitId, NativeExternalContractFingerprint,
-    PersistentIdResolver,
+    ConeIdentity, DecodedPersistentId, GeneratedBridgeUnitId, GeneratedCallableKey,
+    NativeExternalContractFingerprint, PersistentGeneratedCallableId, PersistentIdResolver,
+    PersistentKeyResolver, StaticNoGcCallbackStorageBridgeId,
+    StaticNoGcCallbackStorageBridgeIdentityError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -20,37 +24,83 @@ pub enum DecodedGeneratedBridgeUnitKey {
         signature: DecodedPersistentId<CanonicalCAbiSignatureFingerprint>,
         context_index: CallbackParameterIndex,
     },
+    StaticCallbackTrampoline {
+        storage_bridge: DecodedPersistentId<PersistentGeneratedCallableId>,
+        signature: DecodedPersistentId<CanonicalCAbiSignatureFingerprint>,
+    },
 }
 
 impl DecodedGeneratedBridgeUnitKey {
-    pub fn resolve<R, E>(self, resolver: &mut R) -> Result<GeneratedBridgeUnitKey, E>
+    pub fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+    ) -> Result<GeneratedBridgeUnitKey, GeneratedBridgeUnitResolutionError<E>>
     where
         R: PersistentIdResolver<NativeExternalContractFingerprint, Error = E>
-            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>,
+            + PersistentIdResolver<CanonicalCAbiSignatureFingerprint, Error = E>
+            + PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey, Error = E>,
     {
         match self {
             Self::OutboundFunction(contract) => resolver
                 .resolve(contract)
-                .map(GeneratedBridgeUnitKey::OutboundFunction),
+                .map(GeneratedBridgeUnitKey::OutboundFunction)
+                .map_err(GeneratedBridgeUnitResolutionError::Reference),
             Self::GlobalRead(contract) => resolver
                 .resolve(contract)
-                .map(GeneratedBridgeUnitKey::GlobalRead),
+                .map(GeneratedBridgeUnitKey::GlobalRead)
+                .map_err(GeneratedBridgeUnitResolutionError::Reference),
             Self::GlobalWrite(contract) => resolver
                 .resolve(contract)
-                .map(GeneratedBridgeUnitKey::GlobalWrite),
+                .map(GeneratedBridgeUnitKey::GlobalWrite)
+                .map_err(GeneratedBridgeUnitResolutionError::Reference),
             Self::GlobalAddress(contract) => resolver
                 .resolve(contract)
-                .map(GeneratedBridgeUnitKey::GlobalAddress),
+                .map(GeneratedBridgeUnitKey::GlobalAddress)
+                .map_err(GeneratedBridgeUnitResolutionError::Reference),
             Self::CallbackTrampoline {
                 signature,
                 context_index,
             } => Ok(GeneratedBridgeUnitKey::CallbackTrampoline {
-                signature: resolver.resolve(signature)?,
+                signature: resolver
+                    .resolve(signature)
+                    .map_err(GeneratedBridgeUnitResolutionError::Reference)?,
                 context_index,
             }),
+            Self::StaticCallbackTrampoline {
+                storage_bridge,
+                signature,
+            } => {
+                let storage_bridge = resolver
+                    .resolve_key(storage_bridge)
+                    .map_err(GeneratedBridgeUnitResolutionError::Reference)?;
+                Ok(GeneratedBridgeUnitKey::StaticCallbackTrampoline {
+                    storage_bridge: StaticNoGcCallbackStorageBridgeId::from_key(&storage_bridge)
+                        .map_err(GeneratedBridgeUnitResolutionError::StaticStorageBridge)?,
+                    signature: resolver
+                        .resolve(signature)
+                        .map_err(GeneratedBridgeUnitResolutionError::Reference)?,
+                })
+            }
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GeneratedBridgeUnitResolutionError<E> {
+    Reference(E),
+    StaticStorageBridge(StaticNoGcCallbackStorageBridgeIdentityError),
+}
+
+impl<E: fmt::Display> fmt::Display for GeneratedBridgeUnitResolutionError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Reference(error) => error.fmt(formatter),
+            Self::StaticStorageBridge(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for GeneratedBridgeUnitResolutionError<E> {}
 
 impl WireEncode for DecodedGeneratedBridgeUnitKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -63,6 +113,10 @@ impl WireEncode for DecodedGeneratedBridgeUnitKey {
                 signature,
                 context_index,
             } => encode_two_value_sum(encoder, 5, signature, context_index),
+            Self::StaticCallbackTrampoline {
+                storage_bridge,
+                signature,
+            } => encode_two_value_sum(encoder, 6, storage_bridge, signature),
         }
     }
 }
@@ -80,6 +134,13 @@ impl WireDecode for DecodedGeneratedBridgeUnitKey {
                 Ok(Self::CallbackTrampoline {
                     signature: decoder.field(1, DecodedPersistentId::decode)?,
                     context_index: decoder.field(2, CallbackParameterIndex::decode)?,
+                })
+            }
+            6 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::StaticCallbackTrampoline {
+                    storage_bridge: decoder.field(1, DecodedPersistentId::decode)?,
+                    signature: decoder.field(2, DecodedPersistentId::decode)?,
                 })
             }
             tag => Err(unknown_tag(decoder, tag)),

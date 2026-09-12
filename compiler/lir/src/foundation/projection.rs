@@ -112,6 +112,9 @@ impl CanonicalLirFoundation {
         for (_, bridge) in module.native_global_bridges.addresses.iter() {
             insert_generated_bridge_entry(&mut units, &mut atoms, &bridge.identity)?;
         }
+        for (_, bridge) in module.callback_bridges.iter() {
+            insert_generated_bridge_entry(&mut units, &mut atoms, bridge.trampoline.entry())?;
+        }
         for (_, bridge) in module.foreign_callback_bridges.iter() {
             insert_generated_bridge_entry(&mut units, &mut atoms, bridge.trampoline.entry())?;
             insert_projected_identity(
@@ -286,6 +289,12 @@ impl CanonicalLirFoundation {
                     .addresses
                     .iter()
                     .map(|(_, bridge)| bridge.identity.symbol_request()),
+            )
+            .chain(
+                module
+                    .callback_bridges
+                    .iter()
+                    .map(|(_, bridge)| bridge.trampoline.entry().symbol_request()),
             )
             .chain(
                 module

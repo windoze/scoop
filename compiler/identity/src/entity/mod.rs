@@ -37,6 +37,7 @@ pub use bridge::{
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
     DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey, GeneratedBridgeAtomKey,
     GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget, GeneratedBridgeUnitKey,
+    GeneratedBridgeUnitResolutionError,
 };
 pub use c_abi::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,
@@ -112,7 +113,8 @@ pub use generated_callable::{
     ContinuationShellRole, CoroutineAdapterRole, DecodedGeneratedCallableKey,
     DecodedLexicalCallableParent, GeneratedCallableIdentityError, GeneratedCallableKey,
     GeneratedCallableResolutionError, InitializationCallableRole, LexicalCallableParent,
-    LexicalCallableRole, LexicalParentError,
+    LexicalCallableRole, LexicalParentError, StaticNoGcCallbackStorageBridgeId,
+    StaticNoGcCallbackStorageBridgeIdentityError,
 };
 pub use generated_nominal::{
     CallableAdapterEnvironmentKey, ClosureEnvironmentRole, DecodedCallableAdapterEnvironmentKey,

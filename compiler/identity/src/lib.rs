@@ -73,7 +73,8 @@ pub use entity::{
     GeneratedEnumVariantRole, GeneratedFieldKey, GeneratedNominalIdentityError,
     GeneratedNominalKey, GeneratedNominalResolutionError, InitializationCallableRole,
     LexicalCallableParent, LexicalCallableRole, LexicalParentError, OptionalExactOwner,
-    SourceFieldKey,
+    SourceFieldKey, StaticNoGcCallbackStorageBridgeId,
+    StaticNoGcCallbackStorageBridgeIdentityError,
 };
 pub use entity::{
     CallableOdrMemberId, DecodedOdrMemberDiscriminator, DecodedOdrMemberKey,
@@ -148,6 +149,7 @@ pub use entity::{
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
     DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey, GeneratedBridgeAtomKey,
     GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget, GeneratedBridgeUnitKey,
+    GeneratedBridgeUnitResolutionError,
 };
 pub use entity::{
     DecodedImmortalObjectKey, DecodedLayoutKey, DecodedScanKey, DecodedStaticStorageKey,

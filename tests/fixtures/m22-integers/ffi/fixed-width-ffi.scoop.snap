@@ -9081,8 +9081,8 @@ Module
   extern ef20 verifyWrittenTls @verify_written_tls() -> i8 <c exact=()->UInt8 bridge=@scoop$1$br$5f153af5f41404324ec540c25a7d4942188e6711541c7de2b7be4e06e591548e gc-leaf nounwind lib=fixture_native>
   extern ef21 applyU16 @apply_u16(i16, ptr<code>) -> i16 <c exact=(UInt16,code-ptr<(UInt16)->UInt16,direct>)->UInt16 bridge=@scoop$1$br$d87affeb2e1c20adcb54e4995ffed77b56d56499947b6fc4ae841494caf76bdd gc-leaf nounwind lib=fixture_native>
   extern ef22 verifyWidthsCallback @verify_widths_callback(ptr<code>) -> i8 <c exact=(code-ptr<(c-struct0)->c-struct0,direct>)->UInt8 bridge=@scoop$1$br$4678ca5a4ca3466517f3412d4dba5ea7a84fa8bab3ac287e8e68d9ef61a0ab9d gc-leaf nounwind lib=fixture_native>
-  callback cb0 incrementU16 @scoop$1$cb$853eb249eacec5ce64df5cdee7ceebc7d1e3f6fd8302a8ff35209fb17f33a2e9 -> @scoop_c_callback_0 c=(UInt16)->UInt16
-  callback cb1 roundTripWidths @scoop$1$cb$7865d2faf9a75fd1e9f8f62fa4e6967d54454c04acc6140c7e5ae608fda717b5 -> @scoop_c_callback_1 c=(c-struct0)->c-struct0
+  callback cb0 incrementU16 @scoop$1$cb$853eb249eacec5ce64df5cdee7ceebc7d1e3f6fd8302a8ff35209fb17f33a2e9 -> @scoop$1$br$9b0a4c3bd577601b2a852ea6e5ec86b08401b43c4dffa7d770da31b38c2efd40 c=(UInt16)->UInt16
+  callback cb1 roundTripWidths @scoop$1$cb$7865d2faf9a75fd1e9f8f62fa4e6967d54454c04acc6140c7e5ae608fda717b5 -> @scoop$1$br$271bd7cd94cf5294c5cb096722995237a3016aaee4e6ae9b17fae58cfebe2df1 c=(c-struct0)->c-struct0
   fun @scoop$1$cb$a6c098c45ae6a2501d57fe90a8a73a08568abf29ebbe60f1cbb41b428d628c3b(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
@@ -12851,7 +12851,7 @@ Module
     call managed-void-target41 sp<managed-call:41> live=[] sig=void41 (i8) local-fn77(local99)
     t73 = aggregate () : {}
     store integer<UInt16>(0x0029) -> local100
-    t74 = function_address @scoop_c_callback_0 : ptr
+    t74 = function_address @scoop$1$br$9b0a4c3bd577601b2a852ea6e5ec86b08401b43c4dffa7d770da31b38c2efd40 : ptr
     store t74 -> local101
     store local100 -> local102
     store local101 -> local103
@@ -12862,7 +12862,7 @@ Module
     store local104 -> local105
     call managed-void-target42 sp<managed-call:42> live=[] sig=void42 (i16) local-fn78(local105)
     t75 = aggregate () : {}
-    t76 = function_address @scoop_c_callback_1 : ptr
+    t76 = function_address @scoop$1$br$271bd7cd94cf5294c5cb096722995237a3016aaee4e6ae9b17fae58cfebe2df1 : ptr
     store t76 -> local106
     store local106 -> local107
     store local107 -> local166

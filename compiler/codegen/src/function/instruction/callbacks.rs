@@ -21,7 +21,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         self.functions[reference.declaration().into_u32() as usize].symbol()
                     }
                     scoop_lir::FunctionAddressTarget::CallbackTrampoline(bridge) => {
-                        &self.callback_bridges[*bridge].trampoline_symbol
+                        self.callback_bridges[*bridge].trampoline.entry().symbol()
                     }
                 };
                 let function_value = self.llvm.get_function(symbol).ok_or_else(|| {

@@ -76,7 +76,7 @@ pub enum InitializationSchedule {
 pub struct CallbackBridge {
     pub source_name: String,
     pub bridge: NoGcLocalFunctionRef,
-    pub trampoline_symbol: String,
+    pub trampoline: StaticCallbackTrampolineIdentity,
     pub params: Vec<CType>,
     pub return_type: CReturnType,
 }
@@ -257,7 +257,7 @@ pub struct ForeignCallbackBridge {
     pub application: scoop_identity::PersistentCallbackApplicationId,
     pub family: ForeignCallbackFamilyId,
     pub adapter: ManagedLocalFunctionRef,
-    pub trampoline: CallbackTrampolineIdentity,
+    pub trampoline: ManagedCallbackTrampolineIdentity,
     pub params: Vec<CType>,
     pub return_type: CReturnType,
     pub context_index: u32,

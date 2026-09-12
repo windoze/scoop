@@ -225,6 +225,62 @@ pub enum GeneratedCallableKey {
     },
 }
 
+/// A generated-callable identity refined to the storage bridge used by one
+/// static NoGC callback. The refinement prevents unrelated generated
+/// callables from becoming static callback trampoline targets.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct StaticNoGcCallbackStorageBridgeId(PersistentGeneratedCallableId);
+
+impl StaticNoGcCallbackStorageBridgeId {
+    pub fn from_key(
+        key: &GeneratedCallableKey,
+    ) -> Result<Self, StaticNoGcCallbackStorageBridgeIdentityError> {
+        if !matches!(
+            key,
+            GeneratedCallableKey::StaticNoGcCallbackStorageBridge { .. }
+        ) {
+            return Err(StaticNoGcCallbackStorageBridgeIdentityError::WrongGeneratedRole);
+        }
+        PersistentGeneratedCallableId::from_key(key)
+            .map(Self)
+            .map_err(StaticNoGcCallbackStorageBridgeIdentityError::Identity)
+    }
+
+    pub const fn generated_callable(self) -> PersistentGeneratedCallableId {
+        self.0
+    }
+}
+
+impl WireEncode for StaticNoGcCallbackStorageBridgeId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        self.0.encode(encoder)
+    }
+}
+
+impl fmt::Display for StaticNoGcCallbackStorageBridgeId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StaticNoGcCallbackStorageBridgeIdentityError {
+    WrongGeneratedRole,
+    Identity(GeneratedCallableIdentityError),
+}
+
+impl fmt::Display for StaticNoGcCallbackStorageBridgeIdentityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WrongGeneratedRole => formatter
+                .write_str("generated callable is not a static NoGC callback storage bridge"),
+            Self::Identity(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for StaticNoGcCallbackStorageBridgeIdentityError {}
+
 impl GeneratedCallableKey {
     fn can_be_lexical_parent(&self) -> bool {
         matches!(
@@ -465,7 +521,8 @@ mod tests {
     use super::{
         ContinuationShellRole, CoroutineAdapterRole, GeneratedCallableIdentityError,
         GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent,
-        LexicalCallableRole, LexicalParentError,
+        LexicalCallableRole, LexicalParentError, StaticNoGcCallbackStorageBridgeId,
+        StaticNoGcCallbackStorageBridgeIdentityError,
     };
     use crate::{
         CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
@@ -490,6 +547,31 @@ mod tests {
                 .unwrap()
                 .to_string(),
             "c57a69c85a9103908286eafb4e06ae42968689e0afab3ffeb0f49c138d9f7b69"
+        );
+    }
+
+    #[test]
+    fn static_callback_storage_bridge_refinement_rejects_other_generated_roles() {
+        let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
+        assert_eq!(
+            StaticNoGcCallbackStorageBridgeId::from_key(&GeneratedCallableKey::CoroutineStart {
+                result: exact,
+            }),
+            Err(StaticNoGcCallbackStorageBridgeIdentityError::WrongGeneratedRole)
+        );
+
+        let key = GeneratedCallableKey::StaticNoGcCallbackStorageBridge {
+            source: CallableMaterialization::new(
+                CallableTemplateOwner::Function(PersistentFunctionId(ConeIdentity::SINGLE_FILE.0)),
+                CallableMaterializationContext::NoSubstitution,
+            ),
+            signature: ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact),
+        };
+        assert_eq!(
+            StaticNoGcCallbackStorageBridgeId::from_key(&key)
+                .unwrap()
+                .generated_callable(),
+            PersistentGeneratedCallableId::from_key(&key).unwrap()
         );
     }
 

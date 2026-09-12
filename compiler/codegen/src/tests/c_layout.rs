@@ -537,7 +537,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
         bridge: static_bridge,
-        trampoline_symbol: "scoop_c_callback_0".to_string(),
+        trampoline: static_callback_trampoline(3),
         params: vec![scoop_lir::CType::Struct(outer)],
         return_type: c_value(scoop_lir::CType::Struct(outer)),
     });
@@ -574,6 +574,12 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 mode,
             });
     }
+    let foundation = scoop_lir::CanonicalLirFoundation::from_module(&module)
+        .expect("callback bridge identities project into the LIR foundation");
+    let counts = foundation.counts();
+    assert_eq!(counts.bridge_units, 3);
+    assert_eq!(counts.bridge_atoms, 4);
+    assert_eq!(counts.callback_bridges, 2);
     let outbound_symbol = match &module
         .extern_functions
         .iter()
@@ -596,16 +602,15 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     let bridge = c_bridge_source(&module)
         .expect("C bridge")
         .expect("C extern needs a bridge");
-    let callback_bridge_symbol = module.functions[module
+    let static_callback = module
         .callback_bridges
         .iter()
         .next()
         .expect("callback bridge")
-        .1
-        .bridge
-        .declaration()
-        .into_u32() as usize]
-        .symbol();
+        .1;
+    let callback_bridge_symbol =
+        module.functions[static_callback.bridge.declaration().into_u32() as usize].symbol();
+    let static_trampoline_symbol = static_callback.trampoline.entry().symbol();
     let callback_bridge_object_symbol = module
         .meta
         .target_profile
@@ -620,7 +625,9 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     assert!(bridge.contains(&format!(
         "extern void scoop_callback_bridge_0(void *result, const void *arg0) __asm__(\"{callback_bridge_object_symbol}\");"
     )));
-    assert!(bridge.contains("scoop_c_layout_1 scoop_c_callback_0(scoop_c_layout_1 arg0)"));
+    assert!(bridge.contains(&format!(
+        "scoop_c_layout_1 {static_trampoline_symbol}(scoop_c_layout_1 arg0)"
+    )));
     assert!(bridge.contains("scoop_callback_bridge_0(&result, &arg0);"));
     assert_eq!(
         bridge
@@ -1466,7 +1473,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "signedNarrow".to_string(),
         bridge: signed_bridge,
-        trampoline_symbol: "signed_narrow".to_string(),
+        trampoline: static_callback_trampoline(10),
         params: vec![
             scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
             scoop_lir::CType::Integer(IntegerKind::UNSIGNED_8),
@@ -1484,7 +1491,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "unsignedNarrow".to_string(),
         bridge: unsigned_bridge,
-        trampoline_symbol: "unsigned_narrow".to_string(),
+        trampoline: static_callback_trampoline(11),
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::UNSIGNED_16)),
     });
@@ -1492,7 +1499,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "boolNarrow".to_string(),
         bridge: bool_bridge,
-        trampoline_symbol: "bool_narrow".to_string(),
+        trampoline: static_callback_trampoline(12),
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Boolean),
     });
@@ -1523,20 +1530,28 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
         .entry()
         .symbol()
         .to_string();
+    let mut static_symbols = module
+        .callback_bridges
+        .iter()
+        .map(|(_, bridge)| bridge.trampoline.entry().symbol());
+    let signed_symbol = static_symbols.next().expect("signed callback");
+    let unsigned_symbol = static_symbols.next().expect("unsigned callback");
+    let bool_symbol = static_symbols.next().expect("boolean callback");
+    assert!(static_symbols.next().is_none());
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains(
-            "declare signext i8 @signed_narrow(i8 signext, i8 zeroext, i16 signext, i16 zeroext, i1 zeroext, i32, i32, i64, i64)"
-        ),
+        ir.contains(&format!(
+            "declare signext i8 @\"{signed_symbol}\"(i8 signext, i8 zeroext, i16 signext, i16 zeroext, i1 zeroext, i32, i32, i64, i64)"
+        )),
         "static callback parameters lost signedness/width ABI attributes:\n{ir}"
     );
     assert!(
-        ir.contains("declare zeroext i16 @unsigned_narrow()"),
+        ir.contains(&format!("declare zeroext i16 @\"{unsigned_symbol}\"()")),
         "unsigned narrow callback result lost zeroext:\n{ir}"
     );
     assert!(
-        ir.contains("declare zeroext i1 @bool_narrow()"),
+        ir.contains(&format!("declare zeroext i1 @\"{bool_symbol}\"()")),
         "C _Bool callback result lost zeroext:\n{ir}"
     );
     assert!(

@@ -68,7 +68,7 @@ impl ExternFunctions {
             library: identity.library,
             calling_convention: identity.calling_convention,
             kind: ExternFunctionKind::C {
-                bridge: function.bridge,
+                bridge: Box::new(function.bridge),
                 signature: function.signature,
             },
         }))
@@ -113,7 +113,7 @@ pub enum CallingConvention {
 #[derive(Debug)]
 pub enum ExternFunctionKind {
     C {
-        bridge: GeneratedBridgeEntryIdentity,
+        bridge: Box<GeneratedBridgeEntryIdentity>,
         signature: CFunctionType,
     },
     Scoop {

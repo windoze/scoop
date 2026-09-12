@@ -42,7 +42,7 @@ pub(super) fn lower(
         }
     }
     for (_, callback) in module.callback_bridges.iter() {
-        builder.add_function_type(callback.signature);
+        builder.add_callback_signature(callback.signature);
     }
     for (_, callback) in module.foreign_callback_bridges.iter() {
         builder.add_callback_signature(callback.native_signature);
@@ -190,11 +190,6 @@ impl<'module> CanonicalCAbiBuilder<'module> {
                 identity::NativeLibraryBinding::Requirement(record.id())
             }
         }
-    }
-
-    fn add_function_type(&mut self, id: mir::FunctionTypeId) {
-        let signature = &self.module.function_types[id];
-        self.add_signature(&signature.parameter_types, &signature.return_type);
     }
 
     fn add_callback_signature(&mut self, id: mir::FunctionTypeId) {

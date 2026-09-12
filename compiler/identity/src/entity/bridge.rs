@@ -5,6 +5,7 @@ use crate::ids::derive_persistent_id;
 use crate::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, ConeIdentity,
     GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeExternalContractFingerprint,
+    StaticNoGcCallbackStorageBridgeId,
 };
 
 mod decode;
@@ -12,6 +13,7 @@ mod decode;
 pub use decode::{
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
     DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey,
+    GeneratedBridgeUnitResolutionError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -23,6 +25,10 @@ pub enum GeneratedBridgeUnitKey {
     CallbackTrampoline {
         signature: CanonicalCAbiSignatureFingerprint,
         context_index: CallbackParameterIndex,
+    },
+    StaticCallbackTrampoline {
+        storage_bridge: StaticNoGcCallbackStorageBridgeId,
+        signature: CanonicalCAbiSignatureFingerprint,
     },
 }
 
@@ -43,6 +49,17 @@ impl WireEncode for GeneratedBridgeUnitKey {
                 signature.encode(encoder)?;
                 encoder.field(2)?;
                 context_index.encode(encoder)
+            }
+            Self::StaticCallbackTrampoline {
+                storage_bridge,
+                signature,
+            } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 6)?;
+                encoder.field(1)?;
+                storage_bridge.encode(encoder)?;
+                encoder.field(2)?;
+                signature.encode(encoder)
             }
         }
     }
@@ -204,9 +221,11 @@ mod tests {
         GeneratedBridgeUnitKey,
     };
     use crate::{
+        CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
         CallbackParameterIndex, CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint,
-        ConeIdentity, GeneratedBridgeAtomId, GeneratedBridgeUnitId,
-        NativeExternalContractFingerprint,
+        ConeIdentity, Effect, ExactCallableSignature, GeneratedBridgeAtomId, GeneratedBridgeUnitId,
+        GeneratedCallableKey, NativeExternalContractFingerprint, PersistentExactTypeId,
+        PersistentFunctionId, StaticNoGcCallbackStorageBridgeId,
     };
 
     #[test]
@@ -236,6 +255,38 @@ mod tests {
             hex(&encode(&key).unwrap()),
             format!("a30005015820{signature}0203")
         );
+    }
+
+    #[test]
+    fn static_callback_unit_keeps_storage_bridge_and_signature() {
+        let storage_bridge = static_storage_bridge();
+        let signature = CanonicalCAbiSignatureFingerprint(ConeIdentity::CORE.0);
+        let key = GeneratedBridgeUnitKey::StaticCallbackTrampoline {
+            storage_bridge,
+            signature,
+        };
+        assert_eq!(
+            hex(&encode(&key).unwrap()),
+            format!("a30006015820{storage_bridge}025820{signature}")
+        );
+    }
+
+    fn static_storage_bridge() -> StaticNoGcCallbackStorageBridgeId {
+        StaticNoGcCallbackStorageBridgeId::from_key(
+            &GeneratedCallableKey::StaticNoGcCallbackStorageBridge {
+                source: CallableMaterialization::new(
+                    CallableTemplateOwner::Function(PersistentFunctionId([6; 32])),
+                    CallableMaterializationContext::NoSubstitution,
+                ),
+                signature: ExactCallableSignature::new(
+                    Effect::Ordinary,
+                    None,
+                    Vec::new(),
+                    PersistentExactTypeId([7; 32]),
+                ),
+            },
+        )
+        .unwrap()
     }
 
     #[test]

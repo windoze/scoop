@@ -165,7 +165,8 @@ pub(super) fn validate_bridges(
                     );
                 }
             }
-            GeneratedBridgeUnitKey::CallbackTrampoline { signature, .. } => {
+            GeneratedBridgeUnitKey::CallbackTrampoline { signature, .. }
+            | GeneratedBridgeUnitKey::StaticCallbackTrampoline { signature, .. } => {
                 if !signature_fingerprints.contains(&signature) {
                     return Err(
                         BridgeRelationError::MissingUnitSignature { unit, signature }.into(),

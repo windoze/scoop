@@ -289,7 +289,7 @@ pub(super) fn dump_instruction(
                 FunctionAddressTarget::Local(reference) =>
                     module.functions[reference.declaration().into_u32() as usize].symbol(),
                 FunctionAddressTarget::CallbackTrampoline(bridge) =>
-                    &module.callback_bridges[*bridge].trampoline_symbol,
+                    module.callback_bridges[*bridge].trampoline.entry().symbol(),
             }
         )),
         Instruction::ForeignCallbackRegister {

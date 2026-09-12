@@ -5,9 +5,13 @@ pub(super) fn lower_callback_bridges(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    callback_signatures: &HashMap<
+        mir::FunctionTypeId,
+        scoop_identity::CanonicalCAbiSignatureFingerprint,
+    >,
 ) -> Arena<lir::CallbackBridge> {
     let mut callbacks = Arena::new();
-    for (id, callback) in module.callback_bridges.iter() {
+    for (_, callback) in module.callback_bridges.iter() {
         let signature = &module.function_types[callback.signature];
         let lir::LocalFunctionRef::NoGc(bridge) = local_functions[&callback.bridge_function] else {
             unreachable!("validated static callback bridges are NoGC")
@@ -15,7 +19,12 @@ pub(super) fn lower_callback_bridges(
         callbacks.alloc(lir::CallbackBridge {
             source_name: module.functions[callback.source].name.clone(),
             bridge,
-            trampoline_symbol: format!("scoop_c_callback_{}", id.into_raw().into_u32()),
+            trampoline: lir::StaticCallbackTrampolineIdentity::new(
+                module.cone,
+                callback.identity().storage_bridge(),
+                callback_signatures[&callback.signature],
+            )
+            .expect("validated static callback trampoline identities are encodable"),
             params: signature
                 .parameter_types
                 .iter()
@@ -38,7 +47,7 @@ pub(super) fn lower_foreign_callback_bridges(
     >,
 ) -> Arena<lir::ForeignCallbackBridge> {
     let mut bridges = Arena::new();
-    let mut shared_trampolines: HashMap<_, lir::CallbackTrampolineIdentity> = HashMap::new();
+    let mut shared_trampolines: HashMap<_, lir::ManagedCallbackTrampolineIdentity> = HashMap::new();
     for (_, bridge) in module.foreign_callback_bridges.iter() {
         let signature = &module.function_types[bridge.native_signature];
         let adapter = &module.foreign_callback_adapters[bridge.adapter];
@@ -48,7 +57,7 @@ pub(super) fn lower_foreign_callback_bridges(
         let trampoline = if let Some(identity) = shared_trampolines.get(&key) {
             identity.clone()
         } else {
-            let identity = lir::CallbackTrampolineIdentity::new(
+            let identity = lir::ManagedCallbackTrampolineIdentity::new(
                 module.cone,
                 signature_fingerprint,
                 context_index,

@@ -212,7 +212,7 @@ pub fn dump(module: &Module) -> String {
             id.into_raw(),
             callback.source_name,
             module.functions[callback.bridge.declaration().into_u32() as usize].symbol(),
-            callback.trampoline_symbol,
+            callback.trampoline.entry().symbol(),
             params,
             callback.return_type.dump(),
         ));

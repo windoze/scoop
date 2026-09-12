@@ -1250,6 +1250,10 @@ GeneratedBridgeUnitKey =
   | GlobalAddress    { contract: NativeExternalContractFingerprint }       // tag 4
   | CallbackTrampoline { c_signature: CanonicalCAbiSignatureFingerprint,
                          context_parameter: CallbackParameterIndex }         // tag 5
+  | StaticCallbackTrampoline {
+        storage_bridge: PersistentGeneratedCallableId,
+        c_signature: CanonicalCAbiSignatureFingerprint,
+    }                                                                         // tag 6
 
 GeneratedBridgeUnitId =
     DomainSeparatedCborHash("scoop-generated-bridge-unit-v1",
@@ -1294,7 +1298,7 @@ GeneratedBridgeObjectUnitSetDigest =
         strictly_sorted_unique_nonempty<GeneratedBridgeUnitId>)
 ```
 
-sum仍按本节规则编码为`0=tag`及声明顺序payload field；contract/signature/layout id都是对应schema的固定32-byte typed digest。`CallbackParameterIndex`是独立于源码`Long`的typed newtype，在key中编码为Wire CBOR unsigned `u32`，必须小于canonical C signature的参数数且精确指向registration指定的`Ptr<Unit>` context槽；签名中存在别的普通`Ptr<Unit>`参数并不构成歧义。callback trampoline unit严格按`(c_signature, context_parameter)`复用，不包含具体closure、callback application、managed adapter或`PersistentCallableBodyId`；同一签名不同context槽得到不同unit，同一pair可由不同application复用同一个unit recipe。每个实际producer Cone仍为所用unit恰好生成一个`PrimaryEntry(unit)` atom，并以该atom的`GeneratedBridgeAtomId`产生自己的ConeStrong `br` symbol；跨Cone不共享物理symbol。
+sum仍按本节规则编码为`0=tag`及声明顺序payload field；contract/signature/layout id都是对应schema的固定32-byte typed digest。`CallbackParameterIndex`是独立于源码`Long`的typed newtype，在key中编码为Wire CBOR unsigned `u32`，必须小于canonical C signature的参数数且精确指向registration指定的`Ptr<Unit>` context槽；签名中存在别的普通`Ptr<Unit>`参数并不构成歧义。managed callback trampoline unit严格按`(c_signature, context_parameter)`复用，不包含具体closure、callback application、managed adapter或`PersistentCallableBodyId`；同一签名不同context槽得到不同unit，同一pair可由不同application复用同一个unit recipe。静态`@NoGC` callback trampoline则按`(storage_bridge, c_signature)`复用：`storage_bridge`是`StaticNoGcCallbackStorageBridge`的稳定`PersistentGeneratedCallableId`，而不是arena id、link symbol或M23/M24会整体替换的`PersistentCallableBodyId`；相同C签名但目标不同的静态callback不能共享unit。每个实际producer Cone仍为所用unit恰好生成一个`PrimaryEntry(unit)` atom，并以该atom的`GeneratedBridgeAtomId`产生自己的ConeStrong `br` symbol；跨Cone不共享物理symbol。
 
 `GeneratedBridgeSemanticTarget`是canonical LIR definition、ODR fingerprint与undefined requirement可引用的唯一bridge target。codegen把它映射到当前artifact Cone的primary atom；object verifier核对真实symbol后规范化回unit。`SignatureDescriptor`与`ContextDescriptor`可在需要时物理materialize；`StaticAssertSupport`只标识canonical generated-C source中的编译期assert recipe，成功object中没有对应section bytes，绝不能产生`br` request、`ObjectDefinitionPlan`或defined-symbol owner。缺少预期assert proof、为它制造sentinel atom、跨producer引用atom或LIR直接保存atom id都拒绝。
 

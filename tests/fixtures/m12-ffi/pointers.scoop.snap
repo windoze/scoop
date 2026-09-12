@@ -8134,7 +8134,7 @@ Module
   extern ef9 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
   extern ef10 malloc @malloc(i64) -> ptr<raw> <c exact=(ULong)->data-ptr<opaque-void,direct> bridge=@scoop$1$br$9dba15af52bcbe8591de1d2f1bffd62d5446987aad5a7815a21ec4df3de80198 gc-leaf nounwind>
   extern ef11 free @free(ptr<raw>) -> void <c exact=(data-ptr<opaque-void,direct>)->void bridge=@scoop$1$br$253844b7f005533cea2b1e5c5f0ac3510500ad514d77d34ae809777df653ec7e gc-leaf nounwind>
-  callback cb0 increment @scoop$1$cb$f4c336b12270a4fe35f5adfc3e769eb1511a67f4ec071afd9ae84bd88663ac0c -> @scoop_c_callback_0 c=(Int)->Int
+  callback cb0 increment @scoop$1$cb$f4c336b12270a4fe35f5adfc3e769eb1511a67f4ec071afd9ae84bd88663ac0c -> @scoop$1$br$637540d34b70401c13f06c791cbbaf1cbba08ebca8af0b1d97621c49ff8abd0e c=(Int)->Int
   fun @scoop$1$cb$a6c098c45ae6a2501d57fe90a8a73a08568abf29ebbe60f1cbb41b428d628c3b(i8, i8) -> ptr<managed>
     local %0 $receiver: i8
     local %1 $receiver: i8
@@ -11617,7 +11617,7 @@ Module
     store integer<ULong>(0x0000000000000004) -> local1
     t0 = enum_wrap e5 v1 () : enum5
     store t0 -> local2
-    t1 = function_address @scoop_c_callback_0 : ptr
+    t1 = function_address @scoop$1$br$637540d34b70401c13f06c791cbbaf1cbba08ebca8af0b1d97621c49ff8abd0e : ptr
     store t1 -> local3
     t2 = enum_wrap e5 v1 () : enum5
     store t2 -> local4

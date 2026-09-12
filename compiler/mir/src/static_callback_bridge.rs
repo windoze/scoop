@@ -7,7 +7,7 @@ use scoop_identity::{
     CallableTemplateOwner, CborIdentityRecord, Effect, ExactCallableSignature,
     GeneratedCallableIdentityError, GeneratedCallableKey, OdrGroupId, OdrMemberDiscriminator,
     OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole,
-    PersistentGeneratedCallableId,
+    PersistentGeneratedCallableId, StaticNoGcCallbackStorageBridgeId,
 };
 use scoop_wire::HashError;
 
@@ -86,6 +86,11 @@ impl StaticCallbackBridgeIdentity {
 
     pub const fn callable_record(&self) -> &GeneratedCallableRecord {
         &self.callable
+    }
+
+    pub fn storage_bridge(&self) -> StaticNoGcCallbackStorageBridgeId {
+        StaticNoGcCallbackStorageBridgeId::from_key(self.callable.key())
+            .expect("static callback identities always own a storage bridge")
     }
 
     pub const fn odr_member_record(&self) -> Option<&OdrMemberRecord> {

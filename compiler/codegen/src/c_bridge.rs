@@ -134,6 +134,9 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         }
     }
     for (id, callback) in module.callback_bridges.iter() {
+        if !emitted_bridges.insert(callback.trampoline.entry().symbol()) {
+            continue;
+        }
         let bridge_symbol =
             module.functions[callback.bridge.declaration().into_u32() as usize].symbol();
         let bridge_object_symbol = module
@@ -176,7 +179,10 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
                 .collect::<Result<Vec<_>, _>>()?
                 .join(", ")
         };
-        let declarator = format!("{}({callback_params})", callback.trampoline_symbol);
+        let declarator = format!(
+            "{}({callback_params})",
+            callback.trampoline.entry().symbol()
+        );
         out.push_str(&renderer.return_declaration(&callback.return_type, &declarator)?);
         out.push_str(" {\n");
         if has_result {
