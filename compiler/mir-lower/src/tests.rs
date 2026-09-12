@@ -1,6 +1,6 @@
 use super::*;
-use scoop_ast::Span;
 use scoop_hir as hir;
+use scoop_hir::Span;
 
 mod basic_lowering;
 mod callbacks;

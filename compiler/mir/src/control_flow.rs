@@ -199,7 +199,7 @@ pub struct BasicBlock {
 #[derive(Debug)]
 pub struct Statement {
     pub kind: StatementKind,
-    pub span: Span,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug)]

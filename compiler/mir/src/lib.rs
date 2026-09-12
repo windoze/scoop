@@ -11,13 +11,12 @@
 //! cannot contain a call.
 
 use la_arena::{Arena, Idx};
-use scoop_ast::Span;
 
 pub use scoop_identity::{
     CallableOwner, ConeIdentity, ImmortalObjectKey, ImmortalObjectOwner, OdrGroupId,
     PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId, PropertyOwner,
-    SourceNativeExternalContractRecord, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    SourceNativeExternalContractRecord, SourceSpan, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 mod ids;

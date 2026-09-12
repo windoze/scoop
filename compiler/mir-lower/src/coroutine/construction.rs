@@ -403,7 +403,7 @@ pub(super) fn atomic_field_compare_exchange(
 pub(super) fn statement(kind: mir::StatementKind) -> mir::Statement {
     mir::Statement {
         kind,
-        span: Span { start: 0, end: 0 },
+        span: mir::SourceSpan::new(0, 0).expect("synthetic span is ordered"),
     }
 }
 

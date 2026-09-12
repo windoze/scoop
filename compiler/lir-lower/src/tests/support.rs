@@ -1,11 +1,9 @@
 use super::*;
-use scoop_ast::Span;
 
 mod builder;
 
 pub(super) use builder::{Builder, test_exact_type};
 
-pub(super) const SPAN: Span = Span { start: 0, end: 0 };
 pub(super) const INT: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
 pub(super) const LONG: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_64);
 pub(super) const UINT: mir::Type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_32);
@@ -146,7 +144,10 @@ pub(super) fn var(name: &str, ty: mir::Type) -> mir::Local {
 }
 
 pub(super) fn stmt(kind: mir::StatementKind) -> mir::Statement {
-    mir::Statement { kind, span: SPAN }
+    mir::Statement {
+        kind,
+        span: mir::SourceSpan::new(0, 0).unwrap(),
+    }
 }
 
 pub(super) fn val_decl(local: mir::LocalId, init: mir::Expr) -> mir::Statement {

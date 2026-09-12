@@ -3,7 +3,6 @@
 use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
-use scoop_ast::Span;
 use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 

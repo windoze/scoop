@@ -1498,7 +1498,7 @@ fn mutable_or_assigned_locals_do_not_supply_stable_variant_identity() {
             local: value,
             value: Expr::local(value, Type::Enum(enum_id, Vec::new())),
         },
-        span: Span::new(0, 0),
+        span: SourceSpan::new(0, 0).unwrap(),
     });
     module.functions[module.entry].body = body;
     assert!(matches!(

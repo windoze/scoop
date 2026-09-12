@@ -388,7 +388,7 @@ impl CoroutineRegistry {
             ty: throwable.clone(),
             mutable: false,
         });
-        let span = Span { start: 0, end: 0 };
+        let span = mir::SourceSpan::new(0, 0).expect("synthetic span is ordered");
         let statement = |kind| mir::Statement { kind, span };
         let mut blocks = Arena::new();
         let suspended = blocks.alloc(mir::BasicBlock {

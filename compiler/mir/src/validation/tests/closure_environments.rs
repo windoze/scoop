@@ -134,7 +134,7 @@ fn install_closure_allocation(
         name: "entry".to_string(),
         statements: vec![Statement {
             kind: StatementKind::Expr(allocation),
-            span: Span::new(0, 0),
+            span: SourceSpan::new(0, 0).unwrap(),
         }],
         terminator: Terminator::Return { value: None },
         unwind: None,

@@ -645,7 +645,7 @@ fn final_validation_rejects_a_transient_pending_call_context() {
                     Vec::new(),
                 )),
             })),
-            span: Span::new(0, 0),
+            span: SourceSpan::new(0, 0).unwrap(),
         });
     assert_eq!(
         fixture.module.validate(),

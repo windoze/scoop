@@ -5,7 +5,7 @@
 //! here.  HIR lowering must construct this graph completely before MIR starts.
 
 use la_arena::{Arena, Idx};
-use scoop_ast::Span;
+pub use scoop_ast::Span;
 pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
     CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CallbackMode,

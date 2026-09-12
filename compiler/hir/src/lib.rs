@@ -11,7 +11,8 @@
 //! and frontend HIR modules do not require one.
 
 use la_arena::{Arena, Idx};
-use scoop_ast::{Diagnostic, Span};
+use scoop_ast::Diagnostic;
+pub use scoop_ast::Span;
 
 pub mod concrete;
 

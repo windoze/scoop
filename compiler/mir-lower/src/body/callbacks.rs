@@ -86,6 +86,7 @@ impl BodyLowerer<'_> {
         if let Some(callback) = self.callback_by_target.get(&(source, signature)) {
             return *callback;
         }
+        let span = source_span(span);
 
         let signature_def = self.shell.function_types[signature].clone();
         let source_name = self.functions[source].name.clone();
@@ -231,6 +232,7 @@ impl BodyLowerer<'_> {
         {
             return bridge;
         }
+        let span = source_span(span);
         let native_signature = self.lower_function_type_id(registration.native_function_type);
         let managed_signature = self.lower_function_type_id(registration.managed_function_type);
         let exact_managed_signature =

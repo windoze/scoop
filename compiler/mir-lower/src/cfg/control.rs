@@ -60,9 +60,10 @@ impl<'a> CfgLowerer<'a> {
 
     pub(super) fn push(&mut self, kind: mir::StatementKind, span: Span) {
         self.ensure_unwind_context();
-        self.blocks[self.current]
-            .statements
-            .push(mir::Statement { kind, span });
+        self.blocks[self.current].statements.push(mir::Statement {
+            kind,
+            span: crate::source_span(span),
+        });
     }
 
     pub(super) fn lower_statements(&mut self, statements: &'a [smir::Statement]) {

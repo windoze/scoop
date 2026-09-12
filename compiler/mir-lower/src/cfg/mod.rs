@@ -1,7 +1,7 @@
 //! Structured MIR construction form to the output MIR CFG.
 
 use la_arena::Arena;
-use scoop_ast::Span;
+use scoop_hir::concrete::Span;
 use scoop_hir::concrete::{StructuralDefinitionSiteRole, SyntheticLocalRole};
 use scoop_mir as mir;
 

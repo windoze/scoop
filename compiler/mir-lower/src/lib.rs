@@ -94,9 +94,14 @@
 use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
-use scoop_ast::Span;
 use scoop_hir::concrete as hir;
+use scoop_hir::concrete::Span;
 use scoop_mir as mir;
+
+fn source_span(span: Span) -> mir::SourceSpan {
+    mir::SourceSpan::new(u64::from(span.start), u64::from(span.end))
+        .expect("concrete HIR source spans are ordered")
+}
 
 mod cfg;
 mod closures;

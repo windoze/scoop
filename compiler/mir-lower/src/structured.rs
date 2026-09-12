@@ -1,7 +1,7 @@
 //! Private construction IR used before MIR CFG and call normalization.
 
 use la_arena::Arena;
-use scoop_ast::Span;
+use scoop_hir::concrete::Span;
 use scoop_mir as mir;
 
 /// Function-local identity of one structured loop after concrete-HIR ids have
