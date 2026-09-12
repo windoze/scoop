@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::fmt;
 
 use scoop_identity::{
@@ -195,7 +195,7 @@ fn validate_foundation(
         &object_values,
         &type_aliases,
     )?;
-    validate_source_contexts(&source_contexts, &validated_sources)?;
+    validate_source_contexts(&source_contexts, &validated_sources, meter)?;
 
     let mut contracts = Vec::new();
     meter
@@ -397,11 +397,14 @@ fn foreign_declaration<I: PersistentId>(
 fn validate_source_contexts(
     contexts: &[SourceContextRecord],
     sources: &[SourceRecord],
+    meter: &mut BudgetMeter,
 ) -> Result<(), HirFoundationValidationError> {
-    let known = sources
-        .iter()
-        .map(|source| source.identity().clone())
-        .collect::<BTreeSet<_>>();
+    let path = WirePath::root().field(22);
+    let mut known = HashSet::new();
+    meter
+        .try_reserve_set_slots(&mut known, sources.len(), &path)
+        .map_err(HirFoundationValidationError::Resource)?;
+    known.extend(sources.iter().map(|source| source.identity().clone()));
     for context in contexts {
         if !known.contains(context.key().source()) {
             return Err(HirFoundationValidationError::UnknownContextSource {

@@ -128,6 +128,40 @@ fn validates_the_complete_hir_foundation_atomically() {
 }
 
 #[test]
+fn source_context_index_has_inclusive_heap_boundaries() {
+    let fixture = fixture(true, true);
+    let required = scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
+
+    for (limit, accepted) in [
+        (required - 1, false),
+        (required, true),
+        (required + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            logical_heap_bytes: limit,
+            ..DecodeLimits::default()
+        });
+        let result = validate_source_contexts(
+            &fixture.canonical.source_contexts,
+            &fixture.canonical.sources,
+            &mut meter,
+        );
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert!(matches!(
+                result.unwrap_err(),
+                HirFoundationValidationError::Resource(ref error)
+                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
+                        resource: scoop_wire::ResourceKind::LogicalHeapBytes,
+                        limit,
+                        observed: required,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
 fn rejects_a_missing_required_definition_origin() {
     let fixture = fixture(false, true);
     let decoded = decode(&fixture.canonical);
