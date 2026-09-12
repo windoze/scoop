@@ -138,6 +138,11 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         let alignment = NonZeroU64::new(alignment)
             .ok_or(NativeBoundaryTargetError::LayoutOverflow { exact })?;
         let layout = CanonicalCAbiLayout::new(exact, size, alignment, aligned, packed, normalized);
+        let stream_length = CanonicalCAbiLayoutFingerprint::hash_stream_length(&layout)
+            .map_err(NativeBoundaryTargetError::Hash)?;
+        self.meter
+            .charge_sha256(stream_length, &WirePath::root().field(16))
+            .map_err(NativeBoundaryCompileError::Resource)?;
         let record = CanonicalCAbiLayoutFingerprintRecord::new(layout)
             .map_err(NativeBoundaryTargetError::Hash)?;
         let fingerprint = record.fingerprint();

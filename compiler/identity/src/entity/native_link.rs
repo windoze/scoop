@@ -1,12 +1,15 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncode};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
 
 use super::{CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbol};
 use crate::ids::derive_persistent_id;
 use crate::{NativeLinkRequirementId, PersistentNativeExternalSymbolId, TargetProfileWireId};
 
 mod decode;
+
+const NATIVE_LINK_SYMBOL_HASH_DOMAIN: &str = "scoop-native-link-symbol-v1";
+const NATIVE_LINK_REQUIREMENT_HASH_DOMAIN: &str = "scoop-native-link-requirement-v1";
 
 pub use decode::{
     DecodedCanonicalNativeGroupName, DecodedNativeExternalSymbolKey, DecodedNativeLibraryBinding,
@@ -18,16 +21,28 @@ pub use decode::{
 pub struct NativeLinkSymbol(Vec<u8>);
 
 impl NativeLinkSymbol {
+    fn darwin_macho_external_length(
+        logical: &SourceNativeSymbol,
+    ) -> Result<u64, NativeLinkSymbolError> {
+        if logical.as_bytes().first() == Some(&0x01) {
+            return Err(NativeLinkSymbolError::LlvmEscapePrefix);
+        }
+        u64::try_from(logical.as_bytes().len())
+            .ok()
+            .and_then(|length| length.checked_add(1))
+            .ok_or(NativeLinkSymbolError::LengthOverflow)
+    }
+
     pub fn darwin_macho_external(
         logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
+        let length = Self::darwin_macho_external_length(logical)?;
         let logical = logical.as_bytes();
-        if logical.first() == Some(&0x01) {
-            return Err(NativeLinkSymbolError::LlvmEscapePrefix);
-        }
         let mut symbol = Vec::new();
         symbol
-            .try_reserve_exact(logical.len() + 1)
+            .try_reserve_exact(
+                usize::try_from(length).map_err(|_| NativeLinkSymbolError::LengthOverflow)?,
+            )
             .map_err(|_| NativeLinkSymbolError::Allocation)?;
         symbol.push(b'_');
         symbol.extend_from_slice(logical);
@@ -52,6 +67,12 @@ pub struct NativeExternalSymbolKey {
 }
 
 impl NativeExternalSymbolKey {
+    pub fn darwin_macho_external_length(
+        logical: &SourceNativeSymbol,
+    ) -> Result<u64, NativeLinkSymbolError> {
+        NativeLinkSymbol::darwin_macho_external_length(logical)
+    }
+
     pub fn darwin_macho_external(
         logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
@@ -82,7 +103,11 @@ impl WireEncode for NativeExternalSymbolKey {
 
 impl PersistentNativeExternalSymbolId {
     pub fn from_key(key: &NativeExternalSymbolKey) -> Result<Self, HashError> {
-        derive_persistent_id("scoop-native-link-symbol-v1", key)
+        derive_persistent_id(NATIVE_LINK_SYMBOL_HASH_DOMAIN, key)
+    }
+
+    pub fn hash_stream_length(key: &NativeExternalSymbolKey) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(NATIVE_LINK_SYMBOL_HASH_DOMAIN, key)
     }
 }
 
@@ -202,7 +227,11 @@ impl WireEncode for NativeLinkRequirementKey {
 
 impl NativeLinkRequirementId {
     pub fn from_key(key: &NativeLinkRequirementKey) -> Result<Self, HashError> {
-        derive_persistent_id("scoop-native-link-requirement-v1", key)
+        derive_persistent_id(NATIVE_LINK_REQUIREMENT_HASH_DOMAIN, key)
+    }
+
+    pub fn hash_stream_length(key: &NativeLinkRequirementKey) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(NATIVE_LINK_REQUIREMENT_HASH_DOMAIN, key)
     }
 }
 
@@ -224,6 +253,7 @@ impl WireEncode for NativeLibraryBinding {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NativeLinkSymbolError {
     LlvmEscapePrefix,
+    LengthOverflow,
     Allocation,
 }
 
@@ -233,6 +263,7 @@ impl fmt::Display for NativeLinkSymbolError {
             Self::LlvmEscapePrefix => {
                 "logical native symbol must not start with the LLVM escape byte"
             }
+            Self::LengthOverflow => "normalized native link symbol length overflowed",
             Self::Allocation => "failed to allocate normalized native link symbol",
         })
     }
@@ -292,10 +323,19 @@ mod tests {
     #[test]
     fn native_symbol_identity_has_fixed_vector() {
         let logical = SourceNativeSymbol::new("foo").unwrap();
-        let key = NativeExternalSymbolKey::darwin_macho_external(&logical).unwrap();
         assert_eq!(
-            hex(&encode(&key).unwrap()),
+            NativeExternalSymbolKey::darwin_macho_external_length(&logical).unwrap(),
+            4
+        );
+        let key = NativeExternalSymbolKey::darwin_macho_external(&logical).unwrap();
+        let encoded = encode(&key).unwrap();
+        assert_eq!(
+            hex(&encoded),
             "a201a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d61617263683634030102445f666f6f"
+        );
+        assert_eq!(
+            PersistentNativeExternalSymbolId::hash_stream_length(&key).unwrap(),
+            8 + "scoop-native-link-symbol-v1".len() as u64 + encoded.len() as u64
         );
         assert_eq!(
             PersistentNativeExternalSymbolId::from_key(&key)
@@ -310,9 +350,14 @@ mod tests {
         let key = NativeLinkRequirementKey::target_default(
             CanonicalNativeLibraryName::new("sample").unwrap(),
         );
+        let encoded = encode(&key).unwrap();
         assert_eq!(
-            hex(&encode(&key).unwrap()),
+            hex(&encoded),
             "a401a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301026673616d706c65030104a10001"
+        );
+        assert_eq!(
+            NativeLinkRequirementId::hash_stream_length(&key).unwrap(),
+            8 + "scoop-native-link-requirement-v1".len() as u64 + encoded.len() as u64
         );
         assert_eq!(
             NativeLinkRequirementId::from_key(&key).unwrap().to_string(),

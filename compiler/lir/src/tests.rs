@@ -652,15 +652,16 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
         &scoop_identity::SourceNativeSymbol::new("c").unwrap(),
     )
     .unwrap();
+    let external_contract = scoop_identity::NativeExternalContract::c_function(
+        scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            Vec::new(),
+            scoop_identity::CanonicalCAbiReturn::Void,
+        ),
+    );
     let contract = scoop_identity::NativeExternalContractFingerprint::from_symbol_and_contract(
         scoop_identity::PersistentNativeExternalSymbolId::from_key(&native_symbol).unwrap(),
-        scoop_identity::NativeExternalContract::c_function(
-            scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
-            scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
-                Vec::new(),
-                scoop_identity::CanonicalCAbiReturn::Void,
-            ),
-        ),
+        &external_contract,
     )
     .unwrap();
     let c_ref: CExternFunctionRef = functions.alloc_c(CExternFunction {

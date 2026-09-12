@@ -1,4 +1,7 @@
-use scoop_wire::{Encoder, HashError, WireEncode};
+use scoop_wire::{
+    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length,
+};
 
 use super::{
     CanonicalCAbiFunctionSignature, CanonicalCStorageType, CanonicalScoopAbiFunctionSignature,
@@ -11,6 +14,8 @@ use crate::{
 };
 
 mod decode;
+
+const NATIVE_EXTERNAL_CONTRACT_HASH_DOMAIN: &str = "scoop-native-external-contract-v1";
 
 pub use decode::{
     DecodedNativeExternAbi, DecodedNativeExternalContract, DecodedNativeExternalContractRecord,
@@ -172,26 +177,48 @@ impl NativeExternalContractFingerprintInput {
 
 impl WireEncode for NativeExternalContractFingerprintInput {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.symbol_id.encode(encoder)?;
-        encoder.field(2)?;
-        self.contract.encode(encoder)
+        encode_fingerprint_input(encoder, &self.symbol_id, &self.contract)
+    }
+}
+
+struct NativeExternalContractFingerprintRef<'a> {
+    symbol_id: PersistentNativeExternalSymbolId,
+    contract: &'a NativeExternalContract,
+}
+
+impl WireEncode for NativeExternalContractFingerprintRef<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_fingerprint_input(encoder, &self.symbol_id, self.contract)
     }
 }
 
 impl NativeExternalContractFingerprint {
     pub fn from_input(input: &NativeExternalContractFingerprintInput) -> Result<Self, HashError> {
-        derive_persistent_id("scoop-native-external-contract-v1", input)
+        derive_persistent_id(NATIVE_EXTERNAL_CONTRACT_HASH_DOMAIN, input)
     }
 
     pub fn from_symbol_and_contract(
         symbol_id: PersistentNativeExternalSymbolId,
-        contract: NativeExternalContract,
+        contract: &NativeExternalContract,
     ) -> Result<Self, HashError> {
-        Self::from_input(&NativeExternalContractFingerprintInput::new(
-            symbol_id, contract,
-        ))
+        domain_separated_cbor_hash(
+            NATIVE_EXTERNAL_CONTRACT_HASH_DOMAIN,
+            &NativeExternalContractFingerprintRef {
+                symbol_id,
+                contract,
+            },
+        )
+        .map(|digest| Self(*digest.as_array()))
+    }
+
+    pub fn hash_stream_length(contract: &NativeExternalContract) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(
+            NATIVE_EXTERNAL_CONTRACT_HASH_DOMAIN,
+            &NativeExternalContractFingerprintRef {
+                symbol_id: PersistentNativeExternalSymbolId([0; 32]),
+                contract,
+            },
+        )
     }
 }
 
@@ -211,10 +238,8 @@ impl NativeExternalContractRecord {
         contract: NativeExternalContract,
     ) -> Result<Self, HashError> {
         let symbol_id = PersistentNativeExternalSymbolId::from_key(&symbol_key)?;
-        let fingerprint = NativeExternalContractFingerprint::from_symbol_and_contract(
-            symbol_id,
-            contract.clone(),
-        )?;
+        let fingerprint =
+            NativeExternalContractFingerprint::from_symbol_and_contract(symbol_id, &contract)?;
         Ok(Self {
             source,
             symbol_id,
@@ -242,6 +267,16 @@ impl NativeExternalContractRecord {
 
     pub fn contract(&self) -> &NativeExternalContract {
         &self.contract
+    }
+
+    pub fn hash_stream_lengths(
+        symbol_key: &NativeExternalSymbolKey,
+        contract: &NativeExternalContract,
+    ) -> Result<[u64; 2], HashError> {
+        Ok([
+            PersistentNativeExternalSymbolId::hash_stream_length(symbol_key)?,
+            NativeExternalContractFingerprint::hash_stream_length(contract)?,
+        ])
     }
 
     pub(crate) const fn from_verified(
@@ -291,6 +326,18 @@ fn encode_data_contract(
     storage.encode(encoder)
 }
 
+fn encode_fingerprint_input(
+    encoder: &mut Encoder,
+    symbol_id: &PersistentNativeExternalSymbolId,
+    contract: &NativeExternalContract,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encoder.field(1)?;
+    symbol_id.encode(encoder)?;
+    encoder.field(2)?;
+    contract.encode(encoder)
+}
+
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.field(0)?;
     encoder.unsigned(tag)
@@ -314,9 +361,10 @@ mod tests {
     use super::{NativeExternalContract, NativeExternalContractRecord};
     use crate::{
         CanonicalCAbiFunctionSignature, CanonicalCAbiReturn, CanonicalCStorageType, ConeIdentity,
-        NativeExternalContractFingerprint, NativeExternalSymbolKey, NativeLibraryBinding,
-        PersistentExactTypeId, PersistentNativeExternalSymbolId,
-        PersistentSourceNativeExternalContractId, SourceNativeSymbol,
+        NativeExternalContractFingerprint, NativeExternalContractFingerprintInput,
+        NativeExternalSymbolKey, NativeLibraryBinding, PersistentExactTypeId,
+        PersistentNativeExternalSymbolId, PersistentSourceNativeExternalContractId,
+        SourceNativeSymbol,
     };
 
     #[test]
@@ -337,13 +385,25 @@ mod tests {
             format!("a3000201a1000102a20002015820{exact}")
         );
         assert_eq!(
-            NativeExternalContractFingerprint::from_symbol_and_contract(
-                symbol_id,
-                contract.clone(),
-            )
-            .unwrap()
-            .to_string(),
+            NativeExternalContractFingerprint::from_symbol_and_contract(symbol_id, &contract)
+                .unwrap()
+                .to_string(),
             "fa2e22f22dc94d1935eb067ca90f6b92c493efb81544d7e376d20f9b51efbf01"
+        );
+        let input = NativeExternalContractFingerprintInput::new(symbol_id, contract.clone());
+        assert_eq!(
+            NativeExternalContractFingerprint::from_input(&input).unwrap(),
+            NativeExternalContractFingerprint::from_symbol_and_contract(symbol_id, &contract)
+                .unwrap()
+        );
+        assert_eq!(
+            NativeExternalContractRecord::hash_stream_lengths(&symbol_key, &contract).unwrap(),
+            [
+                8 + "scoop-native-link-symbol-v1".len() as u64
+                    + encode(&symbol_key).unwrap().len() as u64,
+                8 + "scoop-native-external-contract-v1".len() as u64
+                    + encode(&input).unwrap().len() as u64,
+            ]
         );
 
         let record = NativeExternalContractRecord::new(

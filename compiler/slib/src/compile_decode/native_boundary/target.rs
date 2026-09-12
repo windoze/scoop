@@ -466,6 +466,13 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         let (symbol, source_library) = source_target(source.contract());
         let symbol = match self.target.id() {
             scoop_lir::TargetProfileId::DarwinAarch64 => {
+                let path = WirePath::root().field(14);
+                let normalized_length =
+                    NativeExternalSymbolKey::darwin_macho_external_length(symbol)
+                        .map_err(NativeBoundaryTargetError::NativeSymbol)?;
+                self.meter
+                    .charge_owned_bytes(normalized_length, &path)
+                    .map_err(NativeBoundaryCompileError::Resource)?;
                 NativeExternalSymbolKey::darwin_macho_external(symbol)
                     .map_err(NativeBoundaryTargetError::NativeSymbol)?
             }
@@ -515,6 +522,13 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 NativeExternalContract::mutable_tls(library, self.c_storage(exact)?)
             }
         };
+        for stream_length in NativeExternalContractRecord::hash_stream_lengths(&symbol, &contract)
+            .map_err(NativeBoundaryTargetError::Hash)?
+        {
+            self.meter
+                .charge_sha256(stream_length, &WirePath::root().field(14))
+                .map_err(NativeBoundaryCompileError::Resource)?;
+        }
         NativeExternalContractRecord::new(source.id(), symbol, contract)
             .map_err(NativeBoundaryTargetError::Hash)
             .map_err(Into::into)
@@ -535,9 +549,14 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                         .map_err(NativeBoundaryCompileError::Resource)?,
                 )
                 .map_err(NativeBoundaryTargetError::NativeName)?;
+                let key = NativeLinkRequirementKey::target_default(name);
+                let stream_length = NativeLinkRequirementId::hash_stream_length(&key)
+                    .map_err(NativeBoundaryTargetError::Hash)?;
+                self.meter
+                    .charge_sha256(stream_length, &WirePath::root().field(20))
+                    .map_err(NativeBoundaryCompileError::Resource)?;
                 let record =
-                    CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(name))
-                        .map_err(NativeBoundaryTargetError::Hash)?;
+                    CborIdentityRecord::from_key(key).map_err(NativeBoundaryTargetError::Hash)?;
                 let id = record.id();
                 insert_metered(
                     self.meter,
@@ -573,11 +592,15 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                     .map_err(NativeBoundaryTargetError::CanonicalCAbi)?
             }
         };
-        CanonicalCAbiSignatureFingerprintRecord::new(CanonicalCAbiFunctionSignature::cdecl(
-            parameters, result,
-        ))
-        .map_err(NativeBoundaryTargetError::Hash)
-        .map_err(Into::into)
+        let signature = CanonicalCAbiFunctionSignature::cdecl(parameters, result);
+        let stream_length = CanonicalCAbiSignatureFingerprint::hash_stream_length(&signature)
+            .map_err(NativeBoundaryTargetError::Hash)?;
+        self.meter
+            .charge_sha256(stream_length, &path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
+        CanonicalCAbiSignatureFingerprintRecord::new(signature)
+            .map_err(NativeBoundaryTargetError::Hash)
+            .map_err(Into::into)
     }
 
     fn scoop_signature(
@@ -720,6 +743,11 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 }
             }
         };
+        let stream_length = PersistentExactTypeId::hash_stream_length(&key)
+            .map_err(NativeBoundaryTargetError::Hash)?;
+        self.meter
+            .charge_sha256(stream_length, &path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
         let exact =
             PersistentExactTypeId::from_key(&key).map_err(NativeBoundaryTargetError::Hash)?;
         match self.exact_types.get(&exact) {

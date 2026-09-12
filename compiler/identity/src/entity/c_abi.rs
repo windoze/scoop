@@ -1,7 +1,7 @@
 use std::fmt;
 use std::num::NonZeroU64;
 
-use scoop_wire::{Encoder, HashError, WireEncode};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
 
 use crate::ids::derive_persistent_id;
 use crate::{
@@ -10,6 +10,9 @@ use crate::{
 };
 
 mod decode;
+
+const C_ABI_SIGNATURE_HASH_DOMAIN: &str = "scoop-c-abi-signature-v1";
+const C_ABI_LAYOUT_HASH_DOMAIN: &str = "scoop-c-abi-layout-v1";
 
 pub use decode::{
     CanonicalCAbiResolutionError, DecodedCDataPointee, DecodedCLayoutOverride,
@@ -279,7 +282,13 @@ impl WireEncode for CanonicalCAbiFunctionSignature {
 
 impl CanonicalCAbiSignatureFingerprint {
     pub fn from_signature(signature: &CanonicalCAbiFunctionSignature) -> Result<Self, HashError> {
-        derive_persistent_id("scoop-c-abi-signature-v1", signature)
+        derive_persistent_id(C_ABI_SIGNATURE_HASH_DOMAIN, signature)
+    }
+
+    pub fn hash_stream_length(
+        signature: &CanonicalCAbiFunctionSignature,
+    ) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(C_ABI_SIGNATURE_HASH_DOMAIN, signature)
     }
 }
 
@@ -492,7 +501,11 @@ impl WireEncode for CanonicalCAbiLayout {
 
 impl CanonicalCAbiLayoutFingerprint {
     pub fn from_layout(layout: &CanonicalCAbiLayout) -> Result<Self, HashError> {
-        derive_persistent_id("scoop-c-abi-layout-v1", layout)
+        derive_persistent_id(C_ABI_LAYOUT_HASH_DOMAIN, layout)
+    }
+
+    pub fn hash_stream_length(layout: &CanonicalCAbiLayout) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(C_ABI_LAYOUT_HASH_DOMAIN, layout)
     }
 }
 
@@ -655,9 +668,14 @@ mod tests {
         .unwrap();
         let signature =
             CanonicalCAbiFunctionSignature::cdecl(vec![parameter], CanonicalCAbiReturn::Void);
+        let encoded = encode(&signature).unwrap();
         assert_eq!(
-            hex(&encode(&signature).unwrap()),
+            hex(&encoded),
             "a301010281a20158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02a200020158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d03a10001"
+        );
+        assert_eq!(
+            CanonicalCAbiSignatureFingerprint::hash_stream_length(&signature).unwrap(),
+            8 + "scoop-c-abi-signature-v1".len() as u64 + encoded.len() as u64
         );
         assert_eq!(
             CanonicalCAbiSignatureFingerprint::from_signature(&signature)
@@ -678,9 +696,14 @@ mod tests {
             CLayoutOverride::Natural,
             Vec::new(),
         );
+        let encoded = encode(&layout).unwrap();
         assert_eq!(
-            hex(&encode(&layout).unwrap()),
+            hex(&encoded),
             format!("a6015820{exact}0200030104a1000105a100010680")
+        );
+        assert_eq!(
+            CanonicalCAbiLayoutFingerprint::hash_stream_length(&layout).unwrap(),
+            8 + "scoop-c-abi-layout-v1".len() as u64 + encoded.len() as u64
         );
         assert_eq!(
             CanonicalCAbiLayoutFingerprint::from_layout(&layout)

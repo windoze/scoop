@@ -118,12 +118,13 @@ fn native_contract(seed: u8) -> scoop_identity::NativeExternalContractFingerprin
         &scoop_identity::SourceNativeSymbol::new(&format!("test_bridge_{seed}")).unwrap(),
     )
     .unwrap();
+    let contract = scoop_identity::NativeExternalContract::c_function(
+        scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+        c_signature(seed).signature().clone(),
+    );
     scoop_identity::NativeExternalContractFingerprint::from_symbol_and_contract(
         scoop_identity::PersistentNativeExternalSymbolId::from_key(&symbol).unwrap(),
-        scoop_identity::NativeExternalContract::c_function(
-            scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
-            c_signature(seed).signature().clone(),
-        ),
+        &contract,
     )
     .unwrap()
 }

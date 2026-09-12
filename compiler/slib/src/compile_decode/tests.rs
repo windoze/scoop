@@ -243,16 +243,12 @@ fn compile_recomputes_a_target_native_function_contract() {
     assert_eq!(compiled.lir().counts().c_abi_signatures, 1);
 }
 
-#[test]
-fn native_boundary_validation_heap_cost_has_inclusive_boundaries() {
+fn validate_native_boundary_with_limits(
+    artifact: &IdentityFoundationArtifact,
+    limits: DecodeLimits,
+) -> Result<NativeBoundaryValidatedFoundations<'_>, NativeBoundaryCompileError> {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
-    let expected = {
-        let validated = crate::DecodedSlibEnvelope::open(
-            artifact.as_bytes(),
-            DecodeLimits::default(),
-            selection,
-        )
+    let structured = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), limits, selection)
         .unwrap()
         .validate_graph()
         .unwrap()
@@ -261,40 +257,33 @@ fn native_boundary_validation_heap_cost_has_inclusive_boundaries() {
         .validate_identities()
         .unwrap()
         .validate_structure()
-        .unwrap()
-        .validate_native_boundary_source()
-        .unwrap()
-        .validate_target()
         .unwrap();
-        validated.foundations().decode_usage().logical_heap_bytes
-    };
+    structured
+        .validate_native_boundary_source()
+        .and_then(NativeBoundarySourceValidatedFoundations::validate_target)
+}
+
+#[test]
+fn native_boundary_validation_heap_cost_has_inclusive_boundaries() {
+    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
+    let expected = validate_native_boundary_with_limits(&artifact, DecodeLimits::default())
+        .unwrap()
+        .foundations()
+        .decode_usage()
+        .logical_heap_bytes;
 
     for (limit, accepted) in [
         (expected - 1, false),
         (expected, true),
         (expected + 1, true),
     ] {
-        let structured = crate::DecodedSlibEnvelope::open(
-            artifact.as_bytes(),
+        let result = validate_native_boundary_with_limits(
+            &artifact,
             DecodeLimits {
                 logical_heap_bytes: limit,
                 ..DecodeLimits::default()
             },
-            selection,
-        )
-        .unwrap()
-        .validate_graph()
-        .unwrap()
-        .decode_identity_foundations()
-        .unwrap()
-        .validate_identities()
-        .unwrap()
-        .validate_structure()
-        .unwrap();
-        let result = match structured.validate_native_boundary_source() {
-            Ok(source) => source.validate_target(),
-            Err(error) => Err(error),
-        };
+        );
         assert_eq!(result.is_ok(), accepted);
         if accepted {
             assert_eq!(
@@ -313,6 +302,54 @@ fn native_boundary_validation_heap_cost_has_inclusive_boundaries() {
                         error.kind(),
                         WireErrorKind::LimitExceeded {
                             resource: ResourceKind::LogicalHeapBytes,
+                            limit: actual_limit,
+                            observed,
+                        } if *actual_limit == limit && *observed == expected
+                    )
+            ));
+        }
+    }
+}
+
+#[test]
+fn native_boundary_validation_hash_work_has_inclusive_boundaries() {
+    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
+    let expected = validate_native_boundary_with_limits(&artifact, DecodeLimits::default())
+        .unwrap()
+        .foundations()
+        .decode_usage()
+        .validation_work_units;
+
+    for (limit, accepted) in [
+        (expected - 1, false),
+        (expected, true),
+        (expected + 1, true),
+    ] {
+        let result = validate_native_boundary_with_limits(
+            &artifact,
+            DecodeLimits {
+                validation_work_units: limit,
+                ..DecodeLimits::default()
+            },
+        );
+        assert_eq!(result.is_ok(), accepted);
+        if accepted {
+            assert_eq!(
+                result
+                    .unwrap()
+                    .foundations()
+                    .decode_usage()
+                    .validation_work_units,
+                expected
+            );
+        } else {
+            assert!(matches!(
+                result,
+                Err(NativeBoundaryCompileError::Resource(ref error))
+                    if matches!(
+                        error.kind(),
+                        WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::ValidationWorkUnits,
                             limit: actual_limit,
                             observed,
                         } if *actual_limit == limit && *observed == expected

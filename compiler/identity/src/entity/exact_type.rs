@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncode};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
 
 use super::{
     CallingConvention, DeclarationName, DefinitionOwnerAtom, Effect, NonEmptyVec,
@@ -18,6 +18,7 @@ pub use decode::{DecodedExactTypeKey, ExactTypeResolutionError};
 
 const MAX_DIAGNOSTIC_NAME_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DIAGNOSTIC_RECURSION: usize = 1_024;
+const EXACT_TYPE_HASH_DOMAIN: &str = "scoop-exact-type-v1";
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ExactTypeKey {
@@ -115,7 +116,11 @@ impl WireEncode for ExactTypeKey {
 
 impl PersistentExactTypeId {
     pub fn from_key(key: &ExactTypeKey) -> Result<Self, HashError> {
-        derive_persistent_id("scoop-exact-type-v1", key)
+        derive_persistent_id(EXACT_TYPE_HASH_DOMAIN, key)
+    }
+
+    pub fn hash_stream_length(key: &ExactTypeKey) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(EXACT_TYPE_HASH_DOMAIN, key)
     }
 }
 
@@ -705,9 +710,14 @@ mod tests {
         let function = PersistentExactTypeId::from_key(&function_key).unwrap();
         graph.exact.insert(function, function_key);
 
+        let encoded = encode(&tuple_key).unwrap();
         assert_eq!(
-            hex(&encode(&tuple_key).unwrap()),
+            hex(&encoded),
             format!("a2000301825820{}5820{}", nominal, nominal)
+        );
+        assert_eq!(
+            PersistentExactTypeId::hash_stream_length(&tuple_key).unwrap(),
+            8 + "scoop-exact-type-v1".len() as u64 + encoded.len() as u64
         );
         assert_eq!(
             tuple.to_string(),
