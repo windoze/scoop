@@ -1,7 +1,11 @@
+use std::collections::BTreeSet;
 use std::fmt;
 
 use scoop_hir::DecodedHirFoundation;
-use scoop_identity::{CapabilityId, ConeCoordinate, ConeIdentity};
+use scoop_identity::{
+    CapabilityId, ConeCoordinate, ConeIdentity, IdentityValidationError, PendingIdentityValidation,
+    ValidatedIdentityGraph,
+};
 use scoop_lir::DecodedLirFoundation;
 use scoop_mir::DecodedMirFoundation;
 use scoop_wire::{DecodeUsage, WireError, decode_canonical_with_meter};
@@ -22,6 +26,18 @@ use crate::{
 #[derive(Debug)]
 pub struct DecodedIdentityFoundations<'input> {
     graph: ValidatedGraphArtifact<'input>,
+    hir: DecodedHirFoundation,
+    mir: DecodedMirFoundation,
+    lir: DecodedLirFoundation,
+}
+
+/// Foundation graph whose complete HIR/MIR/LIR identity transaction passed.
+///
+/// This proof does not yet include the remaining per-layer structural checks,
+/// typed remap, or semantic-world commit, so it is not a Compile proof.
+pub struct IdentityCheckedFoundations<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
     hir: DecodedHirFoundation,
     mir: DecodedMirFoundation,
     lir: DecodedLirFoundation,
@@ -165,7 +181,7 @@ fn require_semantic_fingerprint(
     }
 }
 
-impl DecodedIdentityFoundations<'_> {
+impl<'input> DecodedIdentityFoundations<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -184,6 +200,91 @@ impl DecodedIdentityFoundations<'_> {
 
     pub const fn decode_usage(&self) -> DecodeUsage {
         self.graph.decode_usage()
+    }
+
+    pub const fn hir_wire(&self) -> &DecodedHirFoundation {
+        &self.hir
+    }
+
+    pub const fn mir_wire(&self) -> &DecodedMirFoundation {
+        &self.mir
+    }
+
+    pub const fn lir_wire(&self) -> &DecodedLirFoundation {
+        &self.lir
+    }
+
+    /// Validates the complete cross-layer identity graph as one transaction.
+    /// All three deltas are registered before HIR-to-LIR resolution begins.
+    pub fn validate_identities(
+        self,
+    ) -> Result<IdentityCheckedFoundations<'input>, IdentityValidationError> {
+        validate_foundation_identities(self)
+    }
+}
+
+fn validate_foundation_identities<'input>(
+    foundations: DecodedIdentityFoundations<'input>,
+) -> Result<IdentityCheckedFoundations<'input>, IdentityValidationError> {
+    let DecodedIdentityFoundations {
+        graph,
+        hir,
+        mir,
+        lir,
+    } = foundations;
+    let mut validation = PendingIdentityValidation::new();
+    let mut authorities = BTreeSet::from([ConeIdentity::CORE, graph.identity()]);
+    authorities.extend(
+        graph
+            .direct_dependencies()
+            .iter()
+            .map(DependencyRecord::identity),
+    );
+    for authority in authorities {
+        validation.register_authority(authority)?;
+    }
+
+    hir.register_identities(&mut validation)?;
+    mir.register_identities(&mut validation)?;
+    lir.register_identities(&mut validation)?;
+
+    hir.resolve_identities(&mut validation)?;
+    mir.resolve_identities(&mut validation)?;
+    lir.resolve_identities(&mut validation)?;
+
+    let identities = validation.finish()?;
+    Ok(IdentityCheckedFoundations {
+        graph,
+        identities,
+        hir,
+        mir,
+        lir,
+    })
+}
+
+impl IdentityCheckedFoundations<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub fn direct_dependencies(&self) -> &[DependencyRecord] {
+        self.graph.direct_dependencies()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
     }
 
     pub const fn hir_wire(&self) -> &DecodedHirFoundation {
@@ -374,7 +475,11 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
 #[cfg(test)]
 mod tests {
     use scoop_hir::CanonicalHirFoundation;
-    use scoop_identity::{CapabilityId, ConeCoordinate};
+    use scoop_identity::{
+        CanonicalIdentifier, CapabilityId, CborIdentityRecord, ConeCoordinate, ConeIdentity,
+        DeclarationScope, DefinitionOwnerChain, ExactTypeKey, LayoutKey, PackagePath,
+        RepresentationRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    };
     use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
     use scoop_mir::CanonicalMirFoundation;
     use scoop_wire::{DecodeLimits, encode};
@@ -386,11 +491,35 @@ mod tests {
     };
 
     #[test]
-    fn graph_decodes_the_three_foundation_envelopes_with_one_cumulative_budget() {
-        let hir = CanonicalHirFoundation::empty();
-        let mir = CanonicalMirFoundation::empty();
-        let lir = CanonicalLirFoundation::empty();
+    fn graph_decodes_and_identity_checks_all_foundation_layers() {
         let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+        let declaration = SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("Widget").unwrap(),
+            SourceNominalKind::Struct,
+            0,
+        );
+        let type_record = CborIdentityRecord::from_key(declaration).unwrap();
+        let exact_record =
+            CborIdentityRecord::from_key(ExactTypeKey::Nominal(type_record.id())).unwrap();
+        let layout_record = CborIdentityRecord::from_key(LayoutKey::new(
+            exact_record.id(),
+            selection.target().wire_id(),
+            RepresentationRole::ManagedValue,
+        ))
+        .unwrap();
+        let mut hir = CanonicalHirFoundation::empty();
+        hir.set_types(vec![type_record]).unwrap();
+        let mut mir = CanonicalMirFoundation::empty();
+        mir.set_exact_types(vec![exact_record]).unwrap();
+        let mut lir = CanonicalLirFoundation::empty();
+        lir.set_layouts(vec![layout_record]).unwrap();
         let cone = ConeRecord::new(
             ConeCoordinate::reserved_core(),
             ConeKind::Library,
@@ -425,6 +554,13 @@ mod tests {
         assert_eq!(encode(decoded.lir_wire()).unwrap(), encode(&lir).unwrap());
         assert!(decoded.decode_usage().decoded_nodes > envelope_usage.decoded_nodes);
         assert!(decoded.decode_usage().logical_heap_bytes > envelope_usage.logical_heap_bytes);
+
+        let checked = decoded.validate_identities().unwrap();
+        assert_eq!(checked.identity(), cone.identity());
+        assert_eq!(checked.identity_count(), 4);
+        assert_eq!(encode(checked.hir_wire()).unwrap(), encode(&hir).unwrap());
+        assert_eq!(encode(checked.mir_wire()).unwrap(), encode(&mir).unwrap());
+        assert_eq!(encode(checked.lir_wire()).unwrap(), encode(&lir).unwrap());
     }
 
     #[test]
