@@ -255,6 +255,19 @@ impl BudgetMeter {
             )
         })
     }
+
+    /// Charges and fallibly reserves slots for an owned validation-time
+    /// collection whose size came from an already decoded collection.
+    pub fn try_reserve_collection_slots<T>(
+        &mut self,
+        values: &mut Vec<T>,
+        additional: usize,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        let additional = u64::try_from(additional)
+            .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        self.try_reserve_exact(values, additional, COLLECTION_ELEMENT_BYTES, path)
+    }
 }
 
 fn ceil_log2(value: u64) -> u64 {
@@ -339,6 +352,35 @@ mod tests {
             }
         );
         assert_eq!(meter.usage(), DecodeUsage::default());
+    }
+
+    #[test]
+    fn collection_slot_reservation_has_inclusive_boundaries() {
+        let path = WirePath::root().field(7);
+        let required = super::COLLECTION_ELEMENT_BYTES;
+        for (limit, accepted) in [
+            (required - 1, false),
+            (required, true),
+            (required + 1, true),
+        ] {
+            let mut meter = BudgetMeter::new(DecodeLimits {
+                logical_heap_bytes: limit,
+                ..DecodeLimits::default()
+            });
+            let mut values = Vec::<u8>::new();
+            let result = meter.try_reserve_collection_slots(&mut values, 1, &path);
+            assert_eq!(result.is_ok(), accepted);
+            if !accepted {
+                assert_eq!(
+                    result.unwrap_err().kind(),
+                    &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::LogicalHeapBytes,
+                        limit,
+                        observed: required,
+                    }
+                );
+            }
+        }
     }
 
     #[test]

@@ -102,9 +102,13 @@ fn validate_foundation(
 
     let mut resolver = FoundationResolver { identities };
     let mut signatures = Vec::new();
-    signatures
-        .try_reserve_exact(callable_signatures.len())
-        .map_err(|_| MirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut signatures,
+            callable_signatures.len(),
+            &WirePath::root().field(7),
+        )
+        .map_err(MirFoundationValidationError::Resource)?;
     for (index, signature) in callable_signatures.into_iter().enumerate() {
         signatures.push(
             signature.resolve(&mut resolver).map_err(|error| {
@@ -113,9 +117,13 @@ fn validate_foundation(
         );
     }
     let mut applications = Vec::new();
-    applications
-        .try_reserve_exact(callback_application_records.len())
-        .map_err(|_| MirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut applications,
+            callback_application_records.len(),
+            &WirePath::root().field(10),
+        )
+        .map_err(MirFoundationValidationError::Resource)?;
     for (index, application) in callback_application_records.into_iter().enumerate() {
         applications.push(
             application.resolve(&mut resolver).map_err(|error| {
@@ -439,7 +447,7 @@ impl std::error::Error for CallbackApplicationRelationError {}
 #[derive(Debug)]
 pub enum MirFoundationValidationError {
     WireEncode(scoop_wire::cbor::EncodeError),
-    Allocation,
+    Resource(scoop_wire::WireError),
     Identity(IdentityValidationError),
     CallableSignature {
         index: usize,
@@ -464,7 +472,7 @@ impl fmt::Display for MirFoundationValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::WireEncode(error) => error.fmt(formatter),
-            Self::Allocation => formatter.write_str("failed to allocate MIR foundation validation"),
+            Self::Resource(error) => error.fmt(formatter),
             Self::Identity(error) => error.fmt(formatter),
             Self::CallableSignature { index, error } => {
                 write!(

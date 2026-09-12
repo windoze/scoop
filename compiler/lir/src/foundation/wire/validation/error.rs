@@ -323,7 +323,7 @@ impl std::error::Error for LirFoundationOwnershipError {}
 #[derive(Debug)]
 pub enum LirFoundationValidationError {
     WireEncode(scoop_wire::cbor::EncodeError),
-    Allocation,
+    Resource(scoop_wire::WireError),
     Identity(IdentityValidationError),
     RuntimeType {
         index: usize,
@@ -386,7 +386,7 @@ impl fmt::Display for LirFoundationValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::WireEncode(error) => error.fmt(formatter),
-            Self::Allocation => formatter.write_str("failed to allocate LIR foundation validation"),
+            Self::Resource(error) => error.fmt(formatter),
             Self::Identity(error) => error.fmt(formatter),
             Self::RuntimeType { index, error } => {
                 write!(

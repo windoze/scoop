@@ -111,9 +111,13 @@ fn validate_foundation(
     } = foundation.decoded;
 
     let mut validated_sources = Vec::new();
-    validated_sources
-        .try_reserve_exact(sources.len())
-        .map_err(|_| HirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut validated_sources,
+            sources.len(),
+            &WirePath::root().field(1),
+        )
+        .map_err(HirFoundationValidationError::Resource)?;
     for (index, source) in sources.into_iter().enumerate() {
         validated_sources.push(
             source
@@ -193,9 +197,13 @@ fn validate_foundation(
     validate_source_contexts(&source_contexts, &validated_sources)?;
 
     let mut contracts = Vec::new();
-    contracts
-        .try_reserve_exact(source_native_contracts.len())
-        .map_err(|_| HirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut contracts,
+            source_native_contracts.len(),
+            &WirePath::root().field(26),
+        )
+        .map_err(HirFoundationValidationError::Resource)?;
     for (index, contract) in source_native_contracts.into_iter().enumerate() {
         contracts.push(contract.resolve(identities).map_err(|error| {
             HirFoundationValidationError::SourceNativeContract { index, error }
@@ -203,9 +211,13 @@ fn validate_foundation(
     }
 
     let mut origins = Vec::new();
-    origins
-        .try_reserve_exact(definition_origins.len())
-        .map_err(|_| HirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut origins,
+            definition_origins.len(),
+            &WirePath::root().field(29),
+        )
+        .map_err(HirFoundationValidationError::Resource)?;
     for (index, origin) in definition_origins.into_iter().enumerate() {
         origins.push(
             origin
@@ -238,9 +250,13 @@ fn validate_foundation(
     )?;
 
     let mut boundary_types = Vec::new();
-    boundary_types
-        .try_reserve_exact(native_boundary_types.len())
-        .map_err(|_| HirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut boundary_types,
+            native_boundary_types.len(),
+            &WirePath::root().field(30),
+        )
+        .map_err(HirFoundationValidationError::Resource)?;
     for (index, boundary) in native_boundary_types.into_iter().enumerate() {
         boundary_types.push(
             boundary.resolve(identities).map_err(|error| {
@@ -410,7 +426,7 @@ impl NativeBoundaryResolver<IdentityReferenceError> for ValidatedIdentityGraph {
 pub enum HirFoundationValidationError {
     CoordinateIdentity(scoop_wire::HashError),
     WireEncode(scoop_wire::cbor::EncodeError),
-    Allocation,
+    Resource(scoop_wire::WireError),
     SourceRecord {
         index: usize,
         error: SourceRecordValidationError,
@@ -458,7 +474,7 @@ impl fmt::Display for HirFoundationValidationError {
         match self {
             Self::CoordinateIdentity(error) => error.fmt(formatter),
             Self::WireEncode(error) => error.fmt(formatter),
-            Self::Allocation => formatter.write_str("failed to allocate HIR foundation validation"),
+            Self::Resource(error) => error.fmt(formatter),
             Self::SourceRecord { index, error } => {
                 write!(formatter, "HIR source record {index} is invalid: {error}")
             }

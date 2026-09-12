@@ -179,6 +179,7 @@ impl SlibDiagnostic for SemanticIdentityImportError {
 fn hir_structure_diagnostic(error: &HirFoundationValidationError) -> SlibDiagnosticRecord {
     match error {
         HirFoundationValidationError::Identity(error) => error.diagnostic(),
+        HirFoundationValidationError::Resource(error) => error.diagnostic(),
         HirFoundationValidationError::SourceNativeContract { .. }
         | HirFoundationValidationError::DefinitionOrigin { .. }
         | HirFoundationValidationError::Origin(_)
@@ -195,6 +196,7 @@ fn hir_structure_diagnostic(error: &HirFoundationValidationError) -> SlibDiagnos
 fn mir_structure_diagnostic(error: &MirFoundationValidationError) -> SlibDiagnosticRecord {
     match error {
         MirFoundationValidationError::Identity(error) => error.diagnostic(),
+        MirFoundationValidationError::Resource(error) => error.diagnostic(),
         MirFoundationValidationError::CallbackRelation(_) => {
             SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root())
                 .with_origin(SlibPrimaryOrigin::Metadata(MetadataLocation::Mir))
@@ -207,6 +209,7 @@ fn mir_structure_diagnostic(error: &MirFoundationValidationError) -> SlibDiagnos
 fn lir_structure_diagnostic(error: &LirFoundationValidationError) -> SlibDiagnosticRecord {
     match error {
         LirFoundationValidationError::Identity(error) => error.diagnostic(),
+        LirFoundationValidationError::Resource(error) => error.diagnostic(),
         LirFoundationValidationError::RuntimeType {
             error: scoop_lir::RuntimeTypeMappingResolutionError::Resource(error),
             ..

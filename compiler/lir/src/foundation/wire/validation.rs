@@ -142,9 +142,13 @@ fn validate_foundation(
         records!(22, ObjectDefinitionAtomId, ObjectDefinitionAtomKey);
 
     let mut resolved_runtime_types = Vec::new();
-    resolved_runtime_types
-        .try_reserve_exact(runtime_types.len())
-        .map_err(|_| LirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut resolved_runtime_types,
+            runtime_types.len(),
+            &WirePath::root().field(11),
+        )
+        .map_err(LirFoundationValidationError::Resource)?;
     for (index, record) in runtime_types.into_iter().enumerate() {
         let path = WirePath::root()
             .field(11)
@@ -157,9 +161,13 @@ fn validate_foundation(
     }
 
     let mut resolved_safepoints = Vec::new();
-    resolved_safepoints
-        .try_reserve_exact(safepoints.len())
-        .map_err(|_| LirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut resolved_safepoints,
+            safepoints.len(),
+            &WirePath::root().field(12),
+        )
+        .map_err(LirFoundationValidationError::Resource)?;
     for (index, record) in safepoints.into_iter().enumerate() {
         let path = WirePath::root()
             .field(12)
@@ -176,9 +184,13 @@ fn validate_foundation(
         .map_err(LirFoundationValidationError::SymbolRequests)?;
 
     let mut resolved_signatures = Vec::new();
-    resolved_signatures
-        .try_reserve_exact(c_abi_signatures.len())
-        .map_err(|_| LirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut resolved_signatures,
+            c_abi_signatures.len(),
+            &WirePath::root().field(15),
+        )
+        .map_err(LirFoundationValidationError::Resource)?;
     for (index, record) in c_abi_signatures.into_iter().enumerate() {
         resolved_signatures.push(
             record
@@ -188,9 +200,13 @@ fn validate_foundation(
     }
 
     let mut resolved_layouts = Vec::new();
-    resolved_layouts
-        .try_reserve_exact(c_abi_layouts.len())
-        .map_err(|_| LirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut resolved_layouts,
+            c_abi_layouts.len(),
+            &WirePath::root().field(16),
+        )
+        .map_err(LirFoundationValidationError::Resource)?;
     for (index, record) in c_abi_layouts.into_iter().enumerate() {
         resolved_layouts.push(
             record
@@ -200,9 +216,13 @@ fn validate_foundation(
     }
 
     let mut resolved_contracts = Vec::new();
-    resolved_contracts
-        .try_reserve_exact(native_contracts.len())
-        .map_err(|_| LirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut resolved_contracts,
+            native_contracts.len(),
+            &WirePath::root().field(14),
+        )
+        .map_err(LirFoundationValidationError::Resource)?;
     for (index, record) in native_contracts.into_iter().enumerate() {
         resolved_contracts.push(
             record
@@ -212,9 +232,13 @@ fn validate_foundation(
     }
 
     let mut resolved_callbacks = Vec::new();
-    resolved_callbacks
-        .try_reserve_exact(callback_bridges.len())
-        .map_err(|_| LirFoundationValidationError::Allocation)?;
+    meter
+        .try_reserve_collection_slots(
+            &mut resolved_callbacks,
+            callback_bridges.len(),
+            &WirePath::root().field(19),
+        )
+        .map_err(LirFoundationValidationError::Resource)?;
     for (index, record) in callback_bridges.into_iter().enumerate() {
         resolved_callbacks.push(
             record
