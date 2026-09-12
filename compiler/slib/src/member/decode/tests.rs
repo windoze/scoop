@@ -1,5 +1,5 @@
 use scoop_identity::{CapabilityId, ConeIdentity, ObjectFormatId, TargetProfileWireId};
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode};
 
 use super::*;
 
@@ -9,6 +9,16 @@ fn capability(name: &str) -> CapabilityId {
 
 fn logical_key(bytes: &[u8]) -> LogicalMemberKey {
     LogicalMemberKey::new(bytes.to_vec()).unwrap()
+}
+
+fn validate_member(
+    decoded: DecodedSlibMemberRecord,
+) -> Result<SlibMemberRecord, SlibMemberRecordValidationError> {
+    decoded.validate(
+        ConeIdentity::CORE,
+        &mut BudgetMeter::new(DecodeLimits::default()),
+        &WirePath::root(),
+    )
 }
 
 #[test]
@@ -34,7 +44,7 @@ fn member_record_round_trips_through_untrusted_validation() {
     )
     .unwrap();
 
-    assert_eq!(decoded.validate(ConeIdentity::CORE), Ok(record));
+    assert_eq!(validate_member(decoded), Ok(record));
 }
 
 #[test]
@@ -54,7 +64,7 @@ fn decoded_record_recomputes_member_id() {
     decoded.id.0[0] ^= 1;
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE),
+        validate_member(decoded),
         Err(SlibMemberRecordValidationError::IdMismatch { .. })
     ));
 }

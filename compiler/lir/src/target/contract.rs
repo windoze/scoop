@@ -1,7 +1,10 @@
 use std::fmt;
 
 use scoop_identity::{ObjectFormatId, TargetProfileWireId};
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
+use scoop_wire::{
+    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length,
+};
 
 use super::{
     BackendScalarKind, InternalPointerCarrier, LirTargetProfile, PointerNullEncoding,
@@ -175,6 +178,16 @@ impl TargetProfileFingerprint {
 
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
+    }
+
+    pub fn hash_stream_length(profile: LirTargetProfile) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(
+            TARGET_PROFILE_DOMAIN,
+            &TargetProfileFingerprintInput {
+                id: profile.wire_id(),
+                contract: profile.contract(),
+            },
+        )
     }
 }
 

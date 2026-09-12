@@ -5,7 +5,7 @@ use crate::{
     SlibMemberRecordValidationError, SlibMemberRoleValidationError,
 };
 
-use super::{SlibDiagnosticRecord, SlibErrorCode, SlibPrimaryOrigin};
+use super::{SlibDiagnostic, SlibDiagnosticRecord, SlibErrorCode, SlibPrimaryOrigin};
 
 pub(super) fn cone_record_diagnostic(error: &ConeRecordValidationError) -> SlibDiagnosticRecord {
     let (code, field, origin) = match error {
@@ -37,6 +37,9 @@ pub(super) fn cone_record_diagnostic(error: &ConeRecordValidationError) -> SlibD
             4,
             SlibPrimaryOrigin::Manifest,
         ),
+        ConeRecordValidationError::Resource(error) => {
+            return error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest);
+        }
     };
     SlibDiagnosticRecord::new(code, WirePath::root().field(6).field(field)).with_origin(origin)
 }
@@ -49,6 +52,9 @@ pub(super) fn dependency_record_diagnostic(
         .field(7)
         .index(u64::try_from(index).unwrap_or(u64::MAX));
     match error {
+        DependencyRecordValidationError::Resource(error) => {
+            error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest)
+        }
         DependencyRecordValidationError::Coordinate(_) => {
             SlibDiagnosticRecord::new(SlibErrorCode::ReferenceInvalid, path.field(1))
                 .with_origin(SlibPrimaryOrigin::Manifest)
@@ -76,6 +82,9 @@ pub(super) fn member_record_diagnostic(
         .field(8)
         .index(u64::try_from(index).unwrap_or(u64::MAX));
     let code = match error {
+        SlibMemberRecordValidationError::Resource(error) => {
+            return error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest);
+        }
         SlibMemberRecordValidationError::StableKey(MemberStableKeyValidationError::Capability(
             _,
         )) => SlibErrorCode::CapabilityInvalid,

@@ -18,7 +18,7 @@ pub use cbor::{
     encode, encoded_length,
 };
 pub use digest::{
-    Digest256, HashError, byte_span, domain_separated_cbor_hash,
+    CanonicalHashStream, Digest256, HashError, byte_span, domain_separated_cbor_hash,
     domain_separated_cbor_hash_stream_length, domain_separated_hash_stream_length,
     domain_separated_raw_hash, domain_separated_runtime_hash, sha256,
 };

@@ -1,7 +1,10 @@
 use std::fmt;
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
+use scoop_wire::{
+    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length,
+};
 
 const ARTIFACT_PROFILE_DOMAIN: &str = "scoop-artifact-capability-profile-v1";
 
@@ -135,6 +138,12 @@ impl ArtifactCapabilityProfileFingerprint {
     ) -> Result<Self, HashError> {
         domain_separated_cbor_hash(ARTIFACT_PROFILE_DOMAIN, descriptor)
             .map(|digest| Self(*digest.as_array()))
+    }
+
+    pub(crate) fn hash_stream_length(
+        descriptor: &ArtifactCapabilityProfileDescriptor,
+    ) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(ARTIFACT_PROFILE_DOMAIN, descriptor)
     }
 
     pub const fn as_array(&self) -> &[u8; 32] {

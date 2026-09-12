@@ -16,11 +16,14 @@ use records::{
 use std::fmt;
 
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::{Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
+use scoop_wire::{
+    BudgetMeter, Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError, WirePath,
+};
 
 use super::{
-    ArtifactFingerprint, BootstrapManifest, BootstrapManifestError, ProducerRecord,
-    ProducerRecordError,
+    ArtifactFingerprint, BootstrapManifest, BootstrapManifestError, CanonicalManifestRecords,
+    MAX_MEMBERS, ProducerRecord, ProducerRecordError,
 };
 use crate::{DecodedSlibMemberRecord, SlibMemberRecordValidationError};
 
@@ -46,51 +49,92 @@ impl DecodedBootstrapManifest {
     pub fn validate(
         self,
         selection: ValidatedLirTargetSelection,
+        meter: &mut BudgetMeter,
     ) -> Result<BootstrapManifest, BootstrapManifestValidationError> {
         if self.magic != MANIFEST_MAGIC {
             return Err(BootstrapManifestValidationError::BadMagic);
         }
         require_initial_schema(SchemaKind::Manifest, self.manifest_schema)?;
         require_initial_schema(SchemaKind::Container, self.container_schema)?;
+        if self.members.len() > MAX_MEMBERS {
+            return Err(BootstrapManifestValidationError::Manifest(
+                BootstrapManifestError::TooManyMembers {
+                    actual: self.members.len(),
+                },
+            ));
+        }
         let producer = self
             .producer
             .validate()
             .map_err(BootstrapManifestValidationError::Producer)?;
         let compatibility = self
             .compatibility
-            .validate(selection)
+            .validate(selection, meter, &WirePath::root().field(5))
             .map_err(BootstrapManifestValidationError::Compatibility)?;
         let cone = self
             .cone
-            .validate()
+            .validate(meter, &WirePath::root().field(6))
             .map_err(BootstrapManifestValidationError::Cone)?;
         let cone_identity = cone.identity();
 
         let mut dependencies = Vec::new();
-        dependencies
-            .try_reserve_exact(self.direct_dependencies.len())
-            .map_err(|_| BootstrapManifestValidationError::Allocation)?;
+        let dependency_path = WirePath::root().field(7);
+        let dependency_count = u64::try_from(self.direct_dependencies.len()).map_err(|_| {
+            BootstrapManifestValidationError::Budget(integer_range(&dependency_path))
+        })?;
+        meter
+            .try_reserve_exact(
+                &mut dependencies,
+                dependency_count,
+                COLLECTION_ELEMENT_BYTES,
+                &dependency_path,
+            )
+            .map_err(BootstrapManifestValidationError::Budget)?;
         for (index, dependency) in self.direct_dependencies.into_iter().enumerate() {
+            let item_path = dependency_path
+                .clone()
+                .index(u64::try_from(index).map_err(|_| {
+                    BootstrapManifestValidationError::Budget(integer_range(&dependency_path))
+                })?);
             dependencies.push(
-                dependency.validate().map_err(|error| {
+                dependency.validate(meter, &item_path).map_err(|error| {
                     BootstrapManifestValidationError::Dependency { index, error }
                 })?,
             );
         }
+        meter
+            .charge_canonical_sequence(dependency_count, &dependency_path)
+            .map_err(BootstrapManifestValidationError::Budget)?;
         require_strictly_increasing_dependencies(&dependencies)?;
 
         let mut members = Vec::new();
-        members
-            .try_reserve_exact(self.members.len())
-            .map_err(|_| BootstrapManifestValidationError::Allocation)?;
+        let member_path = WirePath::root().field(8);
+        let member_count = u64::try_from(self.members.len())
+            .map_err(|_| BootstrapManifestValidationError::Budget(integer_range(&member_path)))?;
+        meter
+            .try_reserve_exact(
+                &mut members,
+                member_count,
+                COLLECTION_ELEMENT_BYTES,
+                &member_path,
+            )
+            .map_err(BootstrapManifestValidationError::Budget)?;
         for (index, member) in self.members.into_iter().enumerate() {
-            members.push(member.validate(cone_identity).map_err(|error| {
-                BootstrapManifestValidationError::Member {
-                    index,
-                    error: Box::new(error),
-                }
+            let item_path = member_path.clone().index(u64::try_from(index).map_err(|_| {
+                BootstrapManifestValidationError::Budget(integer_range(&member_path))
             })?);
+            members.push(
+                member
+                    .validate(cone_identity, meter, &item_path)
+                    .map_err(|error| BootstrapManifestValidationError::Member {
+                        index,
+                        error: Box::new(error),
+                    })?,
+            );
         }
+        meter
+            .charge_canonical_sequence(member_count, &member_path)
+            .map_err(BootstrapManifestValidationError::Budget)?;
         require_strictly_increasing_members(&members)?;
 
         let semantic_fingerprints = self
@@ -99,26 +143,43 @@ impl DecodedBootstrapManifest {
             .map_err(BootstrapManifestValidationError::SemanticFingerprints)?;
 
         let mut sections = Vec::new();
-        sections
-            .try_reserve_exact(self.sections.len())
-            .map_err(|_| BootstrapManifestValidationError::Allocation)?;
+        let section_path = WirePath::root().field(10);
+        let section_count = u64::try_from(self.sections.len())
+            .map_err(|_| BootstrapManifestValidationError::Budget(integer_range(&section_path)))?;
+        meter
+            .try_reserve_exact(
+                &mut sections,
+                section_count,
+                COLLECTION_ELEMENT_BYTES,
+                &section_path,
+            )
+            .map_err(BootstrapManifestValidationError::Budget)?;
         for (index, section) in self.sections.into_iter().enumerate() {
+            meter
+                .charge_work(32, &section_path)
+                .map_err(BootstrapManifestValidationError::Budget)?;
             sections.push(
                 section
                     .validate()
                     .map_err(|error| BootstrapManifestValidationError::Section { index, error })?,
             );
         }
+        meter
+            .charge_canonical_sequence(section_count, &section_path)
+            .map_err(BootstrapManifestValidationError::Budget)?;
         require_strictly_increasing_sections(&sections)?;
 
-        let manifest = BootstrapManifest::from_validated_records(
-            producer,
-            compatibility,
-            cone,
-            dependencies,
-            members,
-            semantic_fingerprints,
-            sections,
+        let manifest = BootstrapManifest::from_canonical_records(
+            CanonicalManifestRecords {
+                producer,
+                compatibility,
+                cone,
+                direct_dependencies: dependencies,
+                members,
+                semantic_fingerprints,
+                sections,
+            },
+            meter,
         )
         .map_err(BootstrapManifestValidationError::Manifest)?;
         if self.artifact_fingerprint.as_array() != manifest.artifact_fingerprint().as_array() {
@@ -190,7 +251,7 @@ struct DecodedProducerRecord {
 
 impl DecodedProducerRecord {
     fn validate(self) -> Result<ProducerRecord, ProducerRecordError> {
-        ProducerRecord::new(&self.compiler_version)
+        ProducerRecord::from_owned(self.compiler_version)
     }
 }
 
@@ -266,7 +327,7 @@ pub enum BootstrapManifestValidationError {
         expected: ArtifactFingerprint,
         actual: [u8; 32],
     },
-    Allocation,
+    Budget(WireError),
 }
 
 impl fmt::Display for BootstrapManifestValidationError {
@@ -316,9 +377,17 @@ impl fmt::Display for BootstrapManifestValidationError {
                 )?;
                 write_hex(actual, formatter)
             }
-            Self::Allocation => formatter.write_str("failed to allocate validated manifest tables"),
+            Self::Budget(error) => error.fmt(formatter),
         }
     }
+}
+
+fn integer_range(path: &WirePath) -> WireError {
+    WireError::new(
+        scoop_wire::WireErrorKind::IntegerOutOfRange,
+        path.clone(),
+        None,
+    )
 }
 
 impl std::error::Error for BootstrapManifestValidationError {}

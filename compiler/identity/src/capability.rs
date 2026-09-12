@@ -11,11 +11,7 @@ pub struct CapabilityId {
 
 impl CapabilityId {
     pub fn new(namespace: &str, name: &str, major_version: u32) -> Result<Self, CapabilityIdError> {
-        validate_namespace(namespace)?;
-        validate_label(name, 63).map_err(CapabilityIdError::Name)?;
-        if major_version == 0 {
-            return Err(CapabilityIdError::ZeroMajorVersion);
-        }
+        validate_capability(namespace, name, major_version)?;
         Ok(Self {
             namespace: namespace.to_owned(),
             name: name.to_owned(),
@@ -42,6 +38,32 @@ impl CapabilityId {
             major_version: 1,
         }
     }
+
+    fn from_owned(
+        namespace: String,
+        name: String,
+        major_version: u32,
+    ) -> Result<Self, CapabilityIdError> {
+        validate_capability(&namespace, &name, major_version)?;
+        Ok(Self {
+            namespace,
+            name,
+            major_version,
+        })
+    }
+}
+
+fn validate_capability(
+    namespace: &str,
+    name: &str,
+    major_version: u32,
+) -> Result<(), CapabilityIdError> {
+    validate_namespace(namespace)?;
+    validate_label(name, 63).map_err(CapabilityIdError::Name)?;
+    if major_version == 0 {
+        return Err(CapabilityIdError::ZeroMajorVersion);
+    }
+    Ok(())
 }
 
 impl WireEncode for CapabilityId {
@@ -65,7 +87,7 @@ pub struct DecodedCapabilityId {
 
 impl DecodedCapabilityId {
     pub fn validate(self) -> Result<CapabilityId, CapabilityIdError> {
-        CapabilityId::new(&self.namespace, &self.name, self.major_version)
+        CapabilityId::from_owned(self.namespace, self.name, self.major_version)
     }
 }
 

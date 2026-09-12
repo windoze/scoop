@@ -5,7 +5,8 @@ use scoop_identity::{
     DecodedPersistentId, PersistentIdMismatch,
 };
 use scoop_wire::{
-    Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
+    BudgetMeter, Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError,
+    WireErrorKind, WirePath,
 };
 
 use super::super::{
@@ -24,11 +25,21 @@ pub(super) struct DecodedConeRecord {
 }
 
 impl DecodedConeRecord {
-    pub(super) fn validate(self) -> Result<ConeRecord, ConeRecordValidationError> {
+    pub(super) fn validate(
+        self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<ConeRecord, ConeRecordValidationError> {
         let coordinate = self
             .coordinate
             .validate()
             .map_err(ConeRecordValidationError::Coordinate)?;
+        let stream_length = coordinate
+            .identity_hash_stream_length()
+            .map_err(ConeRecordValidationError::Hash)?;
+        meter
+            .charge_sha256(stream_length, path)
+            .map_err(ConeRecordValidationError::Resource)?;
         let expected = coordinate
             .identity()
             .map_err(ConeRecordValidationError::Hash)?;
@@ -45,7 +56,8 @@ impl DecodedConeRecord {
             2 => ConeSourceForm::SingleFile,
             actual => return Err(ConeRecordValidationError::UnknownSourceForm { actual }),
         };
-        ConeRecord::new(coordinate, kind, source_form).map_err(ConeRecordValidationError::Record)
+        ConeRecord::from_validated(coordinate, expected, kind, source_form)
+            .map_err(ConeRecordValidationError::Record)
     }
 }
 
@@ -83,6 +95,7 @@ pub enum ConeRecordValidationError {
     UnknownKind { actual: u32 },
     UnknownSourceForm { actual: u32 },
     Record(ConeRecordError),
+    Resource(WireError),
 }
 
 impl fmt::Display for ConeRecordValidationError {
@@ -96,6 +109,7 @@ impl fmt::Display for ConeRecordValidationError {
                 write!(formatter, "unknown Cone source form {actual}")
             }
             Self::Record(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }
@@ -112,24 +126,34 @@ pub(super) struct DecodedDependencyRecord {
 }
 
 impl DecodedDependencyRecord {
-    pub(super) fn validate(self) -> Result<DependencyRecord, DependencyRecordValidationError> {
+    pub(super) fn validate(
+        self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<DependencyRecord, DependencyRecordValidationError> {
         let coordinate = self
             .coordinate
             .validate()
             .map_err(DependencyRecordValidationError::Coordinate)?;
+        let stream_length = coordinate
+            .identity_hash_stream_length()
+            .map_err(DependencyRecordValidationError::Hash)?;
+        meter
+            .charge_sha256(stream_length, path)
+            .map_err(DependencyRecordValidationError::Resource)?;
         let expected = coordinate
             .identity()
             .map_err(DependencyRecordValidationError::Hash)?;
         self.identity
             .verify(expected)
             .map_err(DependencyRecordValidationError::Identity)?;
-        DependencyRecord::new(
+        Ok(DependencyRecord::from_validated(
             coordinate,
+            expected,
             HirFingerprint::from_array(*self.hir_fingerprint.as_array()),
             MirFingerprint::from_array(*self.mir_fingerprint.as_array()),
             LirFingerprint::from_array(*self.lir_fingerprint.as_array()),
-        )
-        .map_err(DependencyRecordValidationError::Hash)
+        ))
     }
 }
 
@@ -167,6 +191,7 @@ pub enum DependencyRecordValidationError {
     Coordinate(ConeCoordinateError),
     Hash(HashError),
     Identity(PersistentIdMismatch<ConeIdentity>),
+    Resource(WireError),
 }
 
 impl fmt::Display for DependencyRecordValidationError {
@@ -175,6 +200,7 @@ impl fmt::Display for DependencyRecordValidationError {
             Self::Coordinate(error) => error.fmt(formatter),
             Self::Hash(error) => error.fmt(formatter),
             Self::Identity(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }

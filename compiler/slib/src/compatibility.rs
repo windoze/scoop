@@ -4,7 +4,10 @@ use scoop_identity::{
     ArtifactCapabilityProfileId, BackendProfileWireId, ManglingSchemaIdentity, TargetProfileWireId,
 };
 use scoop_lir::{BackendProfileFingerprint, TargetProfileFingerprint, ValidatedLirTargetSelection};
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
+use scoop_wire::{
+    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length,
+};
 
 use crate::{ArtifactCapabilityProfile, ArtifactCapabilityProfileFingerprint};
 
@@ -169,6 +172,30 @@ impl CompatibilityRecord {
             artifact_profile: artifact_profile.id(),
             artifact_profile_fingerprint: artifact_profile.fingerprint()?,
         })
+    }
+
+    pub(crate) fn identity_foundation_hash_stream_lengths(
+        selection: ValidatedLirTargetSelection,
+    ) -> Result<[u64; 6], HashError> {
+        let descriptor_shape = IdentityAbiDescriptor {
+            language_abi: LanguageAbiFingerprint([0; 32]),
+            runtime_abi: RuntimeAbiFingerprint([0; 32]),
+            mangling_schema: ManglingSchemaIdentity,
+        };
+        let artifact_profile = ArtifactCapabilityProfile::IDENTITY_FOUNDATION;
+        Ok([
+            domain_separated_cbor_hash_stream_length(LANGUAGE_ABI_DOMAIN, &LanguageAbiContract)?,
+            domain_separated_cbor_hash_stream_length(RUNTIME_ABI_DOMAIN, &RuntimeAbiContract)?,
+            TargetProfileFingerprint::hash_stream_length(selection.target())?,
+            BackendProfileFingerprint::hash_stream_length(selection.backend())?,
+            domain_separated_cbor_hash_stream_length(
+                COMPOSITE_IDENTITY_ABI_DOMAIN,
+                &descriptor_shape,
+            )?,
+            ArtifactCapabilityProfileFingerprint::hash_stream_length(
+                &artifact_profile.descriptor(),
+            )?,
+        ])
     }
 
     pub const fn language_abi(&self) -> LanguageAbiFingerprint {

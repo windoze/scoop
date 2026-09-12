@@ -1,6 +1,9 @@
 use std::fmt;
 
-use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
+use scoop_wire::{
+    Decoder, Encoder, HashError, WireDecode, WireEncode, WireError,
+    domain_separated_cbor_hash_stream_length,
+};
 
 pub use crate::ids::ConeIdentity;
 use crate::ids::derive_persistent_id;
@@ -34,13 +37,7 @@ pub struct ConeCoordinate {
 
 impl ConeCoordinate {
     pub fn new(group: &str, name: &str, version: &str) -> Result<Self, ConeCoordinateError> {
-        validate_coordinate_text(ConeCoordinateComponent::Group, group)?;
-        validate_coordinate_text(ConeCoordinateComponent::Name, name)?;
-        let parsed = semver::Version::parse(version)
-            .map_err(|_| ConeCoordinateError::InvalidSemanticVersion)?;
-        if parsed.to_string() != version {
-            return Err(ConeCoordinateError::NonCanonicalSemanticVersion);
-        }
+        validate_coordinate(group, name, version)?;
         Ok(Self {
             group: group.to_owned(),
             name: name.to_owned(),
@@ -79,6 +76,34 @@ impl ConeCoordinate {
     pub fn identity(&self) -> Result<ConeIdentity, HashError> {
         derive_persistent_id(CONE_ID_DOMAIN, self)
     }
+
+    pub fn identity_hash_stream_length(&self) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(CONE_ID_DOMAIN, self)
+    }
+
+    fn from_owned(
+        group: String,
+        name: String,
+        version: String,
+    ) -> Result<Self, ConeCoordinateError> {
+        validate_coordinate(&group, &name, &version)?;
+        Ok(Self {
+            group,
+            name,
+            version,
+        })
+    }
+}
+
+fn validate_coordinate(group: &str, name: &str, version: &str) -> Result<(), ConeCoordinateError> {
+    validate_coordinate_text(ConeCoordinateComponent::Group, group)?;
+    validate_coordinate_text(ConeCoordinateComponent::Name, name)?;
+    let parsed =
+        semver::Version::parse(version).map_err(|_| ConeCoordinateError::InvalidSemanticVersion)?;
+    if parsed.to_string() != version {
+        return Err(ConeCoordinateError::NonCanonicalSemanticVersion);
+    }
+    Ok(())
 }
 
 impl WireEncode for ConeCoordinate {
@@ -109,7 +134,7 @@ pub struct DecodedConeCoordinate {
 
 impl DecodedConeCoordinate {
     pub fn validate(self) -> Result<ConeCoordinate, ConeCoordinateError> {
-        ConeCoordinate::new(&self.group, &self.name, &self.version)
+        ConeCoordinate::from_owned(self.group, self.name, self.version)
     }
 }
 

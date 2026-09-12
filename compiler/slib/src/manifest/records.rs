@@ -1,7 +1,9 @@
 use std::fmt;
 
 use scoop_identity::{CapabilityId, CapabilityIdError, ConeCoordinate, ConeIdentity};
-use scoop_wire::{Encoder, HashError, WireEncode, byte_span, encode, sha256};
+use scoop_wire::{
+    BudgetMeter, CanonicalHashStream, Encoder, HashError, WireEncode, WireError, encoded_length,
+};
 
 use super::{
     ArtifactFingerprint, CodeFingerprint, FingerprintAvailability, HirFingerprint, LirFingerprint,
@@ -13,7 +15,7 @@ const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
 const INITIAL_SCHEMA: u64 = 1;
 const ARTIFACT_FINGERPRINT_DOMAIN: &[u8] = b"scoop-artifact-v1";
 const MAX_PRODUCER_BYTES: usize = 255;
-const MAX_MEMBERS: usize = 65_536;
+pub(super) const MAX_MEMBERS: usize = 65_536;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProducerRecord {
@@ -30,6 +32,15 @@ impl ProducerRecord {
         Ok(Self {
             compiler_version: compiler_version.to_owned(),
         })
+    }
+
+    pub(super) fn from_owned(compiler_version: String) -> Result<Self, ProducerRecordError> {
+        if compiler_version.len() > MAX_PRODUCER_BYTES {
+            return Err(ProducerRecordError::TooLong {
+                actual: compiler_version.len(),
+            });
+        }
+        Ok(Self { compiler_version })
     }
 
     pub fn compiler_version(&self) -> &str {
@@ -109,11 +120,20 @@ impl ConeRecord {
         kind: ConeKind,
         source_form: ConeSourceForm,
     ) -> Result<Self, ConeRecordError> {
+        let identity = coordinate.identity().map_err(ConeRecordError::Hash)?;
+        Self::from_validated(coordinate, identity, kind, source_form)
+    }
+
+    pub(super) fn from_validated(
+        coordinate: ConeCoordinate,
+        identity: ConeIdentity,
+        kind: ConeKind,
+        source_form: ConeSourceForm,
+    ) -> Result<Self, ConeRecordError> {
         let is_reserved_single_file = coordinate == ConeCoordinate::reserved_single_file();
         if is_reserved_single_file != (source_form == ConeSourceForm::SingleFile) {
             return Err(ConeRecordError::SingleFileCoordinateMismatch);
         }
-        let identity = coordinate.identity().map_err(ConeRecordError::Hash)?;
         Ok(Self {
             coordinate,
             identity,
@@ -189,13 +209,29 @@ impl DependencyRecord {
         lir_fingerprint: LirFingerprint,
     ) -> Result<Self, HashError> {
         let identity = coordinate.identity()?;
-        Ok(Self {
+        Ok(Self::from_validated(
             coordinate,
             identity,
             hir_fingerprint,
             mir_fingerprint,
             lir_fingerprint,
-        })
+        ))
+    }
+
+    pub(super) const fn from_validated(
+        coordinate: ConeCoordinate,
+        identity: ConeIdentity,
+        hir_fingerprint: HirFingerprint,
+        mir_fingerprint: MirFingerprint,
+        lir_fingerprint: LirFingerprint,
+    ) -> Self {
+        Self {
+            coordinate,
+            identity,
+            hir_fingerprint,
+            mir_fingerprint,
+            lir_fingerprint,
+        }
     }
 
     pub const fn identity(&self) -> ConeIdentity {
@@ -384,6 +420,16 @@ pub struct BootstrapManifest {
     artifact_fingerprint: ArtifactFingerprint,
 }
 
+pub(super) struct CanonicalManifestRecords {
+    pub(super) producer: ProducerRecord,
+    pub(super) compatibility: CompatibilityRecord,
+    pub(super) cone: ConeRecord,
+    pub(super) direct_dependencies: Vec<DependencyRecord>,
+    pub(super) members: Vec<SlibMemberRecord>,
+    pub(super) semantic_fingerprints: SemanticFingerprintRecord,
+    pub(super) sections: Vec<ManifestSection>,
+}
+
 impl BootstrapManifest {
     pub fn new(
         producer: ProducerRecord,
@@ -401,54 +447,64 @@ impl BootstrapManifest {
             .collect::<Vec<_>>();
         member_records.sort_unstable_by_key(SlibMemberRecord::id);
         sections.sort_unstable_by(|left, right| left.capability.cmp(&right.capability));
-        Self::from_validated_records(
-            producer,
-            compatibility,
-            cone,
-            direct_dependencies,
-            member_records,
-            semantic_fingerprints,
-            sections,
-        )
-    }
-
-    pub(super) fn from_validated_records(
-        producer: ProducerRecord,
-        compatibility: CompatibilityRecord,
-        cone: ConeRecord,
-        direct_dependencies: Vec<DependencyRecord>,
-        members: Vec<SlibMemberRecord>,
-        semantic_fingerprints: SemanticFingerprintRecord,
-        sections: Vec<ManifestSection>,
-    ) -> Result<Self, BootstrapManifestError> {
-        if members.len() > MAX_MEMBERS {
+        if member_records.len() > MAX_MEMBERS {
             return Err(BootstrapManifestError::TooManyMembers {
-                actual: members.len(),
+                actual: member_records.len(),
             });
         }
         reject_duplicate_dependencies(&direct_dependencies)?;
-        reject_duplicate_members(&members)?;
-        require_foundation_metadata(&members)?;
+        reject_duplicate_members(&member_records)?;
+        require_foundation_metadata(&member_records)?;
         reject_duplicate_sections(&sections)?;
+        Self::build(
+            CanonicalManifestRecords {
+                producer,
+                compatibility,
+                cone,
+                direct_dependencies,
+                members: member_records,
+                semantic_fingerprints,
+                sections,
+            },
+            None,
+        )
+    }
+
+    pub(super) fn from_canonical_records(
+        records: CanonicalManifestRecords,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, BootstrapManifestError> {
+        if records.members.len() > MAX_MEMBERS {
+            return Err(BootstrapManifestError::TooManyMembers {
+                actual: records.members.len(),
+            });
+        }
+        require_foundation_metadata(&records.members)?;
+        Self::build(records, Some(meter))
+    }
+
+    fn build(
+        records: CanonicalManifestRecords,
+        meter: Option<&mut BudgetMeter>,
+    ) -> Result<Self, BootstrapManifestError> {
         let input = ArtifactManifestInput {
-            producer: &producer,
-            compatibility: &compatibility,
-            cone: &cone,
-            direct_dependencies: &direct_dependencies,
-            members: &members,
-            semantic_fingerprints: &semantic_fingerprints,
-            sections: &sections,
+            producer: &records.producer,
+            compatibility: &records.compatibility,
+            cone: &records.cone,
+            direct_dependencies: &records.direct_dependencies,
+            members: &records.members,
+            semantic_fingerprints: &records.semantic_fingerprints,
+            sections: &records.sections,
         };
-        let artifact_fingerprint = calculate_artifact_fingerprint(&input, &members)
-            .map_err(BootstrapManifestError::Hash)?;
+        let artifact_fingerprint = calculate_artifact_fingerprint(&input, &records.members, meter)?;
         Ok(Self {
-            producer,
-            compatibility,
-            cone,
-            direct_dependencies,
-            members,
-            semantic_fingerprints,
-            sections,
+            producer: records.producer,
+            compatibility: records.compatibility,
+            cone: records.cone,
+            direct_dependencies: records.direct_dependencies,
+            members: records.members,
+            semantic_fingerprints: records.semantic_fingerprints,
+            sections: records.sections,
             artifact_fingerprint,
         })
     }
@@ -508,6 +564,7 @@ pub enum BootstrapManifestError {
     MissingMetadata { kind: MetadataKind },
     DuplicateSection { capability: CapabilityId },
     Hash(HashError),
+    Resource(WireError),
 }
 
 impl fmt::Display for BootstrapManifestError {
@@ -529,6 +586,7 @@ impl fmt::Display for BootstrapManifestError {
                 capability.major_version(),
             ),
             Self::Hash(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }
@@ -607,23 +665,63 @@ fn encode_array_field<T: WireEncode>(
 fn calculate_artifact_fingerprint(
     input: &ArtifactManifestInput<'_>,
     members: &[SlibMemberRecord],
-) -> Result<ArtifactFingerprint, HashError> {
-    let encoded_input = encode(input).map_err(|_| HashError::CborEncoding)?;
-    let mut bytes = byte_span(ARTIFACT_FINGERPRINT_DOMAIN)?;
-    append_span(&mut bytes, &encoded_input)?;
-    for member in members {
-        append_span(&mut bytes, member.fingerprint()?.as_array())?;
+    meter: Option<&mut BudgetMeter>,
+) -> Result<ArtifactFingerprint, BootstrapManifestError> {
+    if let Some(meter) = meter {
+        meter
+            .charge_sha256(
+                artifact_fingerprint_hash_stream_length(input, members.len())
+                    .map_err(BootstrapManifestError::Hash)?,
+                &Default::default(),
+            )
+            .map_err(BootstrapManifestError::Resource)?;
+        for member in members {
+            meter
+                .charge_sha256(
+                    member
+                        .fingerprint_hash_stream_length()
+                        .map_err(BootstrapManifestError::Hash)?,
+                    &Default::default(),
+                )
+                .map_err(BootstrapManifestError::Resource)?;
+        }
     }
-    Ok(ArtifactFingerprint::from_array(*sha256(&bytes).as_array()))
+
+    let mut stream = CanonicalHashStream::new();
+    stream
+        .update_byte_span(ARTIFACT_FINGERPRINT_DOMAIN)
+        .map_err(BootstrapManifestError::Hash)?;
+    stream
+        .update_canonical_cbor_span(input)
+        .map_err(BootstrapManifestError::Hash)?;
+    for member in members {
+        let fingerprint = member.fingerprint().map_err(BootstrapManifestError::Hash)?;
+        stream
+            .update_byte_span(fingerprint.as_array())
+            .map_err(BootstrapManifestError::Hash)?;
+    }
+    Ok(ArtifactFingerprint::from_array(
+        *stream.finalize().as_array(),
+    ))
 }
 
-fn append_span(output: &mut Vec<u8>, value: &[u8]) -> Result<(), HashError> {
-    let span = byte_span(value)?;
-    output
-        .try_reserve_exact(span.len())
-        .map_err(|_| HashError::LengthOverflow)?;
-    output.extend_from_slice(&span);
-    Ok(())
+fn artifact_fingerprint_hash_stream_length(
+    input: &ArtifactManifestInput<'_>,
+    member_count: usize,
+) -> Result<u64, HashError> {
+    let domain_length =
+        u64::try_from(ARTIFACT_FINGERPRINT_DOMAIN.len()).map_err(|_| HashError::LengthOverflow)?;
+    let input_length = encoded_length(input).map_err(|_| HashError::CborEncoding)?;
+    let member_count = u64::try_from(member_count).map_err(|_| HashError::LengthOverflow)?;
+    let member_spans = member_count
+        .checked_mul(40)
+        .ok_or(HashError::LengthOverflow)?;
+    8_u64
+        .checked_add(domain_length)
+        .and_then(|length| length.checked_add(8))
+        .and_then(|length| length.checked_add(input_length))
+        .and_then(|length| length.checked_add(member_spans))
+        .ok_or(HashError::LengthOverflow)
 }
 
 fn reject_duplicate_dependencies(

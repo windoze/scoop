@@ -5,7 +5,10 @@ use scoop_identity::{
     CapabilityRefinementError, DecodedCapabilityId, ManglingSchemaIdentity, TargetProfileWireId,
 };
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::{Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError};
+use scoop_wire::{
+    BudgetMeter, Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError,
+    WirePath,
+};
 
 use crate::CompatibilityRecord;
 
@@ -33,12 +36,22 @@ impl DecodedCompatibilityRecord {
     pub(super) fn validate(
         self,
         selection: ValidatedLirTargetSelection,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<CompatibilityRecord, CompatibilityValidationError> {
         require_schema(CompatibilitySchemaKind::Identity, self.identity_schema)?;
         require_schema(CompatibilitySchemaKind::Hir, self.hir_schema)?;
         require_schema(CompatibilitySchemaKind::Mir, self.mir_schema)?;
         require_schema(CompatibilitySchemaKind::Lir, self.lir_schema)?;
 
+        let hash_stream_lengths =
+            CompatibilityRecord::identity_foundation_hash_stream_lengths(selection)
+                .map_err(CompatibilityValidationError::Hash)?;
+        for stream_length in hash_stream_lengths {
+            meter
+                .charge_sha256(stream_length, path)
+                .map_err(CompatibilityValidationError::Resource)?;
+        }
         let expected = CompatibilityRecord::identity_foundation(selection)
             .map_err(CompatibilityValidationError::Hash)?;
         if self.mangling_schema != ManglingSchemaIdentity.canonical_name() {
@@ -224,6 +237,7 @@ pub enum CompatibilityValidationError {
         actual: [u8; 32],
     },
     Hash(HashError),
+    Resource(WireError),
 }
 
 impl fmt::Display for CompatibilityValidationError {
@@ -253,6 +267,7 @@ impl fmt::Display for CompatibilityValidationError {
                 write_hex(actual, formatter)
             }
             Self::Hash(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }

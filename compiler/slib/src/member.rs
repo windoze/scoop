@@ -2,8 +2,8 @@ use std::fmt;
 
 use scoop_identity::{ConeIdentity, ObjectFormatId, TargetProfileWireId};
 use scoop_wire::{
-    Digest256, Encoder, HashError, WireEncode, byte_span, domain_separated_cbor_hash, encode,
-    sha256,
+    CanonicalHashStream, Digest256, Encoder, HashError, WireEncode, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length, encoded_length, sha256,
 };
 
 const MEMBER_ID_DOMAIN: &str = "scoop-slib-member-v1";
@@ -330,6 +330,10 @@ impl SlibMemberRecord {
             .map(|digest| MemberFingerprint(*digest.as_array()))
     }
 
+    pub(crate) fn fingerprint_hash_stream_length(&self) -> Result<u64, HashError> {
+        domain_separated_cbor_hash_stream_length(MEMBER_FINGERPRINT_DOMAIN, self)
+    }
+
     pub fn as_link_member(&self) -> Option<LinkMemberRecord<'_>> {
         match self.role {
             SlibMemberRole::LinkObject { .. }
@@ -379,19 +383,22 @@ impl SlibMemberId {
         cone: ConeIdentity,
         stable_key: &MemberStableKey,
     ) -> Result<Self, HashError> {
-        let mut hash_input = byte_span(MEMBER_ID_DOMAIN.as_bytes())?;
-        let encoded_key = encode(stable_key).map_err(|_| HashError::CborEncoding)?;
-        let additional = cone
-            .as_array()
-            .len()
-            .checked_add(encoded_key.len())
-            .ok_or(HashError::LengthOverflow)?;
-        hash_input
-            .try_reserve_exact(additional)
-            .map_err(|_| HashError::LengthOverflow)?;
-        hash_input.extend_from_slice(cone.as_array());
-        hash_input.extend_from_slice(&encoded_key);
-        Ok(Self(*sha256(&hash_input).as_array()))
+        let mut stream = CanonicalHashStream::new();
+        stream.update_byte_span(MEMBER_ID_DOMAIN.as_bytes())?;
+        stream.update_raw(cone.as_array());
+        stream.update_canonical_cbor(stable_key)?;
+        Ok(Self(*stream.finalize().as_array()))
+    }
+
+    pub(crate) fn hash_stream_length(stable_key: &MemberStableKey) -> Result<u64, HashError> {
+        let domain_length =
+            u64::try_from(MEMBER_ID_DOMAIN.len()).map_err(|_| HashError::LengthOverflow)?;
+        let key_length = encoded_length(stable_key).map_err(|_| HashError::CborEncoding)?;
+        8_u64
+            .checked_add(domain_length)
+            .and_then(|length| length.checked_add(32))
+            .and_then(|length| length.checked_add(key_length))
+            .ok_or(HashError::LengthOverflow)
     }
 }
 

@@ -4,7 +4,10 @@ use scoop_identity::{
     CapabilityIdError, CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId,
     TargetProfileWireId,
 };
-use scoop_wire::{Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{
+    BudgetMeter, Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError, WireErrorKind,
+    WirePath,
+};
 
 use super::{
     ExtensionRequirement, LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberId,
@@ -384,6 +387,8 @@ impl DecodedSlibMemberRecord {
     pub fn validate(
         self,
         cone: scoop_identity::ConeIdentity,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<SlibMemberRecord, SlibMemberRecordValidationError> {
         let stable_key = self
             .stable_key
@@ -394,6 +399,11 @@ impl DecodedSlibMemberRecord {
             .validate()
             .map_err(SlibMemberRecordValidationError::Role)?;
         validate_key_role(&stable_key, &role).map_err(SlibMemberRecordValidationError::KeyRole)?;
+        let stream_length = SlibMemberId::hash_stream_length(&stable_key)
+            .map_err(SlibMemberRecordValidationError::Hash)?;
+        meter
+            .charge_sha256(stream_length, path)
+            .map_err(SlibMemberRecordValidationError::Resource)?;
         let expected = SlibMemberId::from_stable_key(cone, &stable_key)
             .map_err(SlibMemberRecordValidationError::Hash)?;
         if self.id.0 != *expected.as_array() {
@@ -492,6 +502,7 @@ pub enum SlibMemberRecordValidationError {
     Role(SlibMemberRoleValidationError),
     KeyRole(SlibMemberRecordError),
     Hash(scoop_wire::HashError),
+    Resource(WireError),
     IdMismatch {
         expected: SlibMemberId,
         actual: [u8; 32],
@@ -505,6 +516,7 @@ impl fmt::Display for SlibMemberRecordValidationError {
             Self::Role(error) => error.fmt(formatter),
             Self::KeyRole(error) => error.fmt(formatter),
             Self::Hash(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
             Self::IdMismatch { expected, actual } => {
                 write!(
                     formatter,

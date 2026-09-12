@@ -411,7 +411,7 @@ impl SlibDiagnostic for BootstrapManifestValidationError {
                 WirePath::root().field(11),
             )
             .with_origin(manifest),
-            Self::Allocation => root_diagnostic(SlibErrorCode::LimitAllocation, manifest),
+            Self::Budget(error) => error.diagnostic().with_origin(manifest),
         }
     }
 }
@@ -576,6 +576,9 @@ fn compatibility_diagnostic(error: &CompatibilityValidationError) -> SlibDiagnos
             },
         ),
         CompatibilityValidationError::Hash(_) => (SlibErrorCode::FingerprintMismatch, 5),
+        CompatibilityValidationError::Resource(error) => {
+            return error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest);
+        }
     };
     SlibDiagnosticRecord::new(code, WirePath::root().field(5).field(field))
         .with_origin(SlibPrimaryOrigin::Manifest)
@@ -620,6 +623,9 @@ fn manifest_build_diagnostic(error: &BootstrapManifestError) -> SlibDiagnosticRe
             WirePath::root().field(11),
             Some(SlibPrimaryOrigin::Manifest),
         ),
+        BootstrapManifestError::Resource(error) => {
+            return error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest);
+        }
     };
     let mut diagnostic = SlibDiagnosticRecord::new(code, path);
     diagnostic.primary_origin = origin;

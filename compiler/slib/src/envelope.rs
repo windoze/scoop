@@ -102,7 +102,7 @@ impl<'input> DecodedSlibEnvelope<'input> {
             decode_canonical_with_meter::<DecodedBootstrapManifest>(archive.manifest(), &mut meter)
                 .map_err(SlibReadError::CanonicalWire)?;
         let manifest = decoded
-            .validate(selection)
+            .validate(selection, &mut meter)
             .map_err(|error| SlibReadError::Manifest(Box::new(error)))?;
         let archive = archive
             .validate_directory(manifest.members(), &mut meter)

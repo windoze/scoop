@@ -74,6 +74,54 @@ impl fmt::Display for HashError {
 
 impl std::error::Error for HashError {}
 
+/// Incremental SHA-256 input for protocol formulas composed from byte spans,
+/// fixed raw fields, and canonical Wire CBOR values.
+pub struct CanonicalHashStream {
+    hasher: Sha256,
+}
+
+impl CanonicalHashStream {
+    pub fn new() -> Self {
+        Self {
+            hasher: Sha256::new(),
+        }
+    }
+
+    pub fn update_byte_span(&mut self, bytes: &[u8]) -> Result<(), HashError> {
+        let length = u64::try_from(bytes.len()).map_err(|_| HashError::LengthOverflow)?;
+        self.hasher.update(length.to_le_bytes());
+        self.hasher.update(bytes);
+        Ok(())
+    }
+
+    pub fn update_raw(&mut self, bytes: &[u8]) {
+        self.hasher.update(bytes);
+    }
+
+    pub fn update_canonical_cbor(&mut self, value: &impl WireEncode) -> Result<(), HashError> {
+        let updated =
+            encode_into_hasher(value, self.hasher.clone()).map_err(|_| HashError::CborEncoding)?;
+        self.hasher = updated;
+        Ok(())
+    }
+
+    pub fn update_canonical_cbor_span(&mut self, value: &impl WireEncode) -> Result<(), HashError> {
+        let length = encoded_length(value).map_err(|_| HashError::CborEncoding)?;
+        self.hasher.update(length.to_le_bytes());
+        self.update_canonical_cbor(value)
+    }
+
+    pub fn finalize(self) -> Digest256 {
+        Digest256(self.hasher.finalize().into())
+    }
+}
+
+impl Default for CanonicalHashStream {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn sha256(bytes: &[u8]) -> Digest256 {
     Digest256(Sha256::digest(bytes).into())
 }
@@ -167,7 +215,7 @@ mod tests {
     use crate::{DecodeLimits, WireErrorKind, WireType};
 
     use super::{
-        Digest256, HashError, byte_span, domain_separated_cbor_hash,
+        CanonicalHashStream, Digest256, HashError, byte_span, domain_separated_cbor_hash,
         domain_separated_cbor_hash_stream_length, domain_separated_hash_stream_length, sha256,
     };
 
@@ -190,6 +238,15 @@ mod tests {
     #[test]
     fn byte_span_uses_little_endian_u64_length() {
         assert_eq!(byte_span(b"abc").unwrap(), b"\x03\0\0\0\0\0\0\0abc");
+
+        let mut stream = CanonicalHashStream::new();
+        stream.update_byte_span(b"abc").unwrap();
+        stream.update_raw(b"raw");
+        stream.update_canonical_cbor(&One).unwrap();
+        assert_eq!(
+            stream.finalize(),
+            sha256(&[byte_span(b"abc").unwrap(), b"raw".to_vec(), vec![1]].concat())
+        );
     }
 
     #[test]
