@@ -19,6 +19,12 @@ use crate::{
     DecodedCallbackBridgeRecord, DecodedRuntimeTypeMappingRecord, DecodedSafepointMappingRecord,
 };
 
+mod validation;
+pub use validation::{
+    BridgeRelationError, LirFoundationOwnershipError, LirFoundationValidationError,
+    NativeContractRelationError, SafepointRelationError, ValidatedLirFoundation,
+};
+
 type DecodedExactTypeRecord = DecodedCborIdentityRecord<PersistentExactTypeId, DecodedExactTypeKey>;
 type DecodedLayoutRecord = DecodedCborIdentityRecord<PersistentLayoutId, DecodedLayoutKey>;
 type DecodedScanRecord = DecodedCborIdentityRecord<PersistentScanId, DecodedScanKey>;

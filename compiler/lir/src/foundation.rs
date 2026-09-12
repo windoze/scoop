@@ -22,7 +22,11 @@ use crate::{CallbackBridgeRecord, RuntimeTypeMappingRecord, SafepointMappingReco
 use scoop_identity::PersistentSymbolRequestTable;
 
 mod wire;
-pub use wire::DecodedLirFoundation;
+pub use wire::{
+    BridgeRelationError, DecodedLirFoundation, LirFoundationOwnershipError,
+    LirFoundationValidationError, NativeContractRelationError, SafepointRelationError,
+    ValidatedLirFoundation,
+};
 
 mod projection;
 
@@ -99,6 +103,33 @@ impl CanonicalLirFoundation {
             native_link_requirements: Vec::new(),
             definition_plans: Vec::new(),
             definition_atoms: Vec::new(),
+        }
+    }
+
+    pub fn counts(&self) -> LirFoundationCounts {
+        LirFoundationCounts {
+            exact_types: self.exact_types.len(),
+            layouts: self.layouts.len(),
+            scans: self.scans.len(),
+            dispatch_tables: self.dispatch_tables.len(),
+            static_storages: self.static_storages.len(),
+            immortal_objects: self.immortal_objects.len(),
+            odr_groups: self.odr_groups.len(),
+            odr_members: self.odr_members.len(),
+            callable_bodies: self.callable_bodies.len(),
+            safepoint_sites: self.safepoint_sites.len(),
+            runtime_types: self.runtime_types.len(),
+            safepoints: self.safepoints.len(),
+            symbol_requests: self.symbol_requests.requests().len(),
+            native_contracts: self.native_contracts.len(),
+            c_abi_signatures: self.c_abi_signatures.len(),
+            c_abi_layouts: self.c_abi_layouts.len(),
+            bridge_units: self.bridge_units.len(),
+            bridge_atoms: self.bridge_atoms.len(),
+            callback_bridges: self.callback_bridges.len(),
+            native_link_requirements: self.native_link_requirements.len(),
+            definition_plans: self.definition_plans.len(),
+            definition_atoms: self.definition_atoms.len(),
         }
     }
 
@@ -343,6 +374,32 @@ impl CanonicalLirFoundation {
         )?;
         Ok(())
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LirFoundationCounts {
+    pub exact_types: usize,
+    pub layouts: usize,
+    pub scans: usize,
+    pub dispatch_tables: usize,
+    pub static_storages: usize,
+    pub immortal_objects: usize,
+    pub odr_groups: usize,
+    pub odr_members: usize,
+    pub callable_bodies: usize,
+    pub safepoint_sites: usize,
+    pub runtime_types: usize,
+    pub safepoints: usize,
+    pub symbol_requests: usize,
+    pub native_contracts: usize,
+    pub c_abi_signatures: usize,
+    pub c_abi_layouts: usize,
+    pub bridge_units: usize,
+    pub bridge_atoms: usize,
+    pub callback_bridges: usize,
+    pub native_link_requirements: usize,
+    pub definition_plans: usize,
+    pub definition_atoms: usize,
 }
 
 impl WireEncode for CanonicalLirFoundation {
