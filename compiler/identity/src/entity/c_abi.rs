@@ -315,6 +315,10 @@ impl CanonicalCAbiSignatureFingerprintRecord {
         &self.signature
     }
 
+    pub(crate) fn into_signature(self) -> CanonicalCAbiFunctionSignature {
+        self.signature
+    }
+
     pub(crate) const fn from_verified(
         fingerprint: CanonicalCAbiSignatureFingerprint,
         signature: CanonicalCAbiFunctionSignature,
@@ -530,6 +534,10 @@ impl CanonicalCAbiLayoutFingerprintRecord {
 
     pub const fn layout(&self) -> &CanonicalCAbiLayout {
         &self.layout
+    }
+
+    pub(crate) fn into_layout(self) -> CanonicalCAbiLayout {
+        self.layout
     }
 
     pub(crate) const fn from_verified(

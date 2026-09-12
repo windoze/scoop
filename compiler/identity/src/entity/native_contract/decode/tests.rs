@@ -80,9 +80,14 @@ fn native_contract_record_round_trips_and_verifies_derived_ids() {
     .unwrap();
 
     assert_eq!(
-        decoded.candidate_fingerprint().unwrap(),
+        decoded.into_candidate_fingerprint().unwrap(),
         record.fingerprint()
     );
+    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(
+        &encode(&record).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), record);
 }
 

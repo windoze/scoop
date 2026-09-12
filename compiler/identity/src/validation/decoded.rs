@@ -1,5 +1,6 @@
 use scoop_wire::{
-    HashError, WireEncode, domain_separated_cbor_hash, domain_separated_cbor_hash_stream_length,
+    HashError, WireDecode, WireEncode, domain_separated_cbor_hash,
+    domain_separated_cbor_hash_stream_length,
 };
 
 use super::PendingIdentityResolver;
@@ -44,7 +45,7 @@ mod private {
 ///
 /// The trait is sealed: artifact readers can use the implementations supplied
 /// by this crate but cannot declare an alternative hash preimage or resolver.
-pub trait DecodedIdentityKey<I: PersistentId>: private::Sealed<I> + Clone + WireEncode {
+pub trait DecodedIdentityKey<I: PersistentId>: private::Sealed<I> + WireDecode {
     type Canonical: CborIdentityKey<I> + Clone + Eq + 'static;
 
     fn candidate_identity(&self) -> Result<I, HashError>;

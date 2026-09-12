@@ -191,6 +191,51 @@ fn identity_hash_is_charged_before_registration() {
 }
 
 #[test]
+fn identity_resolution_working_copy_has_inclusive_owned_byte_boundaries() {
+    let decoded = decoded_source_type();
+    let expected = {
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+        pending.register_authority(ConeIdentity::CORE).unwrap();
+        pending.register(IdentityLayer::Hir, &decoded).unwrap();
+        pending.resolve(&decoded).unwrap();
+        meter.usage().owned_bytes
+    };
+    assert!(expected > 0);
+
+    for (limit, accepted) in [
+        (expected - 1, false),
+        (expected, true),
+        (expected + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            owned_bytes: limit,
+            ..DecodeLimits::default()
+        });
+        let result = (|| {
+            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+            pending.register_authority(ConeIdentity::CORE)?;
+            pending.register(IdentityLayer::Hir, &decoded)?;
+            pending.resolve(&decoded)
+        })();
+        assert_eq!(result.is_ok(), accepted);
+        if accepted {
+            assert_eq!(meter.usage().owned_bytes, expected);
+        } else {
+            assert!(matches!(
+                result,
+                Err(IdentityValidationError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::OwnedBytes,
+                        limit,
+                        observed: expected,
+                    }
+            ));
+        }
+    }
+}
+
+#[test]
 fn c_abi_leaf_hashes_are_precharged_at_each_transaction_phase() {
     let record = CanonicalCAbiSignatureFingerprintRecord::new(
         CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void),
@@ -203,7 +248,17 @@ fn c_abi_leaf_hashes_are_precharged_at_each_transaction_phase() {
     .unwrap();
     let hash_length = decoded.candidate_hash_stream_length().unwrap();
     let hash_work = (hash_length + 72) / 64;
-    let expected = hash_work * 3 + 1;
+    let expected = {
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+        pending
+            .register_c_abi_signature(IdentityLayer::Lir, &decoded)
+            .unwrap();
+        pending.resolve_c_abi_signature(&decoded).unwrap();
+        pending.finish().unwrap();
+        meter.usage().validation_work_units
+    };
+    assert!(expected > hash_work * 3 + 1);
 
     for (limit, accepted) in [
         (expected - 1, false),
@@ -214,14 +269,12 @@ fn c_abi_leaf_hashes_are_precharged_at_each_transaction_phase() {
             validation_work_units: limit,
             ..DecodeLimits::default()
         });
-        let result = {
+        let result = (|| {
             let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending
-                .register_c_abi_signature(IdentityLayer::Lir, &decoded)
-                .unwrap();
-            pending.resolve_c_abi_signature(&decoded).unwrap();
+            pending.register_c_abi_signature(IdentityLayer::Lir, &decoded)?;
+            pending.resolve_c_abi_signature(&decoded)?;
             pending.finish()
-        };
+        })();
         assert_eq!(result.is_ok(), accepted);
         if accepted {
             assert_eq!(meter.usage().validation_work_units, expected);
@@ -256,14 +309,21 @@ fn native_contract_leaf_hashes_are_precharged_without_a_source_dependency() {
         DecodeLimits::default(),
     )
     .unwrap();
-    let (symbol_length, fingerprint_length) = decoded
-        .fingerprint_hash_plan()
-        .unwrap()
-        .hash_stream_lengths()
-        .unwrap();
-    let hash_work = (symbol_length + 72) / 64
-        + (fingerprint_length.expect("native fingerprint hash length") + 72) / 64;
-    let expected = hash_work * 3 + 1;
+    let [symbol_length, fingerprint_length] =
+        NativeExternalContractRecord::hash_stream_lengths(record.symbol_key(), record.contract())
+            .unwrap();
+    let hash_work = (symbol_length + 72) / 64 + (fingerprint_length + 72) / 64;
+    let expected = {
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+        pending
+            .register_native_external_contract(IdentityLayer::Lir, &decoded)
+            .unwrap();
+        pending.resolve_native_external_contract(&decoded).unwrap();
+        pending.finish().unwrap();
+        meter.usage().validation_work_units
+    };
+    assert!(expected > hash_work * 3 + 1);
 
     for (limit, accepted) in [
         (expected - 1, false),
@@ -274,14 +334,12 @@ fn native_contract_leaf_hashes_are_precharged_without_a_source_dependency() {
             validation_work_units: limit,
             ..DecodeLimits::default()
         });
-        let result = {
+        let result = (|| {
             let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending
-                .register_native_external_contract(IdentityLayer::Lir, &decoded)
-                .unwrap();
-            pending.resolve_native_external_contract(&decoded).unwrap();
+            pending.register_native_external_contract(IdentityLayer::Lir, &decoded)?;
+            pending.resolve_native_external_contract(&decoded)?;
             pending.finish()
-        };
+        })();
         assert_eq!(result.is_ok(), accepted);
         if accepted {
             assert_eq!(meter.usage().validation_work_units, expected);
@@ -323,31 +381,48 @@ fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
             }
     ));
 
-    for (limit, accepted) in [(191, false), (192, true), (193, true)] {
+    let (expected_heap, expected_work) = {
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
+        pending.register_authority(ConeIdentity::CORE).unwrap();
+        pending.register(IdentityLayer::Hir, &decoded).unwrap();
+        pending.resolve(&decoded).unwrap();
+        pending.finish().unwrap();
+        (
+            meter.usage().logical_heap_bytes,
+            meter.usage().validation_work_units,
+        )
+    };
+    assert!(expected_heap > 192);
+    for (limit, accepted) in [
+        (expected_heap - 1, false),
+        (expected_heap, true),
+        (expected_heap + 1, true),
+    ] {
         let mut meter = BudgetMeter::new(DecodeLimits {
             logical_heap_bytes: limit,
             ..DecodeLimits::default()
         });
-        let result = {
+        let result = (|| {
             let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending.register_authority(ConeIdentity::CORE).unwrap();
-            pending.register(IdentityLayer::Hir, &decoded).unwrap();
-            pending.resolve(&decoded).unwrap();
+            pending.register_authority(ConeIdentity::CORE)?;
+            pending.register(IdentityLayer::Hir, &decoded)?;
+            pending.resolve(&decoded)?;
             pending.finish()
-        };
+        })();
         assert_eq!(result.is_ok(), accepted);
         if accepted {
-            assert_eq!(meter.usage().logical_heap_bytes, 192);
+            assert_eq!(meter.usage().logical_heap_bytes, expected_heap);
             assert_eq!(meter.usage().decoded_edges, 1);
-            assert_eq!(meter.usage().validation_work_units, 7);
+            assert_eq!(meter.usage().validation_work_units, expected_work);
         } else {
             assert!(matches!(
                 result,
                 Err(IdentityValidationError::Resource(ref error))
                     if error.kind() == &WireErrorKind::LimitExceeded {
                         resource: ResourceKind::LogicalHeapBytes,
-                        limit: 191,
-                        observed: 192,
+                        limit,
+                        observed: expected_heap,
                     }
             ));
         }

@@ -215,7 +215,7 @@ impl<I: PersistentId> DecodedRuntimeIdentityRecord<I> {
     }
 
     pub fn validate_key<K>(
-        self,
+        &self,
     ) -> Result<(RuntimeIdentityRecord<I>, K), RuntimeIdentityRecordValidationError<K::Error, I>>
     where
         K: RuntimeDecode + RuntimeIdentityKey<I>,

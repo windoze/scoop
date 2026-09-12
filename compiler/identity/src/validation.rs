@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use scoop_wire::budget::{COLLECTION_ELEMENT_BYTES, GRAPH_EDGE_BYTES, READY_SET_ELEMENT_BYTES};
 use scoop_wire::{
-    BudgetMeter, Digest256, HashError, WireError, WireErrorKind, WirePath,
-    domain_separated_hash_stream_length,
+    BudgetMeter, DecodeLimits, Decoder, Digest256, HashError, WireDecode, WireError, WireErrorKind,
+    WirePath, domain_separated_hash_stream_length, encode_canonical_temporary_with_meter,
 };
 
 use crate::ids::PersistentIdConstruction;
@@ -314,7 +314,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.require_registration_phase()?;
         self.charge_callable_body_hash(record)?;
         let decoded = record.decoded_id();
-        let validated = match record.clone().validate_key::<DecodedCallableBodyKey>() {
+        let validated = match record.validate_key::<DecodedCallableBodyKey>() {
             Ok(validated) => validated,
             Err(error) => {
                 return match error {
@@ -349,6 +349,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
         self.charge_candidate_hashes::<I, D>(record.key())?;
+        let record = self.try_copy_decoded(record)?;
 
         let resolved = {
             let mut resolver = PendingIdentityResolver {
@@ -359,7 +360,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
-            record.clone().resolve(|key| {
+            record.resolve(|key| {
                 key.resolve_identity_key(&mut resolver)
                     .map_err(IdentityKeyResolutionError)
             })
@@ -376,7 +377,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 });
             }
         };
-        self.store_resolved_key::<I, D::Canonical>(node, resolved.key().clone())
+        self.store_resolved_key::<I, D::Canonical>(node, resolved.into_key())
     }
 
     pub fn resolve_source_native_contract(
@@ -386,6 +387,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
         self.charge_source_native_contract_hash(record)?;
+        let record = self.try_copy_decoded(record)?;
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
@@ -395,7 +397,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
-            record.clone().resolve(&mut resolver)
+            record.resolve(&mut resolver)
         };
         self.require_no_resource_error()?;
         let resolved = match resolved {
@@ -478,11 +480,9 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedCanonicalCAbiLayoutFingerprintRecord,
     ) -> Result<(), IdentityValidationError> {
         let (fingerprint, hash_length) = self.verify_c_abi_layout(record)?;
+        let record = self.try_copy_decoded(record)?;
         self.resolve_verified_leaf(fingerprint, (hash_length, None), |resolver| {
-            record
-                .clone()
-                .resolve(resolver)
-                .map(|record| record.layout().clone())
+            record.resolve(resolver).map(|record| record.into_layout())
         })
     }
 
@@ -491,11 +491,11 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedCanonicalCAbiSignatureFingerprintRecord,
     ) -> Result<(), IdentityValidationError> {
         let (fingerprint, hash_length) = self.verify_c_abi_signature(record)?;
+        let record = self.try_copy_decoded(record)?;
         self.resolve_verified_leaf(fingerprint, (hash_length, None), |resolver| {
             record
-                .clone()
                 .resolve(resolver)
-                .map(|record| record.signature().clone())
+                .map(|record| record.into_signature())
         })
     }
 
@@ -507,6 +507,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         let node = IdentityNode::trusted(fingerprint);
         let first_preimage = self.start_shared_resolution(node)?;
         self.charge_hash_streams(hash_lengths)?;
+        let record = self.try_copy_decoded(record)?;
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
@@ -516,7 +517,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
-            record.clone().resolve_fingerprint_input(&mut resolver)
+            record.resolve_fingerprint_input(&mut resolver)
         };
         self.require_no_resource_error()?;
         let resolved = match resolved {
@@ -693,7 +694,8 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedNativeExternalContractRecord,
     ) -> Result<(NativeExternalContractFingerprint, (u64, Option<u64>)), IdentityValidationError>
     {
-        let plan = match record.fingerprint_hash_plan() {
+        let copy = self.try_copy_decoded(record)?;
+        let plan = match copy.into_fingerprint_hash_plan() {
             Ok(plan) => plan,
             Err(error) => return self.fail_native_fingerprint(record, error),
         };
@@ -818,6 +820,21 @@ impl<'meter> PendingIdentityValidation<'meter> {
             }
         }
         Ok(())
+    }
+
+    fn try_copy_decoded<T: WireDecode>(&mut self, value: &T) -> Result<T, IdentityValidationError> {
+        let path = self.resource_path.clone();
+        let result = match self.meter.as_deref_mut() {
+            Some(meter) => try_copy_decoded_with_meter(value, meter, &path),
+            None => {
+                let mut meter = BudgetMeter::new(DecodeLimits::default());
+                try_copy_decoded_with_meter(value, &mut meter, &path)
+            }
+        };
+        match result {
+            Ok(copy) => Ok(copy),
+            Err(error) => self.fail(IdentityValidationError::Resource(error)),
+        }
     }
 
     fn insert_candidate<I: PersistentId + 'static>(
@@ -998,6 +1015,18 @@ impl<'meter> PendingIdentityValidation<'meter> {
             None => Ok(()),
         }
     }
+}
+
+fn try_copy_decoded_with_meter<T: WireDecode>(
+    value: &T,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<T, WireError> {
+    let encoded = encode_canonical_temporary_with_meter(value, meter, path)?;
+    let mut decoder = Decoder::new(&encoded, meter)?;
+    let copy = T::decode(&mut decoder)?;
+    decoder.finish()?;
+    Ok(copy)
 }
 
 #[doc(hidden)]

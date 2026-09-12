@@ -248,25 +248,24 @@ impl DecodedNativeExternalContractRecord {
     /// Recomputes the contract fingerprint from the normalized symbol key and
     /// canonical decoded contract preimage. Persistent references inside the
     /// contract remain untrusted until `resolve`.
-    pub fn candidate_fingerprint(
-        &self,
+    pub fn into_candidate_fingerprint(
+        self,
     ) -> Result<NativeExternalContractFingerprint, NativeExternalContractFingerprintError> {
-        self.fingerprint_hash_plan()?.candidate_fingerprint()
+        self.into_fingerprint_hash_plan()?.candidate_fingerprint()
     }
 
-    pub(crate) fn fingerprint_hash_plan(
-        &self,
-    ) -> Result<NativeExternalContractFingerprintHashPlan<'_>, NativeExternalContractFingerprintError>
+    pub(crate) fn into_fingerprint_hash_plan(
+        self,
+    ) -> Result<NativeExternalContractFingerprintHashPlan, NativeExternalContractFingerprintError>
     {
         let symbol_key = self
             .symbol_key
-            .clone()
             .validate()
             .map_err(NativeExternalContractFingerprintError::SymbolKey)?;
         Ok(NativeExternalContractFingerprintHashPlan {
             symbol_key,
             decoded_symbol_id: self.symbol_id,
-            contract: &self.contract,
+            contract: self.contract,
         })
     }
 
@@ -366,13 +365,13 @@ impl DecodedNativeExternalContractRecord {
     }
 }
 
-pub(crate) struct NativeExternalContractFingerprintHashPlan<'record> {
+pub(crate) struct NativeExternalContractFingerprintHashPlan {
     symbol_key: NativeExternalSymbolKey,
     decoded_symbol_id: DecodedPersistentId<PersistentNativeExternalSymbolId>,
-    contract: &'record DecodedNativeExternalContract,
+    contract: DecodedNativeExternalContract,
 }
 
-impl NativeExternalContractFingerprintHashPlan<'_> {
+impl NativeExternalContractFingerprintHashPlan {
     pub(crate) fn hash_stream_lengths(
         &self,
     ) -> Result<(u64, Option<u64>), NativeExternalContractFingerprintError> {
@@ -383,7 +382,7 @@ impl NativeExternalContractFingerprintHashPlan<'_> {
         .map_err(NativeExternalContractFingerprintError::Hash)?;
         let fingerprint_input = DecodedNativeExternalContractFingerprintLengthInput {
             symbol_id: self.decoded_symbol_id,
-            contract: self.contract,
+            contract: &self.contract,
         };
         let fingerprint_length = domain_separated_cbor_hash_stream_length(
             "scoop-native-external-contract-v1",
@@ -400,7 +399,7 @@ impl NativeExternalContractFingerprintHashPlan<'_> {
             .map_err(NativeExternalContractFingerprintError::Hash)?;
         let input = DecodedNativeExternalContractFingerprintInput {
             symbol_id,
-            contract: self.contract,
+            contract: &self.contract,
         };
         domain_separated_cbor_hash("scoop-native-external-contract-v1", &input)
             .map(|digest| NativeExternalContractFingerprint(*digest.as_array()))
