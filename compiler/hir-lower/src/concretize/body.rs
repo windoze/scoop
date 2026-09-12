@@ -29,6 +29,7 @@ impl Concretizer<'_> {
             let id = locals.alloc(concrete::Local {
                 binding: concrete::BindingId::from_raw(source_local.binding.into_raw()),
                 selector: source_local.selector.clone(),
+                definition: source_local.definition,
                 name: source_local.name.clone(),
                 ty: self.lower_type(source_local.ty, substitution),
                 mutable: source_local.mutable,

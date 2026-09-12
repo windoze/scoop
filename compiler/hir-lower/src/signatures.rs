@@ -123,11 +123,20 @@ impl Lowerer {
         let fields = self.structs[id]
             .semantic_fields()
             .iter()
-            .map(|field| (field.name.clone(), field.ty))
+            .enumerate()
+            .map(|(index, field)| {
+                let field_ref = hir::StructFieldRef::checked(&self.structs, id, index as u32)
+                    .expect("a primary-constructor parameter belongs to its source field");
+                (
+                    field.name.clone(),
+                    field.ty,
+                    self.struct_field_spans[&field_ref],
+                )
+            })
             .collect::<Vec<_>>();
         let parameters = fields
             .into_iter()
-            .map(|(name, ty)| self.constructor_parameter(name, ty))
+            .map(|(name, ty, span)| self.constructor_parameter(name, ty, span))
             .collect();
         let access = self.fixed_representation_access(Owner::Struct(id));
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
@@ -158,7 +167,11 @@ impl Lowerer {
                 let Some(resolved) = self.resolve_fn_param(parameter) else {
                     continue;
                 };
-                parameters.push(self.constructor_parameter(resolved.name.text, resolved.ty));
+                parameters.push(self.constructor_parameter(
+                    resolved.name.text,
+                    resolved.ty,
+                    resolved.name.span,
+                ));
                 callings.push(resolved.calling);
             }
             let access = self.member_access(

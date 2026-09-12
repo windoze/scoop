@@ -216,11 +216,13 @@ fn constructor_identity_relation_rejects_adapter_shape_corruption() {
             .then_some(id)
         })
         .unwrap();
+    let definition = module.class_constructors[adapter].origin;
     module.class_constructors[adapter]
         .parameters
         .push(hir::ConstructorParameter {
             id: hir::ConstructorParamId::from_raw(999_u32),
             binding: hir::BindingId::from_raw(999_u32),
+            definition,
             name: "invalid".to_string(),
             ty: module.unit,
         });

@@ -202,6 +202,7 @@ impl Concretizer<'_> {
             .map(|parameter| concrete::ConstructorParameter {
                 id: concrete::ConstructorParamId::from_raw(parameter.id.into_raw()),
                 binding: concrete::BindingId::from_raw(parameter.binding.into_raw()),
+                definition: parameter.definition,
                 name: parameter.name.clone(),
                 ty: self.lower_type(parameter.ty, substitution),
             })
@@ -225,6 +226,7 @@ impl Concretizer<'_> {
         PendingStructConstructor {
             structure,
             source_discriminator: source_id.into_raw().into_u32(),
+            origin: source.origin,
             parameters,
             kind,
         }

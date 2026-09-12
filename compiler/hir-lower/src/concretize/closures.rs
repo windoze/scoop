@@ -7,6 +7,7 @@ pub(super) struct PendingCallableReference {
     target: concrete::CallableReferenceTarget,
     function_type: concrete::FunctionTypeId,
     captures: Vec<concrete::Capture>,
+    origin: export::DefinitionOrigin,
     span: scoop_ast::Span,
 }
 
@@ -22,6 +23,7 @@ pub(super) fn finish_callable_references(
             target: pending.target,
             function_type: pending.function_type,
             captures: pending.captures,
+            origin: pending.origin,
             span: pending.span,
         });
         assert_eq!(id.into_raw().into_u32() as usize, references.len() - 1);
@@ -191,6 +193,7 @@ impl Concretizer<'_> {
                 .iter()
                 .map(|capture| self.lower_capture(capture, substitution, locals))
                 .collect(),
+            origin: source.origin,
             span: source.span,
         };
         let id = concrete::CallableReferenceId::from_raw(

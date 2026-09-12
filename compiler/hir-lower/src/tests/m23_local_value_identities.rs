@@ -33,6 +33,22 @@ fn concrete_local_by_name<'body>(
         .unwrap_or_else(|| panic!("missing concrete local `{name}`"))
 }
 
+fn local_definition<'module>(
+    module: &'module concrete::Module,
+    identity: &concrete::LocalValueIdentityRecord,
+) -> &'module scoop_identity::DefinitionOrigin {
+    let record = module
+        .local_value_identities
+        .definition_origins()
+        .get(identity.id())
+        .expect("the source-backed local value has one definition origin");
+    assert!(matches!(
+        record.subject(),
+        scoop_identity::DefinitionOriginSubject::LocalValue(subject) if subject == identity.id()
+    ));
+    record.origin()
+}
+
 fn reference(receiver: Option<Expr>, name: &str) -> Expr {
     Expr::CallableReference {
         id: ast::CallableReferenceId(0),
@@ -65,14 +81,29 @@ fn anonymous(tail: Expr) -> Expr {
 
 #[test]
 fn generic_applications_give_the_same_template_local_distinct_persistent_values() {
+    let mut copy = fun_sig(
+        "copy",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        vec![val("saved", var("value")), ret(Some(var("saved")))],
+    );
+    let Decl::Function(copy_declaration) = &mut copy else {
+        unreachable!("fun_sig creates a function")
+    };
+    copy_declaration.params[0].name.span = Span::new(10, 15);
+    let ast::FunctionBody::Block(copy_body) = &mut copy_declaration.body else {
+        unreachable!("the copy fixture has a block body")
+    };
+    let ast::StatementKind::ValDecl(saved) = &mut copy_body.statements[0].kind else {
+        unreachable!("the first copy statement declares saved")
+    };
+    let ast::Pattern::Binding(saved_name) = &mut saved.target else {
+        unreachable!("saved is a binding pattern")
+    };
+    saved_name.span = Span::new(20, 25);
     let output = lower_user_output(file(vec![
-        fun_sig(
-            "copy",
-            vec!["T"],
-            vec![("value", ty_named("T"))],
-            Some(ty_named("T")),
-            vec![val("saved", var("value")), ret(Some(var("saved")))],
-        ),
+        copy,
         fun(
             "main",
             vec![
@@ -83,6 +114,17 @@ fn generic_applications_give_the_same_template_local_distinct_persistent_values(
     ]))
     .expect("one generic body materializes in two exact contexts");
     let module = &output.local;
+    let origins = module.local_value_identities.definition_origins().records();
+    assert!(origins.windows(2).all(|pair| {
+        pair[0]
+            .subject()
+            .compare_sort_key(pair[1].subject())
+            .is_lt()
+    }));
+    assert!(origins.iter().all(|record| matches!(
+        record.subject(),
+        scoop_identity::DefinitionOriginSubject::LocalValue(_)
+    )));
     let instances = module
         .functions
         .iter()
@@ -105,6 +147,17 @@ fn generic_applications_give_the_same_template_local_distinct_persistent_values(
                 declaration_index: 0
             }
         ));
+        assert_eq!(
+            (
+                local_definition(module, parameter_identity)
+                    .span()
+                    .start_byte(),
+                local_definition(module, parameter_identity)
+                    .span()
+                    .end_byte(),
+            ),
+            (10, 15)
+        );
         parameter_ids.insert(parameter_identity.id());
 
         let (saved, _) = concrete_local_by_name(body, "saved");
@@ -116,6 +169,13 @@ fn generic_applications_give_the_same_template_local_distinct_persistent_values(
             saved_identity.key().selector(),
             LocalValueSelector::LocalDeclaration { .. }
         ));
+        assert_eq!(
+            (
+                local_definition(module, saved_identity).span().start_byte(),
+                local_definition(module, saved_identity).span().end_byte(),
+            ),
+            (20, 25)
+        );
         saved_ids.insert(saved_identity.id());
     }
     assert_eq!(parameter_ids.len(), 2);
@@ -297,6 +357,8 @@ fn constructor_receivers_and_parameters_have_typed_persistent_values() {
     let parameter = module
         .local_value_identities
         .class_parameter(class_constructor, 0);
+    local_definition(module, receiver);
+    local_definition(module, parameter);
     assert_eq!(receiver.key().owner(), constructor.materialization);
     assert!(matches!(
         receiver.key().selector(),
@@ -323,6 +385,7 @@ fn constructor_receivers_and_parameters_have_typed_persistent_values() {
     let parameter = module
         .local_value_identities
         .struct_parameter(struct_constructor, 0);
+    local_definition(module, parameter);
     assert_eq!(parameter.key().owner(), constructor.materialization);
     assert!(matches!(
         parameter.key().selector(),
@@ -431,7 +494,52 @@ fn bound_receiver_values_follow_the_reference_materialization_context() {
             LocalValueSelector::BoundReceiver { path }
                 if path == reference.identity.definition_path()
         ));
+        local_definition(module, receiver);
         receiver_identities.insert(receiver.id());
     }
     assert_eq!(receiver_identities.len(), 2);
+}
+
+#[test]
+fn synthetic_local_values_do_not_acquire_definition_origins() {
+    let output = lower_user_output(file(vec![
+        fun_expr(
+            "truth",
+            Vec::new(),
+            vec![("value", ty_named("Boolean"))],
+            Some(ty_named("Boolean")),
+            var("value"),
+        ),
+        fun(
+            "main",
+            vec![val(
+                "flag",
+                binary(
+                    ast::BinOp::And,
+                    bool_lit(true),
+                    call("truth", vec![bool_lit(false)]),
+                ),
+            )],
+        ),
+    ]))
+    .expect("short-circuit lowering creates a synthetic local value");
+    let module = &output.local;
+    let (main_id, main) = concrete_function(module, "main");
+    let (local, declaration) = concrete_body(main)
+        .locals
+        .iter()
+        .find(|(_, local)| local.name.starts_with("$shortCircuit."))
+        .expect("short-circuit lowering creates one hidden result");
+    assert!(matches!(
+        declaration.definition,
+        hir::LocalValueDefinitionSite::Synthetic
+    ));
+    let identity = module.local_value_identities.function_local(main_id, local);
+    assert!(
+        module
+            .local_value_identities
+            .definition_origins()
+            .get(identity.id())
+            .is_none()
+    );
 }

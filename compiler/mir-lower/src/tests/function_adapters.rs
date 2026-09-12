@@ -245,6 +245,7 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
         function_type: source_type.0,
         owner_type_param_count: 0,
         captures: Vec::new(),
+        origin: definition_origin(),
         span: SPAN,
     });
     let coercion = source.function_coercions.alloc(hir::FunctionCoercion {

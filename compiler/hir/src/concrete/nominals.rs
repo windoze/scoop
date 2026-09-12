@@ -317,6 +317,7 @@ pub struct ClassConstructor {
     /// parameter-free constructors use `NoSubstitution`.
     pub materialization: CallableMaterialization,
     pub source_discriminator: u32,
+    pub origin: DefinitionOrigin,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
 }
@@ -325,6 +326,7 @@ pub struct ClassConstructor {
 pub struct ConstructorParameter {
     pub id: ConstructorParamId,
     pub binding: BindingId,
+    pub definition: DefinitionOrigin,
     pub name: String,
     pub ty: TypeId,
 }
@@ -356,6 +358,7 @@ pub struct StructConstructor {
     /// Persistent identity of this exact constructor implementation.
     pub materialization: CallableMaterialization,
     pub source_discriminator: u32,
+    pub origin: DefinitionOrigin,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,
 }

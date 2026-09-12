@@ -646,6 +646,8 @@ impl<'a> Concretizer<'a> {
         );
         let local_value_identities =
             concrete::LocalValueIdentities::from_callables(concrete::LocalValueIdentityInputs {
+                source_files: &self.source.source_files,
+                source_contexts: &self.source.source_context_identities,
                 callable_applications: &identities.callable_applications,
                 functions: &functions,
                 lambdas: &self.lambdas,

@@ -1,5 +1,7 @@
 use std::fmt;
 
+use scoop_identity::{SourceOriginError, SourceSpanError};
+
 use super::{CaptureOwnerLocation, LocalValueLocation};
 
 #[derive(Debug)]
@@ -41,6 +43,28 @@ pub enum LocalValueIdentityError {
     HashCollision {
         first: LocalValueLocation,
         second: LocalValueLocation,
+    },
+    UnknownDefinitionSource {
+        location: LocalValueLocation,
+        file: u32,
+    },
+    DefinitionProviderMismatch {
+        location: LocalValueLocation,
+    },
+    UnknownDefinitionContext {
+        location: LocalValueLocation,
+        context: u32,
+    },
+    DefinitionContextSourceMismatch {
+        location: LocalValueLocation,
+    },
+    InvalidDefinitionSpan {
+        location: LocalValueLocation,
+        error: SourceSpanError,
+    },
+    InvalidDefinitionOrigin {
+        location: LocalValueLocation,
+        error: SourceOriginError,
     },
 }
 
@@ -98,6 +122,30 @@ impl fmt::Display for LocalValueIdentityError {
             Self::HashCollision { first, second } => write!(
                 formatter,
                 "local values {first:?} and {second:?} have colliding persistent identities"
+            ),
+            Self::UnknownDefinitionSource { location, file } => write!(
+                formatter,
+                "local value {location:?} has unknown definition source file {file}"
+            ),
+            Self::DefinitionProviderMismatch { location } => write!(
+                formatter,
+                "local value {location:?} definition provider does not own its source file"
+            ),
+            Self::UnknownDefinitionContext { location, context } => write!(
+                formatter,
+                "local value {location:?} has unknown definition context {context}"
+            ),
+            Self::DefinitionContextSourceMismatch { location } => write!(
+                formatter,
+                "local value {location:?} definition context belongs to another source"
+            ),
+            Self::InvalidDefinitionSpan { location, error } => write!(
+                formatter,
+                "local value {location:?} has an invalid definition span: {error}"
+            ),
+            Self::InvalidDefinitionOrigin { location, error } => write!(
+                formatter,
+                "local value {location:?} has an invalid definition origin: {error}"
             ),
         }
     }

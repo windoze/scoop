@@ -425,6 +425,7 @@ impl Lowerer {
             function_type,
             owner_type_param_count: source.owner_type_param_count,
             captures,
+            origin: source.origin,
             span: source.span,
         })
     }

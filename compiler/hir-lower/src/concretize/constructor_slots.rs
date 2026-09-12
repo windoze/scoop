@@ -5,6 +5,7 @@ use scoop_hir::concrete;
 pub(super) struct PendingClassConstructor {
     pub(super) class: concrete::ClassId,
     pub(super) source_discriminator: u32,
+    pub(super) origin: concrete::DefinitionOrigin,
     pub(super) parameters: Vec<concrete::ConstructorParameter>,
     pub(super) kind: concrete::ClassConstructorKind,
 }
@@ -13,6 +14,7 @@ pub(super) struct PendingClassConstructor {
 pub(super) struct PendingStructConstructor {
     pub(super) structure: concrete::StructId,
     pub(super) source_discriminator: u32,
+    pub(super) origin: concrete::DefinitionOrigin,
     pub(super) parameters: Vec<concrete::ConstructorParameter>,
     pub(super) kind: concrete::StructConstructorKind,
 }
@@ -30,6 +32,7 @@ pub(super) fn finish_class_constructor_slots(
             class: pending.class,
             materialization,
             source_discriminator: pending.source_discriminator,
+            origin: pending.origin,
             parameters: pending.parameters,
             kind: pending.kind,
         });
@@ -51,6 +54,7 @@ pub(super) fn finish_struct_constructor_slots(
             structure: pending.structure,
             materialization,
             source_discriminator: pending.source_discriminator,
+            origin: pending.origin,
             parameters: pending.parameters,
             kind: pending.kind,
         });

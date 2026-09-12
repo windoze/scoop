@@ -414,6 +414,7 @@ fn local(name: &str, ty: hir::TypeId) -> hir::Local {
     hir::Local {
         binding: hir::BindingId::from_raw(ordinal),
         selector: test_local_selector(ordinal),
+        definition: hir::LocalValueDefinitionSite::Synthetic,
         name: name.to_string(),
         ty,
         mutable: false,

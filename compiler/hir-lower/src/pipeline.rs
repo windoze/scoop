@@ -39,11 +39,13 @@ impl Lowerer {
         &mut self,
         name: String,
         ty: hir::TypeId,
+        span: Span,
     ) -> hir::ConstructorParameter {
         let id = self.fresh_constructor_parameter();
         hir::ConstructorParameter {
             id,
             binding: self.constructor_parameter_bindings[&id],
+            definition: self.definition_origin(span),
             name,
             ty,
         }
@@ -69,23 +71,26 @@ impl Lowerer {
         ty: TypeId,
         mutable: bool,
         selector: scoop_identity::LocalValueSelector,
+        definition: hir::LocalValueDefinitionSite,
     ) -> hir::LocalId {
         let binding = self.fresh_binding();
         self.locals.alloc(hir::Local {
             binding,
             selector,
+            definition,
             name,
             ty,
             mutable,
         })
     }
 
-    pub(crate) fn alloc_this_local(&mut self, ty: TypeId) -> hir::LocalId {
+    pub(crate) fn alloc_this_local(&mut self, ty: TypeId, span: Span) -> hir::LocalId {
         self.alloc_local(
             "this".to_string(),
             ty,
             false,
             scoop_identity::LocalValueSelector::This,
+            hir::LocalValueDefinitionSite::Source(self.definition_origin(span)),
         )
     }
 
@@ -94,6 +99,7 @@ impl Lowerer {
         name: String,
         ty: TypeId,
         declaration_index: usize,
+        span: Span,
     ) -> hir::LocalId {
         let declaration_index = u32::try_from(declaration_index)
             .expect("one callable cannot declare more than u32::MAX parameters");
@@ -102,6 +108,7 @@ impl Lowerer {
             ty,
             false,
             scoop_identity::LocalValueSelector::Parameter { declaration_index },
+            hir::LocalValueDefinitionSite::Source(self.definition_origin(span)),
         )
     }
 
@@ -110,6 +117,7 @@ impl Lowerer {
         name: String,
         ty: TypeId,
         mutable: bool,
+        span: Span,
     ) -> hir::LocalId {
         let path = self
             .definition_paths
@@ -119,6 +127,7 @@ impl Lowerer {
             ty,
             mutable,
             scoop_identity::LocalValueSelector::LocalDeclaration { path },
+            hir::LocalValueDefinitionSite::Source(self.definition_origin(span)),
         )
     }
 
@@ -137,6 +146,7 @@ impl Lowerer {
             ty,
             mutable,
             scoop_identity::LocalValueSelector::Synthetic { path, role },
+            hir::LocalValueDefinitionSite::Synthetic,
         )
     }
 

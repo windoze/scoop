@@ -13,9 +13,19 @@ pub struct Local {
     /// selector with the callable's exact materialization context instead of
     /// deriving persistent value identity from a name or arena position.
     pub selector: scoop_identity::LocalValueSelector,
+    /// Closed classification of the local's definition site. Source-backed
+    /// values retain their exact source origin; compiler-created temporaries
+    /// cannot be mistaken for source definitions.
+    pub definition: LocalValueDefinitionSite,
     pub name: String,
     pub ty: TypeId,
     pub mutable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocalValueDefinitionSite {
+    Source(DefinitionOrigin),
+    Synthetic,
 }
 
 #[derive(Debug, Clone)]

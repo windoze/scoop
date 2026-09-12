@@ -80,6 +80,7 @@ pub struct CallableReference {
     pub target: CallableReferenceTarget,
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
+    pub origin: DefinitionOrigin,
     pub span: Span,
 }
 

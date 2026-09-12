@@ -180,7 +180,12 @@ impl Lowerer {
                         );
                         return None;
                     }
-                    let local = self.alloc_parameter_local(name.text.clone(), parameter_ty, index);
+                    let local = self.alloc_parameter_local(
+                        name.text.clone(),
+                        parameter_ty,
+                        index,
+                        name.span,
+                    );
                     self.scopes.declare(name.text.clone(), local);
                     abi_params.push(hir::Param {
                         name: name.text,
@@ -188,8 +193,14 @@ impl Lowerer {
                         local,
                     });
                 } else {
-                    let local =
-                        self.alloc_parameter_local(format!("$arg.{index}"), parameter_ty, index);
+                    let local = self.alloc_parameter_local(
+                        format!("$arg.{index}"),
+                        parameter_ty,
+                        index,
+                        parameter
+                            .expect("a destructured lambda parameter is explicit")
+                            .span,
+                    );
                     let plan = self.lower_irrefutable_binding_plan_from_subject(
                         target.expect("non-binding source parameter has a pattern"),
                         hir::BindingTemporary {

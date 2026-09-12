@@ -140,7 +140,7 @@ impl Lowerer {
             .map(|owner| self.owner_ty(owner))
             .or(extension_receiver)
         {
-            let local = self.alloc_this_local(host_ty);
+            let local = self.alloc_this_local(host_ty, self.functions[id].span);
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, host_ty));
             params.push(hir::Param {
@@ -157,7 +157,12 @@ impl Lowerer {
                 );
                 continue;
             }
-            let local = self.alloc_parameter_local(param.name.text.clone(), param.ty, index);
+            let local = self.alloc_parameter_local(
+                param.name.text.clone(),
+                param.ty,
+                index,
+                param.name.span,
+            );
             self.scopes.declare(param.name.text.clone(), local);
             params.push(hir::Param {
                 name: param.name.text.clone(),

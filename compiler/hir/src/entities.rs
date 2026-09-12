@@ -557,6 +557,10 @@ pub struct CallableReference {
     /// A non-zero value requires a concrete closure per enclosing instance.
     pub owner_type_param_count: usize,
     pub captures: Vec<Capture>,
+    /// Definition site of the source callable-reference expression. A bound
+    /// receiver local value uses this origin rather than the receiver
+    /// expression's evaluation provenance.
+    pub origin: DefinitionOrigin,
     pub span: Span,
 }
 

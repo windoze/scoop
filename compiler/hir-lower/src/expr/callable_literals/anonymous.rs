@@ -129,7 +129,12 @@ impl Lowerer {
                     );
                     return None;
                 }
-                let local = self.alloc_parameter_local(parameter.name.text.clone(), *ty, index);
+                let local = self.alloc_parameter_local(
+                    parameter.name.text.clone(),
+                    *ty,
+                    index,
+                    parameter.name.span,
+                );
                 self.scopes.declare(parameter.name.text.clone(), local);
                 params.push(hir::Param {
                     name: parameter.name.text.clone(),

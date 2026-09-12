@@ -146,6 +146,7 @@ pub struct Local {
     /// Template-local semantic selector retained so the module's total
     /// local-value relation can validate and reproduce the persistent key.
     pub selector: scoop_identity::LocalValueSelector,
+    pub definition: LocalValueDefinitionSite,
     pub name: String,
     pub ty: TypeId,
     pub mutable: bool,

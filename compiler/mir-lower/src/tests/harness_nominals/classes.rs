@@ -57,6 +57,7 @@ impl Harness {
                 hir::ConstructorParameter {
                     id,
                     binding: hir::BindingId::from_raw(0x4000_0000 + id.into_raw()),
+                    definition: definition_origin(),
                     name: name.to_string(),
                     ty: *ty,
                 }
@@ -226,6 +227,7 @@ impl Harness {
         let parameter = hir::ConstructorParameter {
             id: hir::ConstructorParamId::from_raw(self.next_constructor_param),
             binding: hir::BindingId::from_raw(0x4000_0000 + self.next_constructor_param),
+            definition: definition_origin(),
             name: "message".to_string(),
             ty: message_type,
         };

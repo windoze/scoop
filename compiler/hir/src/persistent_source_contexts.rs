@@ -107,6 +107,10 @@ impl HirSourceContextIdentities {
         self.identities.iter()
     }
 
+    pub fn get(&self, context: SourceContextId) -> Option<&HirSourceContextIdentity> {
+        self.identities.get(local_index(context))
+    }
+
     pub fn len(&self) -> usize {
         self.identities.len()
     }

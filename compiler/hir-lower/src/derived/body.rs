@@ -342,6 +342,7 @@ impl Lowerer {
         locals.alloc(hir::Local {
             binding: self.fresh_binding(),
             selector,
+            definition: hir::LocalValueDefinitionSite::Synthetic,
             name: name.to_string(),
             ty,
             mutable: false,

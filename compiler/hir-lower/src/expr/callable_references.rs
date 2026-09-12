@@ -184,6 +184,7 @@ impl Lowerer {
             function_type,
             owner_type_param_count: self.type_params_in_scope.len(),
             captures: Vec::new(),
+            origin: self.definition_origin(span),
             span,
         });
         Some(hir::Expr {
@@ -415,6 +416,7 @@ impl Lowerer {
             function_type,
             owner_type_param_count: self.type_params_in_scope.len(),
             captures: Vec::new(),
+            origin: self.definition_origin(span),
             span,
         });
         BoundReferenceOutcome::Resolved(hir::Expr {
@@ -504,6 +506,7 @@ impl Lowerer {
             function_type,
             owner_type_param_count: self.type_params_in_scope.len(),
             captures,
+            origin: self.definition_origin(span),
             span,
         });
         Ok(Some(hir::Expr {

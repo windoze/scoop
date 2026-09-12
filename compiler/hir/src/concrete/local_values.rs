@@ -1,7 +1,8 @@
 use la_arena::Arena;
 use scoop_identity::{
     CallableInstantiationOwner, CallableMaterialization, CallableMaterializationContext,
-    CborIdentityRecord, LocalValueKey, LocalValueSelector, PersistentLocalValueId,
+    CborIdentityRecord, DefinitionOriginRecord, LocalValueKey, LocalValueSelector,
+    PersistentLocalValueId,
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -14,11 +15,15 @@ use super::{
 
 mod error;
 pub use error::LocalValueIdentityError;
+mod definition_origins;
+pub use definition_origins::LocalValueDefinitionOrigins;
 
 pub type LocalValueIdentityRecord = CborIdentityRecord<PersistentLocalValueId, LocalValueKey>;
 
 #[derive(Clone, Copy)]
 pub struct LocalValueIdentityInputs<'a> {
+    pub source_files: &'a [crate::SourceFileMetadata],
+    pub source_contexts: &'a crate::HirSourceContextIdentities,
     pub callable_applications: &'a CallableApplicationIdentities,
     pub functions: &'a Arena<Function>,
     pub lambdas: &'a Arena<Lambda>,
@@ -35,6 +40,7 @@ pub struct LocalValueIdentityInputs<'a> {
 #[derive(Clone, Debug)]
 pub struct LocalValueIdentities {
     records: Vec<LocalValueIdentityRecord>,
+    definition_origins: LocalValueDefinitionOrigins,
     function_locals: Vec<Vec<PersistentLocalValueId>>,
     lambda_captures: Vec<Vec<PersistentLocalValueId>>,
     anonymous_function_captures: Vec<Vec<PersistentLocalValueId>>,
@@ -82,6 +88,10 @@ impl LocalValueIdentities {
 
     pub fn records(&self) -> &[LocalValueIdentityRecord] {
         &self.records
+    }
+
+    pub const fn definition_origins(&self) -> &LocalValueDefinitionOrigins {
+        &self.definition_origins
     }
 
     pub fn record(&self, identity: PersistentLocalValueId) -> Option<&LocalValueIdentityRecord> {
@@ -247,6 +257,7 @@ struct CaptureAlias {
 struct LocalValueIdentityBuilder<'a> {
     inputs: LocalValueIdentityInputs<'a>,
     records: BTreeMap<PersistentLocalValueId, (LocalValueIdentityRecord, LocalValueLocation)>,
+    definition_origins: BTreeMap<PersistentLocalValueId, DefinitionOriginRecord>,
     locations_by_key: BTreeMap<LocalValueKey, LocalValueLocation>,
     values_by_binding: HashMap<BindingKey, Vec<PersistentLocalValueId>>,
     capture_aliases: HashMap<(FunctionId, LocalId), CaptureAlias>,
@@ -257,6 +268,7 @@ impl<'a> LocalValueIdentityBuilder<'a> {
         Self {
             inputs,
             records: BTreeMap::new(),
+            definition_origins: BTreeMap::new(),
             locations_by_key: BTreeMap::new(),
             values_by_binding: HashMap::new(),
             capture_aliases: HashMap::new(),
@@ -281,8 +293,12 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                     function: raw_arena_index(function_id),
                     local: raw_arena_index(local_id),
                 };
-                let identity =
-                    self.record(function.materialization, local.selector.clone(), location)?;
+                let identity = self.record(
+                    function.materialization,
+                    local.selector.clone(),
+                    &local.definition,
+                    location,
+                )?;
                 self.bind(function.materialization.context(), local.binding, identity);
                 identities[arena_index(local_id)] = Some(identity);
             }
@@ -369,6 +385,9 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                 .into_values()
                 .map(|(record, _)| record)
                 .collect(),
+            definition_origins: LocalValueDefinitionOrigins {
+                records: self.definition_origins.into_values().collect(),
+            },
             function_locals,
             lambda_captures,
             anonymous_function_captures,
@@ -432,7 +451,12 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             let receiver_location = LocalValueLocation::ClassReceiver {
                 constructor: raw_arena_index(constructor_id),
             };
-            let receiver = self.record(owner, LocalValueSelector::This, receiver_location)?;
+            let receiver = self.record_source(
+                owner,
+                LocalValueSelector::This,
+                constructor.origin,
+                receiver_location,
+            )?;
             let parameters = constructor
                 .parameters
                 .iter()
@@ -442,11 +466,12 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                         constructor: raw_arena_index(constructor_id),
                         parameter: index as u32,
                     };
-                    let identity = self.record(
+                    let identity = self.record_source(
                         owner,
                         LocalValueSelector::Parameter {
                             declaration_index: index as u32,
                         },
+                        parameter.definition,
                         location,
                     )?;
                     self.bind(owner.context(), parameter.binding, identity);
@@ -494,11 +519,12 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                         constructor: raw_arena_index(constructor_id),
                         parameter: index as u32,
                     };
-                    let identity = self.record(
+                    let identity = self.record_source(
                         owner,
                         LocalValueSelector::Parameter {
                             declaration_index: index as u32,
                         },
+                        parameter.definition,
                         location,
                     )?;
                     self.bind(owner.context(), parameter.binding, identity);
@@ -513,8 +539,12 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                     let receiver_location = LocalValueLocation::StructReceiver {
                         constructor: raw_arena_index(constructor_id),
                     };
-                    let receiver =
-                        self.record(owner, LocalValueSelector::This, receiver_location)?;
+                    let receiver = self.record_source(
+                        owner,
+                        LocalValueSelector::This,
+                        constructor.origin,
+                        receiver_location,
+                    )?;
                     let argument_locals = self.collect_locals(
                         owner,
                         arguments.locals.iter().map(|(local, value)| {
@@ -567,11 +597,12 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                     let location = LocalValueLocation::CallableReferenceReceiver {
                         reference: raw_arena_index(reference_id),
                     };
-                    let identity = self.record(
+                    let identity = self.record_source(
                         *reference.identity.materialization(),
                         LocalValueSelector::BoundReceiver {
                             path: reference.identity.definition_path().clone(),
                         },
+                        reference.origin,
                         location,
                     )?;
                     CallableReferenceLocalValue::Bound(identity)
@@ -589,7 +620,8 @@ impl<'a> LocalValueIdentityBuilder<'a> {
     ) -> Result<Vec<PersistentLocalValueId>, LocalValueIdentityError> {
         locals
             .map(|(_, local, location)| {
-                let identity = self.record(owner, local.selector.clone(), location)?;
+                let identity =
+                    self.record(owner, local.selector.clone(), &local.definition, location)?;
                 self.bind(owner.context(), local.binding, identity);
                 Ok(identity)
             })
@@ -616,10 +648,26 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             .collect()
     }
 
+    fn record_source(
+        &mut self,
+        owner: CallableMaterialization,
+        selector: LocalValueSelector,
+        origin: crate::DefinitionOrigin,
+        location: LocalValueLocation,
+    ) -> Result<PersistentLocalValueId, LocalValueIdentityError> {
+        self.record(
+            owner,
+            selector,
+            &crate::LocalValueDefinitionSite::Source(origin),
+            location,
+        )
+    }
+
     fn record(
         &mut self,
         owner: CallableMaterialization,
         selector: LocalValueSelector,
+        definition: &crate::LocalValueDefinitionSite,
         location: LocalValueLocation,
     ) -> Result<PersistentLocalValueId, LocalValueIdentityError> {
         let key = LocalValueKey::new(owner, selector);
@@ -642,6 +690,14 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                 first,
                 second: location,
             });
+        }
+        if let crate::LocalValueDefinitionSite::Source(origin) = definition {
+            let record = definition_origins::record(&self.inputs, identity, *origin, location)?;
+            let previous = self.definition_origins.insert(identity, record);
+            assert!(
+                previous.is_none(),
+                "one local-value identity is recorded at exactly one source definition site"
+            );
         }
         Ok(identity)
     }

@@ -50,7 +50,8 @@ impl Lowerer {
             else {
                 continue; // diagnostic already recorded
             };
-            let lowered_parameter = self.constructor_parameter(parameter.name.text.clone(), ty);
+            let lowered_parameter =
+                self.constructor_parameter(parameter.name.text.clone(), ty, parameter.name.span);
             let parameter_id = lowered_parameter.id;
             parameters.push(lowered_parameter);
             if parameter.property != ast::PrimaryParameterProperty::Plain {
@@ -162,7 +163,11 @@ impl Lowerer {
                 let Some(resolved) = self.resolve_fn_param(parameter) else {
                     continue;
                 };
-                parameters.push(self.constructor_parameter(resolved.name.text, resolved.ty));
+                parameters.push(self.constructor_parameter(
+                    resolved.name.text,
+                    resolved.ty,
+                    resolved.name.span,
+                ));
                 callings.push(resolved.calling);
             }
             let access = self.member_access(

@@ -43,6 +43,7 @@ impl Harness {
                 hir::ConstructorParameter {
                     id,
                     binding: hir::BindingId::from_raw(0x4000_0000 + id.into_raw()),
+                    definition: definition_origin(),
                     name: name.to_string(),
                     ty: *ty,
                 }

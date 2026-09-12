@@ -236,6 +236,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         function_type,
         owner_type_param_count: 0,
         captures: Vec::new(),
+        origin: definition_origin(),
         span: SPAN,
     });
     let mode = source.foreign_callback_core.modes.reusable();

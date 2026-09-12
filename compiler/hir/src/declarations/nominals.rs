@@ -664,6 +664,7 @@ pub enum ClassFieldSource {
 pub struct ConstructorParameter {
     pub id: ConstructorParamId,
     pub binding: BindingId,
+    pub definition: DefinitionOrigin,
     pub name: String,
     pub ty: TypeId,
 }
