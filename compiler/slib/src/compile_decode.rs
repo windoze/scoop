@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -272,16 +271,18 @@ fn validate_foundation_identities<'input>(
         mir,
         lir,
     } = foundations;
-    let mut authorities = BTreeSet::from([ConeIdentity::CORE, graph.identity()]);
-    authorities.extend(
-        graph
-            .direct_dependencies()
-            .iter()
-            .map(DependencyRecord::identity),
-    );
-    let mut validation = PendingIdentityValidation::with_meter(graph.envelope.meter_mut());
-    for authority in authorities {
-        validation.register_authority(authority)?;
+    let producer = graph.identity();
+    let (manifest, meter) = graph.envelope.manifest_and_meter();
+    let mut validation = PendingIdentityValidation::with_meter(meter);
+    validation.register_authority(ConeIdentity::CORE)?;
+    if producer != ConeIdentity::CORE {
+        validation.register_authority(producer)?;
+    }
+    for dependency in manifest.direct_dependencies() {
+        let authority = dependency.identity();
+        if authority != ConeIdentity::CORE && authority != producer {
+            validation.register_authority(authority)?;
+        }
     }
 
     hir.register_identities(&mut validation)?;
