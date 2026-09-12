@@ -2,7 +2,10 @@ use std::fmt;
 
 use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{CallableMaterialization, ExactCallableSignature, StructuralDefinitionPath};
+use super::{
+    CallableMaterialization, CallableTemplateOwner, ExactCallableSignature,
+    StructuralDefinitionPath,
+};
 use crate::ids::derive_persistent_id;
 use crate::{
     PersistentCallbackApplicationId, PersistentConstructorId, PersistentDispatchSlotId,
@@ -124,6 +127,21 @@ impl LexicalCallableParent {
         match self.0 {
             LexicalCallableParentKind::Generated(id) => Some(id),
             _ => None,
+        }
+    }
+
+    pub const fn template(self) -> CallableTemplateOwner {
+        match self.0 {
+            LexicalCallableParentKind::Function(id) => CallableTemplateOwner::Function(id),
+            LexicalCallableParentKind::GenericFunction(id) => {
+                CallableTemplateOwner::GenericFunction(id)
+            }
+            LexicalCallableParentKind::Constructor(id) => CallableTemplateOwner::Constructor(id),
+            LexicalCallableParentKind::Accessor(id) => CallableTemplateOwner::Accessor(id),
+            LexicalCallableParentKind::Generated(id) => CallableTemplateOwner::Generated(id),
+            LexicalCallableParentKind::VariantConstructor(id) => {
+                CallableTemplateOwner::VariantConstructor(id)
+            }
         }
     }
 }

@@ -15,6 +15,11 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use super::*;
 use crate::{DecodedNativeBoundaryTypeDefinitionRecord, DecodedSourceRecord};
 
+mod validation;
+pub use validation::{
+    DefinitionOriginValidationError, HirFoundationValidationError, ValidatedHirFoundation,
+};
+
 type DecodedTypeRecord = DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey>;
 type DecodedGenericTypeRecord =
     DecodedCborIdentityRecord<PersistentGenericTypeId, DecodedSourceDeclarationKey>;
