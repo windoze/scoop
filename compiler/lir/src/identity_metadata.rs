@@ -8,7 +8,9 @@ use scoop_identity::{
     PersistentCallbackApplicationId, PersistentExactTypeId, PersistentIdResolver,
     PersistentSafepointSiteId, RuntimeTypeId, SafepointId as PersistentSafepointId,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{
+    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
+};
 
 /// Canonical target-specific C storage signatures and layouts required by
 /// this LIR module. Repeated boundary uses share one record; a digest collision
@@ -314,6 +316,8 @@ impl DecodedRuntimeTypeMappingRecord {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<RuntimeTypeMappingRecord, RuntimeTypeMappingResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>,
@@ -321,6 +325,11 @@ impl DecodedRuntimeTypeMappingRecord {
         let exact_type = resolver
             .resolve(self.exact_type)
             .map_err(RuntimeTypeMappingResolutionError::Reference)?;
+        let hash_length = RuntimeTypeId::hash_stream_length()
+            .map_err(RuntimeTypeMappingResolutionError::Derivation)?;
+        meter
+            .charge_sha256(hash_length, path)
+            .map_err(RuntimeTypeMappingResolutionError::Resource)?;
         let record = RuntimeTypeMappingRecord::new(exact_type)
             .map_err(RuntimeTypeMappingResolutionError::Derivation)?;
         if record.runtime_type().get() != self.runtime_type.get() {
@@ -367,6 +376,8 @@ impl DecodedSafepointMappingRecord {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<SafepointMappingRecord, SafepointMappingResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentSafepointSiteId, Error = E>,
@@ -374,6 +385,11 @@ impl DecodedSafepointMappingRecord {
         let site = resolver
             .resolve(self.site)
             .map_err(SafepointMappingResolutionError::Reference)?;
+        let hash_length = PersistentSafepointId::hash_stream_length()
+            .map_err(SafepointMappingResolutionError::Derivation)?;
+        meter
+            .charge_sha256(hash_length, path)
+            .map_err(SafepointMappingResolutionError::Resource)?;
         let record = SafepointMappingRecord::new(site)
             .map_err(SafepointMappingResolutionError::Derivation)?;
         if record.safepoint().get() != self.safepoint.get() {
@@ -481,6 +497,7 @@ impl WireDecode for DecodedCallbackBridgeRecord {
 pub enum RuntimeTypeMappingResolutionError<E> {
     Reference(E),
     Derivation(DerivedIdError),
+    Resource(WireError),
     Mismatch { expected: u64, actual: u64 },
 }
 
@@ -489,6 +506,7 @@ impl<E: fmt::Display> fmt::Display for RuntimeTypeMappingResolutionError<E> {
         match self {
             Self::Reference(error) => error.fmt(formatter),
             Self::Derivation(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
             Self::Mismatch { expected, actual } => write!(
                 formatter,
                 "runtime type id mismatch: expected {expected}, found {actual}"
@@ -503,6 +521,7 @@ impl<E: std::error::Error + 'static> std::error::Error for RuntimeTypeMappingRes
 pub enum SafepointMappingResolutionError<E> {
     Reference(E),
     Derivation(DerivedIdError),
+    Resource(WireError),
     Mismatch { expected: u64, actual: u64 },
 }
 
@@ -511,6 +530,7 @@ impl<E: fmt::Display> fmt::Display for SafepointMappingResolutionError<E> {
         match self {
             Self::Reference(error) => error.fmt(formatter),
             Self::Derivation(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
             Self::Mismatch { expected, actual } => write!(
                 formatter,
                 "safepoint id mismatch: expected {expected}, found {actual}"

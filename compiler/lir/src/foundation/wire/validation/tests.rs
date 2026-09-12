@@ -21,9 +21,13 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 use super::*;
+
+fn meter() -> BudgetMeter {
+    BudgetMeter::new(DecodeLimits::default())
+}
 
 #[test]
 fn empty_foundation_validates_and_reencodes_identically() {
@@ -34,7 +38,7 @@ fn empty_foundation_validates_and_reencodes_identically() {
     let mut identities = graph_with_authorities(&[ConeIdentity::CORE]);
 
     let validated = decoded
-        .validate(ConeIdentity::CORE, &mut identities)
+        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
         .unwrap();
 
     assert_eq!(validated.counts(), canonical.counts());
@@ -46,7 +50,7 @@ fn validates_callback_safepoint_runtime_and_symbol_relations_atomically() {
     let (decoded, mut identities, bytes) = callback_fixture(&[0, 1], 0);
 
     let validated = decoded
-        .validate(ConeIdentity::CORE, &mut identities)
+        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
         .unwrap();
 
     let counts = validated.counts();
@@ -67,7 +71,7 @@ fn rejects_noncanonical_mapping_order_after_all_relations_resolve() {
     decoded.decoded.safepoints.swap(0, 1);
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
+        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
         Err(LirFoundationValidationError::NonCanonicalFoundation)
     ));
 }
@@ -77,7 +81,7 @@ fn rejects_a_gap_in_role_local_safepoint_ordinals() {
     let (decoded, mut identities, _) = callback_fixture(&[1], 0);
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
+        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
         Err(LirFoundationValidationError::SafepointRelation(
             SafepointRelationError::NonContiguousOrdinal {
                 expected: 0,
@@ -94,7 +98,7 @@ fn rejects_a_safepoint_site_without_its_runtime_mapping() {
     decoded.decoded.safepoints.clear();
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
+        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
         Err(LirFoundationValidationError::SafepointRelation(
             SafepointRelationError::MissingMapping { .. }
         ))
@@ -106,7 +110,7 @@ fn rejects_a_callback_unit_with_the_wrong_context_parameter() {
     let (decoded, mut identities, _) = callback_fixture(&[0], 1);
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
+        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
         Err(LirFoundationValidationError::BridgeRelation(
             BridgeRelationError::CallbackUnitMismatch { .. }
         ))
@@ -118,7 +122,7 @@ fn validates_native_contract_and_outbound_bridge_relations() {
     let (decoded, mut identities, bytes) = native_contract_fixture(None);
 
     let validated = decoded
-        .validate(ConeIdentity::CORE, &mut identities)
+        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
         .unwrap();
 
     assert_eq!(validated.counts().native_contracts, 1);
@@ -132,7 +136,7 @@ fn rejects_a_missing_target_contract_for_a_hir_native_contract() {
     decoded.decoded.native_contracts.clear();
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
+        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
         Err(LirFoundationValidationError::NativeContractRelation(
             NativeContractRelationError::MissingRecord { .. }
         ))
@@ -148,7 +152,7 @@ fn rejects_a_bridge_atom_owned_by_another_cone() {
     let (decoded, mut identities, _) = native_contract_fixture(Some(foreign));
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
+        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
         Err(LirFoundationValidationError::Ownership(
             LirFoundationOwnershipError::ForeignBridgeAtom { actual, .. }
         )) if actual == foreign
@@ -183,7 +187,7 @@ fn rejects_a_strong_definition_plan_owned_by_another_cone() {
     let mut identities = pending.finish().unwrap();
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
+        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
         Err(LirFoundationValidationError::Ownership(
             LirFoundationOwnershipError::ForeignStrongDefinitionPlan { actual, .. }
         )) if actual == foreign

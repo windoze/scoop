@@ -349,7 +349,7 @@ impl<'input> IdentityCheckedFoundations<'input> {
         self,
     ) -> Result<StructurallyValidatedFoundations<'input>, FoundationStructureValidationError> {
         let Self {
-            graph,
+            mut graph,
             mut identities,
             hir,
             mir,
@@ -361,8 +361,9 @@ impl<'input> IdentityCheckedFoundations<'input> {
         let mir = mir
             .validate(&mut identities)
             .map_err(FoundationStructureValidationError::Mir)?;
+        let producer = graph.identity();
         let lir = lir
-            .validate(graph.identity(), &mut identities)
+            .validate(producer, &mut identities, graph.envelope.meter_mut())
             .map_err(FoundationStructureValidationError::Lir)?;
         Ok(StructurallyValidatedFoundations {
             graph,

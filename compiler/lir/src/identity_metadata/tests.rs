@@ -8,17 +8,24 @@ use scoop_identity::{
     GeneratedBridgeUnitId, GeneratedBridgeUnitKey, LexicalCallableParent, PackagePath,
     PersistentCallableBodyId, PersistentCallbackApplicationId, PersistentExactTypeId,
     PersistentFunctionId, PersistentIdMismatch, PersistentIdResolver, PersistentSafepointSiteId,
-    PersistentTypeId, SafepointSiteKey, SafepointSiteRole, SignatureCallableShape,
-    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
+    PersistentTypeId, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole,
+    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{
+    BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath, decode_canonical, encode,
+};
 
 use super::{
     CallbackBridgeRecord, DecodedCallbackBridgeRecord, DecodedRuntimeTypeMappingRecord,
-    DecodedSafepointMappingRecord, RuntimeTypeMappingRecord, SafepointMappingRecord,
+    DecodedSafepointMappingRecord, RuntimeTypeMappingRecord, RuntimeTypeMappingResolutionError,
+    SafepointMappingRecord, SafepointMappingResolutionError,
 };
+
+fn meter() -> BudgetMeter {
+    BudgetMeter::new(DecodeLimits::default())
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ResolutionError;
@@ -71,7 +78,9 @@ fn derived_mapping_records_roundtrip_and_recompute_ids() {
     .unwrap();
     assert_eq!(encode(&decoded_runtime).unwrap(), runtime_bytes);
     assert_eq!(
-        decoded_runtime.resolve(&mut fixture.resolver()).unwrap(),
+        decoded_runtime
+            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
+            .unwrap(),
         runtime
     );
 
@@ -83,9 +92,79 @@ fn derived_mapping_records_roundtrip_and_recompute_ids() {
     .unwrap();
     assert_eq!(encode(&decoded_safepoint).unwrap(), safepoint_bytes);
     assert_eq!(
-        decoded_safepoint.resolve(&mut fixture.resolver()).unwrap(),
+        decoded_safepoint
+            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
+            .unwrap(),
         safepoint
     );
+}
+
+#[test]
+fn derived_mapping_hashes_are_precharged_at_the_exact_limit() {
+    let fixture = Fixture::new();
+    let runtime = RuntimeTypeMappingRecord::new(fixture.exact).unwrap();
+    let decoded_runtime = decode_canonical::<DecodedRuntimeTypeMappingRecord>(
+        &encode(&runtime).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    let runtime_work = (RuntimeTypeId::hash_stream_length().unwrap() + 72) / 64;
+    for (limit, accepted) in [
+        (runtime_work - 1, false),
+        (runtime_work, true),
+        (runtime_work + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            validation_work_units: limit,
+            ..DecodeLimits::default()
+        });
+        let result =
+            decoded_runtime.resolve(&mut fixture.resolver(), &mut meter, &WirePath::root());
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert!(matches!(
+                result,
+                Err(RuntimeTypeMappingResolutionError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::ValidationWorkUnits,
+                        limit,
+                        observed: runtime_work,
+                    }
+            ));
+        }
+    }
+
+    let safepoint = SafepointMappingRecord::new(fixture.site).unwrap();
+    let decoded_safepoint = decode_canonical::<DecodedSafepointMappingRecord>(
+        &encode(&safepoint).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    let safepoint_work = (SafepointId::hash_stream_length().unwrap() + 72) / 64;
+    for (limit, accepted) in [
+        (safepoint_work - 1, false),
+        (safepoint_work, true),
+        (safepoint_work + 1, true),
+    ] {
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            validation_work_units: limit,
+            ..DecodeLimits::default()
+        });
+        let result =
+            decoded_safepoint.resolve(&mut fixture.resolver(), &mut meter, &WirePath::root());
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert!(matches!(
+                result,
+                Err(SafepointMappingResolutionError::Resource(ref error))
+                    if error.kind() == &WireErrorKind::LimitExceeded {
+                        resource: ResourceKind::ValidationWorkUnits,
+                        limit,
+                        observed: safepoint_work,
+                    }
+            ));
+        }
+    }
 }
 
 #[test]
@@ -100,7 +179,11 @@ fn stale_derived_runtime_ids_are_rejected() {
         DecodeLimits::default(),
     )
     .unwrap();
-    assert!(decoded_runtime.resolve(&mut fixture.resolver()).is_err());
+    assert!(
+        decoded_runtime
+            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
+            .is_err()
+    );
 
     let safepoint = SafepointMappingRecord::new(fixture.site).unwrap();
     let mut safepoint_bytes = encode(&safepoint).unwrap();
@@ -111,7 +194,11 @@ fn stale_derived_runtime_ids_are_rejected() {
         DecodeLimits::default(),
     )
     .unwrap();
-    assert!(decoded_safepoint.resolve(&mut fixture.resolver()).is_err());
+    assert!(
+        decoded_safepoint
+            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
+            .is_err()
+    );
 }
 
 #[test]

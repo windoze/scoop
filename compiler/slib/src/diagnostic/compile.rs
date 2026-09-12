@@ -207,6 +207,14 @@ fn mir_structure_diagnostic(error: &MirFoundationValidationError) -> SlibDiagnos
 fn lir_structure_diagnostic(error: &LirFoundationValidationError) -> SlibDiagnosticRecord {
     match error {
         LirFoundationValidationError::Identity(error) => error.diagnostic(),
+        LirFoundationValidationError::RuntimeType {
+            error: scoop_lir::RuntimeTypeMappingResolutionError::Resource(error),
+            ..
+        }
+        | LirFoundationValidationError::Safepoint {
+            error: scoop_lir::SafepointMappingResolutionError::Resource(error),
+            ..
+        } => error.diagnostic(),
         LirFoundationValidationError::NativeContract { .. }
         | LirFoundationValidationError::CAbiSignature { .. }
         | LirFoundationValidationError::CAbiLayout { .. }

@@ -1,7 +1,7 @@
 use scoop_identity::{
     CallableBodyKey, ConeIdentity, GeneratedBridgeUnitKey, IdentityLayer, ValidatedIdentityGraph,
 };
-use scoop_wire::{WireEncode, encode};
+use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode};
 
 use super::*;
 
@@ -65,8 +65,9 @@ impl DecodedLirFoundation {
         self,
         producer: ConeIdentity,
         identities: &mut ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
     ) -> Result<ValidatedLirFoundation, LirFoundationValidationError> {
-        validate_foundation(self, producer, identities)
+        validate_foundation(self, producer, identities, meter)
     }
 }
 
@@ -74,6 +75,7 @@ fn validate_foundation(
     foundation: DecodedLirFoundation,
     producer: ConeIdentity,
     identities: &mut ValidatedIdentityGraph,
+    meter: &mut BudgetMeter,
 ) -> Result<ValidatedLirFoundation, LirFoundationValidationError> {
     let original = encode(&foundation).map_err(LirFoundationValidationError::WireEncode)?;
     let DecodedLirFoundationWire {
@@ -140,9 +142,12 @@ fn validate_foundation(
         .try_reserve_exact(runtime_types.len())
         .map_err(|_| LirFoundationValidationError::Allocation)?;
     for (index, record) in runtime_types.into_iter().enumerate() {
+        let path = WirePath::root()
+            .field(11)
+            .key("exact-type", *record.decoded_exact_type().as_array());
         resolved_runtime_types.push(
             record
-                .resolve(identities)
+                .resolve(identities, meter, &path)
                 .map_err(|error| LirFoundationValidationError::RuntimeType { index, error })?,
         );
     }
@@ -152,9 +157,12 @@ fn validate_foundation(
         .try_reserve_exact(safepoints.len())
         .map_err(|_| LirFoundationValidationError::Allocation)?;
     for (index, record) in safepoints.into_iter().enumerate() {
+        let path = WirePath::root()
+            .field(12)
+            .key("safepoint-site", *record.decoded_site().as_array());
         resolved_safepoints.push(
             record
-                .resolve(identities)
+                .resolve(identities, meter, &path)
                 .map_err(|error| LirFoundationValidationError::Safepoint { index, error })?,
         );
     }
