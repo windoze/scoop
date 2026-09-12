@@ -271,6 +271,7 @@ fn validate_foundation(
         &enum_variants,
         &enum_variant_fields,
         &boundary_types,
+        meter,
     )?;
 
     let mut canonical = CanonicalHirFoundation::empty();
