@@ -83,6 +83,13 @@ impl HirDispatchSlotIdentities {
     pub fn get_interface(&self, member: InterfaceMethodId) -> Option<&HirDispatchSlotIdentity> {
         self.interface_slots.get(local_index(member))
     }
+
+    pub fn records(&self) -> impl Iterator<Item = &HirDispatchSlotIdentity> {
+        self.virtual_slots
+            .values()
+            .map(|slot| &slot.record)
+            .chain(self.interface_slots.iter())
+    }
 }
 
 impl Index<VirtualMethodId> for HirDispatchSlotIdentities {

@@ -20,10 +20,13 @@ use scoop_identity::{
 };
 use scoop_wire::{Encoder, WireEncode};
 
-use crate::{NativeBoundaryTypeDefinitionRecord, SourceRecord};
+use crate::{NativeBoundaryTypeDefinitionRecord, SourceRecord, SourceRecordError};
 
 mod wire;
 pub use wire::ValidatedHirFoundationWire;
+mod counts;
+mod projection;
+pub use counts::HirFoundationCounts;
 
 type TypeRecord = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
 type GenericTypeRecord = CborIdentityRecord<PersistentGenericTypeId, SourceDeclarationKey>;
@@ -549,6 +552,19 @@ pub enum HirFoundationBuildError {
         subject_tag: u8,
         subject: [u8; 32],
     },
+    SourceRecord {
+        source: SourceIdentity,
+        error: SourceRecordError,
+    },
+    UnknownDefinitionSource {
+        source: SourceIdentity,
+        subject_tag: u8,
+        subject: [u8; 32],
+    },
+    IdentityDerivation {
+        table: HirFoundationTable,
+        reason: String,
+    },
 }
 
 impl fmt::Display for HirFoundationBuildError {
@@ -580,6 +596,25 @@ impl fmt::Display for HirFoundationBuildError {
                 table.name(),
                 HexIdentity(subject)
             ),
+            Self::SourceRecord { source, error } => {
+                write!(formatter, "cannot project source {source:?}: {error}")
+            }
+            Self::UnknownDefinitionSource {
+                source,
+                subject_tag,
+                subject,
+            } => write!(
+                formatter,
+                "definition subject {subject_tag}:{} refers to unknown source {source:?}",
+                HexIdentity(subject)
+            ),
+            Self::IdentityDerivation { table, reason } => {
+                write!(
+                    formatter,
+                    "cannot derive {} identity: {reason}",
+                    table.name()
+                )
+            }
         }
     }
 }
