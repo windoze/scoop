@@ -13,10 +13,10 @@ pub use scoop_identity::{
     InitializationUnitKey, LexicalCallableParent, LocalValueKey, LocalValueSelector, NonEmptyVec,
     OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
     OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    PersistentExactTypeId, PersistentGeneratedCallableId, PersistentInitializationUnitId,
-    PersistentLocalValueId, SourceNativeExternalContractRecord, SpecializationKey,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
-    SyntheticLocalRole,
+    PersistentExactTypeId, PersistentFieldId, PersistentGeneratedCallableId,
+    PersistentInitializationUnitId, PersistentLocalValueId, SourceNativeExternalContractRecord,
+    SpecializationKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment, SyntheticLocalRole,
 };
 
 pub use super::{

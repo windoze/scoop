@@ -8,16 +8,47 @@ use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
-    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, GeneratedCallableKey,
-    InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, PackagePath,
-    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFunctionId,
-    PersistentPropertyId, PersistentTypeId, SignatureCallableShape, SignatureTypeKey,
-    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
-    SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractKey,
-    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
-    SourceNominalKind, SourceScoopAbiFunctionSignature, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, FieldIdentityKey,
+    GeneratedCallableKey, InitializationUnitKey, LexicalCallableParent, LexicalCallableRole,
+    PackagePath, PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFieldId,
+    PersistentFunctionId, PersistentPropertyId, PersistentTypeId, SignatureCallableShape,
+    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
+    SourceDeclarationSite, SourceExternFunctionAbi, SourceNativeExternalContract,
+    SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
+    SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
+    SourceScoopAbiFunctionSignature, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
+
+fn test_field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {
+    fn identifier(value: &str) -> CanonicalIdentifier {
+        let encoded = format!(
+            "test{}",
+            value
+                .bytes()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
+        CanonicalIdentifier::new(&encoded).unwrap()
+    }
+
+    let owner = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        identifier(owner_name),
+        SourceNominalKind::Struct,
+        0,
+    );
+    PersistentFieldId::from_key(
+        &FieldIdentityKey::source_declared(&owner, identifier(field_name)).unwrap(),
+    )
+    .unwrap()
+}
 
 fn test_source_native_contract(
     source_name: &str,
@@ -833,11 +864,13 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             c_layout: None,
             interior_mutable: false,
             fields: vec![
-                mir::Field {
+                mir::DeclaredStructField {
+                    identity: test_field_identity("Lookalike", "function"),
                     name: "function".to_string(),
                     ty: mir::Type::FunPtr(mir::FunctionTypeId::from_raw(0.into())),
                 },
-                mir::Field {
+                mir::DeclaredStructField {
+                    identity: test_field_identity("Lookalike", "context"),
                     name: "context".to_string(),
                     ty: mir::Type::Ptr(Box::new(mir::Type::Unit)),
                 },

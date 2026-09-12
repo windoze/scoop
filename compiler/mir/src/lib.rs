@@ -15,7 +15,7 @@ use scoop_ast::Span;
 
 pub use scoop_identity::{
     CallableOwner, ConeIdentity, ImmortalObjectKey, ImmortalObjectOwner, OdrGroupId,
-    PersistentExactTypeId, PersistentInitializationUnitId, PropertyOwner,
+    PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId, PropertyOwner,
     SourceNativeExternalContractRecord, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
 };

@@ -292,6 +292,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         },
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("Inner", "flag"),
                 ty: scoop_lir::CType::Boolean,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -299,6 +300,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Inner", "value"),
                 ty: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 layout: scoop_lir::FieldLayout {
                     offset: 1,
@@ -319,6 +321,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         },
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("Outer", "flag"),
                 ty: scoop_lir::CType::Boolean,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -326,6 +329,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Outer", "inner"),
                 ty: scoop_lir::CType::Struct(inner),
                 layout: scoop_lir::FieldLayout {
                     offset: 2,
@@ -333,6 +337,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Outer", "value"),
                 ty: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 layout: scoop_lir::FieldLayout {
                     offset: 18,
@@ -916,6 +921,7 @@ fn nullable_data_pointer_ref_rejects_a_mismatched_exact_pointee() {
             packed: scoop_lir::LirCLayoutValue::Natural,
         },
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("MalformedNullableData", "value"),
             ty: scoop_lir::CType::DataPointer {
                 pointee: scoop_lir::CDataPointee::Object(Box::new(scoop_lir::CType::Integer(
                     IntegerKind::SIGNED_32,
@@ -963,6 +969,7 @@ fn nullable_code_pointer_ref_rejects_a_mismatched_exact_signature() {
             packed: scoop_lir::LirCLayoutValue::Natural,
         },
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("MalformedNullableCode", "value"),
             ty: scoop_lir::CType::CodePointer {
                 signature: Box::new(scoop_lir::CFunctionType {
                     params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_32)],
@@ -1011,6 +1018,7 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
         },
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("PointerFields", "raw"),
                 ty: raw_type,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -1018,6 +1026,7 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("PointerFields", "code"),
                 ty: code_type,
                 layout: scoop_lir::FieldLayout {
                     offset: 8,
@@ -1127,6 +1136,7 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
             .iter()
             .enumerate()
             .map(|(index, (_, ty))| scoop_lir::CStructField {
+                identity: test_field_identity("PointerTree", &format!("field{index}")),
                 ty: ty.clone(),
                 layout: scoop_lir::FieldLayout {
                     offset: u64::try_from(index).expect("four test fields") * 8,
@@ -1246,6 +1256,7 @@ fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
         node,
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("Node", "next"),
                 ty: node_pointer,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -1253,6 +1264,7 @@ fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Node", "visitor"),
                 ty: visitor,
                 layout: scoop_lir::FieldLayout {
                     offset: 8,
@@ -1325,6 +1337,7 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
     module.structs.set_c_fields(
         a,
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("A", "b"),
             ty: scoop_lir::CType::Struct(b),
             layout: scoop_lir::FieldLayout {
                 offset: 0,
@@ -1335,6 +1348,7 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
     module.structs.set_c_fields(
         b,
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("B", "a"),
             ty: scoop_lir::CType::Struct(a),
             layout: scoop_lir::FieldLayout {
                 offset: 0,

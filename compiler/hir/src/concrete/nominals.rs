@@ -85,7 +85,7 @@ pub struct StructDef {
 pub enum StructRepresentation {
     Declared {
         attributes: StructAttributes,
-        fields: Vec<Field>,
+        fields: Vec<DeclaredStructField>,
     },
     Intrinsic {
         declaration: IntrinsicTypeDeclaration,
@@ -94,7 +94,7 @@ pub enum StructRepresentation {
 }
 
 impl StructDef {
-    pub fn declared_fields(&self) -> &[Field] {
+    pub fn declared_fields(&self) -> &[DeclaredStructField] {
         match &self.representation {
             StructRepresentation::Declared { fields, .. } => fields,
             StructRepresentation::Intrinsic { .. } => {
@@ -485,6 +485,16 @@ pub struct Field {
     pub ty: TypeId,
 }
 
+/// One source-declared struct field with its persistent semantic identity.
+/// Keeping the identity in the field makes layout projection structurally
+/// total instead of relying on a parallel vector or a field-name lookup.
+#[derive(Debug, Clone)]
+pub struct DeclaredStructField {
+    pub identity: PersistentFieldId,
+    pub name: String,
+    pub ty: TypeId,
+}
+
 #[derive(Debug, Clone)]
 pub struct Global {
     pub name: String,
@@ -550,8 +560,9 @@ pub enum HirPointerNullKind {
 #[cfg(test)]
 mod tests {
     use scoop_identity::{
-        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, PackagePath,
-        SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
+        FieldIdentityKey, PackagePath, PersistentFieldId, SourceDeclarationKey,
+        SourceDeclarationSite, SourceNominalKind,
     };
 
     use super::*;
@@ -575,6 +586,30 @@ mod tests {
             type_parameter_count,
         ))
         .expect("the test nominal identity is valid")
+    }
+
+    fn field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {
+        let site = SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap();
+        let owner = SourceDeclarationKey::nominal(
+            site,
+            CanonicalIdentifier::new(owner_name).unwrap(),
+            SourceNominalKind::Struct,
+            0,
+        );
+        PersistentFieldId::from_key(
+            &FieldIdentityKey::source_declared(
+                &owner,
+                CanonicalIdentifier::new(field_name).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -670,7 +705,8 @@ mod tests {
             gc_free: true,
             representation: StructRepresentation::Declared {
                 attributes: StructAttributes::default(),
-                fields: vec![Field {
+                fields: vec![DeclaredStructField {
+                    identity: field_identity("Record", "value"),
                     name: "value".to_string(),
                     ty,
                 }],

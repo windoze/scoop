@@ -87,6 +87,18 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
             },
         ]
     );
+    assert_eq!(
+        inner_def
+            .c_fields()
+            .expect("Inner is a C-layout struct")
+            .iter()
+            .map(|field| field.identity)
+            .collect::<Vec<_>>(),
+        [
+            test_field_identity("Inner", "flag"),
+            test_field_identity("Inner", "value"),
+        ]
+    );
 
     let outer_def = &module.structs[struct_def_id(outer)];
     assert_eq!(
@@ -116,6 +128,19 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
                 offset: 10,
                 access_align: 2,
             },
+        ]
+    );
+    assert_eq!(
+        outer_def
+            .c_fields()
+            .expect("Outer is a C-layout struct")
+            .iter()
+            .map(|field| field.identity)
+            .collect::<Vec<_>>(),
+        [
+            test_field_identity("Outer", "tag"),
+            test_field_identity("Outer", "inner"),
+            test_field_identity("Outer", "tail"),
         ]
     );
     assert!(outer_def.interior_mutable);

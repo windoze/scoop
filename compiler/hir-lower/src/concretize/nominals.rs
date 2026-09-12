@@ -142,7 +142,15 @@ impl Concretizer<'_> {
         let fields: Vec<_> = source
             .semantic_fields()
             .iter()
-            .map(|field| concrete::Field {
+            .enumerate()
+            .map(|(index, field)| concrete::DeclaredStructField {
+                identity: self.source.field_identities[export::StructFieldRef::checked(
+                    &self.source.structs,
+                    source_id,
+                    u32::try_from(index).expect("struct field count fits u32"),
+                )
+                .expect("semantic field indices are valid")]
+                .id(),
                 name: field.name.clone(),
                 ty: self.lower_type(field.ty, &arguments),
             })

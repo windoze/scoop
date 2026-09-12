@@ -126,6 +126,7 @@ pub struct StructField {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CStructField {
+    pub identity: scoop_identity::PersistentFieldId,
     pub ty: CType,
     pub layout: FieldLayout,
 }

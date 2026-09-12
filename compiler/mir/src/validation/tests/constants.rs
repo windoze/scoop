@@ -79,7 +79,8 @@ fn struct_global_validation_rejects_an_inexact_field_arity() {
         representation: StructRepresentation::Declared {
             c_layout: None,
             interior_mutable: false,
-            fields: vec![Field {
+            fields: vec![DeclaredStructField {
+                identity: test_struct_field("BoolWrapper", "value"),
                 name: "value".to_string(),
                 ty: Type::Boolean,
             }],
@@ -215,7 +216,8 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
         representation: StructRepresentation::Declared {
             c_layout: None,
             interior_mutable: false,
-            fields: vec![Field {
+            fields: vec![DeclaredStructField {
+                identity: test_struct_field("ChoiceWrapper", "choice"),
                 name: "choice".to_string(),
                 ty: Type::Enum(enum_id, Vec::new()),
             }],
@@ -228,7 +230,8 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
         representation: StructRepresentation::Declared {
             c_layout: None,
             interior_mutable: false,
-            fields: vec![Field {
+            fields: vec![DeclaredStructField {
+                identity: test_struct_field("OuterWrapper", "inner"),
                 name: "inner".to_string(),
                 ty: Type::Struct(inner),
             }],

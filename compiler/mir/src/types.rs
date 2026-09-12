@@ -239,7 +239,7 @@ pub enum StructRepresentation {
     Declared {
         c_layout: Option<MirCLayoutContract>,
         interior_mutable: bool,
-        fields: Vec<Field>,
+        fields: Vec<DeclaredStructField>,
     },
     Intrinsic(IntrinsicTypeRepresentation),
 }
@@ -265,7 +265,7 @@ impl StructDef {
         }
     }
 
-    pub fn declared_fields(&self) -> &[Field] {
+    pub fn declared_fields(&self) -> &[DeclaredStructField] {
         match &self.representation {
             StructRepresentation::Declared { fields, .. } => fields,
             StructRepresentation::Intrinsic(_) => {
@@ -274,7 +274,7 @@ impl StructDef {
         }
     }
 
-    pub fn declared_fields_mut(&mut self) -> &mut Vec<Field> {
+    pub fn declared_fields_mut(&mut self) -> &mut Vec<DeclaredStructField> {
         match &mut self.representation {
             StructRepresentation::Declared { fields, .. } => fields,
             StructRepresentation::Intrinsic(_) => {
@@ -326,6 +326,15 @@ pub struct MirCLayoutContract {
 
 #[derive(Debug)]
 pub struct Field {
+    pub name: String,
+    pub ty: Type,
+}
+
+/// Source-declared struct field retained with its persistent identity for
+/// target layout and native ABI projection.
+#[derive(Debug)]
+pub struct DeclaredStructField {
+    pub identity: PersistentFieldId,
     pub name: String,
     pub ty: Type,
 }

@@ -23,6 +23,30 @@ fn test_property(name: &str) -> scoop_identity::PersistentPropertyId {
     scoop_identity::PersistentPropertyId::from_source_declaration(&declaration).unwrap()
 }
 
+fn test_struct_field(owner_name: &str, field_name: &str) -> PersistentFieldId {
+    let site = scoop_identity::SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let owner = scoop_identity::SourceDeclarationKey::nominal(
+        site,
+        scoop_identity::CanonicalIdentifier::new(owner_name).unwrap(),
+        scoop_identity::SourceNominalKind::Struct,
+        0,
+    );
+    PersistentFieldId::from_key(
+        &scoop_identity::FieldIdentityKey::source_declared(
+            &owner,
+            scoop_identity::CanonicalIdentifier::new(field_name).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap()
+}
+
 fn test_static_storage_owner(name: &str) -> StaticStorageOwner {
     StaticStorageOwner::PropertyBacking(scoop_identity::PropertyOwner::Property(test_property(
         name,
@@ -699,9 +723,13 @@ fn module_with_declared_struct(fields: Vec<Type>) -> (Module, StructId) {
             fields: fields
                 .into_iter()
                 .enumerate()
-                .map(|(index, ty)| Field {
-                    name: format!("f{index}"),
-                    ty,
+                .map(|(index, ty)| {
+                    let name = format!("f{index}");
+                    DeclaredStructField {
+                        identity: test_struct_field("Record", &name),
+                        name,
+                        ty,
+                    }
                 })
                 .collect(),
         },

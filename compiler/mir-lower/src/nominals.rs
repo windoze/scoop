@@ -160,7 +160,8 @@ impl Lowerer {
             let fields = match &decl.representation {
                 hir::StructRepresentation::Declared { fields, .. } => fields
                     .iter()
-                    .map(|field| mir::Field {
+                    .map(|field| mir::DeclaredStructField {
+                        identity: field.identity,
                         name: field.name.clone(),
                         ty: types.lower(
                             field.ty,

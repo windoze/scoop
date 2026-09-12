@@ -241,6 +241,7 @@ pub(crate) fn lower_structs(
                     .iter()
                     .zip(field_layouts)
                     .map(|(field, layout)| lir::CStructField {
+                        identity: field.identity,
                         ty: c_ffi_type(module, &structs, enums, &field.ty),
                         layout,
                     })

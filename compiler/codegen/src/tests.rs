@@ -5,10 +5,11 @@ use scoop_identity::{
     CallableMaterializationContext, CallbackApplicationKey, CallbackMode, CallbackParameterIndex,
     CallbackRegistrationKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
     CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, Effect, ExactTypeKey,
-    InitializationUnitKey, LexicalCallableParent, PackagePath, PersistentCallbackApplicationId,
-    PersistentExactTypeId, PersistentFunctionId, PersistentPropertyId, PersistentTypeId,
-    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StructuralDefinitionPath,
+    FieldIdentityKey, InitializationUnitKey, LexicalCallableParent, PackagePath,
+    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFieldId,
+    PersistentFunctionId, PersistentPropertyId, PersistentTypeId, SignatureCallableShape,
+    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
+    SourceDeclarationSite, SourceNominalKind, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
@@ -56,6 +57,36 @@ mod validation_boundaries;
 use enums::enum_module;
 use exceptions::exceptions_module;
 use objects::heap_module;
+
+fn test_field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {
+    fn identifier(value: &str) -> CanonicalIdentifier {
+        let encoded = format!(
+            "test{}",
+            value
+                .bytes()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
+        CanonicalIdentifier::new(&encoded).unwrap()
+    }
+
+    let owner = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        identifier(owner_name),
+        SourceNominalKind::Struct,
+        0,
+    );
+    PersistentFieldId::from_key(
+        &FieldIdentityKey::source_declared(&owner, identifier(field_name)).unwrap(),
+    )
+    .unwrap()
+}
 
 fn initialization_unit_identity(
     cone: ConeIdentity,

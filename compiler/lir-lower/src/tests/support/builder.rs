@@ -173,8 +173,9 @@ impl Builder {
                 interior_mutable: false,
                 fields: fields
                     .iter()
-                    .map(|(name, ty)| mir::Field {
-                        name: name.to_string(),
+                    .map(|(field_name, ty)| mir::DeclaredStructField {
+                        identity: test_field_identity(name, field_name),
+                        name: field_name.to_string(),
                         ty: ty.clone(),
                     })
                     .collect(),
@@ -200,8 +201,9 @@ impl Builder {
                 interior_mutable,
                 fields: fields
                     .iter()
-                    .map(|(name, ty)| mir::Field {
-                        name: name.to_string(),
+                    .map(|(field_name, ty)| mir::DeclaredStructField {
+                        identity: test_field_identity(name, field_name),
+                        name: field_name.to_string(),
                         ty: ty.clone(),
                     })
                     .collect(),

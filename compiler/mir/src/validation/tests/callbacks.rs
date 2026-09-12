@@ -198,11 +198,13 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
             c_layout: None,
             interior_mutable: false,
             fields: vec![
-                Field {
+                DeclaredStructField {
+                    identity: test_struct_field("ForeignCallback", "function"),
                     name: "function".to_string(),
                     ty: Type::FunPtr(signature),
                 },
-                Field {
+                DeclaredStructField {
+                    identity: test_struct_field("ForeignCallback", "context"),
                     name: "context".to_string(),
                     ty: Type::Ptr(Box::new(Type::Unit)),
                 },

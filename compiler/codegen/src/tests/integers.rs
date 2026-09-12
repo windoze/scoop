@@ -123,13 +123,20 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
             .copied()
             .zip(offsets)
             .zip(aligns)
-            .map(|((kind, offset), access_align)| scoop_lir::CStructField {
-                ty: scoop_lir::CType::Integer(kind),
-                layout: scoop_lir::FieldLayout {
-                    offset,
-                    access_align,
+            .enumerate()
+            .map(
+                |(index, ((kind, offset), access_align))| scoop_lir::CStructField {
+                    identity: test_field_identity(
+                        "AllFixedWidthIntegers",
+                        &format!("field{index}"),
+                    ),
+                    ty: scoop_lir::CType::Integer(kind),
+                    layout: scoop_lir::FieldLayout {
+                        offset,
+                        access_align,
+                    },
                 },
-            })
+            )
             .collect(),
     );
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
