@@ -3,7 +3,7 @@ use std::fmt;
 use scoop_identity::{
     ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, GeneratedBridgeAtomId,
     LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
-    PersistentCallableBodyId, PersistentSymbolKey, PersistentSymbolKind,
+    PersistentCallableBodyId, PersistentSymbolKey,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -53,12 +53,12 @@ impl OdrFreeLirFoundation {
             .symbol_requests
             .requests()
             .iter()
-            .find(|request| {
-                request.linkage() == LinkageClass::OdrWeak
-                    || request.key().kind() == PersistentSymbolKind::OdrMember
-            })
+            .find(|request| request.linkage() != LinkageClass::ConeStrong)
         {
-            return Err(OdrFreeLirFoundationError::OdrSymbolRequest(request.key()));
+            return Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
+                key: request.key(),
+                linkage: request.linkage(),
+            });
         }
         for record in &foundation.definition_plans {
             match record.key().owner() {
@@ -141,7 +141,10 @@ pub enum OdrFreeLirFoundationError {
     OdrGroup(OdrGroupId),
     OdrMember(OdrMemberId),
     OdrCallableBody(PersistentCallableBodyId),
-    OdrSymbolRequest(PersistentSymbolKey),
+    NonStrongSymbolRequest {
+        key: PersistentSymbolKey,
+        linkage: LinkageClass,
+    },
     OdrDefinitionPlan(ObjectDefinitionPlanId),
     ForeignStrongDefinitionPlan {
         plan: ObjectDefinitionPlanId,
@@ -184,11 +187,12 @@ impl fmt::Display for OdrFreeLirFoundationError {
                 Self::CODE,
                 HexIdentity(id.as_array())
             ),
-            Self::OdrSymbolRequest(key) => write!(
+            Self::NonStrongSymbolRequest { key, linkage } => write!(
                 formatter,
-                "{}: LIR {:?} symbol request is forbidden by the SingleConeStrong profile",
+                "{}: LIR {:?} symbol request has {:?} linkage; the SingleConeStrong profile requires ConeStrong",
                 Self::CODE,
-                key.kind()
+                key.kind(),
+                linkage
             ),
             Self::OdrDefinitionPlan(id) => write!(
                 formatter,
@@ -262,13 +266,13 @@ impl fmt::Display for HexIdentity<'_> {
 mod tests {
     use scoop_identity::{
         CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
-        DefinitionOwnerChain, ExactTypeKey, GeneratedCallableKey, LinkageClass,
+        DefinitionOwnerChain, DispatchSlotKey, ExactTypeKey, GeneratedCallableKey, LinkageClass,
         ObjectDefinitionPlanKey, OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole, PackagePath,
-        PersistentCallableBodyId, PersistentExactTypeId, PersistentFunctionId, PersistentSymbolKey,
-        PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
-        RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
-        SpecializationKey, StrongCallableDefinitionOwner, StrongDefinitionEntity,
-        StrongDefinitionRole,
+        PersistentCallableBodyId, PersistentDispatchSlotId, PersistentExactTypeId,
+        PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
+        PersistentSymbolRequestTable, PersistentTypeId, RuntimeIdentityRecord,
+        SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, SpecializationKey,
+        StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
     };
     use scoop_wire::encode;
 
@@ -339,7 +343,10 @@ mod tests {
 
         assert_eq!(
             OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
-            Err(OdrFreeLirFoundationError::OdrSymbolRequest(key))
+            Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
+                key,
+                linkage: LinkageClass::OdrWeak,
+            })
         );
     }
 
@@ -353,7 +360,31 @@ mod tests {
 
         assert_eq!(
             OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
-            Err(OdrFreeLirFoundationError::OdrSymbolRequest(key))
+            Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
+                key,
+                linkage: LinkageClass::OdrWeak,
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_template_support_hidden_symbols() {
+        let slot = PersistentDispatchSlotId::from_key(&DispatchSlotKey::virtual_method(
+            source_function("hiddenSlot"),
+        ))
+        .unwrap();
+        let key = PersistentSymbolKey::DispatchSlot(slot);
+        let request =
+            PersistentSymbolRequest::new(key, LinkageClass::TemplateSupportHidden).unwrap();
+        let mut canonical = CanonicalLirFoundation::empty();
+        canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
+
+        assert_eq!(
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
+            Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
+                key,
+                linkage: LinkageClass::TemplateSupportHidden,
+            })
         );
     }
 

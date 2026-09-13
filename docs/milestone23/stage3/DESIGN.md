@@ -846,7 +846,8 @@ LIR foundation validation把请求中的producer Cone写入`ValidatedLirFoundati
 `OdrFreeLirFoundation`同样是`{ producer, canonical }`的封闭证明，而不是可脱离producer复用的
 foundation wrapper。构造该证明时除ODR group/member/body/symbol外，还必须拒绝ODR-owned
 definition plan、producer不等于当前Cone的strong definition plan，以及producer不等于当前Cone的
-generated bridge atom。旧的无producer构造入口不存在。
+generated bridge atom。其全部persistent symbol request必须逐项为`ConeStrong`；
+`TemplateSupportHidden`与`OdrWeak`都在proof构造时直接拒绝。旧的无producer构造入口不存在。
 
 `object_definition_plans`的元素固定为`StrongObjectDefinitionPlanV1` closed product：
 `1=plan: ObjectDefinitionPlanId`、`2=primary_atom: ObjectDefinitionAtomId`、
