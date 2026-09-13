@@ -28,6 +28,9 @@ pub use c_bridge_production::*;
 mod builtin_object_set;
 pub use builtin_object_set::*;
 
+mod generated_bridge_semantics;
+pub use generated_bridge_semantics::*;
+
 mod symbol_planning;
 pub use symbol_planning::*;
 

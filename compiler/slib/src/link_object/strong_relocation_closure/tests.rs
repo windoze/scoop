@@ -201,6 +201,28 @@ pub(in crate::link_object) fn replace_only_binding_resolution(
     closure
 }
 
+pub(in crate::link_object) fn synthetic_binding(
+    source_member: SlibMemberId,
+    containing_atom: ObjectDefinitionAtomId,
+    relocation_form: VerifiedDarwinArm64RelocationFormV1,
+    symbol: &[u8],
+    resolution: StrongRelocationResolutionV1,
+) -> StrongRelocationBindingV1 {
+    StrongRelocationBindingV1 {
+        source_member,
+        containing_atom,
+        containing_atom_role: scoop_identity::DefinitionAtomRole::Primary,
+        section_role: BuiltinObjectSectionRoleV1::Text,
+        offset_within_atom: 0,
+        width_bytes: 4,
+        relocation_form,
+        encoded_value: 0,
+        target_slot: RelocationTargetSlotV1::Single,
+        symbol: symbol.to_vec(),
+        resolution,
+    }
+}
+
 fn verified_member(fixture: &Fixture, bytes: &[u8]) -> VerifiedMemberObjectRelocationIndexV1 {
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(bytes)
         .unwrap()

@@ -1293,6 +1293,22 @@ generated-C member可以产生该requirement，Scoop LIR member中的同名use�
 template、flags、deployment或environment都会改变profile fingerprint以及本requirement id。当前registry
 只含`Memcpy`，未知helper保持未分类并使artifact失败。
 
+完整producer-specific proof为`VerifiedGeneratedCBridgeSemanticSetV1`，只能消费已经通过联合strong
+relocation closure的`VerifiedBuiltinObjectStrongRelocationSetV1`。它从validated bridge plan保留的full
+unit/atom key重建每个materialized atom的`GeneratedBridge` definition plan与singleton primary object
+atom，要求它们全部出现在unit被分配的generated-C member中，并要求这些member不存在额外definition、
+额外object atom或由associated descriptor发起的relocation。object-local machine symbol只允许回指同一
+object atom；跨atom local与无法归属到typed atom的section-base relocation失败。
+
+每个primary atom的semantic relocation按unit kind闭合：outbound function只能以call relocation命中同一
+fingerprint的C-function source contract；global read/address只能命中data/TLS contract，write只能命中
+mutable data/TLS contract；managed callback必须同时命中`CallbackInvoke` runtime contract和自己的
+signature descriptor definition；static callback必须命中由`StaticNoGcCallbackStorageBridgeId`重建的
+strong callable-body definition。每个unit的必需target至少出现一次，其他external/strong target失败。
+profile target support只在未命中当前unit的typed semantic target后分类，因此源码extern本身名为
+`memcpy`时仍归入该extern contract，不能被同名support抢先吞掉。proof按physical use保留unit、完整
+member/atom/offset/relocation form/symbol及上述typed semantic分类，供后续requirement closure逐项复用。
+
 ### 11.6 finalization顺序
 
 固定流程：
