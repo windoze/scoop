@@ -155,15 +155,12 @@ driver       -> manifest + protocol + parser/lower/codegen + slib
 - 新component调用legacy `compile_file`取得binary或core AST；
 - 以共享全局arena/registry把两个Cone的未持久IR接在一起。
 
-### 2.4 legacy runner隔离
+### 2.4 直接切换，不保留历史兼容层
 
-M1～M22历史运行fixture在M23-11前仍可使用旧直编直链路径，但必须移动到显式`legacy_fixture`模块并满足：
-
-- 名称、类型和返回值都带`Legacy`，不能实现新protocol trait；
-- `scoopc`正式CLI、新`build_single_cone`、slib writer/reader和未来`scoop`不能依赖它；
-- 新增M23-3测试不得借它取得artifact、object proof、runtime或link结果；
-- legacy路径继续回归只是迁移保障，不构成第二套production语义；
-- M23-11删除模块、feature和调用点为同一批变更。
+M23-3不保留旧直编直链入口、兼容alias、deprecated wrapper、双实现或运行时回退。每个
+production替代边界一旦具备，其旧类型、调用点和仅服务旧入口的fixture在同一批变更中删除；
+允许在替代尚未落地前短暂存在的旧代码不能被任何M23-3新component调用，也不能获得新
+protocol、artifact或publish proof。breaking change直接更新全部仓库内调用点和测试。
 
 ## 3. `Cone.toml` v1
 
@@ -1398,7 +1395,7 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 8. 实现Scoop LIR/generated C两种LinkObject verifier、member-awareowner/requirement及C-bridge production proof；
 9. 实现digest finalizer、final re-verification、Code/RuntimeImage fingerprint和Link closure/manifest section；
 10. 注册`SingleConeStrongProfile`并实现`ValidatedLinkArtifact`、双视图publish gate及atomic output；
-11. 切换正式`scoopc build`只产`.slib`，移除其runtime/link依赖，把旧运行fixture入口隔离命名；
+11. 切换正式`scoopc build`只产`.slib`，移除其runtime/link依赖，并在同一批变更中删除旧直编直链入口及其专用fixture；
 12. 补齐core bootstrap、library/executable/single-file、corruption、reproducibility与组合fixture。
 
 每完成一批代码变更，先执行`cargo fmt --all`与`cargo clippy --workspace`，再运行该批unit/golden/fixture；不能把format/lint集中拖到全部实现之后。
@@ -1419,6 +1416,6 @@ M23-3只有同时满足以下条件才完成：
 - 成员语义不依赖文件名、扩展名、ordinal或固定object数量，opaque blob绝不被提升为object；
 - library不需要main且没有root metadata，executable entry/root gateway/failure root非可选且互证；
 - 新增unit/golden/negative/组合fixture、`cargo fmt --all`、`cargo clippy --workspace`和完整`cargo test`全部通过；
-- legacy executable runner只保留为明确隔离的历史回归入口，任何新component都不能调用它。
+- 旧executable runner、兼容wrapper与仅服务旧入口的fixture已经删除，仓库中不存在第二套production路径。
 
 到达该完成门后，M23-4可以只把`.slib`视为不透明、已双视图验证的节点来做DAG与调度；它不需要也不允许进入任何Cone的parser、IR或object producer内部。
