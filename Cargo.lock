@@ -494,6 +494,7 @@ name = "scoop-mir"
 version = "0.0.0"
 dependencies = [
  "la-arena",
+ "scoop-hir",
  "scoop-identity",
  "scoop-wire",
 ]

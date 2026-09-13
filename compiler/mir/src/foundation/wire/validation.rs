@@ -27,6 +27,10 @@ impl ValidatedMirFoundation {
         self.canonical.counts()
     }
 
+    pub(crate) const fn canonical(&self) -> &CanonicalMirFoundation {
+        &self.canonical
+    }
+
     pub(crate) fn into_canonical(self) -> CanonicalMirFoundation {
         self.canonical
     }

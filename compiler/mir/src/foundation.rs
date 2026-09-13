@@ -96,6 +96,10 @@ impl CanonicalMirFoundation {
         }
     }
 
+    pub(crate) fn callable_signatures(&self) -> &[CallableSignatureRecord] {
+        &self.callable_signatures
+    }
+
     /// ODR groups first introduced by MIR rather than inherited from HIR.
     /// Later stages use this delta to add members without claiming ownership
     /// of an already established structural group record.

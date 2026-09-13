@@ -798,6 +798,24 @@ CoreBootstrapBridgeSectionV1 {
 }
 ```
 
+wire固定为closed product：`1=core_bridge, 2=entry_bridge,
+3=strong_callable_bridges`。`core_bridge`的sum tag为`NotCore=1`、
+`Core(CoreMirBridgeV1)=2`；`entry_bridge`的sum tag为`Library=1`、
+`Executable(EntryMirBridgeV1)=2`。`CoreMirBridgeV1`只含field
+`1=callable_targets`，其元素固定为`1=binding, 2=definition,
+3=implementation`；前两项分别引用HIR core interface中的
+`PersistentExportBindingId`与`PersistentFunctionId`，`implementation`必须逐值等于
+`CallableOwner::Function(definition)`。array按binding bytes严格递增，binding和
+implementation均不得重复。
+
+`EntryMirBridgeV1`固定为`1=source_entry, 2=implementation`，implementation必须逐值等于
+`CallableOwner::Function(source_entry)`。`StrongCallableBridgeV1`固定为
+`1=implementation: CallableOwner, 2=signature: ExactCallableSignature`；其MIR signature
+subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementation)`，wire中没有
+可伪造的第二份subject字段。`strong_callable_bridges`按`CallableOwner` canonical顺序完整覆盖
+同一MIR foundation的全部callable signature record；foundation出现ODR subject、缺项、多项、
+重复owner或signature不一致均拒绝，不能排序修复reader输入。
+
 每个callable bridge连接HIR persistent declaration/generated identity、MIR `CallableSignatureSubjectV1::Strong`、exact signature与实现origin；subject必须递归回到当前Cone。Core分支完整覆盖HIR中标为`ParamFreeStrong`的prelude callable，不能多出未授权target或漏项。entry bridge只能指向当前Cone main。
 
 本section不保存machine body、link symbol或object member；这些由LIR决定。
