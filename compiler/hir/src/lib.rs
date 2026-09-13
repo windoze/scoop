@@ -44,6 +44,9 @@ pub use legacy::*;
 mod output_kind;
 pub use output_kind::*;
 
+mod production;
+pub use production::*;
+
 mod ids;
 pub use ids::*;
 

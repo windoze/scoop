@@ -122,6 +122,10 @@ fn complete_hir_output_projects_one_canonical_foundation() {
     assert!(counts.generic_functions > 0);
     assert!(counts.generated_callables > 0);
 
+    let direct_public = hir::CanonicalDirectPublicSurfaceV1::from_export_hir(export)
+        .expect("checked export bindings must form one canonical direct-public surface");
+    assert_eq!(direct_public.bindings().len(), counts.export_bindings);
+
     assert!(matches!(
         hir::OdrFreeHirFoundation::from_modules(export, local, &output.native_boundary_types,),
         Err(hir::OdrFreeHirFoundationProjectionError::Odr(

@@ -149,6 +149,23 @@ impl CanonicalHirFoundation {
         }
     }
 
+    pub(crate) fn function_id_by_bytes(&self, bytes: &[u8; 32]) -> Option<PersistentFunctionId> {
+        self.functions
+            .iter()
+            .map(CborIdentityRecord::id)
+            .find(|id| id.as_array() == bytes)
+    }
+
+    pub(crate) fn export_binding_id_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<PersistentExportBindingId> {
+        self.export_bindings
+            .iter()
+            .map(CborIdentityRecord::id)
+            .find(|id| id.as_array() == bytes)
+    }
+
     pub fn set_sources(
         &mut self,
         mut records: Vec<SourceRecord>,

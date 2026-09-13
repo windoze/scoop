@@ -34,6 +34,10 @@ impl ValidatedHirFoundation {
         self.canonical
     }
 
+    pub(crate) const fn canonical(&self) -> &CanonicalHirFoundation {
+        &self.canonical
+    }
+
     #[doc(hidden)]
     pub fn source_native_contracts(&self) -> &[SourceNativeExternalContractRecord] {
         &self.canonical.source_native_contracts
