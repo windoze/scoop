@@ -194,6 +194,50 @@ impl CanonicalHirFoundation {
         })
     }
 
+    pub(crate) fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKey> {
+        self.exact_types
+            .iter()
+            .find(|record| record.id() == id)
+            .map(CborIdentityRecord::key)
+    }
+
+    pub(crate) fn generic_type_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentGenericTypeId, &SourceDeclarationKey)> {
+        self.generic_types.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn function_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentFunctionId, &SourceDeclarationKey)> {
+        self.functions.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn generic_function_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentGenericFunctionId, &SourceDeclarationKey)> {
+        self.generic_functions.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn definition_origin(
+        &self,
+        subject: scoop_identity::DefinitionOriginSubject,
+    ) -> Option<&DefinitionOriginRecord> {
+        self.definition_origins
+            .binary_search_by(|record| record.subject().compare_sort_key(subject))
+            .ok()
+            .map(|index| &self.definition_origins[index])
+    }
+
     pub(crate) fn generic_type_key(
         &self,
         id: PersistentGenericTypeId,

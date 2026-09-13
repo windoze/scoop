@@ -688,6 +688,37 @@ foundation中精确的`ExactTypeKey::Nominal(source_type)`；reader不能接受�
 同layout或同宽identity替代。target layout contract在LIR relation中追加，不能提前混入
 target-independent HIR payload。
 
+`CoreCallableTargetSurfaceV1`是`CoreHirInterfaceV1`的callable constituent，wire为按
+`binding` bytes严格递增的definite-length array，并完整覆盖`direct_public_surface`中
+target为`Function`或`GenericFunction`的每个binding。元素
+`CoreCallableTargetV1`固定为closed product：
+
+```text
+1 = binding: PersistentExportBindingId
+2 = definition: Function(PersistentFunctionId) | GenericFunction(PersistentGenericFunctionId)
+3 = signature: SignatureCallableShape
+4 = capability:
+      ParamFreeStrong(ExactCallableSignature)
+    | StructuralUnavailable(ExactCallableSignature)
+    | GenericUnavailable(type_parameter_count)
+```
+
+`definition`的sum tag固定为`Function=1, GenericFunction=2`；`capability`的sum tag固定为
+`ParamFreeStrong=1, StructuralUnavailable=2, GenericUnavailable=3`，三个variant都使用
+field `1`保存上述payload。`binding`只引用foundation binding record；`definition`必须逐类型
+等于该binding的最终target，并且foundation中必须存在对应definition origin。
+`SignatureCallableShape`复用identity schema，receiver/parameters必须逐结构等于source
+declaration的duplicate signature，binder只能使用depth 0且index小于声明type parameter
+count；result与effect作为本constituent的规范typed source interface。
+
+非generic target必须携带`ExactCallableSignature`，reader从foundation exact-type图把它递归
+重放为`SignatureCallableShape`并逐结构比较。receiver、parameter和result的根exact key全部
+为`ExactTypeKey::Nominal`时只能编码`ParamFreeStrong`；任一根为nominal application、tuple、
+function、raw pointer或native function pointer时只能编码`StructuralUnavailable`。generic
+target只能编码`GenericUnavailable`且count必须等于source declaration；不能省略不可用target，
+也不能用空exact id或未知reason模拟不可用。MIR section随后必须完整覆盖这里授予的每个
+`ParamFreeStrong` callable，HIR capability本身不替代implementation bridge证明。
+
 它不包含import文本、failed candidate、current display locator或完整source。`ExecutableSourceEntry`必须与`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
 
 本section进入HIR semantic fingerprint。即使普通Cone使用`NotCore`，其output contract/direct-public surface变化仍必须改变HIR fingerprint；这为M23-5升级一般public surface提供明确的失效边界，而不是靠object变化偶然触发。

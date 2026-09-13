@@ -224,6 +224,13 @@ impl HirFunctionIdentities {
         validation::validate(&inputs, &identities)?;
         Ok(Self { identities })
     }
+
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (FunctionId, &HirFunctionIdentity)> {
+        self.identities
+            .iter()
+            .enumerate()
+            .map(|(index, identity)| (FunctionId::from_raw((index as u32).into()), identity))
+    }
 }
 
 impl Index<FunctionId> for HirFunctionIdentities {
