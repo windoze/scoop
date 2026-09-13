@@ -1564,6 +1564,19 @@ patch集合都必须为空。它承诺的是两个graph-managed slot仍为零的
 而`StrongRegistration`再显式消费该object leaf与`StackmapRecord`；不得把registration自身或任意其他
 digest回接到这个object leaf，也不得为同一record保留另一种带input的旧编码。
 
+callable registration在codegen前同样只能经唯一、非wire入口
+`StrongCallableRegistrationPlanSetV1::new(foundation, identities, digests)`构造完整生产计划。它要求
+foundation中的全部callable body与`StrongRegistrationIdentitySurfaceV1.callables`逐项相等；每个body
+必须同时存在`ConeStrong CallableBody(body)`入口符号、`ConeStrong CallableRegistration(body)`记录符号、
+各自不同的`CallableBody`/`CallableRegistration` definition plan及唯一`Primary` atom。registration
+Primary的`ObjectDefinition` node固定为无input、无patch的leaf；StrongRegistration node的direct input
+精确为该registration object leaf与body Primary的ObjectDefinition node，且patch集合精确为写入registration
+Primary的`RegistrationDefinition`一项。body ObjectDefinition node还必须持有写入同一registration Primary
+的`CallableBodyDefinition` patch；它可同时写入root/init descriptor中由其他typed intent声明的镜像槽。
+target由精确`ObjectDefinitionPlanId`定位，因此同一callable owner下的body与registration两个Primary绝不
+通过owner反查混淆。结果按`PersistentCallableBodyId`排序，并完整保留两套definition/atom/symbol、三个
+digest node及两个patch intent；codegen不得从零散foundation表重新拼装这些字段。
+
 codegen唯一经`emit_strong_safepoint_registrations_v1`消费上述完整set，不开放接受裸site或零散字段的
 单record生产入口。每个address-significant全局使用`ConeStrong`外部linkage，按共享header发射magic、
 ABI version 1、size 232、Strong linkage、零reserved/ODR group/ODR member、typed semantic/runtime/owner

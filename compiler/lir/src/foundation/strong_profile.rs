@@ -134,6 +134,10 @@ impl OdrFreeLirFoundation {
         &self.canonical.definition_plans
     }
 
+    pub(crate) fn callable_bodies(&self) -> &[super::CallableBodyRecord] {
+        &self.canonical.callable_bodies
+    }
+
     pub(crate) fn definition_atoms(&self) -> &[super::DefinitionAtomRecord] {
         &self.canonical.definition_atoms
     }
