@@ -2,7 +2,8 @@ use scoop_identity::{
     DecodedExactCallableSignature, DecodedPersistentId, DecodedPersistentSymbolRequest,
     DigestPatchIntentId, ExactOrdinaryNoArgUnitSignature, ExecutableSourceEntryIdentity,
     MainCallableBodyId, ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentFunctionId,
-    PersistentStaticStorageId, PersistentSymbolRequest, SourceSignatureFingerprint,
+    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    SourceSignatureFingerprint,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
@@ -84,6 +85,22 @@ impl ExecutableEntryPlanV1 {
 
     pub const fn gateway_definition_patch(&self) -> DigestPatchIntentId {
         self.gateway_definition_patch
+    }
+
+    pub fn failure_root_registration_symbol(
+        &self,
+    ) -> Result<PersistentSymbolRequest, PersistentSymbolError> {
+        PersistentSymbolRequest::new(
+            PersistentSymbolKey::RootRegistration(self.failure_root),
+            scoop_identity::LinkageClass::ConeStrong,
+        )
+    }
+
+    pub fn gateway_symbol(&self) -> Result<PersistentSymbolRequest, PersistentSymbolError> {
+        PersistentSymbolRequest::new(
+            PersistentSymbolKey::CallableBody(self.gateway),
+            scoop_identity::LinkageClass::ConeStrong,
+        )
     }
 }
 
