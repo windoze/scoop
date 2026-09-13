@@ -839,6 +839,16 @@ StrongProductionSectionV1 {
 ```
 
 `external_bridges`在普通Cone中只允许origin为validated core；core bootstrap中为空。每项包含typed target、expected persistent symbol、calling convention、effect/root-plan和required upstream definition identity。没有“symbol string only”分支。
+LIR内存模型也不保留通用`ExternalCallable`/`ExternalTypeDescriptor`或裸symbol字段：本阶段只暴露
+`CoreExternalCallable`与`CoreExternalTypeDescriptor`。callable以
+`StrongCallableDefinitionOwner`为target，由它唯一导出`PersistentCallableBodyId`、
+`ConeStrong` symbol request及core `CallableBody` definition plan；物理`ScoopAbiSignature`携带
+calling convention，`ManagedStatepoint | NoGc`封闭sum把GC effect与caller root protocol原子绑定。
+type descriptor以`PersistentExactTypeId`为target，并唯一导出`ConeStrong` type-descriptor symbol
+request与core `TypeDescriptor` definition plan。codegen只能从typed request计算最终拼写，并且
+必须用bridge携带的`ScoopAbiSignature`预声明core callable；不得等到dispatch table发射时猜测函数类型。
+core bootstrap携带任一`CoreExternal*`即失败；普通Cone中的target/body/exact type必须分别唯一，
+且不得与当前Cone的local callable body或local type descriptor重合。
 
 `object_definition_plans`覆盖每个参与definition/digest的strong primary和associated atom，但不含member assignment。`DigestFinalizationPlan`可使用M23总设计已经冻结的全部kind enum；本profile只允许SourceSignature/Layout/Scan/LirDefinition/ObjectSupport/ObjectDefinition/StackmapRecord/StrongRegistration/RuntimeImage，出现OdrDefinition node即拒绝。
 

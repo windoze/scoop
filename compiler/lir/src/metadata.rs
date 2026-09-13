@@ -263,9 +263,9 @@ pub struct LirMeta {
     /// `symbol` is only a final link attribute.
     pub type_descriptors: Arena<TypeDescriptor>,
     /// Cross-Cone descriptors are declared but not initialized by this Cone.
-    pub external_type_descriptors: Arena<ExternalTypeDescriptor>,
+    pub core_external_type_descriptors: Arena<CoreExternalTypeDescriptor>,
     /// Cross-Cone callables referenced from local dispatch tables.
-    pub external_callables: Arena<ExternalCallable>,
+    pub core_external_callables: Arena<CoreExternalCallable>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -305,26 +305,14 @@ pub struct ArrayType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TypeDescriptorRef {
     Local(TypeDescriptorId),
-    External(ExternalTypeDescriptorId),
-}
-
-#[derive(Debug)]
-pub struct ExternalTypeDescriptor {
-    /// Final linker spelling; never used as semantic identity.
-    pub symbol: String,
+    CoreExternal(CoreExternalTypeDescriptorId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CallableRef {
     Local(LocalFunctionId),
     Runtime(RuntimeFunction),
-    External(ExternalCallableId),
-}
-
-#[derive(Debug)]
-pub struct ExternalCallable {
-    /// Final linker spelling; the typed arena id is the semantic identity.
-    pub symbol: String,
+    CoreExternal(CoreExternalCallableId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

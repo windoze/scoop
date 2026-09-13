@@ -73,7 +73,7 @@ fn abi_call_argument_name(argument: AbiCallArgument) -> String {
 pub(super) fn type_descriptor_ref_name(reference: TypeDescriptorRef) -> String {
     match reference {
         TypeDescriptorRef::Local(id) => format!("td{}", id.into_raw()),
-        TypeDescriptorRef::External(id) => format!("external-td{}", id.into_raw()),
+        TypeDescriptorRef::CoreExternal(id) => format!("core-external-td{}", id.into_raw()),
     }
 }
 
@@ -81,7 +81,7 @@ pub(super) fn callable_ref_name(reference: CallableRef) -> String {
     match reference {
         CallableRef::Local(id) => format!("local-fn{}", id.into_u32()),
         CallableRef::Runtime(function) => format!("runtime@{}", function.symbol()),
-        CallableRef::External(id) => format!("external-fn{}", id.into_raw()),
+        CallableRef::CoreExternal(id) => format!("core-external-fn{}", id.into_raw()),
     }
 }
 

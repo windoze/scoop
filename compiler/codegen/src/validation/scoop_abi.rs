@@ -1732,8 +1732,8 @@ mod tests {
                 arrays: Arena::new(),
                 layouts: Arena::new(),
                 type_descriptors: Arena::new(),
-                external_type_descriptors: Arena::new(),
-                external_callables: Arena::new(),
+                core_external_type_descriptors: Arena::new(),
+                core_external_callables: Arena::new(),
             },
         }
     }

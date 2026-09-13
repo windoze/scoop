@@ -313,8 +313,8 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             arrays,
             layouts,
             type_descriptors,
-            external_type_descriptors: Arena::new(),
-            external_callables: Arena::new(),
+            core_external_type_descriptors: Arena::new(),
+            core_external_callables: Arena::new(),
         },
     }
 }

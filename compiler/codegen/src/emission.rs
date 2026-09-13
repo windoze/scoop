@@ -138,10 +138,11 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .collect::<Result<_, CodegenError>>()?;
     let external_type_tds: Vec<GlobalValue> = module
         .meta
-        .external_type_descriptors
+        .core_external_type_descriptors
         .iter()
         .map(|(_, descriptor)| {
-            let global = llvm.add_global(td_ty, None, &descriptor.symbol);
+            let symbol = descriptor.expected_symbol().symbol();
+            let global = llvm.add_global(td_ty, None, symbol.as_str());
             global.set_linkage(inkwell::module::Linkage::External);
             global
         })
@@ -282,6 +283,16 @@ pub(crate) fn emit_llvm_module<'ctx>(
             &module.enums,
             profile,
             function,
+        )?;
+    }
+    for (_, callable) in module.meta.core_external_callables.iter() {
+        declare_core_external_callable(
+            context,
+            &llvm,
+            &module.structs,
+            &module.enums,
+            managed_address_space,
+            callable,
         )?;
     }
     let initialization_units = initialization::emit(context, &llvm, module, &globals)?;

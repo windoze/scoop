@@ -58,7 +58,7 @@ pub(super) fn type_descriptor_global<'ctx>(
             .get(arena_index(id))
             .copied()
             .ok_or_else(|| CodegenError(format!("invalid local TypeDescriptor id {id:?}"))),
-        TypeDescriptorRef::External(id) => externals
+        TypeDescriptorRef::CoreExternal(id) => externals
             .get(arena_index(id))
             .copied()
             .ok_or_else(|| CodegenError(format!("invalid external TypeDescriptor id {id:?}"))),
@@ -157,7 +157,7 @@ fn emit_type_descriptor<'ctx>(
         &format!("{}.vtable", descriptor.identity.symbol()),
         descriptor.vtable.slots(),
         &module.functions,
-        &module.meta.external_callables,
+        &module.meta.core_external_callables,
     )?;
     let (itables, itable_count): (BasicValueEnum, u64) = if descriptor.itables.is_empty() {
         (ptr.const_null().into(), 0)
@@ -173,7 +173,7 @@ fn emit_type_descriptor<'ctx>(
                 &format!("{}.itables.{record_index}", descriptor.identity.symbol()),
                 record.slots(),
                 &module.functions,
-                &module.meta.external_callables,
+                &module.meta.core_external_callables,
             )?;
             entries.push(context.const_struct(&[interface.into(), slots], false));
         }
@@ -252,7 +252,7 @@ fn emit_fn_table<'ctx>(
     name: &str,
     slots: &[DispatchEntry],
     functions: &[Function],
-    external_callables: &Arena<scoop_lir::ExternalCallable>,
+    external_callables: &Arena<scoop_lir::CoreExternalCallable>,
 ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
     let ptr = ptr_ty(context);
     if slots.is_empty() {
@@ -278,7 +278,7 @@ fn slot_fn_ptr<'ctx>(
     llvm: &LlvmModule<'ctx>,
     callable: CallableRef,
     functions: &[Function],
-    external_callables: &Arena<scoop_lir::ExternalCallable>,
+    external_callables: &Arena<scoop_lir::CoreExternalCallable>,
 ) -> Result<PointerValue<'ctx>, CodegenError> {
     let symbol = match callable {
         CallableRef::Local(id) => functions
@@ -286,7 +286,17 @@ fn slot_fn_ptr<'ctx>(
             .ok_or_else(|| CodegenError(format!("invalid local callable id {id:?}")))?
             .symbol(),
         CallableRef::Runtime(function) => function.symbol(),
-        CallableRef::External(id) => external_callables[id].symbol.as_str(),
+        CallableRef::CoreExternal(id) => {
+            let symbol = external_callables[id].expected_symbol().symbol();
+            return llvm
+                .get_function(symbol.as_str())
+                .map(|function| function.as_global_value().as_pointer_value())
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed dispatch callable {callable:?} (`@{symbol}`) is not declared"
+                    ))
+                });
+        }
     };
     llvm.get_function(symbol)
         .map(|function| function.as_global_value().as_pointer_value())

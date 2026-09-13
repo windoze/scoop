@@ -770,8 +770,8 @@ pub(super) fn string_metadata() -> LirMeta {
         arrays: Arena::new(),
         layouts,
         type_descriptors,
-        external_type_descriptors: Arena::new(),
-        external_callables: Arena::new(),
+        core_external_type_descriptors: Arena::new(),
+        core_external_callables: Arena::new(),
     }
 }
 

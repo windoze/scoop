@@ -29,6 +29,9 @@ pub use externs::*;
 mod calls;
 pub use calls::*;
 
+mod core_external;
+pub use core_external::*;
+
 mod module;
 pub use module::*;
 
