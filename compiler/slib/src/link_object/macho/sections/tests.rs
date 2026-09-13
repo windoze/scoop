@@ -96,6 +96,29 @@ fn generated_bridge_requires_text_and_rejects_writable_state() {
     );
 }
 
+#[test]
+fn relocated_data_const_is_read_only_but_other_data_sections_stay_closed() {
+    let relocated_const = object_with_section(b"__DATA", b"__const", macho::S_REGULAR);
+    let inventory = validate_builtin_object_section_inventory_v1(
+        validate_darwin_arm64_object_envelope_v1(&relocated_const).unwrap(),
+        BuiltinLinkObjectSectionProfileV1::ScoopLir,
+    )
+    .unwrap();
+    assert_eq!(
+        inventory.roles(),
+        &[BuiltinObjectSectionRoleV1::ReadOnlyData]
+    );
+
+    let literal_pool = object_with_section(b"__DATA", b"__literal8", macho::S_REGULAR);
+    assert_eq!(
+        validate_builtin_object_section_inventory_v1(
+            validate_darwin_arm64_object_envelope_v1(&literal_pool).unwrap(),
+            BuiltinLinkObjectSectionProfileV1::ScoopLir,
+        ),
+        Err(BuiltinObjectSectionValidationError::UnsupportedSectionName)
+    );
+}
+
 fn text_object() -> Vec<u8> {
     object_with_section(
         b"__TEXT",

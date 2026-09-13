@@ -96,7 +96,7 @@ fn classify_section(segment: &[u8], section: &[u8]) -> Option<(BuiltinObjectSect
             BuiltinObjectSectionRoleV1::Text,
             macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS,
         )),
-        (b"__TEXT", b"__const") | (b"__DATA_CONST", b"__const") => {
+        (b"__TEXT", b"__const") | (b"__DATA", b"__const") | (b"__DATA_CONST", b"__const") => {
             Some((BuiltinObjectSectionRoleV1::ReadOnlyData, macho::S_REGULAR))
         }
         (b"__TEXT", b"__cstring") => Some((
