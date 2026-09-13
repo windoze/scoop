@@ -15,6 +15,9 @@ const MAX_OBJECT_STRING_TABLE_BYTES: u64 = 16_777_216;
 mod sections;
 pub use sections::*;
 
+mod symbols;
+pub use symbols::*;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinDeploymentCommandV1 {
     BuildVersion {
@@ -37,6 +40,7 @@ pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     relocation_count: u64,
     deployment: DarwinDeploymentCommandV1,
     sections: Vec<ObservedMachOSectionV1>,
+    symbols: Vec<ObservedMachOSymbolV1>,
 }
 
 impl ValidatedDarwinArm64ObjectEnvelopeV1 {
@@ -67,12 +71,17 @@ impl ValidatedDarwinArm64ObjectEnvelopeV1 {
     pub fn sections(&self) -> &[ObservedMachOSectionV1] {
         &self.sections
     }
+
+    pub fn symbols(&self) -> &[ObservedMachOSymbolV1] {
+        &self.symbols
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ObservedMachOSectionV1 {
     segment_name: [u8; 16],
     section_name: [u8; 16],
+    virtual_address: u64,
     flags: u32,
     byte_size: u64,
     alignment_power: u32,
@@ -90,6 +99,10 @@ impl ObservedMachOSectionV1 {
 
     pub const fn flags(self) -> u32 {
         self.flags
+    }
+
+    pub const fn virtual_address(self) -> u64 {
+        self.virtual_address
     }
 
     pub const fn byte_size(self) -> u64 {
@@ -250,7 +263,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                     return Err(ObjectEnvelopeValidationError::MalformedSymbolTable);
                 }
                 validate_symbol_table(record, endian, bytes, byte_length, &mut occupied_ranges)?;
-                symtab = Some(record.nsyms.get(endian));
+                symtab = Some(record);
             }
             macho::LC_DYSYMTAB => {
                 if dysymtab.is_some() {
@@ -337,11 +350,20 @@ pub fn validate_darwin_arm64_object_envelope_v1(
     }
 
     let section_count = segment.ok_or(ObjectEnvelopeValidationError::MissingSegment)?;
-    let symbol_count = symtab.ok_or(ObjectEnvelopeValidationError::MissingSymbolTable)?;
+    let symtab = symtab.ok_or(ObjectEnvelopeValidationError::MissingSymbolTable)?;
+    let symbol_count = symtab.nsyms.get(endian);
     let dysymtab = dysymtab.ok_or(ObjectEnvelopeValidationError::MissingDynamicSymbolTable)?;
     validate_dynamic_symbol_table(dysymtab, endian, symbol_count)?;
     let deployment = deployment.ok_or(ObjectEnvelopeValidationError::MissingDeploymentCommand)?;
     validate_disjoint_ranges(&mut occupied_ranges)?;
+    let symbols = validate_darwin_arm64_symbol_inventory_v1(
+        symtab,
+        dysymtab,
+        endian,
+        bytes,
+        &observed_sections,
+    )
+    .map_err(ObjectEnvelopeValidationError::SymbolInventory)?;
 
     Ok(ValidatedDarwinArm64ObjectEnvelopeV1 {
         byte_length,
@@ -351,6 +373,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
         relocation_count,
         deployment,
         sections: observed_sections,
+        symbols,
     })
 }
 
@@ -462,6 +485,7 @@ fn validate_section(
     Ok(ObservedMachOSectionV1 {
         segment_name: section.segname,
         section_name: section.sectname,
+        virtual_address: section.addr.get(endian),
         flags: section.flags.get(endian),
         byte_size: section.size.get(endian),
         alignment_power: section.align.get(endian),
@@ -587,6 +611,7 @@ pub enum ObjectEnvelopeValidationError {
     MalformedDynamicSymbolTable,
     InvalidDynamicSymbolPartition,
     UnexpectedDynamicLinkTable,
+    SymbolInventory(DarwinArm64SymbolInventoryValidationError),
     MissingDynamicSymbolTable,
     DuplicateDeploymentCommand,
     MalformedDeploymentCommand,

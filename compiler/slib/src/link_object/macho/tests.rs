@@ -86,6 +86,12 @@ fn validates_section_relocation_and_symbol_ranges_as_one_layout() {
     assert_eq!(envelope.section_count(), 1);
     assert_eq!(envelope.symbol_count(), 1);
     assert_eq!(envelope.relocation_count(), 1);
+    assert_eq!(envelope.symbols().len(), 1);
+    assert_eq!(envelope.symbols()[0].name(), b"_f");
+    assert_eq!(
+        envelope.symbols()[0].kind(),
+        DarwinArm64SymbolKindV1::ExternalStrongDefinition
+    );
 }
 
 #[test]
@@ -165,7 +171,7 @@ fn object_bytes() -> Vec<u8> {
     bytes
 }
 
-fn object_with_text_section() -> Vec<u8> {
+pub(super) fn object_with_text_section() -> Vec<u8> {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
     let dysymtab_size = 80_u32;
@@ -240,12 +246,20 @@ fn object_with_text_section() -> Vec<u8> {
 
     bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd]);
     bytes.extend_from_slice(&[0; 8]);
-    bytes.extend_from_slice(&[0; 16]);
+    push_u32(&mut bytes, 1);
+    bytes.push(macho::N_SECT | macho::N_EXT);
+    bytes.push(1);
+    push_u16(&mut bytes, 0);
+    push_u64(&mut bytes, 0);
     bytes.extend_from_slice(b"\0_f\0");
     bytes
 }
 
 fn push_u32(bytes: &mut Vec<u8>, value: u32) {
+    bytes.extend_from_slice(&value.to_le_bytes());
+}
+
+fn push_u16(bytes: &mut Vec<u8>, value: u16) {
     bytes.extend_from_slice(&value.to_le_bytes());
 }
 
