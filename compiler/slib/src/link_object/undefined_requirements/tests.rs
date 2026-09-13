@@ -4,12 +4,14 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
+    CBridgeTargetSupportRequirementV1, CBridgeTargetSupportV1, CanonicalLirFoundation,
+    GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
     StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongExternalTypeDescriptorBridgeV1, ValidatedLirTargetSelection,
 };
 use scoop_wire::encode;
 
+use super::super::c_bridge_production::tests::profile;
 use super::super::current_cone_requirements::tests::primary_bridge_requirement;
 use super::super::native_requirements::tests::{contract_record, native_surface};
 use super::super::runtime_requirements::tests::classify;
@@ -45,6 +47,24 @@ fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
         eh.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::TargetEhSupport { .. }
     ));
+}
+
+#[test]
+fn c_bridge_target_support_uses_the_seventh_requirement_tag() {
+    let profile = profile("clang-2100.1.1.101", 0x000d_0100, 0x000e_0200);
+    let contract = CBridgeTargetSupportRequirementV1::current(
+        LirTargetProfile::DARWIN_AARCH64,
+        &profile,
+        CBridgeTargetSupportV1::Memcpy,
+    )
+    .unwrap()
+    .id();
+    let mut expected = vec![0xa2, 0x00, 0x07, 0x01];
+    expected.extend(encode(&contract).unwrap());
+    assert_eq!(
+        encode(&FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { contract }).unwrap(),
+        expected
+    );
 }
 
 #[test]

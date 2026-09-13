@@ -1267,6 +1267,32 @@ verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary e
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
 
+canonical generated-C template允许toolchain为storage copy引入的target-native helper必须进入独立闭合契约，
+不能伪装成source extern、runtime ABI或EH support：
+
+```text
+CBridgeTargetSupportV1 = Memcpy                         // tag 1
+
+CBridgeTargetSupportRequirementV1 {                    // fields 1..5
+    target: TargetProfileWireId,
+    target_fingerprint: TargetProfileFingerprint,
+    profile_id: CBridgeToolchainProfileId,
+    profile_fingerprint: CBridgeToolchainFingerprint,
+    support: CBridgeTargetSupportV1,
+}
+
+CBridgeTargetSupportRequirementId =
+    DomainSeparatedCborHash("scoop-c-bridge-target-support-v1",
+                            CBridgeTargetSupportRequirementV1)
+```
+
+`Memcpy`的logical symbol固定为`memcpy`，object symbol只能经同一target的
+`NativeSymbolNormalization`得到。registry由请求级完整toolchain profile构造；profile的target id或
+fingerprint与请求target不相等即失败。只有同一个`VerifiedCBridgeProductionEnvelopeSetV1`证明的
+generated-C member可以产生该requirement，Scoop LIR member中的同名use不得借用它；改变compiler、
+template、flags、deployment或environment都会改变profile fingerprint以及本requirement id。当前registry
+只含`Memcpy`，未知helper保持未分类并使artifact失败。
+
 ### 11.6 finalization顺序
 
 固定流程：
@@ -1327,6 +1353,7 @@ FinalUndefinedSymbolRequirement =
                    library: NativeLibraryBinding }
   | RuntimeAbi { contract: RuntimeSymbolContractId }
   | TargetEhSupport { contract: TargetEhRequirementId }
+  | CBridgeTargetSupport { contract: CBridgeTargetSupportRequirementId }
 ```
 
 `RuntimeSymbolContractId`和`TargetEhRequirementId`不是symbol string的别名，也不由名字前缀
@@ -1396,7 +1423,7 @@ GotLoadPage21、GotLoadPageOffset12、PointerToGot32取1..8；Page21/PageOffset1
 `None=1 | NonNegative=2 {1=magnitude} | Negative=3 {1=magnitude}`，从而不引入Wire v1禁止的
 signed CBOR integer。
 
-`FinalUndefinedSymbolRequirement`的sum tag按上述声明顺序取1..6；单值variant使用field 1，
+`FinalUndefinedSymbolRequirement`的sum tag按上述声明顺序取1..7；单值variant使用field 1，
 `CoreStrong`使用`1=core, 2=owner`，`SourceExtern`使用`1=contract, 2=library`。
 `StrongDefinitionOwner`固定为`1=entity, 2=role`。最终set按
 `(member, containing_atom, offset_within_atom, target_slot)`严格递增编码为array；producer与
@@ -1413,7 +1440,9 @@ strong relocation closure中除object-local strong以外的全部use；两个不
   `Requirement(id)`则必须在同target的canonical native library requirement集中唯一存在，
   不得为default namespace伪造requirement id；
 - runtime/EH requirement只验证为当前target/runtime ABI的known contract，不构建runtime；
-- M23-9/M23-10在完整closure/final input上解析后四类实际provider。
+- C-bridge target support只接受由同一production envelope、请求profile与target共同产生的typed
+  requirement，并且use的source member必须属于该generated-C member全集；
+- M23-9/M23-10在完整closure/final input上解析后五类实际provider。
 
 任何undefined symbol没有requirement、一个use命中多个requirement、requirement symbol与object不符或外部contract只剩library名字都使Link proof失败。root Cone没有直接使用某个上游extern也不能在以后丢弃该requirement。
 

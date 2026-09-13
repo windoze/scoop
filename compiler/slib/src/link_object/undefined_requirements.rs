@@ -5,7 +5,10 @@ use std::fmt;
 use scoop_identity::{
     ConeIdentity, GeneratedBridgeUnitId, NativeExternalContractFingerprint, NativeLibraryBinding,
 };
-use scoop_lir::{RuntimeSymbolContractId, TargetEhRequirementId, ValidatedLirTargetSelection};
+use scoop_lir::{
+    CBridgeTargetSupportRequirementId, RuntimeSymbolContractId, TargetEhRequirementId,
+    ValidatedLirTargetSelection,
+};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{
@@ -39,6 +42,9 @@ pub enum FinalUndefinedSymbolRequirementV1 {
     TargetEhSupport {
         contract: TargetEhRequirementId,
     },
+    CBridgeTargetSupport {
+        contract: CBridgeTargetSupportRequirementId,
+    },
 }
 
 impl WireEncode for FinalUndefinedSymbolRequirementV1 {
@@ -64,6 +70,7 @@ impl WireEncode for FinalUndefinedSymbolRequirementV1 {
             }
             Self::RuntimeAbi { contract } => encode_one_field_sum(encoder, 5, contract),
             Self::TargetEhSupport { contract } => encode_one_field_sum(encoder, 6, contract),
+            Self::CBridgeTargetSupport { contract } => encode_one_field_sum(encoder, 7, contract),
         }
     }
 }
