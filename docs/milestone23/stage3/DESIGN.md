@@ -476,7 +476,7 @@ TrustedCoreSlot {
 }
 ```
 
-slot的host布局是安装策略，不进入identity。当前workspace adapter可把source映射到`sysroot/lib/scoop.core`、artifact映射到同一toolchain管理的target-specific位置，但semantic代码不能拼接这些字符串。`SCOOP_SYSROOT`若保留，只选择整套受信安装根，不授权一个普通dependency path成为core。
+slot的host布局是安装策略，不进入identity。M23-3 workspace adapter把source固定映射到`<sysroot>/lib/scoop.core`，artifact固定映射到`<sysroot>/artifacts/<target-profile-id>/scoop.core.slib`；这些片段只存在于driver的sysroot resolver，semantic代码不能拼接字符串。`SCOOP_SYSROOT`若保留，只选择整套受信安装根，不授权一个普通dependency path成为core。resolver先canonicalize整套sysroot、以trusted-core manifest入口验证source slot，再产生字段私有的`TrustedCoreSlot`；bootstrap可允许artifact尚不存在，普通消费则要求请求path与该slot解析为同一regular file。
 
 trusted source manifest必须声明exact core coordinate、`kind=library`、无dependency；它本身不能写“intrinsic=true”。`IntrinsicAuthority::Core`只来自`CoreBootstrapAuthority` sidecar。bootstrap artifact也不持久化一个可被复制来伪造authority的bool。
 

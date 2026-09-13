@@ -10,9 +10,15 @@ use std::path::{Path, PathBuf};
 
 mod inputs;
 mod linking;
+mod trusted_core;
 
 pub use inputs::{load_inputs, render_diagnostics};
 use linking::{LinkRequest, build_runtime, compile_c_bridge, link};
+pub use trusted_core::{
+    CoreBootstrapAuthority, TrustedCoreArtifactInput, TrustedCoreArtifactInputError,
+    TrustedCoreArtifactSlot, TrustedCoreSlot, TrustedCoreSlotError, TrustedCoreSlotErrorKind,
+    TrustedCoreSlotIoOperation, TrustedCoreSourceSlot, resolve_trusted_core_slot,
+};
 
 /// Text dumps of every pipeline stage, for golden-dump testing and
 /// `scoopc build --emit`.

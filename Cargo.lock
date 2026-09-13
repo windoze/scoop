@@ -559,10 +559,12 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-lir-lower",
+ "scoop-manifest",
  "scoop-mir",
  "scoop-mir-lower",
  "scoop-parser",
  "scoop-slib",
+ "scoop-wire",
  "toml",
 ]
 

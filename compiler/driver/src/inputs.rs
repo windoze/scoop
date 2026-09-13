@@ -139,10 +139,7 @@ mod diagnostic_tests {
 /// Locate the sysroot: `SCOOP_SYSROOT` if set, otherwise the workspace's
 /// `sysroot/` directory.
 fn sysroot() -> PathBuf {
-    match std::env::var_os("SCOOP_SYSROOT") {
-        Some(dir) => PathBuf::from(dir),
-        None => workspace_root().join("sysroot"),
-    }
+    crate::trusted_core::configured_sysroot_root()
 }
 
 /// Read the `scoop.core` Cone of the located sysroot: validate its
