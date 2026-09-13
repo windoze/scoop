@@ -140,4 +140,4 @@ impl fmt::Display for SourceExternalRequirementValidationError {
 impl std::error::Error for SourceExternalRequirementValidationError {}
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

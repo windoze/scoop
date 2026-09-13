@@ -139,7 +139,7 @@ fn rejects_a_native_surface_from_another_producer() {
     );
 }
 
-fn core_closure(
+pub(in crate::link_object) fn core_closure(
     producer: ConeIdentity,
     member: crate::VerifiedMemberObjectRelocationIndexV1,
 ) -> VerifiedCoreStrongRequirementClosureV1 {
@@ -148,7 +148,7 @@ fn core_closure(
     verify_core_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, bridges).unwrap()
 }
 
-fn native_surface(
+pub(in crate::link_object) fn native_surface(
     producer: ConeIdentity,
     contracts: Vec<NativeExternalContractRecord>,
     libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
