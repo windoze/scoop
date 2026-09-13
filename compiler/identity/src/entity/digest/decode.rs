@@ -227,6 +227,22 @@ pub struct DecodedDigestPatchIntentKey {
 }
 
 impl DecodedDigestPatchIntentKey {
+    pub const fn decoded_source(self) -> DecodedPersistentId<DigestNodeId> {
+        self.source
+    }
+
+    pub const fn target_owner(self) -> DecodedObjectDefinitionPlanOwner {
+        self.target_owner
+    }
+
+    pub const fn atom_role(self) -> DefinitionAtomRole {
+        self.atom_role
+    }
+
+    pub const fn semantic_field_role(self) -> DigestSemanticFieldRole {
+        self.semantic_field_role
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

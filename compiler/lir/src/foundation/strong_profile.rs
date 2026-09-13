@@ -117,6 +117,34 @@ impl OdrFreeLirFoundation {
         &self.canonical.definition_atoms
     }
 
+    pub(crate) fn contains_callable_body(&self, id: PersistentCallableBodyId) -> bool {
+        self.canonical
+            .callable_bodies
+            .iter()
+            .any(|record| record.id() == id)
+    }
+
+    pub(crate) fn contains_layout(&self, id: scoop_identity::PersistentLayoutId) -> bool {
+        self.canonical
+            .layouts
+            .iter()
+            .any(|record| record.id() == id)
+    }
+
+    pub(crate) fn contains_scan(&self, id: scoop_identity::PersistentScanId) -> bool {
+        self.canonical.scans.iter().any(|record| record.id() == id)
+    }
+
+    pub(crate) fn contains_safepoint_site(
+        &self,
+        id: scoop_identity::PersistentSafepointSiteId,
+    ) -> bool {
+        self.canonical
+            .safepoint_sites
+            .iter()
+            .any(|record| record.id() == id)
+    }
+
     pub(crate) fn bridge_units(&self) -> &[super::BridgeUnitRecord] {
         &self.canonical.bridge_units
     }

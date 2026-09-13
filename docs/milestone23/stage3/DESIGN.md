@@ -866,6 +866,27 @@ decoded identity cast为已验证记录。
 
 `object_definition_plans`覆盖每个参与definition/digest的strong primary和associated atom，但不含member assignment。`DigestFinalizationPlan`可使用M23总设计已经冻结的全部kind enum；本profile只允许SourceSignature/Layout/Scan/LirDefinition/ObjectSupport/ObjectDefinition/StackmapRecord/StrongRegistration/RuntimeImage，出现OdrDefinition node即拒绝。
 
+本阶段`DigestFinalizationPlanV1`的wire固定为node array；每个node是closed product：
+`1=identity: CborIdentityRecord<DigestNodeId, DigestNodeKeyV1>`、
+`2=direct_inputs: CanonicalVec<DigestInputRefV1>`、
+`3=patch_intents: CanonicalVec<CborIdentityRecord<DigestPatchIntentId,
+DigestPatchIntentKeyV1>>`。`DigestInputRefV1`按总设计十种kind形成closed sum，tag与
+`DigestKind`的`1..10`相同且payload field 1只能是`DigestNodeId`；不提供raw digest或generic
+bytes分支。顶层node按`(DigestKind tag, DigestNodeId bytes)`严格递增，direct input按同一key
+严格递增，patch intent按id bytes严格递增；writer排序但拒绝重复，reader只验证而不修复。
+每个patch intent的source必须是其所在node，field role必须接受该source kind，且
+`(target_owner, atom_role, semantic_field_role)`在整个plan中只有一个writer。target owner必须能
+在同一strong foundation中唯一定位到含该atom role的definition plan；source/target identity、
+缺失node、kind错配、orphan/ambiguous target、非法edge与DAG cycle全部在production section
+validation时拒绝。允许的direct edge矩阵为：前四种semantic leaf与`ObjectSupport`无输入；
+`StackmapRecord <- SourceSignature | ObjectSupport`；
+`ObjectDefinition <- SourceSignature | Layout | Scan | LirDefinition | ObjectSupport |
+StackmapRecord`；`OdrDefinition <- LirDefinition | ObjectDefinition | StackmapRecord`；
+`StrongRegistration <- SourceSignature | Layout | Scan | LirDefinition | ObjectDefinition |
+StackmapRecord`；`RuntimeImage <- SourceSignature | Layout | Scan | ObjectDefinition |
+StackmapRecord | StrongRegistration`。这里先验证合法边与拓扑；各registration/image canonical key
+产生后，还必须由对应plan builder逐字段证明必需input集合既不缺少也不多出。
+
 LIR foundation validation把请求中的producer Cone写入`ValidatedLirFoundation`；
 `OdrFreeLirFoundation`同样是`{ producer, canonical }`的封闭证明，而不是可脱离producer复用的
 foundation wrapper。构造该证明时除ODR group/member/body/symbol外，还必须拒绝ODR-owned

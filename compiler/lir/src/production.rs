@@ -3,6 +3,9 @@
 mod definitions;
 pub use definitions::*;
 
+mod digests;
+pub use digests::*;
+
 mod external_bridges;
 pub use external_bridges::*;
 
