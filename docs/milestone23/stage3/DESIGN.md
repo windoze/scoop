@@ -1585,6 +1585,16 @@ identity、site role与root count；`definition_fingerprint`和`normalized_stack
 primary atom、LLVM owner、offset和固定width 32。image pointer table先建立的同type strong declaration
 可以由该入口补全；function冲突、错type/linkage或已有initializer均失败，不能覆盖或另发alias。
 
+callable registration则唯一经`emit_strong_callable_registrations_v1`消费完整callable plan set。每条
+address-significant全局同样使用`ConeStrong`外部linkage，按共享header发射magic、ABI version 1、size
+192、Strong linkage、零reserved/ODR group/ODR member、body semantic id以及同一plan指定的LLVM callable
+entry地址；entry必须已存在、具有external linkage且不得是`local_unnamed_addr`或`unnamed_addr`。record内
+offset 120的`definition_fingerprint`与offset 152的`body_definition_fingerprint`保留恰32-byte零值，
+返回的两个patch site都精确指向registration definition/Primary atom及各自intent。已有同type external
+image-table声明可以补全；缺失/错误entry、global/function名字冲突、错type/linkage或已有initializer直接
+失败，且失败前不得先留下新的registration declaration。没有接受裸body id、function pointer或patch
+offset的另一发射入口。
+
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack

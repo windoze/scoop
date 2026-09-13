@@ -2,12 +2,13 @@
 
 use std::fmt;
 
+pub use scoop_identity::PersistentCallableBodyId;
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
     DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentCallableBodyId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 
 use crate::{

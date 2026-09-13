@@ -1,0 +1,253 @@
+use inkwell::context::Context;
+use inkwell::module::{Linkage, Module as LlvmModule};
+use inkwell::types::AnyType;
+use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
+use scoop_lir::{
+    ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, StrongCallableRegistrationPlanSetV1,
+    StrongCallableRegistrationPlanV1,
+};
+
+use super::RuntimeMetadataV1Types;
+use crate::CodegenError;
+
+const METADATA_ABI_VERSION: u64 = 1;
+const CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
+const CALLABLE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 192;
+const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
+const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 152;
+const DIGEST_SIZE: u64 = 32;
+
+/// One graph-managed digest slot in an emitted callable registration.
+#[derive(Clone, Copy, Debug)]
+pub struct CallableRegistrationPatchSiteV1<'ctx> {
+    intent: DigestPatchIntentId,
+    definition: ObjectDefinitionPlanId,
+    atom: ObjectDefinitionAtomId,
+    owner: GlobalValue<'ctx>,
+    byte_offset: u64,
+}
+
+impl<'ctx> CallableRegistrationPatchSiteV1<'ctx> {
+    pub const fn intent(self) -> DigestPatchIntentId {
+        self.intent
+    }
+
+    pub const fn definition(self) -> ObjectDefinitionPlanId {
+        self.definition
+    }
+
+    pub const fn atom(self) -> ObjectDefinitionAtomId {
+        self.atom
+    }
+
+    pub const fn owner(self) -> GlobalValue<'ctx> {
+        self.owner
+    }
+
+    pub const fn byte_offset(self) -> u64 {
+        self.byte_offset
+    }
+
+    pub const fn byte_size(self) -> u64 {
+        DIGEST_SIZE
+    }
+}
+
+/// One fully emitted provisional callable registration and its two slots.
+#[derive(Clone, Copy, Debug)]
+pub struct EmittedStrongCallableRegistrationV1<'ctx> {
+    body: PersistentCallableBodyId,
+    descriptor: GlobalValue<'ctx>,
+    registration_definition_patch: CallableRegistrationPatchSiteV1<'ctx>,
+    body_definition_patch: CallableRegistrationPatchSiteV1<'ctx>,
+}
+
+impl<'ctx> EmittedStrongCallableRegistrationV1<'ctx> {
+    pub const fn body(self) -> PersistentCallableBodyId {
+        self.body
+    }
+
+    pub const fn descriptor(self) -> GlobalValue<'ctx> {
+        self.descriptor
+    }
+
+    pub const fn registration_definition_patch(self) -> CallableRegistrationPatchSiteV1<'ctx> {
+        self.registration_definition_patch
+    }
+
+    pub const fn body_definition_patch(self) -> CallableRegistrationPatchSiteV1<'ctx> {
+        self.body_definition_patch
+    }
+}
+
+/// Canonically ordered emission result for every callable in one Cone.
+#[derive(Clone, Debug)]
+pub struct EmittedStrongCallableRegistrationSetV1<'ctx> {
+    producer: ConeIdentity,
+    registrations: Vec<EmittedStrongCallableRegistrationV1<'ctx>>,
+}
+
+impl<'ctx> EmittedStrongCallableRegistrationSetV1<'ctx> {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
+    }
+
+    pub fn registrations(&self) -> &[EmittedStrongCallableRegistrationV1<'ctx>] {
+        &self.registrations
+    }
+}
+
+/// Emit every strong callable registration from the closed LIR production
+/// plan. Both graph-managed digest fields remain zero until finalization.
+pub fn emit_strong_callable_registrations_v1<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    plan: &StrongCallableRegistrationPlanSetV1,
+) -> Result<EmittedStrongCallableRegistrationSetV1<'ctx>, CodegenError> {
+    let types = RuntimeMetadataV1Types::new(context);
+    let registrations = plan
+        .registrations()
+        .iter()
+        .map(|registration| emit_registration(context, llvm, &types, *registration))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(EmittedStrongCallableRegistrationSetV1 {
+        producer: plan.producer(),
+        registrations,
+    })
+}
+
+fn emit_registration<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    types: &RuntimeMetadataV1Types<'ctx>,
+    plan: StrongCallableRegistrationPlanV1,
+) -> Result<EmittedStrongCallableRegistrationV1<'ctx>, CodegenError> {
+    let descriptor_request = plan.symbol();
+    let descriptor_symbol = descriptor_request.symbol();
+    if descriptor_request.linkage() != LinkageClass::ConeStrong {
+        return Err(CodegenError(format!(
+            "callable registration `{descriptor_symbol}` does not have strong Cone linkage"
+        )));
+    }
+
+    let entry_request = plan.entry_symbol();
+    let entry_symbol = entry_request.symbol();
+    if entry_request.linkage() != LinkageClass::ConeStrong {
+        return Err(CodegenError(format!(
+            "callable entry `{entry_symbol}` does not have strong Cone linkage"
+        )));
+    }
+    if llvm.get_global(entry_symbol.as_str()).is_some() {
+        return Err(CodegenError(format!(
+            "callable entry `{entry_symbol}` collides with an LLVM global"
+        )));
+    }
+    let entry = llvm.get_function(entry_symbol.as_str()).ok_or_else(|| {
+        CodegenError(format!(
+            "callable entry `{entry_symbol}` is not declared in the LLVM module"
+        ))
+    })?;
+    if entry.get_linkage() != Linkage::External {
+        return Err(CodegenError(format!(
+            "callable entry `{entry_symbol}` does not have external linkage"
+        )));
+    }
+    if entry.as_global_value().get_unnamed_address() != UnnamedAddress::None {
+        return Err(CodegenError(format!(
+            "callable entry `{entry_symbol}` is not address-significant"
+        )));
+    }
+
+    if llvm.get_function(descriptor_symbol.as_str()).is_some() {
+        return Err(CodegenError(format!(
+            "callable registration `{descriptor_symbol}` collides with an LLVM function"
+        )));
+    }
+    let descriptor = if let Some(global) = llvm.get_global(descriptor_symbol.as_str()) {
+        if global.get_value_type() != types.callable_registration_descriptor.as_any_type_enum()
+            || global.get_linkage() != Linkage::External
+            || global.get_unnamed_address() != UnnamedAddress::None
+        {
+            return Err(CodegenError(format!(
+                "callable registration `{descriptor_symbol}` has an incompatible LLVM declaration"
+            )));
+        }
+        if global.get_initializer().is_some() {
+            return Err(CodegenError(format!(
+                "callable registration `{descriptor_symbol}` is already defined"
+            )));
+        }
+        global
+    } else {
+        let global = llvm.add_global(
+            types.callable_registration_descriptor,
+            None,
+            descriptor_symbol.as_str(),
+        );
+        global.set_linkage(Linkage::External);
+        global
+    };
+
+    let i32 = context.i32_type();
+    let i64 = context.i64_type();
+    let zero_digest = types.digest.const_zero();
+    let prefix = types.descriptor_prefix.const_named_struct(&[
+        i64.const_int(CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC, false)
+            .into(),
+        i32.const_int(METADATA_ABI_VERSION, false).into(),
+        i32.const_int(CALLABLE_REGISTRATION_DESCRIPTOR_SIZE, false)
+            .into(),
+    ]);
+    let identity = types.registration_identity.const_named_struct(&[
+        i32.const_int(1, false).into(),
+        i32.const_zero().into(),
+        digest_value(context, types.digest, plan.body().as_array()).into(),
+        zero_digest.into(),
+        zero_digest.into(),
+        zero_digest.into(),
+    ]);
+    let value = types.callable_registration_descriptor.const_named_struct(&[
+        prefix.into(),
+        identity.into(),
+        zero_digest.into(),
+        entry.as_global_value().as_pointer_value().into(),
+    ]);
+    descriptor.set_constant(true);
+    descriptor.set_initializer(&value);
+
+    Ok(EmittedStrongCallableRegistrationV1 {
+        body: plan.body(),
+        descriptor,
+        registration_definition_patch: CallableRegistrationPatchSiteV1 {
+            intent: plan.registration_definition_patch(),
+            definition: plan.definition_plan(),
+            atom: plan.primary_atom(),
+            owner: descriptor,
+            byte_offset: REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
+        },
+        body_definition_patch: CallableRegistrationPatchSiteV1 {
+            intent: plan.body_definition_patch(),
+            definition: plan.definition_plan(),
+            atom: plan.primary_atom(),
+            owner: descriptor,
+            byte_offset: BODY_DEFINITION_FINGERPRINT_OFFSET,
+        },
+    })
+}
+
+fn digest_value<'ctx>(
+    context: &'ctx Context,
+    digest_type: inkwell::types::StructType<'ctx>,
+    bytes: &[u8; 32],
+) -> StructValue<'ctx> {
+    let i8 = context.i8_type();
+    let values = bytes
+        .iter()
+        .map(|byte| i8.const_int(u64::from(*byte), false))
+        .collect::<Vec<_>>();
+    digest_type.const_named_struct(&[i8.const_array(&values).into()])
+}
+
+#[cfg(test)]
+mod tests;

@@ -26,6 +26,12 @@ pub use safepoint::{
     SafepointRegistrationPatchSiteV1, emit_strong_safepoint_registrations_v1,
 };
 
+mod callable;
+pub use callable::{
+    CallableRegistrationPatchSiteV1, EmittedStrongCallableRegistrationSetV1,
+    EmittedStrongCallableRegistrationV1, emit_strong_callable_registrations_v1,
+};
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,
