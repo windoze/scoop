@@ -20,6 +20,12 @@ pub use entry::{
     EmittedEntryProductionV1, EmittedRootEntryV1, RootEntryPatchSiteV1, emit_entry_production_v1,
 };
 
+mod safepoint;
+pub use safepoint::{
+    EmittedStrongSafepointRegistrationSetV1, EmittedStrongSafepointRegistrationV1,
+    SafepointRegistrationPatchSiteV1, emit_strong_safepoint_registrations_v1,
+};
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,

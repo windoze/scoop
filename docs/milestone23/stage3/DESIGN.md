@@ -1559,6 +1559,14 @@ patch集合必须精确为写入自身`Primary.RegistrationDefinition`的一项�
 零槽，后续object stackmap proof和digest finalizer分别反证并填写它们；不存在旧式独立registration
 清单、raw fingerprint字段或第二套推断路径。
 
+codegen唯一经`emit_strong_safepoint_registrations_v1`消费上述完整set，不开放接受裸site或零散字段的
+单record生产入口。每个address-significant全局使用`ConeStrong`外部linkage，按共享header发射magic、
+ABI version 1、size 232、Strong linkage、零reserved/ODR group/ODR member、typed semantic/runtime/owner
+identity、site role与root count；`definition_fingerprint`和`normalized_stackmap_fingerprint`分别在record
+内offset 120和200保留恰32-byte零值。emitter返回的每个patch site同时携带intent、definition plan、
+primary atom、LLVM owner、offset和固定width 32。image pointer table先建立的同type strong declaration
+可以由该入口补全；function冲突、错type/linkage或已有initializer均失败，不能覆盖或另发alias。
+
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack
