@@ -7,18 +7,18 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::{LirTargetProfile, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1};
 
 use super::{
-    StrongRelocationBindingV1, StrongRelocationResolutionV1,
+    CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
     VerifiedCurrentConeStrongRelocationClosureV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreStrongRequirementUseV1 {
-    use_site: StrongRelocationBindingV1,
+    use_site: CanonicalUndefinedRelocationUseV1,
     bridge: StrongExternalLirBridgeV1,
 }
 
 impl CoreStrongRequirementUseV1 {
-    pub const fn use_site(&self) -> &StrongRelocationBindingV1 {
+    pub const fn use_site(&self) -> &CanonicalUndefinedRelocationUseV1 {
         &self.use_site
     }
 
@@ -97,7 +97,7 @@ pub fn verify_core_strong_requirements_v1(
         if let Some(bridge) = bridges.get(binding.symbol()) {
             used.insert(binding.symbol().to_vec());
             core_requirements.push(CoreStrongRequirementUseV1 {
-                use_site: binding.clone(),
+                use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                 bridge: (*bridge).clone(),
             });
         } else {

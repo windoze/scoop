@@ -9,16 +9,19 @@ use scoop_lir::{
     LirTargetProfile,
 };
 
-use super::{StrongRelocationBindingV1, VerifiedCoreStrongRequirementClosureV1};
+use super::{
+    CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
+    VerifiedCoreStrongRequirementClosureV1,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceExternalRequirementUseV1 {
-    use_site: StrongRelocationBindingV1,
+    use_site: CanonicalUndefinedRelocationUseV1,
     requirement: CanonicalNativeExternalRequirementV1,
 }
 
 impl SourceExternalRequirementUseV1 {
-    pub const fn use_site(&self) -> &StrongRelocationBindingV1 {
+    pub const fn use_site(&self) -> &CanonicalUndefinedRelocationUseV1 {
         &self.use_site
     }
 
@@ -97,7 +100,7 @@ pub fn verify_source_external_requirements_v1(
     for binding in core_closure.remaining_external_candidates() {
         if let Some(requirement) = requirements.get(binding.symbol()) {
             source_external_requirements.push(SourceExternalRequirementUseV1 {
-                use_site: binding.clone(),
+                use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                 requirement: (*requirement).clone(),
             });
         } else {

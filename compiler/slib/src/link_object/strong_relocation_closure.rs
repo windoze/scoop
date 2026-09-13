@@ -47,6 +47,79 @@ pub struct StrongRelocationBindingV1 {
     resolution: StrongRelocationResolutionV1,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CanonicalUndefinedRelocationUseV1 {
+    source_member: SlibMemberId,
+    containing_atom: ObjectDefinitionAtomId,
+    containing_atom_role: DefinitionAtomRole,
+    section_role: BuiltinObjectSectionRoleV1,
+    offset_within_atom: u64,
+    width_bytes: u8,
+    relocation_form: VerifiedDarwinArm64RelocationFormV1,
+    encoded_value: u64,
+    target_slot: RelocationTargetSlotV1,
+    symbol: Vec<u8>,
+}
+
+impl CanonicalUndefinedRelocationUseV1 {
+    pub const fn source_member(&self) -> SlibMemberId {
+        self.source_member
+    }
+
+    pub const fn containing_atom(&self) -> ObjectDefinitionAtomId {
+        self.containing_atom
+    }
+
+    pub const fn containing_atom_role(&self) -> DefinitionAtomRole {
+        self.containing_atom_role
+    }
+
+    pub const fn section_role(&self) -> BuiltinObjectSectionRoleV1 {
+        self.section_role
+    }
+
+    pub const fn offset_within_atom(&self) -> u64 {
+        self.offset_within_atom
+    }
+
+    pub const fn width_bytes(&self) -> u8 {
+        self.width_bytes
+    }
+
+    pub const fn relocation_form(&self) -> VerifiedDarwinArm64RelocationFormV1 {
+        self.relocation_form
+    }
+
+    pub const fn encoded_value(&self) -> u64 {
+        self.encoded_value
+    }
+
+    pub const fn target_slot(&self) -> RelocationTargetSlotV1 {
+        self.target_slot
+    }
+
+    pub fn symbol(&self) -> &[u8] {
+        &self.symbol
+    }
+}
+
+impl From<&StrongRelocationBindingV1> for CanonicalUndefinedRelocationUseV1 {
+    fn from(binding: &StrongRelocationBindingV1) -> Self {
+        Self {
+            source_member: binding.source_member,
+            containing_atom: binding.containing_atom,
+            containing_atom_role: binding.containing_atom_role,
+            section_role: binding.section_role,
+            offset_within_atom: binding.offset_within_atom,
+            width_bytes: binding.width_bytes,
+            relocation_form: binding.relocation_form,
+            encoded_value: binding.encoded_value,
+            target_slot: binding.target_slot,
+            symbol: binding.symbol.clone(),
+        }
+    }
+}
+
 impl StrongRelocationBindingV1 {
     pub const fn source_member(&self) -> SlibMemberId {
         self.source_member
