@@ -417,4 +417,4 @@ impl fmt::Display for UndefinedSymbolRequirementFinalizationError {
 impl std::error::Error for UndefinedSymbolRequirementFinalizationError {}
 
 #[cfg(test)]
-mod tests;
+pub(in crate::link_object) mod tests;

@@ -111,7 +111,7 @@ fn macho_object(
     let registration_relocation_count = u32::try_from(callable_registrations.registrations().len())
         .unwrap()
         + u32::from(matches!(corruption, Corruption::RelocatedRegistration));
-    let symbol_offset = relocation_offset + 8 * (1 + registration_relocation_count);
+    let symbol_offset = relocation_offset + 8 * (2 + registration_relocation_count);
     let symbol_bytes = u32::try_from(symbols.symbols().len() * 16).unwrap();
     let string_offset = symbol_offset + symbol_bytes;
     let mut strings = vec![0];
@@ -144,8 +144,8 @@ fn macho_object(
         u32::try_from(TEXT_SIZE).unwrap(),
         text_offset,
         2,
-        0,
-        0,
+        relocation_offset,
+        1,
         macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS,
     );
     push_section(
@@ -156,7 +156,7 @@ fn macho_object(
         stackmap_size,
         stackmap_offset,
         3,
-        relocation_offset,
+        relocation_offset + 8,
         1,
         macho::S_REGULAR,
     );
@@ -177,7 +177,7 @@ fn macho_object(
         if registration_relocation_count == 0 {
             0
         } else {
-            relocation_offset + 8
+            relocation_offset + 16
         },
         registration_relocation_count,
         macho::S_REGULAR,
@@ -222,6 +222,15 @@ fn macho_object(
             )
         })
         .unwrap();
+    push_u32(&mut bytes, 8);
+    push_u32(
+        &mut bytes,
+        u32::try_from(target).unwrap()
+            | 1 << 24
+            | 2 << 25
+            | 1 << 27
+            | u32::from(macho::ARM64_RELOC_BRANCH26) << 28,
+    );
     push_u32(&mut bytes, 16);
     push_u32(
         &mut bytes,

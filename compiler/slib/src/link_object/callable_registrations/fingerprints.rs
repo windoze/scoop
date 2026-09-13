@@ -1,10 +1,9 @@
 use std::fmt;
 
-use scoop_identity::{DigestNodeId, PersistentCallableBodyId, PersistentSymbolKind};
-use scoop_wire::{
-    HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
-};
+use scoop_identity::{DigestNodeId, PersistentCallableBodyId};
+use scoop_wire::{HashError, domain_separated_runtime_hash};
 
+use super::object_definition::{CanonicalObjectRelocationV1, ObjectDefinitionFingerprintInputV1};
 use super::physical::validate_objects;
 use super::record::DESCRIPTOR_SIZE;
 use super::{StrongCallableRegistrationValidationError, VerifiedStrongCallableRegistrationSetV1};
@@ -12,9 +11,6 @@ use crate::SlibMemberId;
 use crate::link_object::{ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1};
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
-const PRIMARY_ATOM_ROLE: u32 = 1;
-const UNSIGNED_64_RELOCATION: u32 = 1;
-const NAMED_PERSISTENT_SYMBOL_TARGET: u32 = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongCallableRegistrationObjectFingerprintV1 {
@@ -124,34 +120,16 @@ fn registration_object_fingerprint(
     bytes: &[u8],
     body: PersistentCallableBodyId,
 ) -> Result<ObjectDefinitionFingerprintV1, HashError> {
+    let relocations = [CanonicalObjectRelocationV1::callable_entry(body)];
     domain_separated_runtime_hash(
         OBJECT_DEFINITION_DOMAIN,
-        &CallableRegistrationObjectDefinitionInput { bytes, body },
+        &ObjectDefinitionFingerprintInputV1 {
+            bytes,
+            relocations: &relocations,
+            direct_inputs: &[],
+        },
     )
     .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
-}
-
-struct CallableRegistrationObjectDefinitionInput<'a> {
-    bytes: &'a [u8],
-    body: PersistentCallableBodyId,
-}
-
-impl RuntimeEncode for CallableRegistrationObjectDefinitionInput<'_> {
-    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        encoder.u32(PRIMARY_ATOM_ROLE)?;
-        encoder.byte_span(self.bytes)?;
-        encoder.sequence_length(1)?;
-        encoder.u64(184)?;
-        encoder.u32(UNSIGNED_64_RELOCATION)?;
-        encoder.u64(0)?;
-        encoder.u32(NAMED_PERSISTENT_SYMBOL_TARGET)?;
-        encoder.u32(
-            u32::try_from(PersistentSymbolKind::CallableBody.tag())
-                .expect("persistent symbol tags fit u32"),
-        )?;
-        encoder.fixed(self.body.as_array())?;
-        encoder.sequence_length(0)
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

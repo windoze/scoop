@@ -9,12 +9,12 @@ use scoop_lir::{
 
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalScoopLirObjectUnitSetV1, PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1,
-    ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
-    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    VerifiedScoopLirStackmapSetV1, verify_builtin_object_strong_relocations_v1,
-    verify_c_bridge_production_envelopes_v1, verify_scoop_lir_digest_patch_sites_v1,
-    verify_scoop_lir_stackmaps_v1,
+    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
+    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
+    ScoopLirObjectCandidateV1, VerifiedBuiltinObjectStrongRelocationSetV1,
+    VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapSetV1,
+    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    verify_scoop_lir_digest_patch_sites_v1, verify_scoop_lir_stackmaps_v1,
 };
 
 pub(crate) mod macho;
@@ -136,6 +136,12 @@ impl Fixture {
             &self.provisional_patch_sites,
         )
         .unwrap()
+    }
+
+    pub(crate) fn undefined_requirements(&self) -> CanonicalUndefinedSymbolRequirementSetV1 {
+        crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong(
+            self.builtins.strong_relocations().clone(),
+        )
     }
 }
 

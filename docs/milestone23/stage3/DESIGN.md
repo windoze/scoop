@@ -1670,11 +1670,32 @@ callable registration自身的ObjectDefinition leaf只能经
 `compute_strong_callable_registration_object_fingerprints_v1`从上述完整registration proof与再次匹配
 content digest的object全集产生。其`scoop-object-definition-v1` RuntimeEncode依次写Primary role tag 1、
 精确192-byte provisional record、relocation count 1、唯一entry relocation和direct-input count 0；entry
-relocation固定编码atom内offset 184、`Unsigned64` form tag 1、checked addend 0，以及
-`NamedPersistentSymbol` target tag 1、`PersistentSymbolKind::CallableBody` tag 1和body id。member、section、
-symbol-table index、Mach-O名字与最终地址均不进入hash。该入口只计算registration object leaf；body
+relocation使用与普通object definition完全相同的canonical relocation schema，固定编码atom内offset 184、
+`Unsigned64` form tag 1、verified encoded value 0、target count 1、`Single` slot tag 1，以及
+`IntraConeStrong` requirement tag 1；requirement内的owner固定为`CallableBody(body)` entity tag 1、body id和
+`CallableBody` role tag 1。member、section、symbol-table index、Mach-O名字与最终地址均不进入hash，不再保留
+旧的registration专用target编码。该入口只计算registration object leaf；body
 ObjectDefinition必须等完整machine body/associated record/undefined requirement归一化证明闭合后再算，不能
 用只支持无relocation body的临时算法或把registration leaf误作body fingerprint。
+
+callable body Primary的ObjectDefinition leaf只能经
+`compute_strong_callable_body_object_fingerprints_v1`消费registration-object proof、完整Scoop stackmap
+proof、最终`CanonicalUndefinedSymbolRequirementSetV1`与exact object全集产生。四份proof必须回指同一
+built-in strong relocation closure；undefined requirement的use-site序列必须与该closure中除object-local
+以外的全部binding逐项相等。每个body definition/Primary atom从callable plan反查实际member与range，section
+role固定为`Text`。本阶段body ObjectDefinition的direct input必须精确等于owner为该body的全部
+`StackmapRecord` node并按node id排序；出现尚未有typed计算proof的其他input kind直接fail closed，不接受
+调用者传入裸digest。
+
+body bytes按已验证relocation逐项归一化：`Unsigned64/Subtractor64/PointerToGot32`清零地址载荷，AArch64
+`Branch26/Page21/PageOffset12`及GOT对应form只清零立即数字段、保留opcode/register/寻址形状；归一化前必须
+逐项复核object bytes中的encoded value。随后`scoop-object-definition-v1` RuntimeEncode依次写Primary tag、
+normalized byte span、按atom offset排序的relocation sequence及canonical direct-input sequence。每条
+relocation固定写offset、form tag及其optional explicit addend、原始checked encoded value、target count和
+按Single/Minuend/Subtrahend排序的target；target只允许由strong relocation closure与最终requirement proof
+提升为`IntraConeStrong/CoreStrong/GeneratedBridge/SourceExtern/RuntimeAbi/TargetEhSupport/CBridgeTargetSupport`
+封闭sum。member、section ordinal、symbol table index与raw symbol spelling均不进入hash；local/section-base
+target要等associated-record归一化器提供owner-relative语义后再开放，当前直接拒绝，不能退回hash物理索引。
 
 `compute_strong_safepoint_fingerprints_v1`只能消费上述完整proof与同一member全集的exact object bytes；
 入口先再次核对每个member的长度与content digest，再按site一次性产生typed

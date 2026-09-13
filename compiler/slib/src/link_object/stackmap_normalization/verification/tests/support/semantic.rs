@@ -336,6 +336,47 @@ fn digest_plan(
 ) -> StrongDigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
+    let mut body_inputs = Vec::new();
+    for registration in registrations {
+        let object = DigestNodeV1::new(
+            DigestNodeKey::object_definition(registration.primary.id()),
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        let stackmap_key = DigestNodeKey::stackmap_record(registration.site);
+        let stackmap_source = DigestNodeId::from_key(&stackmap_key).unwrap();
+        let stackmap = DigestNodeV1::new(
+            stackmap_key,
+            Vec::new(),
+            vec![DigestPatchIntentKey::new(
+                stackmap_source,
+                registration.plan.id(),
+                DefinitionAtomRole::Primary,
+                DigestSemanticFieldRole::NormalizedStackmap,
+            )],
+        )
+        .unwrap();
+        body_inputs.push(DigestInputRefV1::from_node(&stackmap));
+        let registration_key = DigestNodeKey::strong_registration(registration.plan.id());
+        let registration_source = DigestNodeId::from_key(&registration_key).unwrap();
+        let fingerprint = DigestNodeV1::new(
+            registration_key,
+            vec![
+                DigestInputRefV1::from_node(&object),
+                DigestInputRefV1::from_node(&stackmap),
+            ],
+            vec![DigestPatchIntentKey::new(
+                registration_source,
+                registration.plan.id(),
+                DefinitionAtomRole::Primary,
+                DigestSemanticFieldRole::RegistrationDefinition,
+            )],
+        )
+        .unwrap();
+        image_inputs.push(DigestInputRefV1::from_node(&fingerprint));
+        nodes.extend([object, stackmap, fingerprint]);
+    }
     let body_definition = definition_plan(body);
     let body_primary = ObjectDefinitionAtomId::from_key(&ObjectDefinitionAtomKey::new(
         body_definition,
@@ -347,7 +388,7 @@ fn digest_plan(
     let body_source = DigestNodeId::from_key(&body_key).unwrap();
     let body_node = DigestNodeV1::new(
         body_key,
-        Vec::new(),
+        body_inputs,
         vec![DigestPatchIntentKey::new(
             body_source,
             callable_registration.plan.id(),
@@ -380,45 +421,6 @@ fn digest_plan(
     .unwrap();
     image_inputs.push(DigestInputRefV1::from_node(&callable_fingerprint));
     nodes.extend([body_node, callable_object, callable_fingerprint]);
-    for registration in registrations {
-        let object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(registration.primary.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        let stackmap_key = DigestNodeKey::stackmap_record(registration.site);
-        let stackmap_source = DigestNodeId::from_key(&stackmap_key).unwrap();
-        let stackmap = DigestNodeV1::new(
-            stackmap_key,
-            Vec::new(),
-            vec![DigestPatchIntentKey::new(
-                stackmap_source,
-                registration.plan.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::NormalizedStackmap,
-            )],
-        )
-        .unwrap();
-        let registration_key = DigestNodeKey::strong_registration(registration.plan.id());
-        let registration_source = DigestNodeId::from_key(&registration_key).unwrap();
-        let fingerprint = DigestNodeV1::new(
-            registration_key,
-            vec![
-                DigestInputRefV1::from_node(&object),
-                DigestInputRefV1::from_node(&stackmap),
-            ],
-            vec![DigestPatchIntentKey::new(
-                registration_source,
-                registration.plan.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::RegistrationDefinition,
-            )],
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&fingerprint));
-        nodes.extend([object, stackmap, fingerprint]);
-    }
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(foundation.producer()),

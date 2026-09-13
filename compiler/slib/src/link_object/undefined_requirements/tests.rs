@@ -262,7 +262,7 @@ fn final_from_external(
     finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
 }
 
-fn sealed_without_externals(
+pub(in crate::link_object) fn sealed_without_externals(
     strong: crate::VerifiedCurrentConeStrongRelocationClosureV1,
 ) -> SealedBuiltinObjectExternalRequirementClosureV1 {
     let producer = strong.producer();
@@ -288,6 +288,33 @@ fn sealed_without_externals(
     seal_without_generated(external)
 }
 
+pub(in crate::link_object) fn empty_final_requirements_for_strong(
+    strong: crate::VerifiedCurrentConeStrongRelocationClosureV1,
+) -> CanonicalUndefinedSymbolRequirementSetV1 {
+    let producer = strong.producer();
+    let current =
+        verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
+            .unwrap();
+    let core = verify_core_strong_requirements_v1(
+        LirTargetProfile::DARWIN_AARCH64,
+        strong,
+        StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
+        core_owner_set(core_exact_type("CallableFingerprintCoreAuthority")),
+    )
+    .unwrap();
+    let source = verify_source_external_requirements_v1(
+        core,
+        native_surface(producer, Vec::new(), Vec::new()),
+    )
+    .unwrap();
+    let external = verify_runtime_and_eh_requirements_v1(
+        source,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    )
+    .unwrap();
+    finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
+}
+
 fn seal_without_generated(
     external: crate::VerifiedRuntimeAndEhRequirementClosureV1,
 ) -> SealedBuiltinObjectExternalRequirementClosureV1 {
@@ -297,7 +324,9 @@ fn seal_without_generated(
     .unwrap()
 }
 
-fn empty_bridge_plan(producer: ConeIdentity) -> GeneratedBridgePlanSetV1 {
+pub(in crate::link_object) fn empty_bridge_plan(
+    producer: ConeIdentity,
+) -> GeneratedBridgePlanSetV1 {
     let foundation =
         OdrFreeLirFoundation::try_new(producer, CanonicalLirFoundation::empty()).unwrap();
     GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap()
