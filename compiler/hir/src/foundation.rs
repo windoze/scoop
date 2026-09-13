@@ -30,8 +30,12 @@ pub use wire::{
 mod counts;
 mod imported;
 mod projection;
+mod strong_profile;
 pub use counts::HirFoundationCounts;
 pub use imported::{ImportedHirId, ImportedHirSet};
+pub use strong_profile::{
+    OdrFreeHirFoundation, OdrFreeHirFoundationError, OdrFreeHirFoundationProjectionError,
+};
 
 type TypeRecord = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
 type GenericTypeRecord = CborIdentityRecord<PersistentGenericTypeId, SourceDeclarationKey>;

@@ -121,4 +121,28 @@ fn complete_hir_output_projects_one_canonical_foundation() {
     assert_eq!(counts.exact_types, exact_types.len());
     assert!(counts.generic_functions > 0);
     assert!(counts.generated_callables > 0);
+
+    assert!(matches!(
+        hir::OdrFreeHirFoundation::from_modules(export, local, &output.native_boundary_types,),
+        Err(hir::OdrFreeHirFoundationProjectionError::Odr(
+            hir::OdrFreeHirFoundationError::CallableApplication(_)
+        ))
+    ));
+}
+
+#[test]
+fn legacy_combined_core_cannot_pass_the_single_cone_strong_odr_gate() {
+    let output = lower_user_output(file(vec![fun("main", Vec::new())]))
+        .expect("the parameter-free HIR fixture must lower");
+
+    assert!(matches!(
+        hir::OdrFreeHirFoundation::from_modules(
+            output.export.module(),
+            output.local.module(),
+            &output.native_boundary_types,
+        ),
+        Err(hir::OdrFreeHirFoundationProjectionError::Odr(
+            hir::OdrFreeHirFoundationError::OdrGroup(_)
+        ))
+    ));
 }
