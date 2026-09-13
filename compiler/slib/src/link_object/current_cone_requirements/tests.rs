@@ -222,6 +222,19 @@ fn bridge_plan(producer: ConeIdentity) -> BridgePlanFixture {
     }
 }
 
+pub(in crate::link_object) fn primary_bridge_requirement() -> (
+    VerifiedCurrentConeUndefinedRequirementClosureV1,
+    GeneratedBridgeUnitId,
+) {
+    let bridge = bridge_plan(ConeIdentity::CORE);
+    let closure =
+        synthetic_cross_member_closure(LinkDefinitionOwnerV1::GeneratedBridge(bridge.primary));
+    (
+        verify_current_cone_undefined_requirements_v1(closure, bridge.plan).unwrap(),
+        bridge.unit,
+    )
+}
+
 fn generated_bridge_definition(
     producer: ConeIdentity,
     atom: &GeneratedBridgeAtomKey,

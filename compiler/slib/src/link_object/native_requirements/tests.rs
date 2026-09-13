@@ -181,7 +181,7 @@ pub(in crate::link_object) fn native_surface(
     .unwrap()
 }
 
-fn contract_record(
+pub(in crate::link_object) fn contract_record(
     producer: ConeIdentity,
     declaration: &str,
     symbol: &str,

@@ -196,4 +196,4 @@ impl fmt::Display for CurrentConeUndefinedRequirementValidationError {
 impl std::error::Error for CurrentConeUndefinedRequirementValidationError {}
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

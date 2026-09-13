@@ -7,6 +7,7 @@ use scoop_identity::{
     ConeIdentity, GeneratedBridgeAtomId, ObjectDefinitionAtomId, ObjectDefinitionPlanKey,
     StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
 };
+use scoop_wire::{Encoder, WireEncode};
 
 use super::{
     PlannedStrongObjectSymbolRoleV1, VerifiedBoundaryRoleV1,
@@ -44,6 +45,16 @@ impl StrongDefinitionOwnerV1 {
 
     pub const fn role(self) -> StrongDefinitionRole {
         self.role
+    }
+}
+
+impl WireEncode for StrongDefinitionOwnerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.entity.encode(encoder)?;
+        encoder.field(2)?;
+        self.role.encode(encoder)
     }
 }
 

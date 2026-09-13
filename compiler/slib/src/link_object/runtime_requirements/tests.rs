@@ -75,7 +75,7 @@ fn scoop_lir_closure_rejects_every_unclassified_external() {
     );
 }
 
-fn classify(symbol: &[u8]) -> VerifiedRuntimeAndEhRequirementClosureV1 {
+pub(in crate::link_object) fn classify(symbol: &[u8]) -> VerifiedRuntimeAndEhRequirementClosureV1 {
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "runtimeRequirementConsumer");
     let member = verified_member_with_undefined(&object, symbol);

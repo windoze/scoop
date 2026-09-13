@@ -212,4 +212,4 @@ impl fmt::Display for RuntimeAndEhRequirementValidationError {
 impl std::error::Error for RuntimeAndEhRequirementValidationError {}
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

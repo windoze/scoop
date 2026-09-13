@@ -1224,9 +1224,7 @@ LinkDefinitionOwner =
 
 ```text
 UndefinedSymbolRequirement {
-    member: SlibMemberId,
     use_site: VerifiedRelocationUse,
-    symbol: NormalizedNativeLinkSymbol,
     requirement: FinalUndefinedSymbolRequirement,
 }
 
@@ -1295,6 +1293,24 @@ generated C中的`memcpy`）不准冒充这两个variant；它必须由第11.5�
 contract及后续target native support requirement显式覆盖，否则generated object验证失败。
 
 `VerifiedRelocationUse`保存member、typed containing atom、section role、checked offset、width、relocation kind和canonical addend；它不是裸object-local ordinal。真实symbol bytes必须由requirement的typed key和target normalization重算一致。
+
+最终`UndefinedSymbolRequirement`是closed product：`1=use_site`、`2=requirement`；member与symbol
+由use-site唯一给出，不在外层重复编码。`VerifiedRelocationUse`固定fields：`1=member`、
+`2=containing_atom`、`3=containing_atom_role`、`4=section_role`、`5=offset_within_atom`、
+`6=width_bytes`、`7=relocation_form`、`8=encoded_value`、`9=target_slot`、`10=symbol bytes`。
+section role tag按Text、ReadOnlyData、CString、WritableData、ZeroFill、GccExceptionTable、
+LlvmStackmaps、CompactUnwind、EhFrame顺序取1..9；target slot按Single、Minuend、Subtrahend取
+1..3。relocation form按Unsigned64、Subtractor64、Branch26、Page21、PageOffset12、
+GotLoadPage21、GotLoadPageOffset12、PointerToGot32取1..8；Page21/PageOffset12的field 1是
+`None=1 | NonNegative=2 {1=magnitude} | Negative=3 {1=magnitude}`，从而不引入Wire v1禁止的
+signed CBOR integer。
+
+`FinalUndefinedSymbolRequirement`的sum tag按上述声明顺序取1..6；单值variant使用field 1，
+`CoreStrong`使用`1=core, 2=owner`，`SourceExtern`使用`1=contract, 2=library`。
+`StrongDefinitionOwner`固定为`1=entity, 2=role`。最终set按
+`(member, containing_atom, offset_within_atom, target_slot)`严格递增编码为array；producer与
+target selection由验证后的外层Link proof保留，不重复进入array。finalizer必须逐项等于同一
+strong relocation closure中除object-local strong以外的全部use；两个不同closure的分类产物不能拼接。
 
 ### 12.3 本阶段解析范围
 
