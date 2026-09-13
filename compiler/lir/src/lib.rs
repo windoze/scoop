@@ -20,6 +20,9 @@ pub use backend::*;
 mod runtime_abi;
 pub use runtime_abi::*;
 
+mod c_bridge_toolchain;
+pub use c_bridge_toolchain::*;
+
 mod target_selection;
 pub use target_selection::*;
 

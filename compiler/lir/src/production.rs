@@ -15,6 +15,9 @@ pub use native_requirements::*;
 mod generated_bridges;
 pub use generated_bridges::*;
 
+mod c_bridge;
+pub use c_bridge::*;
+
 mod producer_units;
 pub use producer_units::*;
 

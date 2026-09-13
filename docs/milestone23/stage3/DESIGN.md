@@ -1178,6 +1178,47 @@ CBridgeProductionSet =
 
 profile由请求级`ValidatedCBridgeToolchainProfile`生成，至少承诺target triple、SDK/deployment、compiler identity、canonical flags、generated source template和被允许的environment投影；host compiler path与临时source path不进入contract。改变任一契约字段必须改变profile fingerprint并进入Code fingerprint。
 
+当前唯一profile id精确为
+`org.scoop-lang.c-bridge-toolchain-profile/darwin-aarch64-apple-clang/1`。共享LIR层保存的
+`CBridgeToolchainContractV1`是closed product：`1=target: TargetProfileWireId`、
+`2=target_fingerprint: TargetProfileFingerprint`、`3=canonical_triple: text`、
+`4=deployment: DarwinCBridgeDeploymentContractV1`、
+`5=compiler: AppleClangCompilerIdentityV1`、
+`6=canonical_flag_fingerprint: CanonicalCBridgeFlagFingerprint`、
+`7=source_template_fingerprint: GeneratedCSourceTemplateFingerprint`、
+`8=environment: CBridgeEnvironmentProjectionV1`。profile fingerprint精确为
+`DomainSeparatedCborHash("scoop-c-bridge-toolchain-profile-v1", {1=profile_id, 2=contract})`。
+host compiler executable与SDK root的绝对locator由请求级resolver另存，只参与调用和诊断，不进入该product；
+resolver必须在产生任何generated C source/object前证明locator指向的实际toolchain与该product逐项相同。
+
+`DarwinCBridgeDeploymentContractV1`的field固定为`1=platform`、`2=minimum_os`、`3=sdk`、
+`4=tools`；当前platform tag `MacOS=1`。version使用Mach-O `X.Y.Z` packed `u32`且必须非零。
+tool元素是`{1=tool, 2=version}`，tool tag精确为`Clang=1`、`Ld=3`、`Lld=4`；array必须
+非空、按tool tag严格递增且包含Clang，Swift与未知tool不属于本profile。compiler product固定为
+`1=major`、`2=minor`、`3=patch`、`4=Apple build spelling`；major非零，build长度1…127 ASCII
+byte且字符集为`[A-Za-z0-9._+-]`。不得只记录`cc`路径、`--version`原始输出或`ntools`计数。
+
+canonical flag contract编码为下列九个closed tag组成的固定有序array：
+`ExplicitCanonicalTarget=1`、`ExplicitResolvedSdkRoot=2`、`ExplicitMinimumDeployment=3`、
+`C11=4`、`RelocatableObject=5`、`Unoptimized=6`、`NoDebugInformation=7`、
+`NoCommonSymbols=8`、`OmitCompilerIdentification=9`；其fingerprint domain为
+`scoop-c-bridge-canonical-flags-v1`。target/deployment值来自上述profile，SDK root tag只承诺
+调用时显式传入已经解析的SDK locator，不把locator byte写入canonical flag contract。
+
+generated source template contract编码为七个`{1=component_tag, 2=schema=1}`组成的固定有序array；
+component tag依次为`TypeRenderer=1`、`LayoutAssertions=2`、`ExternalDeclarations=3`、
+`OutboundWrappers=4`、`NativeGlobalAccessors=5`、`CallbackTrampolines=6`、
+`ForeignCallbackTrampolines=7`，fingerprint domain为`scoop-generated-c-source-template-v1`。
+environment product固定为`1=inherited_names=[]`、`2=locale="C"`、`3=timezone="UTC"`；producer
+必须清空host environment后只建立这个投影，不能继承`CFLAGS`、`CPATH`、`SDKROOT`、locale或其他
+能改变object的隐式输入。
+
+`CBridgeProductionSet::NotUsed`编码为`{0=1}`；`Used`编码为
+`{0=2, 1=profile_id, 2=profile_fingerprint, 3=source_template_fingerprint,
+4=canonical_flag_fingerprint, 5=units}`。`units`直接且完整投影同一
+`GeneratedBridgePlanSet`，非空并按`GeneratedBridgeUnitId`严格递增；没有任意units构造入口，
+producer不能自行排序、删减或补造unit。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

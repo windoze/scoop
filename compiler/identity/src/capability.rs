@@ -198,6 +198,12 @@ capability_refinement!(
     "llvm-22-1"
 );
 capability_refinement!(
+    CBridgeToolchainProfileId,
+    darwin_aarch64_apple_clang,
+    "org.scoop-lang.c-bridge-toolchain-profile",
+    "darwin-aarch64-apple-clang"
+);
+capability_refinement!(
     ObjectFormatId,
     macho_relocatable,
     "org.scoop-lang.object-format",
@@ -358,7 +364,8 @@ mod tests {
     use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
     use super::{
-        ArtifactCapabilityProfileId, CapabilityId, DecodedCapabilityId, TargetProfileWireId,
+        ArtifactCapabilityProfileId, CBridgeToolchainProfileId, CapabilityId, DecodedCapabilityId,
+        TargetProfileWireId,
     };
 
     #[test]
@@ -380,6 +387,14 @@ mod tests {
         assert_eq!(
             hex(&encode(&TargetProfileWireId::darwin_aarch64()).unwrap()),
             "a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301"
+        );
+    }
+
+    #[test]
+    fn c_bridge_toolchain_profile_refinement_has_fixed_wire() {
+        assert_eq!(
+            hex(&encode(&CBridgeToolchainProfileId::darwin_aarch64_apple_clang()).unwrap()),
+            "a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e670301"
         );
     }
 

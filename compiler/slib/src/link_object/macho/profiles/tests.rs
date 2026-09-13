@@ -1,4 +1,8 @@
 use super::*;
+use scoop_lir::{
+    DarwinBuildToolIdV1, DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1,
+    DarwinPackedVersionV1,
+};
 
 #[test]
 fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
@@ -32,9 +36,7 @@ fn generated_c_profile_requires_the_exact_deployment_contract() {
         object::macho::TOOL_CLANG,
         0x1000_0200,
     )];
-    let contract =
-        DarwinGeneratedCDeploymentContractV1::new(0x000d_0100, 0x000e_0200, tools.to_vec())
-            .unwrap();
+    let contract = deployment_contract(0x000d_0100, 0x000e_0200, 0x1000_0200);
     let bytes = object(Some((0x000d_0100, 0x000e_0200, &tools)));
     let qualified = validate_generated_c_bridge_object_envelope_v1(&bytes, &contract).unwrap();
     assert_eq!(
@@ -46,9 +48,7 @@ fn generated_c_profile_requires_the_exact_deployment_contract() {
         validate_generated_c_bridge_object_envelope_v1(&object(None), &contract),
         Err(GeneratedCBridgeObjectEnvelopeValidationError::MissingDeployment)
     );
-    let wrong_sdk =
-        DarwinGeneratedCDeploymentContractV1::new(0x000d_0100, 0x000e_0300, tools.to_vec())
-            .unwrap();
+    let wrong_sdk = deployment_contract(0x000d_0100, 0x000e_0300, 0x1000_0200);
     assert!(matches!(
         validate_generated_c_bridge_object_envelope_v1(&bytes, &wrong_sdk),
         Err(GeneratedCBridgeObjectEnvelopeValidationError::DeploymentMismatch { .. })
@@ -57,18 +57,37 @@ fn generated_c_profile_requires_the_exact_deployment_contract() {
 
 #[test]
 fn generated_c_deployment_contract_rejects_noncanonical_tools() {
-    let clang = DarwinBuildToolVersionV1::new(object::macho::TOOL_CLANG, 1);
-    let linker = DarwinBuildToolVersionV1::new(object::macho::TOOL_LD, 1);
+    let version = DarwinPackedVersionV1::new(1).unwrap();
+    let clang = DarwinBuildToolVersionContractV1::new(DarwinBuildToolIdV1::Clang, version);
+    let linker = DarwinBuildToolVersionContractV1::new(DarwinBuildToolIdV1::Ld, version);
     assert_eq!(
-        DarwinGeneratedCDeploymentContractV1::new(1, 1, vec![linker, clang]),
-        Err(DarwinGeneratedCDeploymentContractError::NonCanonicalToolOrder { index: 1 })
+        DarwinCBridgeDeploymentContractV1::new(version, version, vec![linker, clang]),
+        Err(scoop_lir::DarwinCBridgeDeploymentContractError::NonCanonicalToolOrder { index: 1 })
     );
     assert_eq!(
-        DarwinGeneratedCDeploymentContractV1::new(1, 1, vec![clang, clang]),
-        Err(DarwinGeneratedCDeploymentContractError::DuplicateTool(
-            object::macho::TOOL_CLANG,
-        ))
+        DarwinCBridgeDeploymentContractV1::new(version, version, vec![clang, clang]),
+        Err(
+            scoop_lir::DarwinCBridgeDeploymentContractError::DuplicateTool(
+                DarwinBuildToolIdV1::Clang,
+            )
+        )
     );
+}
+
+fn deployment_contract(
+    minimum_os: u32,
+    sdk: u32,
+    clang_version: u32,
+) -> DarwinCBridgeDeploymentContractV1 {
+    DarwinCBridgeDeploymentContractV1::new(
+        DarwinPackedVersionV1::new(minimum_os).unwrap(),
+        DarwinPackedVersionV1::new(sdk).unwrap(),
+        vec![DarwinBuildToolVersionContractV1::new(
+            DarwinBuildToolIdV1::Clang,
+            DarwinPackedVersionV1::new(clang_version).unwrap(),
+        )],
+    )
+    .unwrap()
 }
 
 fn object(deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>) -> Vec<u8> {

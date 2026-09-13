@@ -2,95 +2,14 @@
 
 use std::fmt;
 
+use scoop_lir::DarwinCBridgeDeploymentContractV1;
+
 use super::{
     BuiltinLinkObjectSectionProfileV1, BuiltinObjectSectionValidationError,
     DarwinBuildToolVersionV1, DarwinDeploymentCommandV1, ObjectEnvelopeValidationError,
     ValidatedBuiltinObjectSectionInventoryV1, validate_builtin_object_section_inventory_v1,
     validate_darwin_arm64_object_envelope_v1,
 };
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DarwinGeneratedCDeploymentContractV1 {
-    minimum_os: u32,
-    sdk: u32,
-    tools: Vec<DarwinBuildToolVersionV1>,
-}
-
-impl DarwinGeneratedCDeploymentContractV1 {
-    pub fn new(
-        minimum_os: u32,
-        sdk: u32,
-        tools: Vec<DarwinBuildToolVersionV1>,
-    ) -> Result<Self, DarwinGeneratedCDeploymentContractError> {
-        if minimum_os == 0 {
-            return Err(DarwinGeneratedCDeploymentContractError::ZeroMinimumOs);
-        }
-        if sdk == 0 {
-            return Err(DarwinGeneratedCDeploymentContractError::ZeroSdk);
-        }
-        for (index, tool) in tools.iter().enumerate() {
-            if tool.tool() == 0 {
-                return Err(DarwinGeneratedCDeploymentContractError::ZeroTool { index });
-            }
-            if tool.version() == 0 {
-                return Err(DarwinGeneratedCDeploymentContractError::ZeroToolVersion { index });
-            }
-            if index > 0 && tools[index - 1].tool() >= tool.tool() {
-                return Err(if tools[index - 1].tool() == tool.tool() {
-                    DarwinGeneratedCDeploymentContractError::DuplicateTool(tool.tool())
-                } else {
-                    DarwinGeneratedCDeploymentContractError::NonCanonicalToolOrder { index }
-                });
-            }
-        }
-        Ok(Self {
-            minimum_os,
-            sdk,
-            tools,
-        })
-    }
-
-    pub const fn minimum_os(&self) -> u32 {
-        self.minimum_os
-    }
-
-    pub const fn sdk(&self) -> u32 {
-        self.sdk
-    }
-
-    pub fn tools(&self) -> &[DarwinBuildToolVersionV1] {
-        &self.tools
-    }
-
-    fn deployment(&self) -> DarwinDeploymentCommandV1 {
-        DarwinDeploymentCommandV1::BuildVersion {
-            minimum_os: self.minimum_os,
-            sdk: self.sdk,
-            tools: self.tools.clone(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DarwinGeneratedCDeploymentContractError {
-    ZeroMinimumOs,
-    ZeroSdk,
-    ZeroTool { index: usize },
-    ZeroToolVersion { index: usize },
-    DuplicateTool(u32),
-    NonCanonicalToolOrder { index: usize },
-}
-
-impl fmt::Display for DarwinGeneratedCDeploymentContractError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid Darwin generated-C deployment contract: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for DarwinGeneratedCDeploymentContractError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatedScoopLirObjectEnvelopeV1 {
@@ -142,7 +61,7 @@ pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(
 
 pub fn validate_generated_c_bridge_object_envelope_v1(
     bytes: &[u8],
-    deployment: &DarwinGeneratedCDeploymentContractV1,
+    deployment: &DarwinCBridgeDeploymentContractV1,
 ) -> Result<ValidatedGeneratedCBridgeObjectEnvelopeV1, GeneratedCBridgeObjectEnvelopeValidationError>
 {
     let envelope = validate_darwin_arm64_object_envelope_v1(bytes)
@@ -150,7 +69,17 @@ pub fn validate_generated_c_bridge_object_envelope_v1(
     let Some(actual) = envelope.deployment() else {
         return Err(GeneratedCBridgeObjectEnvelopeValidationError::MissingDeployment);
     };
-    let expected = deployment.deployment();
+    let expected = DarwinDeploymentCommandV1::BuildVersion {
+        minimum_os: deployment.minimum_os().packed(),
+        sdk: deployment.sdk().packed(),
+        tools: deployment
+            .tools()
+            .iter()
+            .map(|tool| {
+                DarwinBuildToolVersionV1::new(tool.tool().macho_value(), tool.version().packed())
+            })
+            .collect(),
+    };
     if actual != &expected {
         return Err(
             GeneratedCBridgeObjectEnvelopeValidationError::DeploymentMismatch {
