@@ -1142,6 +1142,11 @@ tool记录必须逐字段等于`CBridgeProductionSet`引用的toolchain contract
 不得把tool array降格成`ntools`计数摘要；producer verifier必须将其收窄后才能产生
 capability proof。
 
+generated C qualifier只接受`BuildVersion`，且minimum OS、SDK与按tool id严格递增的非零
+tool/version数组必须逐值等于请求级deployment contract；缺失deployment、`VersionMin`、重复/
+错序tool或任一字段漂移都失败。Scoop LIR的无deployment qualifier与generated C qualifier是两个
+独立入口，不存在“任选其一”或忽略deployment的兼容路径。
+
 ### 11.4 Scoop LIR verifier
 
 `org.scoop-lang.link-object/scoop-lir/1` verifier从LIR plan独立重建：

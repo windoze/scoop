@@ -2,13 +2,18 @@ use super::*;
 
 #[test]
 fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
-    let qualified = validate_scoop_lir_llvm_22_1_object_envelope_v1(&scoop_object(false)).unwrap();
+    let qualified = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object(None)).unwrap();
     assert_eq!(
         qualified.sections().roles(),
         &[super::super::BuiltinObjectSectionRoleV1::Text]
     );
 
-    let error = validate_scoop_lir_llvm_22_1_object_envelope_v1(&scoop_object(true)).unwrap_err();
+    let error = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object(Some((
+        0x000d_0000,
+        0x000d_0000,
+        &[],
+    ))))
+    .unwrap_err();
     assert_eq!(
         error,
         ScoopLirObjectEnvelopeValidationError::UnexpectedDeployment(
@@ -21,12 +26,59 @@ fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
     );
 }
 
-fn scoop_object(with_deployment: bool) -> Vec<u8> {
+#[test]
+fn generated_c_profile_requires_the_exact_deployment_contract() {
+    let tools = [DarwinBuildToolVersionV1::new(
+        object::macho::TOOL_CLANG,
+        0x1000_0200,
+    )];
+    let contract =
+        DarwinGeneratedCDeploymentContractV1::new(0x000d_0100, 0x000e_0200, tools.to_vec())
+            .unwrap();
+    let bytes = object(Some((0x000d_0100, 0x000e_0200, &tools)));
+    let qualified = validate_generated_c_bridge_object_envelope_v1(&bytes, &contract).unwrap();
+    assert_eq!(
+        qualified.sections().roles(),
+        &[super::super::BuiltinObjectSectionRoleV1::Text]
+    );
+
+    assert_eq!(
+        validate_generated_c_bridge_object_envelope_v1(&object(None), &contract),
+        Err(GeneratedCBridgeObjectEnvelopeValidationError::MissingDeployment)
+    );
+    let wrong_sdk =
+        DarwinGeneratedCDeploymentContractV1::new(0x000d_0100, 0x000e_0300, tools.to_vec())
+            .unwrap();
+    assert!(matches!(
+        validate_generated_c_bridge_object_envelope_v1(&bytes, &wrong_sdk),
+        Err(GeneratedCBridgeObjectEnvelopeValidationError::DeploymentMismatch { .. })
+    ));
+}
+
+#[test]
+fn generated_c_deployment_contract_rejects_noncanonical_tools() {
+    let clang = DarwinBuildToolVersionV1::new(object::macho::TOOL_CLANG, 1);
+    let linker = DarwinBuildToolVersionV1::new(object::macho::TOOL_LD, 1);
+    assert_eq!(
+        DarwinGeneratedCDeploymentContractV1::new(1, 1, vec![linker, clang]),
+        Err(DarwinGeneratedCDeploymentContractError::NonCanonicalToolOrder { index: 1 })
+    );
+    assert_eq!(
+        DarwinGeneratedCDeploymentContractV1::new(1, 1, vec![clang, clang]),
+        Err(DarwinGeneratedCDeploymentContractError::DuplicateTool(
+            object::macho::TOOL_CLANG,
+        ))
+    );
+}
+
+fn object(deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>) -> Vec<u8> {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
     let dysymtab_size = 80_u32;
-    let deployment_size = u32::from(with_deployment) * 24;
-    let command_count = 3 + u32::from(with_deployment);
+    let deployment_size = deployment
+        .map(|(_, _, tools)| 24 + u32::try_from(tools.len()).unwrap() * 8)
+        .unwrap_or(0);
+    let command_count = 3 + u32::from(deployment.is_some());
     let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
     let section_offset = 32 + command_bytes;
     let string_offset = section_offset + 4;
@@ -82,13 +134,17 @@ fn scoop_object(with_deployment: bool) -> Vec<u8> {
     push_u32(&mut bytes, dysymtab_size);
     bytes.extend_from_slice(&[0; 72]);
 
-    if with_deployment {
+    if let Some((minimum_os, sdk, tools)) = deployment {
         push_u32(&mut bytes, object::macho::LC_BUILD_VERSION);
-        push_u32(&mut bytes, 24);
+        push_u32(&mut bytes, deployment_size);
         push_u32(&mut bytes, object::macho::PLATFORM_MACOS);
-        push_u32(&mut bytes, 0x000d_0000);
-        push_u32(&mut bytes, 0x000d_0000);
-        push_u32(&mut bytes, 0);
+        push_u32(&mut bytes, minimum_os);
+        push_u32(&mut bytes, sdk);
+        push_u32(&mut bytes, u32::try_from(tools.len()).unwrap());
+        for tool in tools {
+            push_u32(&mut bytes, tool.tool());
+            push_u32(&mut bytes, tool.version());
+        }
     }
 
     bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd]);

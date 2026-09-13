@@ -32,6 +32,10 @@ pub struct DarwinBuildToolVersionV1 {
 }
 
 impl DarwinBuildToolVersionV1 {
+    pub const fn new(tool: u32, version: u32) -> Self {
+        Self { tool, version }
+    }
+
     pub const fn tool(self) -> u32 {
         self.tool
     }
