@@ -181,7 +181,7 @@ pub(in crate::link_object) fn verified_member_without_relocations(
     verified_member(fixture, &object.bytes)
 }
 
-fn verified_member_with_local_primary_relocation(
+pub(in crate::link_object) fn verified_member_with_local_primary_relocation(
     fixture: &Fixture,
 ) -> VerifiedMemberObjectRelocationIndexV1 {
     let object = object_for_plan_with_branch_relocation(
@@ -190,6 +190,15 @@ fn verified_member_with_local_primary_relocation(
         Some((0, primary_role(fixture))),
     );
     verified_member(fixture, &object.bytes)
+}
+
+pub(in crate::link_object) fn replace_only_binding_resolution(
+    mut closure: VerifiedCurrentConeStrongRelocationClosureV1,
+    resolution: StrongRelocationResolutionV1,
+) -> VerifiedCurrentConeStrongRelocationClosureV1 {
+    assert_eq!(closure.bindings.len(), 1);
+    closure.bindings[0].resolution = resolution;
+    closure
 }
 
 fn verified_member(fixture: &Fixture, bytes: &[u8]) -> VerifiedMemberObjectRelocationIndexV1 {

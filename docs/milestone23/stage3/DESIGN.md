@@ -1308,6 +1308,12 @@ contract及后续target native support requirement显式覆盖，否则generated
 
 任何undefined symbol没有requirement、一个use命中多个requirement、requirement symbol与object不符或外部contract只剩library名字都使Link proof失败。root Cone没有直接使用某个上游extern也不能在以后丢弃该requirement。
 
+object-local strong relocation已经在member verifier内完成解析，不进入undefined requirement集合；
+只有以undefined symbol形式跨member命中当前artifact定义的use才形成`IntraConeStrong`或
+`GeneratedBridge`。`GeneratedBridge`只接受primary atom，associated/static-assert atom不能冒充
+unit入口。`ConeImage`与verifier boundary是definition/export验证专用owner，不是本阶段合法的
+relocation target。
+
 ## 13. 六类registration与image producer
 
 ### 13.1 共享ABI
