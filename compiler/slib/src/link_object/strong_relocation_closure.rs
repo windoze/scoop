@@ -24,7 +24,13 @@ pub enum RelocationTargetSlotV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongRelocationResolutionV1 {
-    CurrentConeStrong {
+    ObjectLocalStrong {
+        target_member: SlibMemberId,
+        definition: ObjectDefinitionPlanId,
+        owner: StrongDefinitionEntity,
+        definition_role: StrongDefinitionRole,
+    },
+    CurrentConeUndefinedStrong {
         target_member: SlibMemberId,
         definition: ObjectDefinitionPlanId,
         owner: StrongDefinitionEntity,
@@ -370,7 +376,7 @@ fn collect_target_binding(
             };
             (
                 indexed.name.to_vec(),
-                StrongRelocationResolutionV1::CurrentConeStrong {
+                StrongRelocationResolutionV1::ObjectLocalStrong {
                     target_member: indexed.member,
                     definition: *definition,
                     owner,
@@ -398,7 +404,7 @@ fn collect_target_binding(
                         }
                         (
                             name.clone(),
-                            StrongRelocationResolutionV1::CurrentConeStrong {
+                            StrongRelocationResolutionV1::CurrentConeUndefinedStrong {
                                 target_member: indexed.member,
                                 definition,
                                 owner,

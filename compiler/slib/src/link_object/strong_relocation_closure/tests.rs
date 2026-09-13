@@ -47,7 +47,7 @@ fn resolves_cross_member_strong_uses_and_keeps_true_externals_explicit() {
     };
     assert_eq!(
         binding.resolution(),
-        StrongRelocationResolutionV1::CurrentConeStrong {
+        StrongRelocationResolutionV1::CurrentConeUndefinedStrong {
             target_member: target.symbols.member(),
             definition: target.plan,
             owner,
@@ -65,6 +65,31 @@ fn resolves_cross_member_strong_uses_and_keeps_true_externals_explicit() {
         }
     );
     assert_eq!(closure.bindings()[0].symbol(), b"_native_external");
+}
+
+#[test]
+fn keeps_object_local_strong_relocations_out_of_the_undefined_class() {
+    let fixture = fixture_named("localStrongTarget");
+    let member = verified_member_with_local_primary_relocation(&fixture);
+    let closure = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
+    let binding = &closure.bindings()[0];
+    let PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+        owner,
+        definition_role,
+        ..
+    } = primary_role(&fixture)
+    else {
+        unreachable!()
+    };
+    assert_eq!(
+        binding.resolution(),
+        StrongRelocationResolutionV1::ObjectLocalStrong {
+            target_member: fixture.symbols.member(),
+            definition: fixture.plan,
+            owner,
+            definition_role,
+        }
+    );
 }
 
 #[test]
@@ -153,6 +178,17 @@ pub(in crate::link_object) fn verified_member_without_relocations(
     fixture: &Fixture,
 ) -> VerifiedMemberObjectRelocationIndexV1 {
     let object = object_for_plan_with_branch_relocation(&fixture.symbols, canonical_value, None);
+    verified_member(fixture, &object.bytes)
+}
+
+fn verified_member_with_local_primary_relocation(
+    fixture: &Fixture,
+) -> VerifiedMemberObjectRelocationIndexV1 {
+    let object = object_for_plan_with_branch_relocation(
+        &fixture.symbols,
+        canonical_value,
+        Some((0, primary_role(fixture))),
+    );
     verified_member(fixture, &object.bytes)
 }
 
