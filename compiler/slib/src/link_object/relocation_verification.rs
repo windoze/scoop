@@ -4,7 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::num::{NonZeroU8, NonZeroU32};
 
-use scoop_identity::{ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId};
+use scoop_identity::{
+    ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+};
 
 use super::{
     BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
@@ -72,10 +74,48 @@ pub enum VerifiedDarwinArm64RelocationShapeV1 {
     },
 }
 
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum VerifiedDarwinArm64RelocationFormV1 {
+    Unsigned64,
+    Subtractor64,
+    Branch26,
+    Page21 { explicit_addend: Option<i32> },
+    PageOffset12 { explicit_addend: Option<i32> },
+    GotLoadPage21,
+    GotLoadPageOffset12,
+    PointerToGot32,
+}
+
+impl VerifiedDarwinArm64RelocationShapeV1 {
+    pub const fn form(&self) -> VerifiedDarwinArm64RelocationFormV1 {
+        match self {
+            Self::Unsigned64 { .. } => VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            Self::Subtractor64 { .. } => VerifiedDarwinArm64RelocationFormV1::Subtractor64,
+            Self::Branch26 { .. } => VerifiedDarwinArm64RelocationFormV1::Branch26,
+            Self::Page21 {
+                explicit_addend, ..
+            } => VerifiedDarwinArm64RelocationFormV1::Page21 {
+                explicit_addend: *explicit_addend,
+            },
+            Self::PageOffset12 {
+                explicit_addend, ..
+            } => VerifiedDarwinArm64RelocationFormV1::PageOffset12 {
+                explicit_addend: *explicit_addend,
+            },
+            Self::GotLoadPage21 { .. } => VerifiedDarwinArm64RelocationFormV1::GotLoadPage21,
+            Self::GotLoadPageOffset12 { .. } => {
+                VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
+            }
+            Self::PointerToGot32 { .. } => VerifiedDarwinArm64RelocationFormV1::PointerToGot32,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedRelocationUseV1 {
     member: SlibMemberId,
     containing_atom: ObjectDefinitionAtomId,
+    containing_atom_role: DefinitionAtomRole,
     section_role: BuiltinObjectSectionRoleV1,
     offset_within_atom: u64,
     width_bytes: u8,
@@ -90,6 +130,10 @@ impl VerifiedRelocationUseV1 {
 
     pub const fn containing_atom(&self) -> ObjectDefinitionAtomId {
         self.containing_atom
+    }
+
+    pub const fn containing_atom_role(&self) -> DefinitionAtomRole {
+        self.containing_atom_role
     }
 
     pub const fn section_role(&self) -> BuiltinObjectSectionRoleV1 {
@@ -188,6 +232,7 @@ pub fn verify_member_object_relocations_v1(
         relocations.push(VerifiedRelocationUseV1 {
             member: definitions.member(),
             containing_atom: containing_atom.atom(),
+            containing_atom_role: containing_atom.atom_role(),
             section_role: definitions.sections().roles()[section_index],
             offset_within_atom: site_start - containing_atom.start(),
             width_bytes,

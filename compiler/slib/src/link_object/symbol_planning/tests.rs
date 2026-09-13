@@ -42,6 +42,7 @@ fn assigns_primary_and_boundaries_to_the_definition_member() {
             PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
                 definition: fixture.plan,
                 atom: fixture.atom,
+                atom_role: DefinitionAtomRole::Primary,
             },
             PersistentSymbolKey::DefinitionBoundaryStart(fixture.atom),
         ),
@@ -49,6 +50,7 @@ fn assigns_primary_and_boundaries_to_the_definition_member() {
             PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
                 definition: fixture.plan,
                 atom: fixture.atom,
+                atom_role: DefinitionAtomRole::Primary,
             },
             PersistentSymbolKey::DefinitionBoundaryEnd(fixture.atom),
         ),

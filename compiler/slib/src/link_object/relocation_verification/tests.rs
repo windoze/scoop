@@ -27,10 +27,18 @@ fn assigns_relocations_to_exact_atoms_and_resolves_primary_targets() {
     assert_eq!(verified.relocations().len(), 1);
     let relocation = &verified.relocations()[0];
     assert_eq!(relocation.containing_atom(), fixture.atom);
+    assert_eq!(
+        relocation.containing_atom_role(),
+        scoop_identity::DefinitionAtomRole::Primary
+    );
     assert_eq!(relocation.section_role(), BuiltinObjectSectionRoleV1::Text);
     assert_eq!(relocation.offset_within_atom(), 0);
     assert_eq!(relocation.width_bytes(), 4);
     assert_eq!(relocation.encoded_value(), 0xddcc_bbaa);
+    assert_eq!(
+        relocation.shape().form(),
+        VerifiedDarwinArm64RelocationFormV1::Branch26
+    );
     assert_eq!(
         relocation.shape(),
         &VerifiedDarwinArm64RelocationShapeV1::Branch26 {

@@ -4,7 +4,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::num::NonZeroU8;
 
-use scoop_identity::{ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId};
+use scoop_identity::{
+    ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+};
 use scoop_wire::sha256;
 
 use super::{
@@ -52,6 +54,7 @@ impl VerifiedStrongDefinitionSymbolV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedDefinitionAtomRangeV1 {
     atom: ObjectDefinitionAtomId,
+    atom_role: DefinitionAtomRole,
     section_ordinal: NonZeroU8,
     start: u64,
     end: u64,
@@ -61,6 +64,10 @@ pub struct VerifiedDefinitionAtomRangeV1 {
 impl VerifiedDefinitionAtomRangeV1 {
     pub const fn atom(self) -> ObjectDefinitionAtomId {
         self.atom
+    }
+
+    pub const fn atom_role(self) -> DefinitionAtomRole {
+        self.atom_role
     }
 
     pub const fn section_ordinal(self) -> NonZeroU8 {
@@ -260,6 +267,7 @@ struct DefinitionAccumulator {
 
 #[derive(Default)]
 struct AtomAccumulator {
+    role: Option<DefinitionAtomRole>,
     start: Option<SymbolLocation>,
     end: Option<SymbolLocation>,
 }
@@ -285,35 +293,50 @@ fn record_definition_symbol(
                 return Err(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet);
             }
         }
-        PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { definition, atom } => {
-            if definitions
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            definition,
+            atom,
+            atom_role,
+        } => {
+            let atom = definitions
                 .entry(definition)
                 .or_default()
                 .atoms
                 .entry(atom)
-                .or_default()
-                .start
-                .replace(location)
-                .is_some()
-            {
+                .or_default();
+            record_atom_role(atom, atom_role)?;
+            if atom.start.replace(location).is_some() {
                 return Err(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet);
             }
         }
-        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { definition, atom } => {
-            if definitions
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+            definition,
+            atom,
+            atom_role,
+        } => {
+            let atom = definitions
                 .entry(definition)
                 .or_default()
                 .atoms
                 .entry(atom)
-                .or_default()
-                .end
-                .replace(location)
-                .is_some()
-            {
+                .or_default();
+            record_atom_role(atom, atom_role)?;
+            if atom.end.replace(location).is_some() {
                 return Err(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet);
             }
         }
     }
+    Ok(())
+}
+
+fn record_atom_role(
+    atom: &mut AtomAccumulator,
+    role: DefinitionAtomRole,
+) -> Result<(), StrongObjectDefinitionValidationError> {
+    if atom.role.is_some_and(|actual| actual != role) {
+        return Err(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet);
+    }
+    atom.role = Some(role);
     Ok(())
 }
 
@@ -327,6 +350,9 @@ fn finalize_definition(
         .atoms
         .into_iter()
         .map(|(atom, accumulator)| {
+            let atom_role = accumulator
+                .role
+                .ok_or(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet)?;
             let start = accumulator
                 .start
                 .ok_or(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet)?;
@@ -351,6 +377,7 @@ fn finalize_definition(
             }
             Ok(VerifiedDefinitionAtomRangeV1 {
                 atom,
+                atom_role,
                 section_ordinal: start.section_ordinal,
                 start: start.value,
                 end: end.value,

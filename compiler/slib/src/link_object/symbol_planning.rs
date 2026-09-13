@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{LirTargetProfile, StrongObjectSymbolSurfaceV1};
 
@@ -23,10 +23,12 @@ pub enum PlannedStrongObjectSymbolRoleV1 {
     AtomBoundaryStart {
         definition: ObjectDefinitionPlanId,
         atom: ObjectDefinitionAtomId,
+        atom_role: DefinitionAtomRole,
     },
     AtomBoundaryEnd {
         definition: ObjectDefinitionPlanId,
         atom: ObjectDefinitionAtomId,
+        atom_role: DefinitionAtomRole,
     },
 }
 
@@ -130,6 +132,7 @@ impl PlannedStrongObjectSymbolSetV1 {
                     PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
                         definition: plan.definition_plan(),
                         atom: boundary.atom(),
+                        atom_role: boundary.atom_role(),
                     },
                     boundary.start(),
                     normalization,
@@ -140,6 +143,7 @@ impl PlannedStrongObjectSymbolSetV1 {
                     PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
                         definition: plan.definition_plan(),
                         atom: boundary.atom(),
+                        atom_role: boundary.atom_role(),
                     },
                     boundary.end(),
                     normalization,

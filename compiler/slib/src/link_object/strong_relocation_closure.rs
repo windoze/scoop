@@ -3,12 +3,14 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId};
+use scoop_identity::{
+    ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+};
 
 use super::{
     BuiltinObjectSectionRoleV1, PlannedStrongObjectSymbolRoleV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
+    VerifiedDarwinArm64RelocationFormV1, VerifiedDarwinArm64RelocationShapeV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
 };
 use crate::SlibMemberId;
 
@@ -34,9 +36,12 @@ pub enum StrongRelocationResolutionV1 {
 pub struct StrongRelocationBindingV1 {
     source_member: SlibMemberId,
     containing_atom: ObjectDefinitionAtomId,
+    containing_atom_role: DefinitionAtomRole,
     section_role: BuiltinObjectSectionRoleV1,
     offset_within_atom: u64,
     width_bytes: u8,
+    relocation_form: VerifiedDarwinArm64RelocationFormV1,
+    encoded_value: u64,
     target_slot: RelocationTargetSlotV1,
     symbol: Vec<u8>,
     resolution: StrongRelocationResolutionV1,
@@ -51,6 +56,10 @@ impl StrongRelocationBindingV1 {
         self.containing_atom
     }
 
+    pub const fn containing_atom_role(&self) -> DefinitionAtomRole {
+        self.containing_atom_role
+    }
+
     pub const fn section_role(&self) -> BuiltinObjectSectionRoleV1 {
         self.section_role
     }
@@ -61,6 +70,14 @@ impl StrongRelocationBindingV1 {
 
     pub const fn width_bytes(&self) -> u8 {
         self.width_bytes
+    }
+
+    pub const fn relocation_form(&self) -> VerifiedDarwinArm64RelocationFormV1 {
+        self.relocation_form
+    }
+
+    pub const fn encoded_value(&self) -> u64 {
+        self.encoded_value
     }
 
     pub const fn target_slot(&self) -> RelocationTargetSlotV1 {
@@ -327,9 +344,12 @@ fn collect_target_binding(
     bindings.push(StrongRelocationBindingV1 {
         source_member,
         containing_atom: relocation.containing_atom(),
+        containing_atom_role: relocation.containing_atom_role(),
         section_role: relocation.section_role(),
         offset_within_atom: relocation.offset_within_atom(),
         width_bytes: relocation.width_bytes(),
+        relocation_form: relocation.shape().form(),
+        encoded_value: relocation.encoded_value(),
         target_slot,
         symbol,
         resolution,

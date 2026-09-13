@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
-    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
-    ObjectDefinitionPlanRole, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentSymbolError,
+    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::{
@@ -16,6 +16,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongAtomBoundarySymbolsV1 {
     atom: ObjectDefinitionAtomId,
+    atom_role: DefinitionAtomRole,
     start: PersistentSymbolRequest,
     end: PersistentSymbolRequest,
 }
@@ -23,6 +24,10 @@ pub struct StrongAtomBoundarySymbolsV1 {
 impl StrongAtomBoundarySymbolsV1 {
     pub const fn atom(self) -> ObjectDefinitionAtomId {
         self.atom
+    }
+
+    pub const fn atom_role(self) -> DefinitionAtomRole {
+        self.atom_role
     }
 
     pub const fn start(self) -> PersistentSymbolRequest {
@@ -86,6 +91,11 @@ impl StrongObjectSymbolSurfaceV1 {
             .iter()
             .map(|record| (record.id(), *record.key()))
             .collect::<BTreeMap<_, _>>();
+        let atom_roles = foundation
+            .definition_atoms()
+            .iter()
+            .map(|record| (record.id(), record.key().role()))
+            .collect::<BTreeMap<_, _>>();
         let mut plans = Vec::with_capacity(definitions.plans().len());
         for definition in definitions.plans() {
             let definition_plan = definition.plan();
@@ -128,9 +138,14 @@ impl StrongObjectSymbolSurfaceV1 {
             atoms.sort_unstable();
             let atom_boundaries = atoms
                 .into_iter()
-                .map(boundary_symbols)
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(StrongObjectSymbolSurfaceBuildError::Symbol)?;
+                .map(|atom| {
+                    let role = atom_roles.get(&atom).copied().ok_or(
+                        StrongObjectSymbolSurfaceBuildError::MissingDefinitionAtom(atom),
+                    )?;
+                    boundary_symbols(atom, role)
+                        .map_err(StrongObjectSymbolSurfaceBuildError::Symbol)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
             plans.push(StrongDefinitionSymbolPlanV1 {
                 definition_plan,
                 owner: entity,
@@ -160,9 +175,11 @@ impl StrongObjectSymbolSurfaceV1 {
 
 fn boundary_symbols(
     atom: ObjectDefinitionAtomId,
+    atom_role: DefinitionAtomRole,
 ) -> Result<StrongAtomBoundarySymbolsV1, PersistentSymbolError> {
     Ok(StrongAtomBoundarySymbolsV1 {
         atom,
+        atom_role,
         start: PersistentSymbolRequest::new(
             PersistentSymbolKey::DefinitionBoundaryStart(atom),
             LinkageClass::ConeStrong,
@@ -178,6 +195,7 @@ fn boundary_symbols(
 pub enum StrongObjectSymbolSurfaceBuildError {
     DefinitionSurface(StrongObjectDefinitionPlanBuildError),
     MissingDefinitionKey(ObjectDefinitionPlanId),
+    MissingDefinitionAtom(ObjectDefinitionAtomId),
     InvalidStrongDefinition(ObjectDefinitionPlanId),
     Symbol(PersistentSymbolError),
     MissingPrimarySymbolRequest {

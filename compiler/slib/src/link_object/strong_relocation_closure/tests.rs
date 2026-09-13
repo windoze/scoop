@@ -25,7 +25,16 @@ fn resolves_cross_member_strong_uses_and_keeps_true_externals_explicit() {
     let binding = &closure.bindings()[0];
     assert_eq!(binding.source_member(), source.symbols.member());
     assert_eq!(binding.containing_atom(), source.atom);
+    assert_eq!(
+        binding.containing_atom_role(),
+        scoop_identity::DefinitionAtomRole::Primary
+    );
     assert_eq!(binding.offset_within_atom(), 0);
+    assert_eq!(
+        binding.relocation_form(),
+        VerifiedDarwinArm64RelocationFormV1::Branch26
+    );
+    assert_eq!(binding.encoded_value(), 0xddcc_bbaa);
     assert_eq!(binding.target_slot(), RelocationTargetSlotV1::Single);
     assert_eq!(binding.symbol(), target_primary_name);
     assert_eq!(
