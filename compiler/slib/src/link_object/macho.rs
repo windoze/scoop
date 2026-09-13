@@ -12,6 +12,9 @@ const MAX_LOAD_COMMANDS: u32 = 65_536;
 const MAX_OBJECT_TABLE_ENTRIES: u64 = 16_777_216;
 const MAX_OBJECT_STRING_TABLE_BYTES: u64 = 16_777_216;
 
+mod sections;
+pub use sections::*;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinDeploymentCommandV1 {
     BuildVersion {
@@ -25,7 +28,7 @@ pub enum DarwinDeploymentCommandV1 {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     byte_length: u64,
     load_command_count: u32,
@@ -33,32 +36,80 @@ pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     symbol_count: u32,
     relocation_count: u64,
     deployment: DarwinDeploymentCommandV1,
+    sections: Vec<ObservedMachOSectionV1>,
 }
 
 impl ValidatedDarwinArm64ObjectEnvelopeV1 {
-    pub const fn byte_length(self) -> u64 {
+    pub const fn byte_length(&self) -> u64 {
         self.byte_length
     }
 
-    pub const fn load_command_count(self) -> u32 {
+    pub const fn load_command_count(&self) -> u32 {
         self.load_command_count
     }
 
-    pub const fn section_count(self) -> u32 {
+    pub const fn section_count(&self) -> u32 {
         self.section_count
     }
 
-    pub const fn symbol_count(self) -> u32 {
+    pub const fn symbol_count(&self) -> u32 {
         self.symbol_count
     }
 
-    pub const fn relocation_count(self) -> u64 {
+    pub const fn relocation_count(&self) -> u64 {
         self.relocation_count
     }
 
-    pub const fn deployment(self) -> DarwinDeploymentCommandV1 {
+    pub const fn deployment(&self) -> DarwinDeploymentCommandV1 {
         self.deployment
     }
+
+    pub fn sections(&self) -> &[ObservedMachOSectionV1] {
+        &self.sections
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ObservedMachOSectionV1 {
+    segment_name: [u8; 16],
+    section_name: [u8; 16],
+    flags: u32,
+    byte_size: u64,
+    alignment_power: u32,
+    relocation_count: u32,
+}
+
+impl ObservedMachOSectionV1 {
+    pub fn segment_name(&self) -> &[u8] {
+        trimmed_fixed_name(&self.segment_name)
+    }
+
+    pub fn section_name(&self) -> &[u8] {
+        trimmed_fixed_name(&self.section_name)
+    }
+
+    pub const fn flags(self) -> u32 {
+        self.flags
+    }
+
+    pub const fn byte_size(self) -> u64 {
+        self.byte_size
+    }
+
+    pub const fn alignment_power(self) -> u32 {
+        self.alignment_power
+    }
+
+    pub const fn relocation_count(self) -> u32 {
+        self.relocation_count
+    }
+}
+
+fn trimmed_fixed_name(name: &[u8; 16]) -> &[u8] {
+    &name[..name
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(name.len())]
 }
 
 pub fn validate_darwin_arm64_object_envelope_v1(
@@ -117,6 +168,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
     let mut symtab = None;
     let mut dysymtab = None;
     let mut deployment = None;
+    let mut observed_sections = Vec::new();
     let mut occupied_ranges = vec![CheckedFileRange::new(
         0,
         (mem::size_of::<macho::MachHeader64<Endianness>>() as u64)
@@ -169,7 +221,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                     .sections(endian, section_bytes)
                     .map_err(|_| ObjectEnvelopeValidationError::MalformedSegment)?;
                 for section in sections {
-                    validate_section(
+                    observed_sections.push(validate_section(
                         section,
                         endian,
                         record.fileoff.get(endian),
@@ -177,7 +229,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                         byte_length,
                         &mut relocation_count,
                         &mut occupied_ranges,
-                    )?;
+                    )?);
                 }
                 segment = Some(section_count);
             }
@@ -298,6 +350,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
         symbol_count,
         relocation_count,
         deployment,
+        sections: observed_sections,
     })
 }
 
@@ -353,7 +406,12 @@ fn validate_section(
     byte_length: u64,
     relocation_count: &mut u64,
     occupied_ranges: &mut Vec<CheckedFileRange>,
-) -> Result<(), ObjectEnvelopeValidationError> {
+) -> Result<ObservedMachOSectionV1, ObjectEnvelopeValidationError> {
+    if !has_canonical_fixed_name_padding(&section.sectname)
+        || !has_canonical_fixed_name_padding(&section.segname)
+    {
+        return Err(ObjectEnvelopeValidationError::NonCanonicalSectionName);
+    }
     if let Some((offset, size)) = section.file_range(endian) {
         let range = CheckedFileRange::new(offset, size)
             .map_err(|_| ObjectEnvelopeValidationError::SectionOutOfBounds)?;
@@ -395,7 +453,26 @@ fn validate_section(
     if !range.is_empty() {
         occupied_ranges.push(range);
     }
-    Ok(())
+    if section.reserved1.get(endian) != 0
+        || section.reserved2.get(endian) != 0
+        || section.reserved3.get(endian) != 0
+    {
+        return Err(ObjectEnvelopeValidationError::UnsupportedSectionReservedFields);
+    }
+    Ok(ObservedMachOSectionV1 {
+        segment_name: section.segname,
+        section_name: section.sectname,
+        flags: section.flags.get(endian),
+        byte_size: section.size.get(endian),
+        alignment_power: section.align.get(endian),
+        relocation_count: count,
+    })
+}
+
+fn has_canonical_fixed_name_padding(name: &[u8; 16]) -> bool {
+    name.iter()
+        .position(|byte| *byte == 0)
+        .is_none_or(|first_zero| name[first_zero..].iter().all(|byte| *byte == 0))
 }
 
 fn validate_dynamic_symbol_table(
@@ -495,9 +572,11 @@ pub enum ObjectEnvelopeValidationError {
     EmbeddedLinkerOption,
     MalformedSegment,
     SegmentOutOfBounds,
+    NonCanonicalSectionName,
     SectionOutOfBounds,
     InvalidSectionAlignment { power: u32 },
     ZeroFillSectionHasRelocations,
+    UnsupportedSectionReservedFields,
     RelocationTableOutOfBounds,
     MissingSegment,
     MalformedSymbolTable,

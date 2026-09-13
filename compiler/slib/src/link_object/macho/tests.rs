@@ -101,6 +101,18 @@ fn rejects_overlapping_physical_tables() {
     );
 }
 
+#[test]
+fn rejects_noncanonical_section_name_padding() {
+    let mut bytes = object_with_text_section();
+    let section_name_offset = 32 + 72;
+    bytes[section_name_offset + 7] = b'x';
+
+    assert_eq!(
+        validate_darwin_arm64_object_envelope_v1(&bytes),
+        Err(ObjectEnvelopeValidationError::NonCanonicalSectionName)
+    );
+}
+
 fn object_bytes() -> Vec<u8> {
     let segment_size = 72_u32;
     let symtab_size = 24_u32;
