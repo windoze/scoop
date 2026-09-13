@@ -2,23 +2,28 @@ use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
     DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LayoutKey, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PackagePath,
-    PersistentExactTypeId, PersistentFunctionId, PersistentLayoutId, PersistentSafepointSiteId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
-    RepresentationRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DigestSemanticFieldRole, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, LayoutKey,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentFunctionId,
+    PersistentImmortalObjectId, PersistentLayoutId, PersistentPropertyId,
+    PersistentSafepointSiteId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, RepresentationRole,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity,
+    StrongDefinitionRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
-    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, Function,
-    GcEffect, Instruction, IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind,
-    LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination,
-    ManagedPollSite, ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, OdrFreeLirFoundation, RefScan, RuntimeTypeMappingRecord,
+    CanonicalLirFoundation, CoreExternalTypeDescriptor, DigestInputRefV1, DigestNodeV1, EnumDefs,
+    ExternFunctions, Function, GcEffect, Global, GlobalInit, ImmortalObjectIdentity, Instruction,
+    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
+    LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
+    ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
+    NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeTypeMappingRecord,
     SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
     SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StrongCallableRegistrationPlanSetV1,
-    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
+    StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationIdentitySurfaceV1,
     StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
     StrongTypeRegistrationPlanSetV1, StructDefs, Terminator, TypeDescriptor,
     TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VtableRecord,
@@ -35,20 +40,28 @@ pub(crate) struct SemanticInputs {
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
+    pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
     pub(crate) safepoint_ids: Vec<u64>,
 }
 
 pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
-    let (module, body, safepoints) = semantic_module();
+    let (module, body, safepoints) = semantic_module(corruption);
     let semantics = StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
-    let (foundation, registrations, callable_registration, type_registration) =
-        foundation(&body, &safepoints, corruption);
+    let immortal_semantics = StrongImmortalObjectSemanticPlanSetV1::from_module(&module).unwrap();
+    let (
+        foundation,
+        registrations,
+        callable_registration,
+        type_registration,
+        immortal_registration,
+    ) = foundation(&module, &body, &safepoints, corruption);
     let digest_plan = digest_plan(
         &foundation,
         body.id(),
         &registrations,
         &callable_registration,
         &type_registration,
+        &immortal_registration,
     );
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
@@ -56,6 +69,13 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         &foundation,
         &identities,
         &semantics,
+        &digest_plan,
+    )
+    .unwrap();
+    let immortal_registration_plan = StrongImmortalObjectRegistrationPlanSetV1::new(
+        &foundation,
+        &identities,
+        &immortal_semantics,
         &digest_plan,
     )
     .unwrap();
@@ -75,6 +95,10 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
             type_registration.layout_plan.id(),
             type_registration.registration_plan.id(),
         ])
+        .chain([
+            immortal_registration.object_plan.id(),
+            immortal_registration.registration_plan.id(),
+        ])
         .chain(
             registrations
                 .iter()
@@ -93,11 +117,14 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         registration_plan,
         callable_registration_plan,
         type_registration_plan,
+        immortal_registration_plan,
         safepoint_ids,
     }
 }
 
-fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointIdentity>) {
+fn semantic_module(
+    corruption: Corruption,
+) -> (Module, CallableBodyIdentity, Vec<SafepointIdentity>) {
     let body = CallableBodyIdentity::for_function(function_id("stackmapOwner")).unwrap();
     let safepoints = vec![
         SafepointIdentity::new(body.id(), SafepointSiteRole::ManagedPoll, 0).unwrap(),
@@ -154,9 +181,22 @@ fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointIdentity>) {
     };
     let mut local_functions = LocalFunctionIdentities::default();
     let entry = LocalFunctionRef::Managed(local_functions.alloc_managed());
+    let mut globals = Arena::new();
+    globals.alloc(Global {
+        address_kind: PointerKind::Managed,
+        scan: RefScan::None,
+        init: GlobalInit::StringConst {
+            identity: ImmortalObjectIdentity::from_key(
+                immortal_key(),
+                MaterializationRoot::cone_owned(),
+            )
+            .unwrap(),
+            value: "stage3".to_string(),
+        },
+    });
     let module = Module {
         cone: ConeIdentity::SINGLE_FILE,
-        globals: Arena::new(),
+        globals,
         initialization_units: Arena::new(),
         structs: StructDefs::default(),
         enums: EnumDefs::default(),
@@ -168,12 +208,13 @@ fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointIdentity>) {
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         entry,
-        meta: metadata(),
+        meta: metadata(corruption),
     };
     (module, body, safepoints)
 }
 
 fn foundation(
+    module: &Module,
     body: &CallableBodyIdentity,
     safepoints: &[SafepointIdentity],
     corruption: Corruption,
@@ -182,6 +223,7 @@ fn foundation(
     Vec<RegistrationArtifacts>,
     CallableRegistrationArtifacts,
     TypeRegistrationArtifacts,
+    ImmortalRegistrationArtifacts,
 ) {
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
@@ -214,6 +256,15 @@ fn foundation(
         .collect::<Vec<_>>();
     let callable_registration = callable_registration_artifacts(body.id());
     let type_registration = type_registration_artifacts(exact_type("String"));
+    let immortal = module
+        .globals
+        .iter()
+        .find_map(|(_, global)| match &global.init {
+            GlobalInit::StringConst { identity, .. } => Some(identity.identity_record().clone()),
+            GlobalInit::CString { .. } | GlobalInit::Storage { .. } => None,
+        })
+        .unwrap();
+    let immortal_registration = immortal_registration_artifacts(immortal);
     let mut canonical = CanonicalLirFoundation::empty();
     canonical
         .set_callable_bodies(vec![body.identity_record().clone()])
@@ -238,6 +289,9 @@ fn foundation(
         .set_layouts(vec![type_registration.layout.clone()])
         .unwrap();
     canonical
+        .set_immortal_objects(vec![immortal_registration.object.clone()])
+        .unwrap();
+    canonical
         .set_runtime_types(vec![
             RuntimeTypeMappingRecord::new(type_registration.exact_type).unwrap(),
         ])
@@ -250,6 +304,10 @@ fn foundation(
                     type_registration.descriptor_plan.clone(),
                     type_registration.layout_plan.clone(),
                     type_registration.registration_plan.clone(),
+                ])
+                .chain([
+                    immortal_registration.object_plan.clone(),
+                    immortal_registration.registration_plan.clone(),
                 ])
                 .chain(
                     registrations
@@ -269,6 +327,10 @@ fn foundation(
                     type_registration.layout_primary.clone(),
                     type_registration.registration_primary.clone(),
                 ])
+                .chain([
+                    immortal_registration.object_primary.clone(),
+                    immortal_registration.registration_primary.clone(),
+                ])
                 .chain(
                     registrations
                         .iter()
@@ -286,6 +348,10 @@ fn foundation(
                     type_registration.layout_symbol,
                     type_registration.registration_symbol,
                 ])
+                .chain([
+                    immortal_registration.object_symbol,
+                    immortal_registration.registration_symbol,
+                ])
                 .chain(registrations.iter().map(|registration| registration.symbol))
                 .collect(),
         )
@@ -296,6 +362,7 @@ fn foundation(
         registrations,
         callable_registration,
         type_registration,
+        immortal_registration,
     )
 }
 
@@ -324,6 +391,38 @@ struct TypeRegistrationArtifacts {
     registration_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     registration_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     registration_symbol: PersistentSymbolRequest,
+}
+
+struct ImmortalRegistrationArtifacts {
+    object: CborIdentityRecord<PersistentImmortalObjectId, ImmortalObjectKey>,
+    object_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    object_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    object_symbol: PersistentSymbolRequest,
+    registration_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    registration_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    registration_symbol: PersistentSymbolRequest,
+}
+
+fn immortal_registration_artifacts(
+    object: CborIdentityRecord<PersistentImmortalObjectId, ImmortalObjectKey>,
+) -> ImmortalRegistrationArtifacts {
+    let object_plan = strong_definition(
+        StrongDefinitionEntity::immortal_object(object.id()),
+        StrongDefinitionRole::ImmortalObject,
+    );
+    let registration_plan = strong_definition(
+        StrongDefinitionEntity::immortal_object(object.id()),
+        StrongDefinitionRole::ImmortalRegistration,
+    );
+    ImmortalRegistrationArtifacts {
+        object_symbol: strong_symbol(PersistentSymbolKey::ImmortalObject(object.id())),
+        registration_symbol: strong_symbol(PersistentSymbolKey::ImmortalRegistration(object.id())),
+        object_primary: primary_atom(&object_plan),
+        registration_primary: primary_atom(&registration_plan),
+        object,
+        object_plan,
+        registration_plan,
+    }
 }
 
 fn type_registration_artifacts(exact_type: PersistentExactTypeId) -> TypeRegistrationArtifacts {
@@ -450,6 +549,7 @@ fn digest_plan(
     registrations: &[RegistrationArtifacts],
     callable_registration: &CallableRegistrationArtifacts,
     type_registration: &TypeRegistrationArtifacts,
+    immortal_registration: &ImmortalRegistrationArtifacts,
 ) -> StrongDigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
@@ -591,6 +691,42 @@ fn digest_plan(
     .unwrap();
     image_inputs.push(DigestInputRefV1::from_node(&type_fingerprint));
     nodes.extend([descriptor, layout, type_object, type_fingerprint]);
+
+    let immortal_object = DigestNodeV1::new(
+        DigestNodeKey::object_definition(immortal_registration.object_primary.id()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let immortal_registration_object = DigestNodeV1::new(
+        DigestNodeKey::object_definition(immortal_registration.registration_primary.id()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let immortal_key =
+        DigestNodeKey::strong_registration(immortal_registration.registration_plan.id());
+    let immortal_source = DigestNodeId::from_key(&immortal_key).unwrap();
+    let immortal_fingerprint = DigestNodeV1::new(
+        immortal_key,
+        vec![
+            DigestInputRefV1::from_node(&immortal_registration_object),
+            DigestInputRefV1::from_node(&immortal_object),
+        ],
+        vec![DigestPatchIntentKey::new(
+            immortal_source,
+            immortal_registration.registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::RegistrationDefinition,
+        )],
+    )
+    .unwrap();
+    image_inputs.push(DigestInputRefV1::from_node(&immortal_fingerprint));
+    nodes.extend([
+        immortal_object,
+        immortal_registration_object,
+        immortal_fingerprint,
+    ]);
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(foundation.producer()),
@@ -612,13 +748,13 @@ fn definition_plan(owner: scoop_identity::PersistentCallableBodyId) -> ObjectDef
     ObjectDefinitionPlanId::from_key(&key).unwrap()
 }
 
-fn metadata() -> LirMeta {
-    let exact_type = exact_type("String");
-    let runtime_type = RuntimeTypeMappingRecord::new(exact_type).unwrap();
+fn metadata(corruption: Corruption) -> LirMeta {
+    let string_type = exact_type("String");
+    let runtime_type = RuntimeTypeMappingRecord::new(string_type).unwrap();
     let mut layouts = Arena::new();
     let string_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
-            exact_type,
+            string_type,
             LirTargetProfile::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
@@ -644,6 +780,16 @@ fn metadata() -> LirMeta {
         vtable,
         itables: Vec::new(),
     });
+    let mut core_external_type_descriptors = Arena::new();
+    let well_known_string =
+        if matches!(corruption, Corruption::CoreExternalImmortalTypeRegistration) {
+            TypeDescriptorRef::CoreExternal(
+                core_external_type_descriptors
+                    .alloc(CoreExternalTypeDescriptor::new(exact_type("CoreString")).unwrap()),
+            )
+        } else {
+            TypeDescriptorRef::Local(string_descriptor)
+        };
     LirMeta {
         target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
@@ -652,12 +798,12 @@ fn metadata() -> LirMeta {
             string: string_layout,
         },
         well_known_type_descriptors: WellKnownTypeDescriptors {
-            string: TypeDescriptorRef::Local(string_descriptor),
+            string: well_known_string,
         },
         arrays: Arena::new(),
         layouts,
         type_descriptors,
-        core_external_type_descriptors: Arena::new(),
+        core_external_type_descriptors,
         core_external_callables: Arena::new(),
     }
 }
@@ -682,6 +828,21 @@ fn exact_type(name: &str) -> PersistentExactTypeId {
     ))
     .unwrap();
     PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap()
+}
+
+fn immortal_key() -> ImmortalObjectKey {
+    let property = PersistentPropertyId::from_source_declaration(&SourceDeclarationKey::property(
+        source_site(),
+        CanonicalIdentifier::new("text").unwrap(),
+    ))
+    .unwrap();
+    ImmortalObjectKey::string_constant(
+        ImmortalObjectOwner::Property(PropertyOwner::Property(property)),
+        StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::StringConstant, 0),
+            [],
+        ),
+    )
 }
 
 fn source_site() -> SourceDeclarationSite {

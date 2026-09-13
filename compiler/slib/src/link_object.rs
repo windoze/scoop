@@ -46,6 +46,9 @@ pub use callable_registrations::*;
 mod type_registrations;
 pub use type_registrations::*;
 
+mod immortal_registrations;
+pub use immortal_registrations::*;
+
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 

@@ -1661,6 +1661,17 @@ TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation�
 digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
 edge/writer集合，不接受record bytes或调用方自报digest关系。
 
+immortal-object registration的Link侧唯一入口是
+`verify_strong_immortal_object_registrations_v1`，其输入固定为完整immortal plan、全量digest patch proof及同一批
+经content digest绑定的Scoop LIR object bytes。验证器重验只读Primary atom与精确184-byte provisional record；
+该atom必须恰有offset 152和176两条8-byte、zero-addend、`Unsigned64` relocation。前者必须解析到plan中同一
+immortal object definition/Primary symbol；后者在typed local分支必须解析到当前Cone同一exact type的
+TypeRegistration definition/Primary symbol，在typed core-external分支则必须保持为拼写精确的external
+candidate，不能用任意本地strong定义冒充。offset 120只允许同一registration definition/Primary atom的
+`RegistrationDefinition` patch，额外patch、relocation或验后换bytes均失败。验证器同时从digest plan重建
+registration object leaf、实际immortal object ObjectDefinition与StrongRegistration节点，重验leaf闭包、
+两项direct input和唯一writer；不接受调用方自报target、node、digest或兼容record格式。
+
 type registration自身的ObjectDefinition leaf只能经
 `compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content
 digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确240-byte

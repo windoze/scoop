@@ -3,7 +3,8 @@ use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, GeneratedBridgePlanSetV1,
     LirTargetProfile, OdrFreeLirFoundation, StrongCallableRegistrationPlanSetV1,
-    StrongDigestFinalizationPlanV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
+    StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
+    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
     StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
     StrongTypeRegistrationPlanSetV1,
 };
@@ -33,6 +34,10 @@ pub(crate) enum Corruption {
     CallableEntryRelocationTarget,
     TypeRegistrationMagic,
     TypeDescriptorRelocationTarget,
+    ImmortalRegistrationMagic,
+    ImmortalObjectRelocationTarget,
+    ImmortalTypeRegistrationRelocationTarget,
+    CoreExternalImmortalTypeRegistration,
     WritableRegistrationSection,
     RelocatedRegistration,
 }
@@ -45,6 +50,7 @@ pub(crate) struct Fixture {
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
+    pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
     pub(crate) provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
     pub(crate) member: SlibMemberId,
     pub(crate) object_bytes: Vec<u8>,
@@ -80,6 +86,7 @@ impl Fixture {
             &inputs.registration_plan,
             &inputs.callable_registration_plan,
             &inputs.type_registration_plan,
+            &inputs.immortal_registration_plan,
             corruption,
         );
         let profile = c_bridge_profile();
@@ -114,6 +121,7 @@ impl Fixture {
             registration_plan: inputs.registration_plan,
             callable_registration_plan: inputs.callable_registration_plan,
             type_registration_plan: inputs.type_registration_plan,
+            immortal_registration_plan: inputs.immortal_registration_plan,
             provisional_patch_sites,
             member,
             object_bytes: object.bytes,
