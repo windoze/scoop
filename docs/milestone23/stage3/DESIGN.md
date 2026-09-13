@@ -1858,6 +1858,16 @@ normalized stackmap fingerprint，最后编码恰两个direct input。两项依�
 `ObjectDefinition(kind=6, node id, digest)`与`StackmapRecord(kind=7, node id, digest)`；任一digest变化都
 必须改变最终StrongRegistration fingerprint。
 
+callable variant只能经`compute_strong_callable_fingerprints_v1`消费完整callable body object proof产生；
+该proof继续拥有registration object、registration verifier、stackmap、undefined requirement与exact object
+proof，不开放接收两份裸digest的公共入口。实际编码固定为record-kind `u32` tag 6一次，随后是Strong
+linkage、body semantic id、零ODR group/member、零own definition、已验证的body ObjectDefinition
+fingerprint，以及`OwnCallableEntry` role tag 8和同一body id；raw entry address不进入hash。最后编码
+registration Primary与body Primary两个`ObjectDefinition(kind=6, node id, digest)` direct input，并按
+`(kind, node id)`排序。body digest虽然已出现在record字段中，仍作为digest graph声明的typed direct input
+再次编码；registration object digest只进入direct input。任一proof覆盖、body/node对应或digest变化都必须
+失败或改变最终StrongRegistration fingerprint，不保留从record bytes临时推断依赖的旁路。
+
 ### 14.3 runtime image fingerprint
 
 使用总设计`RuntimeEncode`和固定tag：

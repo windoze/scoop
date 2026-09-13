@@ -13,6 +13,9 @@ pub use fingerprints::*;
 mod body_fingerprints;
 pub use body_fingerprints::*;
 
+mod registration_fingerprints;
+pub use registration_fingerprints::*;
+
 mod verification;
 pub use verification::*;
 
