@@ -1142,9 +1142,9 @@ tool记录必须逐字段等于`CBridgeProductionSet`引用的toolchain contract
 不得把tool array降格成`ntools`计数摘要；producer verifier必须将其收窄后才能产生
 capability proof。
 
-generated C qualifier只接受`BuildVersion`，且minimum OS、SDK与按tool id严格递增的非零
-tool/version数组必须逐值等于请求级deployment contract；缺失deployment、`VersionMin`、重复/
-错序tool或任一字段漂移都失败。Scoop LIR的无deployment qualifier与generated C qualifier是两个
+generated C qualifier只接受`BuildVersion`，且minimum OS、SDK与tool/version数组必须逐值等于
+请求级deployment contract；数组允许为空，非空时按tool id严格递增且包含Clang。缺失deployment、
+`VersionMin`、重复/错序tool或任一字段漂移都失败。Scoop LIR的无deployment qualifier与generated C qualifier是两个
 独立入口，不存在“任选其一”或忽略deployment的兼容路径。
 
 ### 11.4 Scoop LIR verifier
@@ -1229,6 +1229,26 @@ environment product固定为`1=inherited_names=[]`、`2=locale="C"`、`3=timezon
 4=canonical_flag_fingerprint, 5=units}`。`units`直接且完整投影同一
 `GeneratedBridgePlanSet`，非空并按`GeneratedBridgeUnitId`严格递增；没有任意units构造入口，
 producer不能自行排序、删减或补造unit。
+
+packager在进入generated-C symbol/relocation验证前，先原子构造
+`VerifiedCBridgeProductionEnvelopeSetV1`。该proof同时接收请求级
+`CBridgeToolchainProfileV1`、`GeneratedBridgePlanSetV1`、已经冻结member id的
+`PlannedLinkObjectMemberSetV1`、manifest中的`CBridgeProductionSetV1`以及按member id严格递增的
+actual object bytes，并按以下顺序fail closed：
+
+1. bridge plan与member plan的producer逐值相等；
+2. plan为空时production只能是`NotUsed`且actual generated-C member为空；plan非空时production只能
+   是`Used`，其中profile id/fingerprint、source-template fingerprint、canonical-flag fingerprint与
+   请求profile逐值相等，unit array与bridge plan逐值相等；
+3. 全部planned generated-C member的unit并集与bridge plan相等，既不重复也不缺失/多出；
+4. actual member id集合与planned generated-C member id集合相等，输入中重复、错序、缺失或额外member
+   均失败；
+5. 每个actual bytes使用同一个请求profile的deployment contract通过generated-C Mach-O envelope
+   qualifier，proof保留该member plan与包含byte length/content digest的envelope。
+
+这一步只产生profile/unit/member/envelope绑定证明，不冒充完整generated-C object verifier；随后仍须
+按本节其余规则验证atom、symbol、relocation与requirement。不得先用某个deployment验证object，再把
+另一个compiler/template/flags profile写入manifest。
 
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
