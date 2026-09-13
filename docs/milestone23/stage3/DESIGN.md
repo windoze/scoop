@@ -1129,6 +1129,13 @@ generated bridge absent时没有generated object member，但manifest的`CBridge
 
 精确allowlist按`ObjectFormatId + verifier capability + target/backend或C-bridge production contract`登记并由golden冻结。实现不能写一个“object crate能parse就接受”的generic fallback。
 
+当前`darwin-aarch64 + llvm-22-1` Scoop producer使用未带OS版本的canonical LLVM triple，因而其
+object profile精确要求不存在deployment load command；不能接受或忽略偶然继承host SDK的
+`LC_BUILD_VERSION`。generated C object则相反：deployment command及其中的minimum OS、SDK与
+tool记录必须逐字段等于`CBridgeProductionSet`引用的toolchain contract。共同Mach-O parser只记录
+`None | BuildVersion | VersionMin`这一物理事实，producer verifier必须将其收窄后才能产生
+capability proof。
+
 ### 11.4 Scoop LIR verifier
 
 `org.scoop-lang.link-object/scoop-lir/1` verifier从LIR plan独立重建：

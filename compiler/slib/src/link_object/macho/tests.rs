@@ -13,12 +13,20 @@ fn accepts_the_closed_relocatable_object_envelope() {
     assert_eq!(envelope.relocation_count(), 0);
     assert_eq!(
         envelope.deployment(),
-        DarwinDeploymentCommandV1::BuildVersion {
+        Some(DarwinDeploymentCommandV1::BuildVersion {
             minimum_os: 0x000d_0000,
             sdk: 0x000d_0000,
             tool_count: 0,
-        }
+        })
     );
+}
+
+#[test]
+fn raw_envelope_preserves_an_absent_deployment_command() {
+    let bytes = object_without_deployment();
+    let envelope = validate_darwin_arm64_object_envelope_v1(&bytes).unwrap();
+    assert_eq!(envelope.load_command_count(), 3);
+    assert_eq!(envelope.deployment(), None);
 }
 
 #[test]
@@ -172,6 +180,18 @@ fn object_bytes() -> Vec<u8> {
     bytes
 }
 
+fn object_without_deployment() -> Vec<u8> {
+    let mut bytes = object_bytes();
+    let deployment_offset = 32 + 72 + 24 + 80;
+    bytes.drain(deployment_offset..deployment_offset + 24);
+    write_u32(&mut bytes, 16, 3);
+    write_u32(&mut bytes, 20, 72 + 24 + 80);
+    write_u64(&mut bytes, 32 + 40, (32 + 72 + 24 + 80) as u64);
+    write_u32(&mut bytes, 32 + 72 + 8, (32 + 72 + 24 + 80) as u32);
+    write_u32(&mut bytes, 32 + 72 + 16, (32 + 72 + 24 + 80) as u32);
+    bytes
+}
+
 pub(super) fn object_with_text_section() -> Vec<u8> {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
@@ -290,6 +310,10 @@ fn push_relocation(
 
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+}
+
+fn write_u64(bytes: &mut [u8], offset: usize, value: u64) {
+    bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
 }
 
 fn push_fixed_name(bytes: &mut Vec<u8>, name: &[u8]) {

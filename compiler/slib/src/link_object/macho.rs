@@ -21,6 +21,9 @@ pub use symbols::*;
 mod relocations;
 pub use relocations::*;
 
+mod profiles;
+pub use profiles::*;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinDeploymentCommandV1 {
     BuildVersion {
@@ -41,7 +44,7 @@ pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     section_count: u32,
     symbol_count: u32,
     relocation_count: u64,
-    deployment: DarwinDeploymentCommandV1,
+    deployment: Option<DarwinDeploymentCommandV1>,
     sections: Vec<ObservedMachOSectionV1>,
     symbols: Vec<ObservedMachOSymbolV1>,
     relocations: Vec<ObservedMachORelocationV1>,
@@ -68,7 +71,7 @@ impl ValidatedDarwinArm64ObjectEnvelopeV1 {
         self.relocation_count
     }
 
-    pub const fn deployment(&self) -> DarwinDeploymentCommandV1 {
+    pub const fn deployment(&self) -> Option<DarwinDeploymentCommandV1> {
         self.deployment
     }
 
@@ -372,7 +375,6 @@ pub fn validate_darwin_arm64_object_envelope_v1(
     let symbol_count = symtab.nsyms.get(endian);
     let dysymtab = dysymtab.ok_or(ObjectEnvelopeValidationError::MissingDynamicSymbolTable)?;
     validate_dynamic_symbol_table(dysymtab, endian, symbol_count)?;
-    let deployment = deployment.ok_or(ObjectEnvelopeValidationError::MissingDeploymentCommand)?;
     validate_disjoint_ranges(&mut occupied_ranges)?;
     let symbols = validate_darwin_arm64_symbol_inventory_v1(
         symtab,
@@ -641,7 +643,6 @@ pub enum ObjectEnvelopeValidationError {
     DuplicateDeploymentCommand,
     MalformedDeploymentCommand,
     WrongDeploymentPlatform(u32),
-    MissingDeploymentCommand,
     FileRangeOverflow,
     OverlappingFileRanges,
 }
