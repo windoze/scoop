@@ -9,6 +9,8 @@ use crate::{CanonicalHirFoundation, ConeOutputKind, ExportHir, ValidatedHirFound
 
 mod core_prelude;
 pub use core_prelude::*;
+mod core_well_known;
+pub use core_well_known::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HirOutputContractV1 {

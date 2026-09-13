@@ -681,6 +681,13 @@ record，不能重复record、复制`ExportBindingKey`或改用源码声明顺�
 `Option` owner、`Some`/`None`名称、field owner/selector、Some恰一field、None无field及
 public `Option` type binding关系；不能仅凭三个id存在就接受。
 
+`RuntimeCoreCapabilityV1::String`固定为closed sum
+`0=1, 1=source_type, 2=exact_type`。`source_type`引用foundation中的reserved core、
+root package、top-level、Cone-wide、非generic `class String`，`exact_type`必须引用同一
+foundation中精确的`ExactTypeKey::Nominal(source_type)`；reader不能接受另一个同名、
+同layout或同宽identity替代。target layout contract在LIR relation中追加，不能提前混入
+target-independent HIR payload。
+
 它不包含import文本、failed candidate、current display locator或完整source。`ExecutableSourceEntry`必须与`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
 
 本section进入HIR semantic fingerprint。即使普通Cone使用`NotCore`，其output contract/direct-public surface变化仍必须改变HIR fingerprint；这为M23-5升级一般public surface提供明确的失效边界，而不是靠object变化偶然触发。

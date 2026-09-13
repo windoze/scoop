@@ -176,6 +176,24 @@ impl CanonicalHirFoundation {
             .map(CborIdentityRecord::key)
     }
 
+    pub(crate) fn source_type_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentTypeId, &SourceDeclarationKey)> {
+        self.types.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn exact_type_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentExactTypeId, &ExactTypeKey)> {
+        self.exact_types.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
     pub(crate) fn generic_type_key(
         &self,
         id: PersistentGenericTypeId,
