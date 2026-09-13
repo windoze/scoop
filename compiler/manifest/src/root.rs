@@ -1,7 +1,9 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use crate::{ManifestParseError, ParsedConeManifest, parse_cone_manifest};
+use crate::{
+    ManifestParseError, ParsedConeManifest, parse_cone_manifest, parse_trusted_core_manifest,
+};
 
 const MANIFEST_FILE_NAME: &str = "Cone.toml";
 
@@ -172,6 +174,19 @@ impl std::error::Error for ManifestRootError {
 pub fn load_cone_manifest(
     locator: &ManifestRootLocator,
 ) -> Result<LoadedConeManifest, ManifestRootError> {
+    load_manifest(locator, parse_cone_manifest)
+}
+
+pub fn load_trusted_core_manifest(
+    locator: &ManifestRootLocator,
+) -> Result<LoadedConeManifest, ManifestRootError> {
+    load_manifest(locator, parse_trusted_core_manifest)
+}
+
+fn load_manifest(
+    locator: &ManifestRootLocator,
+    parse: fn(&str) -> Result<ParsedConeManifest, ManifestParseError>,
+) -> Result<LoadedConeManifest, ManifestRootError> {
     let (real_root, manifest_path) = match locator {
         ManifestRootLocator::ConeDirectory(root) => {
             let real_root = canonicalize(root)?;
@@ -232,7 +247,7 @@ pub fn load_cone_manifest(
     let source = String::from_utf8(bytes).map_err(|_| {
         ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::InvalidUtf8)
     })?;
-    let parsed = parse_cone_manifest(&source).map_err(|error| {
+    let parsed = parse(&source).map_err(|error| {
         ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::Parse(error))
     })?;
 
@@ -322,6 +337,28 @@ mod tests {
         assert!(matches!(
             ManifestRootLocator::from_path(path).unwrap_err().kind(),
             ManifestRootErrorKind::InvalidManifestFileName
+        ));
+    }
+
+    #[test]
+    fn trusted_core_loader_does_not_weaken_the_ordinary_loader() {
+        let directory = TempDirectory::new();
+        std::fs::write(
+            directory.manifest(),
+            "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.core\"\nversion = \"0.1.0\"\nkind = \"library\"\n",
+        )
+        .unwrap();
+        let locator = ManifestRootLocator::cone_directory(&directory.0);
+
+        let trusted = load_trusted_core_manifest(&locator).unwrap();
+        assert_eq!(
+            trusted.parsed().semantic().coordinate(),
+            &scoop_identity::ConeCoordinate::reserved_core()
+        );
+        assert!(matches!(
+            load_cone_manifest(&locator).unwrap_err().kind(),
+            ManifestRootErrorKind::Parse(error)
+                if error.kind() == &crate::ManifestParseErrorKind::ReservedConeCoordinate
         ));
     }
 }

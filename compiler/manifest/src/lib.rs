@@ -15,13 +15,13 @@ pub use discovery::{
 };
 pub use root::{
     LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,
-    ManifestRootLocator, load_cone_manifest,
+    ManifestRootLocator, load_cone_manifest, load_trusted_core_manifest,
 };
 pub use semantic::{
     ConeManifestSemantic, ConeManifestSpans, DependencyCoordinateKey, DependencyLocator,
     DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDiagnosticSpans,
     ManifestParseError, ManifestParseErrorKind, ManifestSpan, ParsedConeManifest,
-    RequestedConeKind, parse_cone_manifest,
+    RequestedConeKind, parse_cone_manifest, parse_trusted_core_manifest,
 };
 pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation,
