@@ -1,6 +1,6 @@
 # M23 系列设计：多 Cone、导入系统与 `.slib`
 
-版本：0.4（设计完成，待实现；2026-09-09）
+版本：0.5（设计完成，待实现；2026-09-13）
 
 对应`docs/ROADMAP.md`的M23-1…M23-11。M23系列在M16/M17统一调用决议与default template、M20 exact generic application、M21 typed access domain/全局初始化以及M22非generic typealias之上，把“core源码与用户源码同一编译单元”的过渡模型替换为真正的独立Cone编译：低层编译器`scoopc`每次只把一个Cone编译为可复用`.slib`，umbrella build tool `scoop`负责解析多Cone图、缓存与调度，独立link stage再把依赖闭包中的link input和image descriptor静态链接成最终程序。下游编译只通过版本化metadata消费上游语义接口。本文仍是这些子里程碑的唯一总体设计，避免拆分完整的identity/wire/runtime契约或制造重复真源。
 
@@ -35,7 +35,7 @@
 | --- | --- | --- |
 | M23-1 | source `package`/`import`/`public import`/alias/star语法、parser与当前编译单元lookup（[详细设计](stage1/DESIGN.md)） | AST表面、当前单元名称语义与诊断 |
 | M23-2 | persistent typed identity与`.slib` wire基础（[详细设计](stage2/DESIGN.md)） | identity（含callable application与ODR group/member key）、mangler、container/member envelope与schema演进规则 |
-| M23-3 | single-Cone artifact与core分离 | `scoopc`请求、strong-only image/digest与基础Compile/Link view |
+| M23-3 | single-Cone artifact与core分离（[详细设计](stage3/DESIGN.md)） | `scoopc`请求、strong-only image/digest与基础Compile/Link view |
 | M23-4 | resolved build graph与调度 | locator、DAG、artifact cache与child orchestration |
 | M23-5 | 多Cone名称语义 | cross-Cone semantic world、import/re-export与access provenance |
 | M23-6 | 跨Cone layout、typed ABI与ZST | layout/scan/ABI section与运行时表示 |
