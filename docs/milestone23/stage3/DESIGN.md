@@ -634,6 +634,9 @@ body/layout/scan/TD/registration及其关联constant作为一个完整subject cl
 Nominal/Structural ODR root、缺definition/registration、或consumer准备重发Strong都失败。
 
 M23-3只把该闭包作为core authority下的窄external bridge；普通dependency没有通用layout查询API。M23-6新增required layout/ABI/scan capability后，将同一obligation推广到所有可跨Cone引用的param-free exported source nominal，并提供通用consumer proof。
+`core_shape_support`分支由foundation producer唯一决定：producer为core时必须是`Core`并完整覆盖上述
+authority source集合，其他producer必须是`NotCore`且调用方不得夹带source集合。reader不接受把空
+`Core`与`NotCore`互换，也不以artifact自报分支决定producer身份。
 
 ## 8. strong-only production profile
 

@@ -12,6 +12,9 @@ mod validation;
 use validation::build_closure;
 pub use validation::{ParamFreeShapeSupportBuildError, ParamFreeShapeSupportValidationError};
 
+mod branch;
+pub use branch::*;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClosedShapeSupportReasonV1 {
     ReferenceNominalRequiresNoBox,
