@@ -10,3 +10,6 @@ scoop-identity.workspace = true
 scoop-lir.workspace = true
 scoop-mir.workspace = true
 scoop-wire.workspace = true
+
+[dev-dependencies]
+la-arena.workspace = true

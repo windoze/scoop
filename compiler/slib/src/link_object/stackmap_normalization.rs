@@ -24,6 +24,9 @@ pub use parser::*;
 mod macho;
 pub use macho::*;
 
+mod verification;
+pub use verification::*;
+
 pub fn normalize_darwin_aarch64_stackmap_record_v1(
     plan: StrongSafepointSemanticPlanV1,
     constant_pool: &[u64],

@@ -532,6 +532,7 @@ dependencies = [
 name = "scoop-slib"
 version = "0.0.0"
 dependencies = [
+ "la-arena",
  "object",
  "scoop-hir",
  "scoop-identity",

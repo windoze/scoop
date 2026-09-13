@@ -1563,6 +1563,21 @@ address slot在relocatable input中为零，并在该slot恰有一个`ARM64_RELO
 的external strong definition，section中不得有其他relocation。输出同时封装section ordinal、原始function
 分组及target symbol table index；尚未与strong definition/LIR owner互证前不能提升为normalized record。
 
+最终提升只能经
+`verify_scoop_lir_stackmaps_v1(VerifiedBuiltinObjectStrongRelocationSetV1, StrongSafepointSemanticPlanSetV1, &[ScoopLirObjectCandidateV1])`
+完成。入口要求Scoop object candidate与member plan按`SlibMemberId`严格递增且全集相等，并以每个site
+的`CallableBody` strong definition plan从member assignment反查唯一producer member；有site的member
+必须存在非空stackmap section，无site的member不得夹带该section。section的全部已验证atom必须是
+`DefinitionAtomRole::Stackmap`。每个function-address relocation只能绑定该member中role与entity均为
+`CallableBody`的primary definition symbol，且function owner、record count、SafepointId与LIR site全集
+逐项闭合。Darwin/AArch64 verifier以`function symbol value + instruction offset`得到relocatable object
+内的原始return PC，要求它4-byte对齐、落在primary text atom内并紧随`bl`/`blr`，且首个site前已经保存
+x29/x30 frame record并建立x29 frame pointer。输出`VerifiedScoopLirStackmapSetV1`同时持有完整built-in
+object proof与LIR semantic proof；record按persistent site id排序，保留member、function symbol table
+index和已验证的object-relative return PC。该PC是link-time provenance，不进入跨链接/ASLR稳定的
+normalized fingerprint；最终链接后的原始PC仍由M23-9 artifact verifier从相同function relocation与
+instruction offset重建，runtime不得改用`PC-4`。
+
 ### 13.3 registration完备性
 
 - 每个compiler-owned static storage恰一条storage registration；GC-free storage也不能为省事丢descriptor；
