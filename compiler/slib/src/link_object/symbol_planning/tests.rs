@@ -32,6 +32,8 @@ fn assigns_primary_and_boundaries_to_the_definition_member() {
         (
             PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
                 definition: fixture.plan,
+                owner: StrongDefinitionEntity::callable_body(fixture.body),
+                definition_role: StrongDefinitionRole::CallableBody,
                 primary_atom: fixture.atom,
             },
             PersistentSymbolKey::CallableBody(fixture.body),

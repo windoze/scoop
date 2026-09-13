@@ -13,7 +13,7 @@ use super::{
 };
 use crate::SlibMemberId;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum VerifiedBoundaryRoleV1 {
     Start,
     End,

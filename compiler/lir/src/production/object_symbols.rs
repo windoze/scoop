@@ -4,8 +4,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
-    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolError,
-    PersistentSymbolKey, PersistentSymbolRequest,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
+    ObjectDefinitionPlanRole, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::{
@@ -36,6 +37,8 @@ impl StrongAtomBoundarySymbolsV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongDefinitionSymbolPlanV1 {
     definition_plan: ObjectDefinitionPlanId,
+    owner: StrongDefinitionEntity,
+    definition_role: StrongDefinitionRole,
     primary_atom: ObjectDefinitionAtomId,
     primary_symbol: PersistentSymbolRequest,
     atom_boundaries: Vec<StrongAtomBoundarySymbolsV1>,
@@ -44,6 +47,14 @@ pub struct StrongDefinitionSymbolPlanV1 {
 impl StrongDefinitionSymbolPlanV1 {
     pub const fn definition_plan(&self) -> ObjectDefinitionPlanId {
         self.definition_plan
+    }
+
+    pub const fn owner(&self) -> StrongDefinitionEntity {
+        self.owner
+    }
+
+    pub const fn definition_role(&self) -> StrongDefinitionRole {
+        self.definition_role
     }
 
     pub const fn primary_atom(&self) -> ObjectDefinitionAtomId {
@@ -81,6 +92,20 @@ impl StrongObjectSymbolSurfaceV1 {
             let key = keys.get(&definition_plan).ok_or(
                 StrongObjectSymbolSurfaceBuildError::MissingDefinitionKey(definition_plan),
             )?;
+            let (
+                ObjectDefinitionPlanOwner::Strong { producer, entity },
+                ObjectDefinitionPlanRole::Strong(definition_role),
+            ) = (key.owner(), key.definition_role())
+            else {
+                return Err(
+                    StrongObjectSymbolSurfaceBuildError::InvalidStrongDefinition(definition_plan),
+                );
+            };
+            if producer != foundation.producer() {
+                return Err(
+                    StrongObjectSymbolSurfaceBuildError::InvalidStrongDefinition(definition_plan),
+                );
+            }
             let primary_symbol = PersistentSymbolRequest::new(
                 key.primary_symbol_key().ok_or(
                     StrongObjectSymbolSurfaceBuildError::InvalidStrongDefinition(definition_plan),
@@ -108,6 +133,8 @@ impl StrongObjectSymbolSurfaceV1 {
                 .map_err(StrongObjectSymbolSurfaceBuildError::Symbol)?;
             plans.push(StrongDefinitionSymbolPlanV1 {
                 definition_plan,
+                owner: entity,
+                definition_role,
                 primary_atom: definition.primary_atom(),
                 primary_symbol,
                 atom_boundaries,

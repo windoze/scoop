@@ -40,6 +40,9 @@ pub use core_requirements::*;
 mod native_requirements;
 pub use native_requirements::*;
 
+mod defined_owners;
+pub use defined_owners::*;
+
 mod macho;
 pub use macho::*;
 

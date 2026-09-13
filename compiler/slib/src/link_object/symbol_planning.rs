@@ -5,6 +5,7 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{LirTargetProfile, StrongObjectSymbolSurfaceV1};
 
@@ -15,6 +16,8 @@ use crate::SlibMemberId;
 pub enum PlannedStrongObjectSymbolRoleV1 {
     PrimaryDefinition {
         definition: ObjectDefinitionPlanId,
+        owner: StrongDefinitionEntity,
+        definition_role: StrongDefinitionRole,
         primary_atom: ObjectDefinitionAtomId,
     },
     AtomBoundaryStart {
@@ -113,6 +116,8 @@ impl PlannedStrongObjectSymbolSetV1 {
                 member,
                 PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
                     definition: plan.definition_plan(),
+                    owner: plan.owner(),
+                    definition_role: plan.definition_role(),
                     primary_atom: plan.primary_atom(),
                 },
                 plan.primary_symbol(),

@@ -273,6 +273,7 @@ fn record_definition_symbol(
         PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
             definition,
             primary_atom,
+            ..
         } => {
             if definitions
                 .entry(definition)
