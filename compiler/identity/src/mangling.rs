@@ -60,6 +60,7 @@ pub enum PersistentSymbolKind {
     OdrMember,
     DefinitionBoundaryStart,
     DefinitionBoundaryEnd,
+    RootEntryDescriptor,
 }
 
 impl PersistentSymbolKind {
@@ -86,6 +87,7 @@ impl PersistentSymbolKind {
             Self::OdrMember => 19,
             Self::DefinitionBoundaryStart => 20,
             Self::DefinitionBoundaryEnd => 21,
+            Self::RootEntryDescriptor => 22,
         }
     }
 
@@ -112,6 +114,7 @@ impl PersistentSymbolKind {
             Self::OdrMember => "od",
             Self::DefinitionBoundaryStart => "bs",
             Self::DefinitionBoundaryEnd => "be",
+            Self::RootEntryDescriptor => "re",
         }
     }
 }
@@ -139,6 +142,7 @@ pub enum PersistentSymbolKey {
     OdrMember(OdrMemberId),
     DefinitionBoundaryStart(ObjectDefinitionAtomId),
     DefinitionBoundaryEnd(ObjectDefinitionAtomId),
+    RootEntryDescriptor(ConeIdentity),
 }
 
 impl PersistentSymbolKey {
@@ -165,6 +169,7 @@ impl PersistentSymbolKey {
             Self::OdrMember(_) => PersistentSymbolKind::OdrMember,
             Self::DefinitionBoundaryStart(_) => PersistentSymbolKind::DefinitionBoundaryStart,
             Self::DefinitionBoundaryEnd(_) => PersistentSymbolKind::DefinitionBoundaryEnd,
+            Self::RootEntryDescriptor(_) => PersistentSymbolKind::RootEntryDescriptor,
         }
     }
 
@@ -186,6 +191,7 @@ impl PersistentSymbolKey {
             Self::GeneratedBridge(id) => id.as_array(),
             Self::OdrMember(id) => id.as_array(),
             Self::DefinitionBoundaryStart(id) | Self::DefinitionBoundaryEnd(id) => id.as_array(),
+            Self::RootEntryDescriptor(id) => id.as_array(),
         }
     }
 }
@@ -373,9 +379,9 @@ fn linkage_allowed_by_kind(kind: PersistentSymbolKind, linkage: LinkageClass) ->
     }
     match kind {
         PersistentSymbolKind::OdrMember => linkage == LinkageClass::OdrWeak,
-        PersistentSymbolKind::ImageDescriptor | PersistentSymbolKind::GeneratedBridge => {
-            linkage == LinkageClass::ConeStrong
-        }
+        PersistentSymbolKind::ImageDescriptor
+        | PersistentSymbolKind::GeneratedBridge
+        | PersistentSymbolKind::RootEntryDescriptor => linkage == LinkageClass::ConeStrong,
         PersistentSymbolKind::DispatchSlot => matches!(
             linkage,
             LinkageClass::ConeStrong | LinkageClass::TemplateSupportHidden
@@ -424,6 +430,7 @@ mod tests {
             PersistentSymbolKey::OdrMember(OdrMemberId(bytes)),
             PersistentSymbolKey::DefinitionBoundaryStart(ObjectDefinitionAtomId(bytes)),
             PersistentSymbolKey::DefinitionBoundaryEnd(ObjectDefinitionAtomId(bytes)),
+            PersistentSymbolKey::RootEntryDescriptor(ConeIdentity::CORE),
         ];
 
         for (index, key) in keys.into_iter().enumerate() {
@@ -479,6 +486,10 @@ mod tests {
             (
                 PersistentSymbolKey::GeneratedBridge(GeneratedBridgeAtomId(bytes)),
                 LinkageClass::TemplateSupportHidden,
+            ),
+            (
+                PersistentSymbolKey::RootEntryDescriptor(ConeIdentity::CORE),
+                LinkageClass::OdrWeak,
             ),
             (
                 PersistentSymbolKey::DispatchSlot(PersistentDispatchSlotId(bytes)),

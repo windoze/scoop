@@ -180,12 +180,12 @@ fn request_table_rejects_noncanonical_order_and_duplicates() {
 
 #[test]
 fn symbol_decoder_rejects_unknown_tags_and_unregistered_references() {
-    let mut unknown_key = vec![0xa2, 0x00, 0x16, 0x01, 0x58, 0x20];
+    let mut unknown_key = vec![0xa2, 0x00, 0x17, 0x01, 0x58, 0x20];
     unknown_key.extend_from_slice(&[7; 32]);
     let error =
         decode_canonical::<DecodedPersistentSymbolKey>(&unknown_key, DecodeLimits::default())
             .unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 22 });
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 23 });
 
     let error = decode_canonical::<LinkageClass>(b"\x05", DecodeLimits::default()).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
@@ -219,7 +219,7 @@ fn canonical_requests() -> Vec<PersistentSymbolRequest> {
     ]
 }
 
-fn symbol_keys() -> [PersistentSymbolKey; 21] {
+fn symbol_keys() -> [PersistentSymbolKey; 22] {
     [
         PersistentSymbolKey::CallableBody(PersistentCallableBodyId::expected()),
         PersistentSymbolKey::StaticStorage(PersistentStaticStorageId::expected()),
@@ -242,6 +242,7 @@ fn symbol_keys() -> [PersistentSymbolKey; 21] {
         PersistentSymbolKey::OdrMember(OdrMemberId::expected()),
         PersistentSymbolKey::DefinitionBoundaryStart(ObjectDefinitionAtomId::expected()),
         PersistentSymbolKey::DefinitionBoundaryEnd(ObjectDefinitionAtomId::expected()),
+        PersistentSymbolKey::RootEntryDescriptor(ConeIdentity::expected()),
     ]
 }
 

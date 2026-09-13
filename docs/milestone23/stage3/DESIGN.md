@@ -477,6 +477,13 @@ HIR arena id或返回类型的本地index求hash。
 
 gateway精确为`uint32_t(void)`、成功返回0、捕获并发布未捕获Scoop异常后返回1；异常不能跨C frame。M23-3只验证object中record/relocation/definition关系，不调用gateway。library分支结构上不存在这些root-only定义；如果object或manifest私自出现root entry即Link proof失败。
 
+root entry descriptor不得复用表示static-storage registration的`rr`符号或image的`im`
+符号。PersistentV1为它使用独立`re`符号种类（tag 22），typed owner是
+`StrongDefinitionEntity::RootEntry(root_cone)`（tag 13），definition role是
+`StrongDefinitionRole::RootEntryDescriptor`（tag 19）。`re`只允许`ConeStrong`；一个Cone最多
+只有一个这类symbol与plan，而executable必须恰有一个。main与gateway关系由
+`ExecutableEntryPlanV1`绑定，不以symbol spelling或可选manifest字段补全。
+
 ## 7. `scoop.core`独立artifact
 
 ### 7.1 trusted sysroot slot

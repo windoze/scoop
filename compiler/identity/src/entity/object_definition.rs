@@ -33,6 +33,7 @@ pub enum StrongDefinitionEntityKind {
     SafepointSite(PersistentSafepointSiteId),
     ConeImage(ConeIdentity),
     GeneratedBridgeAtom(GeneratedBridgeAtomId),
+    RootEntry(ConeIdentity),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -83,6 +84,10 @@ impl StrongDefinitionEntity {
         Self(StrongDefinitionEntityKind::ConeImage(id))
     }
 
+    pub const fn root_entry(id: ConeIdentity) -> Self {
+        Self(StrongDefinitionEntityKind::RootEntry(id))
+    }
+
     pub fn generated_bridge_atom(
         key: &GeneratedBridgeAtomKey,
     ) -> Result<Self, ObjectDefinitionIdentityError> {
@@ -117,6 +122,7 @@ impl WireEncode for StrongDefinitionEntity {
             StrongDefinitionEntityKind::GeneratedBridgeAtom(id) => {
                 encode_value_sum(encoder, 12, &id)
             }
+            StrongDefinitionEntityKind::RootEntry(id) => encode_value_sum(encoder, 13, &id),
         }
     }
 }
@@ -141,6 +147,7 @@ pub enum StrongDefinitionRole {
     CallableRegistration,
     ImageDescriptor,
     GeneratedBridge,
+    RootEntryDescriptor,
 }
 
 impl WireEncode for StrongDefinitionRole {
@@ -164,6 +171,7 @@ impl WireEncode for StrongDefinitionRole {
             Self::CallableRegistration => 16,
             Self::ImageDescriptor => 17,
             Self::GeneratedBridge => 18,
+            Self::RootEntryDescriptor => 19,
         })
     }
 }
@@ -415,6 +423,7 @@ fn strong_role_matches(entity: StrongDefinitionEntityKind, role: StrongDefinitio
             | (E::SafepointSite(_), R::SafepointRegistration)
             | (E::ConeImage(_), R::ImageDescriptor)
             | (E::GeneratedBridgeAtom(_), R::GeneratedBridge)
+            | (E::RootEntry(_), R::RootEntryDescriptor)
     )
 }
 
@@ -455,7 +464,7 @@ mod tests {
         PersistentScanId, PersistentStaticStorageId,
     };
 
-    const ALL_STRONG_ROLES: [StrongDefinitionRole; 18] = [
+    const ALL_STRONG_ROLES: [StrongDefinitionRole; 19] = [
         StrongDefinitionRole::CallableBody,
         StrongDefinitionRole::StaticStorage,
         StrongDefinitionRole::ImmortalObject,
@@ -474,6 +483,7 @@ mod tests {
         StrongDefinitionRole::CallableRegistration,
         StrongDefinitionRole::ImageDescriptor,
         StrongDefinitionRole::GeneratedBridge,
+        StrongDefinitionRole::RootEntryDescriptor,
     ];
 
     #[test]
@@ -488,7 +498,7 @@ mod tests {
             },
         ))
         .unwrap();
-        let cases: [(StrongDefinitionEntity, &[StrongDefinitionRole]); 12] = [
+        let cases: [(StrongDefinitionEntity, &[StrongDefinitionRole]); 13] = [
             (
                 StrongDefinitionEntity::callable_body(PersistentCallableBodyId(bytes)),
                 &[R::CallableBody, R::CallableRegistration],
@@ -538,6 +548,10 @@ mod tests {
                 &[R::ImageDescriptor],
             ),
             (bridge, &[R::GeneratedBridge]),
+            (
+                StrongDefinitionEntity::root_entry(ConeIdentity::CORE),
+                &[R::RootEntryDescriptor],
+            ),
         ];
 
         for (entity, accepted_roles) in cases {

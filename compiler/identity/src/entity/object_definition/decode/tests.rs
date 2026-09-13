@@ -214,9 +214,9 @@ fn atom_resolution_rejects_an_unknown_plan_reference() {
 
 #[test]
 fn object_definition_decoders_reject_unknown_tags() {
-    assert_unknown::<DecodedStrongDefinitionEntity>(b"\xa1\x00\x0d", 13);
+    assert_unknown::<DecodedStrongDefinitionEntity>(b"\xa1\x00\x0e", 14);
     assert_unknown::<DecodedObjectDefinitionPlanOwner>(b"\xa1\x00\x03", 3);
-    assert_unknown::<StrongDefinitionRole>(b"\x13", 19);
+    assert_unknown::<StrongDefinitionRole>(b"\x14", 20);
     assert_unknown::<ObjectDefinitionPlanRole>(b"\xa1\x00\x03", 3);
     assert_unknown::<DefinitionAtomRole>(b"\x08", 8);
     assert_unknown::<DecodedDefinitionAtomSubkey>(b"\xa1\x00\x09", 9);
@@ -300,6 +300,10 @@ fn strong_plan_cases(
             R::ImageDescriptor,
         ),
         (bridge, R::GeneratedBridge),
+        (
+            StrongDefinitionEntity::root_entry(producer()),
+            R::RootEntryDescriptor,
+        ),
     ]
 }
 

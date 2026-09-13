@@ -464,7 +464,7 @@ human name只放debug/display metadata，不进入linker判等。以下全部迁
 
 linkage使用封闭分类：`ConeStrong`、`TemplateSupportHidden`、`OdrWeak`、`RuntimeAbi`。语言public/internal/private不直接映射为这四项：例如generic public body调用的private helper必须是`TemplateSupportHidden`并可被下游specialization解析，但仍不可import；只有真正同一specialization才可用`OdrWeak`。
 
-PersistentV1的21个kind对linkage是穷尽关系，不允许实现按visibility或symbol spelling自行推断。下表中C/H/O分别为`ConeStrong`/`TemplateSupportHidden`/`OdrWeak`；`RuntimeAbi`对全部行非法：
+PersistentV1的22个kind对linkage是穷尽关系，不允许实现按visibility或symbol spelling自行推断。下表中C/H/O分别为`ConeStrong`/`TemplateSupportHidden`/`OdrWeak`；`RuntimeAbi`对全部行非法：
 
 | kind | typed owner/root | allowed | ODR时唯一member/primary约束 |
 | --- | --- | --- | --- |
@@ -485,6 +485,7 @@ PersistentV1的21个kind对linkage是穷尽关系，不允许实现按visibility
 | `sr` | safepoint owner body | C/H/O | RegistrationRecord/SafepointSite且site属于同body |
 | `cr` | callable body | C/H/O | RegistrationRecord/CallableBody |
 | `im` | key中的Cone | C | producer必须是artifact Cone |
+| `re` | executable root Cone | C | producer必须是artifact Cone，且只能在executable中定义 |
 | `br` | atom key中的producer Cone | C | 只接可物理materialize的atom tag 1…3 |
 | `od` | ODR member | O | 只接没有kind-specific primary的member |
 | `bs` | ObjectDefinitionPlan root | C/H/O | 精确继承plan primary |
@@ -547,6 +548,7 @@ StrongDefinitionEntity =
   | SafepointSite(PersistentSafepointSiteId)           // tag 10
   | ConeImage(ConeIdentity)                            // tag 11
   | GeneratedBridgeAtom(GeneratedBridgeAtomId)         // tag 12
+  | RootEntry(ConeIdentity)                            // tag 13
 
 StrongDefinitionRole =
     CallableBody=1 | StaticStorage=2 | ImmortalObject=3
@@ -556,7 +558,7 @@ StrongDefinitionRole =
   | ImmortalRegistration=12 | InitializationRegistration=13
   | TypeRegistration=14 | SafepointRegistration=15
   | CallableRegistration=16 | ImageDescriptor=17
-  | GeneratedBridge=18
+  | GeneratedBridge=18 | RootEntryDescriptor=19
 
 ObjectDefinitionPlanOwner =
     Strong { producer: ConeIdentity,

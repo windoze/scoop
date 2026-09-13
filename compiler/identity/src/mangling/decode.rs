@@ -117,6 +117,7 @@ pub enum DecodedPersistentSymbolKey {
     OdrMember(DecodedPersistentId<OdrMemberId>),
     DefinitionBoundaryStart(DecodedPersistentId<ObjectDefinitionAtomId>),
     DefinitionBoundaryEnd(DecodedPersistentId<ObjectDefinitionAtomId>),
+    RootEntryDescriptor(DecodedPersistentId<ConeIdentity>),
 }
 
 impl DecodedPersistentSymbolKey {
@@ -143,6 +144,7 @@ impl DecodedPersistentSymbolKey {
             Self::OdrMember(_) => PersistentSymbolKind::OdrMember,
             Self::DefinitionBoundaryStart(_) => PersistentSymbolKind::DefinitionBoundaryStart,
             Self::DefinitionBoundaryEnd(_) => PersistentSymbolKind::DefinitionBoundaryEnd,
+            Self::RootEntryDescriptor(_) => PersistentSymbolKind::RootEntryDescriptor,
         }
     }
 
@@ -164,6 +166,7 @@ impl DecodedPersistentSymbolKey {
             Self::GeneratedBridge(id) => id.as_array(),
             Self::OdrMember(id) => id.as_array(),
             Self::DefinitionBoundaryStart(id) | Self::DefinitionBoundaryEnd(id) => id.as_array(),
+            Self::RootEntryDescriptor(id) => id.as_array(),
         }
     }
 
@@ -221,6 +224,9 @@ impl DecodedPersistentSymbolKey {
             Self::DefinitionBoundaryEnd(id) => resolver
                 .resolve(id)
                 .map(PersistentSymbolKey::DefinitionBoundaryEnd),
+            Self::RootEntryDescriptor(id) => resolver
+                .resolve(id)
+                .map(PersistentSymbolKey::RootEntryDescriptor),
         }
     }
 }
@@ -261,6 +267,7 @@ impl WireDecode for DecodedPersistentSymbolKey {
             19 => decode_id(decoder, Self::OdrMember),
             20 => decode_id(decoder, Self::DefinitionBoundaryStart),
             21 => decode_id(decoder, Self::DefinitionBoundaryEnd),
+            22 => decode_id(decoder, Self::RootEntryDescriptor),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
