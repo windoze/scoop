@@ -1230,7 +1230,7 @@ FinalUndefinedSymbolRequirement =
   | CoreStrong { core: ConeIdentity, owner: StrongDefinitionOwner }
   | GeneratedBridge { unit: GeneratedBridgeUnitId }
   | SourceExtern { contract: NativeExternalContractFingerprint,
-                   library_requirement: NativeLinkRequirementId }
+                   library: NativeLibraryBinding }
   | RuntimeAbi { contract: RuntimeSymbolContractId }
   | TargetEhSupport { contract: TargetEhRequirementId }
 ```
@@ -1242,7 +1242,10 @@ FinalUndefinedSymbolRequirement =
 - `IntraConeStrong`必须在当前artifact内解析到唯一owner，可跨member；
 - `GeneratedBridge`必须解析到当前producer的唯一`PrimaryEntry(unit)`；
 - `CoreStrong`在普通Cone中必须能由validated core Link/Compile bridge找到相同owner/symbol，当前artifact仍保留external requirement；
-- `SourceExtern`只验证完整contract、library requirement及object use一致，不搜索host provider；
+- `SourceExtern`只验证完整contract、library binding及object use一致，不搜索host provider；
+  `DefaultNativeNamespace`是不带`NativeLinkRequirementId`的封闭分支；
+  `Requirement(id)`则必须在同target的canonical native library requirement集中唯一存在，
+  不得为default namespace伪造requirement id；
 - runtime/EH requirement只验证为当前target/runtime ABI的known contract，不构建runtime；
 - M23-9/M23-10在完整closure/final input上解析后四类实际provider。
 
