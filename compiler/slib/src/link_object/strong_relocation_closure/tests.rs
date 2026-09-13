@@ -45,13 +45,13 @@ fn resolves_cross_member_strong_uses_and_keeps_true_externals_explicit() {
     else {
         unreachable!()
     };
+    let owner = LinkDefinitionOwnerV1::from_strong_primary(owner, definition_role).unwrap();
     assert_eq!(
         binding.resolution(),
         StrongRelocationResolutionV1::CurrentConeUndefinedStrong {
             target_member: target.symbols.member(),
             definition: target.plan,
             owner,
-            definition_role,
         }
     );
 
@@ -81,13 +81,13 @@ fn keeps_object_local_strong_relocations_out_of_the_undefined_class() {
     else {
         unreachable!()
     };
+    let owner = LinkDefinitionOwnerV1::from_strong_primary(owner, definition_role).unwrap();
     assert_eq!(
         binding.resolution(),
         StrongRelocationResolutionV1::ObjectLocalStrong {
             target_member: fixture.symbols.member(),
             definition: fixture.plan,
             owner,
-            definition_role,
         }
     );
 }

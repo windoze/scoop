@@ -9,7 +9,7 @@ use scoop_identity::{
 };
 
 use super::{
-    BuiltinObjectSectionRoleV1, PlannedStrongObjectSymbolRoleV1,
+    BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, PlannedStrongObjectSymbolRoleV1,
     VerifiedDarwinArm64RelocationFormV1, VerifiedDarwinArm64RelocationShapeV1,
     VerifiedMemberObjectRelocationIndexV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
 };
@@ -27,14 +27,12 @@ pub enum StrongRelocationResolutionV1 {
     ObjectLocalStrong {
         target_member: SlibMemberId,
         definition: ObjectDefinitionPlanId,
-        owner: StrongDefinitionEntity,
-        definition_role: StrongDefinitionRole,
+        owner: LinkDefinitionOwnerV1,
     },
     CurrentConeUndefinedStrong {
         target_member: SlibMemberId,
         definition: ObjectDefinitionPlanId,
-        owner: StrongDefinitionEntity,
-        definition_role: StrongDefinitionRole,
+        owner: LinkDefinitionOwnerV1,
     },
     ExternalCandidate {
         object_symbol_table_index: u32,
@@ -374,61 +372,78 @@ fn collect_target_binding(
             else {
                 unreachable!("the primary-definition index contains only primary symbols")
             };
+            let owner = LinkDefinitionOwnerV1::from_strong_primary(owner, definition_role)
+                .map_err(|_| {
+                    StrongRelocationClosureValidationError::InvalidResolvedDefinitionOwner {
+                        definition: *definition,
+                        owner,
+                        definition_role,
+                    }
+                })?;
             (
                 indexed.name.to_vec(),
                 StrongRelocationResolutionV1::ObjectLocalStrong {
                     target_member: indexed.member,
                     definition: *definition,
                     owner,
-                    definition_role,
                 },
             )
         }
         VerifiedRelocationTargetV1::ExternalUndefined { table_index, name } => {
             match symbols.get(name) {
-                Some(indexed) => match indexed.role {
-                    PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                        definition,
-                        owner,
-                        definition_role,
-                        ..
-                    } => {
-                        if indexed.member == source_member {
-                            return Err(
+                Some(indexed) => {
+                    match indexed.role {
+                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                            definition,
+                            owner,
+                            definition_role,
+                            ..
+                        } => {
+                            if indexed.member == source_member {
+                                return Err(
                                 StrongRelocationClosureValidationError::RedundantLocalUndefined {
                                     member: source_member,
                                     definition,
                                     table_index: *table_index,
                                 },
                             );
+                            }
+                            let link_owner =
+                            LinkDefinitionOwnerV1::from_strong_primary(owner, definition_role)
+                                .map_err(|_| {
+                                StrongRelocationClosureValidationError::InvalidResolvedDefinitionOwner {
+                                    definition,
+                                    owner,
+                                    definition_role,
+                                }
+                            })?;
+                            (
+                                name.clone(),
+                                StrongRelocationResolutionV1::CurrentConeUndefinedStrong {
+                                    target_member: indexed.member,
+                                    definition,
+                                    owner: link_owner,
+                                },
+                            )
                         }
-                        (
-                            name.clone(),
-                            StrongRelocationResolutionV1::CurrentConeUndefinedStrong {
-                                target_member: indexed.member,
-                                definition,
-                                owner,
-                                definition_role,
-                            },
-                        )
+                        PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { atom, .. } => {
+                            return Err(
+                                StrongRelocationClosureValidationError::ExternalBoundaryTarget {
+                                    atom,
+                                    boundary: super::VerifiedBoundaryRoleV1::Start,
+                                },
+                            );
+                        }
+                        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { atom, .. } => {
+                            return Err(
+                                StrongRelocationClosureValidationError::ExternalBoundaryTarget {
+                                    atom,
+                                    boundary: super::VerifiedBoundaryRoleV1::End,
+                                },
+                            );
+                        }
                     }
-                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { atom, .. } => {
-                        return Err(
-                            StrongRelocationClosureValidationError::ExternalBoundaryTarget {
-                                atom,
-                                boundary: super::VerifiedBoundaryRoleV1::Start,
-                            },
-                        );
-                    }
-                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { atom, .. } => {
-                        return Err(
-                            StrongRelocationClosureValidationError::ExternalBoundaryTarget {
-                                atom,
-                                boundary: super::VerifiedBoundaryRoleV1::End,
-                            },
-                        );
-                    }
-                },
+                }
                 None => (
                     name.clone(),
                     StrongRelocationResolutionV1::ExternalCandidate {
@@ -500,6 +515,11 @@ pub enum StrongRelocationClosureValidationError {
     ExternalBoundaryTarget {
         atom: ObjectDefinitionAtomId,
         boundary: super::VerifiedBoundaryRoleV1,
+    },
+    InvalidResolvedDefinitionOwner {
+        definition: ObjectDefinitionPlanId,
+        owner: StrongDefinitionEntity,
+        definition_role: StrongDefinitionRole,
     },
 }
 

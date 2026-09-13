@@ -26,10 +26,13 @@ fn assigns_typed_primary_and_boundary_owners_to_the_actual_member() {
     );
     assert!(owners.owners().iter().any(|owner| {
         owner.owner()
-            == LinkDefinitionOwnerV1::StrongDefinition {
-                entity: StrongDefinitionEntity::callable_body(body(&fixture)),
-                role: StrongDefinitionRole::CallableBody,
-            }
+            == LinkDefinitionOwnerV1::StrongDefinition(
+                StrongDefinitionOwnerV1::new(
+                    StrongDefinitionEntity::callable_body(body(&fixture)),
+                    StrongDefinitionRole::CallableBody,
+                )
+                .unwrap(),
+            )
     }));
     assert!(owners.owners().iter().any(|owner| {
         owner.owner()
