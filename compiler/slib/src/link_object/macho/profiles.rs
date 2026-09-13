@@ -31,7 +31,7 @@ pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(
         .map_err(ScoopLirObjectEnvelopeValidationError::Envelope)?;
     if let Some(actual) = envelope.deployment() {
         return Err(ScoopLirObjectEnvelopeValidationError::UnexpectedDeployment(
-            actual,
+            actual.clone(),
         ));
     }
     let sections = validate_builtin_object_section_inventory_v1(
@@ -42,7 +42,7 @@ pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(
     Ok(ValidatedScoopLirObjectEnvelopeV1 { sections })
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopLirObjectEnvelopeValidationError {
     Envelope(ObjectEnvelopeValidationError),
     UnexpectedDeployment(DarwinDeploymentCommandV1),

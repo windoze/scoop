@@ -25,12 +25,28 @@ pub use relocations::*;
 mod profiles;
 pub use profiles::*;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DarwinBuildToolVersionV1 {
+    tool: u32,
+    version: u32,
+}
+
+impl DarwinBuildToolVersionV1 {
+    pub const fn tool(self) -> u32 {
+        self.tool
+    }
+
+    pub const fn version(self) -> u32 {
+        self.version
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DarwinDeploymentCommandV1 {
     BuildVersion {
         minimum_os: u32,
         sdk: u32,
-        tool_count: u32,
+        tools: Vec<DarwinBuildToolVersionV1>,
     },
     VersionMin {
         minimum_os: u32,
@@ -77,8 +93,8 @@ impl ValidatedDarwinArm64ObjectEnvelopeV1 {
         self.relocation_count
     }
 
-    pub const fn deployment(&self) -> Option<DarwinDeploymentCommandV1> {
-        self.deployment
+    pub const fn deployment(&self) -> Option<&DarwinDeploymentCommandV1> {
+        self.deployment.as_ref()
     }
 
     pub fn sections(&self) -> &[ObservedMachOSectionV1] {
@@ -324,25 +340,36 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                     ));
                 }
                 let tool_count = record.ntools.get(endian);
+                let tool_count = usize::try_from(tool_count)
+                    .map_err(|_| ObjectEnvelopeValidationError::MalformedDeploymentCommand)?;
                 let expected_size = mem::size_of::<macho::BuildVersionCommand<Endianness>>()
                     .checked_add(
-                        usize::try_from(tool_count)
-                            .ok()
-                            .and_then(|count| {
-                                count.checked_mul(
-                                    mem::size_of::<macho::BuildToolVersion<Endianness>>(),
-                                )
-                            })
+                        tool_count
+                            .checked_mul(mem::size_of::<macho::BuildToolVersion<Endianness>>())
                             .ok_or(ObjectEnvelopeValidationError::MalformedDeploymentCommand)?,
                     )
                     .ok_or(ObjectEnvelopeValidationError::MalformedDeploymentCommand)?;
                 if usize::try_from(command.cmdsize()).ok() != Some(expected_size) {
                     return Err(ObjectEnvelopeValidationError::MalformedDeploymentCommand);
                 }
+                let mut tools = Vec::with_capacity(tool_count);
+                for bytes in command.raw_data()
+                    [mem::size_of::<macho::BuildVersionCommand<Endianness>>()..]
+                    .chunks_exact(mem::size_of::<macho::BuildToolVersion<Endianness>>())
+                {
+                    tools.push(DarwinBuildToolVersionV1 {
+                        tool: u32::from_le_bytes(bytes[..4].try_into().map_err(|_| {
+                            ObjectEnvelopeValidationError::MalformedDeploymentCommand
+                        })?),
+                        version: u32::from_le_bytes(bytes[4..].try_into().map_err(|_| {
+                            ObjectEnvelopeValidationError::MalformedDeploymentCommand
+                        })?),
+                    });
+                }
                 deployment = Some(DarwinDeploymentCommandV1::BuildVersion {
                     minimum_os: record.minos.get(endian),
                     sdk: record.sdk.get(endian),
-                    tool_count,
+                    tools,
                 });
             }
             macho::LC_VERSION_MIN_MACOSX => {

@@ -15,7 +15,7 @@ fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
             DarwinDeploymentCommandV1::BuildVersion {
                 minimum_os: 0x000d_0000,
                 sdk: 0x000d_0000,
-                tool_count: 0,
+                tools: Vec::new(),
             }
         )
     );

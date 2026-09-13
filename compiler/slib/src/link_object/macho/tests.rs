@@ -2,7 +2,10 @@ use super::*;
 
 #[test]
 fn accepts_the_closed_relocatable_object_envelope() {
-    let bytes = object_bytes();
+    let bytes = object_bytes_with_tools(&[
+        (macho::TOOL_CLANG, 0x0f00_0100),
+        (macho::TOOL_LD, 0x0402_0000),
+    ]);
 
     let envelope = validate_darwin_arm64_object_envelope_v1(&bytes).unwrap();
 
@@ -13,10 +16,19 @@ fn accepts_the_closed_relocatable_object_envelope() {
     assert_eq!(envelope.relocation_count(), 0);
     assert_eq!(
         envelope.deployment(),
-        Some(DarwinDeploymentCommandV1::BuildVersion {
+        Some(&DarwinDeploymentCommandV1::BuildVersion {
             minimum_os: 0x000d_0000,
             sdk: 0x000d_0000,
-            tool_count: 0,
+            tools: vec![
+                DarwinBuildToolVersionV1 {
+                    tool: macho::TOOL_CLANG,
+                    version: 0x0f00_0100,
+                },
+                DarwinBuildToolVersionV1 {
+                    tool: macho::TOOL_LD,
+                    version: 0x0402_0000,
+                },
+            ],
         })
     );
 }
@@ -129,10 +141,14 @@ fn rejects_noncanonical_section_name_padding() {
 }
 
 fn object_bytes() -> Vec<u8> {
+    object_bytes_with_tools(&[])
+}
+
+fn object_bytes_with_tools(tools: &[(u32, u32)]) -> Vec<u8> {
     let segment_size = 72_u32;
     let symtab_size = 24_u32;
     let dysymtab_size = 80_u32;
-    let deployment_size = 24_u32;
+    let deployment_size = 24_u32 + u32::try_from(tools.len()).unwrap() * 8;
     let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
     let payload_offset = 32 + command_bytes;
     let mut bytes = Vec::with_capacity(payload_offset as usize + 1);
@@ -174,7 +190,11 @@ fn object_bytes() -> Vec<u8> {
     push_u32(&mut bytes, macho::PLATFORM_MACOS);
     push_u32(&mut bytes, 0x000d_0000);
     push_u32(&mut bytes, 0x000d_0000);
-    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, u32::try_from(tools.len()).unwrap());
+    for (tool, version) in tools {
+        push_u32(&mut bytes, *tool);
+        push_u32(&mut bytes, *version);
+    }
 
     bytes.push(0);
     bytes

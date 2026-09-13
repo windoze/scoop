@@ -1138,7 +1138,8 @@ generated bridge absent时没有generated object member，但manifest的`CBridge
 object profile精确要求不存在deployment load command；不能接受或忽略偶然继承host SDK的
 `LC_BUILD_VERSION`。generated C object则相反：deployment command及其中的minimum OS、SDK与
 tool记录必须逐字段等于`CBridgeProductionSet`引用的toolchain contract。共同Mach-O parser只记录
-`None | BuildVersion | VersionMin`这一物理事实，producer verifier必须将其收窄后才能产生
+`None | BuildVersion { minimum_os, sdk, tools: [(tool, version)] } | VersionMin`这一完整物理事实，
+不得把tool array降格成`ntools`计数摘要；producer verifier必须将其收窄后才能产生
 capability proof。
 
 ### 11.4 Scoop LIR verifier
