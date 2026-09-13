@@ -37,6 +37,9 @@ pub use strong_relocation_closure::*;
 mod core_requirements;
 pub use core_requirements::*;
 
+mod native_requirements;
+pub use native_requirements::*;
+
 mod macho;
 pub use macho::*;
 

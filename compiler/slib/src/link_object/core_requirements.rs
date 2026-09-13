@@ -29,6 +29,7 @@ impl CoreStrongRequirementUseV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedCoreStrongRequirementClosureV1 {
+    target: LirTargetProfile,
     strong_closure: VerifiedCurrentConeStrongRelocationClosureV1,
     external_bridges: StrongExternalLirBridgeSurfaceV1,
     core_requirements: Vec<CoreStrongRequirementUseV1>,
@@ -36,6 +37,10 @@ pub struct VerifiedCoreStrongRequirementClosureV1 {
 }
 
 impl VerifiedCoreStrongRequirementClosureV1 {
+    pub const fn target(&self) -> LirTargetProfile {
+        self.target
+    }
+
     pub const fn producer(&self) -> ConeIdentity {
         self.strong_closure.producer()
     }
@@ -106,6 +111,7 @@ pub fn verify_core_strong_requirements_v1(
     }
 
     Ok(VerifiedCoreStrongRequirementClosureV1 {
+        target,
         strong_closure,
         external_bridges,
         core_requirements,
