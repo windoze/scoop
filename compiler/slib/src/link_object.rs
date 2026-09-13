@@ -25,6 +25,9 @@ pub use planning::*;
 mod c_bridge_production;
 pub use c_bridge_production::*;
 
+mod builtin_object_set;
+pub use builtin_object_set::*;
+
 mod symbol_planning;
 pub use symbol_planning::*;
 

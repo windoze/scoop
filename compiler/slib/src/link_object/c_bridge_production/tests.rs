@@ -2,9 +2,10 @@ use object::macho;
 use scoop_identity::{
     CborIdentityRecord, ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey,
     GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
-    GeneratedBridgeUnitKey, NativeExternalContract, NativeExternalContractFingerprint,
-    NativeExternalSymbolKey, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentNativeExternalSymbolId,
+    GeneratedBridgeUnitKey, LinkageClass, NativeExternalContract,
+    NativeExternalContractFingerprint, NativeExternalSymbolKey, ObjectDefinitionAtomId,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    PersistentNativeExternalSymbolId, PersistentSymbolRequest, PersistentSymbolRequestTable,
     SourceNativeSymbol, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
@@ -229,13 +230,13 @@ fn rejects_member_plan_for_a_different_generated_unit() {
     );
 }
 
-struct Fixture {
-    foundation: OdrFreeLirFoundation,
-    lir_plan: ObjectDefinitionPlanId,
-    bridge_unit: Option<GeneratedBridgeUnitId>,
+pub(in crate::link_object) struct Fixture {
+    pub(in crate::link_object) foundation: OdrFreeLirFoundation,
+    pub(in crate::link_object) lir_plan: ObjectDefinitionPlanId,
+    pub(in crate::link_object) bridge_unit: Option<GeneratedBridgeUnitId>,
 }
 
-fn fixture(native_name: Option<&str>) -> Fixture {
+pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
     let lir_definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
             ConeIdentity::CORE,
@@ -289,8 +290,19 @@ fn fixture(native_name: Option<&str>) -> Fixture {
         foundation.set_bridge_atoms(vec![bridge_atom]).unwrap();
         unit.id()
     });
+    let symbol_requests = definitions
+        .iter()
+        .map(|definition| {
+            PersistentSymbolRequest::new(
+                definition.key().primary_symbol_key().unwrap(),
+                LinkageClass::ConeStrong,
+            )
+            .unwrap()
+        })
+        .collect();
     foundation.set_definition_plans(definitions).unwrap();
     foundation.set_definition_atoms(atoms).unwrap();
+    foundation.set_symbol_requests(PersistentSymbolRequestTable::new(symbol_requests).unwrap());
     let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap();
     Fixture {
         foundation,
@@ -310,7 +322,7 @@ fn definition_atom(
     .unwrap()
 }
 
-fn member_plan(
+pub(in crate::link_object) fn member_plan(
     fixture: &Fixture,
     bridge_plan: &GeneratedBridgePlanSetV1,
 ) -> PlannedLinkObjectMemberSetV1 {
@@ -330,7 +342,11 @@ fn member_plan(
     .unwrap()
 }
 
-fn profile(compiler_build: &str, minimum_os: u32, sdk: u32) -> CBridgeToolchainProfileV1 {
+pub(in crate::link_object) fn profile(
+    compiler_build: &str,
+    minimum_os: u32,
+    sdk: u32,
+) -> CBridgeToolchainProfileV1 {
     CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(minimum_os).unwrap(),

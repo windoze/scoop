@@ -278,4 +278,4 @@ impl std::error::Error for CBridgeProductionEnvelopeValidationError {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

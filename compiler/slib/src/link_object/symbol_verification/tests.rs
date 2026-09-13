@@ -15,8 +15,8 @@ use scoop_lir::{
 
 use super::*;
 use crate::{
-    CanonicalScoopLirObjectUnitSetV1, PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1,
-    validate_scoop_lir_llvm_22_1_object_envelope_v1,
+    CanonicalScoopLirObjectUnitSetV1, DarwinBuildToolVersionV1, PlannedLinkObjectMemberSetV1,
+    PlannedStrongObjectSymbolSetV1, validate_scoop_lir_llvm_22_1_object_envelope_v1,
 };
 
 #[test]
@@ -364,10 +364,22 @@ pub(in crate::link_object) fn object_for_plan_with_branch_relocation(
     value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
     relocation: Option<(u32, PlannedStrongObjectSymbolRoleV1)>,
 ) -> ObjectFixture {
+    object_for_plan_with_deployment(plan, value, relocation, None)
+}
+
+pub(in crate::link_object) fn object_for_plan_with_deployment(
+    plan: &PlannedMemberStrongObjectSymbolsV1,
+    value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
+    relocation: Option<(u32, PlannedStrongObjectSymbolRoleV1)>,
+    deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>,
+) -> ObjectFixture {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
     let dysymtab_size = 80_u32;
-    let command_bytes = segment_size + symtab_size + dysymtab_size;
+    let deployment_size = deployment
+        .map(|(_, _, tools)| 24 + u32::try_from(tools.len()).unwrap() * 8)
+        .unwrap_or(0);
+    let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
     let section_offset = 32 + command_bytes;
     let section_size = 8_u32;
     let relocation_count = u32::from(relocation.is_some());
@@ -389,7 +401,7 @@ pub(in crate::link_object) fn object_for_plan_with_branch_relocation(
     push_u32(&mut bytes, macho::CPU_TYPE_ARM64);
     push_u32(&mut bytes, macho::CPU_SUBTYPE_ARM64_ALL);
     push_u32(&mut bytes, macho::MH_OBJECT);
-    push_u32(&mut bytes, 3);
+    push_u32(&mut bytes, 3 + u32::from(deployment.is_some()));
     push_u32(&mut bytes, command_bytes);
     push_u32(&mut bytes, macho::MH_SUBSECTIONS_VIA_SYMBOLS);
     push_u32(&mut bytes, 0);
@@ -445,6 +457,19 @@ pub(in crate::link_object) fn object_for_plan_with_branch_relocation(
     push_u32(&mut bytes, plan.symbols().len() as u32);
     push_u32(&mut bytes, 0);
     bytes.extend_from_slice(&[0; 48]);
+
+    if let Some((minimum_os, sdk, tools)) = deployment {
+        push_u32(&mut bytes, macho::LC_BUILD_VERSION);
+        push_u32(&mut bytes, deployment_size);
+        push_u32(&mut bytes, macho::PLATFORM_MACOS);
+        push_u32(&mut bytes, minimum_os);
+        push_u32(&mut bytes, sdk);
+        push_u32(&mut bytes, u32::try_from(tools.len()).unwrap());
+        for tool in tools {
+            push_u32(&mut bytes, tool.tool());
+            push_u32(&mut bytes, tool.version());
+        }
+    }
 
     bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0]);
     if let Some((offset, target_role)) = relocation {

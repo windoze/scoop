@@ -1250,6 +1250,16 @@ actual object bytes，并按以下顺序fail closed：
 按本节其余规则验证atom、symbol、relocation与requirement。不得先用某个deployment验证object，再把
 另一个compiler/template/flags profile写入manifest。
 
+两个producer的provisional member随后由单一
+`VerifiedBuiltinObjectStrongRelocationSetV1`入口闭合。输入必须分别是按member id严格递增且完整覆盖
+member plan的`ScoopLirObjectCandidateV1`与`GeneratedCBridgeObjectCandidateV1`；strong symbol plan也
+必须完整覆盖两类member，三者producer相同。Scoop candidate只能通过无deployment的LLVM 22.1
+qualifier，generated-C candidate只能复用上述C-bridge production envelope proof；不能把同一bytes换
+一个capability重试。每个member随后依次完成expected external strong symbol、atom range/zero padding、
+relocation shape/atom owner验证，最后在全部member的联合定义空间解析current-Cone strong target。
+该proof止于provisional strong-relocation closure；digest patch、stackmap leaf、requirement finalization与
+final bytes re-verification仍由后续typed阶段完成。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
