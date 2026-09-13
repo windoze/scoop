@@ -857,6 +857,16 @@ definition plan与definition atom；每个plan恰有一个`DefinitionAtomRole::P
 漏项、多项、重复项或reader侧非canonical顺序均拒绝。该投影不含`SlibMemberId`、section/range、
 boundary或patch offset，不能提前决定object分片。
 
+`generated_bridge_plan`编码为按`GeneratedBridgeUnitId`严格递增的
+`GeneratedBridgeUnitPlanV1` array；元素是closed product：`1=unit`、`2=primary_atom`、
+`3=materialized_associated_atoms`、`4=static_assert_atoms`，后两项各按
+`GeneratedBridgeAtomId`严格递增。该集合完整覆盖foundation的bridge unit/atom：每个unit恰有
+一个当前producer的`PrimaryEntry`；`SignatureDescriptor`和`ContextDescriptor`进入materialized
+集合，并与primary一样各自必须有`GeneratedBridge` Strong object-definition plan；
+`StaticAssertSupport`只进入static-assert集合且不得有definition plan。atom引用未知unit、unit缺
+primary、materializable atom缺plan、bridge plan引用非本集合atom、重复/错序/漏项或跨集合冒充
+均拒绝。
+
 ### 9.4 Link identity closure
 
 `LinkIdentityClosureSectionV1`由packager在object verification之后构造：

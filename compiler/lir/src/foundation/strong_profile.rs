@@ -117,6 +117,14 @@ impl OdrFreeLirFoundation {
         &self.canonical.definition_atoms
     }
 
+    pub(crate) fn bridge_units(&self) -> &[super::BridgeUnitRecord] {
+        &self.canonical.bridge_units
+    }
+
+    pub(crate) fn bridge_atoms(&self) -> &[super::BridgeAtomRecord] {
+        &self.canonical.bridge_atoms
+    }
+
     pub fn into_canonical(self) -> CanonicalLirFoundation {
         self.canonical
     }

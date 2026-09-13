@@ -46,8 +46,10 @@ type OdrGroupRecord = CborIdentityRecord<OdrGroupId, SpecializationKey>;
 type OdrMemberRecord = CborIdentityRecord<OdrMemberId, OdrMemberKey>;
 type CallableBodyRecord = RuntimeIdentityRecord<PersistentCallableBodyId>;
 type SafepointSiteRecord = CborIdentityRecord<PersistentSafepointSiteId, SafepointSiteKey>;
-type BridgeUnitRecord = CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>;
-type BridgeAtomRecord = CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>;
+pub(crate) type BridgeUnitRecord =
+    CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>;
+pub(crate) type BridgeAtomRecord =
+    CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>;
 type NativeLinkRequirementRecord =
     CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>;
 pub(crate) type DefinitionPlanRecord =
