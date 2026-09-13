@@ -107,7 +107,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_store(frame, frame_ty.const_zero())
             .map_err(|error| CodegenError(format!("zero caller-root frame: {error}")))?;
         let push = self.native_boundary_fn(
-            "scoop_rt_push_caller_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PushCallerRoots.logical_symbol(),
             context
                 .void_type()
                 .fn_type(&[ptr.into(), ptr.into(), i64_ty.into()], false),
@@ -151,8 +151,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_ptr_to_int(transition, i64_ty, "managed_stack_pointer")
             .map_err(|error| CodegenError(format!("managed stack pointer: {error}")))?;
         let enter_symbol = match kind {
-            NativeTransitionKind::Safe => "scoop_rt_enter_native_safe",
-            NativeTransitionKind::Borrowed => "scoop_rt_enter_native_borrowed",
+            NativeTransitionKind::Safe => {
+                scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe.logical_symbol()
+            }
+            NativeTransitionKind::Borrowed => {
+                scoop_lir::RuntimeAbiSymbolV1::EnterNativeBorrowed.logical_symbol()
+            }
         };
         let enter = self.native_boundary_fn(
             enter_symbol,
@@ -185,8 +189,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let context = self.context;
         let ptr = ptr_ty(context);
         let leave_symbol = match kind {
-            NativeTransitionKind::Safe => "scoop_rt_leave_native_safe",
-            NativeTransitionKind::Borrowed => "scoop_rt_leave_native_borrowed",
+            NativeTransitionKind::Safe => {
+                scoop_lir::RuntimeAbiSymbolV1::LeaveNativeSafe.logical_symbol()
+            }
+            NativeTransitionKind::Borrowed => {
+                scoop_lir::RuntimeAbiSymbolV1::LeaveNativeBorrowed.logical_symbol()
+            }
         };
         let leave = self.native_boundary_fn(
             leave_symbol,
@@ -206,7 +214,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let context = self.context;
         let ptr = ptr_ty(context);
         let pop = self.native_boundary_fn(
-            "scoop_rt_pop_caller_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PopCallerRoots.logical_symbol(),
             context.void_type().fn_type(&[ptr.into()], false),
         );
         self.builder

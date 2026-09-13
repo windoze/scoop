@@ -205,9 +205,10 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         out.push_str("}\n\n");
     }
     if !module.foreign_callback_bridges.is_empty() {
-        out.push_str(
-            "extern uint32_t scoop_runtime_callback_invoke(void *context, const void *signature, void *result, const void *const *arguments);\n\n",
-        );
+        out.push_str(&format!(
+            "extern uint32_t {}(void *context, const void *signature, void *result, const void *const *arguments);\n\n",
+            scoop_lir::RuntimeAbiSymbolV1::CallbackInvoke.logical_symbol()
+        ));
     }
     let mut emitted_foreign_trampolines = HashSet::new();
     for (_, callback) in module.foreign_callback_bridges.iter() {
@@ -256,7 +257,8 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             ));
         }
         out.push_str(&format!(
-            "  (void)scoop_runtime_callback_invoke(arg{}, &{}, {}, {});\n",
+            "  (void){}(arg{}, &{}, {}, {});\n",
+            scoop_lir::RuntimeAbiSymbolV1::CallbackInvoke.logical_symbol(),
             callback.context_index,
             callback.trampoline.signature_descriptor_symbol(),
             if has_result { "&result" } else { "NULL" },

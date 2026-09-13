@@ -1235,6 +1235,60 @@ FinalUndefinedSymbolRequirement =
   | TargetEhSupport { contract: TargetEhRequirementId }
 ```
 
+`RuntimeSymbolContractId`和`TargetEhRequirementId`不是symbol string的别名，也不由名字前缀
+分类。runtime ABI契约从原来错误放在`scoop-slib`实现crate中的位置直接移到`scoop-lir`
+共享数据层；codegen、object verifier和manifest producer只消费同一份typed registry，不保留
+旧re-export或字符串兼容入口。两类ID分别固定为：
+
+```text
+RuntimeSymbolContractV1 {                    // fields 1..4
+    runtime_abi: RuntimeAbiFingerprint,
+    target: TargetProfileWireId,
+    target_fingerprint: TargetProfileFingerprint,
+    symbol: RuntimeAbiSymbolV1,
+}
+
+RuntimeSymbolContractId =
+    DomainSeparatedCborHash("scoop-runtime-symbol-contract-v1",
+                            RuntimeSymbolContractV1)
+
+TargetEhRequirementV1 {                     // fields 1..6
+    target: TargetProfileWireId,
+    target_fingerprint: TargetProfileFingerprint,
+    backend: BackendProfileWireId,
+    backend_fingerprint: BackendProfileFingerprint,
+    runtime_abi: RuntimeAbiFingerprint,
+    support: TargetEhSupportV1,
+}
+
+TargetEhRequirementId =
+    DomainSeparatedCborHash("scoop-target-eh-requirement-v1",
+                            TargetEhRequirementV1)
+```
+
+`RuntimeAbiSymbolV1`是闭合sum。`LirManagedCall=1 {1=ManagedRuntimeFunction tag}`与
+`LirNoGcCall=2 {1=NoGcRuntimeFunction tag}`保留LIR的effect分类；其余无payload variant依次为
+`CoreStringTypeDescriptor=3`、`ArrayClone=4`、`AllocationContext=5`、`CardTable=6`、
+`FinishTlabAllocation=7`、`AllocateSlow=8`、`BeginCatch=9`、`EndCatch=10`、
+`PushCallerRoots=11`、`PopCallerRoots=12`、`PushCompilerRoots=13`、
+`PopCompilerRoots=14`、`PopTopCompilerRoots=15`、`EnterNativeSafe=16`、
+`LeaveNativeSafe=17`、`EnterNativeBorrowed=18`、`LeaveNativeBorrowed=19`、
+`CallbackRegister=20`、`CallbackRetain=21`、`CallbackRelease=22`、`CallbackFailure=23`、
+`CallbackState=24`、`CallbackInvoke=25`。Managed函数tag按`Safepoint`、`Alloc`、`Box`、
+`GcCollect`、`MaterializeException`、`StringConcat`、`InitializationEnter`、
+`InitializationSucceed`、`InitializationFail`、`InitializationFailure`、
+`InitializationCycleMessage`顺序取1..11；NoGc函数tag按`IsInstance`、`ITableLookup`、`Pin`、
+`Unpin`、`GetHandle`、`ReleaseHandle`、`GcStats`、`StringCompare`、`Trap`、`Throw`、
+`Rethrow`顺序取1..11。逻辑symbol是variant的total projection，object symbol只经当前target的
+`NativeSymbolNormalization`生成；registry必须拒绝normalize后碰撞。
+
+`TargetEhSupportV1`当前只含`ScoopPersonality=1`和`UnwindResume=2`，逻辑symbol分别为
+`scoop_eh_personality`与`_Unwind_Resume`。它同时绑定target、backend与runtime ABI，是因为
+personality/LSDA形状由backend契约决定而personality实现由匹配的runtime提供；不能把它降格为
+仅凭`_scoop_eh_personality`或`__Unwind_Resume`命中的名字allowlist。非EH target helper（例如
+generated C中的`memcpy`）不准冒充这两个variant；它必须由第11.5节的C-bridge production
+contract及后续target native support requirement显式覆盖，否则generated object验证失败。
+
 `VerifiedRelocationUse`保存member、typed containing atom、section role、checked offset、width、relocation kind和canonical addend；它不是裸object-local ordinal。真实symbol bytes必须由requirement的typed key和target normalization重算一致。
 
 ### 12.3 本阶段解析范围

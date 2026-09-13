@@ -167,7 +167,8 @@ entry:
 attributes #0 = { "disable-tail-calls"="true" "frame-pointer"="all" }
 "#;
     let module = parse(&context, ir);
-    let expected = ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe");
+    let expected =
+        ExpectedStatepoint::NativeTransition(scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe);
     let error = verify_rewritten(&module, &manifest(Some((7, expected))))
         .expect_err("native safepoint identity must select the typed transition entry");
     assert!(

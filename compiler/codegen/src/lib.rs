@@ -51,13 +51,6 @@ use scoop_lir::{
 const SCAN_ARRAY: u64 = u64::MAX;
 const SCAN_SEQUENCE: u64 = u64::MAX - 1;
 
-/// The write barrier's card table (M9, runtime spec 3.6): the runtime
-/// exports `extern unsigned char *scoop_gc_card_table` — a pointer
-/// variable pre-biased with the arena base, loaded at every marking
-/// site. The v1 collector ignores the table; the remembered-set
-/// consumer arrives with generations.
-const CARD_TABLE_SYMBOL: &str = "scoop_gc_card_table";
-
 /// Card granularity of the write barrier: one card per 512 bytes.
 const CARD_SHIFT: u64 = 9;
 

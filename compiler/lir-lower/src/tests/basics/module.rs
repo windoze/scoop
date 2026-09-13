@@ -144,7 +144,7 @@ fn lowers_hello_world() {
     );
     assert_eq!(
         string_descriptor.identity.runtime_abi_symbol(),
-        Some(lir::RuntimeAbiTypeDescriptorSymbol::CoreString)
+        Some(lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)
     );
     assert_eq!(string_descriptor.identity.symbol_request(), None);
     assert_eq!(

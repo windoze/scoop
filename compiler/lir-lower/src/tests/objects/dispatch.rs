@@ -308,7 +308,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     );
     assert_eq!(
         string_td.identity.runtime_abi_symbol(),
-        Some(lir::RuntimeAbiTypeDescriptorSymbol::CoreString)
+        Some(lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)
     );
     assert_eq!(string_td.identity.symbol_request(), None);
 }

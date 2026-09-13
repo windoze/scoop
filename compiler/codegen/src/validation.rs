@@ -110,7 +110,7 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
     for (id, descriptor) in module.meta.type_descriptors.iter() {
         if id == string {
             if descriptor.identity.runtime_abi_symbol()
-                != Some(scoop_lir::RuntimeAbiTypeDescriptorSymbol::CoreString)
+                != Some(scoop_lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)
             {
                 return Err(CodegenError(
                     "the core String TypeDescriptor must use its typed runtime ABI symbol"
@@ -121,7 +121,7 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
             return Err(CodegenError(format!(
                 "type descriptor `{}` illegally uses runtime ABI symbol `{}` reserved for core String",
                 descriptor.name,
-                symbol.as_str()
+                symbol.logical_symbol()
             )));
         }
     }

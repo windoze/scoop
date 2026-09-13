@@ -354,23 +354,10 @@ pub struct TypeDescriptorIdentity {
     symbol: TypeDescriptorSymbol,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RuntimeAbiTypeDescriptorSymbol {
-    CoreString,
-}
-
-impl RuntimeAbiTypeDescriptorSymbol {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::CoreString => "scoop_td_String",
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum TypeDescriptorSymbol {
     Persistent(MaterializedSymbol),
-    RuntimeAbi(RuntimeAbiTypeDescriptorSymbol),
+    RuntimeAbi(RuntimeAbiSymbolV1),
 }
 
 impl TypeDescriptorIdentity {
@@ -401,7 +388,7 @@ impl TypeDescriptorIdentity {
         Self {
             runtime_type,
             materialization: MaterializationIdentity::cone_owned(),
-            symbol: TypeDescriptorSymbol::RuntimeAbi(RuntimeAbiTypeDescriptorSymbol::CoreString),
+            symbol: TypeDescriptorSymbol::RuntimeAbi(RuntimeAbiSymbolV1::CoreStringTypeDescriptor),
         }
     }
 
@@ -420,7 +407,7 @@ impl TypeDescriptorIdentity {
         }
     }
 
-    pub const fn runtime_abi_symbol(&self) -> Option<RuntimeAbiTypeDescriptorSymbol> {
+    pub const fn runtime_abi_symbol(&self) -> Option<RuntimeAbiSymbolV1> {
         match &self.symbol {
             TypeDescriptorSymbol::Persistent(_) => None,
             TypeDescriptorSymbol::RuntimeAbi(symbol) => Some(*symbol),
@@ -430,7 +417,7 @@ impl TypeDescriptorIdentity {
     pub fn symbol(&self) -> &str {
         match &self.symbol {
             TypeDescriptorSymbol::Persistent(symbol) => symbol.as_str(),
-            TypeDescriptorSymbol::RuntimeAbi(symbol) => symbol.as_str(),
+            TypeDescriptorSymbol::RuntimeAbi(symbol) => symbol.logical_symbol(),
         }
     }
 

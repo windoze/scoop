@@ -72,13 +72,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             )
             .map_err(|error| CodegenError(format!("mask allocation size: {error}")))?;
 
+        let allocation_context_symbol =
+            scoop_lir::RuntimeAbiSymbolV1::AllocationContext.logical_symbol();
         let allocation_global = self
             .llvm
-            .get_global("scoop_rt_allocation_context")
+            .get_global(allocation_context_symbol)
             .unwrap_or_else(|| {
-                let global = self
-                    .llvm
-                    .add_global(ptr, None, "scoop_rt_allocation_context");
+                let global = self.llvm.add_global(ptr, None, allocation_context_symbol);
                 global.set_thread_local(true);
                 global
             });
@@ -188,7 +188,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_store(cursor_slot, next)
             .map_err(|error| CodegenError(format!("publish TLAB cursor: {error}")))?;
         let finish = self.runtime_fn(
-            "scoop_runtime_finish_tlab_alloc",
+            scoop_lir::RuntimeAbiSymbolV1::FinishTlabAllocation.logical_symbol(),
             context
                 .void_type()
                 .fn_type(&[managed_ptr.into(), ptr.into(), i64_ty.into()], false),
@@ -214,7 +214,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
         builder.position_at_end(slow_block);
         let slow = self.runtime_fn(
-            "scoop_runtime_alloc_slow",
+            scoop_lir::RuntimeAbiSymbolV1::AllocateSlow.logical_symbol(),
             managed_ptr.fn_type(&[ptr.into(), i64_ty.into()], false),
         );
         slow.add_attribute(

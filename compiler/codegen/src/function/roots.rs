@@ -445,7 +445,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_store(frame, frame_type.const_zero())
             .map_err(|error| CodegenError(format!("zero compiler-root frame: {error}")))?;
         let push = self.gc_leaf_fn(
-            "scoop_rt_push_compiler_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PushCompilerRoots.logical_symbol(),
             context
                 .void_type()
                 .fn_type(&[ptr.into(), ptr.into(), i64_type.into()], false),
@@ -531,7 +531,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         frame: CompilerRootFrame<'ctx>,
     ) -> Result<(), CodegenError> {
         let pop = self.gc_leaf_fn(
-            "scoop_rt_pop_compiler_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PopCompilerRoots.logical_symbol(),
             self.context
                 .void_type()
                 .fn_type(&[ptr_ty(self.context).into()], false),
@@ -554,7 +554,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.validate_compiler_root_sources(sources.iter().copied())?;
         let reloaded = self.reload_published_roots(sources)?;
         let pop = self.gc_leaf_fn(
-            "scoop_rt_pop_top_compiler_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PopTopCompilerRoots.logical_symbol(),
             self.context.void_type().fn_type(&[], false),
         );
         self.builder

@@ -466,7 +466,7 @@ pub enum DispatchKind {
     FunctionBridge,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ManagedRuntimeFunction {
     Safepoint,
     Alloc,
@@ -481,7 +481,7 @@ pub enum ManagedRuntimeFunction {
     InitializationCycleMessage,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NoGcRuntimeFunction {
     IsInstance,
     ITableLookup,
@@ -499,7 +499,7 @@ pub enum NoGcRuntimeFunction {
 /// Read-only common view used by mechanical dump/codegen logic. Runtime
 /// protocol classification is already fixed by the typed target destination;
 /// consumers must not reconstruct it from this enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum RuntimeFunction {
     Managed(ManagedRuntimeFunction),
     NoGc(NoGcRuntimeFunction),
@@ -507,33 +507,6 @@ pub enum RuntimeFunction {
 
 impl RuntimeFunction {
     pub const fn symbol(self) -> &'static str {
-        match self {
-            Self::Managed(ManagedRuntimeFunction::Safepoint) => "scoop_rt_safepoint",
-            Self::Managed(ManagedRuntimeFunction::Alloc) => "scoop_rt_alloc",
-            Self::Managed(ManagedRuntimeFunction::Box) => "scoop_rt_box",
-            Self::Managed(ManagedRuntimeFunction::GcCollect) => "scoop_rt_gc_collect",
-            Self::Managed(ManagedRuntimeFunction::MaterializeException) => {
-                "scoop_rt_materialize_exception"
-            }
-            Self::Managed(ManagedRuntimeFunction::StringConcat) => "scoop_rt_string_concat",
-            Self::Managed(ManagedRuntimeFunction::InitializationEnter) => "scoop_rt_init_enter",
-            Self::Managed(ManagedRuntimeFunction::InitializationSucceed) => "scoop_rt_init_succeed",
-            Self::Managed(ManagedRuntimeFunction::InitializationFail) => "scoop_rt_init_fail",
-            Self::Managed(ManagedRuntimeFunction::InitializationFailure) => "scoop_rt_init_failure",
-            Self::Managed(ManagedRuntimeFunction::InitializationCycleMessage) => {
-                "scoop_rt_init_cycle_message"
-            }
-            Self::NoGc(NoGcRuntimeFunction::IsInstance) => "scoop_rt_is_instance",
-            Self::NoGc(NoGcRuntimeFunction::ITableLookup) => "scoop_rt_itable_lookup",
-            Self::NoGc(NoGcRuntimeFunction::Pin) => "scoop_rt_pin",
-            Self::NoGc(NoGcRuntimeFunction::Unpin) => "scoop_rt_unpin",
-            Self::NoGc(NoGcRuntimeFunction::GetHandle) => "scoop_rt_get_handle",
-            Self::NoGc(NoGcRuntimeFunction::ReleaseHandle) => "scoop_rt_release_handle",
-            Self::NoGc(NoGcRuntimeFunction::GcStats) => "scoop_rt_gc_stats",
-            Self::NoGc(NoGcRuntimeFunction::StringCompare) => "scoop_rt_string_compare",
-            Self::NoGc(NoGcRuntimeFunction::Trap) => "scoop_rt_trap",
-            Self::NoGc(NoGcRuntimeFunction::Throw) => "scoop_rt_throw",
-            Self::NoGc(NoGcRuntimeFunction::Rethrow) => "scoop_rt_rethrow",
-        }
+        crate::RuntimeAbiSymbolV1::LirCall(self).logical_symbol()
     }
 }

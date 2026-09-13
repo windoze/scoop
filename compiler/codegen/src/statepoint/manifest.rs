@@ -20,7 +20,7 @@ impl ExpectedRoot {
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum ExpectedStatepoint {
     Relocating(Vec<ExpectedRoot>),
-    NativeTransition(&'static str),
+    NativeTransition(scoop_lir::RuntimeAbiSymbolV1),
     ZeroLiveInvoke,
 }
 
@@ -77,11 +77,15 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                         }
                         scoop_lir::CallSite::NativeSafe(site) => Some((
                             site.safepoint,
-                            ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe"),
+                            ExpectedStatepoint::NativeTransition(
+                                scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe,
+                            ),
                         )),
                         scoop_lir::CallSite::NativeBorrowed(site) => Some((
                             site.safepoint,
-                            ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_borrowed"),
+                            ExpectedStatepoint::NativeTransition(
+                                scoop_lir::RuntimeAbiSymbolV1::EnterNativeBorrowed,
+                            ),
                         )),
                         scoop_lir::CallSite::NoGc(_) => None,
                     },
@@ -95,7 +99,9 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                     | scoop_lir::Instruction::NativeGlobalStore { safepoint, .. }
                     | scoop_lir::Instruction::NativeGlobalAddress { safepoint, .. } => Some((
                         *safepoint,
-                        ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe"),
+                        ExpectedStatepoint::NativeTransition(
+                            scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe,
+                        ),
                     )),
                     scoop_lir::Instruction::ArrayAlloc {
                         safepoint, live, ..

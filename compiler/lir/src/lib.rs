@@ -17,6 +17,9 @@ pub use target::*;
 mod backend;
 pub use backend::*;
 
+mod runtime_abi;
+pub use runtime_abi::*;
+
 mod target_selection;
 pub use target_selection::*;
 

@@ -129,7 +129,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     )));
                 }
                 let begin_catch = self.gc_leaf_fn(
-                    "scoop_rt_begin_catch",
+                    scoop_lir::RuntimeAbiSymbolV1::BeginCatch.logical_symbol(),
                     managed_ptr_ty(context, self.managed_address_space)
                         .fn_type(&[ptr_ty(context).into()], false),
                 );
@@ -151,7 +151,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::EndCatch => {
                 let end_catch = self.gc_leaf_fn(
-                    "scoop_rt_end_catch",
+                    scoop_lir::RuntimeAbiSymbolV1::EndCatch.logical_symbol(),
                     context.void_type().fn_type(&[], false),
                 );
                 builder
@@ -171,7 +171,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // The block's Unreachable terminator emits the LLVM
                 // `unreachable` after the call, like the trap path.
                 let throw = self.gc_leaf_fn(
-                    "scoop_rt_throw",
+                    scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
+                        scoop_lir::NoGcRuntimeFunction::Throw,
+                    ))
+                    .logical_symbol(),
                     context.void_type().fn_type(
                         &[managed_ptr_ty(context, self.managed_address_space).into()],
                         false,

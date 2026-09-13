@@ -101,7 +101,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
     /// The shared bounds-check trap block of this function, created on
     /// first use: `scoop_rt_trap("array index out of bounds")` followed
-    /// by `unreachable` (the TRAP_SYMBOL contract: noreturn).
+    /// by `unreachable` (the typed runtime trap contract is `noreturn`).
     pub(in crate::function) fn bounds_trap_block(
         &mut self,
     ) -> Result<inkwell::basic_block::BasicBlock<'ctx>, CodegenError> {
@@ -121,7 +121,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .as_pointer_value();
 
         let trap = self.gc_leaf_fn(
-            scoop_lir::TRAP_SYMBOL,
+            scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
+                scoop_lir::NoGcRuntimeFunction::Trap,
+            ))
+            .logical_symbol(),
             self.context
                 .void_type()
                 .fn_type(&[ptr_ty(self.context).into()], false),
@@ -166,7 +169,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             })?
             .as_pointer_value();
         let trap = self.gc_leaf_fn(
-            scoop_lir::TRAP_SYMBOL,
+            scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
+                scoop_lir::NoGcRuntimeFunction::Trap,
+            ))
+            .logical_symbol(),
             self.context
                 .void_type()
                 .fn_type(&[ptr_ty(self.context).into()], false),

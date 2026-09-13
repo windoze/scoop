@@ -195,15 +195,14 @@ pub(super) fn emit_function<'ctx>(
         })
     });
     if has_landing_pad {
-        let personality = llvm
-            .get_function("scoop_eh_personality")
-            .unwrap_or_else(|| {
-                llvm.add_function(
-                    "scoop_eh_personality",
-                    context.i32_type().fn_type(&[], true),
-                    None,
-                )
-            });
+        let personality_symbol = scoop_lir::TargetEhSupportV1::ScoopPersonality.logical_symbol();
+        let personality = llvm.get_function(personality_symbol).unwrap_or_else(|| {
+            llvm.add_function(
+                personality_symbol,
+                context.i32_type().fn_type(&[], true),
+                None,
+            )
+        });
         llvm_function.set_personality_function(personality);
     }
 

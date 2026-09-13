@@ -3,7 +3,10 @@ use std::fmt;
 use scoop_identity::{
     ArtifactCapabilityProfileId, BackendProfileWireId, ManglingSchemaIdentity, TargetProfileWireId,
 };
-use scoop_lir::{BackendProfileFingerprint, TargetProfileFingerprint, ValidatedLirTargetSelection};
+use scoop_lir::{
+    BackendProfileFingerprint, RuntimeAbiContract, RuntimeAbiFingerprint, TargetProfileFingerprint,
+    ValidatedLirTargetSelection,
+};
 use scoop_wire::{
     Encoder, HashError, WireEncode, domain_separated_cbor_hash,
     domain_separated_cbor_hash_stream_length,
@@ -12,7 +15,6 @@ use scoop_wire::{
 use crate::{ArtifactCapabilityProfile, ArtifactCapabilityProfileFingerprint};
 
 const LANGUAGE_ABI_DOMAIN: &str = "scoop-language-abi-contract-v1";
-const RUNTIME_ABI_DOMAIN: &str = "scoop-runtime-abi-contract-v1";
 const COMPOSITE_IDENTITY_ABI_DOMAIN: &str = "scoop-composite-identity-abi-v1";
 const INITIAL_SCHEMA: u64 = 1;
 
@@ -45,7 +47,6 @@ macro_rules! typed_fingerprint {
 }
 
 typed_fingerprint!(LanguageAbiFingerprint);
-typed_fingerprint!(RuntimeAbiFingerprint);
 typed_fingerprint!(CompositeIdentityAbiFingerprint);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -63,27 +64,6 @@ impl WireEncode for LanguageAbiContract {
         encoder.map(1)?;
         encoder.field(1)?;
         encoder.unsigned(INITIAL_SCHEMA)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct RuntimeAbiContract;
-
-impl RuntimeAbiContract {
-    pub fn fingerprint(self) -> Result<RuntimeAbiFingerprint, HashError> {
-        domain_separated_cbor_hash(RUNTIME_ABI_DOMAIN, &self)
-            .map(|digest| RuntimeAbiFingerprint(*digest.as_array()))
-    }
-}
-
-impl WireEncode for RuntimeAbiContract {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        for field in 1..=3 {
-            encoder.field(field)?;
-            encoder.unsigned(INITIAL_SCHEMA)?;
-        }
-        Ok(())
     }
 }
 
@@ -177,15 +157,11 @@ impl CompatibilityRecord {
     pub(crate) fn identity_foundation_hash_stream_lengths(
         selection: ValidatedLirTargetSelection,
     ) -> Result<[u64; 6], HashError> {
-        let descriptor_shape = IdentityAbiDescriptor {
-            language_abi: LanguageAbiFingerprint([0; 32]),
-            runtime_abi: RuntimeAbiFingerprint([0; 32]),
-            mangling_schema: ManglingSchemaIdentity,
-        };
+        let descriptor_shape = IdentityAbiDescriptor::current()?;
         let artifact_profile = ArtifactCapabilityProfile::IDENTITY_FOUNDATION;
         Ok([
             domain_separated_cbor_hash_stream_length(LANGUAGE_ABI_DOMAIN, &LanguageAbiContract)?,
-            domain_separated_cbor_hash_stream_length(RUNTIME_ABI_DOMAIN, &RuntimeAbiContract)?,
+            RuntimeAbiContract.hash_stream_length()?,
             TargetProfileFingerprint::hash_stream_length(selection.target())?,
             BackendProfileFingerprint::hash_stream_length(selection.backend())?,
             domain_separated_cbor_hash_stream_length(

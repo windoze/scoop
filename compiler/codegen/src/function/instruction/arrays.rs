@@ -597,7 +597,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // MutableArray<T> (or back) changes nominal runtime identity.
                 let data_offset = array_data_offset(element_align);
                 let clone = self.runtime_fn(
-                    scoop_lir::ARRAY_CLONE_SYMBOL,
+                    scoop_lir::RuntimeAbiSymbolV1::ArrayClone.logical_symbol(),
                     managed_ptr_ty(context, self.managed_address_space).fn_type(
                         &[
                             managed_ptr_ty(context, self.managed_address_space).into(),
@@ -630,7 +630,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let result = call.try_as_basic_value().basic().ok_or_else(|| {
                     CodegenError(format!(
                         "call @{} produced no value",
-                        scoop_lir::ARRAY_CLONE_SYMBOL
+                        scoop_lir::RuntimeAbiSymbolV1::ArrayClone.logical_symbol()
                     ))
                 })?;
                 self.restore_statepoint_live(live, safepoint)?;

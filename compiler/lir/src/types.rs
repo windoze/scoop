@@ -53,12 +53,6 @@ impl SafepointSiteRef {
     }
 }
 
-/// Runtime trap (M3: `!!` on `None`; M8: real exceptions).
-pub const TRAP_SYMBOL: &str = "scoop_rt_trap";
-
-/// Runtime array clone (spec 10.4 conversions).
-pub const ARRAY_CLONE_SYMBOL: &str = "scoop_rt_array_clone";
-
 /// Compiler-owned scalar domains that are semantically disjoint from every
 /// Scoop source integer type.  Codegen currently represents each domain as an
 /// LLVM `i64`, but that physical choice must not erase the domain before the

@@ -76,7 +76,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .expect("foreign callback signature descriptor is declared")
                     .as_pointer_value();
                 let register = self.gc_leaf_fn(
-                    "scoop_runtime_callback_register",
+                    scoop_lir::RuntimeAbiSymbolV1::CallbackRegister.logical_symbol(),
                     ptr_ty(context).fn_type(
                         &[
                             managed_ptr_ty(context, self.managed_address_space).into(),
@@ -152,7 +152,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 match *operation {
                     scoop_lir::ForeignCallbackOperation::Retain { out, .. } => {
                         let retain = self.gc_leaf_fn(
-                            "scoop_runtime_callback_retain",
+                            scoop_lir::RuntimeAbiSymbolV1::CallbackRetain.logical_symbol(),
                             ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
                         );
                         let retained = builder
@@ -194,7 +194,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                     scoop_lir::ForeignCallbackOperation::Release { .. } => {
                         let release = self.gc_leaf_fn(
-                            "scoop_runtime_callback_release",
+                            scoop_lir::RuntimeAbiSymbolV1::CallbackRelease.logical_symbol(),
                             context
                                 .void_type()
                                 .fn_type(&[ptr_ty(context).into()], false),
@@ -207,7 +207,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                     scoop_lir::ForeignCallbackOperation::Failure { out, .. } => {
                         let failure = self.gc_leaf_fn(
-                            "scoop_runtime_callback_failure",
+                            scoop_lir::RuntimeAbiSymbolV1::CallbackFailure.logical_symbol(),
                             managed_ptr_ty(context, self.managed_address_space)
                                 .fn_type(&[ptr_ty(context).into()], false),
                         );
@@ -223,7 +223,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                     scoop_lir::ForeignCallbackOperation::State { out, .. } => {
                         let state = self.gc_leaf_fn(
-                            "scoop_runtime_callback_state",
+                            scoop_lir::RuntimeAbiSymbolV1::CallbackState.logical_symbol(),
                             context.i32_type().fn_type(&[ptr_ty(context).into()], false),
                         );
                         let state = builder
