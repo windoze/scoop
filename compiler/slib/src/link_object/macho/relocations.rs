@@ -44,6 +44,20 @@ pub enum DarwinArm64RelocationShapeV1 {
     },
 }
 
+impl DarwinArm64RelocationShapeV1 {
+    pub const fn width_bytes(self) -> u8 {
+        match self {
+            Self::Unsigned64 { .. } | Self::Subtractor64 { .. } => 8,
+            Self::Branch26 { .. }
+            | Self::Page21 { .. }
+            | Self::PageOffset12 { .. }
+            | Self::GotLoadPage21 { .. }
+            | Self::GotLoadPageOffset12 { .. }
+            | Self::PointerToGot32 { .. } => 4,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ObservedMachORelocationV1 {
     containing_section_ordinal: NonZeroU32,

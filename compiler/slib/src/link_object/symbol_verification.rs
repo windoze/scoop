@@ -589,4 +589,4 @@ impl fmt::Display for StrongObjectDefinitionValidationError {
 impl std::error::Error for StrongObjectDefinitionValidationError {}
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

@@ -191,14 +191,14 @@ fn canonical_value(role: PlannedStrongObjectSymbolRoleV1) -> u64 {
     }
 }
 
-struct Fixture {
-    plan: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
+pub(in crate::link_object) struct Fixture {
+    pub(in crate::link_object) plan: ObjectDefinitionPlanId,
+    pub(in crate::link_object) atom: ObjectDefinitionAtomId,
     associated_atom: Option<ObjectDefinitionAtomId>,
-    symbols: PlannedMemberStrongObjectSymbolsV1,
+    pub(in crate::link_object) symbols: PlannedMemberStrongObjectSymbolsV1,
 }
 
-fn fixture() -> Fixture {
+pub(in crate::link_object) fn fixture() -> Fixture {
     build_fixture(false)
 }
 
@@ -285,8 +285,8 @@ fn build_fixture(include_associated_atom: bool) -> Fixture {
     }
 }
 
-struct ObjectFixture {
-    bytes: Vec<u8>,
+pub(in crate::link_object) struct ObjectFixture {
+    pub(in crate::link_object) bytes: Vec<u8>,
     section_offset: usize,
     symbol_offset: usize,
     string_offset: usize,
@@ -297,13 +297,23 @@ fn object_for_plan(
     plan: &PlannedMemberStrongObjectSymbolsV1,
     value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
 ) -> ObjectFixture {
+    object_for_plan_with_branch_relocation(plan, value, None)
+}
+
+pub(in crate::link_object) fn object_for_plan_with_branch_relocation(
+    plan: &PlannedMemberStrongObjectSymbolsV1,
+    value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
+    relocation: Option<(u32, PlannedStrongObjectSymbolRoleV1)>,
+) -> ObjectFixture {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
     let dysymtab_size = 80_u32;
     let command_bytes = segment_size + symtab_size + dysymtab_size;
     let section_offset = 32 + command_bytes;
     let section_size = 8_u32;
-    let symbol_offset = section_offset + section_size;
+    let relocation_count = u32::from(relocation.is_some());
+    let relocation_offset = section_offset + section_size;
+    let symbol_offset = relocation_offset + relocation_count * 8;
     let symbol_bytes = u32::try_from(plan.symbols().len() * 16).unwrap();
     let string_offset = symbol_offset + symbol_bytes;
     let mut strings = vec![0];
@@ -343,8 +353,15 @@ fn object_for_plan(
     push_u64(&mut bytes, u64::from(section_size));
     push_u32(&mut bytes, section_offset);
     push_u32(&mut bytes, 3);
-    push_u32(&mut bytes, 0);
-    push_u32(&mut bytes, 0);
+    push_u32(
+        &mut bytes,
+        if relocation.is_some() {
+            relocation_offset
+        } else {
+            0
+        },
+    );
+    push_u32(&mut bytes, relocation_count);
     push_u32(
         &mut bytes,
         macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS,
@@ -371,6 +388,18 @@ fn object_for_plan(
     bytes.extend_from_slice(&[0; 48]);
 
     bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0]);
+    if let Some((offset, target_role)) = relocation {
+        let target = plan
+            .symbols()
+            .iter()
+            .position(|symbol| symbol.role() == target_role)
+            .unwrap() as u32;
+        push_u32(&mut bytes, offset);
+        push_u32(
+            &mut bytes,
+            target | 1 << 24 | 2 << 25 | 1 << 27 | u32::from(macho::ARM64_RELOC_BRANCH26) << 28,
+        );
+    }
     for (symbol, string_index) in plan.symbols().iter().zip(&string_indexes) {
         push_u32(&mut bytes, *string_index);
         bytes.push(macho::N_SECT | macho::N_EXT);

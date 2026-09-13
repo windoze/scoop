@@ -28,6 +28,9 @@ pub use symbol_planning::*;
 mod symbol_verification;
 pub use symbol_verification::*;
 
+mod relocation_verification;
+pub use relocation_verification::*;
+
 mod macho;
 pub use macho::*;
 
