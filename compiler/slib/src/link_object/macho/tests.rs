@@ -10,6 +10,7 @@ fn accepts_the_closed_relocatable_object_envelope() {
     assert_eq!(envelope.load_command_count(), 4);
     assert_eq!(envelope.section_count(), 0);
     assert_eq!(envelope.symbol_count(), 0);
+    assert_eq!(envelope.relocation_count(), 0);
     assert_eq!(
         envelope.deployment(),
         DarwinDeploymentCommandV1::BuildVersion {
@@ -76,6 +77,30 @@ fn rejects_out_of_bounds_tables() {
     );
 }
 
+#[test]
+fn validates_section_relocation_and_symbol_ranges_as_one_layout() {
+    let bytes = object_with_text_section();
+
+    let envelope = validate_darwin_arm64_object_envelope_v1(&bytes).unwrap();
+
+    assert_eq!(envelope.section_count(), 1);
+    assert_eq!(envelope.symbol_count(), 1);
+    assert_eq!(envelope.relocation_count(), 1);
+}
+
+#[test]
+fn rejects_overlapping_physical_tables() {
+    let mut bytes = object_with_text_section();
+    let symtab_offset = 32 + 152;
+    let section_offset = 32 + 152 + 24 + 80 + 24;
+    write_u32(&mut bytes, symtab_offset + 8, section_offset as u32);
+
+    assert_eq!(
+        validate_darwin_arm64_object_envelope_v1(&bytes),
+        Err(ObjectEnvelopeValidationError::OverlappingFileRanges)
+    );
+}
+
 fn object_bytes() -> Vec<u8> {
     let segment_size = 72_u32;
     let symtab_size = 24_u32;
@@ -128,6 +153,86 @@ fn object_bytes() -> Vec<u8> {
     bytes
 }
 
+fn object_with_text_section() -> Vec<u8> {
+    let segment_size = 152_u32;
+    let symtab_size = 24_u32;
+    let dysymtab_size = 80_u32;
+    let deployment_size = 24_u32;
+    let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
+    let section_offset = 32 + command_bytes;
+    let relocation_offset = section_offset + 4;
+    let symbol_offset = relocation_offset + 8;
+    let string_offset = symbol_offset + 16;
+    let mut bytes = Vec::with_capacity(string_offset as usize + 4);
+
+    push_u32(&mut bytes, macho::MH_MAGIC_64);
+    push_u32(&mut bytes, macho::CPU_TYPE_ARM64);
+    push_u32(&mut bytes, macho::CPU_SUBTYPE_ARM64_ALL);
+    push_u32(&mut bytes, macho::MH_OBJECT);
+    push_u32(&mut bytes, 4);
+    push_u32(&mut bytes, command_bytes);
+    push_u32(&mut bytes, macho::MH_SUBSECTIONS_VIA_SYMBOLS);
+    push_u32(&mut bytes, 0);
+
+    push_u32(&mut bytes, macho::LC_SEGMENT_64);
+    push_u32(&mut bytes, segment_size);
+    bytes.extend_from_slice(&[0; 16]);
+    push_u64(&mut bytes, 0);
+    push_u64(&mut bytes, 4);
+    push_u64(&mut bytes, u64::from(section_offset));
+    push_u64(&mut bytes, 4);
+    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, 1);
+    push_u32(&mut bytes, 0);
+
+    push_fixed_name(&mut bytes, b"__text");
+    push_fixed_name(&mut bytes, b"__TEXT");
+    push_u64(&mut bytes, 0);
+    push_u64(&mut bytes, 4);
+    push_u32(&mut bytes, section_offset);
+    push_u32(&mut bytes, 2);
+    push_u32(&mut bytes, relocation_offset);
+    push_u32(&mut bytes, 1);
+    push_u32(
+        &mut bytes,
+        macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS,
+    );
+    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, 0);
+
+    push_u32(&mut bytes, macho::LC_SYMTAB);
+    push_u32(&mut bytes, symtab_size);
+    push_u32(&mut bytes, symbol_offset);
+    push_u32(&mut bytes, 1);
+    push_u32(&mut bytes, string_offset);
+    push_u32(&mut bytes, 4);
+
+    push_u32(&mut bytes, macho::LC_DYSYMTAB);
+    push_u32(&mut bytes, dysymtab_size);
+    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, 0);
+    push_u32(&mut bytes, 1);
+    push_u32(&mut bytes, 1);
+    push_u32(&mut bytes, 0);
+    bytes.extend_from_slice(&[0; 48]);
+
+    push_u32(&mut bytes, macho::LC_BUILD_VERSION);
+    push_u32(&mut bytes, deployment_size);
+    push_u32(&mut bytes, macho::PLATFORM_MACOS);
+    push_u32(&mut bytes, 0x000d_0000);
+    push_u32(&mut bytes, 0x000d_0000);
+    push_u32(&mut bytes, 0);
+
+    bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd]);
+    bytes.extend_from_slice(&[0; 8]);
+    bytes.extend_from_slice(&[0; 16]);
+    bytes.extend_from_slice(b"\0_f\0");
+    bytes
+}
+
 fn push_u32(bytes: &mut Vec<u8>, value: u32) {
     bytes.extend_from_slice(&value.to_le_bytes());
 }
@@ -138,4 +243,10 @@ fn push_u64(bytes: &mut Vec<u8>, value: u64) {
 
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+}
+
+fn push_fixed_name(bytes: &mut Vec<u8>, name: &[u8]) {
+    let mut fixed = [0; 16];
+    fixed[..name.len()].copy_from_slice(name);
+    bytes.extend_from_slice(&fixed);
 }

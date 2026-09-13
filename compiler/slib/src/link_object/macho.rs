@@ -4,10 +4,13 @@ use std::fmt;
 use std::mem;
 
 use object::read::macho::MachHeader as _;
+use object::read::macho::{Section as _, Segment as _};
 use object::{Endianness, macho};
 
 const MAX_LINK_OBJECT_BYTES: u64 = 1_073_741_824;
 const MAX_LOAD_COMMANDS: u32 = 65_536;
+const MAX_OBJECT_TABLE_ENTRIES: u64 = 16_777_216;
+const MAX_OBJECT_STRING_TABLE_BYTES: u64 = 16_777_216;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinDeploymentCommandV1 {
@@ -28,6 +31,7 @@ pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     load_command_count: u32,
     section_count: u32,
     symbol_count: u32,
+    relocation_count: u64,
     deployment: DarwinDeploymentCommandV1,
 }
 
@@ -46,6 +50,10 @@ impl ValidatedDarwinArm64ObjectEnvelopeV1 {
 
     pub const fn symbol_count(self) -> u32 {
         self.symbol_count
+    }
+
+    pub const fn relocation_count(self) -> u64 {
+        self.relocation_count
     }
 
     pub const fn deployment(self) -> DarwinDeploymentCommandV1 {
@@ -107,8 +115,15 @@ pub fn validate_darwin_arm64_object_envelope_v1(
     let mut command_bytes = 0_u32;
     let mut segment = None;
     let mut symtab = None;
-    let mut dysymtab = false;
+    let mut dysymtab = None;
     let mut deployment = None;
+    let mut occupied_ranges = vec![CheckedFileRange::new(
+        0,
+        (mem::size_of::<macho::MachHeader64<Endianness>>() as u64)
+            .checked_add(u64::from(header.sizeofcmds(endian)))
+            .ok_or(ObjectEnvelopeValidationError::MalformedLoadCommands)?,
+    )?];
+    let mut relocation_count = 0_u64;
     while let Some(command) = commands
         .next()
         .map_err(|_| ObjectEnvelopeValidationError::MalformedLoadCommands)?
@@ -128,6 +143,11 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                     .map_err(|_| ObjectEnvelopeValidationError::MalformedSegment)?
                     .ok_or(ObjectEnvelopeValidationError::MalformedSegment)?;
                 let section_count = record.nsects.get(endian);
+                if u64::from(section_count) > MAX_OBJECT_TABLE_ENTRIES {
+                    return Err(ObjectEnvelopeValidationError::TooManySections {
+                        actual: section_count,
+                    });
+                }
                 let expected_section_bytes = usize::try_from(section_count)
                     .ok()
                     .and_then(|count| {
@@ -145,6 +165,20 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                 if file_end > byte_length {
                     return Err(ObjectEnvelopeValidationError::SegmentOutOfBounds);
                 }
+                let sections = record
+                    .sections(endian, section_bytes)
+                    .map_err(|_| ObjectEnvelopeValidationError::MalformedSegment)?;
+                for section in sections {
+                    validate_section(
+                        section,
+                        endian,
+                        record.fileoff.get(endian),
+                        file_end,
+                        byte_length,
+                        &mut relocation_count,
+                        &mut occupied_ranges,
+                    )?;
+                }
                 segment = Some(section_count);
             }
             macho::LC_SYMTAB => {
@@ -157,20 +191,32 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                     .symtab()
                     .map_err(|_| ObjectEnvelopeValidationError::MalformedSymbolTable)?
                     .ok_or(ObjectEnvelopeValidationError::MalformedSymbolTable)?;
-                validate_symbol_table(record, endian, byte_length)?;
+                if command.cmdsize()
+                    != u32::try_from(mem::size_of::<macho::SymtabCommand<Endianness>>())
+                        .expect("Mach-O symbol-table command size fits u32")
+                {
+                    return Err(ObjectEnvelopeValidationError::MalformedSymbolTable);
+                }
+                validate_symbol_table(record, endian, bytes, byte_length, &mut occupied_ranges)?;
                 symtab = Some(record.nsyms.get(endian));
             }
             macho::LC_DYSYMTAB => {
-                if dysymtab {
+                if dysymtab.is_some() {
                     return Err(ObjectEnvelopeValidationError::DuplicateLoadCommand(
                         macho::LC_DYSYMTAB,
                     ));
                 }
-                command
+                let record = command
                     .dysymtab()
                     .map_err(|_| ObjectEnvelopeValidationError::MalformedDynamicSymbolTable)?
                     .ok_or(ObjectEnvelopeValidationError::MalformedDynamicSymbolTable)?;
-                dysymtab = true;
+                if command.cmdsize()
+                    != u32::try_from(mem::size_of::<macho::DysymtabCommand<Endianness>>())
+                        .expect("Mach-O dynamic-symbol-table command size fits u32")
+                {
+                    return Err(ObjectEnvelopeValidationError::MalformedDynamicSymbolTable);
+                }
+                dysymtab = Some(record);
             }
             macho::LC_BUILD_VERSION => {
                 if deployment.is_some() {
@@ -240,16 +286,17 @@ pub fn validate_darwin_arm64_object_envelope_v1(
 
     let section_count = segment.ok_or(ObjectEnvelopeValidationError::MissingSegment)?;
     let symbol_count = symtab.ok_or(ObjectEnvelopeValidationError::MissingSymbolTable)?;
-    if !dysymtab {
-        return Err(ObjectEnvelopeValidationError::MissingDynamicSymbolTable);
-    }
+    let dysymtab = dysymtab.ok_or(ObjectEnvelopeValidationError::MissingDynamicSymbolTable)?;
+    validate_dynamic_symbol_table(dysymtab, endian, symbol_count)?;
     let deployment = deployment.ok_or(ObjectEnvelopeValidationError::MissingDeploymentCommand)?;
+    validate_disjoint_ranges(&mut occupied_ranges)?;
 
     Ok(ValidatedDarwinArm64ObjectEnvelopeV1 {
         byte_length,
         load_command_count: command_count,
         section_count,
         symbol_count,
+        relocation_count,
         deployment,
     })
 }
@@ -257,22 +304,171 @@ pub fn validate_darwin_arm64_object_envelope_v1(
 fn validate_symbol_table(
     record: &macho::SymtabCommand<Endianness>,
     endian: Endianness,
+    bytes: &[u8],
     byte_length: u64,
+    occupied_ranges: &mut Vec<CheckedFileRange>,
 ) -> Result<(), ObjectEnvelopeValidationError> {
-    let symbol_bytes = u64::from(record.nsyms.get(endian))
+    let symbol_count = record.nsyms.get(endian);
+    if u64::from(symbol_count) > MAX_OBJECT_TABLE_ENTRIES {
+        return Err(ObjectEnvelopeValidationError::TooManySymbols {
+            actual: symbol_count,
+        });
+    }
+    let symbol_bytes = u64::from(symbol_count)
         .checked_mul(mem::size_of::<macho::Nlist64<Endianness>>() as u64)
         .ok_or(ObjectEnvelopeValidationError::SymbolTableOutOfBounds)?;
-    let symbol_end = u64::from(record.symoff.get(endian))
-        .checked_add(symbol_bytes)
-        .ok_or(ObjectEnvelopeValidationError::SymbolTableOutOfBounds)?;
-    let string_end = u64::from(record.stroff.get(endian))
-        .checked_add(u64::from(record.strsize.get(endian)))
-        .ok_or(ObjectEnvelopeValidationError::StringTableOutOfBounds)?;
-    if symbol_end > byte_length {
+    let symbol_range = CheckedFileRange::new(u64::from(record.symoff.get(endian)), symbol_bytes)
+        .map_err(|_| ObjectEnvelopeValidationError::SymbolTableOutOfBounds)?;
+    if symbol_range.end > byte_length {
         return Err(ObjectEnvelopeValidationError::SymbolTableOutOfBounds);
     }
-    if string_end > byte_length {
+    let string_size = u64::from(record.strsize.get(endian));
+    if string_size > MAX_OBJECT_STRING_TABLE_BYTES {
+        return Err(ObjectEnvelopeValidationError::StringTableTooLarge {
+            actual: string_size,
+        });
+    }
+    let string_range = CheckedFileRange::new(u64::from(record.stroff.get(endian)), string_size)
+        .map_err(|_| ObjectEnvelopeValidationError::StringTableOutOfBounds)?;
+    if string_range.end > byte_length {
         return Err(ObjectEnvelopeValidationError::StringTableOutOfBounds);
+    }
+    if string_range.is_empty() || bytes.get(string_range.start as usize).copied().unwrap_or(1) != 0
+    {
+        return Err(ObjectEnvelopeValidationError::InvalidStringTable);
+    }
+    occupied_ranges.extend(
+        [symbol_range, string_range]
+            .into_iter()
+            .filter(|range| !range.is_empty()),
+    );
+    Ok(())
+}
+
+fn validate_section(
+    section: &macho::Section64<Endianness>,
+    endian: Endianness,
+    segment_start: u64,
+    segment_end: u64,
+    byte_length: u64,
+    relocation_count: &mut u64,
+    occupied_ranges: &mut Vec<CheckedFileRange>,
+) -> Result<(), ObjectEnvelopeValidationError> {
+    if let Some((offset, size)) = section.file_range(endian) {
+        let range = CheckedFileRange::new(offset, size)
+            .map_err(|_| ObjectEnvelopeValidationError::SectionOutOfBounds)?;
+        if range.end > byte_length || range.start < segment_start || range.end > segment_end {
+            return Err(ObjectEnvelopeValidationError::SectionOutOfBounds);
+        }
+        let alignment_power = section.align.get(endian);
+        if alignment_power >= u64::BITS
+            || (!range.is_empty() && range.start % (1_u64 << alignment_power) != 0)
+        {
+            return Err(ObjectEnvelopeValidationError::InvalidSectionAlignment {
+                power: alignment_power,
+            });
+        }
+        if !range.is_empty() {
+            occupied_ranges.push(range);
+        }
+    } else if section.nreloc.get(endian) != 0 {
+        return Err(ObjectEnvelopeValidationError::ZeroFillSectionHasRelocations);
+    }
+
+    let count = section.nreloc.get(endian);
+    *relocation_count = relocation_count
+        .checked_add(u64::from(count))
+        .ok_or(ObjectEnvelopeValidationError::TooManyRelocations { actual: u64::MAX })?;
+    if *relocation_count > MAX_OBJECT_TABLE_ENTRIES {
+        return Err(ObjectEnvelopeValidationError::TooManyRelocations {
+            actual: *relocation_count,
+        });
+    }
+    let relocation_bytes = u64::from(count)
+        .checked_mul(mem::size_of::<macho::Relocation<Endianness>>() as u64)
+        .ok_or(ObjectEnvelopeValidationError::RelocationTableOutOfBounds)?;
+    let range = CheckedFileRange::new(u64::from(section.reloff.get(endian)), relocation_bytes)
+        .map_err(|_| ObjectEnvelopeValidationError::RelocationTableOutOfBounds)?;
+    if range.end > byte_length {
+        return Err(ObjectEnvelopeValidationError::RelocationTableOutOfBounds);
+    }
+    if !range.is_empty() {
+        occupied_ranges.push(range);
+    }
+    Ok(())
+}
+
+fn validate_dynamic_symbol_table(
+    record: &macho::DysymtabCommand<Endianness>,
+    endian: Endianness,
+    symbol_count: u32,
+) -> Result<(), ObjectEnvelopeValidationError> {
+    let local_end = record
+        .ilocalsym
+        .get(endian)
+        .checked_add(record.nlocalsym.get(endian));
+    let external_end = record
+        .iextdefsym
+        .get(endian)
+        .checked_add(record.nextdefsym.get(endian));
+    let undefined_end = record
+        .iundefsym
+        .get(endian)
+        .checked_add(record.nundefsym.get(endian));
+    if record.ilocalsym.get(endian) != 0
+        || local_end != Some(record.iextdefsym.get(endian))
+        || external_end != Some(record.iundefsym.get(endian))
+        || undefined_end != Some(symbol_count)
+    {
+        return Err(ObjectEnvelopeValidationError::InvalidDynamicSymbolPartition);
+    }
+    if [
+        record.tocoff.get(endian),
+        record.ntoc.get(endian),
+        record.modtaboff.get(endian),
+        record.nmodtab.get(endian),
+        record.extrefsymoff.get(endian),
+        record.nextrefsyms.get(endian),
+        record.indirectsymoff.get(endian),
+        record.nindirectsyms.get(endian),
+        record.extreloff.get(endian),
+        record.nextrel.get(endian),
+        record.locreloff.get(endian),
+        record.nlocrel.get(endian),
+    ]
+    .iter()
+    .any(|value| *value != 0)
+    {
+        return Err(ObjectEnvelopeValidationError::UnexpectedDynamicLinkTable);
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct CheckedFileRange {
+    start: u64,
+    end: u64,
+}
+
+impl CheckedFileRange {
+    fn new(start: u64, size: u64) -> Result<Self, ObjectEnvelopeValidationError> {
+        let end = start
+            .checked_add(size)
+            .ok_or(ObjectEnvelopeValidationError::FileRangeOverflow)?;
+        Ok(Self { start, end })
+    }
+
+    const fn is_empty(self) -> bool {
+        self.start == self.end
+    }
+}
+
+fn validate_disjoint_ranges(
+    ranges: &mut [CheckedFileRange],
+) -> Result<(), ObjectEnvelopeValidationError> {
+    ranges.sort_unstable();
+    if ranges.windows(2).any(|pair| pair[0].end > pair[1].start) {
+        return Err(ObjectEnvelopeValidationError::OverlappingFileRanges);
     }
     Ok(())
 }
@@ -288,6 +484,10 @@ pub enum ObjectEnvelopeValidationError {
     MissingSubsectionsViaSymbols,
     UnsupportedHeaderFlags(u32),
     TooManyLoadCommands { actual: u32 },
+    TooManySections { actual: u32 },
+    TooManySymbols { actual: u32 },
+    TooManyRelocations { actual: u64 },
+    StringTableTooLarge { actual: u64 },
     MalformedLoadCommands,
     LoadCommandSizeMismatch { expected: u32, actual: u32 },
     DuplicateLoadCommand(u32),
@@ -295,17 +495,26 @@ pub enum ObjectEnvelopeValidationError {
     EmbeddedLinkerOption,
     MalformedSegment,
     SegmentOutOfBounds,
+    SectionOutOfBounds,
+    InvalidSectionAlignment { power: u32 },
+    ZeroFillSectionHasRelocations,
+    RelocationTableOutOfBounds,
     MissingSegment,
     MalformedSymbolTable,
     SymbolTableOutOfBounds,
     StringTableOutOfBounds,
+    InvalidStringTable,
     MissingSymbolTable,
     MalformedDynamicSymbolTable,
+    InvalidDynamicSymbolPartition,
+    UnexpectedDynamicLinkTable,
     MissingDynamicSymbolTable,
     DuplicateDeploymentCommand,
     MalformedDeploymentCommand,
     WrongDeploymentPlatform(u32),
     MissingDeploymentCommand,
+    FileRangeOverflow,
+    OverlappingFileRanges,
 }
 
 impl fmt::Display for ObjectEnvelopeValidationError {
