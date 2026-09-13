@@ -37,6 +37,9 @@ pub use stackmap_normalization::*;
 mod safepoint_registrations;
 pub use safepoint_registrations::*;
 
+mod callable_registrations;
+pub use callable_registrations::*;
+
 mod generated_bridge_semantics;
 pub use generated_bridge_semantics::*;
 

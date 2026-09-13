@@ -16,11 +16,11 @@ use scoop_lir::{
     ManagedPollSite, ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
     NativeGlobalBridges, OdrFreeLirFoundation, RefScan, RuntimeTypeMappingRecord,
     SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
-    SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanSetV1,
-    StrongSafepointSemanticPlanSetV1, StructDefs, Terminator, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VtableRecord,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StrongCallableRegistrationPlanSetV1,
+    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
+    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan,
+    VoidCallSignature, VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
@@ -31,14 +31,21 @@ pub(crate) struct SemanticInputs {
     pub(crate) definitions: Vec<ObjectDefinitionPlanId>,
     pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
+    pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) safepoint_ids: Vec<u64>,
 }
 
 pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
     let (module, body, safepoints) = semantic_module();
     let semantics = StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
-    let (foundation, registrations) = foundation(&body, &safepoints, corruption);
-    let digest_plan = digest_plan(&foundation, &registrations);
+    let (foundation, registrations, callable_registration) =
+        foundation(&body, &safepoints, corruption);
+    let digest_plan = digest_plan(
+        &foundation,
+        body.id(),
+        &registrations,
+        &callable_registration,
+    );
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let registration_plan = StrongSafepointRegistrationPlanSetV1::new(
@@ -48,7 +55,10 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         &digest_plan,
     )
     .unwrap();
+    let callable_registration_plan =
+        StrongCallableRegistrationPlanSetV1::new(&foundation, &identities, &digest_plan).unwrap();
     let definitions = std::iter::once(definition_plan(body.id()))
+        .chain(std::iter::once(callable_registration.plan.id()))
         .chain(
             registrations
                 .iter()
@@ -65,6 +75,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         definitions,
         digest_plan,
         registration_plan,
+        callable_registration_plan,
         safepoint_ids,
     }
 }
@@ -149,7 +160,11 @@ fn foundation(
     body: &CallableBodyIdentity,
     safepoints: &[SafepointIdentity],
     corruption: Corruption,
-) -> (OdrFreeLirFoundation, Vec<RegistrationArtifacts>) {
+) -> (
+    OdrFreeLirFoundation,
+    Vec<RegistrationArtifacts>,
+    CallableRegistrationArtifacts,
+) {
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
             ConeIdentity::SINGLE_FILE,
@@ -179,6 +194,7 @@ fn foundation(
         .iter()
         .map(|safepoint| registration_artifacts(safepoint.site_id()))
         .collect::<Vec<_>>();
+    let callable_registration = callable_registration_artifacts(body.id());
     let mut canonical = CanonicalLirFoundation::empty();
     canonical
         .set_callable_bodies(vec![body.identity_record().clone()])
@@ -202,6 +218,7 @@ fn foundation(
     canonical
         .set_definition_plans(
             std::iter::once(definition)
+                .chain(std::iter::once(callable_registration.plan.clone()))
                 .chain(
                     registrations
                         .iter()
@@ -214,6 +231,7 @@ fn foundation(
         .set_definition_atoms(
             [primary, stackmap]
                 .into_iter()
+                .chain(std::iter::once(callable_registration.primary.clone()))
                 .chain(
                     registrations
                         .iter()
@@ -225,6 +243,7 @@ fn foundation(
     canonical.set_symbol_requests(
         PersistentSymbolRequestTable::new(
             std::iter::once(body.symbol_request())
+                .chain(std::iter::once(callable_registration.symbol))
                 .chain(registrations.iter().map(|registration| registration.symbol))
                 .collect(),
         )
@@ -233,6 +252,7 @@ fn foundation(
     (
         OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
         registrations,
+        callable_registration,
     )
 }
 
@@ -241,6 +261,42 @@ struct RegistrationArtifacts {
     plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     symbol: PersistentSymbolRequest,
+}
+
+struct CallableRegistrationArtifacts {
+    plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    symbol: PersistentSymbolRequest,
+}
+
+fn callable_registration_artifacts(
+    body: scoop_identity::PersistentCallableBodyId,
+) -> CallableRegistrationArtifacts {
+    let plan = CborIdentityRecord::from_key(
+        ObjectDefinitionPlanKey::strong(
+            ConeIdentity::SINGLE_FILE,
+            StrongDefinitionEntity::callable_body(body),
+            StrongDefinitionRole::CallableRegistration,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let primary = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+        plan.id(),
+        DefinitionAtomRole::Primary,
+        DefinitionAtomSubkey::Singleton,
+    ))
+    .unwrap();
+    let symbol = PersistentSymbolRequest::new(
+        PersistentSymbolKey::CallableRegistration(body),
+        LinkageClass::ConeStrong,
+    )
+    .unwrap();
+    CallableRegistrationArtifacts {
+        plan,
+        primary,
+        symbol,
+    }
 }
 
 fn registration_artifacts(site: PersistentSafepointSiteId) -> RegistrationArtifacts {
@@ -274,10 +330,56 @@ fn registration_artifacts(site: PersistentSafepointSiteId) -> RegistrationArtifa
 
 fn digest_plan(
     foundation: &OdrFreeLirFoundation,
+    body: scoop_identity::PersistentCallableBodyId,
     registrations: &[RegistrationArtifacts],
+    callable_registration: &CallableRegistrationArtifacts,
 ) -> StrongDigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
+    let body_definition = definition_plan(body);
+    let body_primary = ObjectDefinitionAtomId::from_key(&ObjectDefinitionAtomKey::new(
+        body_definition,
+        DefinitionAtomRole::Primary,
+        DefinitionAtomSubkey::Singleton,
+    ))
+    .unwrap();
+    let body_key = DigestNodeKey::object_definition(body_primary);
+    let body_source = DigestNodeId::from_key(&body_key).unwrap();
+    let body_node = DigestNodeV1::new(
+        body_key,
+        Vec::new(),
+        vec![DigestPatchIntentKey::new(
+            body_source,
+            callable_registration.plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::CallableBodyDefinition,
+        )],
+    )
+    .unwrap();
+    let callable_object = DigestNodeV1::new(
+        DigestNodeKey::object_definition(callable_registration.primary.id()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let callable_key = DigestNodeKey::strong_registration(callable_registration.plan.id());
+    let callable_source = DigestNodeId::from_key(&callable_key).unwrap();
+    let callable_fingerprint = DigestNodeV1::new(
+        callable_key,
+        vec![
+            DigestInputRefV1::from_node(&body_node),
+            DigestInputRefV1::from_node(&callable_object),
+        ],
+        vec![DigestPatchIntentKey::new(
+            callable_source,
+            callable_registration.plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::RegistrationDefinition,
+        )],
+    )
+    .unwrap();
+    image_inputs.push(DigestInputRefV1::from_node(&callable_fingerprint));
+    nodes.extend([body_node, callable_object, callable_fingerprint]);
     for registration in registrations {
         let object = DigestNodeV1::new(
             DigestNodeKey::object_definition(registration.primary.id()),

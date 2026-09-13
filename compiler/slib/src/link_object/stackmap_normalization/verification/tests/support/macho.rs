@@ -2,7 +2,10 @@ use object::macho;
 use scoop_identity::{
     DefinitionAtomRole, DigestPatchIntentId, ObjectDefinitionPlanId, StrongDefinitionRole,
 };
-use scoop_lir::{StrongSafepointRegistrationPlanSetV1, StrongSafepointRegistrationPlanV1};
+use scoop_lir::{
+    StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointRegistrationPlanV1,
+};
 
 use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1};
 
@@ -10,7 +13,8 @@ use super::Corruption;
 
 const TEXT_SIZE: u64 = 16;
 const STACK_SIZE: u64 = 64;
-const REGISTRATION_SIZE: u64 = 232;
+const SAFEPOINT_REGISTRATION_SIZE: u64 = 232;
+const CALLABLE_REGISTRATION_SIZE: u64 = 192;
 
 pub(crate) struct ObjectFixture {
     pub(crate) bytes: Vec<u8>,
@@ -21,6 +25,7 @@ pub(crate) fn object_bytes(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     safepoints: &[u64],
     registrations: &StrongSafepointRegistrationPlanSetV1,
+    callable_registrations: &StrongCallableRegistrationPlanSetV1,
     corruption: Corruption,
 ) -> ObjectFixture {
     let mut record_ids = [safepoints[1], safepoints[0]];
@@ -35,10 +40,19 @@ pub(crate) fn object_bytes(
         | Corruption::UnknownSafepoint
         | Corruption::WrongStackmapAtomRole
         | Corruption::RegistrationMagic
+        | Corruption::CallableRegistrationMagic
+        | Corruption::CallableEntryRelocationTarget
         | Corruption::WritableRegistrationSection
         | Corruption::RelocatedRegistration => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
     };
-    macho_object(symbols, &text, &stackmap, registrations, corruption)
+    macho_object(
+        symbols,
+        &text,
+        &stackmap,
+        registrations,
+        callable_registrations,
+        corruption,
+    )
 }
 
 fn stackmap_blob(record_ids: &[u64; 2]) -> Vec<u8> {
@@ -78,6 +92,7 @@ fn macho_object(
     instructions: &[u32; 4],
     stackmap: &[u8],
     registrations: &StrongSafepointRegistrationPlanSetV1,
+    callable_registrations: &StrongCallableRegistrationPlanSetV1,
     corruption: Corruption,
 ) -> ObjectFixture {
     let segment_size = 72_u32 + 3 * 80;
@@ -87,12 +102,15 @@ fn macho_object(
     let stackmap_size = u32::try_from(stackmap.len()).unwrap();
     let registration_offset = stackmap_offset + stackmap_size;
     let registration_size = u32::try_from(
-        registrations.registrations().len() * usize::try_from(REGISTRATION_SIZE).unwrap(),
+        registrations.registrations().len() * usize::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap()
+            + callable_registrations.registrations().len()
+                * usize::try_from(CALLABLE_REGISTRATION_SIZE).unwrap(),
     )
     .unwrap();
     let relocation_offset = registration_offset + registration_size;
-    let registration_relocation_count =
-        u32::from(matches!(corruption, Corruption::RelocatedRegistration));
+    let registration_relocation_count = u32::try_from(callable_registrations.registrations().len())
+        .unwrap()
+        + u32::from(matches!(corruption, Corruption::RelocatedRegistration));
     let symbol_offset = relocation_offset + 8 * (1 + registration_relocation_count);
     let symbol_bytes = u32::try_from(symbols.symbols().len() * 16).unwrap();
     let string_offset = symbol_offset + symbol_bytes;
@@ -179,8 +197,17 @@ fn macho_object(
     for registration in registrations.registrations() {
         push_registration(&mut bytes, *registration);
     }
+    for registration in callable_registrations.registrations() {
+        push_callable_registration(&mut bytes, *registration);
+    }
     if matches!(corruption, Corruption::RegistrationMagic) {
         bytes[usize::try_from(registration_offset).unwrap()] ^= 1;
+    }
+    if matches!(corruption, Corruption::CallableRegistrationMagic) {
+        let offset = u64::from(registration_offset)
+            + u64::try_from(registrations.registrations().len()).unwrap()
+                * SAFEPOINT_REGISTRATION_SIZE;
+        bytes[usize::try_from(offset).unwrap()] ^= 1;
     }
     let target = symbols
         .symbols()
@@ -201,14 +228,50 @@ fn macho_object(
         u32::try_from(target).unwrap() | 3 << 25 | 1 << 27,
     );
     if registration_relocation_count != 0 {
-        push_u32(&mut bytes, 56);
-        push_u32(
-            &mut bytes,
-            u32::try_from(target).unwrap() | 3 << 25 | 1 << 27,
-        );
+        if matches!(corruption, Corruption::RelocatedRegistration) {
+            push_u32(&mut bytes, 56);
+            push_u32(
+                &mut bytes,
+                u32::try_from(target).unwrap() | 3 << 25 | 1 << 27,
+            );
+        }
+        for (index, _) in callable_registrations.registrations().iter().enumerate() {
+            let safepoint_bytes = u32::try_from(registrations.registrations().len()).unwrap()
+                * u32::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap();
+            let callable_bytes =
+                u32::try_from(index).unwrap() * u32::try_from(CALLABLE_REGISTRATION_SIZE).unwrap();
+            push_u32(&mut bytes, safepoint_bytes + callable_bytes + 184);
+            let relocation_target =
+                if matches!(corruption, Corruption::CallableEntryRelocationTarget) {
+                    symbols
+                        .symbols()
+                        .iter()
+                        .position(|symbol| {
+                            matches!(
+                                symbol.role(),
+                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                    definition_role: StrongDefinitionRole::CallableRegistration,
+                                    ..
+                                }
+                            )
+                        })
+                        .unwrap()
+                } else {
+                    target
+                };
+            push_u32(
+                &mut bytes,
+                u32::try_from(relocation_target).unwrap() | 3 << 25 | 1 << 27,
+            );
+        }
     }
     for (symbol, string_index) in symbols.symbols().iter().zip(string_indexes) {
-        let (section, value) = symbol_location(symbol.role(), stackmap.len(), registrations);
+        let (section, value) = symbol_location(
+            symbol.role(),
+            stackmap.len(),
+            registrations,
+            callable_registrations,
+        );
         push_u32(&mut bytes, string_index);
         bytes.push(macho::N_SECT | macho::N_EXT);
         bytes.push(section);
@@ -221,14 +284,30 @@ fn macho_object(
         .iter()
         .enumerate()
         .flat_map(|(index, registration)| {
-            let record =
-                u64::from(registration_offset) + u64::try_from(index).unwrap() * REGISTRATION_SIZE;
+            let record = u64::from(registration_offset)
+                + u64::try_from(index).unwrap() * SAFEPOINT_REGISTRATION_SIZE;
             [
                 (registration.registration_definition_patch(), record + 120),
                 (registration.normalized_stackmap_patch(), record + 200),
             ]
         })
         .collect::<Vec<_>>();
+    let callable_base = u64::from(registration_offset)
+        + u64::try_from(registrations.registrations().len()).unwrap() * SAFEPOINT_REGISTRATION_SIZE;
+    patch_offsets.extend(
+        callable_registrations
+            .registrations()
+            .iter()
+            .enumerate()
+            .flat_map(|(index, registration)| {
+                let record =
+                    callable_base + u64::try_from(index).unwrap() * CALLABLE_REGISTRATION_SIZE;
+                [
+                    (registration.registration_definition_patch(), record + 120),
+                    (registration.body_definition_patch(), record + 152),
+                ]
+            }),
+    );
     patch_offsets.sort_unstable_by_key(|(intent, _)| *intent);
     ObjectFixture {
         bytes,
@@ -330,6 +409,7 @@ fn symbol_location(
     role: PlannedStrongObjectSymbolRoleV1,
     stackmap_size: usize,
     registrations: &StrongSafepointRegistrationPlanSetV1,
+    callable_registrations: &StrongCallableRegistrationPlanSetV1,
 ) -> (u8, u64) {
     match role {
         PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
@@ -340,12 +420,16 @@ fn symbol_location(
             atom_role: DefinitionAtomRole::Primary,
             definition,
             ..
-        } if !is_registration_definition(definition, registrations) => (1, 0),
+        } if !is_registration_definition(definition, registrations, callable_registrations) => {
+            (1, 0)
+        }
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
             atom_role: DefinitionAtomRole::Primary,
             definition,
             ..
-        } if !is_registration_definition(definition, registrations) => (1, TEXT_SIZE),
+        } if !is_registration_definition(definition, registrations, callable_registrations) => {
+            (1, TEXT_SIZE)
+        }
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
             atom_role: DefinitionAtomRole::Stackmap | DefinitionAtomRole::AddressTakenConstant,
             ..
@@ -363,7 +447,7 @@ fn symbol_location(
             definition,
             atom_role: DefinitionAtomRole::Primary,
             ..
-        } => (
+        } if is_safepoint_registration_definition(definition, registrations) => (
             3,
             registration_start(definition, stackmap_size, registrations),
         ),
@@ -371,9 +455,41 @@ fn symbol_location(
             definition,
             atom_role: DefinitionAtomRole::Primary,
             ..
-        } => (
+        } if is_safepoint_registration_definition(definition, registrations) => (
             3,
-            registration_start(definition, stackmap_size, registrations) + REGISTRATION_SIZE,
+            registration_start(definition, stackmap_size, registrations)
+                + SAFEPOINT_REGISTRATION_SIZE,
+        ),
+        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+            definition_role: StrongDefinitionRole::CallableRegistration,
+            definition,
+            ..
+        }
+        | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_callable_registration_definition(definition, callable_registrations) => (
+            3,
+            callable_registration_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+            ),
+        ),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_callable_registration_definition(definition, callable_registrations) => (
+            3,
+            callable_registration_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+            ) + CALLABLE_REGISTRATION_SIZE,
         ),
         _ => unreachable!("fixture has only primary and stackmap atoms"),
     }
@@ -382,6 +498,25 @@ fn symbol_location(
 fn is_registration_definition(
     definition: ObjectDefinitionPlanId,
     registrations: &StrongSafepointRegistrationPlanSetV1,
+    callable_registrations: &StrongCallableRegistrationPlanSetV1,
+) -> bool {
+    is_safepoint_registration_definition(definition, registrations)
+        || is_callable_registration_definition(definition, callable_registrations)
+}
+
+fn is_safepoint_registration_definition(
+    definition: ObjectDefinitionPlanId,
+    registrations: &StrongSafepointRegistrationPlanSetV1,
+) -> bool {
+    registrations
+        .registrations()
+        .iter()
+        .any(|registration| registration.definition_plan() == definition)
+}
+
+fn is_callable_registration_definition(
+    definition: ObjectDefinitionPlanId,
+    registrations: &StrongCallableRegistrationPlanSetV1,
 ) -> bool {
     registrations
         .registrations()
@@ -401,13 +536,30 @@ fn registration_start(
         .unwrap();
     TEXT_SIZE
         + u64::try_from(stackmap_size).unwrap()
-        + u64::try_from(index).unwrap() * REGISTRATION_SIZE
+        + u64::try_from(index).unwrap() * SAFEPOINT_REGISTRATION_SIZE
+}
+
+fn callable_registration_start(
+    definition: ObjectDefinitionPlanId,
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    registrations: &StrongCallableRegistrationPlanSetV1,
+) -> u64 {
+    let index = registrations
+        .registrations()
+        .iter()
+        .position(|registration| registration.definition_plan() == definition)
+        .unwrap();
+    TEXT_SIZE
+        + u64::try_from(stackmap_size).unwrap()
+        + u64::try_from(safepoints.registrations().len()).unwrap() * SAFEPOINT_REGISTRATION_SIZE
+        + u64::try_from(index).unwrap() * CALLABLE_REGISTRATION_SIZE
 }
 
 fn push_registration(bytes: &mut Vec<u8>, registration: StrongSafepointRegistrationPlanV1) {
     push_u64(bytes, 0x5343_4f4f_5053_5054);
     push_u32(bytes, 1);
-    push_u32(bytes, u32::try_from(REGISTRATION_SIZE).unwrap());
+    push_u32(bytes, u32::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
     bytes.extend_from_slice(registration.site().as_array());
@@ -419,6 +571,20 @@ fn push_registration(bytes: &mut Vec<u8>, registration: StrongSafepointRegistrat
     push_u32(bytes, registration.root_pair_count());
     bytes.extend_from_slice(registration.owner().as_array());
     bytes.extend_from_slice(&[0; 32]);
+}
+
+fn push_callable_registration(bytes: &mut Vec<u8>, registration: StrongCallableRegistrationPlanV1) {
+    push_u64(bytes, 0x5343_4f4f_5043_414c);
+    push_u32(bytes, 1);
+    push_u32(bytes, u32::try_from(CALLABLE_REGISTRATION_SIZE).unwrap());
+    push_u32(bytes, 1);
+    push_u32(bytes, 0);
+    bytes.extend_from_slice(registration.body().as_array());
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
+    push_u64(bytes, 0);
 }
 
 fn align_zero(bytes: &mut Vec<u8>, alignment: usize) {

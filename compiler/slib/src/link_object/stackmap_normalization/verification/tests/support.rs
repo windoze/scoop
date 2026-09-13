@@ -2,8 +2,8 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, GeneratedBridgePlanSetV1,
-    LirTargetProfile, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
-    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
+    LirTargetProfile, OdrFreeLirFoundation, StrongCallableRegistrationPlanSetV1,
+    StrongDigestFinalizationPlanV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
     StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
 };
 
@@ -28,6 +28,8 @@ pub(crate) enum Corruption {
     NonCallReturnPc,
     MissingFrameChain,
     RegistrationMagic,
+    CallableRegistrationMagic,
+    CallableEntryRelocationTarget,
     WritableRegistrationSection,
     RelocatedRegistration,
 }
@@ -38,6 +40,7 @@ pub(crate) struct Fixture {
     pub(crate) foundation: OdrFreeLirFoundation,
     pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
+    pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
     pub(crate) member: SlibMemberId,
     pub(crate) object_bytes: Vec<u8>,
@@ -71,6 +74,7 @@ impl Fixture {
             symbol_plan.member(member).unwrap(),
             &inputs.safepoint_ids,
             &inputs.registration_plan,
+            &inputs.callable_registration_plan,
             corruption,
         );
         let profile = c_bridge_profile();
@@ -103,6 +107,7 @@ impl Fixture {
             foundation: inputs.foundation,
             digest_plan: inputs.digest_plan,
             registration_plan: inputs.registration_plan,
+            callable_registration_plan: inputs.callable_registration_plan,
             provisional_patch_sites,
             member,
             object_bytes: object.bytes,
