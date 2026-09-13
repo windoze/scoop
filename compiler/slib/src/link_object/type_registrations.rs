@@ -10,6 +10,9 @@ pub(in crate::link_object) mod record;
 mod fingerprints;
 pub use fingerprints::*;
 
+mod registration_fingerprints;
+pub use registration_fingerprints::*;
+
 mod verification;
 pub use verification::*;
 

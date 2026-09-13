@@ -1633,6 +1633,14 @@ relocation target使用通用canonical schema编码为同一exact type的`IntraC
 member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；不保留按物理target
 索引或登记专用target格式计算的旧路径。
 
+type的StrongRegistration只能经`compute_strong_type_fingerprints_v1`消费registration object proof以及由
+专用计算器产生、绑定同一exact type/node的descriptor ObjectDefinition与Layout typed proof。canonical
+record依次编码record kind 4、Strong linkage、exact-type semantic id、三个零own/ODR digest、runtime type
+id、`TypeDescriptorAtom` role tag 6与同一exact type、descriptor fingerprint、layout fingerprint；最后编码
+registration object、descriptor ObjectDefinition和Layout三个按`(kind, node id)`排序的direct input。公共
+入口不接受裸digest、裸node或调用方拼装的direct-input数组；proof coverage、exact type及三个node任一不一致
+均在hash前失败。
+
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack
