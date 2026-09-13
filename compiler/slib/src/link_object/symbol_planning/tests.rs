@@ -30,15 +30,24 @@ fn assigns_primary_and_boundaries_to_the_definition_member() {
 
     let expected = [
         (
-            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition(fixture.plan),
+            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                definition: fixture.plan,
+                primary_atom: fixture.atom,
+            },
             PersistentSymbolKey::CallableBody(fixture.body),
         ),
         (
-            PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart(fixture.atom),
+            PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+                definition: fixture.plan,
+                atom: fixture.atom,
+            },
             PersistentSymbolKey::DefinitionBoundaryStart(fixture.atom),
         ),
         (
-            PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd(fixture.atom),
+            PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+                definition: fixture.plan,
+                atom: fixture.atom,
+            },
             PersistentSymbolKey::DefinitionBoundaryEnd(fixture.atom),
         ),
     ];

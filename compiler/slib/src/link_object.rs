@@ -25,6 +25,9 @@ pub use planning::*;
 mod symbol_planning;
 pub use symbol_planning::*;
 
+mod symbol_verification;
+pub use symbol_verification::*;
+
 mod macho;
 pub use macho::*;
 

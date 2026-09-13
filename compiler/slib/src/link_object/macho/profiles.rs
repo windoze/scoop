@@ -18,6 +18,10 @@ impl ValidatedScoopLirObjectEnvelopeV1 {
     pub const fn sections(&self) -> &ValidatedBuiltinObjectSectionInventoryV1 {
         &self.sections
     }
+
+    pub fn into_sections(self) -> ValidatedBuiltinObjectSectionInventoryV1 {
+        self.sections
+    }
 }
 
 pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(

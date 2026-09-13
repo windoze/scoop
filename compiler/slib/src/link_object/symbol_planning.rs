@@ -11,9 +11,18 @@ use crate::SlibMemberId;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PlannedStrongObjectSymbolRoleV1 {
-    PrimaryDefinition(ObjectDefinitionPlanId),
-    AtomBoundaryStart(ObjectDefinitionAtomId),
-    AtomBoundaryEnd(ObjectDefinitionAtomId),
+    PrimaryDefinition {
+        definition: ObjectDefinitionPlanId,
+        primary_atom: ObjectDefinitionAtomId,
+    },
+    AtomBoundaryStart {
+        definition: ObjectDefinitionPlanId,
+        atom: ObjectDefinitionAtomId,
+    },
+    AtomBoundaryEnd {
+        definition: ObjectDefinitionPlanId,
+        atom: ObjectDefinitionAtomId,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -94,7 +103,10 @@ impl PlannedStrongObjectSymbolSetV1 {
             insert_symbol(
                 &mut by_member,
                 member,
-                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition(plan.definition_plan()),
+                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                    definition: plan.definition_plan(),
+                    primary_atom: plan.primary_atom(),
+                },
                 plan.primary_symbol(),
                 normalization,
             )?;
@@ -102,14 +114,20 @@ impl PlannedStrongObjectSymbolSetV1 {
                 insert_symbol(
                     &mut by_member,
                     member,
-                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart(boundary.atom()),
+                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+                        definition: plan.definition_plan(),
+                        atom: boundary.atom(),
+                    },
                     boundary.start(),
                     normalization,
                 )?;
                 insert_symbol(
                     &mut by_member,
                     member,
-                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd(boundary.atom()),
+                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+                        definition: plan.definition_plan(),
+                        atom: boundary.atom(),
+                    },
                     boundary.end(),
                     normalization,
                 )?;
@@ -178,28 +196,24 @@ fn insert_symbol(
         request,
         macho_name: macho_name.clone(),
     };
-    if let Some(first) = by_member
+    if by_member
         .entry(member)
         .or_default()
-        .insert(macho_name, symbol)
+        .insert(macho_name.clone(), symbol)
+        .is_some()
     {
-        return Err(StrongObjectSymbolPlanningError::DuplicateMachOSymbol {
-            member,
-            first: first.role,
-            second: role,
-        });
+        return Err(StrongObjectSymbolPlanningError::DuplicateMachOSymbol { member, macho_name });
     }
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongObjectSymbolPlanningError {
     MissingMemberAssignment(ObjectDefinitionPlanId),
     MissingSymbolPlan(ObjectDefinitionPlanId),
     DuplicateMachOSymbol {
         member: SlibMemberId,
-        first: PlannedStrongObjectSymbolRoleV1,
-        second: PlannedStrongObjectSymbolRoleV1,
+        macho_name: Vec<u8>,
     },
     EmptyMember(SlibMemberId),
     MemberCoverageMismatch {
