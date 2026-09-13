@@ -116,6 +116,43 @@ fn generated_entry_header_exposes_the_compiler_runtime_abi() {
 }
 
 #[test]
+fn runtime_metadata_v1_header_has_the_frozen_layout() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let binary = std::env::temp_dir().join(format!(
+        "scoop_runtime_metadata_v1_layout_test_{}",
+        std::process::id()
+    ));
+    let compile = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror"])
+        .arg("-I")
+        .arg(workspace.join("runtime/include"))
+        .arg(workspace.join("runtime/tests/runtime_metadata_v1_layout_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .output()
+        .expect("compile runtime metadata v1 layout test");
+    assert!(
+        compile.status.success(),
+        "runtime metadata v1 header must match the frozen C ABI:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+
+    let output = std::process::Command::new(&binary)
+        .output()
+        .expect("run runtime metadata v1 layout test");
+    std::fs::remove_file(&binary).ok();
+    assert!(
+        output.status.success(),
+        "runtime metadata v1 constants must match the frozen ABI:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn exception_control_flow_entries_stay_runtime_private() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
