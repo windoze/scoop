@@ -1590,6 +1590,26 @@ node必须分别持有写入同一registration Primary的`DescriptorDefinition`�
 node和三个writer intent；缺项、多项、错误representation或额外digest edge均直接失败，不保留从LLVM
 descriptor大小、arena位置或symbol文本反推identity的旁路。
 
+immortal-object registration先由唯一、非wire入口
+`StrongImmortalObjectSemanticPlanSetV1::from_module(module)`从最终LIR一次性收窄语义。本阶段的封闭
+immortal sum只有`StringConst`：每个对象必须使用Managed地址provenance、空root scan和ConeStrong
+`ImmortalObject`符号；object size按当前target对`TypeDescriptor pointer + GC word + UTF-8 byte length +
+exact UTF-8 bytes`做checked tail alignment并受maximum managed object size限制，对齐取metadata pointer与
+64-bit runtime word的最大自然对齐。String type registration只能从`WellKnownTypeDescriptors.string`的typed
+local/core-external descriptor ref取得exact type，不能由显示名、global序号或LLVM initializer反推。结果按
+`PersistentImmortalObjectId`排序并保留原始typed `GlobalId`，重复identity、错provenance/scan/linkage、悬空
+well-known descriptor或size溢出都在codegen前失败。
+
+随后`StrongImmortalObjectRegistrationPlanSetV1::new(foundation, identities, semantics, digests)`要求semantic
+全集与`StrongRegistrationIdentitySurfaceV1.immortal_objects`逐项相等，并为每个对象闭合当前producer的
+`ImmortalObject`/`ImmortalRegistration`两套definition plan、唯一Primary atom、object/registration两个
+ConeStrong符号及typed String type-registration符号；local ref要求当前type-registration表中恰一项，
+core-external ref则禁止当前Cone冒充本地登记。registration Primary的ObjectDefinition固定为无input、
+无patch的leaf；StrongRegistration direct input精确为该registration object leaf与实际immortal object
+Primary的ObjectDefinition，patch集合精确为写入registration Primary的`RegistrationDefinition`一项。完整
+plan保留对象global、size/alignment/type关系、两套definition/atom、三个digest node和writer intent；不开放
+接受裸object id、size、type id、node或symbol文本的第二入口。
+
 codegen唯一经`emit_strong_safepoint_registrations_v1`消费上述完整set，不开放接受裸site或零散字段的
 单record生产入口。每个address-significant全局使用`ConeStrong`外部linkage，按共享header发射magic、
 ABI version 1、size 232、Strong linkage、零reserved/ODR group/ODR member、typed semantic/runtime/owner

@@ -192,6 +192,16 @@ impl OdrFreeLirFoundation {
             .any(|record| record.id() == id)
     }
 
+    pub(crate) fn contains_immortal_object(
+        &self,
+        id: scoop_identity::PersistentImmortalObjectId,
+    ) -> bool {
+        self.canonical
+            .immortal_objects
+            .iter()
+            .any(|record| record.id() == id)
+    }
+
     pub(crate) fn root_entry_failure_roots(&self) -> Vec<PersistentStaticStorageId> {
         self.canonical
             .static_storages

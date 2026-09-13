@@ -42,6 +42,9 @@ pub use callable_registrations::*;
 mod type_registrations;
 pub use type_registrations::*;
 
+mod immortal_registrations;
+pub use immortal_registrations::*;
+
 mod image;
 pub use image::*;
 
