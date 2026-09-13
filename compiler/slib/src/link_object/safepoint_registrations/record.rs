@@ -5,6 +5,9 @@ use super::StrongSafepointRegistrationValidationError;
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
 const ABI_VERSION: u32 = 1;
 const STRONG_LINKAGE: u32 = 1;
+const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
+const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 200;
+const DIGEST_WIDTH: usize = 32;
 pub(super) const DESCRIPTOR_SIZE: usize = 232;
 
 pub(super) fn validate_record_bytes(
@@ -39,7 +42,7 @@ pub(super) fn validate_record_bytes(
     Ok(())
 }
 
-fn expected_record(plan: StrongSafepointRegistrationPlanV1) -> [u8; DESCRIPTOR_SIZE] {
+pub(super) fn expected_record(plan: StrongSafepointRegistrationPlanV1) -> [u8; DESCRIPTOR_SIZE] {
     let mut bytes = [0; DESCRIPTOR_SIZE];
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
@@ -50,6 +53,20 @@ fn expected_record(plan: StrongSafepointRegistrationPlanV1) -> [u8; DESCRIPTOR_S
     write_u32(&mut bytes, 160, plan.role().tag());
     write_u32(&mut bytes, 164, plan.root_pair_count());
     bytes[168..200].copy_from_slice(plan.owner().as_array());
+    bytes
+}
+
+pub(super) fn expected_final_record(
+    plan: StrongSafepointRegistrationPlanV1,
+    registration: &[u8; DIGEST_WIDTH],
+    stackmap: &[u8; DIGEST_WIDTH],
+) -> [u8; DESCRIPTOR_SIZE] {
+    let mut bytes = expected_record(plan);
+    bytes[DEFINITION_FINGERPRINT_OFFSET..DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
+        .copy_from_slice(registration);
+    bytes[NORMALIZED_STACKMAP_FINGERPRINT_OFFSET
+        ..NORMALIZED_STACKMAP_FINGERPRINT_OFFSET + DIGEST_WIDTH]
+        .copy_from_slice(stackmap);
     bytes
 }
 

@@ -9,6 +9,9 @@ mod record;
 mod fingerprints;
 pub use fingerprints::*;
 
+mod finalization;
+pub use finalization::*;
+
 mod verification;
 pub use verification::*;
 

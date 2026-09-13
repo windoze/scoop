@@ -1632,6 +1632,14 @@ StrongRegistration节点、精确direct input与单writer patch集合，防止�
 `StrongRegistrationFingerprintV1`。输出继续拥有输入proof，后续patch writer不能从三份互不关联的
 digest或裸bytes重新拼装写入计划。
 
+`patch_strong_safepoint_fingerprints_v1`是这两个slot的唯一writer入口。它消费上述fingerprint proof与
+再次匹配provisional content digest的完整Scoop object member集合，先复制bytes，再只按proof中的
+`VerifiedMaterializedPatchSiteV1`写入normalized stackmap和registration digest；不暴露接受裸member、
+offset或digest的公共写函数。写后逐record重建最终232-byte ABI并比较，同时把全部已写slot归零后要求
+member长度/content digest精确回到provisional envelope，再重新解析Mach-O并要求section、symbol、
+relocation及deployment形状逐项未变。该输出明确只是safepoint patch的typed中间proof，不冒充完成全部
+digest graph与requirement检查后的`VerifiedLinkObjectMember`。
+
 ### 13.3 registration完备性
 
 - 每个compiler-owned static storage恰一条storage registration；GC-free storage也不能为省事丢descriptor；
