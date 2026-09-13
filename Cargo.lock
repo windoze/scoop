@@ -563,6 +563,7 @@ dependencies = [
  "scoop-mir",
  "scoop-mir-lower",
  "scoop-parser",
+ "scoop-protocol",
  "scoop-slib",
  "scoop-wire",
  "toml",

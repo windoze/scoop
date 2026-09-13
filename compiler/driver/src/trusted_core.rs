@@ -63,13 +63,7 @@ impl TrustedCoreSlot {
         &self.artifact
     }
 
-    pub fn into_bootstrap_parts(
-        self,
-    ) -> (
-        TrustedCoreSourceSlot,
-        TrustedCoreArtifactSlot,
-        CoreBootstrapAuthority,
-    ) {
+    pub fn into_bootstrap_parts(self) -> (TrustedCoreBootstrapInput, TrustedCoreArtifactSlot) {
         let authority = CoreBootstrapAuthority {
             source_root: self.source.manifest.real_root().to_path_buf(),
             artifact_path: self.artifact.path.clone(),
@@ -77,7 +71,13 @@ impl TrustedCoreSlot {
             target: self.artifact.target,
             toolchain_compatibility: self.artifact.toolchain_compatibility,
         };
-        (self.source, self.artifact, authority)
+        (
+            TrustedCoreBootstrapInput {
+                source_slot: self.source,
+                authority,
+            },
+            self.artifact,
+        )
     }
 
     pub fn existing_artifact_input(
@@ -104,6 +104,26 @@ impl TrustedCoreSlot {
             target: self.artifact.target,
             toolchain_compatibility: self.artifact.toolchain_compatibility,
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct TrustedCoreBootstrapInput {
+    source_slot: TrustedCoreSourceSlot,
+    authority: CoreBootstrapAuthority,
+}
+
+impl TrustedCoreBootstrapInput {
+    pub const fn source_slot(&self) -> &TrustedCoreSourceSlot {
+        &self.source_slot
+    }
+
+    pub const fn authority(&self) -> &CoreBootstrapAuthority {
+        &self.authority
+    }
+
+    pub fn into_parts(self) -> (TrustedCoreSourceSlot, CoreBootstrapAuthority) {
+        (self.source_slot, self.authority)
     }
 }
 
@@ -442,7 +462,9 @@ mod tests {
 
         let slot = resolve_trusted_core_slot_at(&sysroot.0, target()).unwrap();
         assert_eq!(slot.artifact().path(), sysroot.artifact_path());
-        let (source, artifact, authority) = slot.into_bootstrap_parts();
+        let (bootstrap, artifact) = slot.into_bootstrap_parts();
+        let source = bootstrap.source_slot();
+        let authority = bootstrap.authority();
         assert_eq!(
             source.manifest().parsed().semantic().coordinate(),
             &ConeCoordinate::reserved_core()

@@ -676,10 +676,16 @@ fn validate_build_shape(
         });
     }
     match (current, trusted_core) {
-        (
-            CurrentConeRequestV1::ManifestRoot { .. } | CurrentConeRequestV1::SingleFile { .. },
-            TrustedCoreRequestV1::ArtifactSlot { .. },
-        ) => Ok(()),
+        (CurrentConeRequestV1::ManifestRoot { .. }, TrustedCoreRequestV1::ArtifactSlot { .. }) => {
+            Ok(())
+        }
+        (CurrentConeRequestV1::SingleFile { .. }, TrustedCoreRequestV1::ArtifactSlot { .. }) => {
+            if direct_slibs.is_empty() && support_slibs.is_empty() {
+                Ok(())
+            } else {
+                Err(ProtocolValidationError::SingleFileHasDependencies)
+            }
+        }
         (CurrentConeRequestV1::TrustedCoreBootstrap, TrustedCoreRequestV1::Bootstrap) => {
             if direct_slibs.is_empty() && support_slibs.is_empty() {
                 Ok(())
@@ -778,6 +784,23 @@ mod tests {
             error,
             ProtocolValidationError::InvalidCurrentCoreCombination
         );
+
+        let error = ScoopcBuildRequestV1::new(
+            CurrentConeRequestV1::SingleFile {
+                source: path("main.scoop"),
+            },
+            vec![path("dependency.slib")],
+            Vec::new(),
+            TrustedCoreRequestV1::ArtifactSlot {
+                artifact: path("core.slib"),
+            },
+            target(),
+            path("main.slib"),
+            DiagnosticOutputPolicyV1::Human,
+            StageDumpPolicyV1::None,
+        )
+        .unwrap_err();
+        assert_eq!(error, ProtocolValidationError::SingleFileHasDependencies);
 
         let input = path("dependency.slib");
         let error = ScoopcBuildRequestV1::new(

@@ -317,7 +317,7 @@ private checked constructor证明所有source identity的Cone相同、logical pa
 SingleConeBuildRequest {
     current: CurrentConeInput,
     dependencies: ExplicitDependencyInputs,
-    trusted_core: TrustedCoreArtifactInput,
+    trusted_core: TrustedCoreInput,
     target: ResolvedTargetProfile,
     output: SlibOutputDestination,
     diagnostics: DiagnosticOutputPolicy,
@@ -331,9 +331,13 @@ CurrentConeInput =
         source_slot: TrustedCoreSourceSlot,
         authority: CoreBootstrapAuthority,
     }
+
+TrustedCoreInput =
+    Artifact(TrustedCoreArtifactInput)
+  | BootstrapSelf { artifact_slot: TrustedCoreArtifactSlot }
 ```
 
-`CoreBootstrapAuthority`没有public字符串/path构造器，只能由当前toolchain的trusted sysroot resolver产生；artifact自报reserved coordinate、目录名叫`scoop.core`或用户传入普通path都不能构造它。
+`CoreBootstrapAuthority`、`TrustedCoreSourceSlot`和`TrustedCoreArtifactSlot`没有public字符串/path构造器，只能由当前toolchain的trusted sysroot resolver成组产生；bootstrap constructor还逐项验证三者的source root、artifact slot、target与toolchain compatibility相等。artifact自报reserved coordinate、目录名叫`scoop.core`或用户传入普通path都不能构造它。普通分支只能携带已经解析到该slot同一regular file的`Artifact`；bootstrap分支只能携带`BootstrapSelf`且输出必须就是成组产生的artifact slot。
 
 完整`ResolvedTargetProfile`由请求入口原子解析，driver只把精确projection下发：HIR不接target；LIR接`lir_target`；Scoop codegen接`lir_target + backend`；generated bridge producer接`lir_target + c_bridge_toolchain`。`runtime_build`与`final_link`在本阶段仅参与请求整体兼容性证明，不传给current-Cone pipeline，也不进入`.slib`，除非某个实际generated bridge section按第11.5节记录C-bridge production contract。
 
@@ -403,7 +407,7 @@ ScoopcResponseEnvelopeV1 =
 wire固定为Wire CBOR v1。request envelope是closed product `1=magic bytes "SCOOPREQ"`, `2=protocol_version 1`, `3=request_id`（16 bytes）, `4=build`；response envelope对应为`1=magic bytes "SCOOPRES"`, `2=protocol_version 1`, `3=response`。`build`字段固定为`1=current`, `2=direct_slibs`, `3=support_slibs`, `4=trusted_core`, `5=target`, `6=out_slib`, `7=diagnostics`, `8=emit`：
 
 - `current`为`ManifestRoot=1 {1=path}`、`SingleFile=2 {1=path}`、`TrustedCoreBootstrap=3`；
-- `trusted_core`为`ArtifactSlot=1 {1=path}`或`Bootstrap=2`，且只有前两种current与前者、bootstrap current与后者的组合合法；bootstrap的direct/support必须都为空；
+- `trusted_core`为`ArtifactSlot=1 {1=path}`或`Bootstrap=2`，且只有前两种current与前者、bootstrap current与后者的组合合法；single-file与bootstrap的direct/support必须都为空；
 - `target`是closed product `1=canonical_triple`，值为1…255 bytes的printable ASCII且不含`/`或`\\`；direct CLI先解析host selection再传显式triple，child不得重新读取host默认值；
 - `diagnostics`为pure tag `Human=1 | Structured=2`；`emit`为`None=1 | Stage=2 {1=kind}`，stage kind按`Ast=1, Hir=2, Mir=3, Lir=4`；
 - host path carrier是`1=encoding, 2=raw bytes`，encoding为`UnixBytes=1 | WindowsWtf16Le=2`；长度为1…16,384 bytes，不允许编码对应平台的NUL，consumer拒绝非本机encoding。它只服务同机child transport，不进入semantic hash。

@@ -48,6 +48,12 @@ impl ManifestRootLocator {
             ))
         }
     }
+
+    pub fn as_path(&self) -> &Path {
+        match self {
+            Self::ConeDirectory(path) | Self::ExactConeManifestFile(path) => path,
+        }
+    }
 }
 
 #[derive(Debug)]

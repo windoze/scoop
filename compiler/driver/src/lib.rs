@@ -10,14 +10,24 @@ use std::path::{Path, PathBuf};
 
 mod inputs;
 mod linking;
+mod request;
 mod trusted_core;
 
 pub use inputs::{load_inputs, render_diagnostics};
 use linking::{LinkRequest, build_runtime, compile_c_bridge, link};
+pub use request::{
+    BuildRequestNormalizationError, CurrentConeInput, CurrentConeOperandError,
+    CurrentConeOperandErrorKind, DiagnosticOutputPolicy, ExplicitDependencyInputs,
+    HostArtifactLocator, SingleConeBuildRequest, SingleConeBuildRequestError,
+    SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreInput,
+    classify_current_cone_operand, normalize_direct_build_request,
+    normalize_protocol_build_request,
+};
 pub use trusted_core::{
     CoreBootstrapAuthority, TrustedCoreArtifactInput, TrustedCoreArtifactInputError,
-    TrustedCoreArtifactSlot, TrustedCoreSlot, TrustedCoreSlotError, TrustedCoreSlotErrorKind,
-    TrustedCoreSlotIoOperation, TrustedCoreSourceSlot, resolve_trusted_core_slot,
+    TrustedCoreArtifactSlot, TrustedCoreBootstrapInput, TrustedCoreSlot, TrustedCoreSlotError,
+    TrustedCoreSlotErrorKind, TrustedCoreSlotIoOperation, TrustedCoreSourceSlot,
+    resolve_trusted_core_slot,
 };
 
 /// Text dumps of every pipeline stage, for golden-dump testing and

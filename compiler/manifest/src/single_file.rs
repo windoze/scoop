@@ -6,6 +6,56 @@ use scoop_identity::SourceIdentity;
 
 use crate::{DiscoveredSource, SourceDisplayLocator};
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SingleFileLocator {
+    display_path: PathBuf,
+    resolved_path: PathBuf,
+}
+
+impl SingleFileLocator {
+    pub fn from_path(path: impl Into<PathBuf>) -> Result<Self, SingleFileInputError> {
+        let path = path.into();
+        if path.extension() != Some(OsStr::new("scoop")) {
+            return Err(SingleFileInputError::new(
+                path,
+                SingleFileInputErrorKind::InvalidExtension,
+            ));
+        }
+
+        let resolved_path = std::fs::canonicalize(&path).map_err(|error| {
+            SingleFileInputError::io(
+                SingleFileInputIoOperation::Canonicalize,
+                path.clone(),
+                error,
+            )
+        })?;
+        if !std::fs::metadata(&resolved_path)
+            .map_err(|error| {
+                SingleFileInputError::io(SingleFileInputIoOperation::Inspect, path.clone(), error)
+            })?
+            .is_file()
+        {
+            return Err(SingleFileInputError::new(
+                path,
+                SingleFileInputErrorKind::NotRegularFile,
+            ));
+        }
+
+        Ok(Self {
+            display_path: path,
+            resolved_path,
+        })
+    }
+
+    pub fn display_path(&self) -> &Path {
+        &self.display_path
+    }
+
+    pub fn resolved_path(&self) -> &Path {
+        &self.resolved_path
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SingleFileInputIoOperation {
     Canonicalize,
@@ -95,66 +145,46 @@ impl std::error::Error for SingleFileInputError {
     }
 }
 
-pub fn load_single_file_source(path: &Path) -> Result<DiscoveredSource, SingleFileInputError> {
-    if path.extension() != Some(OsStr::new("scoop")) {
-        return Err(SingleFileInputError::new(
-            path.to_path_buf(),
-            SingleFileInputErrorKind::InvalidExtension,
-        ));
-    }
-
-    let canonical = std::fs::canonicalize(path).map_err(|error| {
+pub fn load_single_file_source(
+    locator: &SingleFileLocator,
+) -> Result<DiscoveredSource, SingleFileInputError> {
+    let bytes = std::fs::read(locator.resolved_path()).map_err(|error| {
         SingleFileInputError::io(
-            SingleFileInputIoOperation::Canonicalize,
-            path.to_path_buf(),
+            SingleFileInputIoOperation::Read,
+            locator.display_path.clone(),
             error,
         )
     })?;
-    if !std::fs::metadata(&canonical)
-        .map_err(|error| {
-            SingleFileInputError::io(
-                SingleFileInputIoOperation::Inspect,
-                path.to_path_buf(),
-                error,
-            )
-        })?
-        .is_file()
-    {
-        return Err(SingleFileInputError::new(
-            path.to_path_buf(),
-            SingleFileInputErrorKind::NotRegularFile,
-        ));
-    }
-    let bytes = std::fs::read(&canonical).map_err(|error| {
-        SingleFileInputError::io(SingleFileInputIoOperation::Read, path.to_path_buf(), error)
-    })?;
-    let after_read = std::fs::canonicalize(path).map_err(|error| {
+    let after_read = std::fs::canonicalize(locator.display_path()).map_err(|error| {
         SingleFileInputError::io(
             SingleFileInputIoOperation::Canonicalize,
-            path.to_path_buf(),
+            locator.display_path.clone(),
             error,
         )
     })?;
     let after_read_metadata = std::fs::metadata(&after_read).map_err(|error| {
         SingleFileInputError::io(
             SingleFileInputIoOperation::Inspect,
-            path.to_path_buf(),
+            locator.display_path.clone(),
             error,
         )
     })?;
-    if canonical != after_read || !after_read_metadata.is_file() {
+    if locator.resolved_path != after_read || !after_read_metadata.is_file() {
         return Err(SingleFileInputError::new(
-            path.to_path_buf(),
+            locator.display_path.clone(),
             SingleFileInputErrorKind::SourceChangedDuringRead,
         ));
     }
     let source_text = String::from_utf8(bytes).map_err(|_| {
-        SingleFileInputError::new(path.to_path_buf(), SingleFileInputErrorKind::InvalidUtf8)
+        SingleFileInputError::new(
+            locator.display_path.clone(),
+            SingleFileInputErrorKind::InvalidUtf8,
+        )
     })?;
 
     Ok(DiscoveredSource::new(
         SourceIdentity::single_file(),
-        SourceDisplayLocator::new(path.to_path_buf()),
+        SourceDisplayLocator::new(locator.display_path.clone()),
         source_text,
     ))
 }
@@ -193,7 +223,8 @@ mod tests {
         let path = directory.0.join("different.scoop");
         std::fs::write(&path, "fun main() {}\n").unwrap();
 
-        let source = load_single_file_source(&path).unwrap();
+        let locator = SingleFileLocator::from_path(&path).unwrap();
+        let source = load_single_file_source(&locator).unwrap();
         assert_eq!(source.identity(), &SourceIdentity::single_file());
         assert_eq!(source.source_text(), "fun main() {}\n");
         assert_eq!(source.display_locator().as_path(), path);
@@ -206,7 +237,7 @@ mod tests {
         std::fs::write(&path, "fun main() {}\n").unwrap();
 
         assert!(matches!(
-            load_single_file_source(&path).unwrap_err().kind(),
+            SingleFileLocator::from_path(&path).unwrap_err().kind(),
             SingleFileInputErrorKind::InvalidExtension
         ));
     }

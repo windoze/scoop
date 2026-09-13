@@ -24,6 +24,6 @@ pub use semantic::{
     RequestedConeKind, parse_cone_manifest, parse_trusted_core_manifest,
 };
 pub use single_file::{
-    SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation,
+    SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,
     load_single_file_source,
 };
