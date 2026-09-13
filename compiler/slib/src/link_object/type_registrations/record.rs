@@ -48,6 +48,19 @@ pub(super) fn expected_record(plan: StrongTypeRegistrationPlanV1) -> [u8; DESCRI
     bytes
 }
 
+pub(in crate::link_object) fn expected_final_record(
+    plan: StrongTypeRegistrationPlanV1,
+    registration_definition: &[u8; 32],
+    descriptor_definition: &[u8; 32],
+    layout: &[u8; 32],
+) -> [u8; DESCRIPTOR_SIZE] {
+    let mut bytes = expected_record(plan);
+    bytes[120..152].copy_from_slice(registration_definition);
+    bytes[176..208].copy_from_slice(descriptor_definition);
+    bytes[208..240].copy_from_slice(layout);
+    bytes
+}
+
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }

@@ -18,11 +18,11 @@ const TYPE_DESCRIPTOR_ATOM_ROLE: u32 = 6;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongTypeDependencyFingerprintV1 {
-    exact_type: PersistentExactTypeId,
-    descriptor_definition_node: DigestNodeId,
-    descriptor_definition: ObjectDefinitionFingerprintV1,
-    layout_node: DigestNodeId,
-    layout: LayoutFingerprintV1,
+    pub(in crate::link_object) exact_type: PersistentExactTypeId,
+    pub(in crate::link_object) descriptor_definition_node: DigestNodeId,
+    pub(in crate::link_object) descriptor_definition: ObjectDefinitionFingerprintV1,
+    pub(in crate::link_object) layout_node: DigestNodeId,
+    pub(in crate::link_object) layout: LayoutFingerprintV1,
 }
 
 impl VerifiedStrongTypeDependencyFingerprintV1 {
@@ -52,8 +52,9 @@ impl VerifiedStrongTypeDependencyFingerprintV1 {
 /// construct this set.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongTypeDependencyFingerprintSetV1 {
-    registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
-    fingerprints: Vec<VerifiedStrongTypeDependencyFingerprintV1>,
+    pub(in crate::link_object) registration_objects:
+        VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    pub(in crate::link_object) fingerprints: Vec<VerifiedStrongTypeDependencyFingerprintV1>,
 }
 
 impl VerifiedStrongTypeDependencyFingerprintSetV1 {
