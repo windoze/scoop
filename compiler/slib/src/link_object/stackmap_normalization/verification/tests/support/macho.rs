@@ -5,6 +5,7 @@ use scoop_identity::{
 use scoop_lir::{
     StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
     StrongSafepointRegistrationPlanSetV1, StrongSafepointRegistrationPlanV1,
+    StrongTypeRegistrationPlanSetV1, StrongTypeRegistrationPlanV1,
 };
 
 use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1};
@@ -15,6 +16,9 @@ const TEXT_SIZE: u64 = 16;
 const STACK_SIZE: u64 = 64;
 const SAFEPOINT_REGISTRATION_SIZE: u64 = 232;
 const CALLABLE_REGISTRATION_SIZE: u64 = 192;
+const TYPE_DESCRIPTOR_SIZE: u64 = 128;
+const LAYOUT_SIZE: u64 = 8;
+const TYPE_REGISTRATION_SIZE: u64 = 240;
 
 pub(crate) struct ObjectFixture {
     pub(crate) bytes: Vec<u8>,
@@ -26,6 +30,7 @@ pub(crate) fn object_bytes(
     safepoints: &[u64],
     registrations: &StrongSafepointRegistrationPlanSetV1,
     callable_registrations: &StrongCallableRegistrationPlanSetV1,
+    type_registrations: &StrongTypeRegistrationPlanSetV1,
     corruption: Corruption,
 ) -> ObjectFixture {
     let mut record_ids = [safepoints[1], safepoints[0]];
@@ -42,6 +47,8 @@ pub(crate) fn object_bytes(
         | Corruption::RegistrationMagic
         | Corruption::CallableRegistrationMagic
         | Corruption::CallableEntryRelocationTarget
+        | Corruption::TypeRegistrationMagic
+        | Corruption::TypeDescriptorRelocationTarget
         | Corruption::WritableRegistrationSection
         | Corruption::RelocatedRegistration => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
     };
@@ -51,6 +58,7 @@ pub(crate) fn object_bytes(
         &stackmap,
         registrations,
         callable_registrations,
+        type_registrations,
         corruption,
     )
 }
@@ -93,6 +101,7 @@ fn macho_object(
     stackmap: &[u8],
     registrations: &StrongSafepointRegistrationPlanSetV1,
     callable_registrations: &StrongCallableRegistrationPlanSetV1,
+    type_registrations: &StrongTypeRegistrationPlanSetV1,
     corruption: Corruption,
 ) -> ObjectFixture {
     let segment_size = 72_u32 + 3 * 80;
@@ -104,12 +113,16 @@ fn macho_object(
     let registration_size = u32::try_from(
         registrations.registrations().len() * usize::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap()
             + callable_registrations.registrations().len()
-                * usize::try_from(CALLABLE_REGISTRATION_SIZE).unwrap(),
+                * usize::try_from(CALLABLE_REGISTRATION_SIZE).unwrap()
+            + type_registrations.registrations().len()
+                * usize::try_from(TYPE_DESCRIPTOR_SIZE + LAYOUT_SIZE + TYPE_REGISTRATION_SIZE)
+                    .unwrap(),
     )
     .unwrap();
     let relocation_offset = registration_offset + registration_size;
     let registration_relocation_count = u32::try_from(callable_registrations.registrations().len())
         .unwrap()
+        + u32::try_from(type_registrations.registrations().len()).unwrap()
         + u32::from(matches!(corruption, Corruption::RelocatedRegistration));
     let symbol_offset = relocation_offset + 8 * (2 + registration_relocation_count);
     let symbol_bytes = u32::try_from(symbols.symbols().len() * 16).unwrap();
@@ -200,6 +213,14 @@ fn macho_object(
     for registration in callable_registrations.registrations() {
         push_callable_registration(&mut bytes, *registration);
     }
+    bytes.extend(std::iter::repeat_n(
+        0,
+        type_registrations.registrations().len()
+            * usize::try_from(TYPE_DESCRIPTOR_SIZE + LAYOUT_SIZE).unwrap(),
+    ));
+    for registration in type_registrations.registrations() {
+        push_type_registration(&mut bytes, *registration);
+    }
     if matches!(corruption, Corruption::RegistrationMagic) {
         bytes[usize::try_from(registration_offset).unwrap()] ^= 1;
     }
@@ -208,6 +229,19 @@ fn macho_object(
             + u64::try_from(registrations.registrations().len()).unwrap()
                 * SAFEPOINT_REGISTRATION_SIZE;
         bytes[usize::try_from(offset).unwrap()] ^= 1;
+    }
+    if matches!(corruption, Corruption::TypeRegistrationMagic) {
+        let offset = type_registration_base(
+            stackmap.len(),
+            registrations,
+            callable_registrations,
+            type_registrations,
+        );
+        bytes[usize::try_from(
+            u64::from(registration_offset) - TEXT_SIZE - u64::try_from(stackmap.len()).unwrap()
+                + offset,
+        )
+        .unwrap()] ^= 1;
     }
     let target = symbols
         .symbols()
@@ -273,6 +307,57 @@ fn macho_object(
                 u32::try_from(relocation_target).unwrap() | 3 << 25 | 1 << 27,
             );
         }
+        for (index, registration) in type_registrations.registrations().iter().enumerate() {
+            let type_start = type_registration_start(
+                registration.definition_plan(),
+                stackmap.len(),
+                registrations,
+                callable_registrations,
+                type_registrations,
+            );
+            push_u32(
+                &mut bytes,
+                u32::try_from(
+                    type_start - TEXT_SIZE - u64::try_from(stackmap.len()).unwrap() + 168,
+                )
+                .unwrap(),
+            );
+            let descriptor_target =
+                if matches!(corruption, Corruption::TypeDescriptorRelocationTarget) && index == 0 {
+                    symbols
+                        .symbols()
+                        .iter()
+                        .position(|symbol| {
+                            matches!(
+                                symbol.role(),
+                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                    definition_role: StrongDefinitionRole::TypeRegistration,
+                                    ..
+                                }
+                            )
+                        })
+                        .unwrap()
+                } else {
+                    symbols
+                        .symbols()
+                        .iter()
+                        .position(|symbol| {
+                            matches!(
+                                symbol.role(),
+                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                    definition_role: StrongDefinitionRole::TypeDescriptor,
+                                    definition,
+                                    ..
+                                } if definition == registration.descriptor_definition_plan()
+                            )
+                        })
+                        .unwrap()
+                };
+            push_u32(
+                &mut bytes,
+                u32::try_from(descriptor_target).unwrap() | 3 << 25 | 1 << 27,
+            );
+        }
     }
     for (symbol, string_index) in symbols.symbols().iter().zip(string_indexes) {
         let (section, value) = symbol_location(
@@ -280,6 +365,7 @@ fn macho_object(
             stackmap.len(),
             registrations,
             callable_registrations,
+            type_registrations,
         );
         push_u32(&mut bytes, string_index);
         bytes.push(macho::N_SECT | macho::N_EXT);
@@ -314,6 +400,28 @@ fn macho_object(
                 [
                     (registration.registration_definition_patch(), record + 120),
                     (registration.body_definition_patch(), record + 152),
+                ]
+            }),
+    );
+    let type_base =
+        u64::from(registration_offset) - TEXT_SIZE - u64::try_from(stackmap.len()).unwrap()
+            + type_registration_base(
+                stackmap.len(),
+                registrations,
+                callable_registrations,
+                type_registrations,
+            );
+    patch_offsets.extend(
+        type_registrations
+            .registrations()
+            .iter()
+            .enumerate()
+            .flat_map(|(index, registration)| {
+                let record = type_base + u64::try_from(index).unwrap() * TYPE_REGISTRATION_SIZE;
+                [
+                    (registration.registration_definition_patch(), record + 120),
+                    (registration.descriptor_definition_patch(), record + 176),
+                    (registration.layout_fingerprint_patch(), record + 208),
                 ]
             }),
     );
@@ -419,6 +527,7 @@ fn symbol_location(
     stackmap_size: usize,
     registrations: &StrongSafepointRegistrationPlanSetV1,
     callable_registrations: &StrongCallableRegistrationPlanSetV1,
+    type_registrations: &StrongTypeRegistrationPlanSetV1,
 ) -> (u8, u64) {
     match role {
         PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
@@ -429,16 +538,12 @@ fn symbol_location(
             atom_role: DefinitionAtomRole::Primary,
             definition,
             ..
-        } if !is_registration_definition(definition, registrations, callable_registrations) => {
-            (1, 0)
-        }
+        } if is_callable_body_definition(definition, callable_registrations) => (1, 0),
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
             atom_role: DefinitionAtomRole::Primary,
             definition,
             ..
-        } if !is_registration_definition(definition, registrations, callable_registrations) => {
-            (1, TEXT_SIZE)
-        }
+        } if is_callable_body_definition(definition, callable_registrations) => (1, TEXT_SIZE),
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
             atom_role: DefinitionAtomRole::Stackmap | DefinitionAtomRole::AddressTakenConstant,
             ..
@@ -500,17 +605,117 @@ fn symbol_location(
                 callable_registrations,
             ) + CALLABLE_REGISTRATION_SIZE,
         ),
+        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+            definition_role: StrongDefinitionRole::TypeDescriptor,
+            definition,
+            ..
+        }
+        | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_type_descriptor_definition(definition, type_registrations) => (
+            3,
+            type_descriptor_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ),
+        ),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_type_descriptor_definition(definition, type_registrations) => (
+            3,
+            type_descriptor_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ) + TYPE_DESCRIPTOR_SIZE,
+        ),
+        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+            definition_role: StrongDefinitionRole::Layout,
+            definition,
+            ..
+        }
+        | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_layout_definition(definition, type_registrations) => (
+            3,
+            layout_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ),
+        ),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_layout_definition(definition, type_registrations) => (
+            3,
+            layout_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ) + LAYOUT_SIZE,
+        ),
+        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+            definition_role: StrongDefinitionRole::TypeRegistration,
+            definition,
+            ..
+        }
+        | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_type_registration_definition(definition, type_registrations) => (
+            3,
+            type_registration_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ),
+        ),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } if is_type_registration_definition(definition, type_registrations) => (
+            3,
+            type_registration_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ) + TYPE_REGISTRATION_SIZE,
+        ),
         _ => unreachable!("fixture has only primary and stackmap atoms"),
     }
 }
 
-fn is_registration_definition(
+fn is_callable_body_definition(
     definition: ObjectDefinitionPlanId,
-    registrations: &StrongSafepointRegistrationPlanSetV1,
-    callable_registrations: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongCallableRegistrationPlanSetV1,
 ) -> bool {
-    is_safepoint_registration_definition(definition, registrations)
-        || is_callable_registration_definition(definition, callable_registrations)
+    registrations
+        .registrations()
+        .iter()
+        .any(|registration| registration.body_definition_plan() == definition)
 }
 
 fn is_safepoint_registration_definition(
@@ -526,6 +731,36 @@ fn is_safepoint_registration_definition(
 fn is_callable_registration_definition(
     definition: ObjectDefinitionPlanId,
     registrations: &StrongCallableRegistrationPlanSetV1,
+) -> bool {
+    registrations
+        .registrations()
+        .iter()
+        .any(|registration| registration.definition_plan() == definition)
+}
+
+fn is_type_descriptor_definition(
+    definition: ObjectDefinitionPlanId,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> bool {
+    registrations
+        .registrations()
+        .iter()
+        .any(|registration| registration.descriptor_definition_plan() == definition)
+}
+
+fn is_layout_definition(
+    definition: ObjectDefinitionPlanId,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> bool {
+    registrations
+        .registrations()
+        .iter()
+        .any(|registration| registration.layout_definition_plan() == definition)
+}
+
+fn is_type_registration_definition(
+    definition: ObjectDefinitionPlanId,
+    registrations: &StrongTypeRegistrationPlanSetV1,
 ) -> bool {
     registrations
         .registrations()
@@ -565,6 +800,85 @@ fn callable_registration_start(
         + u64::try_from(index).unwrap() * CALLABLE_REGISTRATION_SIZE
 }
 
+fn type_descriptor_base(
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+) -> u64 {
+    TEXT_SIZE
+        + u64::try_from(stackmap_size).unwrap()
+        + u64::try_from(safepoints.registrations().len()).unwrap() * SAFEPOINT_REGISTRATION_SIZE
+        + u64::try_from(callables.registrations().len()).unwrap() * CALLABLE_REGISTRATION_SIZE
+}
+
+fn type_descriptor_start(
+    definition: ObjectDefinitionPlanId,
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
+    let index = registrations
+        .registrations()
+        .iter()
+        .position(|registration| registration.descriptor_definition_plan() == definition)
+        .unwrap();
+    type_descriptor_base(stackmap_size, safepoints, callables)
+        + u64::try_from(index).unwrap() * TYPE_DESCRIPTOR_SIZE
+}
+
+fn layout_base(
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
+    type_descriptor_base(stackmap_size, safepoints, callables)
+        + u64::try_from(registrations.registrations().len()).unwrap() * TYPE_DESCRIPTOR_SIZE
+}
+
+fn layout_start(
+    definition: ObjectDefinitionPlanId,
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
+    let index = registrations
+        .registrations()
+        .iter()
+        .position(|registration| registration.layout_definition_plan() == definition)
+        .unwrap();
+    layout_base(stackmap_size, safepoints, callables, registrations)
+        + u64::try_from(index).unwrap() * LAYOUT_SIZE
+}
+
+fn type_registration_base(
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
+    layout_base(stackmap_size, safepoints, callables, registrations)
+        + u64::try_from(registrations.registrations().len()).unwrap() * LAYOUT_SIZE
+}
+
+fn type_registration_start(
+    definition: ObjectDefinitionPlanId,
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
+    let index = registrations
+        .registrations()
+        .iter()
+        .position(|registration| registration.definition_plan() == definition)
+        .unwrap();
+    type_registration_base(stackmap_size, safepoints, callables, registrations)
+        + u64::try_from(index).unwrap() * TYPE_REGISTRATION_SIZE
+}
+
 fn push_registration(bytes: &mut Vec<u8>, registration: StrongSafepointRegistrationPlanV1) {
     push_u64(bytes, 0x5343_4f4f_5053_5054);
     push_u32(bytes, 1);
@@ -594,6 +908,23 @@ fn push_callable_registration(bytes: &mut Vec<u8>, registration: StrongCallableR
     bytes.extend_from_slice(&[0; 32]);
     bytes.extend_from_slice(&[0; 32]);
     push_u64(bytes, 0);
+}
+
+fn push_type_registration(bytes: &mut Vec<u8>, registration: StrongTypeRegistrationPlanV1) {
+    push_u64(bytes, 0x5343_4f4f_5054_5950);
+    push_u32(bytes, 1);
+    push_u32(bytes, u32::try_from(TYPE_REGISTRATION_SIZE).unwrap());
+    push_u32(bytes, 1);
+    push_u32(bytes, 0);
+    bytes.extend_from_slice(registration.exact_type().as_array());
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
+    push_u64(bytes, registration.runtime_type().get());
+    push_u64(bytes, 0);
+    push_u64(bytes, 0);
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
 }
 
 fn align_zero(bytes: &mut Vec<u8>, alignment: usize) {

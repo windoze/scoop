@@ -1617,6 +1617,13 @@ linkage且address-significant；旧扁平TypeDescriptor、错type、可变定义
 fingerprint均保留恰32-byte零值，返回的三个patch site共同绑定registration definition/Primary atom及各自
 typed intent。已有同type external image-table声明可以补全；错type/linkage、已有initializer或任一预检
 失败时不得留下部分registration定义，不开放接受裸exact type、runtime id、descriptor pointer或offset的入口。
+Link侧唯一经`verify_strong_type_registrations_v1`消费完整type plan、全量digest patch proof与同一批精确object
+bytes；它重验240-byte provisional record、只读Primary atom、offset 168处唯一8-byte unsigned
+TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation必须解析到同一exact type的
+`TypeDescriptor` strong definition/Primary symbol，layout definition也必须由既定Scoop member物化；record
+指向其他合法strong定义、错owner/member/symbol、额外relocation、错patch或验后换bytes均失败。验证器再从
+digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
+edge/writer集合，不接受record bytes或调用方自报digest关系。
 
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`

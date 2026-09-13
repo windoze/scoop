@@ -43,6 +43,9 @@ pub use safepoint_registrations::*;
 mod callable_registrations;
 pub use callable_registrations::*;
 
+mod type_registrations;
+pub use type_registrations::*;
+
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 

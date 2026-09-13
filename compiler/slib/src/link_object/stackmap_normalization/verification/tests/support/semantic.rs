@@ -2,11 +2,12 @@ use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
     DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomId,
+    DigestSemanticFieldRole, ExactTypeKey, LayoutKey, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PackagePath,
-    PersistentExactTypeId, PersistentFunctionId, PersistentSafepointSiteId, PersistentSymbolKey,
-    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentExactTypeId, PersistentFunctionId, PersistentLayoutId, PersistentSafepointSiteId,
+    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
+    RepresentationRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
@@ -18,9 +19,10 @@ use scoop_lir::{
     SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
     SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StrongCallableRegistrationPlanSetV1,
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
-    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
-    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan,
-    VoidCallSignature, VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
+    StrongTypeRegistrationPlanSetV1, StructDefs, Terminator, TypeDescriptor,
+    TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VtableRecord,
+    WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
@@ -32,19 +34,21 @@ pub(crate) struct SemanticInputs {
     pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
+    pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
     pub(crate) safepoint_ids: Vec<u64>,
 }
 
 pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
     let (module, body, safepoints) = semantic_module();
     let semantics = StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
-    let (foundation, registrations, callable_registration) =
+    let (foundation, registrations, callable_registration, type_registration) =
         foundation(&body, &safepoints, corruption);
     let digest_plan = digest_plan(
         &foundation,
         body.id(),
         &registrations,
         &callable_registration,
+        &type_registration,
     );
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
@@ -57,8 +61,20 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
     .unwrap();
     let callable_registration_plan =
         StrongCallableRegistrationPlanSetV1::new(&foundation, &identities, &digest_plan).unwrap();
+    let type_registration_plan = StrongTypeRegistrationPlanSetV1::new(
+        LirTargetProfile::DARWIN_AARCH64,
+        &foundation,
+        &identities,
+        &digest_plan,
+    )
+    .unwrap();
     let definitions = std::iter::once(definition_plan(body.id()))
         .chain(std::iter::once(callable_registration.plan.id()))
+        .chain([
+            type_registration.descriptor_plan.id(),
+            type_registration.layout_plan.id(),
+            type_registration.registration_plan.id(),
+        ])
         .chain(
             registrations
                 .iter()
@@ -76,6 +92,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         digest_plan,
         registration_plan,
         callable_registration_plan,
+        type_registration_plan,
         safepoint_ids,
     }
 }
@@ -164,6 +181,7 @@ fn foundation(
     OdrFreeLirFoundation,
     Vec<RegistrationArtifacts>,
     CallableRegistrationArtifacts,
+    TypeRegistrationArtifacts,
 ) {
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
@@ -195,6 +213,7 @@ fn foundation(
         .map(|safepoint| registration_artifacts(safepoint.site_id()))
         .collect::<Vec<_>>();
     let callable_registration = callable_registration_artifacts(body.id());
+    let type_registration = type_registration_artifacts(exact_type("String"));
     let mut canonical = CanonicalLirFoundation::empty();
     canonical
         .set_callable_bodies(vec![body.identity_record().clone()])
@@ -216,9 +235,22 @@ fn foundation(
         )
         .unwrap();
     canonical
+        .set_layouts(vec![type_registration.layout.clone()])
+        .unwrap();
+    canonical
+        .set_runtime_types(vec![
+            RuntimeTypeMappingRecord::new(type_registration.exact_type).unwrap(),
+        ])
+        .unwrap();
+    canonical
         .set_definition_plans(
             std::iter::once(definition)
                 .chain(std::iter::once(callable_registration.plan.clone()))
+                .chain([
+                    type_registration.descriptor_plan.clone(),
+                    type_registration.layout_plan.clone(),
+                    type_registration.registration_plan.clone(),
+                ])
                 .chain(
                     registrations
                         .iter()
@@ -232,6 +264,11 @@ fn foundation(
             [primary, stackmap]
                 .into_iter()
                 .chain(std::iter::once(callable_registration.primary.clone()))
+                .chain([
+                    type_registration.descriptor_primary.clone(),
+                    type_registration.layout_primary.clone(),
+                    type_registration.registration_primary.clone(),
+                ])
                 .chain(
                     registrations
                         .iter()
@@ -244,6 +281,11 @@ fn foundation(
         PersistentSymbolRequestTable::new(
             std::iter::once(body.symbol_request())
                 .chain(std::iter::once(callable_registration.symbol))
+                .chain([
+                    type_registration.descriptor_symbol,
+                    type_registration.layout_symbol,
+                    type_registration.registration_symbol,
+                ])
                 .chain(registrations.iter().map(|registration| registration.symbol))
                 .collect(),
         )
@@ -253,6 +295,7 @@ fn foundation(
         OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
         registrations,
         callable_registration,
+        type_registration,
     )
 }
 
@@ -267,6 +310,79 @@ struct CallableRegistrationArtifacts {
     plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     symbol: PersistentSymbolRequest,
+}
+
+struct TypeRegistrationArtifacts {
+    exact_type: PersistentExactTypeId,
+    layout: CborIdentityRecord<PersistentLayoutId, LayoutKey>,
+    descriptor_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    descriptor_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    descriptor_symbol: PersistentSymbolRequest,
+    layout_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    layout_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    layout_symbol: PersistentSymbolRequest,
+    registration_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    registration_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    registration_symbol: PersistentSymbolRequest,
+}
+
+fn type_registration_artifacts(exact_type: PersistentExactTypeId) -> TypeRegistrationArtifacts {
+    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+        exact_type,
+        RepresentationRole::ManagedObject,
+    ))
+    .unwrap();
+    let descriptor_plan = strong_definition(
+        StrongDefinitionEntity::exact_type(exact_type),
+        StrongDefinitionRole::TypeDescriptor,
+    );
+    let layout_plan = strong_definition(
+        StrongDefinitionEntity::layout(layout.id()),
+        StrongDefinitionRole::Layout,
+    );
+    let registration_plan = strong_definition(
+        StrongDefinitionEntity::exact_type(exact_type),
+        StrongDefinitionRole::TypeRegistration,
+    );
+    let layout_symbol = strong_symbol(PersistentSymbolKey::Layout(layout.id()));
+    TypeRegistrationArtifacts {
+        exact_type,
+        layout,
+        descriptor_primary: primary_atom(&descriptor_plan),
+        descriptor_symbol: strong_symbol(PersistentSymbolKey::TypeDescriptor(exact_type)),
+        layout_primary: primary_atom(&layout_plan),
+        layout_symbol,
+        registration_primary: primary_atom(&registration_plan),
+        registration_symbol: strong_symbol(PersistentSymbolKey::TypeRegistration(exact_type)),
+        descriptor_plan,
+        layout_plan,
+        registration_plan,
+    }
+}
+
+fn strong_definition(
+    entity: StrongDefinitionEntity,
+    role: StrongDefinitionRole,
+) -> CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey> {
+    CborIdentityRecord::from_key(
+        ObjectDefinitionPlanKey::strong(ConeIdentity::SINGLE_FILE, entity, role).unwrap(),
+    )
+    .unwrap()
+}
+
+fn primary_atom(
+    plan: &CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+) -> CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey> {
+    CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+        plan.id(),
+        DefinitionAtomRole::Primary,
+        DefinitionAtomSubkey::Singleton,
+    ))
+    .unwrap()
+}
+
+fn strong_symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {
+    PersistentSymbolRequest::new(key, LinkageClass::ConeStrong).unwrap()
 }
 
 fn callable_registration_artifacts(
@@ -333,6 +449,7 @@ fn digest_plan(
     body: scoop_identity::PersistentCallableBodyId,
     registrations: &[RegistrationArtifacts],
     callable_registration: &CallableRegistrationArtifacts,
+    type_registration: &TypeRegistrationArtifacts,
 ) -> StrongDigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
@@ -421,6 +538,59 @@ fn digest_plan(
     .unwrap();
     image_inputs.push(DigestInputRefV1::from_node(&callable_fingerprint));
     nodes.extend([body_node, callable_object, callable_fingerprint]);
+
+    let descriptor_key =
+        DigestNodeKey::object_definition(type_registration.descriptor_primary.id());
+    let descriptor_source = DigestNodeId::from_key(&descriptor_key).unwrap();
+    let descriptor = DigestNodeV1::new(
+        descriptor_key,
+        Vec::new(),
+        vec![DigestPatchIntentKey::new(
+            descriptor_source,
+            type_registration.registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::DescriptorDefinition,
+        )],
+    )
+    .unwrap();
+    let layout_key = DigestNodeKey::layout(type_registration.layout.id());
+    let layout_source = DigestNodeId::from_key(&layout_key).unwrap();
+    let layout = DigestNodeV1::new(
+        layout_key,
+        Vec::new(),
+        vec![DigestPatchIntentKey::new(
+            layout_source,
+            type_registration.registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::Layout,
+        )],
+    )
+    .unwrap();
+    let type_object = DigestNodeV1::new(
+        DigestNodeKey::object_definition(type_registration.registration_primary.id()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let type_key = DigestNodeKey::strong_registration(type_registration.registration_plan.id());
+    let type_source = DigestNodeId::from_key(&type_key).unwrap();
+    let type_fingerprint = DigestNodeV1::new(
+        type_key,
+        vec![
+            DigestInputRefV1::from_node(&type_object),
+            DigestInputRefV1::from_node(&descriptor),
+            DigestInputRefV1::from_node(&layout),
+        ],
+        vec![DigestPatchIntentKey::new(
+            type_source,
+            type_registration.registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::RegistrationDefinition,
+        )],
+    )
+    .unwrap();
+    image_inputs.push(DigestInputRefV1::from_node(&type_fingerprint));
+    nodes.extend([descriptor, layout, type_object, type_fingerprint]);
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(foundation.producer()),
