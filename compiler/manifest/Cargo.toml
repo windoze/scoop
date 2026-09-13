@@ -1,0 +1,10 @@
+[package]
+name = "scoop-manifest"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+scoop-identity.workspace = true
+toml.workspace = true
+toml_edit.workspace = true

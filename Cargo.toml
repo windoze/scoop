@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "compiler/wire",
     "compiler/identity",
+    "compiler/manifest",
     "compiler/ast",
     "compiler/parser",
     "compiler/hir",
@@ -31,12 +32,15 @@ la-arena = { version = "0.3" }
 object = { version = "0.37", default-features = false, features = ["read"] }
 cc = { version = "1" }
 toml = { version = "0.8" }
+toml_edit = { version = "0.22" }
 minicbor = { version = "2.3", features = ["std"] }
 sha2 = { version = "0.11" }
 semver = { version = "1" }
+serde = { version = "1", features = ["derive"] }
 
 scoop-wire = { path = "compiler/wire" }
 scoop-identity = { path = "compiler/identity" }
+scoop-manifest = { path = "compiler/manifest" }
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }
 scoop-hir = { path = "compiler/hir" }
