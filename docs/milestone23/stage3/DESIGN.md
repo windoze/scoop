@@ -1666,6 +1666,16 @@ ObjectDefinition、StrongRegistration的精确direct inputs及两个typed writer
 symbol table index、record file offset、已解析entry relocation和两处typed patch site；不存在接受裸记录、
 裸重定位或按符号名前缀扫描的第二入口。
 
+callable registration自身的ObjectDefinition leaf只能经
+`compute_strong_callable_registration_object_fingerprints_v1`从上述完整registration proof与再次匹配
+content digest的object全集产生。其`scoop-object-definition-v1` RuntimeEncode依次写Primary role tag 1、
+精确192-byte provisional record、relocation count 1、唯一entry relocation和direct-input count 0；entry
+relocation固定编码atom内offset 184、`Unsigned64` form tag 1、checked addend 0，以及
+`NamedPersistentSymbol` target tag 1、`PersistentSymbolKind::CallableBody` tag 1和body id。member、section、
+symbol-table index、Mach-O名字与最终地址均不进入hash。该入口只计算registration object leaf；body
+ObjectDefinition必须等完整machine body/associated record/undefined requirement归一化证明闭合后再算，不能
+用只支持无relocation body的临时算法或把registration leaf误作body fingerprint。
+
 `compute_strong_safepoint_fingerprints_v1`只能消费上述完整proof与同一member全集的exact object bytes；
 入口先再次核对每个member的长度与content digest，再按site一次性产生typed
 `ObjectDefinitionFingerprintV1`、既有`StackmapRecordFingerprintV1`和

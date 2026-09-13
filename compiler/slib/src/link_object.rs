@@ -31,6 +31,9 @@ pub use builtin_object_set::*;
 mod digest_patch_sites;
 pub use digest_patch_sites::*;
 
+mod digest_fingerprints;
+pub use digest_fingerprints::*;
+
 mod stackmap_normalization;
 pub use stackmap_normalization::*;
 

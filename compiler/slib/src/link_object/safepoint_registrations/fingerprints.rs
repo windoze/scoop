@@ -2,61 +2,23 @@ use std::fmt;
 
 use scoop_identity::{DigestKind, DigestNodeId, DigestNodeKey, PersistentSafepointSiteId};
 use scoop_wire::{
-    Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireEncode,
-    domain_separated_runtime_hash,
+    HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
 
 use super::physical::validate_objects;
 use super::record::DESCRIPTOR_SIZE;
 use super::{StrongSafepointRegistrationValidationError, VerifiedStrongSafepointRegistrationSetV1};
 use crate::SlibMemberId;
-use crate::link_object::{ScoopLirObjectCandidateV1, StackmapRecordFingerprintV1};
+use crate::link_object::{
+    ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1, StackmapRecordFingerprintV1,
+    StrongRegistrationFingerprintV1,
+};
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
 const PRIMARY_ATOM_ROLE: u32 = 1;
 const SAFEPOINT_REGISTRATION_RECORD_KIND: u32 = 5;
 const STRONG_LINKAGE: u32 = 1;
-
-macro_rules! typed_fingerprint {
-    ($name:ident) => {
-        #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-        pub struct $name([u8; 32]);
-
-        impl $name {
-            pub const fn as_array(&self) -> &[u8; 32] {
-                &self.0
-            }
-        }
-
-        impl WireEncode for $name {
-            fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-                encoder.bytes(&self.0)
-            }
-        }
-
-        impl RuntimeEncode for $name {
-            fn runtime_encode(
-                &self,
-                encoder: &mut RuntimeEncoder,
-            ) -> Result<(), RuntimeEncodeError> {
-                encoder.fixed(&self.0)
-            }
-        }
-
-        impl fmt::Display for $name {
-            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                for byte in self.0 {
-                    write!(formatter, "{byte:02x}")?;
-                }
-                Ok(())
-            }
-        }
-    };
-}
-
-typed_fingerprint!(ObjectDefinitionFingerprintV1);
-typed_fingerprint!(StrongRegistrationFingerprintV1);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongSafepointFingerprintV1 {
@@ -206,7 +168,7 @@ fn relocation_free_object_definition_fingerprint(
         OBJECT_DEFINITION_DOMAIN,
         &RelocationFreeObjectDefinitionInput { bytes },
     )
-    .map(|digest| ObjectDefinitionFingerprintV1(*digest.as_array()))
+    .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
 }
 
 struct RelocationFreeObjectDefinitionInput<'a> {
@@ -245,7 +207,7 @@ fn strong_registration_fingerprint(
         normalized_stackmap: stackmap,
     };
     domain_separated_runtime_hash(STRONG_REGISTRATION_DOMAIN, &input)
-        .map(|digest| StrongRegistrationFingerprintV1(*digest.as_array()))
+        .map(|digest| StrongRegistrationFingerprintV1::from_array(*digest.as_array()))
 }
 
 struct StrongSafepointRegistrationFingerprintInput<'a> {
