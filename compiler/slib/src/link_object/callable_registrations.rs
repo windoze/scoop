@@ -5,7 +5,7 @@ pub use error::*;
 
 mod object_definition;
 mod physical;
-mod record;
+pub(in crate::link_object) mod record;
 
 mod fingerprints;
 pub use fingerprints::*;

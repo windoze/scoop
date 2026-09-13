@@ -56,7 +56,7 @@ pub(super) fn expected_record(plan: StrongSafepointRegistrationPlanV1) -> [u8; D
     bytes
 }
 
-pub(super) fn expected_final_record(
+pub(in crate::link_object) fn expected_final_record(
     plan: StrongSafepointRegistrationPlanV1,
     registration: &[u8; DIGEST_WIDTH],
     stackmap: &[u8; DIGEST_WIDTH],

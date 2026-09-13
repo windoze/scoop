@@ -5,6 +5,9 @@ use super::StrongCallableRegistrationValidationError;
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
 const ABI_VERSION: u32 = 1;
 const STRONG_LINKAGE: u32 = 1;
+const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
+const BODY_DEFINITION_FINGERPRINT_OFFSET: usize = 152;
+const DIGEST_WIDTH: usize = 32;
 pub(super) const DESCRIPTOR_SIZE: usize = 192;
 
 pub(super) fn validate_record_bytes(
@@ -45,6 +48,19 @@ pub(super) fn expected_record(plan: StrongCallableRegistrationPlanV1) -> [u8; DE
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
     write_u32(&mut bytes, 16, STRONG_LINKAGE);
     bytes[24..56].copy_from_slice(plan.body().as_array());
+    bytes
+}
+
+pub(in crate::link_object) fn expected_final_record(
+    plan: StrongCallableRegistrationPlanV1,
+    registration: &[u8; DIGEST_WIDTH],
+    body_definition: &[u8; DIGEST_WIDTH],
+) -> [u8; DESCRIPTOR_SIZE] {
+    let mut bytes = expected_record(plan);
+    bytes[DEFINITION_FINGERPRINT_OFFSET..DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
+        .copy_from_slice(registration);
+    bytes[BODY_DEFINITION_FINGERPRINT_OFFSET..BODY_DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
+        .copy_from_slice(body_definition);
     bytes
 }
 

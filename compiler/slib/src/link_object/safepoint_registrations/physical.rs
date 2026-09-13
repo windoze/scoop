@@ -12,7 +12,7 @@ use crate::link_object::{
     VerifiedMemberObjectRelocationIndexV1,
 };
 
-pub(super) fn validate_objects<'a>(
+pub(in crate::link_object) fn validate_objects<'a>(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     objects: &'a [ScoopLirObjectCandidateV1<'a>],
 ) -> Result<BTreeMap<SlibMemberId, &'a [u8]>, StrongSafepointRegistrationValidationError> {
@@ -60,7 +60,7 @@ pub(super) fn validate_objects<'a>(
     Ok(verified)
 }
 
-pub(super) fn verified_member(
+pub(in crate::link_object) fn verified_member(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     member: SlibMemberId,
 ) -> Result<&VerifiedMemberObjectRelocationIndexV1, StrongSafepointRegistrationValidationError> {

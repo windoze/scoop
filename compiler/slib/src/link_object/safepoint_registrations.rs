@@ -3,14 +3,11 @@
 mod error;
 pub use error::*;
 
-mod physical;
-mod record;
+pub(in crate::link_object) mod physical;
+pub(in crate::link_object) mod record;
 
 mod fingerprints;
 pub use fingerprints::*;
-
-mod finalization;
-pub use finalization::*;
 
 mod verification;
 pub use verification::*;

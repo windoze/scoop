@@ -43,6 +43,9 @@ pub use safepoint_registrations::*;
 mod callable_registrations;
 pub use callable_registrations::*;
 
+mod strong_registration_finalization;
+pub use strong_registration_finalization::*;
+
 mod generated_bridge_semantics;
 pub use generated_bridge_semantics::*;
 
