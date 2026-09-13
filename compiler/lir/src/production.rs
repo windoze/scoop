@@ -15,6 +15,9 @@ pub use generated_bridges::*;
 mod producer_units;
 pub use producer_units::*;
 
+mod object_symbols;
+pub use object_symbols::*;
+
 mod registrations;
 pub use registrations::*;
 

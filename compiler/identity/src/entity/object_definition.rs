@@ -9,6 +9,7 @@ use crate::{
     OdrMemberId, PersistentCallableBodyId, PersistentDispatchSlotId, PersistentDispatchTableId,
     PersistentExactTypeId, PersistentImmortalObjectId, PersistentInitializationUnitId,
     PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
+    PersistentSymbolKey,
 };
 
 mod decode;
@@ -230,13 +231,14 @@ impl ObjectDefinitionPlanKey {
         entity: StrongDefinitionEntity,
         role: StrongDefinitionRole,
     ) -> Result<Self, ObjectDefinitionIdentityError> {
-        if !strong_role_matches(entity.kind(), role) {
-            return Err(ObjectDefinitionIdentityError::StrongRoleEntityMismatch);
-        }
-        Ok(Self {
+        let key = Self {
             owner: ObjectDefinitionPlanOwner::Strong { producer, entity },
             definition_role: ObjectDefinitionPlanRole::Strong(role),
-        })
+        };
+        if key.primary_symbol_key().is_none() {
+            return Err(ObjectDefinitionIdentityError::StrongRoleEntityMismatch);
+        }
+        Ok(key)
     }
 
     pub const fn odr(member: OdrMemberId) -> Self {
@@ -252,6 +254,88 @@ impl ObjectDefinitionPlanKey {
 
     pub const fn definition_role(self) -> ObjectDefinitionPlanRole {
         self.definition_role
+    }
+
+    pub const fn primary_symbol_key(self) -> Option<PersistentSymbolKey> {
+        let (
+            ObjectDefinitionPlanOwner::Strong { entity, .. },
+            ObjectDefinitionPlanRole::Strong(role),
+        ) = (self.owner, self.definition_role)
+        else {
+            return None;
+        };
+        match (entity.kind(), role) {
+            (StrongDefinitionEntityKind::CallableBody(id), StrongDefinitionRole::CallableBody) => {
+                Some(PersistentSymbolKey::CallableBody(id))
+            }
+            (
+                StrongDefinitionEntityKind::StaticStorage(id),
+                StrongDefinitionRole::StaticStorage,
+            ) => Some(PersistentSymbolKey::StaticStorage(id)),
+            (
+                StrongDefinitionEntityKind::ImmortalObject(id),
+                StrongDefinitionRole::ImmortalObject,
+            ) => Some(PersistentSymbolKey::ImmortalObject(id)),
+            (StrongDefinitionEntityKind::ExactType(id), StrongDefinitionRole::TypeDescriptor) => {
+                Some(PersistentSymbolKey::TypeDescriptor(id))
+            }
+            (StrongDefinitionEntityKind::Layout(id), StrongDefinitionRole::Layout) => {
+                Some(PersistentSymbolKey::Layout(id))
+            }
+            (StrongDefinitionEntityKind::Scan(id), StrongDefinitionRole::ScanProgram) => {
+                Some(PersistentSymbolKey::ScanProgram(id))
+            }
+            (
+                StrongDefinitionEntityKind::DispatchTable(id),
+                StrongDefinitionRole::DispatchTable,
+            ) => Some(PersistentSymbolKey::DispatchTable(id)),
+            (StrongDefinitionEntityKind::DispatchSlot(id), StrongDefinitionRole::DispatchSlot) => {
+                Some(PersistentSymbolKey::DispatchSlot(id))
+            }
+            (
+                StrongDefinitionEntityKind::InitializationUnit(id),
+                StrongDefinitionRole::InitializationCell,
+            ) => Some(PersistentSymbolKey::InitializationCell(id)),
+            (
+                StrongDefinitionEntityKind::InitializationUnit(id),
+                StrongDefinitionRole::InitializationDescriptor,
+            ) => Some(PersistentSymbolKey::InitializationDescriptor(id)),
+            (
+                StrongDefinitionEntityKind::StaticStorage(id),
+                StrongDefinitionRole::RootRegistration,
+            ) => Some(PersistentSymbolKey::RootRegistration(id)),
+            (
+                StrongDefinitionEntityKind::ImmortalObject(id),
+                StrongDefinitionRole::ImmortalRegistration,
+            ) => Some(PersistentSymbolKey::ImmortalRegistration(id)),
+            (
+                StrongDefinitionEntityKind::InitializationUnit(id),
+                StrongDefinitionRole::InitializationRegistration,
+            ) => Some(PersistentSymbolKey::InitializationRegistration(id)),
+            (StrongDefinitionEntityKind::ExactType(id), StrongDefinitionRole::TypeRegistration) => {
+                Some(PersistentSymbolKey::TypeRegistration(id))
+            }
+            (
+                StrongDefinitionEntityKind::SafepointSite(id),
+                StrongDefinitionRole::SafepointRegistration,
+            ) => Some(PersistentSymbolKey::SafepointRegistration(id)),
+            (
+                StrongDefinitionEntityKind::CallableBody(id),
+                StrongDefinitionRole::CallableRegistration,
+            ) => Some(PersistentSymbolKey::CallableRegistration(id)),
+            (StrongDefinitionEntityKind::ConeImage(id), StrongDefinitionRole::ImageDescriptor) => {
+                Some(PersistentSymbolKey::ImageDescriptor(id))
+            }
+            (
+                StrongDefinitionEntityKind::GeneratedBridgeAtom(id),
+                StrongDefinitionRole::GeneratedBridge,
+            ) => Some(PersistentSymbolKey::GeneratedBridge(id)),
+            (
+                StrongDefinitionEntityKind::RootEntry(id),
+                StrongDefinitionRole::RootEntryDescriptor,
+            ) => Some(PersistentSymbolKey::RootEntryDescriptor(id)),
+            _ => None,
+        }
     }
 }
 
@@ -397,36 +481,6 @@ impl fmt::Display for ObjectDefinitionIdentityError {
 
 impl std::error::Error for ObjectDefinitionIdentityError {}
 
-fn strong_role_matches(entity: StrongDefinitionEntityKind, role: StrongDefinitionRole) -> bool {
-    use StrongDefinitionEntityKind as E;
-    use StrongDefinitionRole as R;
-
-    matches!(
-        (entity, role),
-        (
-            E::CallableBody(_),
-            R::CallableBody | R::CallableRegistration
-        ) | (E::StaticStorage(_), R::StaticStorage | R::RootRegistration)
-            | (
-                E::ImmortalObject(_),
-                R::ImmortalObject | R::ImmortalRegistration
-            )
-            | (E::ExactType(_), R::TypeDescriptor | R::TypeRegistration)
-            | (E::Layout(_), R::Layout)
-            | (E::Scan(_), R::ScanProgram)
-            | (E::DispatchTable(_), R::DispatchTable)
-            | (E::DispatchSlot(_), R::DispatchSlot)
-            | (
-                E::InitializationUnit(_),
-                R::InitializationCell | R::InitializationDescriptor | R::InitializationRegistration
-            )
-            | (E::SafepointSite(_), R::SafepointRegistration)
-            | (E::ConeImage(_), R::ImageDescriptor)
-            | (E::GeneratedBridgeAtom(_), R::GeneratedBridge)
-            | (E::RootEntry(_), R::RootEntryDescriptor)
-    )
-}
-
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.field(0)?;
     encoder.unsigned(tag)
@@ -456,12 +510,13 @@ mod tests {
         ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionRole,
     };
     use crate::{
-        CanonicalCAbiLayoutFingerprint, ConeIdentity, GeneratedBridgeAtomKey,
-        GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId, ObjectDefinitionAtomId,
-        ObjectDefinitionPlanId, OdrMemberId, PersistentCallableBodyId, PersistentDispatchSlotId,
-        PersistentDispatchTableId, PersistentExactTypeId, PersistentImmortalObjectId,
-        PersistentInitializationUnitId, PersistentLayoutId, PersistentSafepointSiteId,
-        PersistentScanId, PersistentStaticStorageId,
+        CanonicalCAbiLayoutFingerprint, ConeIdentity, GeneratedBridgeAtomId,
+        GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
+        ObjectDefinitionAtomId, ObjectDefinitionPlanId, OdrMemberId, PersistentCallableBodyId,
+        PersistentDispatchSlotId, PersistentDispatchTableId, PersistentExactTypeId,
+        PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentLayoutId,
+        PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
+        PersistentSymbolKey,
     };
 
     const ALL_STRONG_ROLES: [StrongDefinitionRole; 19] = [
@@ -586,6 +641,133 @@ mod tests {
             key.definition_role(),
             ObjectDefinitionPlanRole::OdrMemberPrimary
         );
+        assert_eq!(key.primary_symbol_key(), None);
+    }
+
+    #[test]
+    fn every_strong_role_has_one_exact_primary_symbol_kind() {
+        use StrongDefinitionRole as R;
+
+        let bytes = ConeIdentity::CORE.0;
+        let callable = PersistentCallableBodyId(bytes);
+        let storage = PersistentStaticStorageId(bytes);
+        let immortal = PersistentImmortalObjectId(bytes);
+        let exact = PersistentExactTypeId(bytes);
+        let layout = PersistentLayoutId(bytes);
+        let scan = PersistentScanId(bytes);
+        let table = PersistentDispatchTableId(bytes);
+        let slot = PersistentDispatchSlotId(bytes);
+        let initialization = PersistentInitializationUnitId(bytes);
+        let safepoint = PersistentSafepointSiteId(bytes);
+        let bridge_key = GeneratedBridgeAtomKey::new(
+            ConeIdentity::CORE,
+            GeneratedBridgeAtomRoleKey::PrimaryEntry {
+                unit: GeneratedBridgeUnitId(bytes),
+            },
+        );
+        let bridge = StrongDefinitionEntity::generated_bridge_atom(&bridge_key).unwrap();
+        let bridge_id = GeneratedBridgeAtomId::from_key(&bridge_key).unwrap();
+        let cases = [
+            (
+                StrongDefinitionEntity::callable_body(callable),
+                R::CallableBody,
+                PersistentSymbolKey::CallableBody(callable),
+            ),
+            (
+                StrongDefinitionEntity::static_storage(storage),
+                R::StaticStorage,
+                PersistentSymbolKey::StaticStorage(storage),
+            ),
+            (
+                StrongDefinitionEntity::immortal_object(immortal),
+                R::ImmortalObject,
+                PersistentSymbolKey::ImmortalObject(immortal),
+            ),
+            (
+                StrongDefinitionEntity::exact_type(exact),
+                R::TypeDescriptor,
+                PersistentSymbolKey::TypeDescriptor(exact),
+            ),
+            (
+                StrongDefinitionEntity::layout(layout),
+                R::Layout,
+                PersistentSymbolKey::Layout(layout),
+            ),
+            (
+                StrongDefinitionEntity::scan(scan),
+                R::ScanProgram,
+                PersistentSymbolKey::ScanProgram(scan),
+            ),
+            (
+                StrongDefinitionEntity::dispatch_table(table),
+                R::DispatchTable,
+                PersistentSymbolKey::DispatchTable(table),
+            ),
+            (
+                StrongDefinitionEntity::dispatch_slot(slot),
+                R::DispatchSlot,
+                PersistentSymbolKey::DispatchSlot(slot),
+            ),
+            (
+                StrongDefinitionEntity::initialization_unit(initialization),
+                R::InitializationCell,
+                PersistentSymbolKey::InitializationCell(initialization),
+            ),
+            (
+                StrongDefinitionEntity::initialization_unit(initialization),
+                R::InitializationDescriptor,
+                PersistentSymbolKey::InitializationDescriptor(initialization),
+            ),
+            (
+                StrongDefinitionEntity::static_storage(storage),
+                R::RootRegistration,
+                PersistentSymbolKey::RootRegistration(storage),
+            ),
+            (
+                StrongDefinitionEntity::immortal_object(immortal),
+                R::ImmortalRegistration,
+                PersistentSymbolKey::ImmortalRegistration(immortal),
+            ),
+            (
+                StrongDefinitionEntity::initialization_unit(initialization),
+                R::InitializationRegistration,
+                PersistentSymbolKey::InitializationRegistration(initialization),
+            ),
+            (
+                StrongDefinitionEntity::exact_type(exact),
+                R::TypeRegistration,
+                PersistentSymbolKey::TypeRegistration(exact),
+            ),
+            (
+                StrongDefinitionEntity::safepoint_site(safepoint),
+                R::SafepointRegistration,
+                PersistentSymbolKey::SafepointRegistration(safepoint),
+            ),
+            (
+                StrongDefinitionEntity::callable_body(callable),
+                R::CallableRegistration,
+                PersistentSymbolKey::CallableRegistration(callable),
+            ),
+            (
+                StrongDefinitionEntity::cone_image(ConeIdentity::CORE),
+                R::ImageDescriptor,
+                PersistentSymbolKey::ImageDescriptor(ConeIdentity::CORE),
+            ),
+            (
+                bridge,
+                R::GeneratedBridge,
+                PersistentSymbolKey::GeneratedBridge(bridge_id),
+            ),
+            (
+                StrongDefinitionEntity::root_entry(ConeIdentity::CORE),
+                R::RootEntryDescriptor,
+                PersistentSymbolKey::RootEntryDescriptor(ConeIdentity::CORE),
+            ),
+        ];
+        for (entity, role, expected) in cases {
+            let key = ObjectDefinitionPlanKey::strong(ConeIdentity::CORE, entity, role).unwrap();
+            assert_eq!(key.primary_symbol_key(), Some(expected));
+        }
     }
 
     #[test]
