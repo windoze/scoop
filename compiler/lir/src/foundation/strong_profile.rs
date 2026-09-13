@@ -218,6 +218,14 @@ impl OdrFreeLirFoundation {
         &self.canonical.bridge_atoms
     }
 
+    pub(crate) fn native_contracts(&self) -> &[scoop_identity::NativeExternalContractRecord] {
+        &self.canonical.native_contracts
+    }
+
+    pub(crate) fn native_link_requirements(&self) -> &[super::NativeLinkRequirementRecord] {
+        &self.canonical.native_link_requirements
+    }
+
     pub fn into_canonical(self) -> CanonicalLirFoundation {
         self.canonical
     }

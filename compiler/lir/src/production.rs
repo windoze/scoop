@@ -9,6 +9,9 @@ pub use digests::*;
 mod external_bridges;
 pub use external_bridges::*;
 
+mod native_requirements;
+pub use native_requirements::*;
+
 mod generated_bridges;
 pub use generated_bridges::*;
 

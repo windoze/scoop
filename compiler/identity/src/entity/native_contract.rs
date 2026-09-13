@@ -114,6 +114,16 @@ impl NativeExternalContract {
     ) -> Self {
         Self::MutableTls { library, storage }
     }
+
+    pub const fn library(&self) -> NativeLibraryBinding {
+        match self {
+            Self::Function { library, .. }
+            | Self::ReadOnlyData { library, .. }
+            | Self::MutableData { library, .. }
+            | Self::ReadOnlyTls { library, .. }
+            | Self::MutableTls { library, .. } => *library,
+        }
+    }
 }
 
 impl WireEncode for NativeExternalContract {

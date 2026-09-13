@@ -50,7 +50,7 @@ pub(crate) type BridgeUnitRecord =
     CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>;
 pub(crate) type BridgeAtomRecord =
     CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>;
-type NativeLinkRequirementRecord =
+pub(crate) type NativeLinkRequirementRecord =
     CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>;
 pub(crate) type DefinitionPlanRecord =
     CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>;
