@@ -37,11 +37,21 @@ fn resolves_cross_member_strong_uses_and_keeps_true_externals_explicit() {
     assert_eq!(binding.encoded_value(), 0xddcc_bbaa);
     assert_eq!(binding.target_slot(), RelocationTargetSlotV1::Single);
     assert_eq!(binding.symbol(), target_primary_name);
+    let PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+        owner,
+        definition_role,
+        ..
+    } = primary_role(&target)
+    else {
+        unreachable!()
+    };
     assert_eq!(
         binding.resolution(),
         StrongRelocationResolutionV1::CurrentConeStrong {
             target_member: target.symbols.member(),
             definition: target.plan,
+            owner,
+            definition_role,
         }
     );
 

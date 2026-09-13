@@ -5,6 +5,7 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::{
@@ -26,6 +27,8 @@ pub enum StrongRelocationResolutionV1 {
     CurrentConeStrong {
         target_member: SlibMemberId,
         definition: ObjectDefinitionPlanId,
+        owner: StrongDefinitionEntity,
+        definition_role: StrongDefinitionRole,
     },
     ExternalCandidate {
         object_symbol_table_index: u32,
@@ -357,18 +360,33 @@ fn collect_target_binding(
                     definition: *definition,
                 },
             )?;
+            let PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                owner,
+                definition_role,
+                ..
+            } = indexed.role
+            else {
+                unreachable!("the primary-definition index contains only primary symbols")
+            };
             (
                 indexed.name.to_vec(),
                 StrongRelocationResolutionV1::CurrentConeStrong {
                     target_member: indexed.member,
                     definition: *definition,
+                    owner,
+                    definition_role,
                 },
             )
         }
         VerifiedRelocationTargetV1::ExternalUndefined { table_index, name } => {
             match symbols.get(name) {
                 Some(indexed) => match indexed.role {
-                    PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { definition, .. } => {
+                    PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                        definition,
+                        owner,
+                        definition_role,
+                        ..
+                    } => {
                         if indexed.member == source_member {
                             return Err(
                                 StrongRelocationClosureValidationError::RedundantLocalUndefined {
@@ -383,6 +401,8 @@ fn collect_target_binding(
                             StrongRelocationResolutionV1::CurrentConeStrong {
                                 target_member: indexed.member,
                                 definition,
+                                owner,
+                                definition_role,
                             },
                         )
                     }
