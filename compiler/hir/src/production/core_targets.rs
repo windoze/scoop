@@ -354,7 +354,7 @@ impl DecodedCoreCallableTargetSurfaceV1 {
         self.validate_against(foundation.canonical(), direct_surface)
     }
 
-    fn validate_against(
+    pub(super) fn validate_against(
         self,
         foundation: &CanonicalHirFoundation,
         direct_surface: &CanonicalDirectPublicSurfaceV1,

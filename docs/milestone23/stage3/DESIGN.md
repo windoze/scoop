@@ -667,6 +667,23 @@ CoreBootstrapInterfaceSectionV1 {
 }
 ```
 
+`CoreHirInterfaceV1`固定为closed product：
+
+```text
+1 = prelude_snapshot: CorePreludeSnapshotV1
+2 = string_capability: RuntimeCoreCapabilityV1::String
+3 = callable_targets: CoreCallableTargetSurfaceV1
+4 = type_targets: CoreTypeTargetSurfaceV1
+5 = value_targets: CoreValueTargetSurfaceV1
+```
+
+五个constituent必须针对同一个foundation和同一个`direct_public_surface`原子验证；三张target
+surface的binding并集必须逐byte等于direct surface且互不重叠，出现普通`EnumVariant` binding
+直接拒绝。prelude中的ordinary bindings也必须逐byte等于direct surface。String capability必须
+在type targets中存在唯一的同source type、同exact type `ParamFreeStrong`记录；不能把五段分别
+验证后拼接来自不同artifact的结果。reserved core Cone只允许`Core + Library`，其他Cone只允许
+`NotCore`；分支错误不能退化成空core interface或忽略多余payload。
+
 `output_contract`沿用第9.6节的output sum：`Library`编码为仅含
 `0=1`的map，`ExecutableSourceEntry`编码为`0=2, 1=PersistentFunctionId`。
 `CanonicalDirectPublicSurfaceV1`的wire是按`PersistentExportBindingId` bytes严格递增的

@@ -22,10 +22,15 @@ pub use native_boundary::NativeBoundaryShapeCoverageError;
 /// Cross-layer native-boundary closure and semantic-world import remain later
 /// proofs and are intentionally not implied by this type.
 pub struct ValidatedHirFoundation {
+    artifact: ConeIdentity,
     canonical: CanonicalHirFoundation,
 }
 
 impl ValidatedHirFoundation {
+    pub const fn artifact(&self) -> ConeIdentity {
+        self.artifact
+    }
+
     pub fn counts(&self) -> HirFoundationCounts {
         self.canonical.counts()
     }
@@ -322,7 +327,10 @@ fn validate_foundation(
     if rebuilt != original {
         return Err(HirFoundationValidationError::NonCanonicalFoundation);
     }
-    Ok(ValidatedHirFoundation { canonical })
+    Ok(ValidatedHirFoundation {
+        artifact,
+        canonical,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

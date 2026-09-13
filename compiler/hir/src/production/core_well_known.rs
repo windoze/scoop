@@ -99,7 +99,7 @@ impl DecodedRuntimeCoreCapabilityV1 {
         self.validate_against(foundation.canonical())
     }
 
-    fn validate_against(
+    pub(super) fn validate_against(
         self,
         foundation: &CanonicalHirFoundation,
     ) -> Result<RuntimeCoreCapabilityV1, RuntimeCoreCapabilityValidationError> {

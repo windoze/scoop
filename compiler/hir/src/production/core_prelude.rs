@@ -15,10 +15,10 @@ use crate::{CanonicalHirFoundation, ExportHir, ValidatedHirFoundation};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CorePreludeSnapshotV1 {
-    ordinary_bindings: CanonicalDirectPublicSurfaceV1,
-    option_some: PersistentEnumVariantId,
-    option_some_payload: PersistentEnumVariantFieldId,
-    option_none: PersistentEnumVariantId,
+    pub(super) ordinary_bindings: CanonicalDirectPublicSurfaceV1,
+    pub(super) option_some: PersistentEnumVariantId,
+    pub(super) option_some_payload: PersistentEnumVariantFieldId,
+    pub(super) option_none: PersistentEnumVariantId,
 }
 
 impl CorePreludeSnapshotV1 {
@@ -87,7 +87,7 @@ impl DecodedCorePreludeSnapshotV1 {
         self.validate_against(foundation.canonical())
     }
 
-    fn validate_against(
+    pub(super) fn validate_against(
         self,
         foundation: &CanonicalHirFoundation,
     ) -> Result<CorePreludeSnapshotV1, CorePreludeSnapshotValidationError> {

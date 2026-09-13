@@ -10,6 +10,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{CanonicalHirFoundation, ConeOutputKind, ExportHir, ValidatedHirFoundation};
 
+mod core_interface;
+pub use core_interface::*;
 mod core_prelude;
 pub use core_prelude::*;
 mod core_targets;

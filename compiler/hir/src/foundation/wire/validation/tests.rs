@@ -153,6 +153,7 @@ fn validates_the_complete_hir_foundation_atomically() {
         .unwrap();
 
     assert_eq!(encode(&validated).unwrap(), bytes);
+    assert_eq!(validated.artifact(), fixture.coordinate.identity().unwrap());
     assert_eq!(validated.counts().types, 3);
     assert_eq!(validated.counts().definition_origins, 1);
     assert_eq!(validated.counts().native_boundary_types, 1);

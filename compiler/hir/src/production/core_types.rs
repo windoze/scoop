@@ -165,9 +165,9 @@ impl WireDecode for DecodedCoreHirTypeCapabilityV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreTypeTargetV1 {
-    binding: PersistentExportBindingId,
-    definition: CoreTypeDefinitionV1,
-    capability: CoreHirTypeCapabilityV1,
+    pub(super) binding: PersistentExportBindingId,
+    pub(super) definition: CoreTypeDefinitionV1,
+    pub(super) capability: CoreHirTypeCapabilityV1,
 }
 
 impl CoreTypeTargetV1 {
@@ -366,7 +366,7 @@ impl DecodedCoreTypeTargetSurfaceV1 {
         self.validate_against(foundation.canonical(), direct_surface)
     }
 
-    fn validate_against(
+    pub(super) fn validate_against(
         self,
         foundation: &CanonicalHirFoundation,
         direct_surface: &CanonicalDirectPublicSurfaceV1,
