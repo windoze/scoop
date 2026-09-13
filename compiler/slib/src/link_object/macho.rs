@@ -18,6 +18,9 @@ pub use sections::*;
 mod symbols;
 pub use symbols::*;
 
+mod relocations;
+pub use relocations::*;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinDeploymentCommandV1 {
     BuildVersion {
@@ -41,6 +44,7 @@ pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     deployment: DarwinDeploymentCommandV1,
     sections: Vec<ObservedMachOSectionV1>,
     symbols: Vec<ObservedMachOSymbolV1>,
+    relocations: Vec<ObservedMachORelocationV1>,
 }
 
 impl ValidatedDarwinArm64ObjectEnvelopeV1 {
@@ -75,6 +79,10 @@ impl ValidatedDarwinArm64ObjectEnvelopeV1 {
     pub fn symbols(&self) -> &[ObservedMachOSymbolV1] {
         &self.symbols
     }
+
+    pub fn relocations(&self) -> &[ObservedMachORelocationV1] {
+        &self.relocations
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -82,6 +90,8 @@ pub struct ObservedMachOSectionV1 {
     segment_name: [u8; 16],
     section_name: [u8; 16],
     virtual_address: u64,
+    file_offset: Option<u64>,
+    relocation_file_offset: u64,
     flags: u32,
     byte_size: u64,
     alignment_power: u32,
@@ -103,6 +113,14 @@ impl ObservedMachOSectionV1 {
 
     pub const fn virtual_address(self) -> u64 {
         self.virtual_address
+    }
+
+    pub(super) const fn file_offset(self) -> Option<u64> {
+        self.file_offset
+    }
+
+    pub(super) const fn relocation_file_offset(self) -> u64 {
+        self.relocation_file_offset
     }
 
     pub const fn byte_size(self) -> u64 {
@@ -364,6 +382,9 @@ pub fn validate_darwin_arm64_object_envelope_v1(
         &observed_sections,
     )
     .map_err(ObjectEnvelopeValidationError::SymbolInventory)?;
+    let relocations =
+        validate_darwin_arm64_relocation_inventory_v1(bytes, &observed_sections, symbol_count)
+            .map_err(ObjectEnvelopeValidationError::RelocationInventory)?;
 
     Ok(ValidatedDarwinArm64ObjectEnvelopeV1 {
         byte_length,
@@ -374,6 +395,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
         deployment,
         sections: observed_sections,
         symbols,
+        relocations,
     })
 }
 
@@ -486,6 +508,8 @@ fn validate_section(
         segment_name: section.segname,
         section_name: section.sectname,
         virtual_address: section.addr.get(endian),
+        file_offset: section.file_range(endian).map(|(offset, _)| offset),
+        relocation_file_offset: u64::from(section.reloff.get(endian)),
         flags: section.flags.get(endian),
         byte_size: section.size.get(endian),
         alignment_power: section.align.get(endian),
@@ -602,6 +626,7 @@ pub enum ObjectEnvelopeValidationError {
     ZeroFillSectionHasRelocations,
     UnsupportedSectionReservedFields,
     RelocationTableOutOfBounds,
+    RelocationInventory(DarwinArm64RelocationInventoryValidationError),
     MissingSegment,
     MalformedSymbolTable,
     SymbolTableOutOfBounds,

@@ -86,6 +86,7 @@ fn validates_section_relocation_and_symbol_ranges_as_one_layout() {
     assert_eq!(envelope.section_count(), 1);
     assert_eq!(envelope.symbol_count(), 1);
     assert_eq!(envelope.relocation_count(), 1);
+    assert_eq!(envelope.relocations().len(), 1);
     assert_eq!(envelope.symbols().len(), 1);
     assert_eq!(envelope.symbols()[0].name(), b"_f");
     assert_eq!(
@@ -245,7 +246,7 @@ pub(super) fn object_with_text_section() -> Vec<u8> {
     push_u32(&mut bytes, 0);
 
     bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd]);
-    bytes.extend_from_slice(&[0; 8]);
+    push_relocation(&mut bytes, 0, 0, true, 2, true, macho::ARM64_RELOC_BRANCH26);
     push_u32(&mut bytes, 1);
     bytes.push(macho::N_SECT | macho::N_EXT);
     bytes.push(1);
@@ -265,6 +266,26 @@ fn push_u16(bytes: &mut Vec<u8>, value: u16) {
 
 fn push_u64(bytes: &mut Vec<u8>, value: u64) {
     bytes.extend_from_slice(&value.to_le_bytes());
+}
+
+fn push_relocation(
+    bytes: &mut Vec<u8>,
+    offset: u32,
+    target: u32,
+    pcrel: bool,
+    length: u8,
+    external: bool,
+    kind: u8,
+) {
+    push_u32(bytes, offset);
+    push_u32(
+        bytes,
+        target
+            | u32::from(pcrel) << 24
+            | u32::from(length) << 25
+            | u32::from(external) << 27
+            | u32::from(kind) << 28,
+    );
 }
 
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
