@@ -3,7 +3,7 @@
 mod error;
 pub use error::*;
 
-mod object_definition;
+pub(in crate::link_object) mod object_definition;
 mod physical;
 pub(in crate::link_object) mod record;
 

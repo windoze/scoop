@@ -7,6 +7,9 @@ mod digest;
 mod physical;
 pub(in crate::link_object) mod record;
 
+mod fingerprints;
+pub use fingerprints::*;
+
 mod verification;
 pub use verification::*;
 

@@ -1,6 +1,7 @@
 use scoop_identity::{
     DigestKind, DigestNodeId, NativeLibraryBinding, PersistentCallableBodyId,
-    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
+    PersistentExactTypeId, StrongDefinitionEntity, StrongDefinitionEntityKind,
+    StrongDefinitionRole,
 };
 use scoop_wire::{RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
@@ -16,10 +17,10 @@ use crate::link_object::{
 
 const PRIMARY_ATOM_ROLE: u32 = 1;
 
-pub(super) struct ObjectDefinitionFingerprintInputV1<'a> {
-    pub(super) bytes: &'a [u8],
-    pub(super) relocations: &'a [CanonicalObjectRelocationV1],
-    pub(super) direct_inputs: &'a [CanonicalDigestInputV1],
+pub(in crate::link_object) struct ObjectDefinitionFingerprintInputV1<'a> {
+    pub(in crate::link_object) bytes: &'a [u8],
+    pub(in crate::link_object) relocations: &'a [CanonicalObjectRelocationV1],
+    pub(in crate::link_object) direct_inputs: &'a [CanonicalDigestInputV1],
 }
 
 impl RuntimeEncode for ObjectDefinitionFingerprintInputV1<'_> {
@@ -39,10 +40,10 @@ impl RuntimeEncode for ObjectDefinitionFingerprintInputV1<'_> {
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct CanonicalDigestInputV1 {
-    pub(super) kind: DigestKind,
-    pub(super) node: DigestNodeId,
-    pub(super) digest: [u8; 32],
+pub(in crate::link_object) struct CanonicalDigestInputV1 {
+    pub(in crate::link_object) kind: DigestKind,
+    pub(in crate::link_object) node: DigestNodeId,
+    pub(in crate::link_object) digest: [u8; 32],
 }
 
 impl RuntimeEncode for CanonicalDigestInputV1 {
@@ -54,7 +55,7 @@ impl RuntimeEncode for CanonicalDigestInputV1 {
 }
 
 #[derive(Clone)]
-pub(super) struct CanonicalObjectRelocationV1 {
+pub(in crate::link_object) struct CanonicalObjectRelocationV1 {
     offset_within_atom: u64,
     form: VerifiedDarwinArm64RelocationFormV1,
     encoded_value: u64,
@@ -70,6 +71,23 @@ impl CanonicalObjectRelocationV1 {
         .expect("callable bodies are valid strong definition owners");
         Self {
             offset_within_atom: 184,
+            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            encoded_value: 0,
+            targets: vec![CanonicalRelocationTargetV1 {
+                slot: RelocationTargetSlotV1::Single,
+                requirement: FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
+            }],
+        }
+    }
+
+    pub(in crate::link_object) fn type_descriptor(exact_type: PersistentExactTypeId) -> Self {
+        let owner = StrongDefinitionOwnerV1::new(
+            StrongDefinitionEntity::exact_type(exact_type),
+            StrongDefinitionRole::TypeDescriptor,
+        )
+        .expect("type descriptors are valid strong definition owners");
+        Self {
+            offset_within_atom: 168,
             form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
             encoded_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {

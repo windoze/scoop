@@ -1625,6 +1625,14 @@ TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation�
 digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
 edge/writer集合，不接受record bytes或调用方自报digest关系。
 
+type registration自身的ObjectDefinition leaf只能经
+`compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content
+digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确240-byte
+provisional record、relocation count 1、offset 168的`Unsigned64` relocation及direct-input count 0；
+relocation target使用通用canonical schema编码为同一exact type的`IntraConeStrong TypeDescriptor` owner。
+member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；不保留按物理target
+索引或登记专用target格式计算的旧路径。
+
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack
