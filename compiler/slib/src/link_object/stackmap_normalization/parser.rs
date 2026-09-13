@@ -32,6 +32,10 @@ impl ParsedLlvmStackmapSectionV3 {
             .map(|function| function.records.len())
             .sum()
     }
+
+    pub(super) fn into_parts(self) -> (Vec<u64>, Vec<ParsedLlvmStackmapFunctionV3>) {
+        (self.constants, self.functions)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

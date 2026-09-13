@@ -1557,6 +1557,12 @@ little-endian scalar/count encoder，typed `StackmapRecordFingerprintV1`只能�
 slot offset和record offset，不把结构成功误当成Scoop profile成功。结构合法的空v3 blob可由parser表示，
 但后续object coverage verifier依据LIR proof决定section应缺失、必须非空或记录全集是否吻合。
 
+`verify_darwin_arm64_stackmap_section_v3`只接受与已验证Scoop LIR envelope的length/content digest完全
+相同的object bytes。若section存在，它必须是inventory中唯一的`LlvmStackmaps` role；每个function
+address slot在relocatable input中为零，并在该slot恰有一个`ARM64_RELOC_UNSIGNED64`指向symbol table中
+的external strong definition，section中不得有其他relocation。输出同时封装section ordinal、原始function
+分组及target symbol table index；尚未与strong definition/LIR owner互证前不能提升为normalized record。
+
 ### 13.3 registration完备性
 
 - 每个compiler-owned static storage恰一条storage registration；GC-free storage也不能为省事丢descriptor；

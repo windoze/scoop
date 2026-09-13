@@ -144,7 +144,7 @@ impl ObservedMachOSectionV1 {
         self.virtual_address
     }
 
-    pub(super) const fn file_offset(self) -> Option<u64> {
+    pub(crate) const fn file_offset(self) -> Option<u64> {
         self.file_offset
     }
 
