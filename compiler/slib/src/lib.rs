@@ -36,5 +36,8 @@ pub use foundation::*;
 mod semantic;
 pub use semantic::*;
 
+mod link_object;
+pub use link_object::*;
+
 mod diagnostic;
 pub use diagnostic::*;
