@@ -14,3 +14,6 @@ pub use generated_bridges::*;
 
 mod registrations;
 pub use registrations::*;
+
+mod image;
+pub use image::*;

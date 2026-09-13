@@ -3,7 +3,7 @@ use std::fmt;
 use scoop_identity::{
     ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, GeneratedBridgeAtomId,
     LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
-    PersistentCallableBodyId, PersistentSymbolKey,
+    PersistentCallableBodyId, PersistentSymbolKey, PersistentSymbolRequest,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -143,6 +143,10 @@ impl OdrFreeLirFoundation {
             .safepoint_sites
             .iter()
             .any(|record| record.id() == id)
+    }
+
+    pub(crate) fn contains_symbol_request(&self, request: PersistentSymbolRequest) -> bool {
+        self.canonical.symbol_requests.requests().contains(&request)
     }
 
     pub(crate) fn bridge_units(&self) -> &[super::BridgeUnitRecord] {

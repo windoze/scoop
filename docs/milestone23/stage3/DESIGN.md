@@ -1246,6 +1246,17 @@ ConeImagePlan {
 }
 ```
 
+本阶段wire中的`ConeRecordV1`是closed product
+`{1=coordinate: ConeCoordinate, 2=identity: ConeIdentity}`，identity必须从coordinate重算且等于
+LIR strong foundation producer。`tables`是fields `1..6`依13.2表顺序排列的六个kind-specific
+semantic-id array，逐项来自已经重建的`StrongRegistrationIdentitySurfaceV1`，不得携带通用
+32-byte id。`ConeImagePlan`按上述伪代码顺序编码fields `1..6`；其中field 4编码从
+`PersistentSymbolKey::ImageDescriptor(cone)`唯一派生的`ConeStrong`
+`PersistentSymbolRequest`，field 5必须是当前Cone `ImageDescriptor` strong definition plan，field 6
+必须是同一runtime-image node写入该plan `Primary` atom `RuntimeImage` field的patch intent。image
+node的全部`StrongRegistration` direct input必须与六表中的fingerprint node集合逐项相等；不能漏掉
+空表count、复制external core registration、引用未登记node或额外注入registration input。
+
 core bootstrap的dependencies为空；普通manifest/single-file当前恰为`[core]`。它们按identity bytes编码，不从manifest声明顺序取得。image symbol hidden strong且只能由一个member定义。image中的pointer table只列当前Cone实际生产的strong record；外部core record不复制进来。
 
 全部LinkObject联合验证后必须：
