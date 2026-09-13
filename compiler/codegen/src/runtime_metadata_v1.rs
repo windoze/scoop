@@ -12,6 +12,9 @@ use inkwell::types::StructType;
 
 use crate::CodegenError;
 
+mod image;
+pub use image::{EmittedConeImageV1, RuntimeImagePatchSiteV1, emit_cone_image_v1};
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,

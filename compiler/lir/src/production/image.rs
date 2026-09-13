@@ -3,13 +3,13 @@ use std::fmt;
 use scoop_identity::{
     ConeCoordinate, ConeCoordinateError, ConeIdentity, DecodedConeCoordinate, DecodedPersistentId,
     DecodedPersistentSymbolRequest, DefinitionAtomRole, DigestKind, DigestNodeId,
-    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentIdMismatch, PersistentImmortalObjectId,
-    PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionPlanKey,
+    PersistentCallableBodyId, PersistentExactTypeId, PersistentIdMismatch,
+    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
+    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
+pub use scoop_identity::{DigestPatchIntentId, ObjectDefinitionPlanId};
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
@@ -122,6 +122,67 @@ impl ConeRegistrationTablesV1 {
     pub fn callables(&self) -> &[PersistentCallableBodyId] {
         &self.callables
     }
+
+    pub fn static_storage_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.static_storages
+            .iter()
+            .copied()
+            .map(PersistentSymbolKey::RootRegistration)
+            .map(strong_symbol_request)
+    }
+
+    pub fn immortal_object_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.immortal_objects
+            .iter()
+            .copied()
+            .map(PersistentSymbolKey::ImmortalRegistration)
+            .map(strong_symbol_request)
+    }
+
+    pub fn initialization_unit_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.initialization_units
+            .iter()
+            .copied()
+            .map(PersistentSymbolKey::InitializationRegistration)
+            .map(strong_symbol_request)
+    }
+
+    pub fn type_registration_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.type_registrations
+            .iter()
+            .copied()
+            .map(PersistentSymbolKey::TypeRegistration)
+            .map(strong_symbol_request)
+    }
+
+    pub fn safepoint_symbol_requests(&self) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.safepoints
+            .iter()
+            .copied()
+            .map(PersistentSymbolKey::SafepointRegistration)
+            .map(strong_symbol_request)
+    }
+
+    pub fn callable_symbol_requests(&self) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.callables
+            .iter()
+            .copied()
+            .map(PersistentSymbolKey::CallableRegistration)
+            .map(strong_symbol_request)
+    }
+}
+
+fn strong_symbol_request(key: PersistentSymbolKey) -> PersistentSymbolRequest {
+    PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
+        .expect("registration symbol kinds accept strong Cone linkage")
 }
 
 impl WireEncode for ConeRegistrationTablesV1 {

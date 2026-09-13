@@ -99,6 +99,7 @@ pub use emission::{emit_object, render_llvm_ir};
 use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;
+pub use runtime_metadata_v1::{EmittedConeImageV1, RuntimeImagePatchSiteV1, emit_cone_image_v1};
 use target::ManagedAddressSpace;
 pub use target::{
     LlvmVersion, ResolvedTargetProfile, TargetProfileId, ValidatedBackendProfile,
