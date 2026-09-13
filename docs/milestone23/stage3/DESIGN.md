@@ -1263,6 +1263,20 @@ relocation shape/atom owner验证，最后在全部member的联合定义空间�
 该proof止于provisional strong-relocation closure；digest patch、stackmap leaf、requirement finalization与
 final bytes re-verification仍由后续typed阶段完成。
 
+Scoop producer的digest落槽先由`VerifiedScoopLirDigestPatchSiteSetV1`收窄。输入是上述联合object
+proof、同producer的`OdrFreeLirFoundation`、已经对该foundation闭合的
+`StrongDigestFinalizationPlanV1`、同一批按member id严格递增的Scoop object bytes，以及按
+`DigestPatchIntentId`严格递增的`ProvisionalDigestPatchSiteV1`。foundation只通过窄的
+`resolve_definition_atom(owner, atom_role)`查询暴露唯一target，不向slib开放内部authority table。
+verifier要求每个intent恰一个site、site member等于definition plan的既定Scoop member、width精确32、
+checked file offset完整位于目标atom的非padding范围内、原始object length/digest仍等于前序proof、槽内
+32 bytes全零，且没有任何relocation或其他patch site与该范围相交。zero-fill/non-file-backed atom、
+generated-C member落槽、错序/重复/漏项/额外intent、错member/offset/width及验后换bytes全部失败。
+验证结果保留member-independent source node/semantic field与物理member/definition/atom/section/offset的
+完整关联，但wire投影仍只编码`{1=intent, 2=member, 3=checked_offset}`；固定width与其余字段由reader重建。
+这一步只闭合digest slot的物理materialization，不替代后续对registration/image/entry canonical record
+非patch bytes以及stackmap语义的独立验证。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
@@ -1293,8 +1307,9 @@ generated-C member可以产生该requirement，Scoop LIR member中的同名use�
 template、flags、deployment或environment都会改变profile fingerprint以及本requirement id。当前registry
 只含`Memcpy`，未知helper保持未分类并使artifact失败。
 
-完整producer-specific proof为`VerifiedGeneratedCBridgeSemanticSetV1`，只能消费已经通过联合strong
-relocation closure的`VerifiedBuiltinObjectStrongRelocationSetV1`。它从validated bridge plan保留的full
+完整producer-specific proof为`VerifiedGeneratedCBridgeSemanticSetV1`，只能消费已经闭合全部Scoop
+digest zero slot的`VerifiedScoopLirDigestPatchSiteSetV1`，不能从裸联合strong-relocation proof直接构造。
+它从validated bridge plan保留的full
 unit/atom key重建每个materialized atom的`GeneratedBridge` definition plan与singleton primary object
 atom，要求它们全部出现在unit被分配的generated-C member中，并要求这些member不存在额外definition、
 额外object atom或由associated descriptor发起的relocation。object-local machine symbol只允许回指同一

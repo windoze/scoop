@@ -1,10 +1,11 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DefinitionOwner,
-    GeneratedBridgeAtomId, LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
-    OdrGroupId, OdrMemberId, PersistentCallableBodyId, PersistentStaticStorageId,
-    PersistentSymbolKey, PersistentSymbolRequest, StorageRole,
+    ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DefinitionAtomRole,
+    DefinitionOwner, GeneratedBridgeAtomId, LinkageClass, ObjectDefinitionAtomId,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
+    PersistentCallableBodyId, PersistentStaticStorageId, PersistentSymbolKey,
+    PersistentSymbolRequest, StorageRole,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -108,6 +109,30 @@ impl OdrFreeLirFoundation {
 
     pub const fn as_canonical(&self) -> &CanonicalLirFoundation {
         &self.canonical
+    }
+
+    pub fn resolve_definition_atom(
+        &self,
+        owner: ObjectDefinitionPlanOwner,
+        atom_role: DefinitionAtomRole,
+    ) -> Result<(ObjectDefinitionPlanId, ObjectDefinitionAtomId), DefinitionAtomResolutionError>
+    {
+        let mut targets = self.canonical.definition_atoms.iter().filter_map(|atom| {
+            let plan = self
+                .canonical
+                .definition_plans
+                .iter()
+                .find(|plan| plan.id() == atom.key().plan())?;
+            (plan.key().owner() == owner && atom.key().role() == atom_role)
+                .then_some((plan.id(), atom.id()))
+        });
+        let Some(target) = targets.next() else {
+            return Err(DefinitionAtomResolutionError::Missing);
+        };
+        if targets.next().is_some() {
+            return Err(DefinitionAtomResolutionError::Ambiguous);
+        }
+        Ok(target)
     }
 
     pub(crate) fn definition_plans(&self) -> &[super::DefinitionPlanRecord] {
@@ -230,6 +255,23 @@ impl OdrFreeLirFoundation {
         self.canonical
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DefinitionAtomResolutionError {
+    Missing,
+    Ambiguous,
+}
+
+impl fmt::Display for DefinitionAtomResolutionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "definition atom cannot be resolved uniquely: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for DefinitionAtomResolutionError {}
 
 impl WireEncode for OdrFreeLirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {

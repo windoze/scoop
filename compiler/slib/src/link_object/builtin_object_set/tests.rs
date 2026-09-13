@@ -29,6 +29,7 @@ fn verifies_the_complete_mixed_builtin_member_set() {
         canonical_value,
         &[],
         None,
+        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;
     let bridge_member = member_plan.generated_bridge_members()[0].member_id();
@@ -37,6 +38,7 @@ fn verifies_the_complete_mixed_builtin_member_set() {
         canonical_value,
         &[],
         Some((MINIMUM_OS, SDK, &[])),
+        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;
     let scoop_objects = [ScoopLirObjectCandidateV1::new(scoop_member, &scoop_bytes)];
@@ -138,6 +140,7 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
         canonical_value,
         &[],
         Some((MINIMUM_OS, SDK, &[])),
+        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;
     let bridge_bytes = object_for_plan_with_deployment(
@@ -145,6 +148,7 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
         canonical_value,
         &[],
         Some((MINIMUM_OS, SDK, &[])),
+        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;
     let bridge_objects = [GeneratedCBridgeObjectCandidateV1::new(
@@ -181,6 +185,7 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
         canonical_value,
         &[],
         None,
+        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;
     let valid_scoop = [ScoopLirObjectCandidateV1::new(

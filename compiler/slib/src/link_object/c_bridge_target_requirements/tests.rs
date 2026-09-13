@@ -54,7 +54,7 @@ fn producer_semantics_reclassifies_a_helper_despite_an_unrelated_source_name_col
 fn rejects_requirement_and_semantic_proofs_from_different_strong_closures() {
     let fixture = semantic_fixture("native_bridge", &[b"_native_bridge"]);
     let semantic = verify_generated_c_bridge_semantics_v1(
-        fixture.builtins,
+        fixture.scoop_patch_sites,
         fixture.bridge_plan,
         fixture.native_requirements,
         &fixture.profile,
@@ -100,7 +100,7 @@ pub(in crate::link_object) fn support_closure(
     };
     let runtime_and_eh = runtime_closure(&fixture);
     let bridge_semantics = verify_generated_c_bridge_semantics_v1(
-        fixture.builtins,
+        fixture.scoop_patch_sites,
         fixture.bridge_plan,
         fixture.native_requirements,
         &fixture.profile,
@@ -110,7 +110,11 @@ pub(in crate::link_object) fn support_closure(
 }
 
 fn runtime_closure(fixture: &SemanticFixture) -> VerifiedRuntimeAndEhRequirementClosureV1 {
-    let strong = fixture.builtins.strong_relocations().clone();
+    let strong = fixture
+        .scoop_patch_sites
+        .builtins()
+        .strong_relocations()
+        .clone();
     let owners =
         CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
     let core = verify_core_strong_requirements_v1(

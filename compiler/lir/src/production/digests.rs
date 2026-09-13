@@ -312,6 +312,13 @@ impl StrongDigestFinalizationPlanV1 {
     pub fn nodes(&self) -> &[DigestNodeV1] {
         &self.nodes
     }
+
+    pub fn validate_against(
+        &self,
+        foundation: &crate::OdrFreeLirFoundation,
+    ) -> Result<(), DigestPlanError> {
+        validate_plan(&self.nodes, foundation)
+    }
 }
 
 impl WireEncode for StrongDigestFinalizationPlanV1 {

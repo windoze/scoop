@@ -13,7 +13,10 @@ use scoop_lir::{
     RuntimeSymbolContractV1,
 };
 
-use super::{CanonicalUndefinedRelocationUseV1, VerifiedBuiltinObjectStrongRelocationSetV1};
+use super::{
+    CanonicalUndefinedRelocationUseV1, VerifiedBuiltinObjectStrongRelocationSetV1,
+    VerifiedScoopLirDigestPatchSiteSetV1,
+};
 
 mod classification;
 use classification::classify_binding;
@@ -72,7 +75,7 @@ impl VerifiedGeneratedBridgeRelocationSemanticUseV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedGeneratedCBridgeSemanticSetV1 {
-    builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
+    scoop_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
     bridge_plan: GeneratedBridgePlanSetV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     target_support: CBridgeTargetSupportRegistryV1,
@@ -81,15 +84,15 @@ pub struct VerifiedGeneratedCBridgeSemanticSetV1 {
 
 impl VerifiedGeneratedCBridgeSemanticSetV1 {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
-        self.builtins.producer()
+        self.scoop_patch_sites.producer()
     }
 
     pub const fn target(&self) -> LirTargetProfile {
         self.native_requirements.target()
     }
 
-    pub const fn builtins(&self) -> &VerifiedBuiltinObjectStrongRelocationSetV1 {
-        &self.builtins
+    pub const fn scoop_patch_sites(&self) -> &VerifiedScoopLirDigestPatchSiteSetV1 {
+        &self.scoop_patch_sites
     }
 
     pub const fn bridge_plan(&self) -> &GeneratedBridgePlanSetV1 {
@@ -110,12 +113,13 @@ impl VerifiedGeneratedCBridgeSemanticSetV1 {
 }
 
 pub fn verify_generated_c_bridge_semantics_v1(
-    builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
+    scoop_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
     bridge_plan: GeneratedBridgePlanSetV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     profile: &CBridgeToolchainProfileV1,
 ) -> Result<VerifiedGeneratedCBridgeSemanticSetV1, GeneratedCBridgeSemanticValidationError> {
-    validate_outer_contracts(&builtins, &bridge_plan, &native_requirements, profile)?;
+    let builtins = scoop_patch_sites.builtins();
+    validate_outer_contracts(builtins, &bridge_plan, &native_requirements, profile)?;
     let target_support =
         CBridgeTargetSupportRegistryV1::current(native_requirements.target(), profile)
             .map_err(GeneratedCBridgeSemanticValidationError::TargetSupportRegistry)?;
@@ -124,9 +128,9 @@ pub fn verify_generated_c_bridge_semantics_v1(
         RuntimeAbiSymbolV1::CallbackInvoke,
     )
     .map_err(GeneratedCBridgeSemanticValidationError::RuntimeRegistry)?;
-    let expected = ExpectedBridgeSet::new(&builtins, &bridge_plan)?;
-    expected.validate_actual_definitions(&builtins)?;
-    expected.validate_machine_local_relocations(&builtins)?;
+    let expected = ExpectedBridgeSet::new(builtins, &bridge_plan)?;
+    expected.validate_actual_definitions(builtins)?;
+    expected.validate_machine_local_relocations(builtins)?;
 
     let native_by_fingerprint = native_requirements
         .contracts()
@@ -194,7 +198,7 @@ pub fn verify_generated_c_bridge_semantics_v1(
     });
 
     Ok(VerifiedGeneratedCBridgeSemanticSetV1 {
-        builtins,
+        scoop_patch_sites,
         bridge_plan,
         native_requirements,
         target_support,

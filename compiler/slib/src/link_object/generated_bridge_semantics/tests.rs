@@ -5,7 +5,8 @@ use scoop_identity::{
     CallableMaterializationContext, CallableTemplateOwner, CallbackParameterIndex,
     CanonicalCAbiFunctionSignature, CanonicalCAbiParameter, CanonicalCAbiReturn,
     CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType, CanonicalIdentifier,
-    ConeIdentity, DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
+    ConeIdentity, DeclarationScope, DefinitionAtomRole, DefinitionOwnerChain, DigestNodeId,
+    DigestNodeKey, DigestPatchIntentKey, DigestSemanticFieldRole, Effect, ExactCallableSignature,
     ExactTypeKey, GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
     GeneratedBridgeUnitKey, GeneratedCallableKey, NativeExternalContract, NativeLibraryBinding,
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PackagePath, PersistentCallableBodyId,
@@ -14,15 +15,17 @@ use scoop_identity::{
     StrongDefinitionRole,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, GeneratedBridgePlanSetV1, LirTargetProfile, StrongObjectSymbolSurfaceV1,
+    CBridgeProductionSetV1, DigestNodeV1, GeneratedBridgePlanSetV1, LirTargetProfile,
+    StrongDigestFinalizationPlanV1, StrongObjectSymbolSurfaceV1,
 };
 
 use super::*;
 use crate::{
     GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
-    PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1, StrongRelocationResolutionV1,
-    VerifiedDarwinArm64RelocationFormV1, verify_builtin_object_strong_relocations_v1,
-    verify_c_bridge_production_envelopes_v1,
+    PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
+    StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
+    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    verify_scoop_lir_digest_patch_sites_v1,
 };
 
 use super::super::c_bridge_production::tests::{fixture, member_plan, profile};
@@ -39,7 +42,7 @@ const SDK: u32 = 0x000e_0200;
 fn verifies_outbound_function_definition_and_native_relocation() {
     let fixture = semantic_fixture("native_bridge", &[b"_native_bridge"]);
     let verified = verify_generated_c_bridge_semantics_v1(
-        fixture.builtins,
+        fixture.scoop_patch_sites,
         fixture.bridge_plan,
         fixture.native_requirements,
         &fixture.profile,
@@ -64,7 +67,7 @@ fn rejects_an_unplanned_external_and_a_missing_semantic_use() {
     let wrong = semantic_fixture("native_bridge", &[b"_other_native"]);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
-            wrong.builtins,
+            wrong.scoop_patch_sites,
             wrong.bridge_plan,
             wrong.native_requirements,
             &wrong.profile,
@@ -78,7 +81,7 @@ fn rejects_an_unplanned_external_and_a_missing_semantic_use() {
     let missing = semantic_fixture("native_bridge", &[]);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
-            missing.builtins,
+            missing.scoop_patch_sites,
             missing.bridge_plan,
             missing.native_requirements,
             &missing.profile,
@@ -92,7 +95,7 @@ fn target_support_cannot_replace_the_required_native_use() {
     let support_only = semantic_fixture("native_bridge", &[b"_memcpy"]);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
-            support_only.builtins,
+            support_only.scoop_patch_sites,
             support_only.bridge_plan,
             support_only.native_requirements,
             &support_only.profile,
@@ -105,7 +108,7 @@ fn target_support_cannot_replace_the_required_native_use() {
 fn source_extern_target_wins_over_same_spelling_target_support() {
     let fixture = semantic_fixture("memcpy", &[b"_memcpy"]);
     let verified = verify_generated_c_bridge_semantics_v1(
-        fixture.builtins,
+        fixture.scoop_patch_sites,
         fixture.bridge_plan,
         fixture.native_requirements,
         &fixture.profile,
@@ -193,7 +196,7 @@ fn rejects_a_profile_other_than_the_one_bound_by_production() {
     let other_profile = profile("clang-2100.1.1.102", MINIMUM_OS, SDK);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
-            fixture.builtins,
+            fixture.scoop_patch_sites,
             fixture.bridge_plan,
             fixture.native_requirements,
             &other_profile,
@@ -345,7 +348,7 @@ fn classifies_static_callback_only_to_its_typed_storage_bridge() {
 }
 
 pub(in crate::link_object) struct SemanticFixture {
-    pub(in crate::link_object) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
+    pub(in crate::link_object) scoop_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
     pub(in crate::link_object) bridge_plan: GeneratedBridgePlanSetV1,
     pub(in crate::link_object) native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     pub(in crate::link_object) profile: CBridgeToolchainProfileV1,
@@ -378,13 +381,17 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
 
     let scoop_member = member_plan.scoop_lir_members()[0].member_id();
-    let scoop_bytes = object_for_plan_with_deployment(
+    let scoop_object = object_for_plan_with_deployment(
         symbol_plan.member(scoop_member).unwrap(),
-        canonical_value,
+        |role| match role {
+            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { .. }
+            | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { .. } => 0,
+            PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => 64,
+        },
         &[],
         None,
-    )
-    .bytes;
+        &[0; 64],
+    );
     let bridge_member = member_plan.generated_bridge_members()[0].member_id();
     let bridge_symbols = symbol_plan.member(bridge_member).unwrap();
     let primary = primary_role(bridge_symbols);
@@ -398,12 +405,16 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
         canonical_value,
         &relocations,
         Some((MINIMUM_OS, SDK, &[])),
+        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;
     if !relocation_symbols.is_empty() {
         bridge_bytes = add_undefined_symbols(bridge_bytes, true, relocation_symbols);
     }
-    let scoop_objects = [ScoopLirObjectCandidateV1::new(scoop_member, &scoop_bytes)];
+    let scoop_objects = [ScoopLirObjectCandidateV1::new(
+        scoop_member,
+        &scoop_object.bytes,
+    )];
     let bridge_objects = [GeneratedCBridgeObjectCandidateV1::new(
         bridge_member,
         &bridge_bytes,
@@ -423,6 +434,39 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
         &scoop_objects,
         production_proof,
         &bridge_objects,
+    )
+    .unwrap();
+    let image_owner = ObjectDefinitionPlanKey::strong(
+        fixture.foundation.producer(),
+        StrongDefinitionEntity::cone_image(fixture.foundation.producer()),
+        StrongDefinitionRole::ImageDescriptor,
+    )
+    .unwrap()
+    .owner();
+    let image_key = DigestNodeKey::runtime_image(fixture.foundation.producer());
+    let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
+    let image_patch = DigestPatchIntentKey::new(
+        image_node_id,
+        image_owner,
+        DefinitionAtomRole::Primary,
+        DigestSemanticFieldRole::RuntimeImage,
+    );
+    let image_node = DigestNodeV1::new(image_key, Vec::new(), vec![image_patch]).unwrap();
+    let image_intent = image_node.patch_intents()[0].id();
+    let digest_plan =
+        StrongDigestFinalizationPlanV1::new(vec![image_node], &fixture.foundation).unwrap();
+    let patch_sites = [ProvisionalDigestPatchSiteV1::new(
+        image_intent,
+        scoop_member,
+        u64::try_from(scoop_object.section_offset).unwrap() + 16,
+        32,
+    )];
+    let scoop_patch_sites = verify_scoop_lir_digest_patch_sites_v1(
+        builtins,
+        &fixture.foundation,
+        digest_plan,
+        &scoop_objects,
+        &patch_sites,
     )
     .unwrap();
     let mut contracts = vec![contract_record(
@@ -446,7 +490,7 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     );
     let native_requirements = native_surface(ConeIdentity::CORE, contracts, Vec::new());
     SemanticFixture {
-        builtins,
+        scoop_patch_sites,
         bridge_plan,
         native_requirements,
         profile,

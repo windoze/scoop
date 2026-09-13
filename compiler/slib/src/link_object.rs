@@ -28,6 +28,9 @@ pub use c_bridge_production::*;
 mod builtin_object_set;
 pub use builtin_object_set::*;
 
+mod digest_patch_sites;
+pub use digest_patch_sites::*;
+
 mod generated_bridge_semantics;
 pub use generated_bridge_semantics::*;
 

@@ -33,7 +33,8 @@ mod projection;
 mod strong_profile;
 pub use imported::{ImportedLirId, ImportedLirSet};
 pub use strong_profile::{
-    OdrFreeLirFoundation, OdrFreeLirFoundationError, OdrFreeLirFoundationProjectionError,
+    DefinitionAtomResolutionError, OdrFreeLirFoundation, OdrFreeLirFoundationError,
+    OdrFreeLirFoundationProjectionError,
 };
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;

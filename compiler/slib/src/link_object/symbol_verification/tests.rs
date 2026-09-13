@@ -346,7 +346,7 @@ fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bo
 
 pub(in crate::link_object) struct ObjectFixture {
     pub(in crate::link_object) bytes: Vec<u8>,
-    section_offset: usize,
+    pub(in crate::link_object) section_offset: usize,
     symbol_offset: usize,
     string_offset: usize,
     string_indexes: Vec<u32>,
@@ -365,8 +365,20 @@ pub(in crate::link_object) fn object_for_plan_with_branch_relocation(
     relocation: Option<(u32, PlannedStrongObjectSymbolRoleV1)>,
 ) -> ObjectFixture {
     match relocation {
-        Some(relocation) => object_for_plan_with_deployment(plan, value, &[relocation], None),
-        None => object_for_plan_with_deployment(plan, value, &[], None),
+        Some(relocation) => object_for_plan_with_deployment(
+            plan,
+            value,
+            &[relocation],
+            None,
+            &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
+        ),
+        None => object_for_plan_with_deployment(
+            plan,
+            value,
+            &[],
+            None,
+            &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
+        ),
     }
 }
 
@@ -375,6 +387,7 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
     value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
     relocations: &[(u32, PlannedStrongObjectSymbolRoleV1)],
     deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>,
+    section_bytes: &[u8],
 ) -> ObjectFixture {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
@@ -384,7 +397,7 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
         .unwrap_or(0);
     let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
     let section_offset = 32 + command_bytes;
-    let section_size = 8_u32;
+    let section_size = u32::try_from(section_bytes.len()).unwrap();
     let relocation_count = u32::try_from(relocations.len()).unwrap();
     let relocation_offset = section_offset + section_size;
     let symbol_offset = relocation_offset + relocation_count * 8;
@@ -474,7 +487,7 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
         }
     }
 
-    bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0]);
+    bytes.extend_from_slice(section_bytes);
     for (offset, target_role) in relocations {
         let target = plan
             .symbols()

@@ -111,7 +111,12 @@ pub fn verify_c_bridge_target_support_requirements_v1(
         .source_closure()
         .core_closure()
         .strong_closure();
-    if strong != bridge_semantics.builtins().strong_relocations() {
+    if strong
+        != bridge_semantics
+            .scoop_patch_sites()
+            .builtins()
+            .strong_relocations()
+    {
         return Err(CBridgeTargetSupportRequirementValidationError::StrongClosureMismatch);
     }
     if runtime_and_eh.selection().target() != bridge_semantics.target() {
@@ -153,6 +158,7 @@ pub fn verify_c_bridge_target_support_requirements_v1(
     }
 
     let generated_members = bridge_semantics
+        .scoop_patch_sites()
         .builtins()
         .member_plan()
         .generated_bridge_members()
