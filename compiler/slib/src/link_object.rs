@@ -22,6 +22,9 @@ const GENERATED_BRIDGE_UNIT_SET_DOMAIN: &str = "scoop-generated-bridge-object-un
 mod planning;
 pub use planning::*;
 
+mod macho;
+pub use macho::*;
+
 macro_rules! typed_digest {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

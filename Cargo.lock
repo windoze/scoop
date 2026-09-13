@@ -531,6 +531,7 @@ dependencies = [
 name = "scoop-slib"
 version = "0.0.0"
 dependencies = [
+ "object",
  "scoop-hir",
  "scoop-identity",
  "scoop-lir",
