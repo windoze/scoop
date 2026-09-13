@@ -12,6 +12,9 @@ pub use external_bridges::*;
 mod generated_bridges;
 pub use generated_bridges::*;
 
+mod producer_units;
+pub use producer_units::*;
+
 mod registrations;
 pub use registrations::*;
 
