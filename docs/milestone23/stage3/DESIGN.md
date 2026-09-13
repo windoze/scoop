@@ -1637,6 +1637,22 @@ linkage且address-significant；旧扁平TypeDescriptor、错type、可变定义
 fingerprint均保留恰32-byte零值，返回的三个patch site共同绑定registration definition/Primary atom及各自
 typed intent。已有同type external image-table声明可以补全；错type/linkage、已有initializer或任一预检
 失败时不得留下部分registration定义，不开放接受裸exact type、runtime id、descriptor pointer或offset的入口。
+
+immortal-object registration唯一经`emit_strong_immortal_object_registrations_v1`消费完整immortal plan set。
+入口同样先对全集做无副作用预检：object必须已经是managed LLVM address space中的external、constant、
+address-significant定义且持有initializer；type-registration目标必须是精确240-byte共享product的external
+声明或只读定义；registration自身只能是精确184-byte共享product的未定义external声明。缺失object、错address
+space/type/linkage、function/global冲突、可变目标或已有registration initializer均直接失败，不创建任何新的
+registration或type-registration声明。同一exact type被多个immortal object引用时只复用一个符号，不允许LLVM
+自动改名产生第二份声明。
+
+每条record使用`ConeStrong`外部linkage、immortal magic、ABI version 1、size 184、Strong linkage、零reserved/
+ODR字段和object semantic id；offset 152写入从managed pointer显式转换得到的runtime raw object地址，offset
+160/168写入plan已闭合的object size/alignment，offset 176写入同一plan的type-registration地址。offset 120的
+`definition_fingerprint`保留恰32-byte零值，返回的patch site精确携带registration definition、Primary atom、
+typed intent、LLVM owner、offset与width。已有同type image-table声明可以补全；不开放接受裸object id、
+object pointer、size/alignment、type-registration pointer或patch offset的旧入口，也不发射兼容alias。
+
 Link侧唯一经`verify_strong_type_registrations_v1`消费完整type plan、全量digest patch proof与同一批精确object
 bytes；它重验240-byte provisional record、只读Primary atom、offset 168处唯一8-byte unsigned
 TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation必须解析到同一exact type的

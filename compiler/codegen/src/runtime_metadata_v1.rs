@@ -38,6 +38,12 @@ pub use type_registration::{
     TypeRegistrationPatchSiteV1, emit_strong_type_registrations_v1,
 };
 
+mod immortal_registration;
+pub use immortal_registration::{
+    EmittedStrongImmortalObjectRegistrationSetV1, EmittedStrongImmortalObjectRegistrationV1,
+    ImmortalObjectRegistrationPatchSiteV1, emit_strong_immortal_object_registrations_v1,
+};
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,

@@ -95,12 +95,14 @@ pub(crate) use module_context::*;
 pub use runtime_metadata_v1::{
     CallableRegistrationPatchSiteV1, EmittedConeImageV1, EmittedEntryProductionV1,
     EmittedRootEntryV1, EmittedStrongCallableRegistrationSetV1,
-    EmittedStrongCallableRegistrationV1, EmittedStrongSafepointRegistrationSetV1,
+    EmittedStrongCallableRegistrationV1, EmittedStrongImmortalObjectRegistrationSetV1,
+    EmittedStrongImmortalObjectRegistrationV1, EmittedStrongSafepointRegistrationSetV1,
     EmittedStrongSafepointRegistrationV1, EmittedStrongTypeRegistrationSetV1,
-    EmittedStrongTypeRegistrationV1, RootEntryPatchSiteV1, RuntimeImagePatchSiteV1,
-    SafepointRegistrationPatchSiteV1, TypeRegistrationPatchSiteV1, emit_cone_image_v1,
-    emit_entry_production_v1, emit_strong_callable_registrations_v1,
-    emit_strong_safepoint_registrations_v1, emit_strong_type_registrations_v1,
+    EmittedStrongTypeRegistrationV1, ImmortalObjectRegistrationPatchSiteV1, RootEntryPatchSiteV1,
+    RuntimeImagePatchSiteV1, SafepointRegistrationPatchSiteV1, TypeRegistrationPatchSiteV1,
+    emit_cone_image_v1, emit_entry_production_v1, emit_strong_callable_registrations_v1,
+    emit_strong_immortal_object_registrations_v1, emit_strong_safepoint_registrations_v1,
+    emit_strong_type_registrations_v1,
 };
 use target::ManagedAddressSpace;
 pub use target::{

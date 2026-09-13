@@ -3,12 +3,13 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+pub use scoop_identity::PersistentImmortalObjectId;
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
     DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentExactTypeId, PersistentImmortalObjectId, PersistentSymbolError, PersistentSymbolKey,
-    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::{

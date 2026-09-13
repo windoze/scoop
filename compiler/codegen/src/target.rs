@@ -174,7 +174,7 @@ enum TailCallPolicy {
 pub(crate) struct ManagedAddressSpace(u16);
 
 impl ManagedAddressSpace {
-    const MOVING_GC: Self = Self(1);
+    pub(crate) const MOVING_GC: Self = Self(1);
 
     #[cfg(test)]
     pub(crate) const fn for_test(value: u16) -> Self {
