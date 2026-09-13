@@ -118,6 +118,18 @@ impl OdrFreeLirFoundation {
         &self.canonical.definition_atoms
     }
 
+    pub(crate) fn exact_types(&self) -> &[super::ExactTypeRecord] {
+        &self.canonical.exact_types
+    }
+
+    pub(crate) fn layouts(&self) -> &[super::LayoutRecord] {
+        &self.canonical.layouts
+    }
+
+    pub(crate) fn scans(&self) -> &[super::ScanRecord] {
+        &self.canonical.scans
+    }
+
     pub(crate) fn contains_callable_body(&self, id: PersistentCallableBodyId) -> bool {
         self.canonical
             .callable_bodies

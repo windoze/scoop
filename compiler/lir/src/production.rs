@@ -20,3 +20,6 @@ pub use image::*;
 
 mod entry;
 pub use entry::*;
+
+mod shape_support;
+pub use shape_support::*;

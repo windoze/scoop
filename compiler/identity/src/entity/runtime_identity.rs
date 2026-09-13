@@ -73,6 +73,10 @@ impl LayoutKey {
     pub const fn exact_type(&self) -> PersistentExactTypeId {
         self.exact_type
     }
+
+    pub const fn representation(&self) -> RepresentationRole {
+        self.representation
+    }
 }
 
 impl WireEncode for LayoutKey {
@@ -123,6 +127,10 @@ impl ScanKey {
 
     pub const fn layout(self) -> PersistentLayoutId {
         self.layout
+    }
+
+    pub const fn role(self) -> ScanRole {
+        self.role
     }
 }
 

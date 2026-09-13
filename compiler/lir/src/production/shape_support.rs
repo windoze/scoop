@@ -1,0 +1,804 @@
+use scoop_identity::{
+    DecodedPersistentId, DecodedPersistentSymbolRequest, DigestNodeId, ObjectDefinitionPlanId,
+    PersistentCallableBodyId, PersistentExactTypeId, PersistentGeneratedCallableId, PersistentId,
+    PersistentKeyResolver, PersistentLayoutId, PersistentScanId, PersistentSymbolRequest,
+    PersistentTypeId, SourceDeclarationKey, ValidatedIdentityGraph,
+};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+
+use crate::{OdrFreeLirFoundation, StrongRegistrationIdentitySurfaceV1};
+
+mod validation;
+use validation::build_closure;
+pub use validation::{ParamFreeShapeSupportBuildError, ParamFreeShapeSupportValidationError};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ClosedShapeSupportReasonV1 {
+    ReferenceNominalRequiresNoBox,
+}
+
+impl WireEncode for ClosedShapeSupportReasonV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::ReferenceNominalRequiresNoBox => 1,
+        })
+    }
+}
+
+impl WireDecode for ClosedShapeSupportReasonV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::ReferenceNominalRequiresNoBox),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ShapeSupportAvailabilityV1<T> {
+    Available(T),
+    NotApplicable(ClosedShapeSupportReasonV1),
+}
+
+impl<T> ShapeSupportAvailabilityV1<T> {
+    pub const fn available(&self) -> Option<&T> {
+        match self {
+            Self::Available(value) => Some(value),
+            Self::NotApplicable(_) => None,
+        }
+    }
+}
+
+impl<T: WireEncode> WireEncode for ShapeSupportAvailabilityV1<T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Available(value) => encode_value_sum(encoder, 1, value),
+            Self::NotApplicable(reason) => encode_value_sum(encoder, 2, reason),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StrongShapeDefinitionV1<I: PersistentId> {
+    semantic_id: I,
+    definition_plan: ObjectDefinitionPlanId,
+    symbol: PersistentSymbolRequest,
+}
+
+impl<I: PersistentId> StrongShapeDefinitionV1<I> {
+    pub const fn semantic_id(&self) -> I {
+        self.semantic_id
+    }
+
+    pub const fn definition_plan(&self) -> ObjectDefinitionPlanId {
+        self.definition_plan
+    }
+
+    pub const fn symbol(&self) -> PersistentSymbolRequest {
+        self.symbol
+    }
+}
+
+impl<I: PersistentId + WireEncode> WireEncode for StrongShapeDefinitionV1<I> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.semantic_id.encode(encoder)?;
+        encoder.field(2)?;
+        self.definition_plan.encode(encoder)?;
+        encoder.field(3)?;
+        self.symbol.encode(encoder)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StrongShapeRegistrationV1<I: PersistentId> {
+    semantic_id: I,
+    definition_plan: ObjectDefinitionPlanId,
+    symbol: PersistentSymbolRequest,
+    fingerprint_node: DigestNodeId,
+}
+
+impl<I: PersistentId> StrongShapeRegistrationV1<I> {
+    pub const fn semantic_id(&self) -> I {
+        self.semantic_id
+    }
+
+    pub const fn definition_plan(&self) -> ObjectDefinitionPlanId {
+        self.definition_plan
+    }
+
+    pub const fn symbol(&self) -> PersistentSymbolRequest {
+        self.symbol
+    }
+
+    pub const fn fingerprint_node(&self) -> DigestNodeId {
+        self.fingerprint_node
+    }
+}
+
+impl<I: PersistentId + WireEncode> WireEncode for StrongShapeRegistrationV1<I> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        encoder.field(1)?;
+        self.semantic_id.encode(encoder)?;
+        encoder.field(2)?;
+        self.definition_plan.encode(encoder)?;
+        encoder.field(3)?;
+        self.symbol.encode(encoder)?;
+        encoder.field(4)?;
+        self.fingerprint_node.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StrongExactShapeSupportV1 {
+    nominal: PersistentTypeId,
+    exact: PersistentExactTypeId,
+    layout: StrongShapeDefinitionV1<PersistentLayoutId>,
+    scan: StrongShapeDefinitionV1<PersistentScanId>,
+    descriptor: StrongShapeDefinitionV1<PersistentExactTypeId>,
+    registration: StrongShapeRegistrationV1<PersistentExactTypeId>,
+}
+
+impl StrongExactShapeSupportV1 {
+    pub const fn nominal(&self) -> PersistentTypeId {
+        self.nominal
+    }
+
+    pub const fn exact(&self) -> PersistentExactTypeId {
+        self.exact
+    }
+
+    pub const fn layout(&self) -> StrongShapeDefinitionV1<PersistentLayoutId> {
+        self.layout
+    }
+
+    pub const fn scan(&self) -> StrongShapeDefinitionV1<PersistentScanId> {
+        self.scan
+    }
+
+    pub const fn descriptor(&self) -> StrongShapeDefinitionV1<PersistentExactTypeId> {
+        self.descriptor
+    }
+
+    pub const fn registration(&self) -> StrongShapeRegistrationV1<PersistentExactTypeId> {
+        self.registration
+    }
+}
+
+impl WireEncode for StrongExactShapeSupportV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(6)?;
+        encoder.field(1)?;
+        self.nominal.encode(encoder)?;
+        encoder.field(2)?;
+        self.exact.encode(encoder)?;
+        encoder.field(3)?;
+        self.layout.encode(encoder)?;
+        encoder.field(4)?;
+        self.scan.encode(encoder)?;
+        encoder.field(5)?;
+        self.descriptor.encode(encoder)?;
+        encoder.field(6)?;
+        self.registration.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StrongCallableShapeSupportV1 {
+    generated_callable: PersistentGeneratedCallableId,
+    body: PersistentCallableBodyId,
+    body_definition: StrongShapeDefinitionV1<PersistentCallableBodyId>,
+    registration: StrongShapeRegistrationV1<PersistentCallableBodyId>,
+}
+
+impl StrongCallableShapeSupportV1 {
+    pub const fn generated_callable(&self) -> PersistentGeneratedCallableId {
+        self.generated_callable
+    }
+
+    pub const fn body(&self) -> PersistentCallableBodyId {
+        self.body
+    }
+
+    pub const fn body_definition(&self) -> StrongShapeDefinitionV1<PersistentCallableBodyId> {
+        self.body_definition
+    }
+
+    pub const fn registration(&self) -> StrongShapeRegistrationV1<PersistentCallableBodyId> {
+        self.registration
+    }
+}
+
+impl WireEncode for StrongCallableShapeSupportV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        encoder.field(1)?;
+        self.generated_callable.encode(encoder)?;
+        encoder.field(2)?;
+        self.body.encode(encoder)?;
+        encoder.field(3)?;
+        self.body_definition.encode(encoder)?;
+        encoder.field(4)?;
+        self.registration.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StrongContinuationShellSupportV1 {
+    success: StrongCallableShapeSupportV1,
+    failure: StrongCallableShapeSupportV1,
+}
+
+impl StrongContinuationShellSupportV1 {
+    pub const fn success(&self) -> &StrongCallableShapeSupportV1 {
+        &self.success
+    }
+
+    pub const fn failure(&self) -> &StrongCallableShapeSupportV1 {
+        &self.failure
+    }
+}
+
+impl WireEncode for StrongContinuationShellSupportV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.success.encode(encoder)?;
+        encoder.field(2)?;
+        self.failure.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ParamFreeShapeSupportRolesV1 {
+    source_nominal: ShapeSupportAvailabilityV1<PersistentTypeId>,
+    value_layout: ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentLayoutId>>,
+    ref_scan: ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentScanId>>,
+    type_descriptor: ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentExactTypeId>>,
+    type_registration: ShapeSupportAvailabilityV1<StrongShapeRegistrationV1<PersistentExactTypeId>>,
+    boxed_value: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
+    coroutine_step: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
+    coroutine_slot: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
+    continuation_shell: ShapeSupportAvailabilityV1<StrongContinuationShellSupportV1>,
+    coroutine_start: ShapeSupportAvailabilityV1<StrongCallableShapeSupportV1>,
+}
+
+impl ParamFreeShapeSupportRolesV1 {
+    pub const fn source_nominal(&self) -> &ShapeSupportAvailabilityV1<PersistentTypeId> {
+        &self.source_nominal
+    }
+
+    pub const fn value_layout(
+        &self,
+    ) -> &ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentLayoutId>> {
+        &self.value_layout
+    }
+
+    pub const fn ref_scan(
+        &self,
+    ) -> &ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentScanId>> {
+        &self.ref_scan
+    }
+
+    pub const fn type_descriptor(
+        &self,
+    ) -> &ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentExactTypeId>> {
+        &self.type_descriptor
+    }
+
+    pub const fn type_registration(
+        &self,
+    ) -> &ShapeSupportAvailabilityV1<StrongShapeRegistrationV1<PersistentExactTypeId>> {
+        &self.type_registration
+    }
+
+    pub const fn boxed_value(&self) -> &ShapeSupportAvailabilityV1<StrongExactShapeSupportV1> {
+        &self.boxed_value
+    }
+
+    pub const fn coroutine_step(&self) -> &ShapeSupportAvailabilityV1<StrongExactShapeSupportV1> {
+        &self.coroutine_step
+    }
+
+    pub const fn coroutine_slot(&self) -> &ShapeSupportAvailabilityV1<StrongExactShapeSupportV1> {
+        &self.coroutine_slot
+    }
+
+    pub const fn continuation_shell(
+        &self,
+    ) -> &ShapeSupportAvailabilityV1<StrongContinuationShellSupportV1> {
+        &self.continuation_shell
+    }
+
+    pub const fn coroutine_start(
+        &self,
+    ) -> &ShapeSupportAvailabilityV1<StrongCallableShapeSupportV1> {
+        &self.coroutine_start
+    }
+}
+
+impl WireEncode for ParamFreeShapeSupportRolesV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(10)?;
+        encoder.field(1)?;
+        self.source_nominal.encode(encoder)?;
+        encoder.field(2)?;
+        self.value_layout.encode(encoder)?;
+        encoder.field(3)?;
+        self.ref_scan.encode(encoder)?;
+        encoder.field(4)?;
+        self.type_descriptor.encode(encoder)?;
+        encoder.field(5)?;
+        self.type_registration.encode(encoder)?;
+        encoder.field(6)?;
+        self.boxed_value.encode(encoder)?;
+        encoder.field(7)?;
+        self.coroutine_step.encode(encoder)?;
+        encoder.field(8)?;
+        self.coroutine_slot.encode(encoder)?;
+        encoder.field(9)?;
+        self.continuation_shell.encode(encoder)?;
+        encoder.field(10)?;
+        self.coroutine_start.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ParamFreeShapeSupportClosureV1 {
+    owner: PersistentExactTypeId,
+    root: scoop_identity::ConeIdentity,
+    roles: ParamFreeShapeSupportRolesV1,
+}
+
+impl ParamFreeShapeSupportClosureV1 {
+    pub const fn owner(&self) -> PersistentExactTypeId {
+        self.owner
+    }
+
+    pub const fn root(&self) -> scoop_identity::ConeIdentity {
+        self.root
+    }
+
+    pub const fn roles(&self) -> &ParamFreeShapeSupportRolesV1 {
+        &self.roles
+    }
+}
+
+impl WireEncode for ParamFreeShapeSupportClosureV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.owner.encode(encoder)?;
+        encoder.field(2)?;
+        self.root.encode(encoder)?;
+        encoder.field(3)?;
+        self.roles.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ParamFreeShapeSupportPlanSetV1 {
+    closures: Vec<ParamFreeShapeSupportClosureV1>,
+}
+
+impl ParamFreeShapeSupportPlanSetV1 {
+    pub fn from_core_sources<'source>(
+        sources: impl IntoIterator<Item = &'source SourceDeclarationKey>,
+        foundation: &OdrFreeLirFoundation,
+        registrations: &StrongRegistrationIdentitySurfaceV1,
+    ) -> Result<Self, ParamFreeShapeSupportBuildError> {
+        if foundation.producer() != scoop_identity::ConeIdentity::CORE {
+            return Err(ParamFreeShapeSupportBuildError::ProducerNotCore(
+                foundation.producer(),
+            ));
+        }
+        let mut closures = sources
+            .into_iter()
+            .map(|source| build_closure(source, foundation, registrations))
+            .collect::<Result<Vec<_>, _>>()?;
+        closures.sort_unstable_by_key(ParamFreeShapeSupportClosureV1::owner);
+        if let Some(pair) = closures
+            .windows(2)
+            .find(|pair| pair[0].owner == pair[1].owner)
+        {
+            return Err(ParamFreeShapeSupportBuildError::DuplicateOwner(
+                pair[0].owner,
+            ));
+        }
+        Ok(Self { closures })
+    }
+
+    pub fn closures(&self) -> &[ParamFreeShapeSupportClosureV1] {
+        &self.closures
+    }
+}
+
+impl WireEncode for ParamFreeShapeSupportPlanSetV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_array(encoder, &self.closures)
+    }
+}
+
+#[derive(Debug)]
+struct DecodedStrongShapeDefinitionV1<I: PersistentId> {
+    semantic_id: DecodedPersistentId<I>,
+    definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
+    symbol: DecodedPersistentSymbolRequest,
+}
+
+impl<I: PersistentId> WireEncode for DecodedStrongShapeDefinitionV1<I> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.semantic_id.encode(encoder)?;
+        encoder.field(2)?;
+        self.definition_plan.encode(encoder)?;
+        encoder.field(3)?;
+        self.symbol.encode(encoder)
+    }
+}
+
+impl<I: PersistentId> WireDecode for DecodedStrongShapeDefinitionV1<I> {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        Ok(Self {
+            semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
+            definition_plan: decoder.field(2, DecodedPersistentId::decode)?,
+            symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DecodedStrongShapeRegistrationV1<I: PersistentId> {
+    semantic_id: DecodedPersistentId<I>,
+    definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
+    symbol: DecodedPersistentSymbolRequest,
+    fingerprint_node: DecodedPersistentId<DigestNodeId>,
+}
+
+impl<I: PersistentId> WireEncode for DecodedStrongShapeRegistrationV1<I> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        encoder.field(1)?;
+        self.semantic_id.encode(encoder)?;
+        encoder.field(2)?;
+        self.definition_plan.encode(encoder)?;
+        encoder.field(3)?;
+        self.symbol.encode(encoder)?;
+        encoder.field(4)?;
+        self.fingerprint_node.encode(encoder)
+    }
+}
+
+impl<I: PersistentId> WireDecode for DecodedStrongShapeRegistrationV1<I> {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(4)?;
+        Ok(Self {
+            semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
+            definition_plan: decoder.field(2, DecodedPersistentId::decode)?,
+            symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
+            fingerprint_node: decoder.field(4, DecodedPersistentId::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DecodedStrongExactShapeSupportV1 {
+    nominal: DecodedPersistentId<PersistentTypeId>,
+    exact: DecodedPersistentId<PersistentExactTypeId>,
+    layout: DecodedStrongShapeDefinitionV1<PersistentLayoutId>,
+    scan: DecodedStrongShapeDefinitionV1<PersistentScanId>,
+    descriptor: DecodedStrongShapeDefinitionV1<PersistentExactTypeId>,
+    registration: DecodedStrongShapeRegistrationV1<PersistentExactTypeId>,
+}
+
+impl WireEncode for DecodedStrongExactShapeSupportV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(6)?;
+        encoder.field(1)?;
+        self.nominal.encode(encoder)?;
+        encoder.field(2)?;
+        self.exact.encode(encoder)?;
+        encoder.field(3)?;
+        self.layout.encode(encoder)?;
+        encoder.field(4)?;
+        self.scan.encode(encoder)?;
+        encoder.field(5)?;
+        self.descriptor.encode(encoder)?;
+        encoder.field(6)?;
+        self.registration.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedStrongExactShapeSupportV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(6)?;
+        Ok(Self {
+            nominal: decoder.field(1, DecodedPersistentId::decode)?,
+            exact: decoder.field(2, DecodedPersistentId::decode)?,
+            layout: decoder.field(3, DecodedStrongShapeDefinitionV1::decode)?,
+            scan: decoder.field(4, DecodedStrongShapeDefinitionV1::decode)?,
+            descriptor: decoder.field(5, DecodedStrongShapeDefinitionV1::decode)?,
+            registration: decoder.field(6, DecodedStrongShapeRegistrationV1::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DecodedStrongCallableShapeSupportV1 {
+    generated_callable: DecodedPersistentId<PersistentGeneratedCallableId>,
+    body: DecodedPersistentId<PersistentCallableBodyId>,
+    body_definition: DecodedStrongShapeDefinitionV1<PersistentCallableBodyId>,
+    registration: DecodedStrongShapeRegistrationV1<PersistentCallableBodyId>,
+}
+
+impl WireEncode for DecodedStrongCallableShapeSupportV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        encoder.field(1)?;
+        self.generated_callable.encode(encoder)?;
+        encoder.field(2)?;
+        self.body.encode(encoder)?;
+        encoder.field(3)?;
+        self.body_definition.encode(encoder)?;
+        encoder.field(4)?;
+        self.registration.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedStrongCallableShapeSupportV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(4)?;
+        Ok(Self {
+            generated_callable: decoder.field(1, DecodedPersistentId::decode)?,
+            body: decoder.field(2, DecodedPersistentId::decode)?,
+            body_definition: decoder.field(3, DecodedStrongShapeDefinitionV1::decode)?,
+            registration: decoder.field(4, DecodedStrongShapeRegistrationV1::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DecodedStrongContinuationShellSupportV1 {
+    success: DecodedStrongCallableShapeSupportV1,
+    failure: DecodedStrongCallableShapeSupportV1,
+}
+
+impl WireEncode for DecodedStrongContinuationShellSupportV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.success.encode(encoder)?;
+        encoder.field(2)?;
+        self.failure.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedStrongContinuationShellSupportV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            success: decoder.field(1, DecodedStrongCallableShapeSupportV1::decode)?,
+            failure: decoder.field(2, DecodedStrongCallableShapeSupportV1::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+enum DecodedShapeSupportAvailabilityV1<T> {
+    Available(T),
+    NotApplicable(ClosedShapeSupportReasonV1),
+}
+
+impl<T: WireEncode> WireEncode for DecodedShapeSupportAvailabilityV1<T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Available(value) => encode_value_sum(encoder, 1, value),
+            Self::NotApplicable(reason) => encode_value_sum(encoder, 2, reason),
+        }
+    }
+}
+
+impl<T: WireDecode> WireDecode for DecodedShapeSupportAvailabilityV1<T> {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        decoder.field(1, |decoder| match tag {
+            1 => T::decode(decoder).map(Self::Available),
+            2 => ClosedShapeSupportReasonV1::decode(decoder).map(Self::NotApplicable),
+            tag => Err(unknown_tag(decoder, tag)),
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DecodedParamFreeShapeSupportRolesV1 {
+    source_nominal: DecodedShapeSupportAvailabilityV1<DecodedPersistentId<PersistentTypeId>>,
+    value_layout:
+        DecodedShapeSupportAvailabilityV1<DecodedStrongShapeDefinitionV1<PersistentLayoutId>>,
+    ref_scan: DecodedShapeSupportAvailabilityV1<DecodedStrongShapeDefinitionV1<PersistentScanId>>,
+    type_descriptor:
+        DecodedShapeSupportAvailabilityV1<DecodedStrongShapeDefinitionV1<PersistentExactTypeId>>,
+    type_registration:
+        DecodedShapeSupportAvailabilityV1<DecodedStrongShapeRegistrationV1<PersistentExactTypeId>>,
+    boxed_value: DecodedShapeSupportAvailabilityV1<DecodedStrongExactShapeSupportV1>,
+    coroutine_step: DecodedShapeSupportAvailabilityV1<DecodedStrongExactShapeSupportV1>,
+    coroutine_slot: DecodedShapeSupportAvailabilityV1<DecodedStrongExactShapeSupportV1>,
+    continuation_shell: DecodedShapeSupportAvailabilityV1<DecodedStrongContinuationShellSupportV1>,
+    coroutine_start: DecodedShapeSupportAvailabilityV1<DecodedStrongCallableShapeSupportV1>,
+}
+
+impl DecodedParamFreeShapeSupportRolesV1 {
+    fn source_nominal(
+        &self,
+    ) -> Result<DecodedPersistentId<PersistentTypeId>, ParamFreeShapeSupportValidationError> {
+        match self.source_nominal {
+            DecodedShapeSupportAvailabilityV1::Available(source) => Ok(source),
+            DecodedShapeSupportAvailabilityV1::NotApplicable(_) => {
+                Err(ParamFreeShapeSupportValidationError::SourceNominalNotAvailable)
+            }
+        }
+    }
+}
+
+impl WireEncode for DecodedParamFreeShapeSupportRolesV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(10)?;
+        encoder.field(1)?;
+        self.source_nominal.encode(encoder)?;
+        encoder.field(2)?;
+        self.value_layout.encode(encoder)?;
+        encoder.field(3)?;
+        self.ref_scan.encode(encoder)?;
+        encoder.field(4)?;
+        self.type_descriptor.encode(encoder)?;
+        encoder.field(5)?;
+        self.type_registration.encode(encoder)?;
+        encoder.field(6)?;
+        self.boxed_value.encode(encoder)?;
+        encoder.field(7)?;
+        self.coroutine_step.encode(encoder)?;
+        encoder.field(8)?;
+        self.coroutine_slot.encode(encoder)?;
+        encoder.field(9)?;
+        self.continuation_shell.encode(encoder)?;
+        encoder.field(10)?;
+        self.coroutine_start.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedParamFreeShapeSupportRolesV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(10)?;
+        Ok(Self {
+            source_nominal: decoder.field(1, DecodedShapeSupportAvailabilityV1::decode)?,
+            value_layout: decoder.field(2, DecodedShapeSupportAvailabilityV1::decode)?,
+            ref_scan: decoder.field(3, DecodedShapeSupportAvailabilityV1::decode)?,
+            type_descriptor: decoder.field(4, DecodedShapeSupportAvailabilityV1::decode)?,
+            type_registration: decoder.field(5, DecodedShapeSupportAvailabilityV1::decode)?,
+            boxed_value: decoder.field(6, DecodedShapeSupportAvailabilityV1::decode)?,
+            coroutine_step: decoder.field(7, DecodedShapeSupportAvailabilityV1::decode)?,
+            coroutine_slot: decoder.field(8, DecodedShapeSupportAvailabilityV1::decode)?,
+            continuation_shell: decoder.field(9, DecodedShapeSupportAvailabilityV1::decode)?,
+            coroutine_start: decoder.field(10, DecodedShapeSupportAvailabilityV1::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DecodedParamFreeShapeSupportClosureV1 {
+    owner: DecodedPersistentId<PersistentExactTypeId>,
+    root: DecodedPersistentId<scoop_identity::ConeIdentity>,
+    roles: DecodedParamFreeShapeSupportRolesV1,
+}
+
+impl WireEncode for DecodedParamFreeShapeSupportClosureV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.owner.encode(encoder)?;
+        encoder.field(2)?;
+        self.root.encode(encoder)?;
+        encoder.field(3)?;
+        self.roles.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedParamFreeShapeSupportClosureV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        Ok(Self {
+            owner: decoder.field(1, DecodedPersistentId::decode)?,
+            root: decoder.field(2, DecodedPersistentId::decode)?,
+            roles: decoder.field(3, DecodedParamFreeShapeSupportRolesV1::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct DecodedParamFreeShapeSupportPlanSetV1 {
+    closures: Vec<DecodedParamFreeShapeSupportClosureV1>,
+}
+
+impl DecodedParamFreeShapeSupportPlanSetV1 {
+    pub fn validate<'source>(
+        self,
+        sources: impl IntoIterator<Item = &'source SourceDeclarationKey>,
+        identities: &mut ValidatedIdentityGraph,
+        foundation: &OdrFreeLirFoundation,
+        registrations: &StrongRegistrationIdentitySurfaceV1,
+    ) -> Result<ParamFreeShapeSupportPlanSetV1, ParamFreeShapeSupportValidationError> {
+        let actual = encode(&self).map_err(ParamFreeShapeSupportValidationError::Encode)?;
+        for closure in &self.closures {
+            closure
+                .root
+                .verify(scoop_identity::ConeIdentity::CORE)
+                .map_err(|_| ParamFreeShapeSupportValidationError::WrongRoot)?;
+            let source = closure.roles.source_nominal()?;
+            let key = identities
+                .resolve_key(source)
+                .map_err(ParamFreeShapeSupportValidationError::Identity)?;
+            let _: std::sync::Arc<SourceDeclarationKey> = key;
+        }
+        let expected =
+            ParamFreeShapeSupportPlanSetV1::from_core_sources(sources, foundation, registrations)
+                .map_err(ParamFreeShapeSupportValidationError::Expected)?;
+        let expected_bytes =
+            encode(&expected).map_err(ParamFreeShapeSupportValidationError::Encode)?;
+        if actual != expected_bytes {
+            return Err(ParamFreeShapeSupportValidationError::PlanMismatch);
+        }
+        Ok(expected)
+    }
+}
+
+impl WireEncode for DecodedParamFreeShapeSupportPlanSetV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_array(encoder, &self.closures)
+    }
+}
+
+impl WireDecode for DecodedParamFreeShapeSupportPlanSetV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder
+            .decode_array(|decoder, _| DecodedParamFreeShapeSupportClosureV1::decode(decoder))
+            .map(|closures| Self { closures })
+    }
+}
+
+fn encode_array<T: WireEncode>(
+    encoder: &mut Encoder,
+    values: &[T],
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.array(values.len() as u64)?;
+    for value in values {
+        value.encode(encoder)?;
+    }
+    Ok(())
+}
+
+fn encode_value_sum(
+    encoder: &mut Encoder,
+    tag: u64,
+    value: &impl WireEncode,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encoder.field(0)?;
+    encoder.unsigned(tag)?;
+    encoder.field(1)?;
+    value.encode(encoder)
+}
+
+fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+    WireError::new(
+        WireErrorKind::UnknownTag { tag },
+        decoder.path().clone(),
+        Some(decoder.position()),
+    )
+}
+
+#[cfg(test)]
+mod tests;
