@@ -1,8 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableOwner, CanonicalScoopAbiFunctionSignature, DecodedCallableOwner,
-    DecodedCanonicalScoopAbiFunctionSignature, DecodedPersistentId, DecodedPersistentSymbolRequest,
+    CanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopAbiFunctionSignature,
+    DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongCallableDefinitionOwner,
     ObjectDefinitionPlanId, PersistentExactTypeId, PersistentSymbolRequest,
     StrongCallableDefinitionOwner,
 };
@@ -16,7 +16,7 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongExternalCallableBridgeV1 {
-    target: CallableOwner,
+    target: StrongCallableDefinitionOwner,
     abi_signature: CanonicalScoopAbiFunctionSignature,
     expected_symbol: PersistentSymbolRequest,
     calling_convention: CallingConvention,
@@ -33,7 +33,7 @@ impl StrongExternalCallableBridgeV1 {
     ) -> Result<Self, CoreExternalBuildError> {
         let (_, expected_symbol, required_definition) = core_callable_link_contract(target)?;
         Ok(Self {
-            target: callable_owner(target),
+            target,
             abi_signature,
             expected_symbol,
             calling_convention,
@@ -51,7 +51,7 @@ impl StrongExternalCallableBridgeV1 {
         )
     }
 
-    pub const fn target(&self) -> CallableOwner {
+    pub const fn target(&self) -> StrongCallableDefinitionOwner {
         self.target
     }
 
@@ -238,7 +238,7 @@ impl WireEncode for StrongExternalLirBridgeSurfaceV1 {
 
 #[derive(Debug)]
 struct DecodedStrongExternalCallableBridgeV1 {
-    target: DecodedCallableOwner,
+    target: DecodedStrongCallableDefinitionOwner,
     abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
     expected_symbol: DecodedPersistentSymbolRequest,
     calling_convention: CallingConvention,
@@ -268,7 +268,7 @@ impl WireDecode for DecodedStrongExternalCallableBridgeV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
-            target: decoder.field(1, DecodedCallableOwner::decode)?,
+            target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
             abi_signature: decoder.field(2, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
             expected_symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
             calling_convention: decoder.field(4, CallingConvention::decode)?,
@@ -449,15 +449,6 @@ impl fmt::Display for StrongExternalLirBridgeValidationError {
 }
 
 impl std::error::Error for StrongExternalLirBridgeValidationError {}
-
-fn callable_owner(target: StrongCallableDefinitionOwner) -> CallableOwner {
-    match target {
-        StrongCallableDefinitionOwner::Function(id) => CallableOwner::Function(id),
-        StrongCallableDefinitionOwner::Constructor(id) => CallableOwner::Constructor(id),
-        StrongCallableDefinitionOwner::PropertyAccessor(id) => CallableOwner::Accessor(id),
-        StrongCallableDefinitionOwner::GeneratedCallable(id) => CallableOwner::Generated(id),
-    }
-}
 
 #[cfg(test)]
 mod tests;

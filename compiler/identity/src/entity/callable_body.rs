@@ -36,6 +36,17 @@ impl RuntimeEncode for StrongCallableDefinitionOwner {
     }
 }
 
+impl WireEncode for StrongCallableDefinitionOwner {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Function(id) => encode_wire_sum(encoder, 1, id),
+            Self::Constructor(id) => encode_wire_sum(encoder, 2, id),
+            Self::PropertyAccessor(id) => encode_wire_sum(encoder, 3, id),
+            Self::GeneratedCallable(id) => encode_wire_sum(encoder, 4, id),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CallableBodyKeyKind {
     Strong(StrongCallableDefinitionOwner),
@@ -114,6 +125,53 @@ impl RuntimeEncode for DecodedStrongCallableDefinitionOwner {
             Self::Constructor(id) => encode_runtime_sum(encoder, 2, id),
             Self::PropertyAccessor(id) => encode_runtime_sum(encoder, 3, id),
             Self::GeneratedCallable(id) => encode_runtime_sum(encoder, 4, id),
+        }
+    }
+}
+
+impl WireEncode for DecodedStrongCallableDefinitionOwner {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Function(id) => encode_wire_sum(encoder, 1, id),
+            Self::Constructor(id) => encode_wire_sum(encoder, 2, id),
+            Self::PropertyAccessor(id) => encode_wire_sum(encoder, 3, id),
+            Self::GeneratedCallable(id) => encode_wire_sum(encoder, 4, id),
+        }
+    }
+}
+
+impl WireDecode for DecodedStrongCallableDefinitionOwner {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        let fields = decoder.map()?;
+        if fields != 2 {
+            return Err(WireError::new(
+                scoop_wire::WireErrorKind::InvalidLength {
+                    expected: 2,
+                    actual: fields,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            ));
+        }
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        match tag {
+            1 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::Function),
+            2 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::Constructor),
+            3 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::PropertyAccessor),
+            4 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::GeneratedCallable),
+            tag => Err(WireError::new(
+                scoop_wire::WireErrorKind::UnknownTag { tag },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            )),
         }
     }
 }
@@ -444,6 +502,18 @@ fn encode_runtime_sum(
     value.runtime_encode(encoder)
 }
 
+fn encode_wire_sum(
+    encoder: &mut Encoder,
+    tag: u64,
+    value: &impl WireEncode,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encoder.field(0)?;
+    encoder.unsigned(tag)?;
+    encoder.field(1)?;
+    value.encode(encoder)
+}
+
 fn decode_strong_owner(
     decoder: &mut RuntimeDecoder<'_>,
 ) -> Result<DecodedStrongCallableDefinitionOwner, RuntimeDecodeError> {
@@ -469,7 +539,10 @@ fn decode_persistent_id<I: PersistentId>(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{RuntimeDecodeErrorKind, decode_runtime, encode_runtime};
+    use scoop_wire::{
+        DecodeLimits, RuntimeDecodeErrorKind, decode_canonical, decode_runtime, encode,
+        encode_runtime,
+    };
 
     use super::{
         CallableBodyKey, CallableBodyKeyKind, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
@@ -480,7 +553,8 @@ mod tests {
         CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
         DefinitionOwnerChain, ExactOrdinaryNoArgUnitSignature, OdrMemberId, PackagePath,
         PersistentCallableBodyId, PersistentExactTypeId, PersistentFunctionId,
-        PersistentInitializationUnitId, SourceDeclarationKey, SourceDeclarationSite,
+        PersistentGeneratedCallableId, PersistentInitializationUnitId, SourceDeclarationKey,
+        SourceDeclarationSite,
     };
 
     #[test]
@@ -533,6 +607,37 @@ mod tests {
                 .unwrap()
                 .to_string(),
             "e8de63b8e2758608238897adc56513f83fd4083605bfcbe293c67e8d41c9d2bd"
+        );
+    }
+
+    #[test]
+    fn strong_callable_owner_has_its_own_closed_wire_sum() {
+        let generated = PersistentGeneratedCallableId(ConeIdentity::CORE.0);
+        let owner = StrongCallableDefinitionOwner::GeneratedCallable(generated);
+        let encoded = encode(&owner).unwrap();
+        assert_eq!(
+            encoded,
+            [b"\xa2\0\x04\x01\x58\x20".as_slice(), generated.as_array()].concat()
+        );
+        assert_eq!(
+            decode_canonical::<DecodedStrongCallableDefinitionOwner>(
+                &encoded,
+                DecodeLimits::default(),
+            )
+            .unwrap(),
+            DecodedStrongCallableDefinitionOwner::GeneratedCallable(
+                crate::DecodedPersistentId::from_unvalidated_bytes(ConeIdentity::CORE.0),
+            )
+        );
+
+        let mut obsolete_callable_owner_tag = encoded;
+        obsolete_callable_owner_tag[2] = 6;
+        assert!(
+            decode_canonical::<DecodedStrongCallableDefinitionOwner>(
+                &obsolete_callable_owner_tag,
+                DecodeLimits::default(),
+            )
+            .is_err()
         );
     }
 
