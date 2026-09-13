@@ -12,7 +12,9 @@ use scoop_wire::{
     domain_separated_cbor_hash, encode,
 };
 
-use crate::{LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberRole};
+use crate::{
+    LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberId, SlibMemberRole,
+};
 
 const SCOOP_LIR_UNIT_SET_DOMAIN: &str = "scoop-lir-object-unit-set-v1";
 const GENERATED_BRIDGE_UNIT_SET_DOMAIN: &str = "scoop-generated-bridge-object-unit-set-v1";
@@ -109,6 +111,94 @@ impl CanonicalGeneratedBridgeObjectUnitSetV1 {
 
     pub const fn logical_key(&self) -> GeneratedBridgeObjectLogicalKeyV1 {
         self.logical_key
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlannedScoopLirObjectMemberV1 {
+    member_id: SlibMemberId,
+    stable_key: MemberStableKey,
+    role: SlibMemberRole,
+    units: CanonicalScoopLirObjectUnitSetV1,
+}
+
+impl PlannedScoopLirObjectMemberV1 {
+    pub fn new(
+        cone: scoop_identity::ConeIdentity,
+        units: CanonicalScoopLirObjectUnitSetV1,
+    ) -> Result<Self, LinkObjectMemberPlanError> {
+        let stable_key = units
+            .logical_key()
+            .member_stable_key()
+            .map_err(LinkObjectMemberPlanError::LogicalKey)?;
+        let member_id = SlibMemberId::from_stable_key(cone, &stable_key)
+            .map_err(LinkObjectMemberPlanError::MemberIdentity)?;
+        Ok(Self {
+            member_id,
+            stable_key,
+            role: units.logical_key().member_role(),
+            units,
+        })
+    }
+
+    pub const fn member_id(&self) -> SlibMemberId {
+        self.member_id
+    }
+
+    pub const fn stable_key(&self) -> &MemberStableKey {
+        &self.stable_key
+    }
+
+    pub const fn role(&self) -> &SlibMemberRole {
+        &self.role
+    }
+
+    pub const fn units(&self) -> &CanonicalScoopLirObjectUnitSetV1 {
+        &self.units
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlannedGeneratedBridgeObjectMemberV1 {
+    member_id: SlibMemberId,
+    stable_key: MemberStableKey,
+    role: SlibMemberRole,
+    units: CanonicalGeneratedBridgeObjectUnitSetV1,
+}
+
+impl PlannedGeneratedBridgeObjectMemberV1 {
+    pub fn new(
+        cone: scoop_identity::ConeIdentity,
+        units: CanonicalGeneratedBridgeObjectUnitSetV1,
+    ) -> Result<Self, LinkObjectMemberPlanError> {
+        let stable_key = units
+            .logical_key()
+            .member_stable_key()
+            .map_err(LinkObjectMemberPlanError::LogicalKey)?;
+        let member_id = SlibMemberId::from_stable_key(cone, &stable_key)
+            .map_err(LinkObjectMemberPlanError::MemberIdentity)?;
+        Ok(Self {
+            member_id,
+            stable_key,
+            role: units.logical_key().member_role(),
+            units,
+        })
+    }
+
+    pub const fn member_id(&self) -> SlibMemberId {
+        self.member_id
+    }
+
+    pub const fn stable_key(&self) -> &MemberStableKey {
+        &self.stable_key
+    }
+
+    pub const fn role(&self) -> &SlibMemberRole {
+        &self.role
+    }
+
+    pub const fn units(&self) -> &CanonicalGeneratedBridgeObjectUnitSetV1 {
+        &self.units
     }
 }
 
@@ -440,6 +530,28 @@ impl fmt::Display for ObjectLogicalKeyValidationError {
 }
 
 impl std::error::Error for ObjectLogicalKeyValidationError {}
+
+#[derive(Debug)]
+pub enum LinkObjectMemberPlanError {
+    LogicalKey(ObjectLogicalKeyError),
+    MemberIdentity(HashError),
+}
+
+impl fmt::Display for LinkObjectMemberPlanError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::LogicalKey(error) => error.fmt(formatter),
+            Self::MemberIdentity(error) => {
+                write!(
+                    formatter,
+                    "cannot derive link-object member identity: {error}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for LinkObjectMemberPlanError {}
 
 #[cfg(test)]
 mod tests;

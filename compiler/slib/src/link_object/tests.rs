@@ -117,6 +117,38 @@ fn object_logical_keys_have_fixed_canonical_wire() {
     );
 }
 
+#[test]
+fn member_plan_freezes_identity_before_object_bytes_exist() {
+    let first = definition_plan(20);
+    let second = definition_plan(21);
+    let forward = PlannedScoopLirObjectMemberV1::new(
+        ConeIdentity::SINGLE_FILE,
+        CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
+    )
+    .unwrap();
+    let reversed = PlannedScoopLirObjectMemberV1::new(
+        ConeIdentity::SINGLE_FILE,
+        CanonicalScoopLirObjectUnitSetV1::new(vec![second, first]).unwrap(),
+    )
+    .unwrap();
+    let split = PlannedScoopLirObjectMemberV1::new(
+        ConeIdentity::SINGLE_FILE,
+        CanonicalScoopLirObjectUnitSetV1::new(vec![first]).unwrap(),
+    )
+    .unwrap();
+    let other_cone = PlannedScoopLirObjectMemberV1::new(
+        ConeIdentity::CORE,
+        CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(forward, reversed);
+    assert_ne!(forward.member_id(), split.member_id());
+    assert_ne!(forward.member_id(), other_cone.member_id());
+    assert_eq!(forward.stable_key(), reversed.stable_key());
+    assert_eq!(forward.role(), &forward.units().logical_key().member_role());
+}
+
 fn definition_plan(seed: u8) -> ObjectDefinitionPlanId {
     let declaration = SourceDeclarationKey::function(
         SourceDeclarationSite::new(

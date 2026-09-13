@@ -379,7 +379,7 @@ impl<'record> LinkMemberRecord<'record> {
 }
 
 impl SlibMemberId {
-    fn from_stable_key(
+    pub(crate) fn from_stable_key(
         cone: ConeIdentity,
         stable_key: &MemberStableKey,
     ) -> Result<Self, HashError> {
