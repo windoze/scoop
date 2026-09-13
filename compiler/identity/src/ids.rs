@@ -151,6 +151,8 @@ persistent_id!(GeneratedBridgeUnitId, "generated bridge unit");
 persistent_id!(GeneratedBridgeAtomId, "generated bridge atom");
 persistent_id!(ObjectDefinitionPlanId, "object definition plan");
 persistent_id!(ObjectDefinitionAtomId, "object definition atom");
+persistent_id!(DigestNodeId, "digest node");
+persistent_id!(DigestPatchIntentId, "digest patch intent");
 persistent_id!(PersistentExactTypeId, "exact type");
 persistent_id!(SourceSignatureFingerprint, "source signature fingerprint");
 persistent_id!(PersistentCallableBodyId, "callable body");

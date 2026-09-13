@@ -4,7 +4,8 @@ use super::{CborIdentityKey, private};
 use crate::{
     CallableApplicationKey, CallbackApplicationKey, CallbackRegistrationKey,
     CanonicalCAbiFunctionSignature, CanonicalCAbiLayout, CanonicalCAbiLayoutFingerprint,
-    CanonicalCAbiSignatureFingerprint, DispatchSlotKey, DispatchTableKey, EnumVariantFieldKey,
+    CanonicalCAbiSignatureFingerprint, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
+    DigestPatchIntentKey, DispatchSlotKey, DispatchTableKey, EnumVariantFieldKey,
     EnumVariantIdentityError, EnumVariantIdentityKey, ExactTypeKey, ExportBindingKey,
     FieldIdentityError, FieldIdentityKey, GeneratedBridgeAtomId, GeneratedBridgeAtomKey,
     GeneratedBridgeUnitId, GeneratedBridgeUnitKey, GeneratedCallableIdentityError,
@@ -215,4 +216,9 @@ impl_hash_identity_key!(
 impl_hash_identity_key!(
     ObjectDefinitionAtomKey => ObjectDefinitionAtomId,
     ObjectDefinitionAtomId::from_key
+);
+impl_hash_identity_key!(DigestNodeKey => DigestNodeId, DigestNodeId::from_key);
+impl_hash_identity_key!(
+    DigestPatchIntentKey => DigestPatchIntentId,
+    DigestPatchIntentId::from_key
 );

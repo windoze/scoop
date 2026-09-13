@@ -6,6 +6,7 @@ mod callable_body;
 mod callback;
 mod core_builtin;
 mod core_native;
+mod digest;
 mod dispatch;
 mod enum_variant;
 mod exact_signature;
@@ -72,6 +73,12 @@ pub use callback::{
 };
 pub use core_builtin::CoreBuiltinNominal;
 pub use core_native::CoreNativeBoundaryNominal;
+pub use digest::{
+    DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DecodedDigestPatchIntentKey, DigestKind,
+    DigestNodeKey, DigestNodeKeyError, DigestNodeKeyResolutionError, DigestOwnerAndRoleKey,
+    DigestOwnerResolver, DigestPatchIntentKey, DigestPatchIntentResolutionError,
+    DigestPatchIntentResolver, DigestSemanticFieldRole,
+};
 pub use dispatch::{
     DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,
     DispatchIdentityResolutionError, DispatchRole, DispatchSlotKey, DispatchTableKey,

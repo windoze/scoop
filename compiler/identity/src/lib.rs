@@ -146,6 +146,12 @@ pub use entity::{
     StrongDefinitionEntityKind, StrongDefinitionResolver, StrongDefinitionRole,
 };
 pub use entity::{
+    DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DecodedDigestPatchIntentKey, DigestKind,
+    DigestNodeKey, DigestNodeKeyError, DigestNodeKeyResolutionError, DigestOwnerAndRoleKey,
+    DigestOwnerResolver, DigestPatchIntentKey, DigestPatchIntentResolutionError,
+    DigestPatchIntentResolver, DigestSemanticFieldRole,
+};
+pub use entity::{
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
     DecodedGeneratedBridgeSemanticTarget, DecodedGeneratedBridgeUnitKey, GeneratedBridgeAtomKey,
     GeneratedBridgeAtomRoleKey, GeneratedBridgeSemanticTarget, GeneratedBridgeUnitKey,
@@ -168,19 +174,19 @@ pub use entity::{
 };
 pub use ids::{
     CanonicalCAbiLayoutFingerprint, CanonicalCAbiSignatureFingerprint, DecodedPersistentId,
-    GeneratedBridgeAtomId, GeneratedBridgeUnitId, NativeExternalContractFingerprint,
-    NativeLinkRequirementId, ObjectDefinitionAtomId, ObjectDefinitionPlanId, OdrGroupId,
-    OdrMemberId, PersistentCallableApplicationId, PersistentCallableBodyId,
-    PersistentCallbackApplicationId, PersistentCallbackRegistrationId, PersistentConstructorId,
-    PersistentDispatchSlotId, PersistentDispatchTableId, PersistentEnumVariantFieldId,
-    PersistentEnumVariantId, PersistentExactTypeId, PersistentExportBindingId,
-    PersistentExtensionPropertyId, PersistentFieldId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-    PersistentId, PersistentIdMismatch, PersistentIdResolver, PersistentImmortalObjectId,
-    PersistentInitializationUnitId, PersistentKeyResolver, PersistentLayoutId,
-    PersistentLocalBindingId, PersistentLocalValueId, PersistentNativeExternalSymbolId,
-    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
-    PersistentSafepointSiteId, PersistentScanId, PersistentSourceContextId,
+    DigestNodeId, DigestPatchIntentId, GeneratedBridgeAtomId, GeneratedBridgeUnitId,
+    NativeExternalContractFingerprint, NativeLinkRequirementId, ObjectDefinitionAtomId,
+    ObjectDefinitionPlanId, OdrGroupId, OdrMemberId, PersistentCallableApplicationId,
+    PersistentCallableBodyId, PersistentCallbackApplicationId, PersistentCallbackRegistrationId,
+    PersistentConstructorId, PersistentDispatchSlotId, PersistentDispatchTableId,
+    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
+    PersistentExportBindingId, PersistentExtensionPropertyId, PersistentFieldId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentKeyResolver,
+    PersistentLayoutId, PersistentLocalBindingId, PersistentLocalValueId,
+    PersistentNativeExternalSymbolId, PersistentObjectValueId, PersistentPropertyAccessorId,
+    PersistentPropertyId, PersistentSafepointSiteId, PersistentScanId, PersistentSourceContextId,
     PersistentSourceNativeExternalContractId, PersistentStaticStorageId, PersistentTypeAliasId,
     PersistentTypeId, SourceSignatureFingerprint,
 };
