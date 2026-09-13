@@ -2,14 +2,14 @@
 
 use std::fmt;
 
+pub use scoop_identity::PersistentExactTypeId;
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
     DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentExactTypeId, PersistentLayoutId,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, RepresentationRole,
-    RuntimeTypeId, StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
-    TargetProfileWireId,
+    ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentLayoutId, PersistentSymbolError,
+    PersistentSymbolKey, PersistentSymbolRequest, RepresentationRole, RuntimeTypeId,
+    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole, TargetProfileWireId,
 };
 
 use crate::{

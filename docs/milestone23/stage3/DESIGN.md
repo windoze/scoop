@@ -1608,6 +1608,16 @@ image-table声明可以补全；缺失/错误entry、global/function名字冲突
 失败，且失败前不得先留下新的registration declaration。没有接受裸body id、function pointer或patch
 offset的另一发射入口。
 
+type registration唯一经`emit_strong_type_registrations_v1`消费完整type plan set。入口先对全集做无副作用
+预检，再发射任一record；每条record使用`ConeStrong`外部linkage、magic、ABI version 1、size 240、Strong
+linkage、零reserved/ODR字段、exact-type semantic id、非零runtime type id及同一plan指定的M23
+`ScoopTypeDescriptor`地址。TypeDescriptor必须已按共享header的128-byte LLVM product声明，使用external
+linkage且address-significant；旧扁平TypeDescriptor、错type、可变定义、function冲突或缺失声明直接失败，
+不做兼容转换。record内offset 120、176、208的registration-definition、descriptor-definition与layout
+fingerprint均保留恰32-byte零值，返回的三个patch site共同绑定registration definition/Primary atom及各自
+typed intent。已有同type external image-table声明可以补全；错type/linkage、已有initializer或任一预检
+失败时不得留下部分registration定义，不开放接受裸exact type、runtime id、descriptor pointer或offset的入口。
+
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack

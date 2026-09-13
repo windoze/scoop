@@ -32,6 +32,12 @@ pub use callable::{
     EmittedStrongCallableRegistrationV1, emit_strong_callable_registrations_v1,
 };
 
+mod type_registration;
+pub use type_registration::{
+    EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1,
+    TypeRegistrationPatchSiteV1, emit_strong_type_registrations_v1,
+};
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,
