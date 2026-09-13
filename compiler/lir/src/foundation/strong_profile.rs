@@ -1,7 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    DecodedCallableBodyKey, DecodedCallableBodyKeyKind, LinkageClass, OdrGroupId, OdrMemberId,
+    ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, GeneratedBridgeAtomId,
+    LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
     PersistentCallableBodyId, PersistentSymbolKey, PersistentSymbolKind,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
@@ -11,7 +12,10 @@ use super::{CanonicalLirFoundation, LirFoundationBuildError};
 /// A canonical LIR identity foundation proven to satisfy the M23-3
 /// `SingleConeStrong` profile's `RejectAll` ODR policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OdrFreeLirFoundation(CanonicalLirFoundation);
+pub struct OdrFreeLirFoundation {
+    producer: ConeIdentity,
+    canonical: CanonicalLirFoundation,
+}
 
 impl OdrFreeLirFoundation {
     pub fn from_module(
@@ -19,10 +23,13 @@ impl OdrFreeLirFoundation {
     ) -> Result<Self, OdrFreeLirFoundationProjectionError> {
         let foundation = CanonicalLirFoundation::from_module(module)
             .map_err(OdrFreeLirFoundationProjectionError::Foundation)?;
-        Self::try_new(foundation).map_err(OdrFreeLirFoundationProjectionError::Odr)
+        Self::try_new(module.cone, foundation).map_err(OdrFreeLirFoundationProjectionError::Odr)
     }
 
-    pub fn try_new(foundation: CanonicalLirFoundation) -> Result<Self, OdrFreeLirFoundationError> {
+    pub fn try_new(
+        producer: ConeIdentity,
+        foundation: CanonicalLirFoundation,
+    ) -> Result<Self, OdrFreeLirFoundationError> {
         if let Some(record) = foundation.odr_groups.first() {
             return Err(OdrFreeLirFoundationError::OdrGroup(record.id()));
         }
@@ -52,29 +59,56 @@ impl OdrFreeLirFoundation {
         {
             return Err(OdrFreeLirFoundationError::OdrSymbolRequest(request.key()));
         }
-        Ok(Self(foundation))
+        for record in &foundation.definition_plans {
+            match record.key().owner() {
+                ObjectDefinitionPlanOwner::Strong {
+                    producer: actual, ..
+                } if actual != producer => {
+                    return Err(OdrFreeLirFoundationError::ForeignStrongDefinitionPlan {
+                        plan: record.id(),
+                        expected: producer,
+                        actual,
+                    });
+                }
+                ObjectDefinitionPlanOwner::Odr { .. } => {
+                    return Err(OdrFreeLirFoundationError::OdrDefinitionPlan(record.id()));
+                }
+                ObjectDefinitionPlanOwner::Strong { .. } => {}
+            }
+        }
+        if let Some(record) = foundation
+            .bridge_atoms
+            .iter()
+            .find(|record| record.key().producer() != producer)
+        {
+            return Err(OdrFreeLirFoundationError::ForeignGeneratedBridgeAtom {
+                atom: record.id(),
+                expected: producer,
+                actual: record.key().producer(),
+            });
+        }
+        Ok(Self {
+            producer,
+            canonical: foundation,
+        })
+    }
+
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
     }
 
     pub const fn as_canonical(&self) -> &CanonicalLirFoundation {
-        &self.0
+        &self.canonical
     }
 
     pub fn into_canonical(self) -> CanonicalLirFoundation {
-        self.0
-    }
-}
-
-impl TryFrom<CanonicalLirFoundation> for OdrFreeLirFoundation {
-    type Error = OdrFreeLirFoundationError;
-
-    fn try_from(foundation: CanonicalLirFoundation) -> Result<Self, Self::Error> {
-        Self::try_new(foundation)
+        self.canonical
     }
 }
 
 impl WireEncode for OdrFreeLirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        self.0.encode(encoder)
+        self.canonical.encode(encoder)
     }
 }
 
@@ -84,6 +118,17 @@ pub enum OdrFreeLirFoundationError {
     OdrMember(OdrMemberId),
     OdrCallableBody(PersistentCallableBodyId),
     OdrSymbolRequest(PersistentSymbolKey),
+    OdrDefinitionPlan(ObjectDefinitionPlanId),
+    ForeignStrongDefinitionPlan {
+        plan: ObjectDefinitionPlanId,
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+    },
+    ForeignGeneratedBridgeAtom {
+        atom: GeneratedBridgeAtomId,
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+    },
     InvalidCallableBodyKey {
         body: PersistentCallableBodyId,
         error: RuntimeDecodeError,
@@ -120,6 +165,28 @@ impl fmt::Display for OdrFreeLirFoundationError {
                 "{}: LIR {:?} symbol request is forbidden by the SingleConeStrong profile",
                 Self::CODE,
                 key.kind()
+            ),
+            Self::OdrDefinitionPlan(id) => write!(
+                formatter,
+                "{}: LIR ODR definition plan {} is forbidden by the SingleConeStrong profile",
+                Self::CODE,
+                HexIdentity(id.as_array())
+            ),
+            Self::ForeignStrongDefinitionPlan {
+                plan,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "strong definition plan {plan} belongs to Cone {actual}, not production Cone {expected}"
+            ),
+            Self::ForeignGeneratedBridgeAtom {
+                atom,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "generated bridge atom {atom} belongs to Cone {actual}, not production Cone {expected}"
             ),
             Self::InvalidCallableBodyKey { body, error } => write!(
                 formatter,
@@ -172,11 +239,12 @@ mod tests {
     use scoop_identity::{
         CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
         DefinitionOwnerChain, ExactTypeKey, GeneratedCallableKey, LinkageClass,
-        OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole, PackagePath, PersistentCallableBodyId,
-        PersistentExactTypeId, PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
-        PersistentSymbolRequestTable, PersistentTypeId, RuntimeIdentityRecord,
-        SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, SpecializationKey,
-        StrongCallableDefinitionOwner,
+        ObjectDefinitionPlanKey, OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole, PackagePath,
+        PersistentCallableBodyId, PersistentExactTypeId, PersistentFunctionId, PersistentSymbolKey,
+        PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
+        RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+        SpecializationKey, StrongCallableDefinitionOwner, StrongDefinitionEntity,
+        StrongDefinitionRole,
     };
     use scoop_wire::encode;
 
@@ -196,9 +264,10 @@ mod tests {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
         let expected = encode(&canonical).unwrap();
 
-        let proven = OdrFreeLirFoundation::try_new(canonical).unwrap();
+        let proven = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
 
         assert_eq!(encode(&proven).unwrap(), expected);
+        assert_eq!(proven.producer(), ConeIdentity::CORE);
         assert_eq!(proven.as_canonical().counts().odr_members, 0);
     }
 
@@ -209,7 +278,7 @@ mod tests {
         let mut with_group = CanonicalLirFoundation::empty();
         with_group.set_odr_groups(vec![group]).unwrap();
         assert_eq!(
-            OdrFreeLirFoundation::try_new(with_group),
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_group),
             Err(OdrFreeLirFoundationError::OdrGroup(expected_group))
         );
 
@@ -217,7 +286,7 @@ mod tests {
         let mut with_member = CanonicalLirFoundation::empty();
         with_member.set_odr_members(vec![member]).unwrap();
         assert_eq!(
-            OdrFreeLirFoundation::try_new(with_member),
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_member),
             Err(OdrFreeLirFoundationError::OdrMember(expected_member))
         );
     }
@@ -231,7 +300,7 @@ mod tests {
         canonical.set_callable_bodies(vec![body]).unwrap();
 
         assert_eq!(
-            OdrFreeLirFoundation::try_new(canonical),
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
             Err(OdrFreeLirFoundationError::OdrCallableBody(expected))
         );
     }
@@ -245,7 +314,7 @@ mod tests {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
 
         assert_eq!(
-            OdrFreeLirFoundation::try_new(canonical),
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
             Err(OdrFreeLirFoundationError::OdrSymbolRequest(key))
         );
     }
@@ -259,8 +328,48 @@ mod tests {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
 
         assert_eq!(
-            OdrFreeLirFoundation::try_new(canonical),
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
             Err(OdrFreeLirFoundationError::OdrSymbolRequest(key))
+        );
+    }
+
+    #[test]
+    fn rejects_odr_and_foreign_strong_definition_plans() {
+        let odr_plan = CborIdentityRecord::from_key(ObjectDefinitionPlanKey::odr(
+            callable_odr_member().member(),
+        ))
+        .unwrap();
+        let expected_odr = odr_plan.id();
+        let mut with_odr = CanonicalLirFoundation::empty();
+        with_odr.set_definition_plans(vec![odr_plan]).unwrap();
+        assert_eq!(
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_odr),
+            Err(OdrFreeLirFoundationError::OdrDefinitionPlan(expected_odr))
+        );
+
+        let body = strong_body("foreign");
+        let foreign_plan = CborIdentityRecord::from_key(
+            ObjectDefinitionPlanKey::strong(
+                ConeIdentity::SINGLE_FILE,
+                StrongDefinitionEntity::callable_body(body.id()),
+                StrongDefinitionRole::CallableBody,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let expected_plan = foreign_plan.id();
+        let mut with_foreign = CanonicalLirFoundation::empty();
+        with_foreign.set_callable_bodies(vec![body]).unwrap();
+        with_foreign
+            .set_definition_plans(vec![foreign_plan])
+            .unwrap();
+        assert_eq!(
+            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_foreign),
+            Err(OdrFreeLirFoundationError::ForeignStrongDefinitionPlan {
+                plan: expected_plan,
+                expected: ConeIdentity::CORE,
+                actual: ConeIdentity::SINGLE_FILE,
+            })
         );
     }
 

@@ -18,10 +18,15 @@ use relations::{BridgeTables, validate_bridges, validate_native_contracts, valid
 /// non-identity relations.
 #[derive(Debug)]
 pub struct ValidatedLirFoundation {
+    producer: ConeIdentity,
     canonical: CanonicalLirFoundation,
 }
 
 impl ValidatedLirFoundation {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
+    }
+
     pub fn counts(&self) -> LirFoundationCounts {
         self.canonical.counts()
     }
@@ -306,7 +311,10 @@ fn validate_foundation(
     if rebuilt != original {
         return Err(LirFoundationValidationError::NonCanonicalFoundation);
     }
-    Ok(ValidatedLirFoundation { canonical })
+    Ok(ValidatedLirFoundation {
+        producer,
+        canonical,
+    })
 }
 
 #[cfg(test)]

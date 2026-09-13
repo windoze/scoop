@@ -842,6 +842,12 @@ StrongProductionSectionV1 {
 
 `object_definition_plans`覆盖每个参与definition/digest的strong primary和associated atom，但不含member assignment。`DigestFinalizationPlan`可使用M23总设计已经冻结的全部kind enum；本profile只允许SourceSignature/Layout/Scan/LirDefinition/ObjectSupport/ObjectDefinition/StackmapRecord/StrongRegistration/RuntimeImage，出现OdrDefinition node即拒绝。
 
+LIR foundation validation把请求中的producer Cone写入`ValidatedLirFoundation`；
+`OdrFreeLirFoundation`同样是`{ producer, canonical }`的封闭证明，而不是可脱离producer复用的
+foundation wrapper。构造该证明时除ODR group/member/body/symbol外，还必须拒绝ODR-owned
+definition plan、producer不等于当前Cone的strong definition plan，以及producer不等于当前Cone的
+generated bridge atom。旧的无producer构造入口不存在。
+
 ### 9.4 Link identity closure
 
 `LinkIdentityClosureSectionV1`由packager在object verification之后构造：

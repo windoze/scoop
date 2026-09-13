@@ -42,6 +42,7 @@ fn empty_foundation_validates_and_reencodes_identically() {
         .validate(ConeIdentity::CORE, &mut identities, &mut meter())
         .unwrap();
 
+    assert_eq!(validated.producer(), ConeIdentity::CORE);
     assert_eq!(validated.counts(), canonical.counts());
     assert_eq!(encode(&validated).unwrap(), bytes);
 }
