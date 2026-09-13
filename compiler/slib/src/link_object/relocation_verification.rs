@@ -492,4 +492,4 @@ impl fmt::Display for ObjectRelocationValidationError {
 impl std::error::Error for ObjectRelocationValidationError {}
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

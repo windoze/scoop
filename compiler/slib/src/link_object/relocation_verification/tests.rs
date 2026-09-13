@@ -98,7 +98,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
         canonical_value,
         Some((0, primary_role(&fixture.symbols))),
     );
-    let used_bytes = add_undefined_symbol(object.bytes.clone(), true);
+    let used_bytes = add_undefined_symbol(object.bytes.clone(), true, b"_external");
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&used_bytes)
         .unwrap()
         .into_sections();
@@ -116,7 +116,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
         }
     );
 
-    let unused_bytes = add_undefined_symbol(object.bytes, false);
+    let unused_bytes = add_undefined_symbol(object.bytes, false, b"_external");
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&unused_bytes)
         .unwrap()
         .into_sections();
@@ -195,11 +195,14 @@ fn canonical_value(role: PlannedStrongObjectSymbolRoleV1) -> u64 {
     }
 }
 
-fn add_undefined_symbol(mut bytes: Vec<u8>, retarget_relocation: bool) -> Vec<u8> {
+pub(in crate::link_object) fn add_undefined_symbol(
+    mut bytes: Vec<u8>,
+    retarget_relocation: bool,
+    undefined_name: &[u8],
+) -> Vec<u8> {
     const SYMTAB_COMMAND: usize = 32 + 152;
     const DYSYMTAB_COMMAND: usize = SYMTAB_COMMAND + 24;
     const SECTION_RECORD: usize = 32 + 72;
-    const UNDEFINED_NAME: &[u8] = b"_external\0";
 
     let symbol_count = read_u32(&bytes, SYMTAB_COMMAND + 12);
     let string_offset = read_u32(&bytes, SYMTAB_COMMAND + 16) as usize;
@@ -214,14 +217,15 @@ fn add_undefined_symbol(mut bytes: Vec<u8>, retarget_relocation: bool) -> Vec<u8
     write_u32(
         &mut bytes,
         SYMTAB_COMMAND + 20,
-        string_size + UNDEFINED_NAME.len() as u32,
+        string_size + undefined_name.len() as u32 + 1,
     );
     write_u32(&mut bytes, DYSYMTAB_COMMAND + 24, symbol_count);
     write_u32(&mut bytes, DYSYMTAB_COMMAND + 28, 1);
 
     write_u32(&mut bytes, string_offset, string_size);
     bytes[string_offset + 4] = object::macho::N_UNDF | object::macho::N_EXT;
-    bytes.extend_from_slice(UNDEFINED_NAME);
+    bytes.extend_from_slice(undefined_name);
+    bytes.push(0);
 
     if retarget_relocation {
         let relocation_offset = read_u32(&bytes, SECTION_RECORD + 56) as usize;

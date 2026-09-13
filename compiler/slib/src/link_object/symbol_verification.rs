@@ -13,9 +13,10 @@ use super::{
 };
 use crate::SlibMemberId;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongDefinitionSymbolV1 {
     role: PlannedStrongObjectSymbolRoleV1,
+    macho_name: Vec<u8>,
     table_index: u32,
     section_ordinal: NonZeroU8,
     value: u64,
@@ -23,23 +24,27 @@ pub struct VerifiedStrongDefinitionSymbolV1 {
 }
 
 impl VerifiedStrongDefinitionSymbolV1 {
-    pub const fn role(self) -> PlannedStrongObjectSymbolRoleV1 {
+    pub const fn role(&self) -> PlannedStrongObjectSymbolRoleV1 {
         self.role
     }
 
-    pub const fn table_index(self) -> u32 {
+    pub fn macho_name(&self) -> &[u8] {
+        &self.macho_name
+    }
+
+    pub const fn table_index(&self) -> u32 {
         self.table_index
     }
 
-    pub const fn section_ordinal(self) -> NonZeroU8 {
+    pub const fn section_ordinal(&self) -> NonZeroU8 {
         self.section_ordinal
     }
 
-    pub const fn value(self) -> u64 {
+    pub const fn value(&self) -> u64 {
         self.value
     }
 
-    pub const fn no_dead_strip(self) -> bool {
+    pub const fn no_dead_strip(&self) -> bool {
         self.no_dead_strip
     }
 }
@@ -143,7 +148,7 @@ impl VerifiedMemberStrongObjectDefinitionIndexV1 {
         self.symbols
             .iter()
             .find(|symbol| symbol.table_index == table_index)
-            .copied()
+            .cloned()
     }
 }
 
@@ -210,6 +215,7 @@ pub fn verify_member_strong_object_definitions_v1(
         record_definition_symbol(&mut definitions, role, location)?;
         symbols.push(VerifiedStrongDefinitionSymbolV1 {
             role,
+            macho_name: name,
             table_index: location.table_index,
             section_ordinal: location.section_ordinal,
             value: location.value,

@@ -31,6 +31,9 @@ pub use symbol_verification::*;
 mod relocation_verification;
 pub use relocation_verification::*;
 
+mod strong_relocation_closure;
+pub use strong_relocation_closure::*;
+
 mod macho;
 pub use macho::*;
 

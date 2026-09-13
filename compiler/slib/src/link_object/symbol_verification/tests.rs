@@ -199,14 +199,18 @@ pub(in crate::link_object) struct Fixture {
 }
 
 pub(in crate::link_object) fn fixture() -> Fixture {
-    build_fixture(false)
+    build_fixture("entry", false)
 }
 
 fn fixture_with_associated_atom() -> Fixture {
-    build_fixture(true)
+    build_fixture("entry", true)
 }
 
-fn build_fixture(include_associated_atom: bool) -> Fixture {
+pub(in crate::link_object) fn fixture_named(name: &str) -> Fixture {
+    build_fixture(name, false)
+}
+
+fn build_fixture(name: &str, include_associated_atom: bool) -> Fixture {
     let function =
         CborIdentityRecord::<PersistentFunctionId, _>::from_key(SourceDeclarationKey::function(
             SourceDeclarationSite::new(
@@ -216,7 +220,7 @@ fn build_fixture(include_associated_atom: bool) -> Fixture {
                 DeclarationScope::ConeWide,
             )
             .unwrap(),
-            CanonicalIdentifier::new("entry").unwrap(),
+            CanonicalIdentifier::new(name).unwrap(),
             0,
             None,
             Vec::new(),
