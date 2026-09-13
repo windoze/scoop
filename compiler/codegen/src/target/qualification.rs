@@ -90,6 +90,8 @@ pub(super) fn validate_target_machine(
         profile.managed_address_space.inkwell(),
         contract.managed_pointer_layout(),
     )?;
+    crate::runtime_metadata_v1::RuntimeMetadataV1Types::new(&context)
+        .validate_layout(&target_data)?;
     Ok(())
 }
 

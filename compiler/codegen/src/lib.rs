@@ -83,6 +83,7 @@ mod image_roots;
 mod initialization;
 mod llvm_types;
 mod module_context;
+mod runtime_metadata_v1;
 mod statepoint;
 mod target;
 mod type_descriptors;
