@@ -1532,6 +1532,16 @@ fingerprint node必须是同一digest plan中owner恰为该plan id的`StrongRegi
 foundation中的每个registration-role plan恰好进入一张表，其他definition role不得混入；reader
 从foundation与digest plan独立重建全部六表并逐项比较，不把decoded id直接提升为trusted id。
 
+writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
+`PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
+结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction
+使用、每个identity恰被使用一次，instruction固定role与identity role相等，identity owner等于当前
+callable body，且不同site/runtime id保持全Cone一一对应；NoGc body中的site直接失败。managed
+poll/call及array allocation类site的root pair count精确等于`StatepointLiveSet`全部managed leaf数，
+managed invoke与native transition为零。后续object verifier只能消费该proof来核对LLVM v3记录，不能
+从object自报的location count反推LIR语义；reader则从已验证的LIR semantic/registration surface重建
+同一字段，不接受producer另送一份无来源的root count。
+
 ### 13.3 registration完备性
 
 - 每个compiler-owned static storage恰一条storage registration；GC-free storage也不能为省事丢descriptor；
