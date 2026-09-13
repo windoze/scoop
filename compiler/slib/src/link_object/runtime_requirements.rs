@@ -54,6 +54,56 @@ pub struct VerifiedRuntimeAndEhRequirementClosureV1 {
     remaining_external_candidates: Vec<StrongRelocationBindingV1>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SealedScoopLirExternalRequirementClosureV1 {
+    verified: VerifiedRuntimeAndEhRequirementClosureV1,
+}
+
+impl SealedScoopLirExternalRequirementClosureV1 {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.verified.producer()
+    }
+
+    pub const fn verified(&self) -> &VerifiedRuntimeAndEhRequirementClosureV1 {
+        &self.verified
+    }
+}
+
+pub fn seal_scoop_lir_external_requirements_v1(
+    verified: VerifiedRuntimeAndEhRequirementClosureV1,
+) -> Result<SealedScoopLirExternalRequirementClosureV1, ScoopLirExternalRequirementClosureError> {
+    if let Some(binding) = verified.remaining_external_candidates().first() {
+        return Err(
+            ScoopLirExternalRequirementClosureError::UnclassifiedExternalRelocation {
+                member: binding.source_member(),
+                atom: binding.containing_atom(),
+                symbol: binding.symbol().to_vec(),
+            },
+        );
+    }
+    Ok(SealedScoopLirExternalRequirementClosureV1 { verified })
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ScoopLirExternalRequirementClosureError {
+    UnclassifiedExternalRelocation {
+        member: crate::SlibMemberId,
+        atom: scoop_identity::ObjectDefinitionAtomId,
+        symbol: Vec<u8>,
+    },
+}
+
+impl fmt::Display for ScoopLirExternalRequirementClosureError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "incomplete Scoop LIR external requirement closure: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for ScoopLirExternalRequirementClosureError {}
+
 impl VerifiedRuntimeAndEhRequirementClosureV1 {
     pub const fn producer(&self) -> ConeIdentity {
         self.source_closure.producer()
