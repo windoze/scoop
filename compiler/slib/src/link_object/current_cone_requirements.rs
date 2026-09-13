@@ -92,10 +92,9 @@ pub fn verify_current_cone_undefined_requirements_v1(
         bridge_atoms.insert(unit.primary_atom(), (unit.unit(), true));
         for atom in unit
             .materialized_associated_atoms()
-            .iter()
             .chain(unit.static_assert_atoms())
         {
-            bridge_atoms.insert(*atom, (unit.unit(), false));
+            bridge_atoms.insert(atom, (unit.unit(), false));
         }
     }
 

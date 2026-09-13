@@ -15,6 +15,11 @@ use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
 #[test]
 fn generated_bridge_plan_has_a_fixed_wire_vector_and_validates() {
     let fixture = fixture(true);
+    assert_eq!(fixture.plan.units()[0].unit_authority(), &fixture.unit);
+    assert_eq!(
+        fixture.plan.units()[0].primary_atom_authority(),
+        &fixture.bridge_atom
+    );
     assert_eq!(
         hex(&encode(&fixture.plan).unwrap()),
         "81a401582065a6a97003171db803e4000a76035475b756279dcc38e3ea75a0bff21c2652ac02582013f35f95f19b6d94a4f4a29e3fbce3b718808bceaf354b351b598392b263848c03800480"

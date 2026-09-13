@@ -48,7 +48,7 @@ impl StrongProducerUnitPartitionV1 {
         for unit in bridge_plan.units() {
             register_atom_unit(&mut atom_units, unit.primary_atom(), unit.unit())?;
             for atom in unit.materialized_associated_atoms() {
-                register_atom_unit(&mut atom_units, *atom, unit.unit())?;
+                register_atom_unit(&mut atom_units, atom, unit.unit())?;
             }
         }
 

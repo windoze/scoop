@@ -2,10 +2,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DecodedPersistentId, GeneratedBridgeAtomId, GeneratedBridgeAtomRoleKey,
-    GeneratedBridgeUnitId, IdentityReferenceError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    ObjectDefinitionPlanOwner, PersistentId, PersistentIdResolver, StrongDefinitionEntity,
-    StrongDefinitionEntityKind, StrongDefinitionRole, ValidatedIdentityGraph,
+    CborIdentityRecord, ConeIdentity, DecodedPersistentId, GeneratedBridgeAtomId,
+    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
+    GeneratedBridgeUnitKey, IdentityReferenceError, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, PersistentId, PersistentIdResolver,
+    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
+    ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -13,28 +15,55 @@ use crate::{
     OdrFreeLirFoundation, StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
 };
 
+pub type GeneratedBridgeUnitAuthorityRecordV1 =
+    CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>;
+pub type GeneratedBridgeAtomAuthorityRecordV1 =
+    CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedBridgeUnitPlanV1 {
-    unit: GeneratedBridgeUnitId,
-    primary_atom: GeneratedBridgeAtomId,
-    materialized_associated_atoms: Vec<GeneratedBridgeAtomId>,
-    static_assert_atoms: Vec<GeneratedBridgeAtomId>,
+    unit: GeneratedBridgeUnitAuthorityRecordV1,
+    primary_atom: GeneratedBridgeAtomAuthorityRecordV1,
+    materialized_associated_atoms: Vec<GeneratedBridgeAtomAuthorityRecordV1>,
+    static_assert_atoms: Vec<GeneratedBridgeAtomAuthorityRecordV1>,
 }
 
 impl GeneratedBridgeUnitPlanV1 {
     pub const fn unit(&self) -> GeneratedBridgeUnitId {
-        self.unit
+        self.unit.id()
+    }
+
+    pub const fn unit_authority(&self) -> &GeneratedBridgeUnitAuthorityRecordV1 {
+        &self.unit
     }
 
     pub const fn primary_atom(&self) -> GeneratedBridgeAtomId {
-        self.primary_atom
+        self.primary_atom.id()
     }
 
-    pub fn materialized_associated_atoms(&self) -> &[GeneratedBridgeAtomId] {
+    pub const fn primary_atom_authority(&self) -> &GeneratedBridgeAtomAuthorityRecordV1 {
+        &self.primary_atom
+    }
+
+    pub fn materialized_associated_atoms(
+        &self,
+    ) -> impl ExactSizeIterator<Item = GeneratedBridgeAtomId> + '_ {
+        self.materialized_associated_atoms
+            .iter()
+            .map(CborIdentityRecord::id)
+    }
+
+    pub fn materialized_associated_atom_authorities(
+        &self,
+    ) -> &[GeneratedBridgeAtomAuthorityRecordV1] {
         &self.materialized_associated_atoms
     }
 
-    pub fn static_assert_atoms(&self) -> &[GeneratedBridgeAtomId] {
+    pub fn static_assert_atoms(&self) -> impl ExactSizeIterator<Item = GeneratedBridgeAtomId> + '_ {
+        self.static_assert_atoms.iter().map(CborIdentityRecord::id)
+    }
+
+    pub fn static_assert_atom_authorities(&self) -> &[GeneratedBridgeAtomAuthorityRecordV1] {
         &self.static_assert_atoms
     }
 }
@@ -43,13 +72,13 @@ impl WireEncode for GeneratedBridgeUnitPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
-        self.unit.encode(encoder)?;
+        self.unit().encode(encoder)?;
         encoder.field(2)?;
-        self.primary_atom.encode(encoder)?;
+        self.primary_atom().encode(encoder)?;
         encoder.field(3)?;
-        encode_array(encoder, &self.materialized_associated_atoms)?;
+        encode_authority_ids(encoder, &self.materialized_associated_atoms)?;
         encoder.field(4)?;
-        encode_array(encoder, &self.static_assert_atoms)
+        encode_authority_ids(encoder, &self.static_assert_atoms)
     }
 }
 
@@ -133,26 +162,26 @@ impl GeneratedBridgePlanSetV1 {
             for atom in atoms {
                 match atom.key().atom() {
                     GeneratedBridgeAtomRoleKey::PrimaryEntry { .. } => {
-                        primary_atom = Some(atom.id());
+                        primary_atom = Some((*atom).clone());
                         materializable_atoms.insert(atom.id());
                     }
                     GeneratedBridgeAtomRoleKey::SignatureDescriptor { .. }
                     | GeneratedBridgeAtomRoleKey::ContextDescriptor { .. } => {
-                        materialized_associated_atoms.push(atom.id());
+                        materialized_associated_atoms.push((*atom).clone());
                         materializable_atoms.insert(atom.id());
                     }
                     GeneratedBridgeAtomRoleKey::StaticAssertSupport { .. } => {
-                        static_assert_atoms.push(atom.id());
+                        static_assert_atoms.push((*atom).clone());
                     }
                 }
             }
             let Some(primary_atom) = primary_atom else {
                 return Err(GeneratedBridgePlanBuildError::MissingPrimaryAtom(unit));
             };
-            materialized_associated_atoms.sort_unstable();
-            static_assert_atoms.sort_unstable();
+            materialized_associated_atoms.sort_unstable_by_key(CborIdentityRecord::id);
+            static_assert_atoms.sort_unstable_by_key(CborIdentityRecord::id);
             units.push(GeneratedBridgeUnitPlanV1 {
-                unit,
+                unit: unit_record.clone(),
                 primary_atom,
                 materialized_associated_atoms,
                 static_assert_atoms,
@@ -247,18 +276,19 @@ impl DecodedGeneratedBridgePlanSetV1 {
                 actual: self.units.len(),
             });
         }
-        let mut units: Vec<GeneratedBridgeUnitPlanV1> = Vec::with_capacity(self.units.len());
+        let mut previous_unit = None;
         for (index, decoded) in self.units.into_iter().enumerate() {
             let unit: GeneratedBridgeUnitId = identities
                 .resolve(decoded.unit)
                 .map_err(GeneratedBridgePlanValidationError::Identity)?;
-            if index > 0 && units[index - 1].unit >= unit {
-                return Err(if units[index - 1].unit == unit {
+            if previous_unit.is_some_and(|previous| previous >= unit) {
+                return Err(if previous_unit == Some(unit) {
                     GeneratedBridgePlanValidationError::DuplicateUnit(unit)
                 } else {
                     GeneratedBridgePlanValidationError::NonCanonicalUnitOrder { index }
                 });
             }
+            previous_unit = Some(unit);
             let primary_atom = identities
                 .resolve(decoded.primary_atom)
                 .map_err(GeneratedBridgePlanValidationError::Identity)?;
@@ -274,22 +304,19 @@ impl DecodedGeneratedBridgePlanSetV1 {
                 GeneratedBridgeAtomSet::StaticAssert,
                 identities,
             )?;
-            units.push(GeneratedBridgeUnitPlanV1 {
-                unit,
-                primary_atom,
-                materialized_associated_atoms,
-                static_assert_atoms,
-            });
-        }
-        for (index, (actual, expected)) in units.iter().zip(&expected.units).enumerate() {
-            if actual != expected {
+            let expected_unit = &expected.units[index];
+            if unit != expected_unit.unit()
+                || primary_atom != expected_unit.primary_atom()
+                || materialized_associated_atoms
+                    != expected_unit
+                        .materialized_associated_atoms()
+                        .collect::<Vec<_>>()
+                || static_assert_atoms != expected_unit.static_assert_atoms().collect::<Vec<_>>()
+            {
                 return Err(GeneratedBridgePlanValidationError::UnitMismatch { index });
             }
         }
-        Ok(GeneratedBridgePlanSetV1 {
-            producer: foundation.producer(),
-            units,
-        })
+        Ok(expected)
     }
 }
 
@@ -412,6 +439,20 @@ fn encode_array<T: WireEncode>(
     encoder.array(values.len() as u64)?;
     for value in values {
         value.encode(encoder)?;
+    }
+    Ok(())
+}
+
+fn encode_authority_ids<I, K>(
+    encoder: &mut Encoder,
+    values: &[CborIdentityRecord<I, K>],
+) -> Result<(), scoop_wire::cbor::EncodeError>
+where
+    I: Copy + PersistentId + WireEncode,
+{
+    encoder.array(values.len() as u64)?;
+    for value in values {
+        value.id().encode(encoder)?;
     }
     Ok(())
 }

@@ -978,6 +978,9 @@ primary、materializable atom缺plan、bridge plan引用非本集合atom、重�
 
 验证后的`GeneratedBridgePlanSetV1`必须同时保留外层`OdrFreeLirFoundation`已经证明的producer；
 producer不重复进入上述wire array，但reader验证后也不得把它丢弃或提供无producer的构造入口。
+同理，validated in-memory plan中的每个unit、primary/materialized/static-assert atom必须保留
+foundation已经验证的完整`CborIdentityRecord<Id, Key>` authority；wire仍只编码本节规定的id，reader
+逐项匹配重建结果后返回带authority的expected plan，不能把decoded裸id重新包装成“已验证”记录。
 
 ### 9.4 Link identity closure
 
