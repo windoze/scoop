@@ -63,7 +63,8 @@ mod tests_m9;
 mod ty;
 
 pub use source_input::{
-    IdentifiedSourceInput, ParseAllDiagnostic, ParserDiagnosticContext, parse_all,
+    CurrentConeSourceInput, IdentifiedSourceInput, ParseAllDiagnostic, ParseCurrentConeError,
+    ParseCurrentConeInputError, ParserDiagnosticContext, parse_all, parse_current_cone,
 };
 
 /// Parses a whole source file into an AST.
