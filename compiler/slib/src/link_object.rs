@@ -34,6 +34,9 @@ pub use digest_patch_sites::*;
 mod stackmap_normalization;
 pub use stackmap_normalization::*;
 
+mod safepoint_registrations;
+pub use safepoint_registrations::*;
+
 mod generated_bridge_semantics;
 pub use generated_bridge_semantics::*;
 

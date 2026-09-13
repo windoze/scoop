@@ -1603,6 +1603,24 @@ index和已验证的object-relative return PC。该PC是link-time provenance，�
 normalized fingerprint；最终链接后的原始PC仍由M23-9 artifact verifier从相同function relocation与
 instruction offset重建，runtime不得改用`PC-4`。
 
+safepoint registration的object级最终提升只能经
+`verify_strong_safepoint_registrations_v1(VerifiedScoopLirStackmapSetV1, VerifiedScoopLirDigestPatchSiteSetV1, StrongSafepointRegistrationPlanSetV1, &[ScoopLirObjectCandidateV1])`
+完成。stackmap与patch proof必须封装完全相同的built-in object proof，三者producer与site全集必须一致；
+入口再次按member全集和content digest绑定实际object bytes，不能让先前验证后的替换bytes进入后续hash。
+每条registration definition必须由member plan分配给Scoop LIR member，其planned `Primary` atom必须与
+verified definition一致、位于`ReadOnlyData`、范围精确为232 bytes，且整个atom不得含任何relocation或
+两个声明slot之外的digest patch。`RegistrationDefinition`与`NormalizedStackmap` patch分别必须位于
+atom内offset 120和200、宽度32，并逐项匹配plan中的intent/source/definition/atom/semantic role。
+
+verifier按little-endian共享ABI重建完整provisional record并逐byte比较：magic、version、size、Strong
+linkage、semantic/runtime/owner identity、site role和root count取自完整registration plan，reserved、
+ODR group/member及两个fingerprint slot必须为零。输出
+`VerifiedStrongSafepointRegistrationSetV1`同时拥有stackmap、patch与production plan三份前置proof，并按
+persistent site id保留实际member、primary symbol table index、record file offset及两个typed patch site；
+其中还会在patch proof自身持有的digest plan中重建每个ObjectDefinition/StackmapRecord/
+StrongRegistration节点、精确direct input与单writer patch集合，防止同producer的另一张digest graph
+借用相同object proof。不存在接受裸record bytes、外送fingerprint或仅按符号名前缀扫描的替代入口。
+
 ### 13.3 registration完备性
 
 - 每个compiler-owned static storage恰一条storage registration；GC-free storage也不能为省事丢descriptor；

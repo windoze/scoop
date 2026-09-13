@@ -1,7 +1,7 @@
 use super::*;
 use crate::link_object::DarwinArm64StackmapSectionError;
 
-mod support;
+pub(crate) mod support;
 use support::{Corruption, Fixture};
 
 #[test]

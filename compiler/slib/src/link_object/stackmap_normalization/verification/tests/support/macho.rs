@@ -1,5 +1,8 @@
 use object::macho;
-use scoop_identity::DefinitionAtomRole;
+use scoop_identity::{
+    DefinitionAtomRole, DigestPatchIntentId, ObjectDefinitionPlanId, StrongDefinitionRole,
+};
+use scoop_lir::{StrongSafepointRegistrationPlanSetV1, StrongSafepointRegistrationPlanV1};
 
 use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1};
 
@@ -7,12 +10,19 @@ use super::Corruption;
 
 const TEXT_SIZE: u64 = 16;
 const STACK_SIZE: u64 = 64;
+const REGISTRATION_SIZE: u64 = 232;
 
-pub(super) fn object_bytes(
+pub(crate) struct ObjectFixture {
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) patch_offsets: Vec<(DigestPatchIntentId, u64)>,
+}
+
+pub(crate) fn object_bytes(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     safepoints: &[u64],
+    registrations: &StrongSafepointRegistrationPlanSetV1,
     corruption: Corruption,
-) -> Vec<u8> {
+) -> ObjectFixture {
     let mut record_ids = [safepoints[1], safepoints[0]];
     if matches!(corruption, Corruption::UnknownSafepoint) {
         record_ids[0] = u64::MAX;
@@ -21,11 +31,14 @@ pub(super) fn object_bytes(
     let text = match corruption {
         Corruption::MissingFrameChain => [0xd503_201f, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
         Corruption::NonCallReturnPc => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0xd503_201f],
-        Corruption::None | Corruption::UnknownSafepoint | Corruption::WrongStackmapAtomRole => {
-            [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000]
-        }
+        Corruption::None
+        | Corruption::UnknownSafepoint
+        | Corruption::WrongStackmapAtomRole
+        | Corruption::RegistrationMagic
+        | Corruption::WritableRegistrationSection
+        | Corruption::RelocatedRegistration => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
     };
-    macho_object(symbols, &text, &stackmap)
+    macho_object(symbols, &text, &stackmap, registrations, corruption)
 }
 
 fn stackmap_blob(record_ids: &[u64; 2]) -> Vec<u8> {
@@ -64,14 +77,23 @@ fn macho_object(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     instructions: &[u32; 4],
     stackmap: &[u8],
-) -> Vec<u8> {
-    let segment_size = 72_u32 + 2 * 80;
+    registrations: &StrongSafepointRegistrationPlanSetV1,
+    corruption: Corruption,
+) -> ObjectFixture {
+    let segment_size = 72_u32 + 3 * 80;
     let command_bytes = segment_size + 24 + 80;
     let text_offset = 32 + command_bytes;
     let stackmap_offset = text_offset + u32::try_from(TEXT_SIZE).unwrap();
     let stackmap_size = u32::try_from(stackmap.len()).unwrap();
-    let relocation_offset = stackmap_offset + stackmap_size;
-    let symbol_offset = relocation_offset + 8;
+    let registration_offset = stackmap_offset + stackmap_size;
+    let registration_size = u32::try_from(
+        registrations.registrations().len() * usize::try_from(REGISTRATION_SIZE).unwrap(),
+    )
+    .unwrap();
+    let relocation_offset = registration_offset + registration_size;
+    let registration_relocation_count =
+        u32::from(matches!(corruption, Corruption::RelocatedRegistration));
+    let symbol_offset = relocation_offset + 8 * (1 + registration_relocation_count);
     let symbol_bytes = u32::try_from(symbols.symbols().len() * 16).unwrap();
     let string_offset = symbol_offset + symbol_bytes;
     let mut strings = vec![0];
@@ -89,7 +111,13 @@ fn macho_object(
     let mut bytes = Vec::with_capacity((string_offset + string_size) as usize);
 
     push_header(&mut bytes, command_bytes);
-    push_segment(&mut bytes, segment_size, text_offset, stackmap_size);
+    push_segment(
+        &mut bytes,
+        segment_size,
+        text_offset,
+        stackmap_size,
+        registration_size,
+    );
     push_section(
         &mut bytes,
         b"__text",
@@ -114,6 +142,28 @@ fn macho_object(
         1,
         macho::S_REGULAR,
     );
+    let (registration_section, registration_segment) =
+        if matches!(corruption, Corruption::WritableRegistrationSection) {
+            (b"__data".as_slice(), b"__DATA".as_slice())
+        } else {
+            (b"__const".as_slice(), b"__DATA_CONST".as_slice())
+        };
+    push_section(
+        &mut bytes,
+        registration_section,
+        registration_segment,
+        TEXT_SIZE + u64::from(stackmap_size),
+        registration_size,
+        registration_offset,
+        3,
+        if registration_relocation_count == 0 {
+            0
+        } else {
+            relocation_offset + 8
+        },
+        registration_relocation_count,
+        macho::S_REGULAR,
+    );
     push_symbol_commands(
         &mut bytes,
         symbols.symbols().len(),
@@ -126,13 +176,22 @@ fn macho_object(
         push_u32(&mut bytes, *instruction);
     }
     bytes.extend_from_slice(stackmap);
+    for registration in registrations.registrations() {
+        push_registration(&mut bytes, *registration);
+    }
+    if matches!(corruption, Corruption::RegistrationMagic) {
+        bytes[usize::try_from(registration_offset).unwrap()] ^= 1;
+    }
     let target = symbols
         .symbols()
         .iter()
         .position(|symbol| {
             matches!(
                 symbol.role(),
-                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { .. }
+                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                    definition_role: StrongDefinitionRole::CallableBody,
+                    ..
+                }
             )
         })
         .unwrap();
@@ -141,8 +200,15 @@ fn macho_object(
         &mut bytes,
         u32::try_from(target).unwrap() | 3 << 25 | 1 << 27,
     );
+    if registration_relocation_count != 0 {
+        push_u32(&mut bytes, 56);
+        push_u32(
+            &mut bytes,
+            u32::try_from(target).unwrap() | 3 << 25 | 1 << 27,
+        );
+    }
     for (symbol, string_index) in symbols.symbols().iter().zip(string_indexes) {
-        let (section, value) = symbol_location(symbol.role(), stackmap.len());
+        let (section, value) = symbol_location(symbol.role(), stackmap.len(), registrations);
         push_u32(&mut bytes, string_index);
         bytes.push(macho::N_SECT | macho::N_EXT);
         bytes.push(section);
@@ -150,7 +216,24 @@ fn macho_object(
         push_u64(&mut bytes, value);
     }
     bytes.extend_from_slice(&strings);
-    bytes
+    let mut patch_offsets = registrations
+        .registrations()
+        .iter()
+        .enumerate()
+        .flat_map(|(index, registration)| {
+            let record =
+                u64::from(registration_offset) + u64::try_from(index).unwrap() * REGISTRATION_SIZE;
+            [
+                (registration.registration_definition_patch(), record + 120),
+                (registration.normalized_stackmap_patch(), record + 200),
+            ]
+        })
+        .collect::<Vec<_>>();
+    patch_offsets.sort_unstable_by_key(|(intent, _)| *intent);
+    ObjectFixture {
+        bytes,
+        patch_offsets,
+    }
 }
 
 fn push_header(bytes: &mut Vec<u8>, command_bytes: u32) {
@@ -164,17 +247,29 @@ fn push_header(bytes: &mut Vec<u8>, command_bytes: u32) {
     push_u32(bytes, 0);
 }
 
-fn push_segment(bytes: &mut Vec<u8>, segment_size: u32, text_offset: u32, stackmap_size: u32) {
+fn push_segment(
+    bytes: &mut Vec<u8>,
+    segment_size: u32,
+    text_offset: u32,
+    stackmap_size: u32,
+    registration_size: u32,
+) {
     push_u32(bytes, macho::LC_SEGMENT_64);
     push_u32(bytes, segment_size);
     bytes.extend_from_slice(&[0; 16]);
     push_u64(bytes, 0);
-    push_u64(bytes, TEXT_SIZE + u64::from(stackmap_size));
+    push_u64(
+        bytes,
+        TEXT_SIZE + u64::from(stackmap_size) + u64::from(registration_size),
+    );
     push_u64(bytes, u64::from(text_offset));
-    push_u64(bytes, TEXT_SIZE + u64::from(stackmap_size));
+    push_u64(
+        bytes,
+        TEXT_SIZE + u64::from(stackmap_size) + u64::from(registration_size),
+    );
     push_u32(bytes, 0);
     push_u32(bytes, 0);
-    push_u32(bytes, 2);
+    push_u32(bytes, 3);
     push_u32(bytes, 0);
 }
 
@@ -231,17 +326,26 @@ fn push_symbol_commands(
     bytes.extend_from_slice(&[0; 48]);
 }
 
-fn symbol_location(role: PlannedStrongObjectSymbolRoleV1, stackmap_size: usize) -> (u8, u64) {
+fn symbol_location(
+    role: PlannedStrongObjectSymbolRoleV1,
+    stackmap_size: usize,
+    registrations: &StrongSafepointRegistrationPlanSetV1,
+) -> (u8, u64) {
     match role {
-        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { .. }
-        | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
-            atom_role: DefinitionAtomRole::Primary,
+        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+            definition_role: StrongDefinitionRole::CallableBody,
             ..
         } => (1, 0),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            atom_role: DefinitionAtomRole::Primary,
+            definition,
+            ..
+        } if !is_registration_definition(definition, registrations) => (1, 0),
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
             atom_role: DefinitionAtomRole::Primary,
+            definition,
             ..
-        } => (1, TEXT_SIZE),
+        } if !is_registration_definition(definition, registrations) => (1, TEXT_SIZE),
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
             atom_role: DefinitionAtomRole::Stackmap | DefinitionAtomRole::AddressTakenConstant,
             ..
@@ -250,8 +354,71 @@ fn symbol_location(role: PlannedStrongObjectSymbolRoleV1, stackmap_size: usize) 
             atom_role: DefinitionAtomRole::Stackmap | DefinitionAtomRole::AddressTakenConstant,
             ..
         } => (2, TEXT_SIZE + u64::try_from(stackmap_size).unwrap()),
+        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+            definition_role: StrongDefinitionRole::SafepointRegistration,
+            definition,
+            ..
+        }
+        | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } => (
+            3,
+            registration_start(definition, stackmap_size, registrations),
+        ),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+            definition,
+            atom_role: DefinitionAtomRole::Primary,
+            ..
+        } => (
+            3,
+            registration_start(definition, stackmap_size, registrations) + REGISTRATION_SIZE,
+        ),
         _ => unreachable!("fixture has only primary and stackmap atoms"),
     }
+}
+
+fn is_registration_definition(
+    definition: ObjectDefinitionPlanId,
+    registrations: &StrongSafepointRegistrationPlanSetV1,
+) -> bool {
+    registrations
+        .registrations()
+        .iter()
+        .any(|registration| registration.definition_plan() == definition)
+}
+
+fn registration_start(
+    definition: ObjectDefinitionPlanId,
+    stackmap_size: usize,
+    registrations: &StrongSafepointRegistrationPlanSetV1,
+) -> u64 {
+    let index = registrations
+        .registrations()
+        .iter()
+        .position(|registration| registration.definition_plan() == definition)
+        .unwrap();
+    TEXT_SIZE
+        + u64::try_from(stackmap_size).unwrap()
+        + u64::try_from(index).unwrap() * REGISTRATION_SIZE
+}
+
+fn push_registration(bytes: &mut Vec<u8>, registration: StrongSafepointRegistrationPlanV1) {
+    push_u64(bytes, 0x5343_4f4f_5053_5054);
+    push_u32(bytes, 1);
+    push_u32(bytes, u32::try_from(REGISTRATION_SIZE).unwrap());
+    push_u32(bytes, 1);
+    push_u32(bytes, 0);
+    bytes.extend_from_slice(registration.site().as_array());
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
+    bytes.extend_from_slice(&[0; 32]);
+    push_u64(bytes, registration.safepoint().get());
+    push_u32(bytes, registration.role().tag());
+    push_u32(bytes, registration.root_pair_count());
+    bytes.extend_from_slice(registration.owner().as_array());
+    bytes.extend_from_slice(&[0; 32]);
 }
 
 fn align_zero(bytes: &mut Vec<u8>, alignment: usize) {

@@ -1,37 +1,60 @@
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, ExactTypeKey, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId,
-    PersistentFunctionId, PersistentSymbolRequestTable, PersistentTypeId, SourceDeclarationKey,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
+    DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomId,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PackagePath,
+    PersistentExactTypeId, PersistentFunctionId, PersistentSafepointSiteId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
-    CanonicalLirFoundation, EnumDefs, ExternFunctions, Function, GcEffect, Instruction,
-    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
-    LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
-    ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
+    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, Function,
+    GcEffect, Instruction, IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind,
+    LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination,
+    ManagedPollSite, ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
     NativeGlobalBridges, OdrFreeLirFoundation, RefScan, RuntimeTypeMappingRecord,
     SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
-    SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StructDefs, Terminator,
-    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan,
-    VoidCallSignature, VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
+    SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StrongDigestFinalizationPlanV1,
+    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanSetV1,
+    StrongSafepointSemanticPlanSetV1, StructDefs, Terminator, TypeDescriptor,
+    TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VtableRecord,
+    WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
 
-pub(super) struct SemanticInputs {
-    pub(super) module: Module,
-    pub(super) foundation: OdrFreeLirFoundation,
-    pub(super) definition: ObjectDefinitionPlanId,
-    pub(super) safepoint_ids: Vec<u64>,
+pub(crate) struct SemanticInputs {
+    pub(crate) module: Module,
+    pub(crate) foundation: OdrFreeLirFoundation,
+    pub(crate) definitions: Vec<ObjectDefinitionPlanId>,
+    pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
+    pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
+    pub(crate) safepoint_ids: Vec<u64>,
 }
 
-pub(super) fn inputs(corruption: Corruption) -> SemanticInputs {
+pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
     let (module, body, safepoints) = semantic_module();
-    let foundation = foundation(&body, &safepoints, corruption);
-    let definition = definition_plan(body.id());
+    let semantics = StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
+    let (foundation, registrations) = foundation(&body, &safepoints, corruption);
+    let digest_plan = digest_plan(&foundation, &registrations);
+    let identities =
+        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let registration_plan = StrongSafepointRegistrationPlanSetV1::new(
+        &foundation,
+        &identities,
+        &semantics,
+        &digest_plan,
+    )
+    .unwrap();
+    let definitions = std::iter::once(definition_plan(body.id()))
+        .chain(
+            registrations
+                .iter()
+                .map(|registration| registration.plan.id()),
+        )
+        .collect();
     let safepoint_ids = safepoints
         .iter()
         .map(|identity| identity.runtime_id().get())
@@ -39,7 +62,9 @@ pub(super) fn inputs(corruption: Corruption) -> SemanticInputs {
     SemanticInputs {
         module,
         foundation,
-        definition,
+        definitions,
+        digest_plan,
+        registration_plan,
         safepoint_ids,
     }
 }
@@ -124,7 +149,7 @@ fn foundation(
     body: &CallableBodyIdentity,
     safepoints: &[SafepointIdentity],
     corruption: Corruption,
-) -> OdrFreeLirFoundation {
+) -> (OdrFreeLirFoundation, Vec<RegistrationArtifacts>) {
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
             ConeIdentity::SINGLE_FILE,
@@ -150,6 +175,10 @@ fn foundation(
         DefinitionAtomSubkey::Singleton,
     ))
     .unwrap();
+    let registrations = safepoints
+        .iter()
+        .map(|safepoint| registration_artifacts(safepoint.site_id()))
+        .collect::<Vec<_>>();
     let mut canonical = CanonicalLirFoundation::empty();
     canonical
         .set_callable_bodies(vec![body.identity_record().clone()])
@@ -170,14 +199,133 @@ fn foundation(
                 .collect(),
         )
         .unwrap();
-    canonical.set_definition_plans(vec![definition]).unwrap();
     canonical
-        .set_definition_atoms(vec![primary, stackmap])
+        .set_definition_plans(
+            std::iter::once(definition)
+                .chain(
+                    registrations
+                        .iter()
+                        .map(|registration| registration.plan.clone()),
+                )
+                .collect(),
+        )
+        .unwrap();
+    canonical
+        .set_definition_atoms(
+            [primary, stackmap]
+                .into_iter()
+                .chain(
+                    registrations
+                        .iter()
+                        .map(|registration| registration.primary.clone()),
+                )
+                .collect(),
+        )
         .unwrap();
     canonical.set_symbol_requests(
-        PersistentSymbolRequestTable::new(vec![body.symbol_request()]).unwrap(),
+        PersistentSymbolRequestTable::new(
+            std::iter::once(body.symbol_request())
+                .chain(registrations.iter().map(|registration| registration.symbol))
+                .collect(),
+        )
+        .unwrap(),
     );
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
+    (
+        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
+        registrations,
+    )
+}
+
+struct RegistrationArtifacts {
+    site: PersistentSafepointSiteId,
+    plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    symbol: PersistentSymbolRequest,
+}
+
+fn registration_artifacts(site: PersistentSafepointSiteId) -> RegistrationArtifacts {
+    let plan = CborIdentityRecord::from_key(
+        ObjectDefinitionPlanKey::strong(
+            ConeIdentity::SINGLE_FILE,
+            StrongDefinitionEntity::safepoint_site(site),
+            StrongDefinitionRole::SafepointRegistration,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let primary = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+        plan.id(),
+        DefinitionAtomRole::Primary,
+        DefinitionAtomSubkey::Singleton,
+    ))
+    .unwrap();
+    let symbol = PersistentSymbolRequest::new(
+        PersistentSymbolKey::SafepointRegistration(site),
+        LinkageClass::ConeStrong,
+    )
+    .unwrap();
+    RegistrationArtifacts {
+        site,
+        plan,
+        primary,
+        symbol,
+    }
+}
+
+fn digest_plan(
+    foundation: &OdrFreeLirFoundation,
+    registrations: &[RegistrationArtifacts],
+) -> StrongDigestFinalizationPlanV1 {
+    let mut nodes = Vec::new();
+    let mut image_inputs = Vec::new();
+    for registration in registrations {
+        let object = DigestNodeV1::new(
+            DigestNodeKey::object_definition(registration.primary.id()),
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        let stackmap_key = DigestNodeKey::stackmap_record(registration.site);
+        let stackmap_source = DigestNodeId::from_key(&stackmap_key).unwrap();
+        let stackmap = DigestNodeV1::new(
+            stackmap_key,
+            Vec::new(),
+            vec![DigestPatchIntentKey::new(
+                stackmap_source,
+                registration.plan.key().owner(),
+                DefinitionAtomRole::Primary,
+                DigestSemanticFieldRole::NormalizedStackmap,
+            )],
+        )
+        .unwrap();
+        let registration_key = DigestNodeKey::strong_registration(registration.plan.id());
+        let registration_source = DigestNodeId::from_key(&registration_key).unwrap();
+        let fingerprint = DigestNodeV1::new(
+            registration_key,
+            vec![
+                DigestInputRefV1::from_node(&object),
+                DigestInputRefV1::from_node(&stackmap),
+            ],
+            vec![DigestPatchIntentKey::new(
+                registration_source,
+                registration.plan.key().owner(),
+                DefinitionAtomRole::Primary,
+                DigestSemanticFieldRole::RegistrationDefinition,
+            )],
+        )
+        .unwrap();
+        image_inputs.push(DigestInputRefV1::from_node(&fingerprint));
+        nodes.extend([object, stackmap, fingerprint]);
+    }
+    nodes.push(
+        DigestNodeV1::new(
+            DigestNodeKey::runtime_image(foundation.producer()),
+            image_inputs,
+            Vec::new(),
+        )
+        .unwrap(),
+    );
+    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn definition_plan(owner: scoop_identity::PersistentCallableBodyId) -> ObjectDefinitionPlanId {

@@ -2,38 +2,49 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, GeneratedBridgePlanSetV1,
-    LirTargetProfile, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
-    StrongSafepointSemanticPlanSetV1,
+    LirTargetProfile, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
 };
 
 use crate::SlibMemberId;
 use crate::link_object::{
     CanonicalScoopLirObjectUnitSetV1, PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1,
-    ScoopLirObjectCandidateV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
+    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    VerifiedScoopLirStackmapSetV1, verify_builtin_object_strong_relocations_v1,
+    verify_c_bridge_production_envelopes_v1, verify_scoop_lir_digest_patch_sites_v1,
+    verify_scoop_lir_stackmaps_v1,
 };
 
-mod macho;
-mod semantic;
+pub(crate) mod macho;
+pub(crate) mod semantic;
 
 #[derive(Clone, Copy)]
-pub(super) enum Corruption {
+pub(crate) enum Corruption {
     None,
     UnknownSafepoint,
     WrongStackmapAtomRole,
     NonCallReturnPc,
     MissingFrameChain,
+    RegistrationMagic,
+    WritableRegistrationSection,
+    RelocatedRegistration,
 }
 
-pub(super) struct Fixture {
-    pub(super) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
-    pub(super) semantic_plan: StrongSafepointSemanticPlanSetV1,
-    pub(super) member: SlibMemberId,
-    pub(super) object_bytes: Vec<u8>,
+pub(crate) struct Fixture {
+    pub(crate) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
+    pub(crate) semantic_plan: StrongSafepointSemanticPlanSetV1,
+    pub(crate) foundation: OdrFreeLirFoundation,
+    pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
+    pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
+    pub(crate) provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
+    pub(crate) member: SlibMemberId,
+    pub(crate) object_bytes: Vec<u8>,
 }
 
 impl Fixture {
-    pub(super) fn new(corruption: Corruption) -> Self {
+    pub(crate) fn new(corruption: Corruption) -> Self {
         let inputs = semantic::inputs(corruption);
         let semantic_plan = StrongSafepointSemanticPlanSetV1::from_module(&inputs.module).unwrap();
         let bridge_plan =
@@ -43,7 +54,7 @@ impl Fixture {
         let member_plan = PlannedLinkObjectMemberSetV1::new(
             ConeIdentity::SINGLE_FILE,
             &partition,
-            vec![CanonicalScoopLirObjectUnitSetV1::new(vec![inputs.definition]).unwrap()],
+            vec![CanonicalScoopLirObjectUnitSetV1::new(inputs.definitions).unwrap()],
             Vec::new(),
         )
         .unwrap();
@@ -56,9 +67,10 @@ impl Fixture {
         )
         .unwrap();
         let member = member_plan.scoop_lir_members()[0].member_id();
-        let object_bytes = macho::object_bytes(
+        let object = macho::object_bytes(
             symbol_plan.member(member).unwrap(),
             &inputs.safepoint_ids,
+            &inputs.registration_plan,
             corruption,
         );
         let profile = c_bridge_profile();
@@ -71,7 +83,7 @@ impl Fixture {
             &[],
         )
         .unwrap();
-        let objects = [ScoopLirObjectCandidateV1::new(member, &object_bytes)];
+        let objects = [ScoopLirObjectCandidateV1::new(member, &object.bytes)];
         let builtins = verify_builtin_object_strong_relocations_v1(
             &member_plan,
             &symbol_plan,
@@ -80,12 +92,45 @@ impl Fixture {
             &[],
         )
         .unwrap();
+        let provisional_patch_sites = object
+            .patch_offsets
+            .iter()
+            .map(|(intent, offset)| ProvisionalDigestPatchSiteV1::new(*intent, member, *offset, 32))
+            .collect();
         Self {
             builtins,
             semantic_plan,
+            foundation: inputs.foundation,
+            digest_plan: inputs.digest_plan,
+            registration_plan: inputs.registration_plan,
+            provisional_patch_sites,
             member,
-            object_bytes,
+            object_bytes: object.bytes,
         }
+    }
+
+    pub(crate) fn verified_stackmaps(&self) -> VerifiedScoopLirStackmapSetV1 {
+        let objects = [ScoopLirObjectCandidateV1::new(
+            self.member,
+            &self.object_bytes,
+        )];
+        verify_scoop_lir_stackmaps_v1(self.builtins.clone(), self.semantic_plan.clone(), &objects)
+            .unwrap()
+    }
+
+    pub(crate) fn verified_patch_sites(&self) -> VerifiedScoopLirDigestPatchSiteSetV1 {
+        let objects = [ScoopLirObjectCandidateV1::new(
+            self.member,
+            &self.object_bytes,
+        )];
+        verify_scoop_lir_digest_patch_sites_v1(
+            self.builtins.clone(),
+            &self.foundation,
+            self.digest_plan.clone(),
+            &objects,
+            &self.provisional_patch_sites,
+        )
+        .unwrap()
     }
 }
 

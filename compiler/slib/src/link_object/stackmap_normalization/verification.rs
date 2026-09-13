@@ -444,4 +444,4 @@ fn validate_stackmap_atom_roles(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
