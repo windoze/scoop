@@ -435,10 +435,16 @@ ConeOutputKind =
   | Executable { local_entry: LocalExecutableEntry }
 
 LocalExecutableEntry {
-    declaration: PersistentFunctionId,
+    identity: ExecutableSourceEntryIdentity,
     local_function: CurrentFunctionId,
+}
+
+ExecutableSourceEntryIdentity {
+    root_cone: ConeIdentity,
+    declaration: PersistentFunctionId,
     source_signature: ExactOrdinaryNoArgUnitSignature,
     source_signature_fingerprint: SourceSignatureFingerprint,
+    main: MainCallableBodyId,
 }
 ```
 
@@ -669,7 +675,7 @@ ArtifactDistributionClass =
 ```text
 CoreBootstrapInterfaceSectionV1 {
     core_interface: NotCore | Core(CoreHirInterfaceV1),
-    output_contract: Library | ExecutableSourceEntry(PersistentFunctionId),
+    output_contract: Library | Executable(ExecutableSourceEntryIdentity),
     direct_public_surface: CanonicalDirectPublicSurfaceV1,
 }
 ```
@@ -691,8 +697,12 @@ surface的binding并集必须逐byte等于direct surface且互不重叠，出现
 验证后拼接来自不同artifact的结果。reserved core Cone只允许`Core + Library`，其他Cone只允许
 `NotCore`；分支错误不能退化成空core interface或忽略多余payload。
 
-`output_contract`沿用第9.6节的output sum：`Library`编码为仅含
-`0=1`的map，`ExecutableSourceEntry`编码为`0=2, 1=PersistentFunctionId`。
+`output_contract`沿用第6节的output sum：`Library`编码为仅含`0=1`的map；
+`Executable`编码为`0=2, 1=ExecutableSourceEntryIdentity`。entry payload固定为closed
+product：`1=root_cone, 2=declaration, 3=source_signature,
+4=source_signature_fingerprint, 5=main`。reader从foundation中的完整source declaration与
+trusted core `Unit` exact identity重建整个payload并逐byte比较，同时要求`root_cone`等于artifact
+Cone；不得分别提升五个decoded id，也不得继续接受旧的裸`PersistentFunctionId` payload。
 `CanonicalDirectPublicSurfaceV1`的wire是按`PersistentExportBindingId` bytes严格递增的
 definite-length array；元素只引用同一HIR identity-foundation field 16中的完整binding
 record，不能重复record、复制`ExportBindingKey`或改用源码声明顺序。reader必须同时拒绝
@@ -789,7 +799,9 @@ property的receiver/value根全为`Nominal`时只能是`ParamFreeStrong`，否�
 非零并等于source declaration；binder只允许depth 0且index在声明count内。不得省略read-only、
 structural或generic target，也不得从accessor名称、符号或FQN恢复owner、role或类型。
 
-它不包含import文本、failed candidate、current display locator或完整source。`ExecutableSourceEntry`必须与`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
+它不包含import文本、failed candidate、current display locator或完整source。`Executable`必须与
+`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。
+core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
 
 本section进入HIR semantic fingerprint。即使普通Cone使用`NotCore`，其output contract/direct-public surface变化仍必须改变HIR fingerprint；这为M23-5升级一般public surface提供明确的失效边界，而不是靠object变化偶然触发。
 

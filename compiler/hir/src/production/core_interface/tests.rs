@@ -1,8 +1,9 @@
 use scoop_identity::{
-    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationName,
-    DeclarationScope, DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject,
-    DefinitionOwnerChain, EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityKey,
-    ExactTypeKey, ExportBindingKey, NormalizedSourcePath, PackagePath,
+    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
+    DeclarationName, DeclarationScope, DefinitionOrigin, DefinitionOriginRecord,
+    DefinitionOriginSubject, DefinitionOwnerChain, EnumVariantFieldKey, EnumVariantFieldSelector,
+    EnumVariantIdentityKey, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
+    ExecutableSourceEntryIdentity, ExportBindingKey, NormalizedSourcePath, PackagePath,
     PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
     PersistentExportBindingId, PersistentFunctionId, PersistentGenericTypeId, PersistentTypeId,
     SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
@@ -116,9 +117,14 @@ fn core_section_rejects_an_executable_output_contract() {
         .foundation
         .set_functions(vec![entry.clone()])
         .unwrap();
+    let proof = ExecutableSourceEntryIdentity::try_new(
+        &entry,
+        ExactOrdinaryNoArgUnitSignature::new(unit_exact_record().id()),
+    )
+    .unwrap();
     let executable = CoreBootstrapInterfaceSectionV1 {
         core_interface: CoreHirInterfaceBranchV1::Core(Box::new(fixture.interface)),
-        output_contract: HirOutputContractV1::ExecutableSourceEntry(entry.id()),
+        output_contract: HirOutputContractV1::Executable(Box::new(proof)),
         direct_public_surface: fixture.direct,
     };
 
@@ -278,7 +284,7 @@ fn fixture() -> Fixture {
         .set_enum_variant_fields(vec![some_payload])
         .unwrap();
     foundation
-        .set_exact_types(vec![string_exact_record.clone()])
+        .set_exact_types(vec![string_exact_record.clone(), unit_exact_record()])
         .unwrap();
     foundation
         .set_export_bindings(vec![string_binding, option_binding])
@@ -330,6 +336,13 @@ fn function(name: &str) -> CborIdentityRecord<PersistentFunctionId, SourceDeclar
         0,
         None,
         Vec::new(),
+    ))
+    .unwrap()
+}
+
+fn unit_exact_record() -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
+    CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
     ))
     .unwrap()
 }

@@ -3,10 +3,13 @@
 use std::fmt;
 
 use scoop_identity::{
-    BindableEntity, BindingTarget, DeclarationName, DecodedPersistentId, ExportBindingKey,
-    PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey,
+    BindableEntity, BindingTarget, ConeIdentity, CoreBuiltinNominal, DeclarationName,
+    DecodedExactCallableSignature, DecodedPersistentId, ExactOrdinaryNoArgUnitSignature,
+    ExactTypeKey, ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError,
+    ExportBindingKey, PersistentCallableBodyId, PersistentExportBindingId, PersistentFunctionId,
+    SourceDeclarationKey, SourceSignatureFingerprint,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use crate::{CanonicalHirFoundation, ConeOutputKind, ExportHir, ValidatedHirFoundation};
 
@@ -56,18 +59,18 @@ fn direct_binding_matches_source(
         )
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirOutputContractV1 {
     Library,
-    ExecutableSourceEntry(PersistentFunctionId),
+    Executable(Box<ExecutableSourceEntryIdentity>),
 }
 
 impl HirOutputContractV1 {
-    pub const fn from_output_kind(output: &ConeOutputKind) -> Self {
+    pub fn from_output_kind(output: &ConeOutputKind) -> Self {
         match output {
             ConeOutputKind::Library => Self::Library,
             ConeOutputKind::Executable { local_entry } => {
-                Self::ExecutableSourceEntry(local_entry.declaration())
+                Self::Executable(Box::new(local_entry.identity().clone()))
             }
         }
     }
@@ -81,21 +84,59 @@ impl WireEncode for HirOutputContractV1 {
                 encoder.field(0)?;
                 encoder.unsigned(1)
             }
-            Self::ExecutableSourceEntry(entry) => {
+            Self::Executable(entry) => {
                 encoder.map(2)?;
                 encoder.field(0)?;
                 encoder.unsigned(2)?;
                 encoder.field(1)?;
-                entry.encode(encoder)
+                entry.as_ref().encode(encoder)
             }
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug)]
+pub struct DecodedExecutableSourceEntryIdentity {
+    root_cone: DecodedPersistentId<ConeIdentity>,
+    declaration: DecodedPersistentId<PersistentFunctionId>,
+    source_signature: DecodedExactCallableSignature,
+    source_signature_fingerprint: DecodedPersistentId<SourceSignatureFingerprint>,
+    main: DecodedPersistentId<PersistentCallableBodyId>,
+}
+
+impl WireEncode for DecodedExecutableSourceEntryIdentity {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(5)?;
+        encoder.field(1)?;
+        self.root_cone.encode(encoder)?;
+        encoder.field(2)?;
+        self.declaration.encode(encoder)?;
+        encoder.field(3)?;
+        self.source_signature.encode(encoder)?;
+        encoder.field(4)?;
+        self.source_signature_fingerprint.encode(encoder)?;
+        encoder.field(5)?;
+        self.main.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedExecutableSourceEntryIdentity {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(5)?;
+        Ok(Self {
+            root_cone: decoder.field(1, DecodedPersistentId::decode)?,
+            declaration: decoder.field(2, DecodedPersistentId::decode)?,
+            source_signature: decoder.field(3, DecodedExactCallableSignature::decode)?,
+            source_signature_fingerprint: decoder.field(4, DecodedPersistentId::decode)?,
+            main: decoder.field(5, DecodedPersistentId::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
 pub enum DecodedHirOutputContractV1 {
     Library,
-    ExecutableSourceEntry(DecodedPersistentId<PersistentFunctionId>),
+    Executable(Box<DecodedExecutableSourceEntryIdentity>),
 }
 
 impl DecodedHirOutputContractV1 {
@@ -103,21 +144,47 @@ impl DecodedHirOutputContractV1 {
         self,
         foundation: &ValidatedHirFoundation,
     ) -> Result<HirOutputContractV1, HirOutputContractValidationError> {
-        self.validate_against(foundation.canonical())
+        self.validate_against(foundation.artifact(), foundation.canonical())
     }
 
     fn validate_against(
         self,
+        artifact: ConeIdentity,
         foundation: &CanonicalHirFoundation,
     ) -> Result<HirOutputContractV1, HirOutputContractValidationError> {
         match self {
             Self::Library => Ok(HirOutputContractV1::Library),
-            Self::ExecutableSourceEntry(decoded) => foundation
-                .function_id_by_bytes(decoded.as_array())
-                .map(HirOutputContractV1::ExecutableSourceEntry)
-                .ok_or(HirOutputContractValidationError::UnknownEntry(
-                    *decoded.as_array(),
-                )),
+            Self::Executable(decoded) => {
+                let declaration = foundation
+                    .function_record_by_bytes(decoded.declaration.as_array())
+                    .ok_or(HirOutputContractValidationError::UnknownEntry(
+                        *decoded.declaration.as_array(),
+                    ))?;
+                let unit_key =
+                    ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id());
+                let unit = foundation
+                    .exact_type_id_by_key(&unit_key)
+                    .ok_or(HirOutputContractValidationError::MissingUnitExactType)?;
+                let expected = ExecutableSourceEntryIdentity::try_new(
+                    declaration,
+                    ExactOrdinaryNoArgUnitSignature::new(unit),
+                )
+                .map_err(HirOutputContractValidationError::InvalidEntry)?;
+                if expected.root_cone() != artifact {
+                    return Err(HirOutputContractValidationError::ForeignEntry {
+                        artifact,
+                        entry: expected.root_cone(),
+                    });
+                }
+                let actual_bytes =
+                    encode(decoded.as_ref()).map_err(HirOutputContractValidationError::Encode)?;
+                let expected_bytes =
+                    encode(&expected).map_err(HirOutputContractValidationError::Encode)?;
+                if actual_bytes != expected_bytes {
+                    return Err(HirOutputContractValidationError::EntryMismatch);
+                }
+                Ok(HirOutputContractV1::Executable(Box::new(expected)))
+            }
         }
     }
 }
@@ -130,12 +197,12 @@ impl WireEncode for DecodedHirOutputContractV1 {
                 encoder.field(0)?;
                 encoder.unsigned(1)
             }
-            Self::ExecutableSourceEntry(entry) => {
+            Self::Executable(entry) => {
                 encoder.map(2)?;
                 encoder.field(0)?;
                 encoder.unsigned(2)?;
                 encoder.field(1)?;
-                entry.encode(encoder)
+                entry.as_ref().encode(encoder)
             }
         }
     }
@@ -159,8 +226,9 @@ impl WireDecode for DecodedHirOutputContractV1 {
             2 => {
                 require_sum_length(decoder, fields, 2)?;
                 decoder
-                    .field(1, DecodedPersistentId::decode)
-                    .map(Self::ExecutableSourceEntry)
+                    .field(1, DecodedExecutableSourceEntryIdentity::decode)
+                    .map(Box::new)
+                    .map(Self::Executable)
             }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
@@ -170,6 +238,14 @@ impl WireDecode for DecodedHirOutputContractV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HirOutputContractValidationError {
     UnknownEntry([u8; 32]),
+    MissingUnitExactType,
+    InvalidEntry(ExecutableSourceEntryIdentityError),
+    ForeignEntry {
+        artifact: ConeIdentity,
+        entry: ConeIdentity,
+    },
+    Encode(scoop_wire::cbor::EncodeError),
+    EntryMismatch,
 }
 
 impl fmt::Display for HirOutputContractValidationError {
@@ -179,6 +255,18 @@ impl fmt::Display for HirOutputContractValidationError {
                 formatter,
                 "HIR executable source entry {} is absent from the identity foundation",
                 HexIdentity(id)
+            ),
+            Self::MissingUnitExactType => {
+                formatter.write_str("HIR executable output has no trusted core Unit exact type")
+            }
+            Self::InvalidEntry(error) => error.fmt(formatter),
+            Self::ForeignEntry { artifact, entry } => write!(
+                formatter,
+                "HIR executable source entry belongs to Cone {entry}, not artifact Cone {artifact}"
+            ),
+            Self::Encode(error) => error.fmt(formatter),
+            Self::EntryMismatch => formatter.write_str(
+                "HIR executable output payload does not match its declaration and Unit identity",
             ),
         }
     }
@@ -373,9 +461,11 @@ impl fmt::Display for HexIdentity<'_> {
 #[cfg(test)]
 mod tests {
     use scoop_identity::{
-        BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
-        DefinitionOwnerChain, ExportBindingKey, PackagePath, PersistentExportBindingId,
-        PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
+        BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
+        DeclarationScope, DefinitionOwnerChain, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
+        ExecutableSourceEntryIdentity, ExportBindingKey, PackagePath, PersistentExactTypeId,
+        PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey,
+        SourceDeclarationSite,
     };
     use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
 
@@ -394,10 +484,10 @@ mod tests {
         );
 
         let (function, _) = function_and_binding("main");
-        let executable = HirOutputContractV1::ExecutableSourceEntry(function.id());
+        let executable = executable_contract(&function);
         assert_eq!(
             hex(&encode(&executable).unwrap()),
-            "a2000201582092c7d9b606546e8e3a46c17972ace56a987446fecd6c88b62c454eea4196152e"
+            "a2000201a50158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02582092c7d9b606546e8e3a46c17972ace56a987446fecd6c88b62c454eea4196152e03a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0458205a43bee43f27e5c33d012c1129702324d18dd3856d3158b657383cc2d61c92570558202c5339a89711e2f13f989f6f69c1889195f4e138bc8e8dcfb1cf49a99b05e65c"
         );
     }
 
@@ -416,30 +506,87 @@ mod tests {
     }
 
     #[test]
-    fn executable_contract_must_reference_a_foundation_function() {
-        let (known, _) = function_and_binding("known");
-        let (unknown, _) = function_and_binding("unknown");
+    fn executable_contract_is_rebuilt_from_the_foundation() {
+        let (known, _) = function_and_binding("main");
+        let unknown = function(ConeIdentity::SINGLE_FILE, "main");
+        let unit = unit_exact_record();
         let mut foundation = CanonicalHirFoundation::empty();
         foundation.set_functions(vec![known.clone()]).unwrap();
-        let known_bytes = encode(&HirOutputContractV1::ExecutableSourceEntry(known.id())).unwrap();
+        foundation.set_exact_types(vec![unit]).unwrap();
+        let known_contract = executable_contract(&known);
+        let known_bytes = encode(&known_contract).unwrap();
         let known_decoded =
             decode_canonical::<DecodedHirOutputContractV1>(&known_bytes, DecodeLimits::default())
                 .unwrap();
         assert_eq!(
-            known_decoded.validate_against(&foundation),
-            Ok(HirOutputContractV1::ExecutableSourceEntry(known.id()))
+            known_decoded.validate_against(ConeIdentity::CORE, &foundation),
+            Ok(known_contract)
         );
 
-        let bytes = encode(&HirOutputContractV1::ExecutableSourceEntry(unknown.id())).unwrap();
+        let bytes = encode(&executable_contract(&unknown)).unwrap();
         let decoded =
             decode_canonical::<DecodedHirOutputContractV1>(&bytes, DecodeLimits::default())
                 .unwrap();
 
         assert_eq!(
-            decoded.validate_against(&foundation),
+            decoded.validate_against(ConeIdentity::CORE, &foundation),
             Err(HirOutputContractValidationError::UnknownEntry(
                 *unknown.id().as_array()
             ))
+        );
+    }
+
+    #[test]
+    fn executable_contract_rejects_the_removed_id_only_wire() {
+        let (function, _) = function_and_binding("main");
+        let mut bytes = vec![0xa2, 0x00, 0x02, 0x01, 0x58, 0x20];
+        bytes.extend_from_slice(function.id().as_array());
+        assert!(
+            decode_canonical::<DecodedHirOutputContractV1>(&bytes, DecodeLimits::default())
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn executable_contract_rejects_a_tampered_derived_body() {
+        let (function, _) = function_and_binding("main");
+        let mut foundation = CanonicalHirFoundation::empty();
+        foundation.set_functions(vec![function.clone()]).unwrap();
+        foundation
+            .set_exact_types(vec![unit_exact_record()])
+            .unwrap();
+        let mut bytes = encode(&executable_contract(&function)).unwrap();
+        *bytes.last_mut().unwrap() ^= 1;
+        let decoded =
+            decode_canonical::<DecodedHirOutputContractV1>(&bytes, DecodeLimits::default())
+                .unwrap();
+
+        assert_eq!(
+            decoded.validate_against(ConeIdentity::CORE, &foundation),
+            Err(HirOutputContractValidationError::EntryMismatch)
+        );
+    }
+
+    #[test]
+    fn executable_contract_requires_the_artifact_cone() {
+        let (function, _) = function_and_binding("main");
+        let mut foundation = CanonicalHirFoundation::empty();
+        foundation.set_functions(vec![function.clone()]).unwrap();
+        foundation
+            .set_exact_types(vec![unit_exact_record()])
+            .unwrap();
+        let decoded = decode_canonical::<DecodedHirOutputContractV1>(
+            &encode(&executable_contract(&function)).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            decoded.validate_against(ConeIdentity::SINGLE_FILE, &foundation),
+            Err(HirOutputContractValidationError::ForeignEntry {
+                artifact: ConeIdentity::SINGLE_FILE,
+                entry: ConeIdentity::CORE,
+            })
         );
     }
 
@@ -544,21 +691,9 @@ mod tests {
         CborIdentityRecord<PersistentExportBindingId, ExportBindingKey>,
     ) {
         let name = CanonicalIdentifier::new(name).unwrap();
-        let declaration = SourceDeclarationKey::function(
-            SourceDeclarationSite::new(
-                ConeIdentity::CORE,
-                PackagePath::root(),
-                DefinitionOwnerChain::top_level(),
-                DeclarationScope::ConeWide,
-            )
-            .unwrap(),
-            name.clone(),
-            0,
-            None,
-            Vec::new(),
-        );
-        let function = CborIdentityRecord::from_key(declaration.clone()).unwrap();
-        let target = BindingTarget::function(&declaration).unwrap();
+        let function = function(ConeIdentity::CORE, name.as_str());
+        let declaration = function.key();
+        let target = BindingTarget::function(declaration).unwrap();
         let binding = CborIdentityRecord::from_key(ExportBindingKey::new(
             ConeIdentity::CORE,
             PackagePath::root(),
@@ -567,6 +702,44 @@ mod tests {
         ))
         .unwrap();
         (function, binding)
+    }
+
+    fn function(
+        cone: ConeIdentity,
+        name: &str,
+    ) -> CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey> {
+        CborIdentityRecord::from_key(SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
+                cone,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new(name).unwrap(),
+            0,
+            None,
+            Vec::new(),
+        ))
+        .unwrap()
+    }
+
+    fn unit_exact_record() -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
+        CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap()
+    }
+
+    fn executable_contract(
+        declaration: &CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
+    ) -> HirOutputContractV1 {
+        let entry = ExecutableSourceEntryIdentity::try_new(
+            declaration,
+            ExactOrdinaryNoArgUnitSignature::new(unit_exact_record().id()),
+        )
+        .unwrap();
+        HirOutputContractV1::Executable(Box::new(entry))
     }
 
     fn hex(bytes: &[u8]) -> String {

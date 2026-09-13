@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_wire::{
-    HashError, RuntimeDecode, RuntimeDecodeError, RuntimeDecodeErrorKind, RuntimeDecoder,
+    Encoder, HashError, RuntimeDecode, RuntimeDecodeError, RuntimeDecodeErrorKind, RuntimeDecoder,
     RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireEncode,
 };
 
@@ -331,6 +331,22 @@ impl ExecutableSourceEntryIdentity {
 
     pub const fn main(&self) -> MainCallableBodyId {
         self.main
+    }
+}
+
+impl WireEncode for ExecutableSourceEntryIdentity {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(5)?;
+        encoder.field(1)?;
+        self.root_cone.encode(encoder)?;
+        encoder.field(2)?;
+        self.declaration.encode(encoder)?;
+        encoder.field(3)?;
+        self.source_signature.encode(encoder)?;
+        encoder.field(4)?;
+        self.source_signature_fingerprint.encode(encoder)?;
+        encoder.field(5)?;
+        self.main.encode(encoder)
     }
 }
 

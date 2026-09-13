@@ -149,11 +149,20 @@ impl CanonicalHirFoundation {
         }
     }
 
-    pub(crate) fn function_id_by_bytes(&self, bytes: &[u8; 32]) -> Option<PersistentFunctionId> {
+    pub(crate) fn function_record_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<&CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>> {
         self.functions
             .iter()
+            .find(|record| record.id().as_array() == bytes)
+    }
+
+    pub(crate) fn exact_type_id_by_key(&self, key: &ExactTypeKey) -> Option<PersistentExactTypeId> {
+        self.exact_types
+            .iter()
+            .find(|record| record.key() == key)
             .map(CborIdentityRecord::id)
-            .find(|id| id.as_array() == bytes)
     }
 
     pub(crate) fn export_binding_id_by_bytes(

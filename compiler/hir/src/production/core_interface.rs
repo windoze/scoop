@@ -310,7 +310,7 @@ impl DecodedCoreBootstrapInterfaceSectionV1 {
             .map_err(CoreBootstrapInterfaceValidationError::DirectSurface)?;
         let output_contract = self
             .output_contract
-            .validate_against(foundation)
+            .validate_against(artifact, foundation)
             .map_err(CoreBootstrapInterfaceValidationError::OutputContract)?;
         let core_interface = match (artifact == ConeIdentity::CORE, self.core_interface) {
             (false, DecodedCoreHirInterfaceBranchV1::NotCore) => CoreHirInterfaceBranchV1::NotCore,
