@@ -45,7 +45,8 @@ pub use entity::{
     DecodedCallableTemplateOrigin, DecodedCallableTemplateOwner, DecodedCallbackApplicationKey,
     DecodedCallbackRegistrationKey, DecodedExportBindingKey, DecodedLocalBindingKey,
     DecodedPropertyAccessorKey, DecodedSignatureCallableShape,
-    DecodedStrongCallableDefinitionOwner, ExportBindingKey, LocalBindingKey, LocalBindingRole,
+    DecodedStrongCallableDefinitionOwner, ExecutableSourceEntryIdentity,
+    ExecutableSourceEntryIdentityError, ExportBindingKey, LocalBindingKey, LocalBindingRole,
     MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape, StrongCallableDefinitionOwner,
 };
 pub use entity::{

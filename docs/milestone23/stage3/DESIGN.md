@@ -1275,6 +1275,53 @@ core bootstrap的dependencies为空；普通manifest/single-file当前恰为`[co
 - 每个pointer relocation命中正确registration record symbol；
 - runtime image slot是唯一32-byte patch并与manifest Available值相等。
 
+### 13.5 executable entry plan
+
+HIR用`ExecutableSourceEntryIdentity`一次性证明source declaration的origin是root Cone、owner chain为空、
+名字是`main`、declaration duplicate-signature为non-generic/no-receiver/no-argument function，并绑定
+`ExactOrdinaryNoArgUnitSignature`、由它派生的source fingerprint和main body identity。不公开
+从裸`PersistentFunctionId`构造`MainCallableBodyId`的通道。LIR lowering从该HIR proof与已
+验证的MIR entry bridge合并出不序列化的`EntryProductionSourceV1::Executable(proof)`；
+MIR implementation必须已等于`CallableOwner::Function(declaration)`。LIR production section中序列化的
+`EntryProductionPlanV1`使用相同branch tag，`Library`为无payload的closed sum，
+`Executable(ExecutableEntryPlanV1)`的payload固定为：
+
+```text
+ExecutableEntryPlanV1 {
+    root_cone: ConeIdentity,                              // field 1
+    declaration: PersistentFunctionId,                   // field 2
+    source_signature: ExactOrdinaryNoArgUnitSignature,   // field 3
+    source_signature_fingerprint: SourceSignatureFingerprint, // field 4
+    main: MainCallableBodyId,                            // field 5
+    failure_root: PersistentStaticStorageId,             // field 6
+    gateway: PersistentCallableBodyId,                   // field 7
+    root_descriptor_symbol: PersistentSymbolRequest,     // field 8
+    root_descriptor_definition: ObjectDefinitionPlanId,  // field 9
+    source_signature_patch: DigestPatchIntentId,         // field 10
+    gateway_definition_patch: DigestPatchIntentId,       // field 11
+}
+```
+
+`main`只能从`CallableBodyKey::Strong(Function(declaration))`派生并收窄，
+`source_signature_fingerprint`只能从field 3重算。`failure_root`只能从
+`StaticStorageKey::root_entry_failure_root(root_cone, main)`派生，`gateway`只能从
+`CallableBodyKey::RootGateway { root_cone, main }`派生。这三个identity必须存在于当前
+ODR-free foundation，main与gateway必须各有callable registration，failure root必须有
+static-storage registration；它们的body/storage定义与registration定义全部必须存在。
+
+root descriptor symbol必须精确等于
+`PersistentSymbolRequest::ConeStrong(RootEntryDescriptor(root_cone))`，其definition必须精确由
+`Strong { producer=root_cone, entity=RootEntry(root_cone), role=RootEntryDescriptor }`派生。
+source-signature node必须以main body为owner，并以`SourceSignature`语义字段写入root
+descriptor的Primary atom；gateway body Primary atom的`ObjectDefinition` node必须以
+`GatewayDefinition`语义字段写入同一atom。两个patch intent id都从这些完整typed key
+重算，不保存offset或member。
+
+reader不单项提升decoded id；它从expected source、foundation、registration surface和digest
+plan独立重建整个branch并逐byte比较。Library分支要求foundation中同时不存在
+root-entry failure storage、root gateway body、`re`符号或RootEntryDescriptor definition plan；
+Executable分支要求这四类root-only实体各恰一个且全部属于当前Cone/main。
+
 ## 14. digest与fingerprint
 
 ### 14.1 leaf与DAG

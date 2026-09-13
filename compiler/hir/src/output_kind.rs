@@ -4,9 +4,9 @@ use std::fmt;
 
 use scoop_identity::{
     DeclarationName, DefinitionOriginSubject, ExactOrdinaryNoArgUnitSignature,
-    PersistentFunctionId, SourceSignatureFingerprint,
+    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, PersistentFunctionId,
+    SourceSignatureFingerprint,
 };
-use scoop_wire::HashError;
 
 use crate::{ExportHir, FunctionGenericity, FunctionId, FunctionKind, HirSourceFunctionIdentity};
 
@@ -26,10 +26,8 @@ impl CurrentFunctionId {
 /// Unique, fully validated local source entry of an executable Cone.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocalExecutableEntry {
-    declaration: PersistentFunctionId,
+    identity: ExecutableSourceEntryIdentity,
     local_function: CurrentFunctionId,
-    source_signature: ExactOrdinaryNoArgUnitSignature,
-    source_signature_fingerprint: SourceSignatureFingerprint,
 }
 
 impl LocalExecutableEntry {
@@ -99,20 +97,19 @@ impl LocalExecutableEntry {
             return Err(LocalExecutableEntryError::DefinitionOriginConeMismatch);
         }
 
-        let source_signature = ExactOrdinaryNoArgUnitSignature::new(unit);
-        let source_signature_fingerprint =
-            SourceSignatureFingerprint::from_signature(&source_signature)
-                .map_err(LocalExecutableEntryError::Fingerprint)?;
+        let identity = ExecutableSourceEntryIdentity::try_new(
+            record,
+            ExactOrdinaryNoArgUnitSignature::new(unit),
+        )
+        .map_err(LocalExecutableEntryError::Identity)?;
         Ok(Self {
-            declaration,
+            identity,
             local_function: CurrentFunctionId(function_id),
-            source_signature,
-            source_signature_fingerprint,
         })
     }
 
     pub const fn declaration(&self) -> PersistentFunctionId {
-        self.declaration
+        self.identity.declaration()
     }
 
     pub const fn local_function(&self) -> CurrentFunctionId {
@@ -120,11 +117,15 @@ impl LocalExecutableEntry {
     }
 
     pub const fn source_signature(&self) -> &ExactOrdinaryNoArgUnitSignature {
-        &self.source_signature
+        self.identity.source_signature()
     }
 
     pub const fn source_signature_fingerprint(&self) -> SourceSignatureFingerprint {
-        self.source_signature_fingerprint
+        self.identity.source_signature_fingerprint()
+    }
+
+    pub const fn identity(&self) -> &ExecutableSourceEntryIdentity {
+        &self.identity
     }
 }
 
@@ -132,7 +133,9 @@ impl LocalExecutableEntry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConeOutputKind {
     Library,
-    Executable { local_entry: LocalExecutableEntry },
+    Executable {
+        local_entry: Box<LocalExecutableEntry>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -151,7 +154,7 @@ pub enum LocalExecutableEntryError {
     UnitHasNoExactIdentity,
     MissingDefinitionOrigin,
     DefinitionOriginConeMismatch,
-    Fingerprint(HashError),
+    Identity(ExecutableSourceEntryIdentityError),
 }
 
 impl fmt::Display for LocalExecutableEntryError {
@@ -173,7 +176,7 @@ impl fmt::Display for LocalExecutableEntryError {
             Self::DefinitionOriginConeMismatch => {
                 "the executable entry definition origin belongs to a different Cone"
             }
-            Self::Fingerprint(error) => return error.fmt(formatter),
+            Self::Identity(error) => return error.fmt(formatter),
         })
     }
 }

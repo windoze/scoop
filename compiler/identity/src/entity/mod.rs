@@ -63,7 +63,8 @@ pub use callable::{
 };
 pub use callable_body::{
     CallableBodyKey, CallableBodyKeyKind, CallableBodyResolutionError, DecodedCallableBodyKey,
-    DecodedCallableBodyKeyKind, DecodedStrongCallableDefinitionOwner, MainCallableBodyId,
+    DecodedCallableBodyKeyKind, DecodedStrongCallableDefinitionOwner,
+    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, MainCallableBodyId,
     StrongCallableDefinitionOwner,
 };
 pub use callback::{

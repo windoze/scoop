@@ -1,9 +1,10 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, GeneratedBridgeAtomId,
-    LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
-    PersistentCallableBodyId, PersistentSymbolKey, PersistentSymbolRequest,
+    ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DefinitionOwner,
+    GeneratedBridgeAtomId, LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
+    OdrGroupId, OdrMemberId, PersistentCallableBodyId, PersistentStaticStorageId,
+    PersistentSymbolKey, PersistentSymbolRequest, StorageRole,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -122,6 +123,54 @@ impl OdrFreeLirFoundation {
             .callable_bodies
             .iter()
             .any(|record| record.id() == id)
+    }
+
+    pub(crate) fn root_gateway_bodies(
+        &self,
+    ) -> Result<Vec<PersistentCallableBodyId>, RuntimeDecodeError> {
+        self.canonical
+            .callable_bodies
+            .iter()
+            .filter_map(|record| {
+                match decode_runtime::<DecodedCallableBodyKey>(record.key_bytes()) {
+                    Ok(key)
+                        if matches!(key.kind(), DecodedCallableBodyKeyKind::RootGateway { .. }) =>
+                    {
+                        Some(Ok(record.id()))
+                    }
+                    Ok(_) => None,
+                    Err(error) => Some(Err(error)),
+                }
+            })
+            .collect()
+    }
+
+    pub(crate) fn contains_static_storage(&self, id: PersistentStaticStorageId) -> bool {
+        self.canonical
+            .static_storages
+            .iter()
+            .any(|record| record.id() == id)
+    }
+
+    pub(crate) fn root_entry_failure_roots(&self) -> Vec<PersistentStaticStorageId> {
+        self.canonical
+            .static_storages
+            .iter()
+            .filter_map(|record| {
+                matches!(
+                    (record.key().owner(), record.key().role()),
+                    (
+                        DefinitionOwner::RootEntry { .. },
+                        StorageRole::RootEntryFailureRoot
+                    )
+                )
+                .then_some(record.id())
+            })
+            .collect()
+    }
+
+    pub(crate) fn symbol_requests(&self) -> &[PersistentSymbolRequest] {
+        self.canonical.symbol_requests.requests()
     }
 
     pub(crate) fn contains_layout(&self, id: scoop_identity::PersistentLayoutId) -> bool {

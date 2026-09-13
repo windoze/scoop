@@ -8,10 +8,12 @@ use scoop_wire::{
 use super::CallableOdrMemberId;
 use crate::ids::derive_runtime_persistent_id;
 use crate::{
-    ConeIdentity, DecodedPersistentId, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
-    PersistentCallableBodyId, PersistentConstructorId, PersistentFunctionId,
+    CborIdentityRecord, ConeIdentity, DeclarationName, DecodedPersistentId, DuplicateSignatureKey,
+    ExactOrdinaryNoArgUnitSignature, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
+    OptionalSignatureType, PersistentCallableBodyId, PersistentConstructorId, PersistentFunctionId,
     PersistentGeneratedCallableId, PersistentId, PersistentIdResolver,
     PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
+    SourceDeclarationKey, SourceDeclarationKind, SourceSignatureFingerprint,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -258,6 +260,100 @@ impl MainCallableBodyId {
     }
 }
 
+/// Persistent proof that a source declaration is the unique shape accepted
+/// by executable-entry lowering.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExecutableSourceEntryIdentity {
+    root_cone: ConeIdentity,
+    declaration: PersistentFunctionId,
+    source_signature: ExactOrdinaryNoArgUnitSignature,
+    source_signature_fingerprint: SourceSignatureFingerprint,
+    main: MainCallableBodyId,
+}
+
+impl ExecutableSourceEntryIdentity {
+    pub fn try_new(
+        declaration: &CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
+        source_signature: ExactOrdinaryNoArgUnitSignature,
+    ) -> Result<Self, ExecutableSourceEntryIdentityError> {
+        let key = declaration.key();
+        if key.declaration_kind() != SourceDeclarationKind::Function {
+            return Err(ExecutableSourceEntryIdentityError::NotFunction);
+        }
+        if !key.owners().owners().is_empty() {
+            return Err(ExecutableSourceEntryIdentityError::NotTopLevel);
+        }
+        if !matches!(key.name(), DeclarationName::Named(name) if name.as_str() == "main") {
+            return Err(ExecutableSourceEntryIdentityError::NotMain);
+        }
+        if !matches!(
+            key.duplicate_signature(),
+            DuplicateSignatureKey::Function {
+                type_parameter_count: 0,
+                receiver: OptionalSignatureType::Absent,
+                parameters,
+            } if parameters.is_empty()
+        ) {
+            return Err(ExecutableSourceEntryIdentityError::InvalidDeclarationShape);
+        }
+        let declaration_id = declaration.id();
+        let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(
+            StrongCallableDefinitionOwner::Function(declaration_id),
+        ))
+        .map_err(ExecutableSourceEntryIdentityError::Hash)?;
+        let source_signature_fingerprint =
+            SourceSignatureFingerprint::from_signature(&source_signature)
+                .map_err(ExecutableSourceEntryIdentityError::Hash)?;
+        Ok(Self {
+            root_cone: key.origin(),
+            declaration: declaration_id,
+            source_signature,
+            source_signature_fingerprint,
+            main: MainCallableBodyId(body),
+        })
+    }
+
+    pub const fn root_cone(&self) -> ConeIdentity {
+        self.root_cone
+    }
+
+    pub const fn declaration(&self) -> PersistentFunctionId {
+        self.declaration
+    }
+
+    pub const fn source_signature(&self) -> &ExactOrdinaryNoArgUnitSignature {
+        &self.source_signature
+    }
+
+    pub const fn source_signature_fingerprint(&self) -> SourceSignatureFingerprint {
+        self.source_signature_fingerprint
+    }
+
+    pub const fn main(&self) -> MainCallableBodyId {
+        self.main
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExecutableSourceEntryIdentityError {
+    NotFunction,
+    NotTopLevel,
+    NotMain,
+    InvalidDeclarationShape,
+    Hash(HashError),
+}
+
+impl fmt::Display for ExecutableSourceEntryIdentityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid executable source entry identity: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for ExecutableSourceEntryIdentityError {}
+
 impl RuntimeEncode for MainCallableBodyId {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         encoder.fixed(self.0.as_array())
@@ -311,12 +407,51 @@ mod tests {
 
     use super::{
         CallableBodyKey, CallableBodyKeyKind, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
-        DecodedStrongCallableDefinitionOwner, MainCallableBodyId, StrongCallableDefinitionOwner,
+        DecodedStrongCallableDefinitionOwner, ExecutableSourceEntryIdentity,
+        ExecutableSourceEntryIdentityError, MainCallableBodyId, StrongCallableDefinitionOwner,
     };
     use crate::{
-        ConeIdentity, OdrMemberId, PersistentCallableBodyId, PersistentFunctionId,
-        PersistentInitializationUnitId,
+        CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
+        DefinitionOwnerChain, ExactOrdinaryNoArgUnitSignature, OdrMemberId, PackagePath,
+        PersistentCallableBodyId, PersistentExactTypeId, PersistentFunctionId,
+        PersistentInitializationUnitId, SourceDeclarationKey, SourceDeclarationSite,
     };
+
+    #[test]
+    fn executable_source_entry_proves_main_shape_before_refining_the_body() {
+        let declaration = source_function("main", None, Vec::new());
+        let signature = ExactOrdinaryNoArgUnitSignature::new(PersistentExactTypeId([7; 32]));
+        let entry =
+            ExecutableSourceEntryIdentity::try_new(&declaration, signature.clone()).unwrap();
+
+        assert_eq!(entry.root_cone(), ConeIdentity::SINGLE_FILE);
+        assert_eq!(entry.declaration(), declaration.id());
+        assert_eq!(entry.source_signature(), &signature);
+        assert_eq!(
+            entry.main().body(),
+            PersistentCallableBodyId::from_key(&CallableBodyKey::strong(
+                StrongCallableDefinitionOwner::Function(declaration.id())
+            ))
+            .unwrap()
+        );
+
+        let wrong_name = source_function("start", None, Vec::new());
+        assert_eq!(
+            ExecutableSourceEntryIdentity::try_new(&wrong_name, signature.clone()),
+            Err(ExecutableSourceEntryIdentityError::NotMain)
+        );
+        let receiver = source_function(
+            "main",
+            Some(crate::SignatureTypeKey::Nominal(crate::PersistentTypeId(
+                [8; 32],
+            ))),
+            Vec::new(),
+        );
+        assert_eq!(
+            ExecutableSourceEntryIdentity::try_new(&receiver, signature),
+            Err(ExecutableSourceEntryIdentityError::InvalidDeclarationShape)
+        );
+    }
 
     #[test]
     fn strong_callable_body_has_fixed_runtime_bytes_and_identity() {
@@ -403,6 +538,27 @@ mod tests {
             DecodedCallableBodyKeyKind::InitializationStartupGateway(id)
                 if id.as_array() == PersistentInitializationUnitId(bytes).as_array()
         ));
+    }
+
+    fn source_function(
+        name: &str,
+        receiver: Option<crate::SignatureTypeKey>,
+        parameters: Vec<crate::SignatureTypeKey>,
+    ) -> CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey> {
+        CborIdentityRecord::from_key(SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
+                ConeIdentity::SINGLE_FILE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new(name).unwrap(),
+            0,
+            receiver,
+            parameters,
+        ))
+        .unwrap()
     }
 
     #[test]

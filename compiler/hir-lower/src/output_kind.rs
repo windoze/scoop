@@ -27,7 +27,9 @@ pub fn select_cone_output_kind(
         .collect::<Vec<_>>();
     match valid.as_slice() {
         [declaration] => hir::LocalExecutableEntry::try_new(module, declaration.function)
-            .map(|local_entry| hir::ConeOutputKind::Executable { local_entry })
+            .map(|local_entry| hir::ConeOutputKind::Executable {
+                local_entry: Box::new(local_entry),
+            })
             .map_err(|error| {
                 vec![invalid_hir_diagnostic(format!(
                     "failed to seal executable entry: {error}"

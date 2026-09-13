@@ -17,3 +17,6 @@ pub use registrations::*;
 
 mod image;
 pub use image::*;
+
+mod entry;
+pub use entry::*;
