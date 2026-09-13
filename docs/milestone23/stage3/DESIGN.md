@@ -1542,6 +1542,15 @@ managed invoke与native transition为零。后续object verifier只能消费该p
 从object自报的location count反推LIR语义；reader则从已验证的LIR semantic/registration surface重建
 同一字段，不接受producer另送一份无来源的root count。
 
+LLVM v3 raw record在绑定物理section前先经
+`normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, ProvisionalLlvmStackmapRecordV3)`
+收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack
+size合法性、location总数、三项8-byte Constant header、零statepoint flags/deopt count，以及每对相同
+SP/FP 8-byte Indirect可写槽的frame边界检查；`ConstantIndex`先检查pool边界再折叠为与`Constant`
+相同的canonical variant，pool顺序及未引用entry不进入结果。canonical record使用总设计6.1的
+little-endian scalar/count encoder，typed `StackmapRecordFingerprintV1`只能由
+`scoop-stackmap-record-v1` domain hash构造；raw LLVM保留字段或任意外送digest均不能直接提升为该类型。
+
 ### 13.3 registration完备性
 
 - 每个compiler-owned static storage恰一条storage registration；GC-free storage也不能为省事丢descriptor；
