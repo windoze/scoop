@@ -827,8 +827,12 @@ wire固定为closed product：`1=core_bridge, 2=entry_bridge,
 `CallableOwner::Function(definition)`。array按binding bytes严格递增，binding和
 implementation均不得重复。
 
-`EntryMirBridgeV1`固定为`1=source_entry, 2=implementation`，implementation必须逐值等于
-`CallableOwner::Function(source_entry)`。`StrongCallableBridgeV1`固定为
+`EntryMirBridgeV1`固定为`1=source: ExecutableSourceEntryIdentity, 2=implementation`，
+implementation必须逐值等于`CallableOwner::Function(source.declaration)`。MIR reader从HIR
+identity graph重建完整source proof并要求其root Cone等于artifact；旧的field 1裸
+`PersistentFunctionId`不再解码。`mir-lower`保留完整source proof形成该bridge，`lir-lower`再从已
+验证bridge形成`EntryProductionSourceV1`，两个stage都不得从裸declaration重新拼装或丢弃字段。
+`StrongCallableBridgeV1`固定为
 `1=implementation: CallableOwner, 2=signature: ExactCallableSignature`；其MIR signature
 subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementation)`，wire中没有
 可伪造的第二份subject字段。`strong_callable_bridges`按`CallableOwner` canonical顺序完整覆盖

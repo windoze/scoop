@@ -3,11 +3,14 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableOwner, DecodedCallableOwner, DecodedExactCallableSignature, DecodedPersistentId,
-    ExactCallableSignature, ExactCallableSignatureResolutionError, IdentityReferenceError,
-    PersistentExportBindingId, PersistentFunctionId, PersistentIdResolver, ValidatedIdentityGraph,
+    CallableOwner, CborIdentityRecord, CoreBuiltinNominal, DecodedCallableOwner,
+    DecodedExactCallableSignature, DecodedExecutableSourceEntryIdentity, DecodedPersistentId,
+    ExactCallableSignature, ExactCallableSignatureResolutionError, ExactOrdinaryNoArgUnitSignature,
+    ExactTypeKey, ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError,
+    IdentityReferenceError, PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
+    PersistentIdResolver, PersistentKeyResolver, SourceDeclarationKey, ValidatedIdentityGraph,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, OdrFreeMirFoundation, ValidatedMirFoundation,
@@ -469,17 +472,18 @@ impl WireDecode for DecodedCoreMirBridgeBranchV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EntryMirBridgeV1 {
-    source_entry: PersistentFunctionId,
+    source: ExecutableSourceEntryIdentity,
     implementation: CallableOwner,
 }
 
 impl EntryMirBridgeV1 {
     pub fn new(
-        source_entry: PersistentFunctionId,
+        source: ExecutableSourceEntryIdentity,
         implementation: CallableOwner,
     ) -> Result<Self, MirProductionBuildError> {
+        let source_entry = source.declaration();
         if implementation != CallableOwner::Function(source_entry) {
             return Err(MirProductionBuildError::EntryImplementationMismatch {
                 source_entry,
@@ -487,16 +491,16 @@ impl EntryMirBridgeV1 {
             });
         }
         Ok(Self {
-            source_entry,
+            source,
             implementation,
         })
     }
 
-    pub const fn source_entry(self) -> PersistentFunctionId {
-        self.source_entry
+    pub const fn source(&self) -> &ExecutableSourceEntryIdentity {
+        &self.source
     }
 
-    pub const fn implementation(self) -> CallableOwner {
+    pub const fn implementation(&self) -> CallableOwner {
         self.implementation
     }
 }
@@ -505,7 +509,7 @@ impl WireEncode for EntryMirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
-        self.source_entry.encode(encoder)?;
+        self.source.encode(encoder)?;
         encoder.field(2)?;
         self.implementation.encode(encoder)
     }
@@ -513,7 +517,7 @@ impl WireEncode for EntryMirBridgeV1 {
 
 #[derive(Debug)]
 struct DecodedEntryMirBridgeV1 {
-    source_entry: DecodedPersistentId<PersistentFunctionId>,
+    source: DecodedExecutableSourceEntryIdentity,
     implementation: DecodedCallableOwner,
 }
 
@@ -521,7 +525,7 @@ impl WireEncode for DecodedEntryMirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
-        self.source_entry.encode(encoder)?;
+        self.source.encode(encoder)?;
         encoder.field(2)?;
         self.implementation.encode(encoder)
     }
@@ -531,23 +535,23 @@ impl WireDecode for DecodedEntryMirBridgeV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
-            source_entry: decoder.field(1, DecodedPersistentId::decode)?,
+            source: decoder.field(1, DecodedExecutableSourceEntryIdentity::decode)?,
             implementation: decoder.field(2, DecodedCallableOwner::decode)?,
         })
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EntryMirBridgeBranchV1 {
     Library,
-    Executable(EntryMirBridgeV1),
+    Executable(Box<EntryMirBridgeV1>),
 }
 
 impl WireEncode for EntryMirBridgeBranchV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Library => encode_empty_sum(encoder, 1),
-            Self::Executable(bridge) => encode_value_sum(encoder, 2, bridge),
+            Self::Executable(bridge) => encode_value_sum(encoder, 2, bridge.as_ref()),
         }
     }
 }
@@ -555,14 +559,14 @@ impl WireEncode for EntryMirBridgeBranchV1 {
 #[derive(Debug)]
 enum DecodedEntryMirBridgeBranchV1 {
     Library,
-    Executable(DecodedEntryMirBridgeV1),
+    Executable(Box<DecodedEntryMirBridgeV1>),
 }
 
 impl WireEncode for DecodedEntryMirBridgeBranchV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Library => encode_empty_sum(encoder, 1),
-            Self::Executable(bridge) => encode_value_sum(encoder, 2, bridge),
+            Self::Executable(bridge) => encode_value_sum(encoder, 2, bridge.as_ref()),
         }
     }
 }
@@ -571,7 +575,9 @@ impl WireDecode for DecodedEntryMirBridgeBranchV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decode_sum(decoder, |tag, decoder| match tag {
             1 => Ok(Self::Library),
-            2 => DecodedEntryMirBridgeV1::decode(decoder).map(Self::Executable),
+            2 => DecodedEntryMirBridgeV1::decode(decoder)
+                .map(Box::new)
+                .map(Self::Executable),
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         })
     }
@@ -594,7 +600,7 @@ impl CoreBootstrapBridgeSectionV1 {
         validate_section_relations(
             artifact,
             &core_bridge,
-            entry_bridge,
+            &entry_bridge,
             &strong_callable_bridges,
         )?;
         Ok(Self {
@@ -608,8 +614,8 @@ impl CoreBootstrapBridgeSectionV1 {
         &self.core_bridge
     }
 
-    pub const fn entry_bridge(&self) -> EntryMirBridgeBranchV1 {
-        self.entry_bridge
+    pub const fn entry_bridge(&self) -> &EntryMirBridgeBranchV1 {
+        &self.entry_bridge
     }
 
     pub const fn strong_callable_bridges(&self) -> &StrongCallableBridgeSurfaceV1 {
@@ -655,9 +661,8 @@ impl DecodedCoreBootstrapBridgeSectionV1 {
         let entry_bridge = match self.entry_bridge {
             DecodedEntryMirBridgeBranchV1::Library => EntryMirBridgeBranchV1::Library,
             DecodedEntryMirBridgeBranchV1::Executable(bridge) => {
-                let source_entry = identities
-                    .resolve(bridge.source_entry)
-                    .map_err(MirProductionValidationError::Identity)?;
+                let source = resolve_entry_source(bridge.source, artifact, identities)?;
+                let source_entry = source.declaration();
                 let implementation = bridge
                     .implementation
                     .resolve(identities)
@@ -668,16 +673,16 @@ impl DecodedCoreBootstrapBridgeSectionV1 {
                         implementation,
                     });
                 }
-                EntryMirBridgeBranchV1::Executable(EntryMirBridgeV1 {
-                    source_entry,
+                EntryMirBridgeBranchV1::Executable(Box::new(EntryMirBridgeV1 {
+                    source,
                     implementation,
-                })
+                }))
             }
         };
         validate_section_relations(
             artifact,
             &core_bridge,
-            entry_bridge,
+            &entry_bridge,
             &strong_callable_bridges,
         )
         .map_err(MirProductionValidationError::Relation)?;
@@ -713,12 +718,55 @@ impl WireDecode for DecodedCoreBootstrapBridgeSectionV1 {
     }
 }
 
+fn resolve_entry_source(
+    decoded: DecodedExecutableSourceEntryIdentity,
+    artifact: scoop_identity::ConeIdentity,
+    identities: &mut ValidatedIdentityGraph,
+) -> Result<ExecutableSourceEntryIdentity, MirProductionValidationError> {
+    let declaration_key: std::sync::Arc<SourceDeclarationKey> = identities
+        .resolve_key(decoded.declaration())
+        .map_err(MirProductionValidationError::Identity)?;
+    let declaration = CborIdentityRecord::from_key((*declaration_key).clone())
+        .map_err(MirProductionValidationError::EntrySourceRecord)?;
+    let unit = CborIdentityRecord::<PersistentExactTypeId, ExactTypeKey>::from_key(
+        ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+    )
+    .map_err(MirProductionValidationError::EntryUnitRecord)?
+    .id();
+    let expected = ExecutableSourceEntryIdentity::try_new(
+        &declaration,
+        ExactOrdinaryNoArgUnitSignature::new(unit),
+    )
+    .map_err(MirProductionValidationError::InvalidEntrySource)?;
+    if expected.root_cone() != artifact {
+        return Err(MirProductionValidationError::ForeignEntrySource {
+            artifact,
+            entry: expected.root_cone(),
+        });
+    }
+    let actual_bytes = encode(&decoded).map_err(MirProductionValidationError::EntrySourceEncode)?;
+    let expected_bytes =
+        encode(&expected).map_err(MirProductionValidationError::EntrySourceEncode)?;
+    if actual_bytes != expected_bytes {
+        return Err(MirProductionValidationError::EntrySourceMismatch);
+    }
+    Ok(expected)
+}
+
 fn validate_section_relations(
     artifact: scoop_identity::ConeIdentity,
     core_bridge: &CoreMirBridgeBranchV1,
-    entry_bridge: EntryMirBridgeBranchV1,
+    entry_bridge: &EntryMirBridgeBranchV1,
     strong_callable_bridges: &StrongCallableBridgeSurfaceV1,
 ) -> Result<(), MirProductionBuildError> {
+    if let EntryMirBridgeBranchV1::Executable(entry) = entry_bridge
+        && entry.source().root_cone() != artifact
+    {
+        return Err(MirProductionBuildError::ForeignEntrySource {
+            artifact,
+            entry: entry.source().root_cone(),
+        });
+    }
     match (artifact == scoop_identity::ConeIdentity::CORE, core_bridge) {
         (true, CoreMirBridgeBranchV1::NotCore) => {
             return Err(MirProductionBuildError::MissingCoreBridge);
@@ -729,7 +777,7 @@ fn validate_section_relations(
         (true, CoreMirBridgeBranchV1::Core(_)) | (false, CoreMirBridgeBranchV1::NotCore) => {}
     }
     if artifact == scoop_identity::ConeIdentity::CORE
-        && entry_bridge != EntryMirBridgeBranchV1::Library
+        && entry_bridge != &EntryMirBridgeBranchV1::Library
     {
         return Err(MirProductionBuildError::CoreMustBeLibrary);
     }
@@ -768,6 +816,10 @@ pub enum MirProductionBuildError {
         source_entry: PersistentFunctionId,
         implementation: CallableOwner,
     },
+    ForeignEntrySource {
+        artifact: scoop_identity::ConeIdentity,
+        entry: scoop_identity::ConeIdentity,
+    },
     MissingCoreBridge,
     UnexpectedCoreBridge(scoop_identity::ConeIdentity),
     CoreMustBeLibrary,
@@ -787,6 +839,15 @@ impl std::error::Error for MirProductionBuildError {}
 pub enum MirProductionValidationError {
     Identity(IdentityReferenceError),
     Signature(ExactCallableSignatureResolutionError<IdentityReferenceError>),
+    EntrySourceRecord(scoop_identity::SourceDeclarationIdentityError),
+    EntryUnitRecord(scoop_wire::HashError),
+    InvalidEntrySource(ExecutableSourceEntryIdentityError),
+    ForeignEntrySource {
+        artifact: scoop_identity::ConeIdentity,
+        entry: scoop_identity::ConeIdentity,
+    },
+    EntrySourceEncode(scoop_wire::cbor::EncodeError),
+    EntrySourceMismatch,
     StrongCallableCoverage {
         expected: usize,
         actual: usize,

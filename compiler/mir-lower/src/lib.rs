@@ -117,11 +117,14 @@ mod lowering_support;
 mod members;
 mod nominals;
 mod pipeline;
+mod production;
 mod singletons;
 mod source_callables;
 mod strings;
 mod structured;
 mod types;
+
+pub use production::lower_entry_bridge;
 
 use context::*;
 use globals::*;

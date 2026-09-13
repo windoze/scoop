@@ -1,8 +1,9 @@
 use std::fmt;
 
 use scoop_wire::{
-    Encoder, HashError, RuntimeDecode, RuntimeDecodeError, RuntimeDecodeErrorKind, RuntimeDecoder,
-    RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireEncode,
+    Decoder, Encoder, HashError, RuntimeDecode, RuntimeDecodeError, RuntimeDecodeErrorKind,
+    RuntimeDecoder, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireDecode, WireEncode,
+    WireError,
 };
 
 use super::CallableOdrMemberId;
@@ -347,6 +348,55 @@ impl WireEncode for ExecutableSourceEntryIdentity {
         self.source_signature_fingerprint.encode(encoder)?;
         encoder.field(5)?;
         self.main.encode(encoder)
+    }
+}
+
+/// Untrusted wire form of [`ExecutableSourceEntryIdentity`].
+///
+/// Readers must rebuild the trusted proof from the referenced source
+/// declaration and the trusted core `Unit` exact identity, then compare the
+/// complete encoded value. No field is independently promoted.
+#[derive(Debug)]
+pub struct DecodedExecutableSourceEntryIdentity {
+    root_cone: DecodedPersistentId<ConeIdentity>,
+    declaration: DecodedPersistentId<PersistentFunctionId>,
+    source_signature: crate::DecodedExactCallableSignature,
+    source_signature_fingerprint: DecodedPersistentId<SourceSignatureFingerprint>,
+    main: DecodedPersistentId<PersistentCallableBodyId>,
+}
+
+impl DecodedExecutableSourceEntryIdentity {
+    pub const fn declaration(&self) -> DecodedPersistentId<PersistentFunctionId> {
+        self.declaration
+    }
+}
+
+impl WireEncode for DecodedExecutableSourceEntryIdentity {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(5)?;
+        encoder.field(1)?;
+        self.root_cone.encode(encoder)?;
+        encoder.field(2)?;
+        self.declaration.encode(encoder)?;
+        encoder.field(3)?;
+        self.source_signature.encode(encoder)?;
+        encoder.field(4)?;
+        self.source_signature_fingerprint.encode(encoder)?;
+        encoder.field(5)?;
+        self.main.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedExecutableSourceEntryIdentity {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(5)?;
+        Ok(Self {
+            root_cone: decoder.field(1, DecodedPersistentId::decode)?,
+            declaration: decoder.field(2, DecodedPersistentId::decode)?,
+            source_signature: decoder.field(3, crate::DecodedExactCallableSignature::decode)?,
+            source_signature_fingerprint: decoder.field(4, DecodedPersistentId::decode)?,
+            main: decoder.field(5, DecodedPersistentId::decode)?,
+        })
     }
 }
 

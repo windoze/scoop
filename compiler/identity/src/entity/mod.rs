@@ -63,9 +63,9 @@ pub use callable::{
 };
 pub use callable_body::{
     CallableBodyKey, CallableBodyKeyKind, CallableBodyResolutionError, DecodedCallableBodyKey,
-    DecodedCallableBodyKeyKind, DecodedStrongCallableDefinitionOwner,
-    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, MainCallableBodyId,
-    StrongCallableDefinitionOwner,
+    DecodedCallableBodyKeyKind, DecodedExecutableSourceEntryIdentity,
+    DecodedStrongCallableDefinitionOwner, ExecutableSourceEntryIdentity,
+    ExecutableSourceEntryIdentityError, MainCallableBodyId, StrongCallableDefinitionOwner,
 };
 pub use callback::{
     CallbackApplicationIdentityError, CallbackApplicationKey, CallbackIdentityResolutionError,

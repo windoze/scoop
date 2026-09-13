@@ -356,6 +356,7 @@ mod initialization;
 mod locals;
 mod metadata;
 mod native_abi;
+mod production;
 mod runtime;
 mod safepoints;
 mod target;
@@ -367,6 +368,8 @@ use initialization::*;
 use metadata::*;
 use runtime::*;
 use target::*;
+
+pub use production::lower_entry_production_source;
 
 mod function;
 use function::lower_function;
