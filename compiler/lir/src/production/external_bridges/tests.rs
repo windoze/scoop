@@ -11,6 +11,7 @@ use super::*;
 #[test]
 fn external_bridge_surface_has_fixed_wire_and_validates_against_typed_authority() {
     let surface = surface().unwrap();
+    assert_eq!(surface.producer(), ConeIdentity::SINGLE_FILE);
     let bytes = encode(&surface).unwrap();
     assert_eq!(
         hex(&bytes),

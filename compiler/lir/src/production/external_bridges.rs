@@ -173,6 +173,7 @@ impl WireEncode for StrongExternalLirBridgeV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongExternalLirBridgeSurfaceV1 {
+    producer: scoop_identity::ConeIdentity,
     bridges: Vec<StrongExternalLirBridgeV1>,
 }
 
@@ -213,7 +214,11 @@ impl StrongExternalLirBridgeSurfaceV1 {
                 pair[0].sort_key(),
             ));
         }
-        Ok(Self { bridges })
+        Ok(Self { producer, bridges })
+    }
+
+    pub const fn producer(&self) -> scoop_identity::ConeIdentity {
+        self.producer
     }
 
     pub fn bridges(&self) -> &[StrongExternalLirBridgeV1] {

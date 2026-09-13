@@ -396,4 +396,4 @@ impl fmt::Display for StrongRelocationClosureValidationError {
 impl std::error::Error for StrongRelocationClosureValidationError {}
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

@@ -117,7 +117,7 @@ fn requires_a_unique_nonempty_member_set() {
     ));
 }
 
-fn verified_member_with_undefined(
+pub(in crate::link_object) fn verified_member_with_undefined(
     fixture: &Fixture,
     undefined_name: &[u8],
 ) -> VerifiedMemberObjectRelocationIndexV1 {
@@ -130,7 +130,9 @@ fn verified_member_with_undefined(
     verified_member(fixture, &bytes)
 }
 
-fn verified_member_without_relocations(fixture: &Fixture) -> VerifiedMemberObjectRelocationIndexV1 {
+pub(in crate::link_object) fn verified_member_without_relocations(
+    fixture: &Fixture,
+) -> VerifiedMemberObjectRelocationIndexV1 {
     let object = object_for_plan_with_branch_relocation(&fixture.symbols, canonical_value, None);
     verified_member(fixture, &object.bytes)
 }
