@@ -848,6 +848,15 @@ foundation wrapper。构造该证明时除ODR group/member/body/symbol外，还�
 definition plan、producer不等于当前Cone的strong definition plan，以及producer不等于当前Cone的
 generated bridge atom。旧的无producer构造入口不存在。
 
+`object_definition_plans`的元素固定为`StrongObjectDefinitionPlanV1` closed product：
+`1=plan: ObjectDefinitionPlanId`、`2=primary_atom: ObjectDefinitionAtomId`、
+`3=associated_atoms: CanonicalVec<ObjectDefinitionAtomId>`。顶层array按plan id严格递增，
+associated array按atom id严格递增。它必须逐项、全量覆盖同一ODR-free LIR foundation中的
+definition plan与definition atom；每个plan恰有一个`DefinitionAtomRole::Primary`，其余atom
+全部且只能出现在所属plan的associated array。无primary、多primary、孤立atom、跨plan atom、
+漏项、多项、重复项或reader侧非canonical顺序均拒绝。该投影不含`SlibMemberId`、section/range、
+boundary或patch offset，不能提前决定object分片。
+
 ### 9.4 Link identity closure
 
 `LinkIdentityClosureSectionV1`由packager在object verification之后构造：

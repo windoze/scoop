@@ -8,6 +8,7 @@ use scoop_identity::{
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
 use super::{CanonicalLirFoundation, LirFoundationBuildError};
+use crate::ValidatedLirFoundation;
 
 /// A canonical LIR identity foundation proven to satisfy the M23-3
 /// `SingleConeStrong` profile's `RejectAll` ODR policy.
@@ -93,12 +94,27 @@ impl OdrFreeLirFoundation {
         })
     }
 
+    pub fn from_validated(
+        foundation: ValidatedLirFoundation,
+    ) -> Result<Self, OdrFreeLirFoundationError> {
+        let producer = foundation.producer();
+        Self::try_new(producer, foundation.into_canonical())
+    }
+
     pub const fn producer(&self) -> ConeIdentity {
         self.producer
     }
 
     pub const fn as_canonical(&self) -> &CanonicalLirFoundation {
         &self.canonical
+    }
+
+    pub(crate) fn definition_plans(&self) -> &[super::DefinitionPlanRecord] {
+        &self.canonical.definition_plans
+    }
+
+    pub(crate) fn definition_atoms(&self) -> &[super::DefinitionAtomRecord] {
+        &self.canonical.definition_atoms
     }
 
     pub fn into_canonical(self) -> CanonicalLirFoundation {

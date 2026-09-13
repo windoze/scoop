@@ -50,8 +50,10 @@ type BridgeUnitRecord = CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridg
 type BridgeAtomRecord = CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>;
 type NativeLinkRequirementRecord =
     CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>;
-type DefinitionPlanRecord = CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>;
-type DefinitionAtomRecord = CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>;
+pub(crate) type DefinitionPlanRecord =
+    CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>;
+pub(crate) type DefinitionAtomRecord =
+    CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>;
 
 /// Canonical, arena-independent LIR identity tables produced by lowering.
 ///
