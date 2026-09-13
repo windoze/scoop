@@ -157,12 +157,12 @@ impl<'input> ValidatedGraphArtifact<'input> {
 
         let actual = {
             let (manifest, meter) = self.envelope.manifest_and_meter();
-            SemanticFingerprintRecord::decoded_identity_foundation(
+            SemanticFingerprintRecord::from_decoded_metadata_sections(
                 manifest.compatibility(),
                 manifest.direct_dependencies(),
-                hir_section,
-                mir_section,
-                lir_section,
+                hir_envelope.sections(),
+                mir_envelope.sections(),
+                lir_envelope.sections(),
                 meter,
             )
         }

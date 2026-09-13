@@ -1025,12 +1025,12 @@ fn unknown_compile_required_manifest_capability_stops_foundation_decode() {
     let capability = CapabilityId::new("org.scoop-lang.test", "compile", 1).unwrap();
     let metadata = crate::IdentityFoundationMetadata::new(&hir, &mir, &lir).unwrap();
     let compatibility = crate::CompatibilityRecord::identity_foundation(selection).unwrap();
-    let fingerprints = SemanticFingerprintRecord::identity_foundation(
+    let fingerprints = SemanticFingerprintRecord::from_metadata_sections(
         &compatibility,
         &[],
-        metadata.hir_section(),
-        metadata.mir_section(),
-        metadata.lir_section(),
+        std::slice::from_ref(metadata.hir_section()),
+        std::slice::from_ref(metadata.mir_section()),
+        std::slice::from_ref(metadata.lir_section()),
     )
     .unwrap();
     let members = metadata.into_members(cone.identity()).unwrap();

@@ -284,12 +284,12 @@ impl IdentityFoundationArtifact {
             .map_err(IdentityFoundationArtifactError::Compatibility)?;
         let metadata = IdentityFoundationMetadata::new(hir, mir, lir)
             .map_err(IdentityFoundationArtifactError::Metadata)?;
-        let semantic_fingerprints = SemanticFingerprintRecord::identity_foundation(
+        let semantic_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
             &compatibility,
             &direct_dependencies,
-            metadata.hir_section(),
-            metadata.mir_section(),
-            metadata.lir_section(),
+            std::slice::from_ref(metadata.hir_section()),
+            std::slice::from_ref(metadata.mir_section()),
+            std::slice::from_ref(metadata.lir_section()),
         )
         .map_err(IdentityFoundationArtifactError::SemanticFingerprints)?;
         let mut members = metadata

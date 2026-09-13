@@ -7,10 +7,9 @@ use scoop_wire::{
 };
 
 use crate::{
-    CompatibilityRecord, DecodedMetadataSection, DependencyRecord, HirFingerprint, LirFingerprint,
-    MetadataLocation, MetadataSection, MirFingerprint, SemanticFingerprintRecord,
-    hir_identity_foundation_capability, lir_identity_foundation_capability,
-    mir_identity_foundation_capability,
+    CapabilityContractRegistry, CompatibilityRecord, DecodedMetadataSection, DependencyRecord,
+    FingerprintSink, HirFingerprint, LirFingerprint, MemberPurposeSet, MetadataLocation,
+    MetadataSection, MirFingerprint, SemanticFingerprintRecord,
 };
 
 const HIR_SEMANTIC_DOMAIN: &str = "scoop-hir-semantic-v1";
@@ -58,9 +57,30 @@ impl fmt::Display for FoundationLayer {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SemanticFingerprintError {
-    WrongFoundationSection { layer: FoundationLayer },
-    DuplicateDependency { identity: ConeIdentity },
-    DependencyTableAllocation { requested_slots: usize },
+    WrongSectionLocation {
+        layer: FoundationLayer,
+        index: usize,
+        actual: MetadataLocation,
+    },
+    UnsupportedRequiredCapability {
+        layer: FoundationLayer,
+        index: usize,
+        capability: CapabilityId,
+    },
+    DuplicateContribution {
+        layer: FoundationLayer,
+        capability: CapabilityId,
+    },
+    ContributionTableAllocation {
+        layer: FoundationLayer,
+        requested_slots: usize,
+    },
+    DuplicateDependency {
+        identity: ConeIdentity,
+    },
+    DependencyTableAllocation {
+        requested_slots: usize,
+    },
     Hash(HashError),
     Resource(WireError),
 }
@@ -68,12 +88,39 @@ pub enum SemanticFingerprintError {
 impl fmt::Display for SemanticFingerprintError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::WrongFoundationSection { layer } => {
-                write!(
-                    formatter,
-                    "expected the {layer} identity-foundation section"
-                )
-            }
+            Self::WrongSectionLocation {
+                layer,
+                index,
+                actual,
+            } => write!(
+                formatter,
+                "{layer} semantic section {index} belongs to {actual}"
+            ),
+            Self::UnsupportedRequiredCapability {
+                layer,
+                index,
+                capability,
+            } => write!(
+                formatter,
+                "{layer} semantic section {index} requires unsupported capability {}/{}/{}",
+                capability.namespace(),
+                capability.name(),
+                capability.major_version()
+            ),
+            Self::DuplicateContribution { layer, capability } => write!(
+                formatter,
+                "duplicate {layer} semantic contribution {}/{}/{}",
+                capability.namespace(),
+                capability.name(),
+                capability.major_version()
+            ),
+            Self::ContributionTableAllocation {
+                layer,
+                requested_slots,
+            } => write!(
+                formatter,
+                "failed to allocate {layer} semantic contribution table with {requested_slots} slots"
+            ),
             Self::DuplicateDependency { identity } => {
                 write!(formatter, "duplicate direct dependency {identity}")
             }
@@ -92,7 +139,10 @@ impl std::error::Error for SemanticFingerprintError {
         match self {
             Self::Hash(error) => Some(error),
             Self::Resource(error) => Some(error),
-            Self::WrongFoundationSection { .. }
+            Self::WrongSectionLocation { .. }
+            | Self::UnsupportedRequiredCapability { .. }
+            | Self::DuplicateContribution { .. }
+            | Self::ContributionTableAllocation { .. }
             | Self::DuplicateDependency { .. }
             | Self::DependencyTableAllocation { .. } => None,
         }
@@ -100,37 +150,35 @@ impl std::error::Error for SemanticFingerprintError {
 }
 
 impl SemanticFingerprintRecord {
-    pub fn identity_foundation(
+    pub fn from_metadata_sections(
         compatibility: &CompatibilityRecord,
         direct_dependencies: &[DependencyRecord],
-        hir: &MetadataSection,
-        mir: &MetadataSection,
-        lir: &MetadataSection,
+        hir: &[MetadataSection],
+        mir: &[MetadataSection],
+        lir: &[MetadataSection],
     ) -> Result<Self, SemanticFingerprintError> {
-        validate_foundation_sections(hir, mir, lir)?;
         let dependencies = OrderedDependencies::sorted(direct_dependencies)?;
-        identity_foundation_fingerprints(compatibility, hir, mir, lir, &dependencies, None)
+        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, None)
     }
 
-    pub(crate) fn decoded_identity_foundation(
+    pub(crate) fn from_decoded_metadata_sections(
         compatibility: &CompatibilityRecord,
         direct_dependencies: &[DependencyRecord],
-        hir: &DecodedMetadataSection<'_>,
-        mir: &DecodedMetadataSection<'_>,
-        lir: &DecodedMetadataSection<'_>,
+        hir: &[DecodedMetadataSection<'_>],
+        mir: &[DecodedMetadataSection<'_>],
+        lir: &[DecodedMetadataSection<'_>],
         meter: &mut BudgetMeter,
     ) -> Result<Self, SemanticFingerprintError> {
-        validate_foundation_sections(hir, mir, lir)?;
         let dependencies = OrderedDependencies::canonical(direct_dependencies);
-        identity_foundation_fingerprints(compatibility, hir, mir, lir, &dependencies, Some(meter))
+        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, Some(meter))
     }
 }
 
-fn identity_foundation_fingerprints<S: FoundationSection>(
+fn metadata_fingerprints<S: SemanticSection>(
     compatibility: &CompatibilityRecord,
-    hir: &S,
-    mir: &S,
-    lir: &S,
+    hir: &[S],
+    mir: &[S],
+    lir: &[S],
     dependencies: &OrderedDependencies<'_>,
     mut meter: Option<&mut BudgetMeter>,
 ) -> Result<SemanticFingerprintRecord, SemanticFingerprintError> {
@@ -162,23 +210,14 @@ fn identity_foundation_fingerprints<S: FoundationSection>(
     ))
 }
 
-fn validate_foundation_sections<S: FoundationSection>(
-    hir: &S,
-    mir: &S,
-    lir: &S,
-) -> Result<(), SemanticFingerprintError> {
-    validate_foundation_section(FoundationLayer::Hir, hir)?;
-    validate_foundation_section(FoundationLayer::Mir, mir)?;
-    validate_foundation_section(FoundationLayer::Lir, lir)
-}
-
-trait FoundationSection {
+trait SemanticSection {
     fn location(&self) -> MetadataLocation;
     fn capability(&self) -> &CapabilityId;
+    fn required_for(&self) -> MemberPurposeSet;
     fn payload(&self) -> &[u8];
 }
 
-impl FoundationSection for MetadataSection {
+impl SemanticSection for MetadataSection {
     fn location(&self) -> MetadataLocation {
         self.location()
     }
@@ -187,12 +226,16 @@ impl FoundationSection for MetadataSection {
         self.capability()
     }
 
+    fn required_for(&self) -> MemberPurposeSet {
+        self.required_for()
+    }
+
     fn payload(&self) -> &[u8] {
         self.payload()
     }
 }
 
-impl FoundationSection for DecodedMetadataSection<'_> {
+impl SemanticSection for DecodedMetadataSection<'_> {
     fn location(&self) -> MetadataLocation {
         self.location()
     }
@@ -201,44 +244,29 @@ impl FoundationSection for DecodedMetadataSection<'_> {
         self.capability()
     }
 
+    fn required_for(&self) -> MemberPurposeSet {
+        self.required_for()
+    }
+
     fn payload(&self) -> &[u8] {
         self.payload()
     }
 }
 
-fn validate_foundation_section<S: FoundationSection>(
-    layer: FoundationLayer,
-    section: &S,
-) -> Result<(), SemanticFingerprintError> {
-    let expected = match layer {
-        FoundationLayer::Hir => hir_identity_foundation_capability(),
-        FoundationLayer::Mir => mir_identity_foundation_capability(),
-        FoundationLayer::Lir => lir_identity_foundation_capability(),
-    };
-    if section.location() != layer.location() || section.capability() != &expected {
-        return Err(SemanticFingerprintError::WrongFoundationSection { layer });
-    }
-    Ok(())
-}
-
-fn calculate_layer_fingerprint<S: FoundationSection>(
+fn calculate_layer_fingerprint<S: SemanticSection>(
     layer: FoundationLayer,
     compatibility: &CompatibilityRecord,
-    section: &S,
+    sections: &[S],
     dependencies: &OrderedDependencies<'_>,
-    meter: Option<&mut BudgetMeter>,
+    mut meter: Option<&mut BudgetMeter>,
 ) -> Result<scoop_wire::Digest256, SemanticFingerprintError> {
+    let contributions = collect_contributions(layer, sections, meter.as_deref_mut())?;
     let input = LayerFingerprintInput {
         context: LayerFingerprintContext {
             layer,
             compatibility,
         },
-        contribution: CanonicalSemanticContribution {
-            location: section.location(),
-            capability: section.capability(),
-            sink: layer.sink(),
-            projection: section.payload(),
-        },
+        contributions,
         support_edges: SupportEdges {
             layer,
             dependencies,
@@ -252,6 +280,69 @@ fn calculate_layer_fingerprint<S: FoundationSection>(
             .map_err(SemanticFingerprintError::Resource)?;
     }
     domain_separated_cbor_hash(layer.domain(), &input).map_err(SemanticFingerprintError::Hash)
+}
+
+fn collect_contributions<'section, S: SemanticSection>(
+    layer: FoundationLayer,
+    sections: &'section [S],
+    meter: Option<&mut BudgetMeter>,
+) -> Result<Vec<CanonicalSemanticContribution<'section>>, SemanticFingerprintError> {
+    if let Some(meter) = meter {
+        meter
+            .charge_collection_slots(sections.len() as u64, &Default::default())
+            .map_err(SemanticFingerprintError::Resource)?;
+    }
+    let mut contributions = Vec::new();
+    contributions
+        .try_reserve_exact(sections.len())
+        .map_err(|_| SemanticFingerprintError::ContributionTableAllocation {
+            layer,
+            requested_slots: sections.len(),
+        })?;
+    for (index, section) in sections.iter().enumerate() {
+        if section.location() != layer.location() {
+            return Err(SemanticFingerprintError::WrongSectionLocation {
+                layer,
+                index,
+                actual: section.location(),
+            });
+        }
+        let Some(contract) = CapabilityContractRegistry::contract(section.capability()) else {
+            if section.required_for() != MemberPurposeSet::NONE {
+                return Err(SemanticFingerprintError::UnsupportedRequiredCapability {
+                    layer,
+                    index,
+                    capability: section.capability().clone(),
+                });
+            }
+            continue;
+        };
+        if contract.sinks().contains(layer.sink()) {
+            contributions.push(CanonicalSemanticContribution {
+                location: section.location(),
+                capability: section.capability(),
+                sink: layer.sink(),
+                projection: section.payload(),
+            });
+        }
+    }
+    contributions.sort_unstable_by(|left, right| {
+        left.location
+            .cmp(&right.location)
+            .then_with(|| left.capability.cmp(right.capability))
+            .then_with(|| left.sink.cmp(&right.sink))
+    });
+    if let Some(pair) = contributions.windows(2).find(|pair| {
+        pair[0].location == pair[1].location
+            && pair[0].capability == pair[1].capability
+            && pair[0].sink == pair[1].sink
+    }) {
+        return Err(SemanticFingerprintError::DuplicateContribution {
+            layer,
+            capability: pair[0].capability.clone(),
+        });
+    }
+    Ok(contributions)
 }
 
 impl FoundationLayer {
@@ -325,23 +416,6 @@ impl<'dependency> OrderedDependencies<'dependency> {
             DependencyEntries::Canonical(entries) => entries.len(),
             DependencyEntries::Sorted(entries) => entries.len(),
         }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum FingerprintSink {
-    Hir,
-    Mir,
-    Lir,
-}
-
-impl WireEncode for FingerprintSink {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::Hir => 1,
-            Self::Mir => 2,
-            Self::Lir => 3,
-        })
     }
 }
 
@@ -465,7 +539,7 @@ fn encode_support_edge(
 
 struct LayerFingerprintInput<'input> {
     context: LayerFingerprintContext<'input>,
-    contribution: CanonicalSemanticContribution<'input>,
+    contributions: Vec<CanonicalSemanticContribution<'input>>,
     support_edges: SupportEdges<'input>,
 }
 
@@ -475,8 +549,10 @@ impl WireEncode for LayerFingerprintInput<'_> {
         encoder.field(1)?;
         self.context.encode(encoder)?;
         encoder.field(2)?;
-        encoder.array(1)?;
-        self.contribution.encode(encoder)?;
+        encoder.array(self.contributions.len() as u64)?;
+        for contribution in &self.contributions {
+            contribution.encode(encoder)?;
+        }
         encoder.field(3)?;
         self.support_edges.encode(encoder)
     }
@@ -489,7 +565,10 @@ mod tests {
     use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
 
     use super::*;
-    use crate::{MemberPurposeSet, MetadataSection};
+    use crate::{
+        MemberPurposeSet, MetadataSection, hir_identity_foundation_capability,
+        lir_identity_foundation_capability, mir_identity_foundation_capability,
+    };
 
     fn compatibility() -> CompatibilityRecord {
         CompatibilityRecord::identity_foundation(
@@ -523,9 +602,25 @@ mod tests {
         .unwrap()
     }
 
+    fn semantic_fingerprints(
+        compatibility: &CompatibilityRecord,
+        dependencies: &[DependencyRecord],
+        hir: &MetadataSection,
+        mir: &MetadataSection,
+        lir: &MetadataSection,
+    ) -> Result<SemanticFingerprintRecord, SemanticFingerprintError> {
+        SemanticFingerprintRecord::from_metadata_sections(
+            compatibility,
+            dependencies,
+            std::slice::from_ref(hir),
+            std::slice::from_ref(mir),
+            std::slice::from_ref(lir),
+        )
+    }
+
     #[test]
     fn foundation_fingerprints_have_fixed_vectors() {
-        let fingerprints = SemanticFingerprintRecord::identity_foundation(
+        let fingerprints = semantic_fingerprints(
             &compatibility(),
             &[],
             &section(FoundationLayer::Hir, b"hir"),
@@ -558,7 +653,7 @@ mod tests {
             calculate_layer_fingerprint(
                 FoundationLayer::Hir,
                 &compatibility,
-                &hir,
+                std::slice::from_ref(&hir),
                 &dependencies,
                 Some(&mut meter),
             )
@@ -575,7 +670,7 @@ mod tests {
             let result = calculate_layer_fingerprint(
                 FoundationLayer::Hir,
                 &compatibility,
-                &hir,
+                std::slice::from_ref(&hir),
                 &dependencies,
                 Some(&mut meter),
             );
@@ -601,7 +696,7 @@ mod tests {
         let hir = section(FoundationLayer::Hir, b"hir");
         let mir = section(FoundationLayer::Mir, b"mir");
         let lir = section(FoundationLayer::Lir, b"lir");
-        let original = SemanticFingerprintRecord::identity_foundation(
+        let original = semantic_fingerprints(
             &compatibility(),
             std::slice::from_ref(&original_dependency),
             &hir,
@@ -609,7 +704,7 @@ mod tests {
             &lir,
         )
         .unwrap();
-        let dependency_changed = SemanticFingerprintRecord::identity_foundation(
+        let dependency_changed = semantic_fingerprints(
             &compatibility(),
             std::slice::from_ref(&changed_dependency),
             &hir,
@@ -617,7 +712,7 @@ mod tests {
             &lir,
         )
         .unwrap();
-        let payload_changed = SemanticFingerprintRecord::identity_foundation(
+        let payload_changed = semantic_fingerprints(
             &compatibility(),
             std::slice::from_ref(&original_dependency),
             &section(FoundationLayer::Hir, b"changed"),
@@ -635,13 +730,102 @@ mod tests {
     }
 
     #[test]
+    fn multiple_registry_contributions_are_canonical_and_layer_local() {
+        let foundation = section(FoundationLayer::Hir, b"foundation");
+        let production = MetadataSection::new(
+            MetadataLocation::Hir,
+            crate::hir_core_bootstrap_interface_capability(),
+            MemberPurposeSet::COMPILE,
+            b"production".to_vec(),
+        )
+        .unwrap();
+        let changed_production = MetadataSection::new(
+            MetadataLocation::Hir,
+            crate::hir_core_bootstrap_interface_capability(),
+            MemberPurposeSet::COMPILE,
+            b"changed-production".to_vec(),
+        )
+        .unwrap();
+        let mir = section(FoundationLayer::Mir, b"mir");
+        let lir = section(FoundationLayer::Lir, b"lir");
+
+        let forward = SemanticFingerprintRecord::from_metadata_sections(
+            &compatibility(),
+            &[],
+            &[foundation.clone(), production.clone()],
+            std::slice::from_ref(&mir),
+            std::slice::from_ref(&lir),
+        )
+        .unwrap();
+        let reverse = SemanticFingerprintRecord::from_metadata_sections(
+            &compatibility(),
+            &[],
+            &[production, foundation.clone()],
+            std::slice::from_ref(&mir),
+            std::slice::from_ref(&lir),
+        )
+        .unwrap();
+        let changed = SemanticFingerprintRecord::from_metadata_sections(
+            &compatibility(),
+            &[],
+            &[foundation.clone(), changed_production],
+            std::slice::from_ref(&mir),
+            std::slice::from_ref(&lir),
+        )
+        .unwrap();
+
+        assert_eq!(forward, reverse);
+        assert_ne!(forward.hir(), changed.hir());
+        assert_eq!(forward.mir(), changed.mir());
+        assert_eq!(forward.lir(), changed.lir());
+        assert!(matches!(
+            SemanticFingerprintRecord::from_metadata_sections(
+                &compatibility(),
+                &[],
+                &[foundation.clone(), foundation],
+                std::slice::from_ref(&mir),
+                std::slice::from_ref(&lir),
+            ),
+            Err(SemanticFingerprintError::DuplicateContribution {
+                layer: FoundationLayer::Hir,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn optional_unknown_sections_are_envelope_only() {
+        let hir = section(FoundationLayer::Hir, b"hir");
+        let optional = MetadataSection::new(
+            MetadataLocation::Hir,
+            CapabilityId::new("org.scoop-lang.test", "optional", 1).unwrap(),
+            MemberPurposeSet::NONE,
+            b"ignored".to_vec(),
+        )
+        .unwrap();
+        let mir = section(FoundationLayer::Mir, b"mir");
+        let lir = section(FoundationLayer::Lir, b"lir");
+        let baseline = semantic_fingerprints(&compatibility(), &[], &hir, &mir, &lir).unwrap();
+        let with_optional = SemanticFingerprintRecord::from_metadata_sections(
+            &compatibility(),
+            &[],
+            &[hir, optional],
+            std::slice::from_ref(&mir),
+            std::slice::from_ref(&lir),
+        )
+        .unwrap();
+
+        assert_eq!(with_optional, baseline);
+    }
+
+    #[test]
     fn dependency_order_is_canonical_and_duplicates_are_rejected() {
         let left = dependency("left", 1, 2, 3);
         let right = dependency("right", 4, 5, 6);
         let hir = section(FoundationLayer::Hir, b"hir");
         let mir = section(FoundationLayer::Mir, b"mir");
         let lir = section(FoundationLayer::Lir, b"lir");
-        let forward = SemanticFingerprintRecord::identity_foundation(
+        let forward = semantic_fingerprints(
             &compatibility(),
             &[left.clone(), right.clone()],
             &hir,
@@ -649,24 +833,13 @@ mod tests {
             &lir,
         )
         .unwrap();
-        let reverse = SemanticFingerprintRecord::identity_foundation(
-            &compatibility(),
-            &[right, left.clone()],
-            &hir,
-            &mir,
-            &lir,
-        )
-        .unwrap();
+        let reverse =
+            semantic_fingerprints(&compatibility(), &[right, left.clone()], &hir, &mir, &lir)
+                .unwrap();
 
         assert_eq!(forward, reverse);
         assert!(matches!(
-            SemanticFingerprintRecord::identity_foundation(
-                &compatibility(),
-                &[left.clone(), left],
-                &hir,
-                &mir,
-                &lir,
-            ),
+            semantic_fingerprints(&compatibility(), &[left.clone(), left], &hir, &mir, &lir,),
             Err(SemanticFingerprintError::DuplicateDependency { .. })
         ));
     }
@@ -676,9 +849,11 @@ mod tests {
         let hir = section(FoundationLayer::Hir, b"hir");
         let mir = section(FoundationLayer::Mir, b"mir");
         assert_eq!(
-            SemanticFingerprintRecord::identity_foundation(&compatibility(), &[], &hir, &mir, &mir,),
-            Err(SemanticFingerprintError::WrongFoundationSection {
+            semantic_fingerprints(&compatibility(), &[], &hir, &mir, &mir,),
+            Err(SemanticFingerprintError::WrongSectionLocation {
                 layer: FoundationLayer::Lir,
+                index: 0,
+                actual: MetadataLocation::Mir,
             })
         );
     }
