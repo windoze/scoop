@@ -426,6 +426,10 @@ manifest/single-file只提供请求kind：
 RequestedConeKind = Library | Executable
 ```
 
+`RequestedConeKind`的唯一类型定义位于不依赖manifest或任何IR的
+`scoop-identity`低层语义模块；manifest只重导出该类型并从文本构造它。
+因此`hir-lower`不依赖或读取`scoop-manifest`，也不能另造一个同形枚举。
+
 HIR完整收集声明、检查signature并选择entry后才构造：
 
 ```text
@@ -440,6 +444,17 @@ LocalExecutableEntry {
     source_signature_fingerprint: SourceSignatureFingerprint,
 }
 ```
+
+`CurrentFunctionId`是当前请求Export HIR `Function`架构中的局部typed id；
+它只能由验证了函数的source declaration属于当前Cone后构造，不能用
+core/dependency的`FunctionId`或LocalConcrete `FunctionId`冒充。
+
+`ExactOrdinaryNoArgUnitSignature`是对canonical
+`ExactCallableSignature { effect=Ordinary, receiver=Absent, parameters=[], result=Unit }`
+的封闭包装，其Wire CBOR与该exact signature完全相同。
+`SourceSignatureFingerprint`为
+`DomainSeparatedCborHash("scoop-source-signature-v1", source_signature)`；不得对显示文本、
+HIR arena id或返回类型的本地index求hash。
 
 `Executable`没有`Option<Entry>`；`Library`也没有可访问的entry field。
 

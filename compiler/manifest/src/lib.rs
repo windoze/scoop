@@ -17,11 +17,12 @@ pub use root::{
     LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,
     ManifestRootLocator, load_cone_manifest, load_trusted_core_manifest,
 };
+pub use scoop_identity::RequestedConeKind;
 pub use semantic::{
     ConeManifestSemantic, ConeManifestSpans, DependencyCoordinateKey, DependencyLocator,
     DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDiagnosticSpans,
     ManifestParseError, ManifestParseErrorKind, ManifestSpan, ParsedConeManifest,
-    RequestedConeKind, parse_cone_manifest, parse_trusted_core_manifest,
+    parse_cone_manifest, parse_trusted_core_manifest,
 };
 pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,

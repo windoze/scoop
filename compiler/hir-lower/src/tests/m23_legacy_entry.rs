@@ -111,6 +111,15 @@ fn lower_sources(
     lower_legacy_combined_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
 }
 
+fn lower_frontend_sources(
+    core: &ast::SourceFile,
+    user_sources: Vec<(u32, ast::SourceFile)>,
+) -> hir::Output {
+    let input = combined_input(core, parsed_sources(user_sources));
+    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
+        .expect("entry-selection fixtures have otherwise valid frontend HIR")
+}
+
 #[test]
 fn frontend_lowering_does_not_require_main() {
     let core = core_file();
@@ -343,4 +352,231 @@ fn legacy_entry_anchor_uses_the_smallest_source_identity_across_container_permut
             assert_eq!(span, Some(low_span));
         }
     }
+}
+
+#[test]
+fn library_output_skips_entry_selection_entirely() {
+    let first = in_package(file(vec![fun("main", Vec::new())]), "first");
+    let second = in_package(file(vec![fun("main", Vec::new())]), "second");
+    let output = lower_frontend_sources(&core_file(), vec![(9, second), (1, first)]);
+
+    assert_eq!(
+        select_cone_output_kind(&output.export, scoop_identity::RequestedConeKind::Library)
+            .expect("library output never requires an executable entry"),
+        hir::ConeOutputKind::Library
+    );
+}
+
+#[test]
+fn executable_output_seals_private_current_main_and_exact_signature() {
+    let span = Span::new(31, 47);
+    let mut declaration = declaration_at(fun("main", Vec::new()), span);
+    let ast::Decl::Function(function) = &mut declaration else {
+        unreachable!("the fixture declaration is a function")
+    };
+    function.visibility = ast::VisibilitySyntax::Explicit {
+        visibility: ast::DeclaredVisibility::Private,
+        span,
+    };
+    let mut core = core_file();
+    core.declarations.push(fun("main", Vec::new()));
+    let output = lower_frontend_sources(&core, vec![(10, file(vec![declaration]))]);
+
+    let selected = select_cone_output_kind(
+        &output.export,
+        scoop_identity::RequestedConeKind::Executable,
+    )
+    .expect("the private current-Cone main is a valid entry");
+    let hir::ConeOutputKind::Executable { local_entry } = selected else {
+        panic!("the requested executable has a sealed entry")
+    };
+    let function = local_entry.local_function().function();
+    assert_eq!(output.export.functions[function].span, span);
+    let hir::HirSourceFunctionIdentity::Plain(record) = output.export.function_identities[function]
+        .source_identity()
+        .expect("the selected declaration is a source function")
+    else {
+        panic!("the selected source function is non-generic")
+    };
+    assert_eq!(local_entry.declaration(), record.id());
+    let exact_unit = output.export.type_identities[output.export.unit]
+        .exact()
+        .expect("Unit has an exact identity")
+        .id();
+    assert_eq!(local_entry.source_signature().unit(), exact_unit);
+    assert_eq!(
+        local_entry.source_signature().as_exact().effect(),
+        scoop_identity::Effect::Ordinary
+    );
+    assert_eq!(
+        local_entry.source_signature().as_exact().receiver(),
+        scoop_identity::OptionalExactOwner::Absent
+    );
+    assert!(
+        local_entry
+            .source_signature()
+            .as_exact()
+            .parameters()
+            .is_empty()
+    );
+    assert_eq!(
+        local_entry.source_signature_fingerprint(),
+        scoop_identity::SourceSignatureFingerprint::from_signature(local_entry.source_signature())
+            .unwrap()
+    );
+}
+
+#[test]
+fn missing_executable_entry_lists_invalid_mains_in_persistent_location_order() {
+    let generic_span = Span::new(11, 19);
+    let suspend_span = Span::new(21, 29);
+    let non_unit_span = Span::new(31, 39);
+    let generic = in_package(
+        file(vec![declaration_at(
+            fun_sig("main", vec!["T"], Vec::new(), None, Vec::new()),
+            generic_span,
+        )]),
+        "generic",
+    );
+    let suspending = in_package(
+        file(vec![declaration_at(
+            suspend_fun("main", Vec::new()),
+            suspend_span,
+        )]),
+        "suspending",
+    );
+    let non_unit = in_package(
+        file(vec![declaration_at(
+            fun_expr(
+                "main",
+                Vec::new(),
+                Vec::new(),
+                Some(ty_named("Int")),
+                int_lit(1),
+            ),
+            non_unit_span,
+        )]),
+        "nonunit",
+    );
+    let output = lower_frontend_sources(
+        &core_file(),
+        vec![(9, non_unit), (1, generic), (5, suspending)],
+    );
+
+    let errors = select_cone_output_kind(
+        &output.export,
+        scoop_identity::RequestedConeKind::Executable,
+    )
+    .expect_err("no invalid main can fill an executable entry");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
+    );
+    assert_eq!(errors[0].file, 2);
+    assert_eq!(errors[0].span, Some(Span::new(0, 0)));
+    assert_eq!(errors[0].notes.len(), 3);
+    assert_eq!(
+        errors[0]
+            .notes
+            .iter()
+            .map(|note| (note.file, note.span, note.message.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            (
+                2,
+                generic_span,
+                "`main` is not eligible because it is generic"
+            ),
+            (
+                3,
+                suspend_span,
+                "`main` is not eligible because it is suspend"
+            ),
+            (
+                1,
+                non_unit_span,
+                "`main` is not eligible because it does not return `Unit`"
+            ),
+        ]
+    );
+}
+
+#[test]
+fn valid_entry_ignores_invalid_named_overloads_and_extensions() {
+    let valid_span = Span::new(51, 59);
+    let valid = in_package(
+        file(vec![declaration_at(fun("main", Vec::new()), valid_span)]),
+        "valid",
+    );
+    let generic = in_package(
+        file(vec![fun_sig(
+            "main",
+            vec!["T"],
+            Vec::new(),
+            None,
+            Vec::new(),
+        )]),
+        "generic",
+    );
+    let extension = in_package(
+        file(vec![extension_expr(
+            ty_named("Int"),
+            "main",
+            Vec::new(),
+            Vec::new(),
+            None,
+            unit_lit(),
+        )]),
+        "extension",
+    );
+    let output = lower_frontend_sources(
+        &core_file(),
+        vec![(70, generic), (20, extension), (10, valid)],
+    );
+
+    let selected = select_cone_output_kind(
+        &output.export,
+        scoop_identity::RequestedConeKind::Executable,
+    )
+    .expect("only the ordinary valid declaration is selected");
+    let hir::ConeOutputKind::Executable { local_entry } = selected else {
+        panic!("the requested executable has a sealed entry")
+    };
+    assert_eq!(
+        output.export.functions[local_entry.local_function().function()].span,
+        valid_span
+    );
+}
+
+#[test]
+fn multiple_entries_are_reported_in_persistent_source_location_order() {
+    let low_span = Span::new(41, 49);
+    let high_span = Span::new(81, 89);
+    let low = in_package(
+        file(vec![declaration_at(fun("main", Vec::new()), low_span)]),
+        "low",
+    );
+    let high = in_package(
+        file(vec![declaration_at(fun("main", Vec::new()), high_span)]),
+        "high",
+    );
+    let output = lower_frontend_sources(&core_file(), vec![(90, high), (3, low)]);
+
+    let errors = select_cone_output_kind(
+        &output.export,
+        scoop_identity::RequestedConeKind::Executable,
+    )
+    .expect_err("two valid mains are ambiguous");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "multiple executable entries: declare exactly one ordinary `fun main(): Unit`"
+    );
+    assert_eq!((errors[0].file, errors[0].span), (2, Some(low_span)));
+    assert_eq!(errors[0].notes.len(), 1);
+    assert_eq!(
+        (errors[0].notes[0].file, errors[0].notes[0].span),
+        (1, high_span)
+    );
 }

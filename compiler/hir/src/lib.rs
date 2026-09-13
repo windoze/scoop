@@ -41,6 +41,9 @@ pub struct Output {
 mod legacy;
 pub use legacy::*;
 
+mod output_kind;
+pub use output_kind::*;
+
 mod ids;
 pub use ids::*;
 

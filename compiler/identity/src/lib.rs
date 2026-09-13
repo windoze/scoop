@@ -29,7 +29,7 @@ pub use capability::{
 };
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,
-    ConeIdentity, DecodedConeCoordinate,
+    ConeIdentity, DecodedConeCoordinate, RequestedConeKind,
 };
 pub use entity::{
     AccessorRole, BindableEntity, BindingIdentityResolutionError, BindingNamespace,
@@ -68,12 +68,12 @@ pub use entity::{
     DecodedOptionalExactOwner, EnumVariantFieldKey, EnumVariantFieldResolutionError,
     EnumVariantFieldSelector, EnumVariantIdentityError, EnumVariantIdentityKey,
     EnumVariantResolutionError, ExactCallableSignature, ExactCallableSignatureResolutionError,
-    FieldIdentityError, FieldIdentityKey, FieldIdentityResolutionError,
-    GeneratedCallableIdentityError, GeneratedCallableKey, GeneratedCallableResolutionError,
-    GeneratedEnumVariantRole, GeneratedFieldKey, GeneratedNominalIdentityError,
-    GeneratedNominalKey, GeneratedNominalResolutionError, InitializationCallableRole,
-    LexicalCallableParent, LexicalCallableRole, LexicalParentError, OptionalExactOwner,
-    SourceFieldKey, StaticNoGcCallbackStorageBridgeId,
+    ExactOrdinaryNoArgUnitSignature, FieldIdentityError, FieldIdentityKey,
+    FieldIdentityResolutionError, GeneratedCallableIdentityError, GeneratedCallableKey,
+    GeneratedCallableResolutionError, GeneratedEnumVariantRole, GeneratedFieldKey,
+    GeneratedNominalIdentityError, GeneratedNominalKey, GeneratedNominalResolutionError,
+    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
+    OptionalExactOwner, SourceFieldKey, StaticNoGcCallbackStorageBridgeId,
     StaticNoGcCallbackStorageBridgeIdentityError,
 };
 pub use entity::{
@@ -182,7 +182,7 @@ pub use ids::{
     PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
     PersistentSafepointSiteId, PersistentScanId, PersistentSourceContextId,
     PersistentSourceNativeExternalContractId, PersistentStaticStorageId, PersistentTypeAliasId,
-    PersistentTypeId,
+    PersistentTypeId, SourceSignatureFingerprint,
 };
 pub use mangling::{
     DecodedManglingSchemaIdentity, DecodedPersistentSymbolKey, DecodedPersistentSymbolRequest,

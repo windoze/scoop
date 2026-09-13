@@ -3,15 +3,9 @@ use std::fmt;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use scoop_identity::{ConeCoordinate, ConeCoordinateError};
+use scoop_identity::{ConeCoordinate, ConeCoordinateError, RequestedConeKind};
 use serde::Deserialize;
 use toml::Spanned;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RequestedConeKind {
-    Library,
-    Executable,
-}
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DependencyCoordinateKey {

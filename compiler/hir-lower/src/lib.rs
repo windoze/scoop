@@ -114,6 +114,7 @@ mod legacy_entry;
 mod lowering_context;
 mod model;
 mod namespace;
+mod output_kind;
 mod overload;
 mod patterns;
 mod persistent_accessors;
@@ -145,6 +146,8 @@ mod stmt;
 mod tests;
 mod types;
 mod visibility;
+
+pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
 

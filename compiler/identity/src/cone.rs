@@ -10,6 +10,17 @@ use crate::ids::derive_persistent_id;
 
 const CONE_ID_DOMAIN: &str = "scoop-cone-id-v1";
 
+/// Requested product kind before HIR has validated an executable entry.
+///
+/// This low-level semantic value is shared by manifest parsing and HIR
+/// lowering. It deliberately carries no entry so it cannot be mistaken for a
+/// validated output contract.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum RequestedConeKind {
+    Library,
+    Executable,
+}
+
 impl ConeIdentity {
     pub const CORE: Self = Self::from_protocol_bytes([
         0x5e, 0xa5, 0xf5, 0xe8, 0xff, 0x24, 0x81, 0x82, 0xc8, 0xf8, 0xc7, 0xe1, 0x04, 0x3c, 0xaa,
