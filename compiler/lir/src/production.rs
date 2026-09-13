@@ -11,3 +11,6 @@ pub use external_bridges::*;
 
 mod generated_bridges;
 pub use generated_bridges::*;
+
+mod registrations;
+pub use registrations::*;

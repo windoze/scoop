@@ -1203,6 +1203,18 @@ M23-3不发射`ScoopProgramDescriptorV1`或`ScoopRuntimeCoreBindingsV1`实例；
 
 本profile全部`linkage_kind=Strong`，ODR group/member 64 bytes全零。`definition_fingerprint`由相应StrongRegistration node写入；callable的`body_definition_fingerprint`独立取body atom的ObjectDefinition fingerprint。六张表分别按总设计canonical key严格排序，即使为空也在image/hash中保留count 0，并在object中使用typed addressable sentinel。
 
+LIR先从strong object-definition plan重建`StrongRegistrationIdentitySurfaceV1`，作为完整
+registration plan与image plan共用的不可伪造索引。顶层是fields `1..6`依上表次序排列的六个
+array；每个元素是closed product：`1=semantic_id`（使用该表的kind-specific id）、
+`2=definition_plan: ObjectDefinitionPlanId`、`3=fingerprint_node: DigestNodeId`。六类plan role
+依次固定为`RootRegistration`、`ImmortalRegistration`、`InitializationRegistration`、
+`TypeRegistration`、`SafepointRegistration`、`CallableRegistration`，且entity kind必须分别是
+`StaticStorage`、`ImmortalObject`、`InitializationUnit`、`ExactType`、`SafepointSite`、
+`CallableBody`。每个array按semantic id bytes严格递增；definition plan必须来自当前producer，
+fingerprint node必须是同一digest plan中owner恰为该plan id的`StrongRegistration` node。
+foundation中的每个registration-role plan恰好进入一张表，其他definition role不得混入；reader
+从foundation与digest plan独立重建全部六表并逐项比较，不把decoded id直接提升为trusted id。
+
 ### 13.3 registration完备性
 
 - 每个compiler-owned static storage恰一条storage registration；GC-free storage也不能为省事丢descriptor；
