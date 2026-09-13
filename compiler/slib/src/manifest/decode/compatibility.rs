@@ -1,8 +1,9 @@
 use std::fmt;
 
 use scoop_identity::{
-    ArtifactCapabilityProfileId, BackendProfileWireId, CapabilityIdError,
-    CapabilityRefinementError, DecodedCapabilityId, ManglingSchemaIdentity, TargetProfileWireId,
+    ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileWireId,
+    CapabilityIdError, CapabilityRefinementError, DecodedCapabilityId, ManglingSchemaIdentity,
+    TargetProfileWireId,
 };
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::{
@@ -230,7 +231,7 @@ pub enum CompatibilityValidationError {
     Capability(CapabilityIdError),
     TargetProfile(CapabilityRefinementError),
     BackendProfile(CapabilityRefinementError),
-    ArtifactProfile(CapabilityRefinementError),
+    ArtifactProfile(ArtifactCapabilityProfileRefinementError),
     FingerprintMismatch {
         kind: CompatibilityFingerprintKind,
         expected: [u8; 32],

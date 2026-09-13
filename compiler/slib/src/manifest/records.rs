@@ -337,16 +337,25 @@ impl ManifestSection {
         required_for: MemberPurposeSet,
         payload: Vec<u8>,
     ) -> Result<Self, ManifestSectionError> {
-        if capability == crate::hir_identity_foundation_capability()
-            || capability == crate::mir_identity_foundation_capability()
-            || capability == crate::lir_identity_foundation_capability()
-        {
-            return Err(ManifestSectionError::KnownCapabilityWrongLocation { capability });
-        }
         if !matches!(required_for.bits(), 0 | 2 | 4 | 6) {
             return Err(ManifestSectionError::InvalidPurpose {
                 bits: required_for.bits(),
             });
+        }
+        if let Some(contract) = crate::CapabilityContractRegistry::contract(&capability) {
+            if contract.location() != crate::SectionLocation::Manifest {
+                return Err(ManifestSectionError::KnownCapabilityWrongLocation {
+                    capability,
+                    expected: contract.location(),
+                });
+            }
+            if contract.required_for() != required_for {
+                return Err(ManifestSectionError::KnownCapabilityWrongPurpose {
+                    capability,
+                    expected: contract.required_for(),
+                    bits: required_for.bits(),
+                });
+            }
         }
         Ok(Self {
             capability,
@@ -382,9 +391,19 @@ impl WireEncode for ManifestSection {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ManifestSectionError {
-    InvalidPurpose { bits: u32 },
+    InvalidPurpose {
+        bits: u32,
+    },
     Capability(CapabilityIdError),
-    KnownCapabilityWrongLocation { capability: CapabilityId },
+    KnownCapabilityWrongLocation {
+        capability: CapabilityId,
+        expected: crate::SectionLocation,
+    },
+    KnownCapabilityWrongPurpose {
+        capability: CapabilityId,
+        expected: MemberPurposeSet,
+        bits: u32,
+    },
 }
 
 impl fmt::Display for ManifestSectionError {
@@ -395,12 +414,27 @@ impl fmt::Display for ManifestSectionError {
                 "manifest section required_for must be 0, Compile, Link, or Compile|Link; found {bits:#x}"
             ),
             Self::Capability(error) => error.fmt(formatter),
-            Self::KnownCapabilityWrongLocation { capability } => write!(
+            Self::KnownCapabilityWrongLocation {
+                capability,
+                expected,
+            } => write!(
                 formatter,
-                "capability {}/{}/{} belongs in its metadata envelope, not the manifest",
+                "capability {}/{}/{} belongs in {expected}, not Manifest",
                 capability.namespace(),
                 capability.name(),
                 capability.major_version(),
+            ),
+            Self::KnownCapabilityWrongPurpose {
+                capability,
+                expected,
+                bits,
+            } => write!(
+                formatter,
+                "capability {}/{}/{} requires purpose bits {:#x}, found {bits:#x}",
+                capability.namespace(),
+                capability.name(),
+                capability.major_version(),
+                expected.bits(),
             ),
         }
     }

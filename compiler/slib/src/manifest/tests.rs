@@ -232,4 +232,20 @@ fn producer_cone_and_section_boundaries_are_closed() {
         ),
         Err(ManifestSectionError::KnownCapabilityWrongLocation { .. })
     ));
+    assert!(
+        ManifestSection::new(
+            crate::manifest_single_cone_production_capability(),
+            MemberPurposeSet::LINK,
+            Vec::new(),
+        )
+        .is_ok()
+    );
+    assert!(matches!(
+        ManifestSection::new(
+            crate::manifest_single_cone_production_capability(),
+            MemberPurposeSet::NONE,
+            Vec::new(),
+        ),
+        Err(ManifestSectionError::KnownCapabilityWrongPurpose { .. })
+    ));
 }

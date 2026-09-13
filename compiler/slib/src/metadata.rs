@@ -6,7 +6,7 @@ use scoop_wire::{
     WireError, decode_canonical_borrowed_with_meter,
 };
 
-use crate::MemberPurposeSet;
+use crate::{CapabilityContractRegistry, MemberPurposeSet, SectionLocation};
 
 const INITIAL_SCHEMA: u32 = 1;
 const MAX_SECTION_PAYLOAD_BYTES: u64 = 268_435_456;
@@ -322,11 +322,12 @@ pub enum MetadataSectionError {
     },
     KnownCapabilityWrongLocation {
         capability: CapabilityId,
-        expected: MetadataLocation,
-        actual: MetadataLocation,
+        expected: SectionLocation,
+        actual: SectionLocation,
     },
     KnownCapabilityWrongPurpose {
         capability: CapabilityId,
+        expected: MemberPurposeSet,
         bits: u32,
     },
     PayloadTooLarge {
@@ -349,17 +350,22 @@ impl fmt::Display for MetadataSectionError {
                 actual,
             } => write!(
                 formatter,
-                "capability {}/{}/{} belongs in {expected} metadata, not {actual}",
+                "capability {}/{}/{} belongs in {expected}, not {actual}",
                 capability.namespace(),
                 capability.name(),
                 capability.major_version(),
             ),
-            Self::KnownCapabilityWrongPurpose { capability, bits } => write!(
+            Self::KnownCapabilityWrongPurpose {
+                capability,
+                expected,
+                bits,
+            } => write!(
                 formatter,
-                "capability {}/{}/{} must be Compile-required, found {bits:#x}",
+                "capability {}/{}/{} requires purpose bits {:#x}, found {bits:#x}",
                 capability.namespace(),
                 capability.name(),
                 capability.major_version(),
+                expected.bits(),
             ),
             Self::PayloadTooLarge { actual } => write!(
                 formatter,
@@ -490,17 +496,19 @@ fn validate_section(
     if !purpose_valid {
         return Err(MetadataSectionError::InvalidPurpose { location, bits });
     }
-    if let Some(expected) = foundation_location(capability) {
-        if expected != location {
+    if let Some(contract) = CapabilityContractRegistry::contract(capability) {
+        let actual = section_location(location);
+        if contract.location() != actual {
             return Err(MetadataSectionError::KnownCapabilityWrongLocation {
                 capability: capability.clone(),
-                expected,
-                actual: location,
+                expected: contract.location(),
+                actual,
             });
         }
-        if required_for != MemberPurposeSet::COMPILE {
+        if required_for != contract.required_for() {
             return Err(MetadataSectionError::KnownCapabilityWrongPurpose {
                 capability: capability.clone(),
+                expected: contract.required_for(),
                 bits,
             });
         }
@@ -508,15 +516,11 @@ fn validate_section(
     Ok(())
 }
 
-fn foundation_location(capability: &CapabilityId) -> Option<MetadataLocation> {
-    if capability.name() != "identity-foundation" || capability.major_version() != 1 {
-        return None;
-    }
-    match capability.namespace() {
-        "org.scoop-lang.hir" => Some(MetadataLocation::Hir),
-        "org.scoop-lang.mir" => Some(MetadataLocation::Mir),
-        "org.scoop-lang.lir" => Some(MetadataLocation::Lir),
-        _ => None,
+const fn section_location(location: MetadataLocation) -> SectionLocation {
+    match location {
+        MetadataLocation::Hir => SectionLocation::Hir,
+        MetadataLocation::Mir => SectionLocation::Mir,
+        MetadataLocation::Lir => SectionLocation::Lir,
     }
 }
 

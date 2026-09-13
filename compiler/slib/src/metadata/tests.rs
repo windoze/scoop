@@ -1,7 +1,10 @@
 use scoop_wire::{DecodeLimits, encode};
 
 use super::*;
-use crate::{hir_identity_foundation_capability, lir_identity_foundation_capability};
+use crate::{
+    hir_identity_foundation_capability, lir_identity_foundation_capability,
+    lir_strong_production_capability, manifest_single_cone_production_capability,
+};
 
 fn capability(name: &str) -> CapabilityId {
     CapabilityId::new("org.scoop-lang.test", name, 1).unwrap()
@@ -148,6 +151,24 @@ fn purpose_and_known_location_contracts_are_closed() {
             Vec::new(),
         ),
         Err(MetadataSectionError::KnownCapabilityWrongPurpose { .. })
+    ));
+    assert!(matches!(
+        MetadataSection::new(
+            MetadataLocation::Lir,
+            lir_strong_production_capability(),
+            MemberPurposeSet::COMPILE,
+            Vec::new(),
+        ),
+        Err(MetadataSectionError::KnownCapabilityWrongPurpose { .. })
+    ));
+    assert!(matches!(
+        MetadataSection::new(
+            MetadataLocation::Lir,
+            manifest_single_cone_production_capability(),
+            MemberPurposeSet::LINK,
+            Vec::new(),
+        ),
+        Err(MetadataSectionError::KnownCapabilityWrongLocation { .. })
     ));
 }
 

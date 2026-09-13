@@ -23,9 +23,9 @@ mod syntax;
 mod validation;
 
 pub use capability::{
-    ArtifactCapabilityProfileId, BackendProfileWireId, CapabilityId, CapabilityIdError,
-    CapabilityLabelError, CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId,
-    TargetProfileWireId,
+    ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileWireId,
+    CapabilityId, CapabilityIdError, CapabilityLabelError, CapabilityRefinementError,
+    DecodedCapabilityId, ObjectFormatId, TargetProfileWireId,
 };
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,

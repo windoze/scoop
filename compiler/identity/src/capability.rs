@@ -203,12 +203,71 @@ capability_refinement!(
     "org.scoop-lang.object-format",
     "mach-o-relocatable"
 );
-capability_refinement!(
-    ArtifactCapabilityProfileId,
-    identity_foundation,
-    "org.scoop-lang.slib-profile",
-    "identity-foundation"
-);
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ArtifactCapabilityProfileId(CapabilityId);
+
+impl ArtifactCapabilityProfileId {
+    pub fn identity_foundation() -> Self {
+        Self(CapabilityId::known(
+            "org.scoop-lang.slib-profile",
+            "identity-foundation",
+        ))
+    }
+
+    pub fn single_cone_strong() -> Self {
+        Self(CapabilityId::known(
+            "org.scoop-lang.slib-profile",
+            "single-cone-strong",
+        ))
+    }
+
+    pub fn capability(&self) -> &CapabilityId {
+        &self.0
+    }
+
+    pub fn refine(
+        capability: CapabilityId,
+    ) -> Result<Self, ArtifactCapabilityProfileRefinementError> {
+        let identity_foundation = Self::identity_foundation();
+        let single_cone_strong = Self::single_cone_strong();
+        if capability == identity_foundation.0 || capability == single_cone_strong.0 {
+            Ok(Self(capability))
+        } else {
+            Err(ArtifactCapabilityProfileRefinementError { actual: capability })
+        }
+    }
+}
+
+impl WireEncode for ArtifactCapabilityProfileId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        self.0.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArtifactCapabilityProfileRefinementError {
+    actual: CapabilityId,
+}
+
+impl ArtifactCapabilityProfileRefinementError {
+    pub const fn actual(&self) -> &CapabilityId {
+        &self.actual
+    }
+}
+
+impl fmt::Display for ArtifactCapabilityProfileRefinementError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "unregistered artifact capability profile {}/{}/{}",
+            self.actual.namespace(),
+            self.actual.name(),
+            self.actual.major_version(),
+        )
+    }
+}
+
+impl std::error::Error for ArtifactCapabilityProfileRefinementError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CapabilityIdError {
@@ -298,7 +357,9 @@ fn validate_label(value: &str, maximum_length: usize) -> Result<(), CapabilityLa
 mod tests {
     use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
-    use super::{CapabilityId, DecodedCapabilityId, TargetProfileWireId};
+    use super::{
+        ArtifactCapabilityProfileId, CapabilityId, DecodedCapabilityId, TargetProfileWireId,
+    };
 
     #[test]
     fn capability_grammar_and_numeric_major_are_canonical() {
@@ -319,6 +380,25 @@ mod tests {
         assert_eq!(
             hex(&encode(&TargetProfileWireId::darwin_aarch64()).unwrap()),
             "a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301"
+        );
+    }
+
+    #[test]
+    fn artifact_profile_refinement_accepts_both_registered_profiles() {
+        for profile in [
+            ArtifactCapabilityProfileId::identity_foundation(),
+            ArtifactCapabilityProfileId::single_cone_strong(),
+        ] {
+            assert_eq!(
+                ArtifactCapabilityProfileId::refine(profile.capability().clone()),
+                Ok(profile)
+            );
+        }
+        assert!(
+            ArtifactCapabilityProfileId::refine(
+                CapabilityId::new("org.scoop-lang.slib-profile", "unknown", 1).unwrap()
+            )
+            .is_err()
         );
     }
 

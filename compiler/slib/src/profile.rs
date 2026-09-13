@@ -6,6 +6,8 @@ use scoop_wire::{
     domain_separated_cbor_hash_stream_length,
 };
 
+use crate::MemberPurposeSet;
+
 const ARTIFACT_PROFILE_DOMAIN: &str = "scoop-artifact-capability-profile-v1";
 
 pub fn hir_identity_foundation_capability() -> CapabilityId {
@@ -20,41 +22,300 @@ pub fn lir_identity_foundation_capability() -> CapabilityId {
     known_capability("org.scoop-lang.lir", "identity-foundation")
 }
 
+pub fn manifest_single_cone_production_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.manifest", "single-cone-production")
+}
+
+pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.hir", "core-bootstrap-interface")
+}
+
+pub fn mir_core_bootstrap_bridge_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.mir", "core-bootstrap-bridge")
+}
+
+pub fn lir_strong_production_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.lir", "strong-production")
+}
+
+pub fn lir_link_identity_closure_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.lir", "link-identity-closure")
+}
+
 fn known_capability(namespace: &str, name: &str) -> CapabilityId {
     CapabilityId::new(namespace, name, 1).expect("built-in capability id is valid")
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct ArtifactCapabilityProfile;
+pub struct ArtifactCapabilityProfile(ArtifactCapabilityProfileKind);
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum ArtifactCapabilityProfileKind {
+    IdentityFoundation,
+    SingleConeStrong,
+}
 
 impl ArtifactCapabilityProfile {
-    pub const IDENTITY_FOUNDATION: Self = Self;
+    pub const IDENTITY_FOUNDATION: Self = Self(ArtifactCapabilityProfileKind::IdentityFoundation);
+    pub const SINGLE_CONE_STRONG: Self = Self(ArtifactCapabilityProfileKind::SingleConeStrong);
 
     pub fn id(self) -> ArtifactCapabilityProfileId {
-        ArtifactCapabilityProfileId::identity_foundation()
+        match self.0 {
+            ArtifactCapabilityProfileKind::IdentityFoundation => {
+                ArtifactCapabilityProfileId::identity_foundation()
+            }
+            ArtifactCapabilityProfileKind::SingleConeStrong => {
+                ArtifactCapabilityProfileId::single_cone_strong()
+            }
+        }
+    }
+
+    pub fn from_id(id: &ArtifactCapabilityProfileId) -> Option<Self> {
+        if id == &ArtifactCapabilityProfileId::identity_foundation() {
+            Some(Self::IDENTITY_FOUNDATION)
+        } else if id == &ArtifactCapabilityProfileId::single_cone_strong() {
+            Some(Self::SINGLE_CONE_STRONG)
+        } else {
+            None
+        }
     }
 
     pub fn descriptor(self) -> ArtifactCapabilityProfileDescriptor {
-        ArtifactCapabilityProfileDescriptor {
-            id: self.id(),
-            required_manifest: Vec::new(),
-            required_hir: vec![hir_identity_foundation_capability()],
-            required_mir: vec![mir_identity_foundation_capability()],
-            required_lir: vec![lir_identity_foundation_capability()],
-            code_requirement: FingerprintAvailabilityRequirement::MustBeUnavailable,
-            runtime_requirement: FingerprintAvailabilityRequirement::MustBeUnavailable,
-            publication_class: PublicationClass::FoundationOnly,
-            validation_policy: ArtifactValidationPolicy {
-                odr: OdrValidationPolicy::IdentityOnlyNonPublishable,
-                extra_sections: ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-                decode_cost_model: SlibDecodeCostModel::DeterministicLogicalCost,
-                link_proof: LinkProofPolicy::Forbidden,
-            },
+        match self.0 {
+            ArtifactCapabilityProfileKind::IdentityFoundation => {
+                ArtifactCapabilityProfileDescriptor {
+                    id: self.id(),
+                    required_manifest: Vec::new(),
+                    required_hir: vec![hir_identity_foundation_capability()],
+                    required_mir: vec![mir_identity_foundation_capability()],
+                    required_lir: vec![lir_identity_foundation_capability()],
+                    code_requirement: FingerprintAvailabilityRequirement::MustBeUnavailable,
+                    runtime_requirement: FingerprintAvailabilityRequirement::MustBeUnavailable,
+                    publication_class: PublicationClass::FoundationOnly,
+                    validation_policy: ArtifactValidationPolicy {
+                        odr: OdrValidationPolicy::IdentityOnlyNonPublishable,
+                        extra_sections:
+                            ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
+                        decode_cost_model: SlibDecodeCostModel::DeterministicLogicalCost,
+                        link_proof: LinkProofPolicy::Forbidden,
+                    },
+                }
+            }
+            ArtifactCapabilityProfileKind::SingleConeStrong => {
+                ArtifactCapabilityProfileDescriptor {
+                    id: self.id(),
+                    required_manifest: vec![manifest_single_cone_production_capability()],
+                    required_hir: vec![
+                        hir_core_bootstrap_interface_capability(),
+                        hir_identity_foundation_capability(),
+                    ],
+                    required_mir: vec![
+                        mir_core_bootstrap_bridge_capability(),
+                        mir_identity_foundation_capability(),
+                    ],
+                    required_lir: vec![
+                        lir_identity_foundation_capability(),
+                        lir_link_identity_closure_capability(),
+                        lir_strong_production_capability(),
+                    ],
+                    code_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
+                    runtime_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
+                    publication_class: PublicationClass::Publishable,
+                    validation_policy: ArtifactValidationPolicy {
+                        odr: OdrValidationPolicy::RejectAll,
+                        extra_sections:
+                            ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
+                        decode_cost_model: SlibDecodeCostModel::DeterministicLogicalCost,
+                        link_proof: LinkProofPolicy::Required,
+                    },
+                }
+            }
         }
     }
 
     pub fn fingerprint(self) -> Result<ArtifactCapabilityProfileFingerprint, HashError> {
         ArtifactCapabilityProfileFingerprint::from_descriptor(&self.descriptor())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum SectionLocation {
+    Manifest,
+    Hir,
+    Mir,
+    Lir,
+}
+
+impl fmt::Display for SectionLocation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Manifest => "Manifest",
+            Self::Hir => "HIR",
+            Self::Mir => "MIR",
+            Self::Lir => "LIR",
+        })
+    }
+}
+
+impl WireEncode for SectionLocation {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Manifest => 1,
+            Self::Hir => 2,
+            Self::Mir => 3,
+            Self::Lir => 4,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum FingerprintSink {
+    Hir,
+    Mir,
+    Lir,
+    Code,
+    RuntimeImage,
+    EnvelopeOnly,
+    LinkValidationOnly,
+}
+
+impl FingerprintSink {
+    const fn bit(self) -> u8 {
+        match self {
+            Self::Hir => 0x01,
+            Self::Mir => 0x02,
+            Self::Lir => 0x04,
+            Self::Code => 0x08,
+            Self::RuntimeImage => 0x10,
+            Self::EnvelopeOnly => 0x20,
+            Self::LinkValidationOnly => 0x40,
+        }
+    }
+}
+
+impl WireEncode for FingerprintSink {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Hir => 1,
+            Self::Mir => 2,
+            Self::Lir => 3,
+            Self::Code => 4,
+            Self::RuntimeImage => 5,
+            Self::EnvelopeOnly => 6,
+            Self::LinkValidationOnly => 7,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct FingerprintSinkSet(u8);
+
+impl FingerprintSinkSet {
+    pub const HIR: Self = Self(FingerprintSink::Hir.bit());
+    pub const MIR: Self = Self(FingerprintSink::Mir.bit());
+    pub const LIR: Self = Self(FingerprintSink::Lir.bit());
+    pub const CODE: Self = Self(FingerprintSink::Code.bit());
+    pub const RUNTIME_IMAGE: Self = Self(FingerprintSink::RuntimeImage.bit());
+    pub const ENVELOPE_ONLY: Self = Self(FingerprintSink::EnvelopeOnly.bit());
+    pub const LINK_VALIDATION_ONLY: Self = Self(FingerprintSink::LinkValidationOnly.bit());
+
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    pub const fn contains(self, sink: FingerprintSink) -> bool {
+        self.0 & sink.bit() != 0
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CapabilityContract {
+    capability: CapabilityId,
+    location: SectionLocation,
+    required_for: MemberPurposeSet,
+    sinks: FingerprintSinkSet,
+}
+
+impl CapabilityContract {
+    pub const fn capability(&self) -> &CapabilityId {
+        &self.capability
+    }
+
+    pub const fn location(&self) -> SectionLocation {
+        self.location
+    }
+
+    pub const fn required_for(&self) -> MemberPurposeSet {
+        self.required_for
+    }
+
+    pub const fn sinks(&self) -> FingerprintSinkSet {
+        self.sinks
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CapabilityContractRegistry;
+
+impl CapabilityContractRegistry {
+    pub fn contract(capability: &CapabilityId) -> Option<CapabilityContract> {
+        let (location, required_for, sinks) = match (
+            capability.namespace(),
+            capability.name(),
+            capability.major_version(),
+        ) {
+            ("org.scoop-lang.hir", "identity-foundation", 1) => (
+                SectionLocation::Hir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::HIR,
+            ),
+            ("org.scoop-lang.mir", "identity-foundation", 1) => (
+                SectionLocation::Mir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::MIR,
+            ),
+            ("org.scoop-lang.lir", "identity-foundation", 1) => (
+                SectionLocation::Lir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::LIR,
+            ),
+            ("org.scoop-lang.manifest", "single-cone-production", 1) => (
+                SectionLocation::Manifest,
+                MemberPurposeSet::LINK,
+                FingerprintSinkSet::CODE
+                    .union(FingerprintSinkSet::RUNTIME_IMAGE)
+                    .union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
+            ),
+            ("org.scoop-lang.hir", "core-bootstrap-interface", 1) => (
+                SectionLocation::Hir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::HIR,
+            ),
+            ("org.scoop-lang.mir", "core-bootstrap-bridge", 1) => (
+                SectionLocation::Mir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::MIR,
+            ),
+            ("org.scoop-lang.lir", "strong-production", 1) => (
+                SectionLocation::Lir,
+                MemberPurposeSet::COMPILE_AND_LINK,
+                FingerprintSinkSet::LIR
+                    .union(FingerprintSinkSet::CODE)
+                    .union(FingerprintSinkSet::RUNTIME_IMAGE),
+            ),
+            ("org.scoop-lang.lir", "link-identity-closure", 1) => (
+                SectionLocation::Lir,
+                MemberPurposeSet::LINK,
+                FingerprintSinkSet::LINK_VALIDATION_ONLY,
+            ),
+            _ => return None,
+        };
+        Some(CapabilityContract {
+            capability: capability.clone(),
+            location,
+            required_for,
+            sinks,
+        })
     }
 }
 
@@ -328,6 +589,144 @@ mod tests {
         assert_eq!(
             descriptor.validation_policy().link_proof(),
             LinkProofPolicy::Forbidden
+        );
+    }
+
+    #[test]
+    fn single_cone_strong_profile_has_the_fixed_descriptor_and_fingerprint() {
+        let profile = ArtifactCapabilityProfile::SINGLE_CONE_STRONG;
+        let descriptor = profile.descriptor();
+        assert_eq!(
+            hex(&encode(&descriptor).unwrap()),
+            "a901a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c65027273696e676c652d636f6e652d7374726f6e6703010281a301776f72672e73636f6f702d6c616e672e6d616e6966657374027673696e676c652d636f6e652d70726f64756374696f6e03010382a301726f72672e73636f6f702d6c616e672e686972027818636f72652d626f6f7473747261702d696e746572666163650301a301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03010482a301726f72672e73636f6f702d6c616e672e6d69720275636f72652d626f6f7473747261702d6272696467650301a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03010583a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e0301a301726f72672e73636f6f702d6c616e672e6c697202756c696e6b2d6964656e746974792d636c6f737572650301a301726f72672e73636f6f702d6c616e672e6c697202717374726f6e672d70726f64756374696f6e030106020702080209a40102020103010402"
+        );
+        assert_eq!(
+            profile.fingerprint().unwrap().to_string(),
+            "456662e4eaee376624c54caa9068a91f8b369ea054453f884d61695a96da143f"
+        );
+        assert_eq!(
+            ArtifactCapabilityProfile::from_id(descriptor.id()),
+            Some(profile)
+        );
+
+        assert_eq!(
+            descriptor.required_manifest(),
+            &[manifest_single_cone_production_capability()]
+        );
+        assert_eq!(
+            descriptor.required_hir(),
+            &[
+                hir_core_bootstrap_interface_capability(),
+                hir_identity_foundation_capability(),
+            ]
+        );
+        assert_eq!(
+            descriptor.required_mir(),
+            &[
+                mir_core_bootstrap_bridge_capability(),
+                mir_identity_foundation_capability(),
+            ]
+        );
+        assert_eq!(
+            descriptor.required_lir(),
+            &[
+                lir_identity_foundation_capability(),
+                lir_link_identity_closure_capability(),
+                lir_strong_production_capability(),
+            ]
+        );
+        assert_eq!(
+            descriptor.code_requirement(),
+            FingerprintAvailabilityRequirement::MustBeAvailable
+        );
+        assert_eq!(
+            descriptor.runtime_requirement(),
+            FingerprintAvailabilityRequirement::MustBeAvailable
+        );
+        assert_eq!(
+            descriptor.publication_class(),
+            PublicationClass::Publishable
+        );
+        assert_eq!(
+            descriptor.validation_policy().odr(),
+            OdrValidationPolicy::RejectAll
+        );
+        assert_eq!(
+            descriptor.validation_policy().link_proof(),
+            LinkProofPolicy::Required
+        );
+    }
+
+    #[test]
+    fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
+        let code_runtime_link = FingerprintSinkSet::CODE
+            .union(FingerprintSinkSet::RUNTIME_IMAGE)
+            .union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
+        let lir_code_runtime = FingerprintSinkSet::LIR
+            .union(FingerprintSinkSet::CODE)
+            .union(FingerprintSinkSet::RUNTIME_IMAGE);
+        for (capability, location, purpose, sinks) in [
+            (
+                hir_identity_foundation_capability(),
+                SectionLocation::Hir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::HIR,
+            ),
+            (
+                mir_identity_foundation_capability(),
+                SectionLocation::Mir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::MIR,
+            ),
+            (
+                lir_identity_foundation_capability(),
+                SectionLocation::Lir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::LIR,
+            ),
+            (
+                manifest_single_cone_production_capability(),
+                SectionLocation::Manifest,
+                MemberPurposeSet::LINK,
+                code_runtime_link,
+            ),
+            (
+                hir_core_bootstrap_interface_capability(),
+                SectionLocation::Hir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::HIR,
+            ),
+            (
+                mir_core_bootstrap_bridge_capability(),
+                SectionLocation::Mir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::MIR,
+            ),
+            (
+                lir_strong_production_capability(),
+                SectionLocation::Lir,
+                MemberPurposeSet::COMPILE_AND_LINK,
+                lir_code_runtime,
+            ),
+            (
+                lir_link_identity_closure_capability(),
+                SectionLocation::Lir,
+                MemberPurposeSet::LINK,
+                FingerprintSinkSet::LINK_VALIDATION_ONLY,
+            ),
+        ] {
+            let contract = CapabilityContractRegistry::contract(&capability).unwrap();
+            assert_eq!(contract.capability(), &capability);
+            assert_eq!(contract.location(), location);
+            assert_eq!(contract.required_for(), purpose);
+            assert_eq!(contract.sinks(), sinks);
+        }
+
+        assert!(
+            CapabilityContractRegistry::contract(
+                &CapabilityId::new("org.scoop-lang.test", "unknown", 1).unwrap()
+            )
+            .is_none()
         );
     }
 
