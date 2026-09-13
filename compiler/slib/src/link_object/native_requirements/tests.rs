@@ -145,7 +145,24 @@ pub(in crate::link_object) fn core_closure(
 ) -> VerifiedCoreStrongRequirementClosureV1 {
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
     let bridges = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
-    verify_core_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, bridges).unwrap()
+    let core_fixture =
+        super::super::symbol_verification::tests::fixture_named("nativeRequirementCoreOwner");
+    let core_strong = verify_current_cone_strong_relocation_closure_v1(vec![
+        super::super::strong_relocation_closure::tests::verified_member_without_relocations(
+            &core_fixture,
+        ),
+    ])
+    .unwrap();
+    let core_owners =
+        crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&core_strong)
+            .unwrap();
+    verify_core_strong_requirements_v1(
+        LirTargetProfile::DARWIN_AARCH64,
+        strong,
+        bridges,
+        core_owners,
+    )
+    .unwrap()
 }
 
 pub(in crate::link_object) fn native_surface(

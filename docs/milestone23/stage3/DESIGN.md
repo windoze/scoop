@@ -1316,6 +1316,10 @@ object-local strong relocation已经在member verifier内完成解析，不进�
 unit入口。`ConeImage`与verifier boundary是definition/export验证专用owner，不是本阶段合法的
 relocation target。
 
+`CoreStrong`不能只凭consumer bridge的symbol自证。packager必须同时消费validated core artifact的
+member-aware defined-owner set，要求其producer精确为reserved core Cone，并以相同normalized symbol
+找到唯一且类型完全相同的`StrongDefinitionOwner`；最终requirement保留该core member与owner证明。
+
 ## 13. 六类registration与image producer
 
 ### 13.1 共享ABI
