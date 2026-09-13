@@ -110,6 +110,30 @@ pub enum CallingConvention {
     Cdecl,
 }
 
+impl scoop_wire::WireEncode for CallingConvention {
+    fn encode(
+        &self,
+        encoder: &mut scoop_wire::Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Cdecl => 1,
+        })
+    }
+}
+
+impl scoop_wire::WireDecode for CallingConvention {
+    fn decode(decoder: &mut scoop_wire::Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::Cdecl),
+            tag => Err(scoop_wire::WireError::new(
+                scoop_wire::WireErrorKind::UnknownTag { tag },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            )),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ExternFunctionKind {
     C {

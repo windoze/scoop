@@ -850,6 +850,18 @@ request与core `TypeDescriptor` definition plan。codegen只能从typed request�
 core bootstrap携带任一`CoreExternal*`即失败；普通Cone中的target/body/exact type必须分别唯一，
 且不得与当前Cone的local callable body或local type descriptor重合。
 
+`external_bridges`的元素sum tag固定为`Callable=1`、`TypeDescriptor=2`，payload均位于field `1`；
+顶层array先按tag、再按callable body/exact type identity bytes严格递增。callable payload是closed
+product：`1=target: CallableOwner`、`2=source_signature: ExactCallableSignature`、
+`3=expected_symbol: PersistentSymbolRequest`、`4=calling_convention`、
+`5=root_plan: ManagedStatepoint | NoGc`、`6=required_definition: ObjectDefinitionPlanId`。
+target只允许param-free strong的Function/Constructor/Accessor/Generated variant；body、symbol request和
+core `CallableBody` definition plan从target唯一重算。type descriptor payload固定为
+`1=target: PersistentExactTypeId`、`2=expected_symbol: PersistentSymbolRequest`、
+`3=required_definition: ObjectDefinitionPlanId`，后两项同样从target唯一重算。untrusted reader必须与
+HIR/MIR/LIR及trusted-core artifact重建出的完整typed surface逐byte匹配，不能排序、补字段或直接把
+decoded identity cast为已验证记录。
+
 `object_definition_plans`覆盖每个参与definition/digest的strong primary和associated atom，但不含member assignment。`DigestFinalizationPlan`可使用M23总设计已经冻结的全部kind enum；本profile只允许SourceSignature/Layout/Scan/LirDefinition/ObjectSupport/ObjectDefinition/StackmapRecord/StrongRegistration/RuntimeImage，出现OdrDefinition node即拒绝。
 
 LIR foundation validation把请求中的producer Cone写入`ValidatedLirFoundation`；
