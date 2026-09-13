@@ -852,11 +852,13 @@ core bootstrap携带任一`CoreExternal*`即失败；普通Cone中的target/body
 
 `external_bridges`的元素sum tag固定为`Callable=1`、`TypeDescriptor=2`，payload均位于field `1`；
 顶层array先按tag、再按callable body/exact type identity bytes严格递增。callable payload是closed
-product：`1=target: CallableOwner`、`2=source_signature: ExactCallableSignature`、
+product：`1=target: CallableOwner`、`2=abi_signature: CanonicalScoopAbiFunctionSignature`、
 `3=expected_symbol: PersistentSymbolRequest`、`4=calling_convention`、
 `5=root_plan: ManagedStatepoint | NoGc`、`6=required_definition: ObjectDefinitionPlanId`。
 target只允许param-free strong的Function/Constructor/Accessor/Generated variant；body、symbol request和
-core `CallableBody` definition plan从target唯一重算。type descriptor payload固定为
+core `CallableBody` definition plan从target唯一重算。canonical ABI完整绑定exact signature、
+direct/indirect/ZST传递、storage size/alignment/shape与GC effect；它必须与codegen消费的物理
+`ScoopAbiSignature`逐argument/result相符，并与root-plan effect相符。type descriptor payload固定为
 `1=target: PersistentExactTypeId`、`2=expected_symbol: PersistentSymbolRequest`、
 `3=required_definition: ObjectDefinitionPlanId`，后两项同样从target唯一重算。untrusted reader必须与
 HIR/MIR/LIR及trusted-core artifact重建出的完整typed surface逐byte匹配，不能排序、补字段或直接把

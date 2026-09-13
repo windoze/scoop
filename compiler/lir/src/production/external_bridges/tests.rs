@@ -1,8 +1,8 @@
 use scoop_identity::{
-    CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, Effect,
-    ExactCallableSignature, ExactTypeKey, PackagePath, PersistentExactTypeId, PersistentFunctionId,
-    PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
-    StrongCallableDefinitionOwner,
+    CanonicalIdentifier, CanonicalScoopAbiFunctionSignature, ConeIdentity, DeclarationScope,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, GcEffect, PackagePath,
+    PersistentExactTypeId, PersistentFunctionId, PersistentTypeId, ScoopAbiReturn,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -14,7 +14,7 @@ fn external_bridge_surface_has_fixed_wire_and_validates_against_typed_authority(
     let bytes = encode(&surface).unwrap();
     assert_eq!(
         hex(&bytes),
-        "82a2000101a601a20001015820134f8e77428aceb2c4829bb079d93ac3275bc15b42f263e0ae0d90d1360cc25a02a4010102a1000103800458209480c22b8e3c0c0420acfe39cd82cd47051b0ae9da003202b0e10b24f60d16ff03a201a2000101582059c1afa2adf2d73b49fc3b3f9b6decad325c480961659263ecd9a45041b472da020104010501065820d248b27f46be7dbed9540e390a791abc23ae685f2574030fcaed997b7527e303a2000201a3015820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee86802a201a20004015820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868020103582053d2e2db6fa6ff1affee8d969eb8157363a6063d241bfe4b36e9453d41b0dc5b"
+        "82a2000101a601a20001015820134f8e77428aceb2c4829bb079d93ac3275bc15b42f263e0ae0d90d1360cc25a02a401a4010102a1000103800458209480c22b8e3c0c0420acfe39cd82cd47051b0ae9da003202b0e10b24f60d16ff028003a10001040103a201a2000101582059c1afa2adf2d73b49fc3b3f9b6decad325c480961659263ecd9a45041b472da020104010501065820d248b27f46be7dbed9540e390a791abc23ae685f2574030fcaed997b7527e303a2000201a3015820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee86802a201a20004015820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868020103582053d2e2db6fa6ff1affee8d969eb8157363a6063d241bfe4b36e9453d41b0dc5b"
     );
 
     let decoded: DecodedStrongExternalLirBridgeSurfaceV1 =
@@ -80,7 +80,13 @@ fn surface() -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridge
     .unwrap();
     let callable = StrongExternalCallableBridgeV1::new(
         StrongCallableDefinitionOwner::Function(function),
-        ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
+        CanonicalScoopAbiFunctionSignature::new(
+            ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
+            Vec::new(),
+            ScoopAbiReturn::unit_void(),
+            GcEffect::Managed,
+        )
+        .unwrap(),
         CallingConvention::Cdecl,
         CoreExternalCallableRootPlan::ManagedStatepoint,
     )

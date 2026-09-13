@@ -1,9 +1,10 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableOwner, DecodedCallableOwner, DecodedExactCallableSignature, DecodedPersistentId,
-    DecodedPersistentSymbolRequest, ExactCallableSignature, ObjectDefinitionPlanId,
-    PersistentExactTypeId, PersistentSymbolRequest, StrongCallableDefinitionOwner,
+    CallableOwner, CanonicalScoopAbiFunctionSignature, DecodedCallableOwner,
+    DecodedCanonicalScoopAbiFunctionSignature, DecodedPersistentId, DecodedPersistentSymbolRequest,
+    ObjectDefinitionPlanId, PersistentExactTypeId, PersistentSymbolRequest,
+    StrongCallableDefinitionOwner,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -16,7 +17,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongExternalCallableBridgeV1 {
     target: CallableOwner,
-    source_signature: ExactCallableSignature,
+    abi_signature: CanonicalScoopAbiFunctionSignature,
     expected_symbol: PersistentSymbolRequest,
     calling_convention: CallingConvention,
     root_plan: CoreExternalCallableRootPlan,
@@ -26,14 +27,14 @@ pub struct StrongExternalCallableBridgeV1 {
 impl StrongExternalCallableBridgeV1 {
     pub fn new(
         target: StrongCallableDefinitionOwner,
-        source_signature: ExactCallableSignature,
+        abi_signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: CallingConvention,
         root_plan: CoreExternalCallableRootPlan,
     ) -> Result<Self, CoreExternalBuildError> {
         let (_, expected_symbol, required_definition) = core_callable_link_contract(target)?;
         Ok(Self {
             target: callable_owner(target),
-            source_signature,
+            abi_signature,
             expected_symbol,
             calling_convention,
             root_plan,
@@ -44,7 +45,7 @@ impl StrongExternalCallableBridgeV1 {
     fn from_lir(value: &CoreExternalCallable) -> Result<Self, CoreExternalBuildError> {
         Self::new(
             value.target(),
-            value.source_signature().clone(),
+            value.canonical_signature().clone(),
             value.calling_convention(),
             value.root_plan(),
         )
@@ -54,8 +55,8 @@ impl StrongExternalCallableBridgeV1 {
         self.target
     }
 
-    pub const fn source_signature(&self) -> &ExactCallableSignature {
-        &self.source_signature
+    pub const fn abi_signature(&self) -> &CanonicalScoopAbiFunctionSignature {
+        &self.abi_signature
     }
 
     pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
@@ -81,7 +82,7 @@ impl WireEncode for StrongExternalCallableBridgeV1 {
         encoder.field(1)?;
         self.target.encode(encoder)?;
         encoder.field(2)?;
-        self.source_signature.encode(encoder)?;
+        self.abi_signature.encode(encoder)?;
         encoder.field(3)?;
         self.expected_symbol.encode(encoder)?;
         encoder.field(4)?;
@@ -233,7 +234,7 @@ impl WireEncode for StrongExternalLirBridgeSurfaceV1 {
 #[derive(Debug)]
 struct DecodedStrongExternalCallableBridgeV1 {
     target: DecodedCallableOwner,
-    source_signature: DecodedExactCallableSignature,
+    abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
     expected_symbol: DecodedPersistentSymbolRequest,
     calling_convention: CallingConvention,
     root_plan: CoreExternalCallableRootPlan,
@@ -246,7 +247,7 @@ impl WireEncode for DecodedStrongExternalCallableBridgeV1 {
         encoder.field(1)?;
         self.target.encode(encoder)?;
         encoder.field(2)?;
-        self.source_signature.encode(encoder)?;
+        self.abi_signature.encode(encoder)?;
         encoder.field(3)?;
         self.expected_symbol.encode(encoder)?;
         encoder.field(4)?;
@@ -263,7 +264,7 @@ impl WireDecode for DecodedStrongExternalCallableBridgeV1 {
         decoder.expect_map(6)?;
         Ok(Self {
             target: decoder.field(1, DecodedCallableOwner::decode)?,
-            source_signature: decoder.field(2, DecodedExactCallableSignature::decode)?,
+            abi_signature: decoder.field(2, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
             expected_symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
             calling_convention: decoder.field(4, CallingConvention::decode)?,
             root_plan: decoder.field(5, CoreExternalCallableRootPlan::decode)?,

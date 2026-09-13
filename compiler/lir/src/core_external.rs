@@ -4,14 +4,16 @@ use std::fmt;
 
 pub use scoop_identity::ConeIdentity;
 use scoop_identity::{
-    CallableBodyKey, ExactCallableSignature, LinkageClass, ObjectDefinitionIdentityError,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
+    CallableBodyKey, CanonicalScoopAbiFunctionSignature, GcEffect as CanonicalGcEffect,
+    LinkageClass, ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    PersistentCallableBodyId, PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey,
+    PersistentSymbolRequest, ScoopAbiArgument as CanonicalAbiArgument,
+    ScoopAbiReturn as CanonicalAbiReturn, StrongCallableDefinitionOwner, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use crate::{CallingConvention, GcEffect, ScoopAbiSignature};
+use crate::{AbiArgument, AbiReturn, CallingConvention, GcEffect, ScoopAbiSignature};
 
 /// The caller-side root protocol inseparably paired with a core callable's
 /// GC effect. A managed call must be emitted as a statepoint; a no-GC call has
@@ -61,7 +63,7 @@ impl WireDecode for CoreExternalCallableRootPlan {
 pub struct CoreExternalCallable {
     target: StrongCallableDefinitionOwner,
     body: PersistentCallableBodyId,
-    source_signature: ExactCallableSignature,
+    canonical_signature: CanonicalScoopAbiFunctionSignature,
     signature: ScoopAbiSignature,
     root_plan: CoreExternalCallableRootPlan,
     expected_symbol: PersistentSymbolRequest,
@@ -71,23 +73,41 @@ pub struct CoreExternalCallable {
 impl CoreExternalCallable {
     pub fn new(
         target: StrongCallableDefinitionOwner,
-        source_signature: ExactCallableSignature,
+        canonical_signature: CanonicalScoopAbiFunctionSignature,
         signature: ScoopAbiSignature,
         root_plan: CoreExternalCallableRootPlan,
     ) -> Result<Self, CoreExternalBuildError> {
-        let expected_argument_count = source_signature.parameters().len()
-            + usize::from(source_signature.receiver().is_present());
-        if signature.logical_argument_count() != expected_argument_count {
+        if signature.logical_argument_count() != canonical_signature.arguments().len() {
             return Err(CoreExternalBuildError::AbiArgumentCount {
-                expected: expected_argument_count,
+                expected: canonical_signature.arguments().len(),
                 actual: signature.logical_argument_count(),
             });
+        }
+        for (index, (canonical, physical)) in canonical_signature
+            .arguments()
+            .iter()
+            .zip(signature.arguments())
+            .enumerate()
+        {
+            if !abi_argument_matches(*canonical, physical) {
+                return Err(CoreExternalBuildError::AbiArgumentMismatch { index });
+            }
+        }
+        if !abi_return_matches(canonical_signature.result(), signature.result()) {
+            return Err(CoreExternalBuildError::AbiResultMismatch);
+        }
+        let expected_effect = match canonical_signature.gc_effect() {
+            CanonicalGcEffect::Managed => GcEffect::Managed,
+            CanonicalGcEffect::NoGc => GcEffect::NoGc,
+        };
+        if root_plan.gc_effect() != expected_effect {
+            return Err(CoreExternalBuildError::RootProtocolMismatch);
         }
         let (body, expected_symbol, required_definition) = core_callable_link_contract(target)?;
         Ok(Self {
             target,
             body,
-            source_signature,
+            canonical_signature,
             signature,
             root_plan,
             expected_symbol,
@@ -103,8 +123,8 @@ impl CoreExternalCallable {
         self.body
     }
 
-    pub const fn source_signature(&self) -> &ExactCallableSignature {
-        &self.source_signature
+    pub const fn canonical_signature(&self) -> &CanonicalScoopAbiFunctionSignature {
+        &self.canonical_signature
     }
 
     pub const fn signature(&self) -> &ScoopAbiSignature {
@@ -212,9 +232,43 @@ pub(crate) fn core_type_descriptor_link_contract(
     Ok((expected_symbol, required_definition))
 }
 
+fn abi_argument_matches(canonical: CanonicalAbiArgument, physical: &AbiArgument) -> bool {
+    match (canonical, physical) {
+        (CanonicalAbiArgument::ElidedZst(expected), AbiArgument::ElidedZst(actual)) => {
+            expected.byte_size() == actual.layout().size()
+                && expected.alignment() == actual.layout().alignment()
+        }
+        (CanonicalAbiArgument::Direct(expected), AbiArgument::Direct(actual))
+        | (CanonicalAbiArgument::Indirect(expected), AbiArgument::Indirect(actual)) => {
+            expected.byte_size() == actual.layout().size().get()
+                && expected.alignment() == actual.layout().alignment()
+        }
+        _ => false,
+    }
+}
+
+fn abi_return_matches(canonical: CanonicalAbiReturn, physical: &AbiReturn) -> bool {
+    match (canonical, physical) {
+        (CanonicalAbiReturn::UnitVoid, AbiReturn::UnitVoid) => true,
+        (CanonicalAbiReturn::ElidedZst(expected), AbiReturn::ElidedZst(actual)) => {
+            expected.byte_size() == actual.layout().size()
+                && expected.alignment() == actual.layout().alignment()
+        }
+        (CanonicalAbiReturn::Direct(expected), AbiReturn::Direct(actual))
+        | (CanonicalAbiReturn::Indirect(expected), AbiReturn::Indirect(actual)) => {
+            expected.byte_size() == actual.layout().size().get()
+                && expected.alignment() == actual.layout().alignment()
+        }
+        _ => false,
+    }
+}
+
 #[derive(Debug)]
 pub enum CoreExternalBuildError {
     AbiArgumentCount { expected: usize, actual: usize },
+    AbiArgumentMismatch { index: usize },
+    AbiResultMismatch,
+    RootProtocolMismatch,
     Identity(HashError),
     Symbol(PersistentSymbolError),
     Definition(ObjectDefinitionIdentityError),
@@ -226,6 +280,16 @@ impl fmt::Display for CoreExternalBuildError {
             Self::AbiArgumentCount { expected, actual } => write!(
                 formatter,
                 "core external source signature requires {expected} logical ABI arguments, found {actual}"
+            ),
+            Self::AbiArgumentMismatch { index } => write!(
+                formatter,
+                "core external canonical and physical ABI disagree at argument {index}"
+            ),
+            Self::AbiResultMismatch => {
+                formatter.write_str("core external canonical and physical result ABI disagree")
+            }
+            Self::RootProtocolMismatch => formatter.write_str(
+                "core external caller root protocol disagrees with its canonical GC effect",
             ),
             Self::Identity(error) => {
                 write!(formatter, "cannot derive core external identity: {error}")
@@ -241,7 +305,10 @@ impl fmt::Display for CoreExternalBuildError {
 impl std::error::Error for CoreExternalBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::AbiArgumentCount { .. } => None,
+            Self::AbiArgumentCount { .. }
+            | Self::AbiArgumentMismatch { .. }
+            | Self::AbiResultMismatch
+            | Self::RootProtocolMismatch => None,
             Self::Identity(error) => Some(error),
             Self::Symbol(error) => Some(error),
             Self::Definition(error) => Some(error),
@@ -252,9 +319,11 @@ impl std::error::Error for CoreExternalBuildError {
 #[cfg(test)]
 mod tests {
     use scoop_identity::{
-        CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, Effect, ExactTypeKey,
-        PackagePath, PersistentExactTypeId, PersistentFunctionId, PersistentSymbolKey,
-        PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+        CanonicalIdentifier, CanonicalScoopAbiFunctionSignature, DeclarationScope,
+        DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
+        GcEffect as IdentityGcEffect, PackagePath, PersistentExactTypeId, PersistentFunctionId,
+        PersistentSymbolKey, PersistentTypeId, ScoopAbiReturn as CanonicalAbiReturn,
+        SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
     };
 
     use super::*;
@@ -273,9 +342,16 @@ mod tests {
             .unwrap();
         let target = StrongCallableDefinitionOwner::Function(function);
         let unit = exact_type("Unit", SourceNominalKind::Object);
+        let canonical_signature = CanonicalScoopAbiFunctionSignature::new(
+            ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
+            Vec::new(),
+            CanonicalAbiReturn::unit_void(),
+            IdentityGcEffect::Managed,
+        )
+        .unwrap();
         let callable = CoreExternalCallable::new(
             target,
-            ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
+            canonical_signature,
             ScoopAbiSignature::new(Vec::new(), AbiReturn::UnitVoid, CallingConvention::Cdecl),
             CoreExternalCallableRootPlan::ManagedStatepoint,
         )
