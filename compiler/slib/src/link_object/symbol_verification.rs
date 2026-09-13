@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::num::NonZeroU8;
 
-use scoop_identity::{ObjectDefinitionAtomId, ObjectDefinitionPlanId};
+use scoop_identity::{ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId};
 use scoop_wire::sha256;
 
 use super::{
@@ -108,6 +108,7 @@ impl VerifiedStrongObjectDefinitionV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedMemberStrongObjectDefinitionIndexV1 {
+    producer: ConeIdentity,
     member: SlibMemberId,
     sections: ValidatedBuiltinObjectSectionInventoryV1,
     symbols: Vec<VerifiedStrongDefinitionSymbolV1>,
@@ -115,6 +116,10 @@ pub struct VerifiedMemberStrongObjectDefinitionIndexV1 {
 }
 
 impl VerifiedMemberStrongObjectDefinitionIndexV1 {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
+    }
+
     pub const fn member(&self) -> SlibMemberId {
         self.member
     }
@@ -232,6 +237,7 @@ pub fn verify_member_strong_object_definitions_v1(
     validate_and_assign_zero_padding(bytes, &sections, &mut definitions)?;
 
     Ok(VerifiedMemberStrongObjectDefinitionIndexV1 {
+        producer: plan.producer(),
         member: plan.member(),
         sections,
         symbols,

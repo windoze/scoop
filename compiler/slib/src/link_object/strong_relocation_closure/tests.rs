@@ -1,6 +1,6 @@
 use super::super::relocation_verification::tests::add_undefined_symbol;
 use super::super::symbol_verification::tests::{
-    Fixture, fixture_named, object_for_plan_with_branch_relocation,
+    Fixture, fixture_for_producer, fixture_named, object_for_plan_with_branch_relocation,
 };
 use super::*;
 use crate::{
@@ -105,6 +105,16 @@ fn requires_a_unique_nonempty_member_set() {
             fixture.symbols.member()
         ))
     );
+
+    let other = fixture_for_producer(scoop_identity::ConeIdentity::SINGLE_FILE, "otherProducer");
+    let other_member = verified_member_without_relocations(&other);
+    assert!(matches!(
+        verify_current_cone_strong_relocation_closure_v1(vec![
+            verified_member_without_relocations(&fixture),
+            other_member,
+        ]),
+        Err(StrongRelocationClosureValidationError::MixedProducer { .. })
+    ));
 }
 
 fn verified_member_with_undefined(

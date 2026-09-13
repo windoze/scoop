@@ -199,22 +199,26 @@ pub(in crate::link_object) struct Fixture {
 }
 
 pub(in crate::link_object) fn fixture() -> Fixture {
-    build_fixture("entry", false)
+    build_fixture(ConeIdentity::CORE, "entry", false)
 }
 
 fn fixture_with_associated_atom() -> Fixture {
-    build_fixture("entry", true)
+    build_fixture(ConeIdentity::CORE, "entry", true)
 }
 
 pub(in crate::link_object) fn fixture_named(name: &str) -> Fixture {
-    build_fixture(name, false)
+    build_fixture(ConeIdentity::CORE, name, false)
 }
 
-fn build_fixture(name: &str, include_associated_atom: bool) -> Fixture {
+pub(in crate::link_object) fn fixture_for_producer(producer: ConeIdentity, name: &str) -> Fixture {
+    build_fixture(producer, name, false)
+}
+
+fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bool) -> Fixture {
     let function =
         CborIdentityRecord::<PersistentFunctionId, _>::from_key(SourceDeclarationKey::function(
             SourceDeclarationSite::new(
-                ConeIdentity::CORE,
+                producer,
                 PackagePath::root(),
                 DefinitionOwnerChain::top_level(),
                 DeclarationScope::ConeWide,
@@ -232,7 +236,7 @@ fn build_fixture(name: &str, include_associated_atom: bool) -> Fixture {
     .unwrap();
     let plan = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
-            ConeIdentity::CORE,
+            producer,
             StrongDefinitionEntity::callable_body(body.id()),
             StrongDefinitionRole::CallableBody,
         )
@@ -266,11 +270,11 @@ fn build_fixture(name: &str, include_associated_atom: bool) -> Fixture {
     atoms.extend(associated_atom.iter().cloned());
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
-        ConeIdentity::CORE,
+        producer,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         Vec::new(),

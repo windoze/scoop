@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{ObjectDefinitionAtomId, ObjectDefinitionPlanId};
+use scoop_identity::{ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId};
 
 use super::{
     BuiltinObjectSectionRoleV1, PlannedStrongObjectSymbolRoleV1,
@@ -78,11 +78,16 @@ impl StrongRelocationBindingV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedCurrentConeStrongRelocationClosureV1 {
+    producer: ConeIdentity,
     members: Vec<VerifiedMemberObjectRelocationIndexV1>,
     bindings: Vec<StrongRelocationBindingV1>,
 }
 
 impl VerifiedCurrentConeStrongRelocationClosureV1 {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
+    }
+
     pub fn members(&self) -> &[VerifiedMemberObjectRelocationIndexV1] {
         &self.members
     }
@@ -107,6 +112,14 @@ pub fn verify_current_cone_strong_relocation_closure_v1(
             pair[0].member(),
         ));
     }
+    let producer = members[0].producer();
+    if let Some(member) = members.iter().find(|member| member.producer() != producer) {
+        return Err(StrongRelocationClosureValidationError::MixedProducer {
+            expected: producer,
+            actual: member.producer(),
+            member: member.member(),
+        });
+    }
 
     let (symbols, primaries) = index_strong_definitions(&members)?;
     let mut bindings = Vec::new();
@@ -122,7 +135,11 @@ pub fn verify_current_cone_strong_relocation_closure_v1(
         }
     }
     bindings.sort_unstable_by_key(binding_key);
-    Ok(VerifiedCurrentConeStrongRelocationClosureV1 { members, bindings })
+    Ok(VerifiedCurrentConeStrongRelocationClosureV1 {
+        producer,
+        members,
+        bindings,
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -339,6 +356,11 @@ fn binding_key(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongRelocationClosureValidationError {
     NoLinkObjectMembers,
+    MixedProducer {
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+        member: SlibMemberId,
+    },
     DuplicateMember(SlibMemberId),
     DuplicateStrongSymbol {
         name: Vec<u8>,

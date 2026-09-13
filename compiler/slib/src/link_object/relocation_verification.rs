@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::num::{NonZeroU8, NonZeroU32};
 
-use scoop_identity::{ObjectDefinitionAtomId, ObjectDefinitionPlanId};
+use scoop_identity::{ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId};
 
 use super::{
     BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
@@ -120,6 +120,10 @@ pub struct VerifiedMemberObjectRelocationIndexV1 {
 }
 
 impl VerifiedMemberObjectRelocationIndexV1 {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.definitions.producer()
+    }
+
     pub const fn member(&self) -> SlibMemberId {
         self.definitions.member()
     }

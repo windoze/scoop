@@ -46,6 +46,7 @@ impl GeneratedBridgeUnitMemberAssignmentV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedLinkObjectMemberSetV1 {
+    producer: ConeIdentity,
     scoop_lir_members: Vec<PlannedScoopLirObjectMemberV1>,
     generated_bridge_members: Vec<PlannedGeneratedBridgeObjectMemberV1>,
     definition_assignments: Vec<DefinitionPlanMemberAssignmentV1>,
@@ -176,6 +177,7 @@ impl PlannedLinkObjectMemberSetV1 {
         }
 
         Ok(Self {
+            producer: cone,
             scoop_lir_members,
             generated_bridge_members,
             definition_assignments: definition_assignments
@@ -192,6 +194,10 @@ impl PlannedLinkObjectMemberSetV1 {
                 .map(|(unit, member)| GeneratedBridgeUnitMemberAssignmentV1 { unit, member })
                 .collect(),
         })
+    }
+
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
     }
 
     pub fn scoop_lir_members(&self) -> &[PlannedScoopLirObjectMemberV1] {

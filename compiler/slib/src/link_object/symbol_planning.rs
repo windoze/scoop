@@ -3,7 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use scoop_identity::{ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest};
+use scoop_identity::{
+    ConeIdentity, ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest,
+};
 use scoop_lir::{LirTargetProfile, StrongObjectSymbolSurfaceV1};
 
 use super::PlannedLinkObjectMemberSetV1;
@@ -48,11 +50,16 @@ impl PlannedStrongObjectSymbolV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedMemberStrongObjectSymbolsV1 {
+    producer: ConeIdentity,
     member: SlibMemberId,
     symbols: Vec<PlannedStrongObjectSymbolV1>,
 }
 
 impl PlannedMemberStrongObjectSymbolsV1 {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
+    }
+
     pub const fn member(&self) -> SlibMemberId {
         self.member
     }
@@ -64,6 +71,7 @@ impl PlannedMemberStrongObjectSymbolsV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedStrongObjectSymbolSetV1 {
+    producer: ConeIdentity,
     members: Vec<PlannedMemberStrongObjectSymbolsV1>,
 }
 
@@ -159,14 +167,20 @@ impl PlannedStrongObjectSymbolSetV1 {
         }
 
         Ok(Self {
+            producer: member_plan.producer(),
             members: by_member
                 .into_iter()
                 .map(|(member, symbols)| PlannedMemberStrongObjectSymbolsV1 {
+                    producer: member_plan.producer(),
                     member,
                     symbols: symbols.into_values().collect(),
                 })
                 .collect(),
         })
+    }
+
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
     }
 
     pub fn members(&self) -> &[PlannedMemberStrongObjectSymbolsV1] {
