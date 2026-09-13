@@ -4,6 +4,7 @@ members = [
     "compiler/wire",
     "compiler/identity",
     "compiler/manifest",
+    "compiler/protocol",
     "compiler/ast",
     "compiler/parser",
     "compiler/hir",
@@ -41,6 +42,7 @@ serde = { version = "1", features = ["derive"] }
 scoop-wire = { path = "compiler/wire" }
 scoop-identity = { path = "compiler/identity" }
 scoop-manifest = { path = "compiler/manifest" }
+scoop-protocol = { path = "compiler/protocol" }
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }
 scoop-hir = { path = "compiler/hir" }

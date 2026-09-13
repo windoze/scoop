@@ -400,6 +400,18 @@ ScoopcResponseEnvelopeV1 =
 
 协议不传AST/HIR/MIR/LIR arena、validated view token、open file handle或native linker参数。host path使用同机opaque path carrier并受长度预算，不要求成为UTF-8，也不进入canonical semantic encoder。M23-3提供bounded encode/decode与round-trip测试；M23-4才由`scoop`实际调度child。直接CLI与child protocol必须归一到同一个`SingleConeBuildRequest`，不能形成两套默认值。
 
+wire固定为Wire CBOR v1。request envelope是closed product `1=magic bytes "SCOOPREQ"`, `2=protocol_version 1`, `3=request_id`（16 bytes）, `4=build`；response envelope对应为`1=magic bytes "SCOOPRES"`, `2=protocol_version 1`, `3=response`。`build`字段固定为`1=current`, `2=direct_slibs`, `3=support_slibs`, `4=trusted_core`, `5=target`, `6=out_slib`, `7=diagnostics`, `8=emit`：
+
+- `current`为`ManifestRoot=1 {1=path}`、`SingleFile=2 {1=path}`、`TrustedCoreBootstrap=3`；
+- `trusted_core`为`ArtifactSlot=1 {1=path}`或`Bootstrap=2`，且只有前两种current与前者、bootstrap current与后者的组合合法；bootstrap的direct/support必须都为空；
+- `target`是closed product `1=canonical_triple`，值为1…255 bytes的printable ASCII且不含`/`或`\\`；direct CLI先解析host selection再传显式triple，child不得重新读取host默认值；
+- `diagnostics`为pure tag `Human=1 | Structured=2`；`emit`为`None=1 | Stage=2 {1=kind}`，stage kind按`Ast=1, Hir=2, Mir=3, Lir=4`；
+- host path carrier是`1=encoding, 2=raw bytes`，encoding为`UnixBytes=1 | WindowsWtf16Le=2`；长度为1…16,384 bytes，不允许编码对应平台的NUL，consumer拒绝非本机encoding。它只服务同机child transport，不进入semantic hash。
+
+response sum为`Success=1`或`Failure=2`。Success字段固定为`1=request_id`, `2=artifact_fingerprint`, `3=cone_identity`, `4=hir_fingerprint`, `5=mir_fingerprint`, `6=lir_fingerprint`, `7=code_fingerprint`, `8=runtime_image_fingerprint`, `9=warnings`, `10=emitted_dump_descriptors`；所有identity/fingerprint槽精确32 bytes。Failure为`1=request_id`, `2=diagnostics`，后者非空且至少包含一条Error。structured diagnostic是`1=severity`, `2=stable_code`, `3=message`, `4=origin`, `5=notes`；severity为`Error=1 | Warning=2`，stable code匹配`[A-Z][A-Z0-9_]{0,127}`。origin封闭为`None=1`、`HostPathSpan=2 {1=path,2=start,3=end}`、`SemanticSourceSpan=3 {1=cone,2=logical_path,3=start,4=end}`或`ArtifactPath=4 {1=path,2=semantic_path}`；byte span满足`start <= end`。note固定为`1=message,2=origin`。dump descriptor固定为`1=stage,2=destination,3=content_digest`，destination为`Stdout=1 | File=2 {1=path}`。
+
+framing不是CBOR streaming：每帧为`little_endian_u64(payload_length) || canonical_payload`，payload上限16 MiB，必须恰好包含一个完整request或response，不允许trailing/拼接帧。每个dependency list最多4096项、diagnostic/warning最多4096项、每条diagnostic最多64条note、每个success最多一个emitted dump descriptor，message/semantic path另受1 MiB leaf上限。构造器与reader执行同一组限制；reader还使用收窄的`DecodeLimits`累计限制nesting、node、owned bytes与work。magic、version、字段、tag、长度、组合或本机path encoding不符都在构造typed request/response前失败。
+
 ## 6. output kind与entry
 
 ### 6.1 输入kind与输出kind分离
