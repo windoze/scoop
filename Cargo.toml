@@ -38,6 +38,7 @@ minicbor = { version = "2.3", features = ["std"] }
 sha2 = { version = "0.11" }
 semver = { version = "1" }
 serde = { version = "1", features = ["derive"] }
+tempfile = { version = "3" }
 
 scoop-wire = { path = "compiler/wire" }
 scoop-identity = { path = "compiler/identity" }

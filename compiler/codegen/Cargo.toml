@@ -8,6 +8,7 @@ inkwell.workspace = true
 la-arena.workspace = true
 object.workspace = true
 scoop-lir.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
 scoop-identity.workspace = true

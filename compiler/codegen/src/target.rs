@@ -20,6 +20,10 @@ use crate::{CodegenError, artifact};
 
 mod qualification;
 
+mod c_bridge_toolchain;
+pub use c_bridge_toolchain::ValidatedCBridgeToolchainProfile;
+use c_bridge_toolchain::resolve_system_c_bridge_toolchain;
+
 const REQUIRED_LLVM_MAJOR: u32 = 22;
 const REQUIRED_LLVM_MINOR: u32 = 1;
 
@@ -198,20 +202,13 @@ impl ManagedAddressSpace {
 ///     let _: ValidatedRuntimeBuildProfile = profile;
 /// }
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedTargetProfile {
     lir_target: ValidatedLirTargetSelection,
     backend: ValidatedBackendProfile,
     c_bridge_toolchain: ValidatedCBridgeToolchainProfile,
     runtime_build: ValidatedRuntimeBuildProfile,
     final_link: ValidatedFinalLinkProfile,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ValidatedCBridgeToolchainProfile {
-    canonical_triple: &'static str,
-    compiler_driver: &'static str,
-    compiler_args: &'static [&'static str],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -230,58 +227,56 @@ pub struct ValidatedFinalLinkProfile {
 }
 
 impl ResolvedTargetProfile {
-    const DARWIN_AARCH64: Self = Self {
-        lir_target: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        backend: ValidatedBackendProfile::DARWIN_AARCH64,
-        c_bridge_toolchain: ValidatedCBridgeToolchainProfile {
-            canonical_triple: "aarch64-apple-darwin",
-            compiler_driver: "cc",
-            compiler_args: &["-std=c11"],
-        },
-        runtime_build: ValidatedRuntimeBuildProfile {
-            canonical_triple: "aarch64-apple-darwin",
-            runtime_sources: &[
-                "runtime/src/rt.c",
-                "runtime/src/eh.c",
-                "runtime/src/eh_personality.c",
-                "runtime/src/initialization.c",
-                "runtime/src/gc.c",
-                "runtime/src/gc/allocation.c",
-                "runtime/src/gc/collector.c",
-                "runtime/src/gc/evacuation.c",
-                "runtime/src/gc/reclamation.c",
-                "runtime/src/gc/heap.c",
-                "runtime/src/gc/heap_objects.c",
-                "runtime/src/gc/handles.c",
-                "runtime/src/gc/root_frames.c",
-                "runtime/src/gc/roots.c",
-                "runtime/src/gc/stackmap.c",
-                "runtime/src/gc/stack_roots.c",
-                "runtime/src/thread.c",
-                "runtime/src/thread/collection.c",
-                "runtime/src/thread/debug.c",
-                "runtime/src/thread/roots.c",
-                "runtime/src/thread/transitions.c",
-                "runtime/src/callback.c",
-                "runtime/src/platform/profiles/darwin_aarch64.c",
-                "runtime/src/platform/image/macho.c",
-                "runtime/src/platform/arch/aarch64.c",
-                "runtime/src/platform/arch/aarch64_anchor.S",
-                "runtime/src/platform/os/darwin.c",
-            ],
-            runtime_c_flags: &[
-                "-pthread",
-                "-fno-omit-frame-pointer",
-                "-fno-optimize-sibling-calls",
-            ],
-        },
-        final_link: ValidatedFinalLinkProfile {
-            target: LirTargetProfile::DARWIN_AARCH64,
-            canonical_triple: "aarch64-apple-darwin",
-            linker_driver: "cc",
-            linker_args: &["-pthread"],
-        },
-    };
+    fn darwin_aarch64(c_bridge_toolchain: ValidatedCBridgeToolchainProfile) -> Self {
+        Self {
+            lir_target: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            backend: ValidatedBackendProfile::DARWIN_AARCH64,
+            c_bridge_toolchain,
+            runtime_build: ValidatedRuntimeBuildProfile {
+                canonical_triple: "aarch64-apple-darwin",
+                runtime_sources: &[
+                    "runtime/src/rt.c",
+                    "runtime/src/eh.c",
+                    "runtime/src/eh_personality.c",
+                    "runtime/src/initialization.c",
+                    "runtime/src/gc.c",
+                    "runtime/src/gc/allocation.c",
+                    "runtime/src/gc/collector.c",
+                    "runtime/src/gc/evacuation.c",
+                    "runtime/src/gc/reclamation.c",
+                    "runtime/src/gc/heap.c",
+                    "runtime/src/gc/heap_objects.c",
+                    "runtime/src/gc/handles.c",
+                    "runtime/src/gc/root_frames.c",
+                    "runtime/src/gc/roots.c",
+                    "runtime/src/gc/stackmap.c",
+                    "runtime/src/gc/stack_roots.c",
+                    "runtime/src/thread.c",
+                    "runtime/src/thread/collection.c",
+                    "runtime/src/thread/debug.c",
+                    "runtime/src/thread/roots.c",
+                    "runtime/src/thread/transitions.c",
+                    "runtime/src/callback.c",
+                    "runtime/src/platform/profiles/darwin_aarch64.c",
+                    "runtime/src/platform/image/macho.c",
+                    "runtime/src/platform/arch/aarch64.c",
+                    "runtime/src/platform/arch/aarch64_anchor.S",
+                    "runtime/src/platform/os/darwin.c",
+                ],
+                runtime_c_flags: &[
+                    "-pthread",
+                    "-fno-omit-frame-pointer",
+                    "-fno-optimize-sibling-calls",
+                ],
+            },
+            final_link: ValidatedFinalLinkProfile {
+                target: LirTargetProfile::DARWIN_AARCH64,
+                canonical_triple: "aarch64-apple-darwin",
+                linker_driver: "cc",
+                linker_args: &["-pthread"],
+            },
+        }
+    }
 
     /// Resolves all five mutually compatible projections as one value.
     pub fn resolve(triple: &str) -> Result<Self, CodegenError> {
@@ -295,7 +290,7 @@ impl ResolvedTargetProfile {
         let supported_os = versioned_component(os, "darwin") || versioned_component(os, "macosx");
 
         if supported_arch && vendor == "apple" && supported_os && !has_extra_identity {
-            Ok(Self::DARWIN_AARCH64)
+            Ok(Self::darwin_aarch64(resolve_system_c_bridge_toolchain()?))
         } else {
             Err(CodegenError(format!(
                 "unsupported target {triple:?}; M15 supports only macOS/AArch64 \
@@ -315,46 +310,32 @@ impl ResolvedTargetProfile {
         Self::resolve(triple)
     }
 
-    pub const fn id(self) -> TargetProfileId {
+    pub const fn id(&self) -> TargetProfileId {
         self.lir_target.target().id()
     }
 
-    pub const fn lir_target(self) -> LirTargetProfile {
+    pub const fn lir_target(&self) -> LirTargetProfile {
         self.lir_target.target()
     }
 
-    pub const fn lir_target_selection(self) -> ValidatedLirTargetSelection {
+    pub const fn lir_target_selection(&self) -> ValidatedLirTargetSelection {
         self.lir_target
     }
 
-    pub const fn backend(self) -> ValidatedBackendProfile {
+    pub const fn backend(&self) -> ValidatedBackendProfile {
         self.backend
     }
 
-    pub const fn c_bridge_toolchain(self) -> ValidatedCBridgeToolchainProfile {
-        self.c_bridge_toolchain
+    pub const fn c_bridge_toolchain(&self) -> &ValidatedCBridgeToolchainProfile {
+        &self.c_bridge_toolchain
     }
 
-    pub const fn runtime_build(self) -> ValidatedRuntimeBuildProfile {
+    pub const fn runtime_build(&self) -> ValidatedRuntimeBuildProfile {
         self.runtime_build
     }
 
-    pub const fn final_link(self) -> ValidatedFinalLinkProfile {
+    pub const fn final_link(&self) -> ValidatedFinalLinkProfile {
         self.final_link
-    }
-}
-
-impl ValidatedCBridgeToolchainProfile {
-    pub const fn canonical_triple(self) -> &'static str {
-        self.canonical_triple
-    }
-
-    pub const fn compiler_driver(self) -> &'static str {
-        self.compiler_driver
-    }
-
-    pub const fn compiler_args(self) -> &'static [&'static str] {
-        self.compiler_args
     }
 }
 

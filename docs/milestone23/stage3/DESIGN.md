@@ -1190,11 +1190,19 @@ profile由请求级`ValidatedCBridgeToolchainProfile`生成，至少承诺target
 `DomainSeparatedCborHash("scoop-c-bridge-toolchain-profile-v1", {1=profile_id, 2=contract})`。
 host compiler executable与SDK root的绝对locator由请求级resolver另存，只参与调用和诊断，不进入该product；
 resolver必须在产生任何generated C source/object前证明locator指向的实际toolchain与该product逐项相同。
+当前Darwin resolver在清空environment后通过系统`xcrun`解析Apple Clang与macOS SDK的绝对
+locator/SDK版本，通过`sw_vers`解析本次minimum deployment，并从compiler `--version`解析结构化
+Apple Clang identity；随后用上述精确target、SDK、deployment、flags与clean environment编译一个
+临时最小probe object，从其`LC_BUILD_VERSION`读取并核对platform/minimum OS/SDK与完整tool array。
+probe source/object路径和bytes不进入contract；probe缺deployment、字段漂移、未知tool、错误arch/
+object kind或非Apple Clang均使整个`ResolvedTargetProfile`构造失败，不能退回`cc`、host默认target、
+空SDK或推导出的tool version。
 
 `DarwinCBridgeDeploymentContractV1`的field固定为`1=platform`、`2=minimum_os`、`3=sdk`、
 `4=tools`；当前platform tag `MacOS=1`。version使用Mach-O `X.Y.Z` packed `u32`且必须非零。
-tool元素是`{1=tool, 2=version}`，tool tag精确为`Clang=1`、`Ld=3`、`Lld=4`；array必须
-非空、按tool tag严格递增且包含Clang，Swift与未知tool不属于本profile。compiler product固定为
+tool元素是`{1=tool, 2=version}`，tool tag精确为`Clang=1`、`Ld=3`、`Lld=4`；array允许为空；
+非空时必须按tool tag严格递增且包含Clang，Swift与未知tool不属于本profile。resolver不能从
+compiler semver推导tool array，必须从使用同一flags生成的probe object读取完整物理记录。compiler product固定为
 `1=major`、`2=minor`、`3=patch`、`4=Apple build spelling`；major非零，build长度1…127 ASCII
 byte且字符集为`[A-Za-z0-9._+-]`。不得只记录`cc`路径、`--version`原始输出或`ntools`计数。
 
@@ -1212,6 +1220,9 @@ component tag依次为`TypeRenderer=1`、`LayoutAssertions=2`、`ExternalDeclara
 environment product固定为`1=inherited_names=[]`、`2=locale="C"`、`3=timezone="UTC"`；producer
 必须清空host environment后只建立这个投影，不能继承`CFLAGS`、`CPATH`、`SDKROOT`、locale或其他
 能改变object的隐式输入。
+其中locale字段同时固定`LC_ALL=C`与`LANG=C`，timezone字段固定`TZ=UTC`；
+`RelocatableObject`同时承诺compile-only action及显式output operand，但临时source/output locator
+仍不进入flag fingerprint。
 
 `CBridgeProductionSet::NotUsed`编码为`{0=1}`；`Used`编码为
 `{0=2, 1=profile_id, 2=profile_fingerprint, 3=source_template_fingerprint,

@@ -429,6 +429,7 @@ dependencies = [
  "object",
  "scoop-identity",
  "scoop-lir",
+ "tempfile",
 ]
 
 [[package]]

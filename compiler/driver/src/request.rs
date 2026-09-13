@@ -186,8 +186,8 @@ impl SingleConeBuildRequest {
         &self.trusted_core
     }
 
-    pub const fn target(&self) -> ResolvedTargetProfile {
-        self.target
+    pub const fn target(&self) -> &ResolvedTargetProfile {
+        &self.target
     }
 
     pub const fn output(&self) -> &SlibOutputDestination {

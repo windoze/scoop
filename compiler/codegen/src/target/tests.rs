@@ -22,6 +22,8 @@ fn another_llvm_minor_is_rejected_structurally() {
 
 #[test]
 fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
+    let expected =
+        ResolvedTargetProfile::resolve("aarch64-apple-darwin").expect("canonical profile");
     for triple in [
         "aarch64-apple-darwin",
         "arm64-apple-darwin",
@@ -29,7 +31,7 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
         "aarch64-apple-macosx14.0.0",
     ] {
         let profile = ResolvedTargetProfile::resolve(triple).expect(triple);
-        assert_eq!(profile, ResolvedTargetProfile::DARWIN_AARCH64);
+        assert_eq!(profile, expected);
         assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
         assert_eq!(
             profile.lir_target(),
@@ -51,9 +53,20 @@ fn darwin_aarch64_aliases_resolve_to_one_complete_profile() {
         assert_eq!(backend.managed_address_space(), 1);
         assert_eq!(backend.stack_map_version(), 3);
         let c_bridge = profile.c_bridge_toolchain();
-        assert_eq!(c_bridge.canonical_triple(), "aarch64-apple-darwin");
-        assert_eq!(c_bridge.compiler_driver(), "cc");
-        assert_eq!(c_bridge.compiler_args(), ["-std=c11"]);
+        assert!(c_bridge.compiler_driver().is_absolute());
+        assert!(c_bridge.sdk_root().is_absolute());
+        assert_eq!(
+            c_bridge.profile().id(),
+            &scoop_identity::CBridgeToolchainProfileId::darwin_aarch64_apple_clang()
+        );
+        assert_eq!(
+            c_bridge.profile().contract().canonical_triple(),
+            "aarch64-apple-darwin"
+        );
+        assert_eq!(
+            c_bridge.profile().contract().target(),
+            &scoop_identity::TargetProfileWireId::darwin_aarch64()
+        );
         let runtime = profile.runtime_build();
         assert_eq!(runtime.canonical_triple(), "aarch64-apple-darwin");
         assert_eq!(
@@ -152,9 +165,11 @@ fn profile_creates_the_canonical_aarch64_machine() {
 
 #[test]
 fn llvm_host_identity_resolves_through_the_target_registry() {
+    let profile = ResolvedTargetProfile::resolve_host().expect("supported host profile");
+    assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
     assert_eq!(
-        ResolvedTargetProfile::resolve_host().expect("supported host profile"),
-        ResolvedTargetProfile::DARWIN_AARCH64
+        profile.c_bridge_toolchain().profile().id(),
+        &scoop_identity::CBridgeToolchainProfileId::darwin_aarch64_apple_clang()
     );
 }
 

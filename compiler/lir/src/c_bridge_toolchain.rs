@@ -30,8 +30,32 @@ impl DarwinPackedVersionV1 {
         Ok(Self(packed))
     }
 
+    pub fn from_components(
+        major: u32,
+        minor: u32,
+        patch: u32,
+    ) -> Result<Self, DarwinPackedVersionError> {
+        if major == 0 {
+            return Err(DarwinPackedVersionError::Zero);
+        }
+        if major > u32::from(u16::MAX) {
+            return Err(DarwinPackedVersionError::MajorOutOfRange(major));
+        }
+        if minor > u32::from(u8::MAX) {
+            return Err(DarwinPackedVersionError::MinorOutOfRange(minor));
+        }
+        if patch > u32::from(u8::MAX) {
+            return Err(DarwinPackedVersionError::PatchOutOfRange(patch));
+        }
+        Self::new((major << 16) | (minor << 8) | patch)
+    }
+
     pub const fn packed(self) -> u32 {
         self.0
+    }
+
+    pub const fn components(self) -> (u32, u32, u32) {
+        (self.0 >> 16, (self.0 >> 8) & 0xff, self.0 & 0xff)
     }
 }
 
@@ -44,15 +68,25 @@ impl WireEncode for DarwinPackedVersionV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinPackedVersionError {
     Zero,
+    MajorOutOfRange(u32),
+    MinorOutOfRange(u32),
+    PatchOutOfRange(u32),
 }
 
 impl fmt::Display for DarwinPackedVersionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("Darwin packed version must be nonzero")
+        write!(formatter, "invalid Darwin packed version: {self:?}")
     }
 }
 
 impl std::error::Error for DarwinPackedVersionError {}
+
+impl fmt::Display for DarwinPackedVersionV1 {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (major, minor, patch) = self.components();
+        write!(formatter, "{major}.{minor}.{patch}")
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DarwinBuildToolIdV1 {
@@ -120,9 +154,6 @@ impl DarwinCBridgeDeploymentContractV1 {
         sdk: DarwinPackedVersionV1,
         tools: Vec<DarwinBuildToolVersionContractV1>,
     ) -> Result<Self, DarwinCBridgeDeploymentContractError> {
-        if tools.is_empty() {
-            return Err(DarwinCBridgeDeploymentContractError::EmptyTools);
-        }
         for (index, tool) in tools.iter().enumerate().skip(1) {
             let previous = tools[index - 1].tool();
             if previous >= tool.tool() {
@@ -133,9 +164,10 @@ impl DarwinCBridgeDeploymentContractV1 {
                 });
             }
         }
-        if !tools
-            .iter()
-            .any(|tool| tool.tool() == DarwinBuildToolIdV1::Clang)
+        if !tools.is_empty()
+            && !tools
+                .iter()
+                .any(|tool| tool.tool() == DarwinBuildToolIdV1::Clang)
         {
             return Err(DarwinCBridgeDeploymentContractError::MissingClang);
         }
@@ -175,7 +207,6 @@ impl WireEncode for DarwinCBridgeDeploymentContractV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinCBridgeDeploymentContractError {
-    EmptyTools,
     MissingClang,
     DuplicateTool(DarwinBuildToolIdV1),
     NonCanonicalToolOrder { index: usize },

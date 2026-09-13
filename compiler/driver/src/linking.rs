@@ -7,24 +7,18 @@ mod eh_artifact;
 pub(super) fn compile_c_bridge(
     source: &Path,
     object: &Path,
-    toolchain: scoop_codegen::ValidatedCBridgeToolchainProfile,
+    toolchain: &scoop_codegen::ValidatedCBridgeToolchainProfile,
     file: usize,
 ) -> Result<(), Vec<Diagnostic>> {
-    let output = Command::new(toolchain.compiler_driver())
-        .arg("-target")
-        .arg(toolchain.canonical_triple())
-        .args(toolchain.compiler_args())
-        .arg("-c")
-        .arg(source)
-        .arg("-o")
-        .arg(object)
+    let output = toolchain
+        .object_compilation_command(source, object)
         .output()
         .map_err(|error| {
             vec![no_span(
                 file,
                 format!(
                     "failed to run C bridge compiler `{}`: {error}",
-                    toolchain.compiler_driver()
+                    toolchain.compiler_driver().display()
                 ),
             )]
         })?;

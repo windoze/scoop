@@ -32,6 +32,18 @@ fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
 
 #[test]
 fn generated_c_profile_requires_the_exact_deployment_contract() {
+    let empty_tools_contract = DarwinCBridgeDeploymentContractV1::new(
+        DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
+        DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
+        Vec::new(),
+    )
+    .unwrap();
+    validate_generated_c_bridge_object_envelope_v1(
+        &object(Some((0x000d_0100, 0x000e_0200, &[]))),
+        &empty_tools_contract,
+    )
+    .unwrap();
+
     let tools = [DarwinBuildToolVersionV1::new(
         object::macho::TOOL_CLANG,
         0x1000_0200,

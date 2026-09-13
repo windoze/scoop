@@ -3,12 +3,21 @@ use scoop_wire::encode;
 use super::*;
 
 #[test]
-fn deployment_rejects_empty_missing_and_noncanonical_tools() {
-    let version = DarwinPackedVersionV1::new(1).unwrap();
+fn darwin_versions_pack_and_render_canonically() {
+    let version = DarwinPackedVersionV1::from_components(26, 5, 2).unwrap();
+    assert_eq!(version.packed(), 0x001a_0502);
+    assert_eq!(version.components(), (26, 5, 2));
+    assert_eq!(version.to_string(), "26.5.2");
     assert_eq!(
-        DarwinCBridgeDeploymentContractV1::new(version, version, Vec::new()),
-        Err(DarwinCBridgeDeploymentContractError::EmptyTools)
+        DarwinPackedVersionV1::from_components(1, 256, 0),
+        Err(DarwinPackedVersionError::MinorOutOfRange(256))
     );
+}
+
+#[test]
+fn deployment_accepts_empty_tools_and_rejects_missing_or_noncanonical_clang() {
+    let version = DarwinPackedVersionV1::new(1).unwrap();
+    assert!(DarwinCBridgeDeploymentContractV1::new(version, version, Vec::new()).is_ok());
     assert_eq!(
         DarwinCBridgeDeploymentContractV1::new(
             version,
