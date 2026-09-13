@@ -18,8 +18,12 @@ const AARCH64_DWARF_SP: u16 = 31;
 mod record;
 pub use record::*;
 
+mod parser;
+pub use parser::*;
+
 pub fn normalize_darwin_aarch64_stackmap_record_v1(
     plan: StrongSafepointSemanticPlanV1,
+    constant_pool: &[u64],
     provisional: ProvisionalLlvmStackmapRecordV3,
 ) -> Result<VerifiedNormalizedStackmapRecordV1, StackmapNormalizationError> {
     normalize_record(
@@ -30,6 +34,7 @@ pub fn normalize_darwin_aarch64_stackmap_record_v1(
             role: plan.role(),
             root_pair_count: plan.root_pair_count(),
         },
+        constant_pool,
         provisional,
     )
 }
@@ -45,6 +50,7 @@ struct ExpectedStackmapSemanticsV1 {
 
 fn normalize_record(
     expected: ExpectedStackmapSemanticsV1,
+    constant_pool: &[u64],
     provisional: ProvisionalLlvmStackmapRecordV3,
 ) -> Result<VerifiedNormalizedStackmapRecordV1, StackmapNormalizationError> {
     if provisional.header.safepoint_id != expected.safepoint_id {
@@ -81,7 +87,7 @@ fn normalize_record(
         .iter()
         .copied()
         .enumerate()
-        .map(|(index, location)| normalize_location(index, location, &provisional.constant_pool))
+        .map(|(index, location)| normalize_location(index, location, constant_pool))
         .collect::<Result<Vec<_>, _>>()?;
     validate_header_locations(&locations)?;
     validate_root_pairs(&locations[3..], provisional.header.stack_size)?;

@@ -1543,13 +1543,19 @@ managed invoke与native transition为零。后续object verifier只能消费该p
 同一字段，不接受producer另送一份无来源的root count。
 
 LLVM v3 raw record在绑定物理section前先经
-`normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, ProvisionalLlvmStackmapRecordV3)`
+`normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack
 size合法性、location总数、三项8-byte Constant header、零statepoint flags/deopt count，以及每对相同
 SP/FP 8-byte Indirect可写槽的frame边界检查；`ConstantIndex`先检查pool边界再折叠为与`Constant`
 相同的canonical variant，pool顺序及未引用entry不进入结果。canonical record使用总设计6.1的
 little-endian scalar/count encoder，typed `StackmapRecordFingerprintV1`只能由
 `scoop-stackmap-record-v1` domain hash构造；raw LLVM保留字段或任意外送digest均不能直接提升为该类型。
+
+物理section先由`parse_llvm_stackmap_section_v3`按完整blob读取。parser在任何按count分配前验证剩余
+字节下界，检查version、function/constant/record count及function record总数、所有reserved byte/word、
+8-byte alignment padding与精确EOF；它保留原始location kind、section级constant pool、function address
+slot offset和record offset，不把结构成功误当成Scoop profile成功。结构合法的空v3 blob可由parser表示，
+但后续object coverage verifier依据LIR proof决定section应缺失、必须非空或记录全集是否吻合。
 
 ### 13.3 registration完备性
 

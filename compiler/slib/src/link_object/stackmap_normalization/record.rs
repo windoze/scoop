@@ -93,11 +93,10 @@ impl ProvisionalLlvmStackmapRecordHeaderV3 {
     }
 }
 
-/// Parsed physical record plus its function owner and constant pool.
+/// Parsed physical record plus its function owner.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProvisionalLlvmStackmapRecordV3 {
     pub(super) header: ProvisionalLlvmStackmapRecordHeaderV3,
-    pub(super) constant_pool: Vec<u64>,
     pub(super) locations: Vec<ProvisionalLlvmStackmapLocationV3>,
     pub(super) live_outs: Vec<ProvisionalLlvmStackmapLiveOutV3>,
 }
@@ -105,13 +104,11 @@ pub struct ProvisionalLlvmStackmapRecordV3 {
 impl ProvisionalLlvmStackmapRecordV3 {
     pub fn new(
         header: ProvisionalLlvmStackmapRecordHeaderV3,
-        constant_pool: Vec<u64>,
         locations: Vec<ProvisionalLlvmStackmapLocationV3>,
         live_outs: Vec<ProvisionalLlvmStackmapLiveOutV3>,
     ) -> Self {
         Self {
             header,
-            constant_pool,
             locations,
             live_outs,
         }
