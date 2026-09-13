@@ -5,6 +5,7 @@ use std::fmt;
 use std::num::NonZeroU8;
 
 use scoop_identity::{ObjectDefinitionAtomId, ObjectDefinitionPlanId};
+use scoop_wire::sha256;
 
 use super::{
     DarwinArm64SymbolKindV1, ObservedMachOSymbolV1, PlannedMemberStrongObjectSymbolsV1,
@@ -49,6 +50,7 @@ pub struct VerifiedDefinitionAtomRangeV1 {
     section_ordinal: NonZeroU8,
     start: u64,
     end: u64,
+    padding_end: u64,
 }
 
 impl VerifiedDefinitionAtomRangeV1 {
@@ -66,6 +68,10 @@ impl VerifiedDefinitionAtomRangeV1 {
 
     pub const fn end(self) -> u64 {
         self.end
+    }
+
+    pub const fn padding_end(self) -> u64 {
+        self.padding_end
     }
 }
 
@@ -142,9 +148,15 @@ impl VerifiedMemberStrongObjectDefinitionIndexV1 {
 }
 
 pub fn verify_member_strong_object_definitions_v1(
+    bytes: &[u8],
     sections: ValidatedBuiltinObjectSectionInventoryV1,
     plan: &PlannedMemberStrongObjectSymbolsV1,
 ) -> Result<VerifiedMemberStrongObjectDefinitionIndexV1, StrongObjectDefinitionValidationError> {
+    if u64::try_from(bytes.len()).ok() != Some(sections.envelope().byte_length())
+        || sha256(bytes) != sections.envelope().content_digest()
+    {
+        return Err(StrongObjectDefinitionValidationError::ObjectBytesMismatch);
+    }
     let expected = plan
         .symbols()
         .iter()
@@ -206,11 +218,12 @@ pub fn verify_member_strong_object_definitions_v1(
     }
     symbols.sort_unstable_by_key(|symbol| symbol.role);
 
-    let definitions = definitions
+    let mut definitions = definitions
         .into_iter()
         .map(finalize_definition)
         .collect::<Result<Vec<_>, _>>()?;
     validate_disjoint_atom_ranges(&definitions)?;
+    validate_and_assign_zero_padding(bytes, &sections, &mut definitions)?;
 
     Ok(VerifiedMemberStrongObjectDefinitionIndexV1 {
         member: plan.member(),
@@ -328,6 +341,7 @@ fn finalize_definition(
                 section_ordinal: start.section_ordinal,
                 start: start.value,
                 end: end.value,
+                padding_end: end.value,
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -375,8 +389,143 @@ fn validate_disjoint_atom_ranges(
     Ok(())
 }
 
+fn validate_and_assign_zero_padding(
+    bytes: &[u8],
+    sections: &ValidatedBuiltinObjectSectionInventoryV1,
+    definitions: &mut [VerifiedStrongObjectDefinitionV1],
+) -> Result<(), StrongObjectDefinitionValidationError> {
+    let mut ranges_by_section = BTreeMap::<NonZeroU8, Vec<VerifiedDefinitionAtomRangeV1>>::new();
+    for range in definitions
+        .iter()
+        .flat_map(|definition| definition.atoms.iter().copied())
+    {
+        ranges_by_section
+            .entry(range.section_ordinal)
+            .or_default()
+            .push(range);
+    }
+    let mut padding_ends = BTreeMap::new();
+    for (index, section) in sections.envelope().sections().iter().enumerate() {
+        let ordinal_index = index + 1;
+        let ordinal = u8::try_from(ordinal_index)
+            .ok()
+            .and_then(NonZeroU8::new)
+            .ok_or(
+                StrongObjectDefinitionValidationError::UnsupportedSectionOrdinal {
+                    index: u32::try_from(ordinal_index).unwrap_or(u32::MAX),
+                },
+            )?;
+        let section_end = section
+            .virtual_address()
+            .checked_add(section.byte_size())
+            .ok_or(
+                StrongObjectDefinitionValidationError::InvalidSectionByteRange { section: ordinal },
+            )?;
+        let Some(ranges) = ranges_by_section.get_mut(&ordinal) else {
+            if section.byte_size() != 0 {
+                return Err(StrongObjectDefinitionValidationError::UnownedSection {
+                    section: ordinal,
+                });
+            }
+            continue;
+        };
+        ranges.sort_unstable_by_key(|range| (range.start, range.end, range.atom));
+        if ranges[0].start != section.virtual_address() {
+            return Err(
+                StrongObjectDefinitionValidationError::UnownedSectionPrefix {
+                    section: ordinal,
+                    section_start: section.virtual_address(),
+                    first_atom_start: ranges[0].start,
+                },
+            );
+        }
+        for range_index in 0..ranges.len() {
+            let range = ranges[range_index];
+            let padding_end = ranges
+                .get(range_index + 1)
+                .map_or(section_end, |next| next.start);
+            validate_zero_padding(bytes, *section, range, padding_end)?;
+            padding_ends.insert(range.atom, padding_end);
+        }
+    }
+    if padding_ends.len()
+        != definitions
+            .iter()
+            .map(|definition| definition.atoms.len())
+            .sum::<usize>()
+    {
+        return Err(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet);
+    }
+    for atom in definitions
+        .iter_mut()
+        .flat_map(|definition| definition.atoms.iter_mut())
+    {
+        atom.padding_end = padding_ends[&atom.atom];
+    }
+    Ok(())
+}
+
+fn validate_zero_padding(
+    bytes: &[u8],
+    section: super::ObservedMachOSectionV1,
+    range: VerifiedDefinitionAtomRangeV1,
+    padding_end: u64,
+) -> Result<(), StrongObjectDefinitionValidationError> {
+    let Some(file_offset) = section.file_offset() else {
+        return Ok(());
+    };
+    let padding_start_in_section = range.end.checked_sub(section.virtual_address()).ok_or(
+        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+            section: range.section_ordinal,
+        },
+    )?;
+    let padding_end_in_section = padding_end.checked_sub(section.virtual_address()).ok_or(
+        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+            section: range.section_ordinal,
+        },
+    )?;
+    let start = file_offset.checked_add(padding_start_in_section).ok_or(
+        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+            section: range.section_ordinal,
+        },
+    )?;
+    let end = file_offset.checked_add(padding_end_in_section).ok_or(
+        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+            section: range.section_ordinal,
+        },
+    )?;
+    let start = usize::try_from(start).map_err(|_| {
+        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+            section: range.section_ordinal,
+        }
+    })?;
+    let end = usize::try_from(end).map_err(|_| {
+        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+            section: range.section_ordinal,
+        }
+    })?;
+    let padding = bytes.get(start..end).ok_or(
+        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+            section: range.section_ordinal,
+        },
+    )?;
+    if let Some(offset) = padding.iter().position(|byte| *byte != 0) {
+        let address = range.end.checked_add(offset as u64).ok_or(
+            StrongObjectDefinitionValidationError::InvalidSectionByteRange {
+                section: range.section_ordinal,
+            },
+        )?;
+        return Err(StrongObjectDefinitionValidationError::NonzeroAtomPadding {
+            atom: range.atom,
+            address,
+        });
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongObjectDefinitionValidationError {
+    ObjectBytesMismatch,
     DuplicateExternalStrongDefinition {
         name: Vec<u8>,
     },
@@ -407,6 +556,24 @@ pub enum StrongObjectDefinitionValidationError {
     OverlappingAtomRanges {
         first: ObjectDefinitionAtomId,
         second: ObjectDefinitionAtomId,
+    },
+    UnsupportedSectionOrdinal {
+        index: u32,
+    },
+    InvalidSectionByteRange {
+        section: NonZeroU8,
+    },
+    UnownedSection {
+        section: NonZeroU8,
+    },
+    UnownedSectionPrefix {
+        section: NonZeroU8,
+        section_start: u64,
+        first_atom_start: u64,
+    },
+    NonzeroAtomPadding {
+        atom: ObjectDefinitionAtomId,
+        address: u64,
     },
 }
 

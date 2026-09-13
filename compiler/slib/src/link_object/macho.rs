@@ -6,6 +6,7 @@ use std::mem;
 use object::read::macho::MachHeader as _;
 use object::read::macho::{Section as _, Segment as _};
 use object::{Endianness, macho};
+use scoop_wire::{Digest256, sha256};
 
 const MAX_LINK_OBJECT_BYTES: u64 = 1_073_741_824;
 const MAX_LOAD_COMMANDS: u32 = 65_536;
@@ -40,6 +41,7 @@ pub enum DarwinDeploymentCommandV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     byte_length: u64,
+    content_digest: Digest256,
     load_command_count: u32,
     section_count: u32,
     symbol_count: u32,
@@ -53,6 +55,10 @@ pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
 impl ValidatedDarwinArm64ObjectEnvelopeV1 {
     pub const fn byte_length(&self) -> u64 {
         self.byte_length
+    }
+
+    pub const fn content_digest(&self) -> Digest256 {
+        self.content_digest
     }
 
     pub const fn load_command_count(&self) -> u32 {
@@ -390,6 +396,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
 
     Ok(ValidatedDarwinArm64ObjectEnvelopeV1 {
         byte_length,
+        content_digest: sha256(bytes),
         load_command_count: command_count,
         section_count,
         symbol_count,

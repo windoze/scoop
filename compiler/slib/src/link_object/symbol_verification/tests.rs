@@ -27,7 +27,9 @@ fn verifies_exact_external_symbols_and_primary_atom_range() {
         .unwrap()
         .into_sections();
 
-    let verified = verify_member_strong_object_definitions_v1(sections, &fixture.symbols).unwrap();
+    let verified =
+        verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
+            .unwrap();
 
     assert_eq!(verified.member(), fixture.symbols.member());
     assert_eq!(verified.symbols().len(), 3);
@@ -38,6 +40,7 @@ fn verifies_exact_external_symbols_and_primary_atom_range() {
     assert_eq!(definition.atoms()[0].section_ordinal().get(), 1);
     assert_eq!(definition.atoms()[0].start(), 0);
     assert_eq!(definition.atoms()[0].end(), 4);
+    assert_eq!(definition.atoms()[0].padding_end(), 8);
     assert!(
         verified
             .strong_symbol_by_table_index(definition.primary_symbol_table_index())
@@ -58,7 +61,7 @@ fn rejects_duplicate_and_unexpected_external_definitions() {
         .unwrap()
         .into_sections();
     assert!(matches!(
-        verify_member_strong_object_definitions_v1(sections, &fixture.symbols),
+        verify_member_strong_object_definitions_v1(&duplicate.bytes, sections, &fixture.symbols),
         Err(StrongObjectDefinitionValidationError::DuplicateExternalStrongDefinition { .. })
     ));
 
@@ -69,7 +72,7 @@ fn rejects_duplicate_and_unexpected_external_definitions() {
         .unwrap()
         .into_sections();
     assert!(matches!(
-        verify_member_strong_object_definitions_v1(sections, &fixture.symbols),
+        verify_member_strong_object_definitions_v1(&unexpected.bytes, sections, &fixture.symbols),
         Err(StrongObjectDefinitionValidationError::UnexpectedExternalStrongDefinition { .. })
     ));
 }
@@ -86,7 +89,7 @@ fn rejects_empty_ranges_and_displaced_primary_symbols() {
         .unwrap()
         .into_sections();
     assert_eq!(
-        verify_member_strong_object_definitions_v1(sections, &fixture.symbols),
+        verify_member_strong_object_definitions_v1(&empty.bytes, sections, &fixture.symbols),
         Err(StrongObjectDefinitionValidationError::InvalidAtomRange {
             atom: fixture.atom,
             start: 0,
@@ -103,7 +106,7 @@ fn rejects_empty_ranges_and_displaced_primary_symbols() {
         .unwrap()
         .into_sections();
     assert_eq!(
-        verify_member_strong_object_definitions_v1(sections, &fixture.symbols),
+        verify_member_strong_object_definitions_v1(&displaced.bytes, sections, &fixture.symbols),
         Err(
             StrongObjectDefinitionValidationError::PrimarySymbolLocationMismatch {
                 definition: fixture.plan,
@@ -139,13 +142,44 @@ fn rejects_overlapping_atom_ranges_across_one_member() {
         .unwrap()
         .into_sections();
     assert_eq!(
-        verify_member_strong_object_definitions_v1(sections, &fixture.symbols),
+        verify_member_strong_object_definitions_v1(&overlapping.bytes, sections, &fixture.symbols),
         Err(
             StrongObjectDefinitionValidationError::OverlappingAtomRanges {
                 first: fixture.atom,
                 second: associated_atom,
             }
         )
+    );
+}
+
+#[test]
+fn binds_the_validation_to_exact_bytes_and_requires_zero_padding() {
+    let fixture = fixture();
+    let mut changed = object_for_plan(&fixture.symbols, canonical_value);
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&changed.bytes)
+        .unwrap()
+        .into_sections();
+    changed.bytes[changed.section_offset] ^= 1;
+    assert_eq!(
+        verify_member_strong_object_definitions_v1(&changed.bytes, sections, &fixture.symbols),
+        Err(StrongObjectDefinitionValidationError::ObjectBytesMismatch)
+    );
+
+    let mut nonzero_padding = object_for_plan(&fixture.symbols, canonical_value);
+    nonzero_padding.bytes[nonzero_padding.section_offset + 4] = 1;
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&nonzero_padding.bytes)
+        .unwrap()
+        .into_sections();
+    assert_eq!(
+        verify_member_strong_object_definitions_v1(
+            &nonzero_padding.bytes,
+            sections,
+            &fixture.symbols,
+        ),
+        Err(StrongObjectDefinitionValidationError::NonzeroAtomPadding {
+            atom: fixture.atom,
+            address: 4,
+        })
     );
 }
 
@@ -253,6 +287,7 @@ fn build_fixture(include_associated_atom: bool) -> Fixture {
 
 struct ObjectFixture {
     bytes: Vec<u8>,
+    section_offset: usize,
     symbol_offset: usize,
     string_offset: usize,
     string_indexes: Vec<u32>,
@@ -335,7 +370,7 @@ fn object_for_plan(
     push_u32(&mut bytes, 0);
     bytes.extend_from_slice(&[0; 48]);
 
-    bytes.extend_from_slice(&[0xaa; 8]);
+    bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0]);
     for (symbol, string_index) in plan.symbols().iter().zip(&string_indexes) {
         push_u32(&mut bytes, *string_index);
         bytes.push(macho::N_SECT | macho::N_EXT);
@@ -346,6 +381,7 @@ fn object_for_plan(
     bytes.extend_from_slice(&strings);
     ObjectFixture {
         bytes,
+        section_offset: section_offset as usize,
         symbol_offset: symbol_offset as usize,
         string_offset: string_offset as usize,
         string_indexes,
