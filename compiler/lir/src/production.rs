@@ -33,6 +33,9 @@ pub use registrations::*;
 mod stackmaps;
 pub use stackmaps::*;
 
+mod safepoint_registrations;
+pub use safepoint_registrations::*;
+
 mod image;
 pub use image::*;
 

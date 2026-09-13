@@ -1542,6 +1542,23 @@ managed invoke与native transition为零。后续object verifier只能消费该p
 从object自报的location count反推LIR语义；reader则从已验证的LIR semantic/registration surface重建
 同一字段，不接受producer另送一份无来源的root count。
 
+codegen发射safepoint registration前必须再通过唯一、非wire入口
+`StrongSafepointRegistrationPlanSetV1::new(foundation, identities, semantics, digests)`构造完整生产
+计划。该入口要求semantic plan producer与foundation一致，且semantic site全集与
+`StrongRegistrationIdentitySurfaceV1.safepoints`逐项相等；每个site的foundation runtime mapping、
+owner callable、`SafepointRegistration` strong definition plan、唯一`Primary` atom及
+`ConeStrong SafepointRegistration(site)`符号均必须存在。每项生产计划固定保留
+`site/safepoint/owner/role/root_pair_count`、symbol、definition plan、primary atom、
+StrongRegistration/StackmapRecord两个digest node id及两个patch intent id，结果仍按persistent site
+id排序；codegen不得从零散foundation表或LLVM输出重新拼装这些字段。
+
+对每个site，StrongRegistration node的direct input必须精确为该registration primary atom的
+`ObjectDefinition`与该site的`StackmapRecord`，不得遗漏或注入其他node；StrongRegistration node的
+patch集合必须精确为写入自身`Primary.RegistrationDefinition`的一项，StackmapRecord node的patch集合
+必须精确为写入同一`Primary.NormalizedStackmap`的一项。这样provisional record只能带两个固定32-byte
+零槽，后续object stackmap proof和digest finalizer分别反证并填写它们；不存在旧式独立registration
+清单、raw fingerprint字段或第二套推断路径。
+
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack

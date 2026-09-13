@@ -5,7 +5,7 @@ use scoop_identity::{
     DefinitionOwner, GeneratedBridgeAtomId, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
     PersistentCallableBodyId, PersistentStaticStorageId, PersistentSymbolKey,
-    PersistentSymbolRequest, StorageRole,
+    PersistentSymbolRequest, SafepointId, StorageRole,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -229,6 +229,17 @@ impl OdrFreeLirFoundation {
             .safepoint_sites
             .iter()
             .any(|record| record.id() == id)
+    }
+
+    pub(crate) fn contains_safepoint_mapping(
+        &self,
+        site: scoop_identity::PersistentSafepointSiteId,
+        safepoint: SafepointId,
+    ) -> bool {
+        self.canonical
+            .safepoints
+            .iter()
+            .any(|record| record.site() == site && record.safepoint() == safepoint)
     }
 
     pub(crate) fn contains_symbol_request(&self, request: PersistentSymbolRequest) -> bool {
