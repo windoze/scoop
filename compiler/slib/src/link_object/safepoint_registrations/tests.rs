@@ -5,7 +5,7 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 use crate::link_object::{
     ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, verify_scoop_lir_digest_patch_sites_v1,
 };
-use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
+use scoop_lir::{DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1};
 
 #[test]
 fn verifies_exact_registration_records_against_stackmaps_and_patch_sites() {
@@ -233,6 +233,156 @@ fn rejects_a_patch_proof_from_a_different_digest_graph() {
             StrongSafepointRegistrationValidationError::DigestPlanMismatch {
                 site: first.site(),
                 kind: SafepointRegistrationDigestPlanFailureV1::RegistrationDirectInputs,
+            }
+        )
+    );
+}
+
+#[test]
+fn rejects_a_non_leaf_registration_object_definition() {
+    let fixture = Fixture::new(Corruption::None);
+    let first = fixture.registration_plan.registrations()[0];
+    let object_key = scoop_identity::DigestNodeKey::object_definition(first.primary_atom());
+    let stackmap = fixture
+        .digest_plan
+        .nodes()
+        .iter()
+        .find(|node| node.id() == first.normalized_stackmap_fingerprint_node())
+        .unwrap();
+    let nodes = fixture
+        .digest_plan
+        .nodes()
+        .iter()
+        .map(|node| {
+            if node.key() != &object_key {
+                return node.clone();
+            }
+            DigestNodeV1::new(
+                *node.key(),
+                vec![DigestInputRefV1::from_node(stackmap)],
+                node.patch_intents()
+                    .iter()
+                    .map(|patch| *patch.key())
+                    .collect(),
+            )
+            .unwrap()
+        })
+        .collect();
+    let wrong_digest_plan =
+        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let objects = [ScoopLirObjectCandidateV1::new(
+        fixture.member,
+        &fixture.object_bytes,
+    )];
+    let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
+        fixture.builtins.clone(),
+        &fixture.foundation,
+        wrong_digest_plan,
+        &objects,
+        &fixture.provisional_patch_sites,
+    )
+    .unwrap();
+
+    assert_eq!(
+        verify_strong_safepoint_registrations_v1(
+            fixture.verified_stackmaps(),
+            patch_sites,
+            fixture.registration_plan.clone(),
+            &objects,
+        ),
+        Err(
+            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
+                site: first.site(),
+                kind: SafepointRegistrationDigestPlanFailureV1::ObjectDefinitionDirectInputs,
+            }
+        )
+    );
+}
+
+#[test]
+fn rejects_a_registration_object_definition_with_a_patch_writer() {
+    let fixture = Fixture::new(Corruption::None);
+    let first = fixture.registration_plan.registrations()[0];
+    let object_key = scoop_identity::DigestNodeKey::object_definition(first.primary_atom());
+    let registration = fixture
+        .digest_plan
+        .nodes()
+        .iter()
+        .find(|node| node.id() == first.registration_fingerprint_node())
+        .unwrap();
+    let object = fixture
+        .digest_plan
+        .nodes()
+        .iter()
+        .find(|node| node.key() == &object_key)
+        .unwrap();
+    let object_patch = scoop_identity::DigestPatchIntentKey::new(
+        object.id(),
+        registration.patch_intents()[0].key().target_owner(),
+        scoop_identity::DefinitionAtomRole::Primary,
+        scoop_identity::DigestSemanticFieldRole::DescriptorDefinition,
+    );
+    let object_patch_id = scoop_identity::DigestPatchIntentId::from_key(&object_patch).unwrap();
+    let nodes = fixture
+        .digest_plan
+        .nodes()
+        .iter()
+        .map(|node| {
+            let patches = if node.key() == &object_key {
+                vec![object_patch]
+            } else if node.id() == first.registration_fingerprint_node() {
+                Vec::new()
+            } else {
+                node.patch_intents()
+                    .iter()
+                    .map(|patch| *patch.key())
+                    .collect()
+            };
+            DigestNodeV1::new(*node.key(), node.direct_inputs().to_vec(), patches).unwrap()
+        })
+        .collect();
+    let wrong_digest_plan =
+        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let provisional = fixture
+        .provisional_patch_sites
+        .iter()
+        .map(|site| {
+            ProvisionalDigestPatchSiteV1::new(
+                if site.intent() == first.registration_definition_patch() {
+                    object_patch_id
+                } else {
+                    site.intent()
+                },
+                site.member(),
+                site.checked_offset(),
+                site.width_bytes(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let objects = [ScoopLirObjectCandidateV1::new(
+        fixture.member,
+        &fixture.object_bytes,
+    )];
+    let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
+        fixture.builtins.clone(),
+        &fixture.foundation,
+        wrong_digest_plan,
+        &objects,
+        &provisional,
+    )
+    .unwrap();
+
+    assert_eq!(
+        verify_strong_safepoint_registrations_v1(
+            fixture.verified_stackmaps(),
+            patch_sites,
+            fixture.registration_plan.clone(),
+            &objects,
+        ),
+        Err(
+            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
+                site: first.site(),
+                kind: SafepointRegistrationDigestPlanFailureV1::ObjectDefinitionPatchSet,
             }
         )
     );

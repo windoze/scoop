@@ -6,6 +6,9 @@ pub use error::*;
 mod physical;
 mod record;
 
+mod fingerprints;
+pub use fingerprints::*;
+
 mod verification;
 pub use verification::*;
 

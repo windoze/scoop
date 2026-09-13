@@ -31,6 +31,8 @@ pub enum SafepointRegistrationPatchFailureV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SafepointRegistrationDigestPlanFailureV1 {
     MissingObjectDefinitionNode,
+    ObjectDefinitionDirectInputs,
+    ObjectDefinitionPatchSet,
     MissingStackmapNode,
     MissingRegistrationNode,
     StackmapNodeIdentity,

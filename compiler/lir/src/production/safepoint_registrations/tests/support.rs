@@ -35,6 +35,8 @@ pub(super) struct FixtureOptions {
     pub(super) include_symbols: bool,
     pub(super) include_object_nodes: bool,
     pub(super) include_stackmap_nodes: bool,
+    pub(super) object_node_input: bool,
+    pub(super) object_node_patch: bool,
     pub(super) exact_direct_inputs: bool,
     pub(super) extra_direct_input: bool,
     pub(super) registration_definition_patch: bool,
@@ -52,6 +54,8 @@ impl Default for FixtureOptions {
             include_symbols: true,
             include_object_nodes: true,
             include_stackmap_nodes: true,
+            object_node_input: false,
+            object_node_patch: false,
             exact_direct_inputs: true,
             extra_direct_input: false,
             registration_definition_patch: true,
@@ -135,7 +139,7 @@ impl Fixture {
         let foundation =
             OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
-        let extra_source = options.extra_direct_input.then(|| {
+        let extra_source = (options.extra_direct_input || options.object_node_input).then(|| {
             DigestNodeV1::new(
                 DigestNodeKey::source_signature(body.id()),
                 Vec::new(),
@@ -147,12 +151,26 @@ impl Fixture {
         let mut image_inputs = Vec::new();
         for registration in &registrations {
             let object = options.include_object_nodes.then(|| {
-                DigestNodeV1::new(
-                    DigestNodeKey::object_definition(registration.primary.id()),
-                    Vec::new(),
-                    Vec::new(),
-                )
-                .unwrap()
+                let direct_inputs = options
+                    .object_node_input
+                    .then(|| DigestInputRefV1::from_node(extra_source.as_ref().unwrap()))
+                    .into_iter()
+                    .collect();
+                let key = DigestNodeKey::object_definition(registration.primary.id());
+                let source = DigestNodeId::from_key(&key).unwrap();
+                let patches = options
+                    .object_node_patch
+                    .then(|| {
+                        DigestPatchIntentKey::new(
+                            source,
+                            registration.plan.key().owner(),
+                            DefinitionAtomRole::Primary,
+                            DigestSemanticFieldRole::DescriptorDefinition,
+                        )
+                    })
+                    .into_iter()
+                    .collect();
+                DigestNodeV1::new(key, direct_inputs, patches).unwrap()
             });
             let stackmap = options.include_stackmap_nodes.then(|| {
                 let key = DigestNodeKey::stackmap_record(registration.site);

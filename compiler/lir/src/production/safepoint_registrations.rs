@@ -225,6 +225,26 @@ fn build_registration(
     }
 
     let object = require_digest_node(digests, DigestNodeKey::object_definition(primary_atom))?;
+    if !object.direct_inputs().is_empty() {
+        return Err(
+            StrongSafepointRegistrationPlanBuildError::ObjectDefinitionInputs {
+                node: object.id(),
+                actual: object.direct_inputs().to_vec(),
+            },
+        );
+    }
+    if !object.patch_intents().is_empty() {
+        return Err(
+            StrongSafepointRegistrationPlanBuildError::ObjectDefinitionPatches {
+                node: object.id(),
+                actual: object
+                    .patch_intents()
+                    .iter()
+                    .map(|patch| *patch.key())
+                    .collect(),
+            },
+        );
+    }
     let stackmap = require_digest_node(digests, DigestNodeKey::stackmap_record(site))?;
     let registration =
         require_digest_node(digests, DigestNodeKey::strong_registration(definition.id()))?;
@@ -353,6 +373,14 @@ pub enum StrongSafepointRegistrationPlanBuildError {
         node: DigestNodeId,
         expected: Vec<DigestInputRefV1>,
         actual: Vec<DigestInputRefV1>,
+    },
+    ObjectDefinitionInputs {
+        node: DigestNodeId,
+        actual: Vec<DigestInputRefV1>,
+    },
+    ObjectDefinitionPatches {
+        node: DigestNodeId,
+        actual: Vec<DigestPatchIntentKey>,
     },
     PatchSet {
         node: DigestNodeId,

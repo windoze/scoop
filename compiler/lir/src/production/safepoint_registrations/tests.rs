@@ -225,3 +225,24 @@ fn requires_exact_direct_inputs_and_both_exact_patch_writers() {
             && actual.is_empty()
     ));
 }
+
+#[test]
+fn requires_a_leaf_object_definition_for_the_registration_record() {
+    let with_input = Fixture::new(FixtureOptions {
+        object_node_input: true,
+        ..FixtureOptions::default()
+    });
+    assert!(matches!(
+        with_input.build(),
+        Err(StrongSafepointRegistrationPlanBuildError::ObjectDefinitionInputs { .. })
+    ));
+
+    let with_patch = Fixture::new(FixtureOptions {
+        object_node_patch: true,
+        ..FixtureOptions::default()
+    });
+    assert!(matches!(
+        with_patch.build(),
+        Err(StrongSafepointRegistrationPlanBuildError::ObjectDefinitionPatches { .. })
+    ));
+}

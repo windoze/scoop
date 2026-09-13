@@ -148,6 +148,22 @@ fn validate_digest_graph(
                 kind: Failure::MissingObjectDefinitionNode,
             },
         )?;
+    if !object.direct_inputs().is_empty() {
+        return Err(
+            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
+                site: plan.site(),
+                kind: Failure::ObjectDefinitionDirectInputs,
+            },
+        );
+    }
+    if !object.patch_intents().is_empty() {
+        return Err(
+            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
+                site: plan.site(),
+                kind: Failure::ObjectDefinitionPatchSet,
+            },
+        );
+    }
     let stackmap_key = DigestNodeKey::stackmap_record(plan.site());
     let stackmap = digest_plan
         .nodes()

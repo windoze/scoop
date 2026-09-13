@@ -1559,6 +1559,11 @@ patch集合必须精确为写入自身`Primary.RegistrationDefinition`的一项�
 零槽，后续object stackmap proof和digest finalizer分别反证并填写它们；不存在旧式独立registration
 清单、raw fingerprint字段或第二套推断路径。
 
+safepoint registration自身Primary atom的`ObjectDefinition` node在本profile固定为leaf：direct input与
+patch集合都必须为空。它承诺的是两个graph-managed slot仍为零的精确provisional descriptor bytes，
+而`StrongRegistration`再显式消费该object leaf与`StackmapRecord`；不得把registration自身或任意其他
+digest回接到这个object leaf，也不得为同一record保留另一种带input的旧编码。
+
 codegen唯一经`emit_strong_safepoint_registrations_v1`消费上述完整set，不开放接受裸site或零散字段的
 单record生产入口。每个address-significant全局使用`ConeStrong`外部linkage，按共享header发射magic、
 ABI version 1、size 232、Strong linkage、零reserved/ODR group/ODR member、typed semantic/runtime/owner
@@ -1620,6 +1625,12 @@ persistent site id保留实际member、primary symbol table index、record file 
 其中还会在patch proof自身持有的digest plan中重建每个ObjectDefinition/StackmapRecord/
 StrongRegistration节点、精确direct input与单writer patch集合，防止同producer的另一张digest graph
 借用相同object proof。不存在接受裸record bytes、外送fingerprint或仅按符号名前缀扫描的替代入口。
+
+`compute_strong_safepoint_fingerprints_v1`只能消费上述完整proof与同一member全集的exact object bytes；
+入口先再次核对每个member的长度与content digest，再按site一次性产生typed
+`ObjectDefinitionFingerprintV1`、既有`StackmapRecordFingerprintV1`和
+`StrongRegistrationFingerprintV1`。输出继续拥有输入proof，后续patch writer不能从三份互不关联的
+digest或裸bytes重新拼装写入计划。
 
 ### 13.3 registration完备性
 
@@ -1736,6 +1747,11 @@ Executable分支要求这四类root-only实体各恰一个且全部属于当前C
 
 每个node只观察声明的typed direct input；自身、peer、descendant及无关patch slot按规范归零。合法topological traversal选择不能改变结果。环、缺边、unknown kind、双writer、无site、错member/offset、非零provisional slot或写入宽度不为32都失败。
 
+safepoint registration的无relocation Primary leaf使用唯一的
+`scoop-object-definition-v1` RuntimeEncode：依次编码`DefinitionAtomRole::Primary`的`u32` tag 1、
+精确232-byte provisional record的byte span、relocation sequence count 0和direct-input sequence count
+0。member id、section/file offset、symbol-table index以及两个slot未来写入的digest都不进入该leaf。
+
 ### 14.2 strong registration fingerprint
 
 算法逐byte采用总设计：
@@ -1756,6 +1772,12 @@ StrongRegistrationFingerprintInputV1 {
 `record`是完整`RuntimeImageRecordKey` variant，linkage固定Strong、ODR字段全零，只把当前registration自己的`definition_fingerprint`槽写32个零；其他已经声明为direct dependency的layout/scan/descriptor/gateway/callable/stackmap digest保持最终值。不能在variant前再编码第二份record-kind tag，也不能把全部digest一律归零。
 
 direct input按`(kind, DigestNodeId)`严格排序，保存kind、node id和digest。finalizer、reader都从canonical record/LIR plan/verified object独立重建；manifest只保存结果与定位关系。
+
+safepoint variant的实际编码固定为：record-kind `u32` tag 5一次，随后是Strong linkage、site semantic id、
+零ODR group/member、零own definition、`SafepointId`、site role、root-pair count、owner callable与已验证的
+normalized stackmap fingerprint，最后编码恰两个direct input。两项依次为
+`ObjectDefinition(kind=6, node id, digest)`与`StackmapRecord(kind=7, node id, digest)`；任一digest变化都
+必须改变最终StrongRegistration fingerprint。
 
 ### 14.3 runtime image fingerprint
 
