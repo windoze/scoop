@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{
-    DecodedPersistentId, GeneratedBridgeAtomId, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
-    IdentityReferenceError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    ConeIdentity, DecodedPersistentId, GeneratedBridgeAtomId, GeneratedBridgeAtomRoleKey,
+    GeneratedBridgeUnitId, IdentityReferenceError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     ObjectDefinitionPlanOwner, PersistentId, PersistentIdResolver, StrongDefinitionEntity,
     StrongDefinitionEntityKind, StrongDefinitionRole, ValidatedIdentityGraph,
 };
@@ -89,6 +89,7 @@ impl WireDecode for DecodedGeneratedBridgeUnitPlanV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedBridgePlanSetV1 {
+    producer: ConeIdentity,
     units: Vec<GeneratedBridgeUnitPlanV1>,
 }
 
@@ -206,7 +207,14 @@ impl GeneratedBridgePlanSetV1 {
         {
             return Err(GeneratedBridgePlanBuildError::ExtraneousDefinitionPlan { atom, plan });
         }
-        Ok(Self { units })
+        Ok(Self {
+            producer: foundation.producer(),
+            units,
+        })
+    }
+
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
     }
 
     pub fn units(&self) -> &[GeneratedBridgeUnitPlanV1] {
@@ -278,7 +286,10 @@ impl DecodedGeneratedBridgePlanSetV1 {
                 return Err(GeneratedBridgePlanValidationError::UnitMismatch { index });
             }
         }
-        Ok(GeneratedBridgePlanSetV1 { units })
+        Ok(GeneratedBridgePlanSetV1 {
+            producer: foundation.producer(),
+            units,
+        })
     }
 }
 

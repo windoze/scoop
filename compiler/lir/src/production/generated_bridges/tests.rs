@@ -117,7 +117,10 @@ fn fixture(include_definition: bool) -> Fixture {
     let plan = if include_definition {
         GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap()
     } else {
-        GeneratedBridgePlanSetV1 { units: Vec::new() }
+        GeneratedBridgePlanSetV1 {
+            producer: ConeIdentity::CORE,
+            units: Vec::new(),
+        }
     };
     Fixture {
         unit,

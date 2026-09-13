@@ -974,6 +974,9 @@ boundary或patch offset，不能提前决定object分片。
 primary、materializable atom缺plan、bridge plan引用非本集合atom、重复/错序/漏项或跨集合冒充
 均拒绝。
 
+验证后的`GeneratedBridgePlanSetV1`必须同时保留外层`OdrFreeLirFoundation`已经证明的producer；
+producer不重复进入上述wire array，但reader验证后也不得把它丢弃或提供无producer的构造入口。
+
 ### 9.4 Link identity closure
 
 `LinkIdentityClosureSectionV1`由packager在object verification之后构造：
