@@ -719,6 +719,24 @@ target只能编码`GenericUnavailable`且count必须等于source declaration；�
 也不能用空exact id或未知reason模拟不可用。MIR section随后必须完整覆盖这里授予的每个
 `ParamFreeStrong` callable，HIR capability本身不替代implementation bridge证明。
 
+`CoreTypeTargetSurfaceV1`是type-namespace constituent，wire同样是按`binding` bytes严格递增
+且完整覆盖`direct_public_surface`中target为`Type`、`GenericType`或`TypeAlias`的array。
+元素`CoreTypeTargetV1`固定为closed product
+`1=binding, 2=definition, 3=capability`。`definition`是closed sum：
+`Type(PersistentTypeId)=1`、`GenericType(PersistentGenericTypeId)=2`、
+`TypeAlias(PersistentTypeAliasId)=3`；`capability`复用callable capability的三类语义，wire
+tag固定为`ParamFreeStrong(PersistentExactTypeId)=1`、
+`StructuralUnavailable(PersistentExactTypeId)=2`、
+`GenericUnavailable(type_parameter_count)=3`。
+
+非generic source nominal只能使用`ParamFreeStrong`，且exact key必须逐值等于
+`ExactTypeKey::Nominal(definition)`。generic source nominal只能使用`GenericUnavailable`，
+count必须非零并等于source declaration。透明typealias没有第二个runtime identity，其
+`definition`保留alias自己的origin，而capability中的exact id就是writer从alias HIR target
+投影出的最终typed target；根exact key为`Nominal`时只能用`ParamFreeStrong`，其他五类exact
+key只能用`StructuralUnavailable`。reader必须验证binding target、core origin、definition
+origin、exact存在性与分支一致性；不得重新按alias名字解析，也不得把alias id当作nominal id。
+
 它不包含import文本、failed candidate、current display locator或完整source。`ExecutableSourceEntry`必须与`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
 
 本section进入HIR semantic fingerprint。即使普通Cone使用`NotCore`，其output contract/direct-public surface变化仍必须改变HIR fingerprint；这为M23-5升级一般public surface提供明确的失效边界，而不是靠object变化偶然触发。

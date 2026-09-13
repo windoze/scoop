@@ -11,6 +11,8 @@ mod core_prelude;
 pub use core_prelude::*;
 mod core_targets;
 pub use core_targets::*;
+mod core_types;
+pub use core_types::*;
 mod core_well_known;
 pub use core_well_known::*;
 

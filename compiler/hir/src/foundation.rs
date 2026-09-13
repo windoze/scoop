@@ -228,6 +228,15 @@ impl CanonicalHirFoundation {
         })
     }
 
+    pub(crate) fn type_alias_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentTypeAliasId, &SourceDeclarationKey)> {
+        self.type_aliases.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
     pub(crate) fn definition_origin(
         &self,
         subject: scoop_identity::DefinitionOriginSubject,
