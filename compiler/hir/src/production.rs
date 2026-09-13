@@ -7,6 +7,9 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{CanonicalHirFoundation, ConeOutputKind, ExportHir, ValidatedHirFoundation};
 
+mod core_prelude;
+pub use core_prelude::*;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HirOutputContractV1 {
     Library,

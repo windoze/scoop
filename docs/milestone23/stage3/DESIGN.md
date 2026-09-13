@@ -677,6 +677,13 @@ definite-length array；元素只引用同一HIR identity-foundation field 16中
 record，不能重复record、复制`ExportBindingKey`或改用源码声明顺序。reader必须同时拒绝
 非递增、重复和foundation中不存在的binding id，不能排序修复输入。
 
+`CorePreludeSnapshotV1`固定为closed product
+`1=ordinary_bindings, 2=option_some, 3=option_some_payload, 4=option_none`。
+`ordinary_bindings`逐byte等于本section的`direct_public_surface`；后三项分别引用foundation
+中的`Some` variant、其唯一position 0 field和`None` variant。reader重放同一generic
+`Option` owner、`Some`/`None`名称、field owner/selector、Some恰一field、None无field及
+public `Option` type binding关系；不能仅凭三个id存在就接受。
+
 它不包含import文本、failed candidate、current display locator或完整source。`ExecutableSourceEntry`必须与`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
 
 本section进入HIR semantic fingerprint。即使普通Cone使用`NotCore`，其output contract/direct-public surface变化仍必须改变HIR fingerprint；这为M23-5升级一般public surface提供明确的失效边界，而不是靠object变化偶然触发。

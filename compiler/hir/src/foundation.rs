@@ -166,6 +166,51 @@ impl CanonicalHirFoundation {
             .find(|id| id.as_array() == bytes)
     }
 
+    pub(crate) fn export_binding_key(
+        &self,
+        id: PersistentExportBindingId,
+    ) -> Option<&ExportBindingKey> {
+        self.export_bindings
+            .iter()
+            .find(|record| record.id() == id)
+            .map(CborIdentityRecord::key)
+    }
+
+    pub(crate) fn generic_type_key(
+        &self,
+        id: PersistentGenericTypeId,
+    ) -> Option<&SourceDeclarationKey> {
+        self.generic_types
+            .iter()
+            .find(|record| record.id() == id)
+            .map(CborIdentityRecord::key)
+    }
+
+    pub(crate) fn enum_variant_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentEnumVariantId, &EnumVariantIdentityKey)> {
+        self.enum_variants.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn enum_variant_field_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentEnumVariantFieldId, &EnumVariantFieldKey)> {
+        self.enum_variant_fields.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn enum_variant_field_count(&self, variant: PersistentEnumVariantId) -> usize {
+        self.enum_variant_fields
+            .iter()
+            .filter(|record| record.key().variant() == variant)
+            .count()
+    }
+
     pub fn set_sources(
         &mut self,
         mut records: Vec<SourceRecord>,
