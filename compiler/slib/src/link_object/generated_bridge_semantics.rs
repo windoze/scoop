@@ -249,4 +249,4 @@ fn validate_outer_contracts(
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

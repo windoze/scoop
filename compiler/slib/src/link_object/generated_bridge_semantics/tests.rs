@@ -27,7 +27,7 @@ use crate::{
 
 use super::super::c_bridge_production::tests::{fixture, member_plan, profile};
 use super::super::native_requirements::tests::{contract_record, native_surface};
-use super::super::relocation_verification::tests::add_undefined_symbol;
+use super::super::relocation_verification::tests::add_undefined_symbols;
 use super::super::strong_relocation_closure::tests::synthetic_binding;
 use super::super::symbol_verification::tests::fixture_named;
 use super::super::symbol_verification::tests::object_for_plan_with_deployment;
@@ -37,7 +37,7 @@ const SDK: u32 = 0x000e_0200;
 
 #[test]
 fn verifies_outbound_function_definition_and_native_relocation() {
-    let fixture = semantic_fixture("native_bridge", Some(b"_native_bridge"));
+    let fixture = semantic_fixture("native_bridge", &[b"_native_bridge"]);
     let verified = verify_generated_c_bridge_semantics_v1(
         fixture.builtins,
         fixture.bridge_plan,
@@ -61,7 +61,7 @@ fn verifies_outbound_function_definition_and_native_relocation() {
 
 #[test]
 fn rejects_an_unplanned_external_and_a_missing_semantic_use() {
-    let wrong = semantic_fixture("native_bridge", Some(b"_other_native"));
+    let wrong = semantic_fixture("native_bridge", &[b"_other_native"]);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
             wrong.builtins,
@@ -75,7 +75,7 @@ fn rejects_an_unplanned_external_and_a_missing_semantic_use() {
         }) if symbol == b"_other_native"
     ));
 
-    let missing = semantic_fixture("native_bridge", None);
+    let missing = semantic_fixture("native_bridge", &[]);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
             missing.builtins,
@@ -89,7 +89,7 @@ fn rejects_an_unplanned_external_and_a_missing_semantic_use() {
 
 #[test]
 fn target_support_cannot_replace_the_required_native_use() {
-    let support_only = semantic_fixture("native_bridge", Some(b"_memcpy"));
+    let support_only = semantic_fixture("native_bridge", &[b"_memcpy"]);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
             support_only.builtins,
@@ -103,7 +103,7 @@ fn target_support_cannot_replace_the_required_native_use() {
 
 #[test]
 fn source_extern_target_wins_over_same_spelling_target_support() {
-    let fixture = semantic_fixture("memcpy", Some(b"_memcpy"));
+    let fixture = semantic_fixture("memcpy", &[b"_memcpy"]);
     let verified = verify_generated_c_bridge_semantics_v1(
         fixture.builtins,
         fixture.bridge_plan,
@@ -189,7 +189,7 @@ fn validates_each_global_bridge_against_its_data_mutability_contract() {
 
 #[test]
 fn rejects_a_profile_other_than_the_one_bound_by_production() {
-    let fixture = semantic_fixture("native_bridge", Some(b"_native_bridge"));
+    let fixture = semantic_fixture("native_bridge", &[b"_native_bridge"]);
     let other_profile = profile("clang-2100.1.1.102", MINIMUM_OS, SDK);
     assert!(matches!(
         verify_generated_c_bridge_semantics_v1(
@@ -344,14 +344,25 @@ fn classifies_static_callback_only_to_its_typed_storage_bridge() {
     observed.finish(&unit).unwrap();
 }
 
-struct SemanticFixture {
-    builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
-    bridge_plan: GeneratedBridgePlanSetV1,
-    native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
-    profile: CBridgeToolchainProfileV1,
+pub(in crate::link_object) struct SemanticFixture {
+    pub(in crate::link_object) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
+    pub(in crate::link_object) bridge_plan: GeneratedBridgePlanSetV1,
+    pub(in crate::link_object) native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
+    pub(in crate::link_object) profile: CBridgeToolchainProfileV1,
 }
 
-fn semantic_fixture(native_name: &str, relocation_symbol: Option<&[u8]>) -> SemanticFixture {
+pub(in crate::link_object) fn semantic_fixture(
+    native_name: &str,
+    relocation_symbols: &[&[u8]],
+) -> SemanticFixture {
+    semantic_fixture_with_additional_contracts(native_name, &[], relocation_symbols)
+}
+
+pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
+    native_name: &str,
+    additional_native_names: &[&str],
+    relocation_symbols: &[&[u8]],
+) -> SemanticFixture {
     let fixture = fixture(Some(native_name));
     let bridge_plan =
         GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
@@ -370,22 +381,27 @@ fn semantic_fixture(native_name: &str, relocation_symbol: Option<&[u8]>) -> Sema
     let scoop_bytes = object_for_plan_with_deployment(
         symbol_plan.member(scoop_member).unwrap(),
         canonical_value,
-        None,
+        &[],
         None,
     )
     .bytes;
     let bridge_member = member_plan.generated_bridge_members()[0].member_id();
     let bridge_symbols = symbol_plan.member(bridge_member).unwrap();
-    let relocation = relocation_symbol.map(|_| (0, primary_role(bridge_symbols)));
+    let primary = primary_role(bridge_symbols);
+    let relocations = relocation_symbols
+        .iter()
+        .enumerate()
+        .map(|(index, _)| (u32::try_from(index).unwrap() * 4, primary))
+        .collect::<Vec<_>>();
     let mut bridge_bytes = object_for_plan_with_deployment(
         bridge_symbols,
         canonical_value,
-        relocation,
+        &relocations,
         Some((MINIMUM_OS, SDK, &[])),
     )
     .bytes;
-    if let Some(symbol) = relocation_symbol {
-        bridge_bytes = add_undefined_symbol(bridge_bytes, true, symbol);
+    if !relocation_symbols.is_empty() {
+        bridge_bytes = add_undefined_symbols(bridge_bytes, true, relocation_symbols);
     }
     let scoop_objects = [ScoopLirObjectCandidateV1::new(scoop_member, &scoop_bytes)];
     let bridge_objects = [GeneratedCBridgeObjectCandidateV1::new(
@@ -409,16 +425,26 @@ fn semantic_fixture(native_name: &str, relocation_symbol: Option<&[u8]>) -> Sema
         &bridge_objects,
     )
     .unwrap();
-    let native_requirements = native_surface(
+    let mut contracts = vec![contract_record(
         ConeIdentity::CORE,
-        vec![contract_record(
-            ConeIdentity::CORE,
-            "nativeBridgeDeclaration",
-            native_name,
-            NativeLibraryBinding::DefaultNativeNamespace,
-        )],
-        Vec::new(),
+        "nativeBridgeDeclaration",
+        native_name,
+        NativeLibraryBinding::DefaultNativeNamespace,
+    )];
+    contracts.extend(
+        additional_native_names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                contract_record(
+                    ConeIdentity::CORE,
+                    &format!("additionalNativeBridgeDeclaration{index}"),
+                    name,
+                    NativeLibraryBinding::DefaultNativeNamespace,
+                )
+            }),
     );
+    let native_requirements = native_surface(ConeIdentity::CORE, contracts, Vec::new());
     SemanticFixture {
         builtins,
         bridge_plan,
@@ -444,7 +470,7 @@ fn canonical_value(role: PlannedStrongObjectSymbolRoleV1) -> u64 {
     match role {
         PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { .. }
         | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { .. } => 0,
-        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => 4,
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => 8,
     }
 }
 

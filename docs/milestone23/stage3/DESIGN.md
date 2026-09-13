@@ -1309,6 +1309,16 @@ profile target support只在未命中当前unit的typed semantic target后分类
 `memcpy`时仍归入该extern contract，不能被同名support抢先吞掉。proof按physical use保留unit、完整
 member/atom/offset/relocation form/symbol及上述typed semantic分类，供后续requirement closure逐项复用。
 
+`VerifiedCBridgeTargetSupportRequirementClosureV1`同时消费上述semantic proof与完成source extern、
+runtime/EH分类的closure，并要求两者来自逐字段相等的同一strong relocation closure且target相同。它按
+`(member, containing atom, offset, target slot)`逐条对齐：`NativeExternal`必须已经归入同一contract的
+`SourceExtern`，`RuntimeCallbackInvoke`必须已经归入同一runtime contract，strong descriptor/body use
+不得出现在external分类中；`TargetSupport`则从未分类集合或generic SourceExtern同名命中中取回，并以
+semantic proof保留的完整registry record形成typed requirement。后一分支只修正该generated-C physical
+use，因此其他unit真正以`memcpy`为源码extern target时仍保持`SourceExtern`。generated-C member中缺少
+semantic use、proof closure混用或对齐后仍有external candidate都会失败；finalizer只能消费封口后的
+重整集合，并从中发射第7类final requirement。
+
 ### 11.6 finalization顺序
 
 固定流程：

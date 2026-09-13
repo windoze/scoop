@@ -106,7 +106,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
         canonical_value,
         Some((0, primary_role(&fixture.symbols))),
     );
-    let used_bytes = add_undefined_symbol(object.bytes.clone(), true, b"_external");
+    let used_bytes = add_undefined_symbols(object.bytes.clone(), true, &[b"_external"]);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&used_bytes)
         .unwrap()
         .into_sections();
@@ -124,7 +124,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
         }
     );
 
-    let unused_bytes = add_undefined_symbol(object.bytes, false, b"_external");
+    let unused_bytes = add_undefined_symbols(object.bytes, false, &[b"_external"]);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&unused_bytes)
         .unwrap()
         .into_sections();
@@ -203,10 +203,10 @@ fn canonical_value(role: PlannedStrongObjectSymbolRoleV1) -> u64 {
     }
 }
 
-pub(in crate::link_object) fn add_undefined_symbol(
+pub(in crate::link_object) fn add_undefined_symbols(
     mut bytes: Vec<u8>,
-    retarget_relocation: bool,
-    undefined_name: &[u8],
+    retarget_relocations: bool,
+    undefined_names: &[&[u8]],
 ) -> Vec<u8> {
     const SYMTAB_COMMAND: usize = 32 + 152;
     const DYSYMTAB_COMMAND: usize = SYMTAB_COMMAND + 24;
@@ -215,34 +215,51 @@ pub(in crate::link_object) fn add_undefined_symbol(
     let symbol_count = read_u32(&bytes, SYMTAB_COMMAND + 12);
     let string_offset = read_u32(&bytes, SYMTAB_COMMAND + 16) as usize;
     let string_size = read_u32(&bytes, SYMTAB_COMMAND + 20);
-    bytes.splice(string_offset..string_offset, [0; 16]);
-    write_u32(&mut bytes, SYMTAB_COMMAND + 12, symbol_count + 1);
+    let mut symbol_entries = Vec::with_capacity(undefined_names.len() * 16);
+    let mut string_index = string_size;
+    for name in undefined_names {
+        symbol_entries.extend_from_slice(&string_index.to_le_bytes());
+        symbol_entries.push(object::macho::N_UNDF | object::macho::N_EXT);
+        symbol_entries.push(0);
+        symbol_entries.extend_from_slice(&0_u16.to_le_bytes());
+        symbol_entries.extend_from_slice(&0_u64.to_le_bytes());
+        string_index += u32::try_from(name.len() + 1).unwrap();
+    }
+    let added_symbol_bytes = symbol_entries.len();
+    bytes.splice(string_offset..string_offset, symbol_entries);
+    let undefined_count = u32::try_from(undefined_names.len()).unwrap();
+    write_u32(
+        &mut bytes,
+        SYMTAB_COMMAND + 12,
+        symbol_count + undefined_count,
+    );
     write_u32(
         &mut bytes,
         SYMTAB_COMMAND + 16,
-        u32::try_from(string_offset + 16).unwrap(),
+        u32::try_from(string_offset + added_symbol_bytes).unwrap(),
     );
-    write_u32(
-        &mut bytes,
-        SYMTAB_COMMAND + 20,
-        string_size + undefined_name.len() as u32 + 1,
-    );
+    write_u32(&mut bytes, SYMTAB_COMMAND + 20, string_index);
     write_u32(&mut bytes, DYSYMTAB_COMMAND + 24, symbol_count);
-    write_u32(&mut bytes, DYSYMTAB_COMMAND + 28, 1);
+    write_u32(&mut bytes, DYSYMTAB_COMMAND + 28, undefined_count);
 
-    write_u32(&mut bytes, string_offset, string_size);
-    bytes[string_offset + 4] = object::macho::N_UNDF | object::macho::N_EXT;
-    bytes.extend_from_slice(undefined_name);
-    bytes.push(0);
+    for name in undefined_names {
+        bytes.extend_from_slice(name);
+        bytes.push(0);
+    }
 
-    if retarget_relocation {
+    if retarget_relocations {
         let relocation_offset = read_u32(&bytes, SECTION_RECORD + 56) as usize;
-        let fields = read_u32(&bytes, relocation_offset + 4);
-        write_u32(
-            &mut bytes,
-            relocation_offset + 4,
-            (fields & 0xff00_0000) | symbol_count,
-        );
+        let relocation_count = read_u32(&bytes, SECTION_RECORD + 60);
+        assert_eq!(relocation_count, undefined_count);
+        for index in 0..relocation_count {
+            let fields_offset = relocation_offset + index as usize * 8 + 4;
+            let fields = read_u32(&bytes, fields_offset);
+            write_u32(
+                &mut bytes,
+                fields_offset,
+                (fields & 0xff00_0000) | (symbol_count + index),
+            );
+        }
     }
     bytes
 }

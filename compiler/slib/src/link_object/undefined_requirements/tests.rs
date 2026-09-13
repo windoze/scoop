@@ -12,6 +12,9 @@ use scoop_lir::{
 use scoop_wire::encode;
 
 use super::super::c_bridge_production::tests::profile;
+use super::super::c_bridge_target_requirements::{
+    tests::support_closure, without_generated_bridge_semantics_for_test,
+};
 use super::super::current_cone_requirements::tests::primary_bridge_requirement;
 use super::super::native_requirements::tests::{contract_record, native_surface};
 use super::super::runtime_requirements::tests::classify;
@@ -65,6 +68,28 @@ fn c_bridge_target_support_uses_the_seventh_requirement_tag() {
         encode(&FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { contract }).unwrap(),
         expected
     );
+}
+
+#[test]
+fn finalizes_a_semantically_verified_c_bridge_target_support_use() {
+    let external = support_closure(false);
+    let strong = external.strong_closure().clone();
+    let current = verify_current_cone_undefined_requirements_v1(
+        strong,
+        empty_bridge_plan(ConeIdentity::CORE),
+    )
+    .unwrap();
+    let final_set = finalize_undefined_symbol_requirements_v1(
+        current,
+        seal_builtin_object_external_requirements_v1(external).unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(final_set.requirements().len(), 2);
+    assert!(final_set.requirements().iter().any(|requirement| matches!(
+        requirement.requirement(),
+        FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { .. }
+    )));
 }
 
 #[test]
@@ -147,11 +172,9 @@ fn finalizes_core_and_source_external_requirements() {
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    let final_set = finalize_undefined_symbol_requirements_v1(
-        current,
-        seal_builtin_object_external_requirements_v1(external).unwrap(),
-    )
-    .unwrap();
+    let final_set =
+        finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
+            .unwrap();
     assert!(matches!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::CoreStrong {
@@ -193,11 +216,9 @@ fn finalizes_core_and_source_external_requirements() {
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    let final_set = finalize_undefined_symbol_requirements_v1(
-        current,
-        seal_builtin_object_external_requirements_v1(external).unwrap(),
-    )
-    .unwrap();
+    let final_set =
+        finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
+            .unwrap();
     assert!(matches!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::SourceExtern {
@@ -219,9 +240,7 @@ fn rejects_proofs_built_from_different_strong_closures() {
         empty_bridge_plan(ConeIdentity::CORE),
     )
     .unwrap();
-    let external =
-        seal_builtin_object_external_requirements_v1(classify(b"_scoop_rt_allocation_context"))
-            .unwrap();
+    let external = seal_without_generated(classify(b"_scoop_rt_allocation_context"));
 
     assert_eq!(
         finalize_undefined_symbol_requirements_v1(current, external),
@@ -240,11 +259,7 @@ fn final_from_external(
         .clone();
     let current =
         verify_current_cone_undefined_requirements_v1(strong, empty_bridge_plan(producer)).unwrap();
-    finalize_undefined_symbol_requirements_v1(
-        current,
-        seal_builtin_object_external_requirements_v1(external).unwrap(),
-    )
-    .unwrap()
+    finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
 }
 
 fn sealed_without_externals(
@@ -270,7 +285,16 @@ fn sealed_without_externals(
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    seal_builtin_object_external_requirements_v1(external).unwrap()
+    seal_without_generated(external)
+}
+
+fn seal_without_generated(
+    external: crate::VerifiedRuntimeAndEhRequirementClosureV1,
+) -> SealedBuiltinObjectExternalRequirementClosureV1 {
+    seal_builtin_object_external_requirements_v1(without_generated_bridge_semantics_for_test(
+        external,
+    ))
+    .unwrap()
 }
 
 fn empty_bridge_plan(producer: ConeIdentity) -> GeneratedBridgePlanSetV1 {

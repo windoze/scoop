@@ -27,7 +27,7 @@ fn verifies_the_complete_mixed_builtin_member_set() {
     let scoop_bytes = object_for_plan_with_deployment(
         symbol_plan.member(scoop_member).unwrap(),
         canonical_value,
-        None,
+        &[],
         None,
     )
     .bytes;
@@ -35,7 +35,7 @@ fn verifies_the_complete_mixed_builtin_member_set() {
     let bridge_bytes = object_for_plan_with_deployment(
         symbol_plan.member(bridge_member).unwrap(),
         canonical_value,
-        None,
+        &[],
         Some((MINIMUM_OS, SDK, &[])),
     )
     .bytes;
@@ -136,14 +136,14 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
     let scoop_bytes = object_for_plan_with_deployment(
         symbol_plan.member(scoop_member).unwrap(),
         canonical_value,
-        None,
+        &[],
         Some((MINIMUM_OS, SDK, &[])),
     )
     .bytes;
     let bridge_bytes = object_for_plan_with_deployment(
         symbol_plan.member(bridge_member).unwrap(),
         canonical_value,
-        None,
+        &[],
         Some((MINIMUM_OS, SDK, &[])),
     )
     .bytes;
@@ -179,7 +179,7 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
     let valid_scoop_bytes = object_for_plan_with_deployment(
         symbol_plan.member(scoop_member).unwrap(),
         canonical_value,
-        None,
+        &[],
         None,
     )
     .bytes;

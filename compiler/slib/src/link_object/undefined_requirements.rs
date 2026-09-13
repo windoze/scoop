@@ -140,11 +140,7 @@ pub fn finalize_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
     external: SealedBuiltinObjectExternalRequirementClosureV1,
 ) -> Result<CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError> {
-    let external_strong = external
-        .verified()
-        .source_closure()
-        .core_closure()
-        .strong_closure();
+    let external_strong = external.verified().strong_closure();
     if current_cone.strong_closure() != external_strong {
         return Err(UndefinedSymbolRequirementFinalizationError::StrongClosureMismatch);
     }
@@ -166,11 +162,7 @@ pub fn finalize_undefined_symbol_requirements_v1(
     }
 
     let verified_external = external.verified();
-    for item in verified_external
-        .source_closure()
-        .core_closure()
-        .core_requirements()
-    {
+    for item in verified_external.core_requirements() {
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
             use_site: item.use_site().clone(),
             requirement: FinalUndefinedSymbolRequirementV1::CoreStrong {
@@ -179,10 +171,7 @@ pub fn finalize_undefined_symbol_requirements_v1(
             },
         });
     }
-    for item in verified_external
-        .source_closure()
-        .source_external_requirements()
-    {
+    for item in verified_external.source_external_requirements() {
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
             use_site: item.use_site().clone(),
             requirement: FinalUndefinedSymbolRequirementV1::SourceExtern {
@@ -203,6 +192,14 @@ pub fn finalize_undefined_symbol_requirements_v1(
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
             use_site: item.use_site().clone(),
             requirement: FinalUndefinedSymbolRequirementV1::TargetEhSupport {
+                contract: item.requirement().id(),
+            },
+        });
+    }
+    for item in verified_external.target_support_requirements() {
+        requirements.push(CanonicalUndefinedSymbolRequirementV1 {
+            use_site: item.use_site().clone(),
+            requirement: FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport {
                 contract: item.requirement().id(),
             },
         });

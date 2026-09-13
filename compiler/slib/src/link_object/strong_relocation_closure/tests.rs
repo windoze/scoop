@@ -1,4 +1,4 @@
-use super::super::relocation_verification::tests::add_undefined_symbol;
+use super::super::relocation_verification::tests::add_undefined_symbols;
 use super::super::symbol_verification::tests::{
     Fixture, fixture_for_producer, fixture_named, object_for_plan_with_branch_relocation,
 };
@@ -170,7 +170,7 @@ pub(in crate::link_object) fn verified_member_with_undefined(
         canonical_value,
         Some((0, primary_role(fixture))),
     );
-    let bytes = add_undefined_symbol(object.bytes, true, undefined_name);
+    let bytes = add_undefined_symbols(object.bytes, true, &[undefined_name]);
     verified_member(fixture, &bytes)
 }
 

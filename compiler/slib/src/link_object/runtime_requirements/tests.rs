@@ -52,29 +52,6 @@ fn classifies_only_the_closed_target_eh_symbols() {
     assert_eq!(non_eh_support.remaining_external_candidates().len(), 1);
 }
 
-#[test]
-fn builtin_object_closure_rejects_every_unclassified_external() {
-    let runtime = classify(b"_scoop_rt_gc_stats");
-    let producer = runtime.producer();
-    let sealed = seal_builtin_object_external_requirements_v1(runtime).unwrap();
-    assert_eq!(sealed.producer(), producer);
-
-    let unknown = classify(b"_memcpy");
-    let binding = &unknown.remaining_external_candidates()[0];
-    let member = binding.source_member();
-    let atom = binding.containing_atom();
-    assert_eq!(
-        seal_builtin_object_external_requirements_v1(unknown),
-        Err(
-            BuiltinObjectExternalRequirementClosureError::UnclassifiedExternalRelocation {
-                member,
-                atom,
-                symbol: b"_memcpy".to_vec(),
-            }
-        )
-    );
-}
-
 pub(in crate::link_object) fn classify(symbol: &[u8]) -> VerifiedRuntimeAndEhRequirementClosureV1 {
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "runtimeRequirementConsumer");

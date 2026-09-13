@@ -364,13 +364,16 @@ pub(in crate::link_object) fn object_for_plan_with_branch_relocation(
     value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
     relocation: Option<(u32, PlannedStrongObjectSymbolRoleV1)>,
 ) -> ObjectFixture {
-    object_for_plan_with_deployment(plan, value, relocation, None)
+    match relocation {
+        Some(relocation) => object_for_plan_with_deployment(plan, value, &[relocation], None),
+        None => object_for_plan_with_deployment(plan, value, &[], None),
+    }
 }
 
 pub(in crate::link_object) fn object_for_plan_with_deployment(
     plan: &PlannedMemberStrongObjectSymbolsV1,
     value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
-    relocation: Option<(u32, PlannedStrongObjectSymbolRoleV1)>,
+    relocations: &[(u32, PlannedStrongObjectSymbolRoleV1)],
     deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>,
 ) -> ObjectFixture {
     let segment_size = 152_u32;
@@ -382,7 +385,7 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
     let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
     let section_offset = 32 + command_bytes;
     let section_size = 8_u32;
-    let relocation_count = u32::from(relocation.is_some());
+    let relocation_count = u32::try_from(relocations.len()).unwrap();
     let relocation_offset = section_offset + section_size;
     let symbol_offset = relocation_offset + relocation_count * 8;
     let symbol_bytes = u32::try_from(plan.symbols().len() * 16).unwrap();
@@ -426,7 +429,7 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
     push_u32(&mut bytes, 3);
     push_u32(
         &mut bytes,
-        if relocation.is_some() {
+        if !relocations.is_empty() {
             relocation_offset
         } else {
             0
@@ -472,13 +475,13 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
     }
 
     bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0]);
-    if let Some((offset, target_role)) = relocation {
+    for (offset, target_role) in relocations {
         let target = plan
             .symbols()
             .iter()
-            .position(|symbol| symbol.role() == target_role)
+            .position(|symbol| symbol.role() == *target_role)
             .unwrap() as u32;
-        push_u32(&mut bytes, offset);
+        push_u32(&mut bytes, *offset);
         push_u32(
             &mut bytes,
             target | 1 << 24 | 2 << 25 | 1 << 27 | u32::from(macho::ARM64_RELOC_BRANCH26) << 28,
