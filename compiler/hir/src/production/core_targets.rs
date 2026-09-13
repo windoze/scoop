@@ -548,7 +548,7 @@ fn build_target(
     })
 }
 
-fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
+pub(super) fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
     HirTypeIdentityInputs {
         types: &export.types,
         function_types: &export.function_types,
@@ -653,6 +653,9 @@ fn validate_target(
         binding_key.target(),
         decoded.definition,
     )?;
+    if !super::direct_binding_matches_source(binding_key, source) {
+        return Err(CoreCallableTargetSurfaceValidationError::BindingSourceMismatch(binding));
+    }
     if source.origin() != ConeIdentity::CORE {
         return Err(CoreCallableTargetSurfaceValidationError::NonCoreDefinition(
             definition,
@@ -833,6 +836,13 @@ fn signature_for_exact_callable(
     ))
 }
 
+pub(super) fn signature_type_for_exact(
+    foundation: &CanonicalHirFoundation,
+    exact: PersistentExactTypeId,
+) -> Result<SignatureTypeKey, ExactSignatureRelationError> {
+    signature_for_exact(foundation, exact, &mut BTreeSet::new())
+}
+
 fn signature_for_exact(
     foundation: &CanonicalHirFoundation,
     exact: PersistentExactTypeId,
@@ -957,7 +967,7 @@ fn validate_binders(
     Ok(())
 }
 
-fn validate_signature_binders(
+pub(super) fn validate_signature_binders(
     signature: &SignatureTypeKey,
     type_parameter_count: u32,
 ) -> Result<(), CoreCallableBinderError> {
@@ -1246,6 +1256,7 @@ pub enum CoreCallableTargetSurfaceValidationError {
         actual: PersistentExportBindingId,
     },
     NonCoreBinding(PersistentExportBindingId),
+    BindingSourceMismatch(PersistentExportBindingId),
     UnknownFunction([u8; 32]),
     UnknownGenericFunction([u8; 32]),
     DefinitionMismatch(PersistentExportBindingId),

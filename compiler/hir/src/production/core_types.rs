@@ -661,6 +661,11 @@ fn validate_target(
             (CoreTypeDefinitionV1::TypeAlias(id), source)
         }
     };
+    if !super::direct_binding_matches_source(key, source) {
+        return Err(CoreTypeTargetSurfaceValidationError::BindingSourceMismatch(
+            binding,
+        ));
+    }
     if source.origin() != ConeIdentity::CORE {
         return Err(CoreTypeTargetSurfaceValidationError::NonCoreDefinition(
             definition,
@@ -817,6 +822,7 @@ pub enum CoreTypeTargetSurfaceValidationError {
         actual: PersistentExportBindingId,
     },
     NonCoreBinding(PersistentExportBindingId),
+    BindingSourceMismatch(PersistentExportBindingId),
     UnknownType([u8; 32]),
     UnknownGenericType([u8; 32]),
     UnknownTypeAlias([u8; 32]),

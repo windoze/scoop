@@ -237,6 +237,42 @@ impl CanonicalHirFoundation {
         })
     }
 
+    pub(crate) fn object_value_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentObjectValueId, &SourceDeclarationKey)> {
+        self.object_values.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn property_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentPropertyId, &SourceDeclarationKey)> {
+        self.properties.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn extension_property_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentExtensionPropertyId, &SourceDeclarationKey)> {
+        self.extension_properties.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn property_accessor_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentPropertyAccessorId, &PropertyAccessorKey)> {
+        self.property_accessors.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
     pub(crate) fn definition_origin(
         &self,
         subject: scoop_identity::DefinitionOriginSubject,

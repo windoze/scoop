@@ -673,6 +673,9 @@ CoreBootstrapInterfaceSectionV1 {
 definite-length array；元素只引用同一HIR identity-foundation field 16中的完整binding
 record，不能重复record、复制`ExportBindingKey`或改用源码声明顺序。reader必须同时拒绝
 非递增、重复和foundation中不存在的binding id，不能排序修复输入。
+每个target constituent还必须用对应`SourceDeclarationKey`和typed `BindingTarget`逐字段重建
+`ExportBindingKey`；exporter、package、name、namespace、role或target任一不等都拒绝，不能把
+同一typed declaration重命名后当作core API，也不能用FQN查找代替这条identity relation。
 
 `CorePreludeSnapshotV1`固定为closed product
 `1=ordinary_bindings, 2=option_some, 3=option_some_payload, 4=option_none`。
@@ -736,6 +739,31 @@ count必须非零并等于source declaration。透明typealias没有第二个run
 投影出的最终typed target；根exact key为`Nominal`时只能用`ParamFreeStrong`，其他五类exact
 key只能用`StructuralUnavailable`。reader必须验证binding target、core origin、definition
 origin、exact存在性与分支一致性；不得重新按alias名字解析，也不得把alias id当作nominal id。
+
+`CoreValueTargetSurfaceV1`是value-namespace constituent，完整覆盖`direct_public_surface`中
+target为`ObjectValue`、`Property`或`ExtensionProperty`的binding；普通enum variant不属于direct
+package binding，`Option.Some`/`Option.None`只经`CorePreludeSnapshotV1`暴露。元素
+`CoreValueTargetV1`固定为closed product
+`1=binding, 2=definition, 3=source_interface, 4=capability`。`definition`的sum tag固定为
+`ObjectValue(PersistentObjectValueId)=1`、`Property(PersistentPropertyId)=2`、
+`ExtensionProperty(PersistentExtensionPropertyId)=3`。
+
+`source_interface`是closed sum：`ObjectValue(source_type)=1`；
+`Property(receiver, value, accessors)=2`。后者的receiver复用`OptionalSignatureType`，value复用
+`SignatureTypeKey`；accessors是`ReadOnly(getter)=1`或`ReadWrite(getter,setter)=2`，只引用
+foundation中owner/role精确匹配且具有definition origin的typed accessor record。object value的
+source declaration必须是同一个非generic source `object`，`source_type`由该声明的
+`PersistentTypeId`逐值重算，且direct surface必须同时含该type binding，不能按对象名反查。
+
+`capability`的tag仍固定为`ParamFreeStrong=1`、`StructuralUnavailable=2`、
+`GenericUnavailable=3`。前两个payload为`CoreExactValueInterfaceV1`：
+`ObjectValue(exact_type)=1`或`Property(exact_receiver, exact_value)=2`；exact receiver复用
+`OptionalExactOwner`。reader把每个exact type从foundation图重放为source signature并逐结构
+比较。object value只能是`ParamFreeStrong`且exact key必须为`Nominal(source_type)`；非generic
+property的receiver/value根全为`Nominal`时只能是`ParamFreeStrong`，否则只能是
+`StructuralUnavailable`。generic extension property只能是`GenericUnavailable`，count必须
+非零并等于source declaration；binder只允许depth 0且index在声明count内。不得省略read-only、
+structural或generic target，也不得从accessor名称、符号或FQN恢复owner、role或类型。
 
 它不包含import文本、failed candidate、current display locator或完整source。`ExecutableSourceEntry`必须与`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
 
