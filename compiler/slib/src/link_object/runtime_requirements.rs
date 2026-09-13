@@ -55,11 +55,11 @@ pub struct VerifiedRuntimeAndEhRequirementClosureV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SealedScoopLirExternalRequirementClosureV1 {
+pub struct SealedBuiltinObjectExternalRequirementClosureV1 {
     verified: VerifiedRuntimeAndEhRequirementClosureV1,
 }
 
-impl SealedScoopLirExternalRequirementClosureV1 {
+impl SealedBuiltinObjectExternalRequirementClosureV1 {
     pub const fn producer(&self) -> ConeIdentity {
         self.verified.producer()
     }
@@ -69,23 +69,26 @@ impl SealedScoopLirExternalRequirementClosureV1 {
     }
 }
 
-pub fn seal_scoop_lir_external_requirements_v1(
+pub fn seal_builtin_object_external_requirements_v1(
     verified: VerifiedRuntimeAndEhRequirementClosureV1,
-) -> Result<SealedScoopLirExternalRequirementClosureV1, ScoopLirExternalRequirementClosureError> {
+) -> Result<
+    SealedBuiltinObjectExternalRequirementClosureV1,
+    BuiltinObjectExternalRequirementClosureError,
+> {
     if let Some(binding) = verified.remaining_external_candidates().first() {
         return Err(
-            ScoopLirExternalRequirementClosureError::UnclassifiedExternalRelocation {
+            BuiltinObjectExternalRequirementClosureError::UnclassifiedExternalRelocation {
                 member: binding.source_member(),
                 atom: binding.containing_atom(),
                 symbol: binding.symbol().to_vec(),
             },
         );
     }
-    Ok(SealedScoopLirExternalRequirementClosureV1 { verified })
+    Ok(SealedBuiltinObjectExternalRequirementClosureV1 { verified })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ScoopLirExternalRequirementClosureError {
+pub enum BuiltinObjectExternalRequirementClosureError {
     UnclassifiedExternalRelocation {
         member: crate::SlibMemberId,
         atom: scoop_identity::ObjectDefinitionAtomId,
@@ -93,16 +96,16 @@ pub enum ScoopLirExternalRequirementClosureError {
     },
 }
 
-impl fmt::Display for ScoopLirExternalRequirementClosureError {
+impl fmt::Display for BuiltinObjectExternalRequirementClosureError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "incomplete Scoop LIR external requirement closure: {self:?}"
+            "incomplete built-in object external requirement closure: {self:?}"
         )
     }
 }
 
-impl std::error::Error for ScoopLirExternalRequirementClosureError {}
+impl std::error::Error for BuiltinObjectExternalRequirementClosureError {}
 
 impl VerifiedRuntimeAndEhRequirementClosureV1 {
     pub const fn producer(&self) -> ConeIdentity {

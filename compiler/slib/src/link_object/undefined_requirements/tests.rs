@@ -21,7 +21,7 @@ use super::super::symbol_verification::tests::{
 };
 use super::*;
 use crate::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, seal_scoop_lir_external_requirements_v1,
+    CanonicalDefinedLinkSymbolOwnerSetV1, seal_builtin_object_external_requirements_v1,
     verify_core_strong_requirements_v1, verify_current_cone_strong_relocation_closure_v1,
     verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_v1,
@@ -129,7 +129,7 @@ fn finalizes_core_and_source_external_requirements() {
     .unwrap();
     let final_set = finalize_undefined_symbol_requirements_v1(
         current,
-        seal_scoop_lir_external_requirements_v1(external).unwrap(),
+        seal_builtin_object_external_requirements_v1(external).unwrap(),
     )
     .unwrap();
     assert!(matches!(
@@ -175,7 +175,7 @@ fn finalizes_core_and_source_external_requirements() {
     .unwrap();
     let final_set = finalize_undefined_symbol_requirements_v1(
         current,
-        seal_scoop_lir_external_requirements_v1(external).unwrap(),
+        seal_builtin_object_external_requirements_v1(external).unwrap(),
     )
     .unwrap();
     assert!(matches!(
@@ -200,7 +200,8 @@ fn rejects_proofs_built_from_different_strong_closures() {
     )
     .unwrap();
     let external =
-        seal_scoop_lir_external_requirements_v1(classify(b"_scoop_rt_allocation_context")).unwrap();
+        seal_builtin_object_external_requirements_v1(classify(b"_scoop_rt_allocation_context"))
+            .unwrap();
 
     assert_eq!(
         finalize_undefined_symbol_requirements_v1(current, external),
@@ -221,14 +222,14 @@ fn final_from_external(
         verify_current_cone_undefined_requirements_v1(strong, empty_bridge_plan(producer)).unwrap();
     finalize_undefined_symbol_requirements_v1(
         current,
-        seal_scoop_lir_external_requirements_v1(external).unwrap(),
+        seal_builtin_object_external_requirements_v1(external).unwrap(),
     )
     .unwrap()
 }
 
 fn sealed_without_externals(
     strong: crate::VerifiedCurrentConeStrongRelocationClosureV1,
-) -> SealedScoopLirExternalRequirementClosureV1 {
+) -> SealedBuiltinObjectExternalRequirementClosureV1 {
     let producer = strong.producer();
     let core_owners =
         CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
@@ -249,7 +250,7 @@ fn sealed_without_externals(
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    seal_scoop_lir_external_requirements_v1(external).unwrap()
+    seal_builtin_object_external_requirements_v1(external).unwrap()
 }
 
 fn empty_bridge_plan(producer: ConeIdentity) -> GeneratedBridgePlanSetV1 {

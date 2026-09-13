@@ -53,10 +53,10 @@ fn classifies_only_the_closed_target_eh_symbols() {
 }
 
 #[test]
-fn scoop_lir_closure_rejects_every_unclassified_external() {
+fn builtin_object_closure_rejects_every_unclassified_external() {
     let runtime = classify(b"_scoop_rt_gc_stats");
     let producer = runtime.producer();
-    let sealed = seal_scoop_lir_external_requirements_v1(runtime).unwrap();
+    let sealed = seal_builtin_object_external_requirements_v1(runtime).unwrap();
     assert_eq!(sealed.producer(), producer);
 
     let unknown = classify(b"_memcpy");
@@ -64,9 +64,9 @@ fn scoop_lir_closure_rejects_every_unclassified_external() {
     let member = binding.source_member();
     let atom = binding.containing_atom();
     assert_eq!(
-        seal_scoop_lir_external_requirements_v1(unknown),
+        seal_builtin_object_external_requirements_v1(unknown),
         Err(
-            ScoopLirExternalRequirementClosureError::UnclassifiedExternalRelocation {
+            BuiltinObjectExternalRequirementClosureError::UnclassifiedExternalRelocation {
                 member,
                 atom,
                 symbol: b"_memcpy".to_vec(),

@@ -11,7 +11,7 @@ use scoop_wire::{Encoder, WireEncode};
 use super::{
     BuiltinObjectSectionRoleV1, CanonicalUndefinedRelocationUseV1,
     CurrentConeUndefinedRequirementV1, RelocationTargetSlotV1,
-    SealedScoopLirExternalRequirementClosureV1, StrongDefinitionOwnerV1,
+    SealedBuiltinObjectExternalRequirementClosureV1, StrongDefinitionOwnerV1,
     StrongRelocationResolutionV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
     VerifiedDarwinArm64RelocationFormV1,
 };
@@ -131,7 +131,7 @@ impl WireEncode for CanonicalUndefinedSymbolRequirementSetV1 {
 
 pub fn finalize_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
-    external: SealedScoopLirExternalRequirementClosureV1,
+    external: SealedBuiltinObjectExternalRequirementClosureV1,
 ) -> Result<CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError> {
     let external_strong = external
         .verified()
