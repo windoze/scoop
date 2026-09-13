@@ -938,9 +938,9 @@ DigestPatchIntentKeyV1>>`。`DigestInputRefV1`按总设计十种kind形成closed
 bytes分支。顶层node按`(DigestKind tag, DigestNodeId bytes)`严格递增，direct input按同一key
 严格递增，patch intent按id bytes严格递增；writer排序但拒绝重复，reader只验证而不修复。
 每个patch intent的source必须是其所在node，field role必须接受该source kind，且
-`(target_owner, atom_role, semantic_field_role)`在整个plan中只有一个writer。target owner必须能
-在同一strong foundation中唯一定位到含该atom role的definition plan；source/target identity、
-缺失node、kind错配、orphan/ambiguous target、非法edge与DAG cycle全部在production section
+`(target_definition, atom_role, semantic_field_role)`在整个plan中只有一个writer。target definition
+plan必须存在于同一strong foundation并唯一包含该atom role；同一owner下的body与registration等不同
+definition由plan id精确区分。source/target identity、缺失node、kind错配、orphan/ambiguous target、非法edge与DAG cycle全部在production section
 validation时拒绝。允许的direct edge矩阵为：前四种semantic leaf与`ObjectSupport`无输入；
 `StackmapRecord <- SourceSignature | ObjectSupport`；
 `ObjectDefinition <- SourceSignature | Layout | Scan | LirDefinition | ObjectSupport |
@@ -1267,7 +1267,7 @@ Scoop producer的digest落槽先由`VerifiedScoopLirDigestPatchSiteSetV1`收窄�
 proof、同producer的`OdrFreeLirFoundation`、已经对该foundation闭合的
 `StrongDigestFinalizationPlanV1`、同一批按member id严格递增的Scoop object bytes，以及按
 `DigestPatchIntentId`严格递增的`ProvisionalDigestPatchSiteV1`。foundation只通过窄的
-`resolve_definition_atom(owner, atom_role)`查询暴露唯一target，不向slib开放内部authority table。
+`resolve_definition_atom(definition_plan, atom_role)`查询暴露唯一target，不向slib开放内部authority table。
 verifier要求每个intent恰一个site、site member等于definition plan的既定Scoop member、width精确32、
 checked file offset完整位于目标atom的非padding范围内、原始object length/digest仍等于前序proof、槽内
 32 bytes全零，且没有任何relocation或其他patch site与该范围相交。zero-fill/non-file-backed atom、

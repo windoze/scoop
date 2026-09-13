@@ -113,18 +113,13 @@ impl OdrFreeLirFoundation {
 
     pub fn resolve_definition_atom(
         &self,
-        owner: ObjectDefinitionPlanOwner,
+        definition: ObjectDefinitionPlanId,
         atom_role: DefinitionAtomRole,
     ) -> Result<(ObjectDefinitionPlanId, ObjectDefinitionAtomId), DefinitionAtomResolutionError>
     {
         let mut targets = self.canonical.definition_atoms.iter().filter_map(|atom| {
-            let plan = self
-                .canonical
-                .definition_plans
-                .iter()
-                .find(|plan| plan.id() == atom.key().plan())?;
-            (plan.key().owner() == owner && atom.key().role() == atom_role)
-                .then_some((plan.id(), atom.id()))
+            (atom.key().plan() == definition && atom.key().role() == atom_role)
+                .then_some((definition, atom.id()))
         });
         let Some(target) = targets.next() else {
             return Err(DefinitionAtomResolutionError::Missing);

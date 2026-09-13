@@ -1,6 +1,5 @@
 use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey, DigestSemanticFieldRole,
-    ObjectDefinitionPlanKey, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CanonicalLirFoundation, DigestInputRefV1, GeneratedBridgePlanSetV1,
@@ -206,17 +205,10 @@ fn rejects_a_digest_plan_validated_against_another_foundation() {
 #[test]
 fn rejects_two_distinct_intents_materialized_over_the_same_bytes() {
     let mut fixture = patch_fixture([0; 64], &[]);
-    let owner = ObjectDefinitionPlanKey::strong(
-        fixture.foundation.producer(),
-        StrongDefinitionEntity::cone_image(fixture.foundation.producer()),
-        StrongDefinitionRole::ImageDescriptor,
-    )
-    .unwrap()
-    .owner();
     let definition_key = DigestNodeKey::object_definition(fixture.atom);
     let definition_patch = DigestPatchIntentKey::new(
         DigestNodeId::from_key(&definition_key).unwrap(),
-        owner,
+        fixture.definition,
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::DescriptorDefinition,
     );
@@ -225,7 +217,7 @@ fn rejects_two_distinct_intents_materialized_over_the_same_bytes() {
     let image_key = DigestNodeKey::runtime_image(fixture.foundation.producer());
     let image_patch = DigestPatchIntentKey::new(
         DigestNodeId::from_key(&image_key).unwrap(),
-        owner,
+        fixture.definition,
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::RuntimeImage,
     );
@@ -348,18 +340,11 @@ fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFi
     )
     .unwrap();
 
-    let owner = ObjectDefinitionPlanKey::strong(
-        base.foundation.producer(),
-        StrongDefinitionEntity::cone_image(base.foundation.producer()),
-        StrongDefinitionRole::ImageDescriptor,
-    )
-    .unwrap()
-    .owner();
     let key = DigestNodeKey::runtime_image(base.foundation.producer());
     let source = DigestNodeId::from_key(&key).unwrap();
     let patch = DigestPatchIntentKey::new(
         source,
-        owner,
+        base.lir_plan,
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::RuntimeImage,
     );
@@ -368,7 +353,7 @@ fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFi
     let digest_plan = StrongDigestFinalizationPlanV1::new(vec![node], &base.foundation).unwrap();
     let atom = base
         .foundation
-        .resolve_definition_atom(owner, DefinitionAtomRole::Primary)
+        .resolve_definition_atom(base.lir_plan, DefinitionAtomRole::Primary)
         .unwrap()
         .1;
     PatchFixture {

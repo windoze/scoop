@@ -292,7 +292,7 @@ fn digest_plan(
             Vec::new(),
             vec![DigestPatchIntentKey::new(
                 stackmap_source,
-                registration.plan.key().owner(),
+                registration.plan.id(),
                 DefinitionAtomRole::Primary,
                 DigestSemanticFieldRole::NormalizedStackmap,
             )],
@@ -308,7 +308,7 @@ fn digest_plan(
             ],
             vec![DigestPatchIntentKey::new(
                 registration_source,
-                registration.plan.key().owner(),
+                registration.plan.id(),
                 DefinitionAtomRole::Primary,
                 DigestSemanticFieldRole::RegistrationDefinition,
             )],

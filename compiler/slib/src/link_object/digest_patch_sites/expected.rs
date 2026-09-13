@@ -39,7 +39,7 @@ pub(super) fn derive_expected_sites(
         for patch in node.patch_intents() {
             let key = patch.key();
             let (definition, atom) = foundation
-                .resolve_definition_atom(key.target_owner(), key.atom_role())
+                .resolve_definition_atom(key.target_definition(), key.atom_role())
                 .map_err(|kind| DigestPatchSiteValidationError::InvalidPatchTarget {
                     intent: patch.id(),
                     kind,

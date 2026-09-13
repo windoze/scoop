@@ -302,7 +302,7 @@ impl ConeImagePlanV1 {
         validate_registration_inputs(image_node.direct_inputs(), registrations)?;
         let patch_key = DigestPatchIntentKey::new(
             image_node.id(),
-            definition_key.owner(),
+            definition_plan,
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::RuntimeImage,
         );

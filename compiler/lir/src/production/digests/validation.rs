@@ -156,7 +156,7 @@ pub(super) fn validate_plan(
             }
             validate_patch_target(patch.id(), key, foundation)?;
             let writer_key = (
-                key.target_owner(),
+                key.target_definition(),
                 key.atom_role(),
                 key.semantic_field_role(),
             );
@@ -242,17 +242,11 @@ fn validate_patch_target(
     key: &DigestPatchIntentKey,
     foundation: &crate::OdrFreeLirFoundation,
 ) -> Result<(), DigestPlanError> {
-    let plans = foundation
-        .definition_plans()
-        .iter()
-        .filter(|record| record.key().owner() == key.target_owner())
-        .map(CborIdentityRecord::id)
-        .collect::<BTreeSet<_>>();
     let count = foundation
         .definition_atoms()
         .iter()
         .filter(|record| {
-            plans.contains(&record.key().plan()) && record.key().role() == key.atom_role()
+            record.key().plan() == key.target_definition() && record.key().role() == key.atom_role()
         })
         .count();
     match count {

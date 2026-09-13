@@ -101,20 +101,14 @@ pub(super) fn build_executable(
     let source_node = require_digest_node(digests, DigestNodeKey::source_signature(main.body()))?;
     let source_signature_patch = require_patch(
         source_node,
-        ObjectDefinitionPlanOwner::Strong {
-            producer: root_cone,
-            entity: StrongDefinitionEntity::root_entry(root_cone),
-        },
+        root_descriptor_definition,
         DigestSemanticFieldRole::SourceSignature,
     )?;
     let gateway_node =
         require_digest_node(digests, DigestNodeKey::object_definition(gateway_atom))?;
     let gateway_definition_patch = require_patch(
         gateway_node,
-        ObjectDefinitionPlanOwner::Strong {
-            producer: root_cone,
-            entity: StrongDefinitionEntity::root_entry(root_cone),
-        },
+        root_descriptor_definition,
         DigestSemanticFieldRole::GatewayDefinition,
     )?;
 
@@ -277,12 +271,12 @@ fn require_digest_node(
 
 fn require_patch(
     source: &crate::DigestNodeV1,
-    target_owner: ObjectDefinitionPlanOwner,
+    target_definition: ObjectDefinitionPlanId,
     field: DigestSemanticFieldRole,
 ) -> Result<DigestPatchIntentId, EntryProductionPlanBuildError> {
     let key = DigestPatchIntentKey::new(
         source.id(),
-        target_owner,
+        target_definition,
         DefinitionAtomRole::Primary,
         field,
     );

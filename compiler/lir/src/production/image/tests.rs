@@ -47,7 +47,7 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(
         hex(&bytes),
-        "a601a201a3016573636f6f70026b73696e676c652d66696c650365302e302e3002582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6028158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d03a601800280038004800580068004a201a2001101582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b602010558200a6b2c5d4d7a6df125364db1b8299514682385fbb59b91bc4cc661d456f8d12c0658202cfaec28b1b12d2c0e892633eadfd99baadf0e10cd3f86885726e2602b548e10"
+        "a601a201a3016573636f6f70026b73696e676c652d66696c650365302e302e3002582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6028158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d03a601800280038004800580068004a201a2001101582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b602010558200a6b2c5d4d7a6df125364db1b8299514682385fbb59b91bc4cc661d456f8d12c06582072888c00464fa258dfb42b658f906c21cc9ded31ce0a4077616ee2f0caa402c1"
     );
 }
 
@@ -116,8 +116,8 @@ fn image_fixture(
         StrongDefinitionRole::ImageDescriptor,
     )
     .unwrap();
-    let image_owner = image_plan_key.owner();
     let image_plan = CborIdentityRecord::from_key(image_plan_key).unwrap();
+    let image_plan_id = image_plan.id();
     let image_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
         image_plan.id(),
         DefinitionAtomRole::Primary,
@@ -162,7 +162,7 @@ fn image_fixture(
     let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
     let image_patch = DigestPatchIntentKey::new(
         image_node_id,
-        image_owner,
+        image_plan_id,
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::RuntimeImage,
     );

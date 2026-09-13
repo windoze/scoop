@@ -77,7 +77,7 @@ pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
         Vec::new(),
         vec![DigestPatchIntentKey::new(
             stackmap_id,
-            plan.key().owner(),
+            plan.id(),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::NormalizedStackmap,
         )],
@@ -93,7 +93,7 @@ pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
         ],
         vec![DigestPatchIntentKey::new(
             registration_id,
-            plan.key().owner(),
+            plan.id(),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::RegistrationDefinition,
         )],

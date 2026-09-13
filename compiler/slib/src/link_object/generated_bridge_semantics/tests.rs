@@ -436,18 +436,11 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
         &bridge_objects,
     )
     .unwrap();
-    let image_owner = ObjectDefinitionPlanKey::strong(
-        fixture.foundation.producer(),
-        StrongDefinitionEntity::cone_image(fixture.foundation.producer()),
-        StrongDefinitionRole::ImageDescriptor,
-    )
-    .unwrap()
-    .owner();
     let image_key = DigestNodeKey::runtime_image(fixture.foundation.producer());
     let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
     let image_patch = DigestPatchIntentKey::new(
         image_node_id,
-        image_owner,
+        fixture.lir_plan,
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::RuntimeImage,
     );

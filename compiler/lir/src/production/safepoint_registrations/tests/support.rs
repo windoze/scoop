@@ -163,7 +163,7 @@ impl Fixture {
                     .then(|| {
                         DigestPatchIntentKey::new(
                             source,
-                            registration.plan.key().owner(),
+                            registration.plan.id(),
                             DefinitionAtomRole::Primary,
                             DigestSemanticFieldRole::DescriptorDefinition,
                         )
@@ -180,7 +180,7 @@ impl Fixture {
                     .then(|| {
                         DigestPatchIntentKey::new(
                             source,
-                            registration.plan.key().owner(),
+                            registration.plan.id(),
                             DefinitionAtomRole::Primary,
                             DigestSemanticFieldRole::NormalizedStackmap,
                         )
@@ -206,7 +206,7 @@ impl Fixture {
                 .then(|| {
                     DigestPatchIntentKey::new(
                         source,
-                        registration.plan.key().owner(),
+                        registration.plan.id(),
                         DefinitionAtomRole::Primary,
                         DigestSemanticFieldRole::RegistrationDefinition,
                     )

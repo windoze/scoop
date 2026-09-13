@@ -101,12 +101,12 @@ fn strong_profile_rejects_odr_nodes_and_requires_its_image() {
 
 #[test]
 fn patch_intents_bind_one_source_to_one_real_target_atom() {
-    let (foundation, target_owner, atom) = definition_foundation();
+    let (foundation, target_definition, atom) = definition_foundation();
     let key = DigestNodeKey::object_definition(atom);
     let source = DigestNodeId::from_key(&key).unwrap();
     let patch = DigestPatchIntentKey::new(
         source,
-        target_owner,
+        target_definition,
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::DescriptorDefinition,
     );
@@ -116,7 +116,7 @@ fn patch_intents_bind_one_source_to_one_real_target_atom() {
 
     let invalid = DigestPatchIntentKey::new(
         DigestNodeId::from_key(&DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE)).unwrap(),
-        target_owner,
+        target_definition,
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::DescriptorDefinition,
     );
@@ -191,7 +191,7 @@ fn layout_foundation() -> (OdrFreeLirFoundation, scoop_identity::PersistentLayou
 
 fn definition_foundation() -> (
     OdrFreeLirFoundation,
-    scoop_identity::ObjectDefinitionPlanOwner,
+    scoop_identity::ObjectDefinitionPlanId,
     scoop_identity::ObjectDefinitionAtomId,
 ) {
     let exact = unit_exact_type();
@@ -201,8 +201,8 @@ fn definition_foundation() -> (
         StrongDefinitionRole::TypeDescriptor,
     )
     .unwrap();
-    let owner = plan_key.owner();
     let plan = CborIdentityRecord::from_key(plan_key).unwrap();
+    let plan_id = plan.id();
     let atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
         plan.id(),
         DefinitionAtomRole::Primary,
@@ -215,7 +215,7 @@ fn definition_foundation() -> (
     canonical.set_definition_atoms(vec![atom]).unwrap();
     (
         OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
-        owner,
+        plan_id,
         atom_id,
     )
 }

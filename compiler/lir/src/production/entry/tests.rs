@@ -57,7 +57,7 @@ fn executable_plan_derives_the_complete_root_surface_and_round_trips() {
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(
         hex(&bytes),
-        "a2000201ab01582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b60258209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd03a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0458205a43bee43f27e5c33d012c1129702324d18dd3856d3158b657383cc2d61c9257055820231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde065820229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b0758507582035c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa308a201a2001601582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b60201095820ad54491c8dff032d0bc88256fe3ff8bf9594a26a2fca17d7ac9a35800e6fd9f20a582002fd5caefec5e22b59a7ab9571828bc40caeee2d085a1f69e0fec6739f0e03050b5820609eec0d0fbfc5d27bd4bc6bec4cd7f2168cf0b581a6b926b3df1294558e44ce"
+        "a2000201ab01582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b60258209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd03a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0458205a43bee43f27e5c33d012c1129702324d18dd3856d3158b657383cc2d61c9257055820231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde065820229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b0758507582035c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa308a201a2001601582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b60201095820ad54491c8dff032d0bc88256fe3ff8bf9594a26a2fca17d7ac9a35800e6fd9f20a5820c16f63a16ae9fb198a08fde48b72802b59e7955ecfbc269f31907e014cbdd8d70b5820ed7908950c2fbce201e389e6aa267dfd7c27f98a4633ac740b7011d878843ad0"
     );
 }
 
@@ -269,7 +269,11 @@ fn executable_fixture() -> ExecutableFixture {
         Vec::new(),
         vec![DigestPatchIntentKey::new(
             source_id,
-            root_owner(producer),
+            definition_plan(
+                producer,
+                StrongDefinitionEntity::root_entry(producer),
+                StrongDefinitionRole::RootEntryDescriptor,
+            ),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::SourceSignature,
         )],
@@ -282,7 +286,11 @@ fn executable_fixture() -> ExecutableFixture {
         Vec::new(),
         vec![DigestPatchIntentKey::new(
             gateway_id,
-            root_owner(producer),
+            definition_plan(
+                producer,
+                StrongDefinitionEntity::root_entry(producer),
+                StrongDefinitionRole::RootEntryDescriptor,
+            ),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::GatewayDefinition,
         )],
@@ -378,13 +386,6 @@ fn primary_atom(
         .find(|record| record.key().plan() == plan)
         .unwrap()
         .id()
-}
-
-fn root_owner(producer: ConeIdentity) -> scoop_identity::ObjectDefinitionPlanOwner {
-    scoop_identity::ObjectDefinitionPlanOwner::Strong {
-        producer,
-        entity: StrongDefinitionEntity::root_entry(producer),
-    }
 }
 
 fn executable_source_entry() -> ExecutableSourceEntryIdentity {

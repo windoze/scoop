@@ -318,7 +318,7 @@ fn rejects_a_registration_object_definition_with_a_patch_writer() {
         .unwrap();
     let object_patch = scoop_identity::DigestPatchIntentKey::new(
         object.id(),
-        registration.patch_intents()[0].key().target_owner(),
+        registration.patch_intents()[0].key().target_definition(),
         scoop_identity::DefinitionAtomRole::Primary,
         scoop_identity::DigestSemanticFieldRole::DescriptorDefinition,
     );
@@ -343,7 +343,7 @@ fn rejects_a_registration_object_definition_with_a_patch_writer() {
         .collect();
     let wrong_digest_plan =
         StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
-    let provisional = fixture
+    let mut provisional = fixture
         .provisional_patch_sites
         .iter()
         .map(|site| {
@@ -359,6 +359,7 @@ fn rejects_a_registration_object_definition_with_a_patch_writer() {
             )
         })
         .collect::<Vec<_>>();
+    provisional.sort_unstable_by_key(|site| site.intent());
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,

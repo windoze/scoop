@@ -5,7 +5,8 @@ use scoop_identity::{
     CborIdentityRecord, DecodedCborIdentityRecord, DecodedDigestNodeKey,
     DecodedDigestPatchIntentKey, DecodedPersistentId, DigestKind, DigestNodeId, DigestNodeKey,
     DigestNodeKeyResolutionError, DigestPatchIntentId, DigestPatchIntentKey,
-    DigestSemanticFieldRole, IdentityReferenceError, PersistentIdMismatch, ValidatedIdentityGraph,
+    DigestSemanticFieldRole, IdentityReferenceError, PersistentIdMismatch, PersistentIdResolver,
+    ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
@@ -426,13 +427,12 @@ impl DecodedStrongDigestFinalizationPlanV1 {
                         source: raw_source,
                     });
                 };
-                let target_owner = decoded_key
-                    .target_owner()
-                    .resolve(identities)
+                let target_definition = identities
+                    .resolve(decoded_key.target_definition())
                     .map_err(StrongDigestPlanValidationError::PatchTarget)?;
                 let key = DigestPatchIntentKey::new(
                     source,
-                    target_owner,
+                    target_definition,
                     decoded_key.atom_role(),
                     decoded_key.semantic_field_role(),
                 );
@@ -536,7 +536,7 @@ pub enum StrongDigestPlanValidationError {
     NodeIdentity(PersistentIdMismatch<DigestNodeId>),
     PatchIdentity(PersistentIdMismatch<DigestPatchIntentId>),
     IdentityHash(HashError),
-    PatchTarget(scoop_identity::ObjectDefinitionResolutionError<IdentityReferenceError>),
+    PatchTarget(IdentityReferenceError),
     MissingInput {
         node: DigestNodeId,
         input: [u8; 32],

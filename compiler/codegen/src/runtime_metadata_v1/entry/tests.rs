@@ -257,7 +257,11 @@ fn executable_plan() -> EntryProductionPlanV1 {
         Vec::new(),
         vec![DigestPatchIntentKey::new(
             source_id,
-            root_owner(producer),
+            definition_plan(
+                producer,
+                StrongDefinitionEntity::root_entry(producer),
+                StrongDefinitionRole::RootEntryDescriptor,
+            ),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::SourceSignature,
         )],
@@ -270,7 +274,11 @@ fn executable_plan() -> EntryProductionPlanV1 {
         Vec::new(),
         vec![DigestPatchIntentKey::new(
             gateway_id,
-            root_owner(producer),
+            definition_plan(
+                producer,
+                StrongDefinitionEntity::root_entry(producer),
+                StrongDefinitionRole::RootEntryDescriptor,
+            ),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::GatewayDefinition,
         )],
@@ -330,13 +338,6 @@ fn definition_plan(
         &ObjectDefinitionPlanKey::strong(producer, entity, role).unwrap(),
     )
     .unwrap()
-}
-
-fn root_owner(producer: ConeIdentity) -> scoop_identity::ObjectDefinitionPlanOwner {
-    scoop_identity::ObjectDefinitionPlanOwner::Strong {
-        producer,
-        entity: StrongDefinitionEntity::root_entry(producer),
-    }
 }
 
 fn executable_source_entry() -> ExecutableSourceEntryIdentity {

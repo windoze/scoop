@@ -7,10 +7,9 @@ use super::{
     DigestSemanticFieldRole,
 };
 use crate::{
-    ConeIdentity, DecodedObjectDefinitionPlanOwner, DecodedPersistentId, DefinitionAtomRole,
-    DigestNodeId, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionResolutionError,
-    OdrGroupId, PersistentCallableBodyId, PersistentId, PersistentIdResolver, PersistentLayoutId,
-    PersistentSafepointSiteId, PersistentScanId, StrongDefinitionResolver,
+    ConeIdentity, DecodedPersistentId, DefinitionAtomRole, DigestNodeId, ObjectDefinitionAtomId,
+    ObjectDefinitionPlanId, OdrGroupId, PersistentCallableBodyId, PersistentId,
+    PersistentIdResolver, PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
 };
 
 impl WireDecode for DigestKind {
@@ -221,7 +220,7 @@ impl<E: std::error::Error + 'static> std::error::Error for DigestNodeKeyResoluti
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DecodedDigestPatchIntentKey {
     source: DecodedPersistentId<DigestNodeId>,
-    target_owner: DecodedObjectDefinitionPlanOwner,
+    target_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
     atom_role: DefinitionAtomRole,
     semantic_field_role: DigestSemanticFieldRole,
 }
@@ -231,8 +230,8 @@ impl DecodedDigestPatchIntentKey {
         self.source
     }
 
-    pub const fn target_owner(self) -> DecodedObjectDefinitionPlanOwner {
-        self.target_owner
+    pub const fn target_definition(self) -> DecodedPersistentId<ObjectDefinitionPlanId> {
+        self.target_definition
     }
 
     pub const fn atom_role(self) -> DefinitionAtomRole {
@@ -253,13 +252,12 @@ impl DecodedDigestPatchIntentKey {
         let source = resolver
             .resolve(self.source)
             .map_err(DigestPatchIntentResolutionError::Source)?;
-        let target_owner = self
-            .target_owner
-            .resolve(resolver)
+        let target_definition = resolver
+            .resolve(self.target_definition)
             .map_err(DigestPatchIntentResolutionError::Target)?;
         Ok(DigestPatchIntentKey::new(
             source,
-            target_owner,
+            target_definition,
             self.atom_role,
             self.semantic_field_role,
         ))
@@ -272,7 +270,7 @@ impl WireEncode for DecodedDigestPatchIntentKey {
         encoder.field(1)?;
         self.source.encode(encoder)?;
         encoder.field(2)?;
-        self.target_owner.encode(encoder)?;
+        self.target_definition.encode(encoder)?;
         encoder.field(3)?;
         self.atom_role.encode(encoder)?;
         encoder.field(4)?;
@@ -285,7 +283,7 @@ impl WireDecode for DecodedDigestPatchIntentKey {
         decoder.expect_map(4)?;
         Ok(Self {
             source: decoder.field(1, DecodedPersistentId::decode)?,
-            target_owner: decoder.field(2, DecodedObjectDefinitionPlanOwner::decode)?,
+            target_definition: decoder.field(2, DecodedPersistentId::decode)?,
             atom_role: decoder.field(3, DefinitionAtomRole::decode)?,
             semantic_field_role: decoder.field(4, DigestSemanticFieldRole::decode)?,
         })
@@ -293,19 +291,21 @@ impl WireDecode for DecodedDigestPatchIntentKey {
 }
 
 pub trait DigestPatchIntentResolver<E>:
-    PersistentIdResolver<DigestNodeId, Error = E> + StrongDefinitionResolver<E>
+    PersistentIdResolver<DigestNodeId, Error = E>
+    + PersistentIdResolver<ObjectDefinitionPlanId, Error = E>
 {
 }
 
 impl<T, E> DigestPatchIntentResolver<E> for T where
-    T: PersistentIdResolver<DigestNodeId, Error = E> + StrongDefinitionResolver<E>
+    T: PersistentIdResolver<DigestNodeId, Error = E>
+        + PersistentIdResolver<ObjectDefinitionPlanId, Error = E>
 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DigestPatchIntentResolutionError<E> {
     Source(E),
-    Target(ObjectDefinitionResolutionError<E>),
+    Target(E),
 }
 
 impl<E: fmt::Display> fmt::Display for DigestPatchIntentResolutionError<E> {
@@ -384,8 +384,8 @@ mod tests {
     use super::{DecodedDigestNodeKey, DecodedDigestPatchIntentKey, DigestNodeKeyResolutionError};
     use crate::{
         ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-        DigestSemanticFieldRole, ObjectDefinitionPlanOwner, PendingIdentityValidation,
-        PersistentCallableBodyId, StrongDefinitionEntity,
+        DigestSemanticFieldRole, ObjectDefinitionPlanId, PendingIdentityValidation,
+        PersistentCallableBodyId,
     };
 
     #[test]
@@ -393,13 +393,10 @@ mod tests {
         let body = PersistentCallableBodyId(ConeIdentity::SINGLE_FILE.0);
         let node_key = DigestNodeKey::source_signature(body);
         let node = DigestNodeId::from_key(&node_key).unwrap();
-        let target_owner = ObjectDefinitionPlanOwner::Strong {
-            producer: ConeIdentity::SINGLE_FILE,
-            entity: StrongDefinitionEntity::callable_body(body),
-        };
+        let target_definition = ObjectDefinitionPlanId(ConeIdentity::SINGLE_FILE.0);
         let patch_key = DigestPatchIntentKey::new(
             node,
-            target_owner,
+            target_definition,
             DefinitionAtomRole::RuntimeRecord,
             DigestSemanticFieldRole::SourceSignature,
         );
@@ -410,6 +407,7 @@ mod tests {
             .register_authority(ConeIdentity::SINGLE_FILE)
             .unwrap();
         pending.register_authority(node).unwrap();
+        pending.register_authority(target_definition).unwrap();
         let mut identities = pending.finish().unwrap();
 
         let decoded_node = decode_canonical::<DecodedDigestNodeKey>(
@@ -461,10 +459,7 @@ mod tests {
         let node = DigestNodeId::from_key(&node_key).unwrap();
         let mut bytes = encode(&DigestPatchIntentKey::new(
             node,
-            ObjectDefinitionPlanOwner::Strong {
-                producer: ConeIdentity::SINGLE_FILE,
-                entity: StrongDefinitionEntity::callable_body(body),
-            },
+            ObjectDefinitionPlanId(ConeIdentity::SINGLE_FILE.0),
             DefinitionAtomRole::RuntimeRecord,
             DigestSemanticFieldRole::SourceSignature,
         ))

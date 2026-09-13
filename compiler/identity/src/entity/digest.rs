@@ -1,6 +1,6 @@
 use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::{DefinitionAtomRole, ObjectDefinitionPlanOwner};
+use super::DefinitionAtomRole;
 use crate::ids::derive_persistent_id;
 use crate::{
     ConeIdentity, DigestNodeId, DigestPatchIntentId, ObjectDefinitionAtomId,
@@ -267,7 +267,7 @@ impl WireEncode for DigestSemanticFieldRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DigestPatchIntentKey {
     source: DigestNodeId,
-    target_owner: ObjectDefinitionPlanOwner,
+    target_definition: ObjectDefinitionPlanId,
     atom_role: DefinitionAtomRole,
     semantic_field_role: DigestSemanticFieldRole,
 }
@@ -275,13 +275,13 @@ pub struct DigestPatchIntentKey {
 impl DigestPatchIntentKey {
     pub const fn new(
         source: DigestNodeId,
-        target_owner: ObjectDefinitionPlanOwner,
+        target_definition: ObjectDefinitionPlanId,
         atom_role: DefinitionAtomRole,
         semantic_field_role: DigestSemanticFieldRole,
     ) -> Self {
         Self {
             source,
-            target_owner,
+            target_definition,
             atom_role,
             semantic_field_role,
         }
@@ -291,8 +291,8 @@ impl DigestPatchIntentKey {
         self.source
     }
 
-    pub const fn target_owner(self) -> ObjectDefinitionPlanOwner {
-        self.target_owner
+    pub const fn target_definition(self) -> ObjectDefinitionPlanId {
+        self.target_definition
     }
 
     pub const fn atom_role(self) -> DefinitionAtomRole {
@@ -310,7 +310,7 @@ impl WireEncode for DigestPatchIntentKey {
         encoder.field(1)?;
         self.source.encode(encoder)?;
         encoder.field(2)?;
-        self.target_owner.encode(encoder)?;
+        self.target_definition.encode(encoder)?;
         encoder.field(3)?;
         self.atom_role.encode(encoder)?;
         encoder.field(4)?;
@@ -350,7 +350,7 @@ mod tests {
     };
     use crate::{
         ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestPatchIntentId,
-        ObjectDefinitionPlanOwner, PersistentCallableBodyId, StrongDefinitionEntity,
+        ObjectDefinitionPlanId, PersistentCallableBodyId,
     };
 
     #[test]
@@ -434,15 +434,10 @@ mod tests {
         let source_key =
             DigestNodeKey::source_signature(PersistentCallableBodyId(ConeIdentity::SINGLE_FILE.0));
         let source = DigestNodeId::from_key(&source_key).unwrap();
-        let target_owner = ObjectDefinitionPlanOwner::Strong {
-            producer: ConeIdentity::SINGLE_FILE,
-            entity: StrongDefinitionEntity::callable_body(PersistentCallableBodyId(
-                ConeIdentity::SINGLE_FILE.0,
-            )),
-        };
+        let target_definition = ObjectDefinitionPlanId(ConeIdentity::SINGLE_FILE.0);
         let patch_key = DigestPatchIntentKey::new(
             source,
-            target_owner,
+            target_definition,
             DefinitionAtomRole::RuntimeRecord,
             DigestSemanticFieldRole::SourceSignature,
         );
@@ -455,9 +450,10 @@ mod tests {
             DigestPatchIntentId::from_key(&patch_key)
                 .unwrap()
                 .to_string(),
-            "6fdcfeed67e6cd368eefd046c2d41ed288f0751cfc73e90584836662d97c143a"
+            "3678a782a91d9905b2c16e94b81b33fc29b38614025bb730cf2cc51e7d06e946"
         );
         assert_eq!(patch_key.source(), source);
+        assert_eq!(patch_key.target_definition(), target_definition);
         assert_eq!(
             source_key.owner_and_role(),
             DigestOwnerAndRoleKey::SourceSignature(PersistentCallableBodyId(

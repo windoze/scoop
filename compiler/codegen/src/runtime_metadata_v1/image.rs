@@ -412,8 +412,8 @@ mod tests {
             StrongDefinitionRole::ImageDescriptor,
         )
         .unwrap();
-        let image_owner = image_plan_key.owner();
         let image_plan = CborIdentityRecord::from_key(image_plan_key).unwrap();
+        let image_plan_id = image_plan.id();
         let image_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
             image_plan.id(),
             DefinitionAtomRole::Primary,
@@ -459,7 +459,7 @@ mod tests {
         let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
         let image_patch = DigestPatchIntentKey::new(
             image_node_id,
-            image_owner,
+            image_plan_id,
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::RuntimeImage,
         );

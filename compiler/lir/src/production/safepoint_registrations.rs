@@ -270,12 +270,11 @@ fn build_registration(
         });
     }
 
-    let target = definition_key.owner();
     let registration_definition_patch = require_only_patch(
         registration,
         DigestPatchIntentKey::new(
             registration.id(),
-            target,
+            definition.id(),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::RegistrationDefinition,
         ),
@@ -284,7 +283,7 @@ fn build_registration(
         stackmap,
         DigestPatchIntentKey::new(
             stackmap.id(),
-            target,
+            definition.id(),
             DefinitionAtomRole::Primary,
             DigestSemanticFieldRole::NormalizedStackmap,
         ),
