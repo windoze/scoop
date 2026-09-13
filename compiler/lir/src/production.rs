@@ -39,6 +39,9 @@ pub use safepoint_registrations::*;
 mod callable_registrations;
 pub use callable_registrations::*;
 
+mod type_registrations;
+pub use type_registrations::*;
+
 mod image;
 pub use image::*;
 

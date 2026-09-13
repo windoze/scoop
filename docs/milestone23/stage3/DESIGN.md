@@ -1577,6 +1577,19 @@ target由精确`ObjectDefinitionPlanId`定位，因此同一callable owner下的
 通过owner反查混淆。结果按`PersistentCallableBodyId`排序，并完整保留两套definition/atom/symbol、三个
 digest node及两个patch intent；codegen不得从零散foundation表重新拼装这些字段。
 
+type registration在codegen前只能经唯一、非wire入口
+`StrongTypeRegistrationPlanSetV1::new(target, foundation, identities, digests)`形成完整生产计划。它以当前
+producer全部`TypeDescriptor` strong definition的exact type集合为完备性基准，并要求该集合与
+`StrongRegistrationIdentitySurfaceV1.type_registrations`逐项相等；每个exact type必须恰有一个非零
+runtime type mapping、一个当前target的`ManagedObject` layout，以及registration、descriptor、layout三套
+definition plan、唯一`Primary` atom和`ConeStrong`符号。registration Primary的ObjectDefinition固定为
+无input、无patch的leaf；StrongRegistration direct input精确为该leaf、descriptor Primary的
+ObjectDefinition和对应Layout node，且自身patch集合精确写入`RegistrationDefinition`。descriptor与layout
+node必须分别持有写入同一registration Primary的`DescriptorDefinition`和`Layout` patch。完整plan按
+`PersistentExactTypeId`排序并保留runtime id、三套definition/atom关系、三个上游node、StrongRegistration
+node和三个writer intent；缺项、多项、错误representation或额外digest edge均直接失败，不保留从LLVM
+descriptor大小、arena位置或symbol文本反推identity的旁路。
+
 codegen唯一经`emit_strong_safepoint_registrations_v1`消费上述完整set，不开放接受裸site或零散字段的
 单record生产入口。每个address-significant全局使用`ConeStrong`外部linkage，按共享header发射magic、
 ABI version 1、size 232、Strong linkage、零reserved/ODR group/ODR member、typed semantic/runtime/owner

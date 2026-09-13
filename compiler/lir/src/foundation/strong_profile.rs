@@ -154,6 +154,10 @@ impl OdrFreeLirFoundation {
         &self.canonical.scans
     }
 
+    pub(crate) fn runtime_types(&self) -> &[crate::RuntimeTypeMappingRecord] {
+        &self.canonical.runtime_types
+    }
+
     pub(crate) fn contains_callable_body(&self, id: PersistentCallableBodyId) -> bool {
         self.canonical
             .callable_bodies

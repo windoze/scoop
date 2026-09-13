@@ -74,6 +74,10 @@ impl LayoutKey {
         self.exact_type
     }
 
+    pub const fn target_profile(&self) -> &TargetProfileWireId {
+        &self.target_profile
+    }
+
     pub const fn representation(&self) -> RepresentationRole {
         self.representation
     }
