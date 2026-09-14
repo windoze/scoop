@@ -55,6 +55,7 @@ use crate::{
     StrongStaticStorageDefinitionFingerprintError, StrongStaticStorageFingerprintError,
     StrongStaticStorageRegistrationObjectFingerprintError,
     StrongStaticStorageRegistrationValidationError, StrongStaticStorageShapeFingerprintError,
+    StrongTypeDependencyFingerprintError, StrongTypeFingerprintError,
     StrongTypeRegistrationObjectFingerprintError, StrongTypeRegistrationValidationError,
     SymbolProjectionCheckedLinkIdentityClosureSectionV1,
     UndefinedSymbolRequirementFinalizationError, ValidatedGraphArtifact,
@@ -69,7 +70,7 @@ use crate::{
     VerifiedStrongInitializationRegistrationSetV1, VerifiedStrongSafepointFingerprintSetV1,
     VerifiedStrongSafepointRegistrationSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
     VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
-    VerifiedStrongStaticStorageRegistrationSetV1,
+    VerifiedStrongStaticStorageRegistrationSetV1, VerifiedStrongTypeFingerprintSetV1,
     VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
     hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
     lir_identity_foundation_capability, lir_link_identity_closure_capability,
@@ -265,9 +266,9 @@ pub struct LinkSymbolCheckedSingleConeLinkSections<'input> {
     production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 
-/// Link sections whose locally derivable registration dependencies and final
-/// strong fingerprints have been computed. Only the type-descriptor/layout
-/// dependency branch remains before the six-table patch transaction.
+/// Link sections whose complete registration dependencies and final strong
+/// fingerprints have been computed. The six tables are ready for one atomic
+/// patch transaction.
 pub struct RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
@@ -280,7 +281,7 @@ pub struct RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
     undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
-    type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    types: VerifiedStrongTypeFingerprintSetV1,
     immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
     static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
     initializations: VerifiedStrongInitializationFingerprintSetV1,
@@ -1646,6 +1647,14 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         let callables = crate::compute_strong_callable_fingerprints_v1(callable_bodies)
             .map_err(StrongLinkRegistrationDependencyFingerprintError::Callables)?;
 
+        let type_dependencies = crate::compute_strong_type_dependency_fingerprints_v1(
+            type_registration_objects,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationDependencyFingerprintError::TypeDependencies)?;
+        let types = crate::compute_strong_type_fingerprints_v1(type_dependencies)
+            .map_err(StrongLinkRegistrationDependencyFingerprintError::Types)?;
+
         let immortal_object_definitions =
             crate::compute_strong_immortal_object_definition_fingerprints_v1(
                 immortal_object_registration_objects,
@@ -1694,7 +1703,7 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
             undefined_symbols,
             safepoints,
             callables,
-            type_registration_objects,
+            types,
             immortal_objects,
             static_storages,
             initializations,
@@ -1768,10 +1777,8 @@ impl RegistrationDependencyFingerprintedSingleConeLinkSections<'_> {
         &self.callables
     }
 
-    pub const fn type_registration_objects(
-        &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
-        &self.type_registration_objects
+    pub const fn types(&self) -> &VerifiedStrongTypeFingerprintSetV1 {
+        &self.types
     }
 
     pub const fn immortal_objects(&self) -> &VerifiedStrongImmortalObjectFingerprintSetV1 {
@@ -2254,6 +2261,8 @@ impl std::error::Error for StrongLinkSymbolRequirementError {
 pub enum StrongLinkRegistrationDependencyFingerprintError {
     CallableBodies(StrongCallableBodyFingerprintError),
     Callables(StrongCallableFingerprintError),
+    TypeDependencies(StrongTypeDependencyFingerprintError),
+    Types(StrongTypeFingerprintError),
     ImmortalObjectDefinitions(StrongImmortalObjectDefinitionFingerprintError),
     ImmortalObjects(StrongImmortalObjectFingerprintError),
     StaticStorageDefinitions(StrongStaticStorageDefinitionFingerprintError),
@@ -2277,6 +2286,8 @@ impl std::error::Error for StrongLinkRegistrationDependencyFingerprintError {
         Some(match self {
             Self::CallableBodies(error) => error,
             Self::Callables(error) => error,
+            Self::TypeDependencies(error) => error,
+            Self::Types(error) => error,
             Self::ImmortalObjectDefinitions(error) => error,
             Self::ImmortalObjects(error) => error,
             Self::StaticStorageDefinitions(error) => error,

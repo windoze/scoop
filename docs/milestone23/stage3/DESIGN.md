@@ -2103,6 +2103,10 @@ registration object、descriptor ObjectDefinition和Layout三个按`(kind, node 
 入口不接受裸digest、裸node或调用方拼装的direct-input数组；proof coverage、exact type及三个node任一不一致
 均在hash前失败。
 
+Link reader的registration dependency完成态直接持有`VerifiedStrongTypeFingerprintSetV1`；它在同一状态转换中
+依次调用专用dependency计算器与type StrongRegistration计算器。该完成态不再暴露未完成的type
+registration-object leaf，也不存在跳过descriptor/layout而进入六表patch的兼容分支。
+
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
 收窄为`VerifiedNormalizedStackmapRecordV1`。normalizer执行site/runtime id与owner匹配、v3 stack
