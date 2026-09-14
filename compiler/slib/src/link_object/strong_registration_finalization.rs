@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{PersistentCallableBodyId, PersistentExactTypeId, PersistentSafepointSiteId};
+use scoop_identity::{
+    PersistentCallableBodyId, PersistentExactTypeId, PersistentImmortalObjectId,
+    PersistentSafepointSiteId,
+};
 use scoop_wire::sha256;
 
 use super::safepoint_registrations::physical::{validate_objects, verified_member};
@@ -12,8 +15,10 @@ use crate::link_object::{
     ScoopLirObjectCandidateV1, ScoopLirObjectEnvelopeValidationError,
     ValidatedBuiltinObjectSectionInventoryV1, ValidatedScoopLirObjectEnvelopeV1,
     VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedMaterializedPatchSiteV1,
-    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongTypeFingerprintSetV1,
+    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
+    VerifiedStrongTypeFingerprintSetV1,
     callable_registrations::record::expected_final_record as expected_final_callable_record,
+    immortal_registrations::record::expected_final_record as expected_final_immortal_object_record,
     type_registrations::record::expected_final_record as expected_final_type_record,
     validate_scoop_lir_llvm_22_1_object_envelope_v1,
 };
@@ -43,13 +48,15 @@ impl VerifiedStrongRegistrationPatchedScoopLirObjectV1 {
     }
 }
 
-/// Typed result of applying every verified safepoint, callable, and type digest to
-/// copied object bytes. This is not yet the full digest-graph finalization.
+/// Typed result of applying every verified safepoint, callable, type, and
+/// immortal-object digest to copied object bytes. This is not yet the full
+/// digest-graph finalization.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongRegistrationPatchSetV1 {
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
     types: VerifiedStrongTypeFingerprintSetV1,
+    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
     objects: Vec<VerifiedStrongRegistrationPatchedScoopLirObjectV1>,
 }
 
@@ -70,25 +77,36 @@ impl VerifiedStrongRegistrationPatchSetV1 {
         &self.types
     }
 
+    pub const fn immortal_objects(&self) -> &VerifiedStrongImmortalObjectFingerprintSetV1 {
+        &self.immortal_objects
+    }
+
     pub fn objects(&self) -> &[VerifiedStrongRegistrationPatchedScoopLirObjectV1] {
         &self.objects
     }
 }
 
 /// Copy the exact verified provisional objects, write every declared
-/// safepoint, callable, and type slot, and revalidate normalized content and shape.
+/// safepoint, callable, type, and immortal-object slot, and revalidate
+/// normalized content and shape.
 pub fn patch_strong_registration_fingerprints_v1(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
     types: VerifiedStrongTypeFingerprintSetV1,
+    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongRegistrationPatchSetV1, StrongRegistrationPatchError> {
     let safepoint_registrations = safepoints.registrations();
     let callable_body_objects = callables.body_objects();
     let callable_registrations = callable_body_objects.registration_objects().registrations();
     let type_registrations = types.dependencies().registration_objects().registrations();
+    let immortal_registrations = immortal_objects
+        .object_definitions()
+        .registration_objects()
+        .registrations();
     if safepoint_registrations.patch_sites() != callable_registrations.patch_sites()
         || safepoint_registrations.patch_sites() != type_registrations.patch_sites()
+        || safepoint_registrations.patch_sites() != immortal_registrations.patch_sites()
         || safepoint_registrations.stackmaps() != callable_body_objects.stackmaps()
     {
         return Err(StrongRegistrationPatchError::ProofMismatch);
@@ -96,7 +114,7 @@ pub fn patch_strong_registration_fingerprints_v1(
     let builtins = safepoint_registrations.stackmaps().builtins();
     validate_objects(builtins, scoop_objects)
         .map_err(StrongRegistrationPatchError::ObjectValidation)?;
-    validate_proof_coverage(&safepoints, &callables, &types)?;
+    validate_proof_coverage(&safepoints, &callables, &types, &immortal_objects)?;
 
     let mut objects = scoop_objects
         .iter()
@@ -111,10 +129,19 @@ pub fn patch_strong_registration_fingerprints_v1(
     patch_safepoints(&safepoints, &object_indexes, &mut objects)?;
     patch_callables(&callables, &object_indexes, &mut objects)?;
     patch_types(&types, &object_indexes, &mut objects)?;
+    patch_immortal_objects(&immortal_objects, &object_indexes, &mut objects)?;
 
     let mut finalized = Vec::with_capacity(objects.len());
     for (member, bytes) in objects {
-        verify_normalized_content(member, &bytes, &safepoints, &callables, &types, builtins)?;
+        verify_normalized_content(
+            member,
+            &bytes,
+            &safepoints,
+            &callables,
+            &types,
+            &immortal_objects,
+            builtins,
+        )?;
         let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(&bytes)
             .map_err(|source| StrongRegistrationPatchError::FinalEnvelope { member, source })?;
         let original = verified_member(builtins, member)
@@ -135,6 +162,7 @@ pub fn patch_strong_registration_fingerprints_v1(
         safepoints,
         callables,
         types,
+        immortal_objects,
         objects: finalized,
     })
 }
@@ -143,6 +171,7 @@ fn validate_proof_coverage(
     safepoints: &VerifiedStrongSafepointFingerprintSetV1,
     callables: &VerifiedStrongCallableFingerprintSetV1,
     types: &VerifiedStrongTypeFingerprintSetV1,
+    immortal_objects: &VerifiedStrongImmortalObjectFingerprintSetV1,
 ) -> Result<(), StrongRegistrationPatchError> {
     let verified_safepoints = safepoints.registrations().registrations();
     if verified_safepoints.len() != safepoints.registrations().plan().registrations().len()
@@ -170,6 +199,16 @@ fn validate_proof_coverage(
     let type_registrations = types.dependencies().registration_objects().registrations();
     if type_registrations.registrations().len() != type_registrations.plan().registrations().len()
         || type_registrations.registrations().len() != types.fingerprints().len()
+    {
+        return Err(StrongRegistrationPatchError::ProofCoverageMismatch);
+    }
+    let immortal_registrations = immortal_objects
+        .object_definitions()
+        .registration_objects()
+        .registrations();
+    if immortal_registrations.registrations().len()
+        != immortal_registrations.plan().registrations().len()
+        || immortal_registrations.registrations().len() != immortal_objects.fingerprints().len()
     {
         return Err(StrongRegistrationPatchError::ProofCoverageMismatch);
     }
@@ -308,6 +347,41 @@ fn patch_types(
     Ok(())
 }
 
+fn patch_immortal_objects(
+    fingerprints: &VerifiedStrongImmortalObjectFingerprintSetV1,
+    object_indexes: &BTreeMap<SlibMemberId, usize>,
+    objects: &mut [(SlibMemberId, Vec<u8>)],
+) -> Result<(), StrongRegistrationPatchError> {
+    let registrations = fingerprints
+        .object_definitions()
+        .registration_objects()
+        .registrations();
+    for ((verified, plan), computed) in registrations
+        .registrations()
+        .iter()
+        .zip(registrations.plan().registrations())
+        .zip(fingerprints.fingerprints())
+    {
+        let owner = StrongRegistrationPatchOwnerV1::ImmortalObject(plan.object());
+        if verified.object() != plan.object() || verified.object() != computed.object() {
+            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
+        }
+        let index = object_indexes.get(&verified.member()).copied().ok_or(
+            StrongRegistrationPatchError::MissingObject(verified.member()),
+        )?;
+        let bytes = &mut objects[index].1;
+        write_digest(
+            bytes,
+            verified.registration_definition_patch(),
+            computed.registration().as_array(),
+            owner,
+            StrongRegistrationPatchFieldV1::RegistrationDefinition,
+        )?;
+        validate_final_immortal_object(bytes, verified.checked_offset(), *plan, computed)?;
+    }
+    Ok(())
+}
+
 fn write_digest(
     object: &mut [u8],
     patch: VerifiedMaterializedPatchSiteV1,
@@ -392,6 +466,21 @@ fn validate_final_type(
     )
 }
 
+fn validate_final_immortal_object(
+    object: &[u8],
+    checked_offset: u64,
+    plan: scoop_lir::StrongImmortalObjectRegistrationPlanV1,
+    computed: &crate::link_object::VerifiedStrongImmortalObjectFingerprintV1,
+) -> Result<(), StrongRegistrationPatchError> {
+    let expected = expected_final_immortal_object_record(plan, computed.registration().as_array());
+    validate_final_record(
+        object,
+        checked_offset,
+        &expected,
+        StrongRegistrationPatchOwnerV1::ImmortalObject(plan.object()),
+    )
+}
+
 fn validate_final_record(
     object: &[u8],
     checked_offset: u64,
@@ -427,6 +516,7 @@ fn verify_normalized_content(
     safepoints: &VerifiedStrongSafepointFingerprintSetV1,
     callables: &VerifiedStrongCallableFingerprintSetV1,
     types: &VerifiedStrongTypeFingerprintSetV1,
+    immortal_objects: &VerifiedStrongImmortalObjectFingerprintSetV1,
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
 ) -> Result<(), StrongRegistrationPatchError> {
     let mut normalized = final_bytes.to_vec();
@@ -478,6 +568,20 @@ fn verify_normalized_content(
                 registration.descriptor_definition_patch(),
                 registration.layout_fingerprint_patch(),
             ],
+        )?;
+    }
+    for registration in immortal_objects
+        .object_definitions()
+        .registration_objects()
+        .registrations()
+        .registrations()
+        .iter()
+        .filter(|registration| registration.member() == member)
+    {
+        zero_digest_slots(
+            &mut normalized,
+            member,
+            [registration.registration_definition_patch()],
         )?;
     }
     let original = verified_member(builtins, member)
@@ -538,6 +642,7 @@ pub enum StrongRegistrationPatchOwnerV1 {
     Safepoint(PersistentSafepointSiteId),
     Callable(PersistentCallableBodyId),
     Type(PersistentExactTypeId),
+    ImmortalObject(PersistentImmortalObjectId),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

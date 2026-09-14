@@ -4,14 +4,19 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 };
 use crate::link_object::{
     LayoutFingerprintV1, ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1,
-    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongTypeDependencyFingerprintSetV1,
-    VerifiedStrongTypeDependencyFingerprintV1, VerifiedStrongTypeFingerprintSetV1,
-    compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
+    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
+    VerifiedStrongTypeDependencyFingerprintSetV1, VerifiedStrongTypeDependencyFingerprintV1,
+    VerifiedStrongTypeFingerprintSetV1, compute_strong_callable_body_object_fingerprints_v1,
+    compute_strong_callable_fingerprints_v1,
     compute_strong_callable_registration_object_fingerprints_v1,
+    compute_strong_immortal_object_definition_fingerprints_v1,
+    compute_strong_immortal_object_fingerprints_v1,
+    compute_strong_immortal_object_registration_object_fingerprints_v1,
     compute_strong_safepoint_fingerprints_v1, compute_strong_type_fingerprints_v1,
     compute_strong_type_registration_object_fingerprints_v1,
     verify_scoop_lir_digest_patch_sites_v1, verify_strong_callable_registrations_v1,
-    verify_strong_safepoint_registrations_v1, verify_strong_type_registrations_v1,
+    verify_strong_immortal_object_registrations_v1, verify_strong_safepoint_registrations_v1,
+    verify_strong_type_registrations_v1,
 };
 use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
 
@@ -22,10 +27,17 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         fixture.member,
         &fixture.object_bytes,
     )];
-    let (safepoints, callables, types) = verified_fingerprints(&fixture, &objects);
+    let (safepoints, callables, types, immortal_objects) =
+        verified_fingerprints(&fixture, &objects);
 
-    let patched =
-        patch_strong_registration_fingerprints_v1(safepoints, callables, types, &objects).unwrap();
+    let patched = patch_strong_registration_fingerprints_v1(
+        safepoints,
+        callables,
+        types,
+        immortal_objects,
+        &objects,
+    )
+    .unwrap();
 
     assert_eq!(
         patched.producer(),
@@ -131,6 +143,25 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         );
     }
 
+    let immortal_registrations = patched
+        .immortal_objects()
+        .object_definitions()
+        .registration_objects()
+        .registrations()
+        .registrations();
+    let immortal_fingerprints = patched.immortal_objects().fingerprints();
+    for (registration, fingerprint) in immortal_registrations.iter().zip(immortal_fingerprints) {
+        assert_eq!(
+            digest_at(
+                final_object.bytes(),
+                registration
+                    .registration_definition_patch()
+                    .checked_offset(),
+            ),
+            fingerprint.registration().as_array()
+        );
+    }
+
     for (offset, (before, after)) in fixture
         .object_bytes
         .iter()
@@ -169,7 +200,13 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
             .into_iter()
             .any(|start| start <= offset && offset < start + 32)
         });
-        if !is_safepoint_patch && !is_callable_patch && !is_type_patch {
+        let is_immortal_patch = immortal_registrations.iter().any(|registration| {
+            let start = registration
+                .registration_definition_patch()
+                .checked_offset();
+            start <= offset && offset < start + 32
+        });
+        if !is_safepoint_patch && !is_callable_patch && !is_type_patch && !is_immortal_patch {
             assert_eq!(before, after);
         }
     }
@@ -182,7 +219,8 @@ fn rejects_provisional_bytes_changed_after_fingerprint_computation() {
         fixture.member,
         &fixture.object_bytes,
     )];
-    let (safepoints, callables, types) = verified_fingerprints(&fixture, &objects);
+    let (safepoints, callables, types, immortal_objects) =
+        verified_fingerprints(&fixture, &objects);
     let last = fixture.object_bytes.len() - 1;
     fixture.object_bytes[last] ^= 1;
     let changed = [ScoopLirObjectCandidateV1::new(
@@ -191,7 +229,13 @@ fn rejects_provisional_bytes_changed_after_fingerprint_computation() {
     )];
 
     assert!(matches!(
-        patch_strong_registration_fingerprints_v1(safepoints, callables, types, &changed),
+        patch_strong_registration_fingerprints_v1(
+            safepoints,
+            callables,
+            types,
+            immortal_objects,
+            &changed,
+        ),
         Err(StrongRegistrationPatchError::ObjectValidation(
             StrongSafepointRegistrationValidationError::ObjectBytesMismatch(member)
         )) if member == fixture.member
@@ -266,9 +310,16 @@ fn rejects_fingerprint_proofs_from_different_digest_graphs() {
     )
     .unwrap();
     let callables = compute_strong_callable_fingerprints_v1(body_objects).unwrap();
+    let immortal_objects = verified_immortal_object_fingerprints(&fixture, &objects);
 
     assert_eq!(
-        patch_strong_registration_fingerprints_v1(safepoints, callables, types, &objects),
+        patch_strong_registration_fingerprints_v1(
+            safepoints,
+            callables,
+            types,
+            immortal_objects,
+            &objects,
+        ),
         Err(StrongRegistrationPatchError::ProofMismatch)
     );
 }
@@ -280,6 +331,7 @@ fn verified_fingerprints(
     VerifiedStrongSafepointFingerprintSetV1,
     VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongTypeFingerprintSetV1,
+    VerifiedStrongImmortalObjectFingerprintSetV1,
 ) {
     let stackmaps = fixture.verified_stackmaps();
     let patch_sites = fixture.verified_patch_sites();
@@ -312,7 +364,30 @@ fn verified_fingerprints(
     .unwrap();
     let callables = compute_strong_callable_fingerprints_v1(body_objects).unwrap();
     let types = verified_type_fingerprints(fixture, objects);
-    (safepoints, callables, types)
+    let immortal_objects = verified_immortal_object_fingerprints(fixture, objects);
+    (safepoints, callables, types, immortal_objects)
+}
+
+fn verified_immortal_object_fingerprints(
+    fixture: &Fixture,
+    objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> VerifiedStrongImmortalObjectFingerprintSetV1 {
+    let registrations = verify_strong_immortal_object_registrations_v1(
+        fixture.verified_patch_sites(),
+        fixture.immortal_registration_plan.clone(),
+        objects,
+    )
+    .unwrap();
+    let registration_objects =
+        compute_strong_immortal_object_registration_object_fingerprints_v1(registrations, objects)
+            .unwrap();
+    let object_definitions = compute_strong_immortal_object_definition_fingerprints_v1(
+        registration_objects,
+        fixture.undefined_requirements(),
+        objects,
+    )
+    .unwrap();
+    compute_strong_immortal_object_fingerprints_v1(object_definitions).unwrap()
 }
 
 fn verified_type_fingerprints(
