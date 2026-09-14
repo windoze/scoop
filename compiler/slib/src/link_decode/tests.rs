@@ -17,8 +17,8 @@ use scoop_wire::{DecodeLimits, encode};
 use super::*;
 use crate::{
     BootstrapManifest, CanonicalSlibArchive, CodeFingerprint, CompatibilityRecord, ConeKind,
-    ConeRecord, ConeSourceForm, FingerprintAvailability, HirFingerprint, ManifestSection,
-    MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection,
+    ConeRecord, ConeSourceForm, DependencyRecord, FingerprintAvailability, HirFingerprint,
+    ManifestSection, MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection,
     PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProducerRecord,
     RuntimeImageFingerprint, SemanticFingerprintRecord, SlibMember, SlibMemberRole,
     StrongProfileLirProductionError,
@@ -208,6 +208,106 @@ fn strong_graph_decodes_all_link_sections_atomically() {
             .as_array(),
         &[0; 32]
     );
+}
+
+#[test]
+fn strong_graph_validates_the_complete_final_link_view() {
+    let bytes = complete_artifact(false);
+    let external =
+        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    let artifact = open_graph(&bytes)
+        .decode_single_cone_link_sections()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .validate_production(&external)
+        .unwrap()
+        .validate_materializations()
+        .unwrap()
+        .validate_c_bridge_envelopes(&c_bridge_profile())
+        .unwrap()
+        .validate_builtin_objects()
+        .unwrap()
+        .validate_digest_patch_sites()
+        .unwrap()
+        .validate_registration_objects()
+        .unwrap()
+        .fingerprint_registration_leaves()
+        .unwrap()
+        .validate_link_symbol_requirements(&core_owners, &c_bridge_profile())
+        .unwrap()
+        .fingerprint_registration_dependencies()
+        .unwrap()
+        .finalize_strong_objects()
+        .unwrap()
+        .validate_code_and_closure()
+        .unwrap();
+
+    assert_eq!(artifact.identity(), cone().identity());
+    assert_eq!(
+        artifact.production_manifest().code_proof().producer(),
+        cone().identity()
+    );
+    assert_eq!(
+        artifact
+            .production_manifest()
+            .code_proof()
+            .production()
+            .link_objects()
+            .members()
+            .len(),
+        1
+    );
+    assert_eq!(
+        artifact
+            .link_identity_closure()
+            .verified_link_objects()
+            .members()
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn strong_graph_rejects_final_object_bytes_that_do_not_reconstruct() {
+    let bytes = complete_artifact(true);
+    let external =
+        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_link_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure()
+            .unwrap()
+            .validate_production(&external)
+            .unwrap()
+            .validate_materializations()
+            .unwrap()
+            .validate_c_bridge_envelopes(&c_bridge_profile())
+            .unwrap()
+            .validate_builtin_objects()
+            .unwrap()
+            .validate_digest_patch_sites()
+            .unwrap()
+            .validate_registration_objects()
+            .unwrap()
+            .fingerprint_registration_leaves()
+            .unwrap()
+            .validate_link_symbol_requirements(&core_owners, &c_bridge_profile())
+            .unwrap()
+            .fingerprint_registration_dependencies()
+            .unwrap()
+            .finalize_strong_objects(),
+        Err(StrongLinkObjectFinalizationError::FinalObjectMismatch(
+            ReconstructedScoopObjectError::ByteMismatch(_)
+        ))
+    ));
 }
 
 #[test]
@@ -525,6 +625,211 @@ fn artifact(
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
     build_artifact(manifest_sections, lir_sections, true, true, false, true)
+}
+
+fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
+    let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
+    hir_foundation
+        .set_types(vec![
+            scoop_identity::CoreBuiltinNominal::Unit.identity_record(),
+            scoop_identity::CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
+    mir_foundation
+        .set_exact_types(vec![
+            CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Nominal(
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id(),
+            ))
+            .unwrap(),
+        ])
+        .unwrap();
+    let (lir_foundation, _) = strong_production_fixture(cone().coordinate().clone());
+    let lir_proof =
+        OdrFreeLirFoundation::try_new(cone().identity(), lir_foundation.clone()).unwrap();
+    let (strong_production, final_objects, defined_symbols, undefined_symbols) =
+        finalized_link_object_fixture();
+    let image_patch_offset = final_objects
+        .runtime_images()
+        .fingerprint()
+        .image()
+        .image_patch()
+        .checked_offset();
+    let dependencies = vec![
+        DependencyRecord::new(
+            ConeCoordinate::reserved_core(),
+            HirFingerprint::from_array([1; 32]),
+            crate::MirFingerprint::from_array([2; 32]),
+            crate::LirFingerprint::from_array([3; 32]),
+        )
+        .unwrap(),
+    ];
+    let plan = link_object_plan();
+    let member_plan = &plan.scoop_lir_members()[0];
+    let link_member = SlibMember::new(
+        cone().identity(),
+        member_plan.stable_key().clone(),
+        member_plan.role().clone(),
+        final_objects.objects()[0].bytes().to_vec(),
+    )
+    .unwrap();
+    let link_objects =
+        crate::verify_code_link_object_members_v1(final_objects, &[link_member.record().clone()])
+            .unwrap();
+    let code_projection = crate::verify_single_cone_production_code_projection_v1(
+        &cone(),
+        &dependencies,
+        hir_foundation.counts().sources,
+        strong_production.clone(),
+        link_objects,
+    )
+    .unwrap();
+    let native = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
+        selection().target(),
+        &lir_proof,
+    )
+    .unwrap();
+    let code = crate::compute_code_fingerprint_v1(
+        code_projection,
+        native,
+        defined_symbols,
+        undefined_symbols,
+    )
+    .unwrap();
+    let closure = crate::LinkIdentityClosureSectionV1::from_verified_code(&code).unwrap();
+    let production_manifest = crate::SingleConeProductionManifestV1::from_verified_code(code);
+    let link_member = if corrupt_final_image_digest {
+        let mut bytes = link_member.payload().to_vec();
+        bytes[usize::try_from(image_patch_offset).unwrap()] ^= 1;
+        SlibMember::new(
+            cone().identity(),
+            member_plan.stable_key().clone(),
+            member_plan.role().clone(),
+            bytes,
+        )
+        .unwrap()
+    } else {
+        link_member
+    };
+
+    let hir_sections = vec![
+        MetadataSection::new(
+            MetadataLocation::Hir,
+            hir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE,
+            encode(&hir_foundation).unwrap(),
+        )
+        .unwrap(),
+        MetadataSection::new(
+            MetadataLocation::Hir,
+            hir_core_bootstrap_interface_capability(),
+            MemberPurposeSet::COMPILE,
+            empty_not_core_library_section(),
+        )
+        .unwrap(),
+    ];
+    let mir_sections = vec![
+        MetadataSection::new(
+            MetadataLocation::Mir,
+            mir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE,
+            encode(&mir_foundation).unwrap(),
+        )
+        .unwrap(),
+        MetadataSection::new(
+            MetadataLocation::Mir,
+            mir_core_bootstrap_bridge_capability(),
+            MemberPurposeSet::COMPILE,
+            empty_not_core_library_section(),
+        )
+        .unwrap(),
+    ];
+    let lir_sections = vec![
+        MetadataSection::new(
+            MetadataLocation::Lir,
+            lir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE,
+            encode(&lir_foundation).unwrap(),
+        )
+        .unwrap(),
+        MetadataSection::new(
+            MetadataLocation::Lir,
+            lir_strong_production_capability(),
+            MemberPurposeSet::COMPILE_AND_LINK,
+            encode(&strong_production).unwrap(),
+        )
+        .unwrap(),
+        MetadataSection::new(
+            MetadataLocation::Lir,
+            lir_link_identity_closure_capability(),
+            MemberPurposeSet::LINK,
+            encode(&closure).unwrap(),
+        )
+        .unwrap(),
+    ];
+    let compatibility =
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+            .unwrap();
+    let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
+        &compatibility,
+        &dependencies,
+        &known_sections(&hir_sections),
+        &known_sections(&mir_sections),
+        &known_sections(&lir_sections),
+    )
+    .unwrap();
+    let semantic = SemanticFingerprintRecord::from_production_manifest(
+        foundation_fingerprints.hir(),
+        foundation_fingerprints.mir(),
+        foundation_fingerprints.lir(),
+        &production_manifest,
+    );
+    let manifest_section = ManifestSection::new(
+        manifest_single_cone_production_capability(),
+        MemberPurposeSet::LINK,
+        encode(&production_manifest).unwrap(),
+    )
+    .unwrap();
+    let mut members = vec![
+        SlibMember::new(
+            cone().identity(),
+            MemberStableKey::HirMetadata,
+            SlibMemberRole::HirMetadata,
+            encode(&MetadataEnvelope::new(MetadataLocation::Hir, hir_sections).unwrap()).unwrap(),
+        )
+        .unwrap(),
+        SlibMember::new(
+            cone().identity(),
+            MemberStableKey::MirMetadata,
+            SlibMemberRole::MirMetadata,
+            encode(&MetadataEnvelope::new(MetadataLocation::Mir, mir_sections).unwrap()).unwrap(),
+        )
+        .unwrap(),
+        SlibMember::new(
+            cone().identity(),
+            MemberStableKey::LirMetadata,
+            SlibMemberRole::LirMetadata,
+            encode(&MetadataEnvelope::new(MetadataLocation::Lir, lir_sections).unwrap()).unwrap(),
+        )
+        .unwrap(),
+        link_member,
+    ];
+    let manifest = BootstrapManifest::new(
+        ProducerRecord::new("test").unwrap(),
+        compatibility,
+        cone(),
+        dependencies,
+        &members,
+        semantic,
+        vec![manifest_section],
+    )
+    .unwrap();
+    CanonicalSlibArchive::write_bootstrap(&manifest, std::mem::take(&mut members))
+        .unwrap()
+        .as_bytes()
+        .to_vec()
 }
 
 fn build_artifact(
@@ -934,8 +1239,229 @@ fn link_object_fixture() -> LinkObjectFixture {
     }
 }
 
+fn finalized_link_object_fixture() -> (
+    StrongProductionSectionV1,
+    crate::VerifiedEntryPatchSetV1,
+    crate::CanonicalDefinedLinkSymbolOwnerSetV1,
+    crate::CanonicalUndefinedSymbolRequirementSetV1,
+) {
+    let fixture = link_object_fixture();
+    let (canonical, production) = strong_production_fixture(cone().coordinate().clone());
+    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
+    let objects = [crate::ScoopLirObjectCandidateV1::new(
+        fixture.plan.scoop_lir_members()[0].member_id(),
+        &fixture.bytes,
+    )];
+    let provisional_sites = [crate::ProvisionalDigestPatchSiteV1::new(
+        digest_patch_intent(),
+        fixture.plan.scoop_lir_members()[0].member_id(),
+        fixture.checked_offset,
+        32,
+    )];
+    let patch_sites = crate::verify_scoop_lir_digest_patch_sites_v1(
+        fixture.builtins,
+        &foundation,
+        production.digest_finalization_plan().clone(),
+        &objects,
+        &provisional_sites,
+    )
+    .unwrap();
+    let defined_symbols =
+        crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
+            patch_sites.builtins().strong_relocations(),
+        )
+        .unwrap();
+    let registrations = production.registration_production();
+    let stackmaps = crate::verify_scoop_lir_stackmaps_v1(
+        patch_sites.builtins().clone(),
+        registrations.safepoint_semantics(),
+        &objects,
+    )
+    .unwrap();
+    let safepoint_registrations = crate::verify_strong_safepoint_registrations_v1(
+        stackmaps.clone(),
+        patch_sites.clone(),
+        registrations.safepoints().clone(),
+        &objects,
+    )
+    .unwrap();
+    let safepoints =
+        crate::compute_strong_safepoint_fingerprints_v1(safepoint_registrations, &objects).unwrap();
+    let callable_registrations = crate::verify_strong_callable_registrations_v1(
+        patch_sites.clone(),
+        registrations.callables().clone(),
+        &objects,
+    )
+    .unwrap();
+    let callable_objects = crate::compute_strong_callable_registration_object_fingerprints_v1(
+        callable_registrations,
+        &objects,
+    )
+    .unwrap();
+    let undefined_symbols = empty_undefined_requirements(&patch_sites, &foundation, &production);
+    let callable_bodies = crate::compute_strong_callable_body_object_fingerprints_v1(
+        callable_objects,
+        stackmaps,
+        undefined_symbols.clone(),
+        &objects,
+    )
+    .unwrap();
+    let callables =
+        crate::compute_strong_callable_fingerprints_v1(callable_bodies.clone()).unwrap();
+    let type_registrations = crate::verify_strong_type_registrations_v1(
+        patch_sites.clone(),
+        registrations.types().clone(),
+        &objects,
+    )
+    .unwrap();
+    let type_objects = crate::compute_strong_type_registration_object_fingerprints_v1(
+        type_registrations,
+        &objects,
+    )
+    .unwrap();
+    let type_dependencies =
+        crate::compute_strong_type_dependency_fingerprints_v1(type_objects, &objects).unwrap();
+    let types = crate::compute_strong_type_fingerprints_v1(type_dependencies).unwrap();
+    let immortal_registrations = crate::verify_strong_immortal_object_registrations_v1(
+        patch_sites.clone(),
+        registrations.immortal_objects().clone(),
+        &objects,
+    )
+    .unwrap();
+    let immortal_registration_objects =
+        crate::compute_strong_immortal_object_registration_object_fingerprints_v1(
+            immortal_registrations,
+            &objects,
+        )
+        .unwrap();
+    let immortal_definitions = crate::compute_strong_immortal_object_definition_fingerprints_v1(
+        immortal_registration_objects,
+        undefined_symbols.clone(),
+        &objects,
+    )
+    .unwrap();
+    let immortal_objects =
+        crate::compute_strong_immortal_object_fingerprints_v1(immortal_definitions).unwrap();
+    let static_storage_registrations = crate::verify_strong_static_storage_registrations_v1(
+        patch_sites.clone(),
+        registrations.static_storages().clone(),
+        &objects,
+    )
+    .unwrap();
+    let static_storage_objects =
+        crate::compute_strong_static_storage_registration_object_fingerprints_v1(
+            static_storage_registrations,
+            &objects,
+        )
+        .unwrap();
+    let static_storage_definitions =
+        crate::compute_strong_static_storage_definition_fingerprints_v1(
+            static_storage_objects,
+            &objects,
+        )
+        .unwrap();
+    let static_storage_shapes =
+        crate::compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
+            .unwrap();
+    let static_storages =
+        crate::compute_strong_static_storage_fingerprints_v1(static_storage_shapes).unwrap();
+    let initialization_registrations = crate::verify_strong_initialization_registrations_v1(
+        patch_sites.clone(),
+        registrations.initialization_units().clone(),
+        &objects,
+    )
+    .unwrap();
+    let initialization_objects =
+        crate::compute_strong_initialization_registration_object_fingerprints_v1(
+            initialization_registrations,
+            &objects,
+        )
+        .unwrap();
+    let initialization_definitions =
+        crate::compute_strong_initialization_definition_fingerprints_v1(
+            initialization_objects,
+            &objects,
+        )
+        .unwrap();
+    let initializations = crate::compute_strong_initialization_fingerprints_v1(
+        initialization_definitions,
+        &callable_bodies,
+    )
+    .unwrap();
+    let image = crate::verify_cone_image_v1(
+        patch_sites.clone(),
+        production.image_plan().clone(),
+        &objects,
+    )
+    .unwrap();
+    let entry =
+        crate::verify_entry_production_v1(patch_sites, production.entry_plan().clone(), &objects)
+            .unwrap();
+    let patched = crate::patch_strong_registration_fingerprints_v1(
+        safepoints,
+        callables,
+        types,
+        immortal_objects,
+        static_storages,
+        initializations,
+        &objects,
+    )
+    .unwrap();
+    let compatibility =
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+            .unwrap();
+    let image = crate::compute_runtime_image_fingerprint_v1(image, patched, compatibility).unwrap();
+    let image = crate::patch_runtime_image_fingerprint_v1(image).unwrap();
+    let final_objects = crate::patch_entry_production_v1(image, entry).unwrap();
+    (
+        production,
+        final_objects,
+        defined_symbols,
+        undefined_symbols,
+    )
+}
+
 fn link_object_bytes() -> Vec<u8> {
-    link_object_fixture().bytes
+    finalized_link_object_fixture().1.objects()[0]
+        .bytes()
+        .to_vec()
+}
+
+fn empty_undefined_requirements(
+    patch_sites: &crate::VerifiedScoopLirDigestPatchSiteSetV1,
+    foundation: &OdrFreeLirFoundation,
+    production: &StrongProductionSectionV1,
+) -> crate::CanonicalUndefinedSymbolRequirementSetV1 {
+    let strong = patch_sites.builtins().strong_relocations().clone();
+    let current = crate::verify_current_cone_undefined_requirements_v1(
+        strong.clone(),
+        production.generated_bridge_plan().clone(),
+    )
+    .unwrap();
+    let native = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
+        selection().target(),
+        foundation,
+    )
+    .unwrap();
+    let core = crate::verify_core_strong_requirements_v1(
+        selection().target(),
+        strong,
+        production.external_bridges().clone(),
+        crate::CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE),
+    )
+    .unwrap();
+    let source = crate::verify_source_external_requirements_v1(core, native.clone()).unwrap();
+    let runtime = crate::verify_runtime_and_eh_requirements_v1(source, selection()).unwrap();
+    let bridge = crate::verify_generated_c_bridge_semantics_v1(
+        patch_sites.clone(),
+        production.generated_bridge_plan().clone(),
+        native,
+        &c_bridge_profile(),
+    )
+    .unwrap();
+    let external = crate::verify_c_bridge_target_support_requirements_v1(runtime, bridge).unwrap();
+    let external = crate::seal_builtin_object_external_requirements_v1(external).unwrap();
+    crate::finalize_undefined_symbol_requirements_v1(current, external).unwrap()
 }
 
 fn digest_patch_intent() -> scoop_identity::DigestPatchIntentId {

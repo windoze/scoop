@@ -24,6 +24,9 @@ use expected::{derive_expected_sites, validate_provisional_order_and_coverage};
 mod physical;
 use physical::{validate_disjoint_sites, validate_scoop_objects, verify_site};
 
+mod final_object_normalization;
+pub use final_object_normalization::*;
+
 /// Untrusted producer materialization of one member-independent digest intent.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProvisionalDigestPatchSiteV1 {

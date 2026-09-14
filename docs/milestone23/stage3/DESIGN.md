@@ -1394,7 +1394,7 @@ actual object bytes，并按以下顺序fail closed：
 按本节其余规则验证atom、symbol、relocation与requirement。不得先用某个deployment验证object，再把
 另一个compiler/template/flags profile写入manifest。
 
-两个producer的provisional member随后由单一
+producer侧的provisional member随后由单一
 `VerifiedBuiltinObjectStrongRelocationSetV1`入口闭合。输入必须分别是按member id严格递增且完整覆盖
 member plan的`ScoopLirObjectCandidateV1`与`GeneratedCBridgeObjectCandidateV1`；strong symbol plan也
 必须完整覆盖两类member，三者producer相同。Scoop candidate只能通过无deployment的LLVM 22.1
@@ -1403,6 +1403,13 @@ qualifier，generated-C candidate只能复用上述C-bridge production envelope 
 relocation shape/atom owner验证，最后在全部member的联合定义空间解析current-Cone strong target。
 该proof止于provisional strong-relocation closure；digest patch、stackmap leaf、requirement finalization与
 final bytes re-verification仍由后续typed阶段完成。
+
+发布后Link reader面对的是archive中的final bytes，不得把它直接冒充上述provisional输入。reader先以
+identity-closure中已经完成intent/member/coverage检查的完整32-byte site集合构造
+`VerifiedNormalizedProvisionalScoopLirObjectSetV1`：逐member复制final bytes，只归零这些互不重叠且边界合法的
+site，并同时保留原始final副本。全部object/registration/image/entry verifier只消费该proof生成的provisional
+candidate；finalizer重建全部digest后必须与保留的archive副本逐member、逐byte相等。不存在接受final/provisional
+裸bytes混用的重载或兼容分支。
 
 Scoop producer的digest落槽先由`VerifiedScoopLirDigestPatchSiteSetV1`收窄。输入是上述联合object
 proof、同producer的`OdrFreeLirFoundation`、已经对该foundation闭合的
@@ -2527,10 +2534,14 @@ production虽然不由Link inventory列为mandatory Link section，Link reader�
 10. 重算Code fingerprint、member/artifact fingerprint交叉关系；
 11. 原子构造immutable `ValidatedLinkArtifact<SingleConeStrongProfile>`。
 
-步骤8进入步骤9时使用单一消费式状态转换：先在provisional bytes上验证唯一image与entry分支，再原子写入
+步骤8进入步骤9时使用单一消费式状态转换：先在上述typed provisional视图上验证唯一image与entry分支，再原子写入
 六表StrongRegistration、重算并写入RuntimeImage，最后写入executable entry的source-signature/gateway
 digest；每次写入后都重验Mach-O envelope与shape。转换结果只暴露`VerifiedEntryPatchSetV1`承载的最终
-对象，不保留可绕过上述顺序的provisional-object helper或兼容完成态。
+对象，并在进入Code proof前与archive final副本逐byte互证，不保留可绕过上述顺序的兼容完成态。
+
+最终状态`ValidatedSingleConeStrongLinkArtifact`只能由Code/member projection、production manifest、完整
+Link identity closure及bootstrap semantic record中的Code/RuntimeImage两项全部与同一`VerifiedCodeFingerprintV1`
+相等后构造；它通过production manifest拥有最终object proof，不能降级回任何provisional reader状态。
 
 Link验证不要求先构造Compile view，也不借用Compile已commit的session-local arena。两条proof可以共享同一raw envelope/hash bytes，但必须分别解码/验证自己需要的semantic surface。这样link-only consumer无需把HIR导入semantic world。
 
