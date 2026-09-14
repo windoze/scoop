@@ -21,6 +21,11 @@ use crate::link_object::{
     VerifiedStrongRegistrationPatchSetV1,
 };
 
+mod wire;
+pub use wire::{
+    DecodedSingleConeProductionManifestV1, SingleConeProductionManifestValidationError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ArtifactDistributionClassV1 {
     DistributableCone,
