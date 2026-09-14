@@ -162,7 +162,7 @@ fn assigns_local_machine_symbols_to_atom_owners() {
             target: VerifiedRelocationTargetV1::LocalDefinition {
                 table_index: 0,
                 name: b"ltmp0".to_vec(),
-                owner_atom: fixture.atom,
+                owner_atom: Some(fixture.atom),
                 section_ordinal: std::num::NonZeroU8::new(1).unwrap(),
                 value: 2,
             },
@@ -176,9 +176,18 @@ fn assigns_local_machine_symbols_to_atom_owners() {
     let definitions =
         verify_member_strong_object_definitions_v1(&unowned_bytes, sections, &fixture.symbols)
             .unwrap();
+    let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert_eq!(
-        verify_member_object_relocations_v1(definitions),
-        Err(ObjectRelocationValidationError::UnownedLocalDefinition { table_index: 0 })
+        verified.relocations()[0].shape(),
+        &VerifiedDarwinArm64RelocationShapeV1::Branch26 {
+            target: VerifiedRelocationTargetV1::LocalDefinition {
+                table_index: 0,
+                name: b"ltmp0".to_vec(),
+                owner_atom: None,
+                section_ordinal: std::num::NonZeroU8::new(1).unwrap(),
+                value: 6,
+            },
+        }
     );
 }
 

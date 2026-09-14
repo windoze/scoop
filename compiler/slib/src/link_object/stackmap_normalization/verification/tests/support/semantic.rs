@@ -6,28 +6,29 @@ use scoop_identity::{
     LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
     ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentFunctionId,
     PersistentImmortalObjectId, PersistentLayoutId, PersistentPropertyId,
-    PersistentSafepointSiteId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, RepresentationRole,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity,
-    StrongDefinitionRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner,
+    RepresentationRole, ScanKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    StrongDefinitionEntity, StrongDefinitionRole, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
     CanonicalLirFoundation, CoreExternalTypeDescriptor, DigestInputRefV1, DigestNodeV1, EnumDefs,
     ExternFunctions, Function, GcEffect, Global, GlobalInit, ImmortalObjectIdentity, Instruction,
-    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
-    LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
-    ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeTypeMappingRecord,
-    SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
-    SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StrongCallableRegistrationPlanSetV1,
-    StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
-    StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationIdentitySurfaceV1,
-    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
-    StrongTypeRegistrationPlanSetV1, StructDefs, Terminator, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VtableRecord,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirConstantImage, LirMeta,
+    LirStaticInitialState, LirTargetProfile, LirType, LocalFunctionIdentities, LocalFunctionRef,
+    ManagedCallDestination, ManagedPollSite, ManagedRuntimeFunction, MaterializationRoot, Module,
+    NativeExternalMetadata, NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan,
+    RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity, SafepointMappingRecord,
+    SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet,
+    StaticStorageIdentity, StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
+    StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectSemanticPlanSetV1,
+    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanSetV1,
+    StrongSafepointSemanticPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
+    StrongStaticStorageSemanticPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs, Terminator,
+    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan,
+    VoidCallSignature, VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
@@ -41,6 +42,7 @@ pub(crate) struct SemanticInputs {
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
     pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
+    pub(crate) static_storage_registration_plan: StrongStaticStorageRegistrationPlanSetV1,
     pub(crate) safepoint_ids: Vec<u64>,
 }
 
@@ -48,12 +50,15 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
     let (module, body, safepoints) = semantic_module(corruption);
     let semantics = StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
     let immortal_semantics = StrongImmortalObjectSemanticPlanSetV1::from_module(&module).unwrap();
+    let static_storage_semantics =
+        StrongStaticStorageSemanticPlanSetV1::from_module(&module).unwrap();
     let (
         foundation,
         registrations,
         callable_registration,
         type_registration,
         immortal_registration,
+        static_storage,
     ) = foundation(&module, &body, &safepoints, corruption);
     let digest_plan = digest_plan(
         &foundation,
@@ -62,6 +67,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         &callable_registration,
         &type_registration,
         &immortal_registration,
+        &static_storage,
     );
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
@@ -76,6 +82,13 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         &foundation,
         &identities,
         &immortal_semantics,
+        &digest_plan,
+    )
+    .unwrap();
+    let static_storage_registration_plan = StrongStaticStorageRegistrationPlanSetV1::new(
+        &foundation,
+        &identities,
+        &static_storage_semantics,
         &digest_plan,
     )
     .unwrap();
@@ -99,6 +112,12 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
             immortal_registration.object_plan.id(),
             immortal_registration.registration_plan.id(),
         ])
+        .chain([
+            static_storage.storage_plan.id(),
+            static_storage.registration_plan.id(),
+            static_storage.layout_plan.id(),
+            static_storage.scan_plan.id(),
+        ])
         .chain(
             registrations
                 .iter()
@@ -118,6 +137,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         callable_registration_plan,
         type_registration_plan,
         immortal_registration_plan,
+        static_storage_registration_plan,
         safepoint_ids,
     }
 }
@@ -182,7 +202,7 @@ fn semantic_module(
     let mut local_functions = LocalFunctionIdentities::default();
     let entry = LocalFunctionRef::Managed(local_functions.alloc_managed());
     let mut globals = Arena::new();
-    globals.alloc(Global {
+    let immortal = globals.alloc(Global {
         address_kind: PointerKind::Managed,
         scan: RefScan::None,
         init: GlobalInit::StringConst {
@@ -192,6 +212,43 @@ fn semantic_module(
             )
             .unwrap(),
             value: "stage3".to_string(),
+        },
+    });
+    let initial_state = if matches!(
+        corruption,
+        Corruption::StaticZeroedInitialState | Corruption::StaticSentinelCollision
+    ) {
+        LirStaticInitialState::ZeroedForRuntimeUnit
+    } else if matches!(corruption, Corruption::StaticEncodedEmptyInitialState) {
+        LirStaticInitialState::EncodedStaticValue {
+            payload: LirConstantImage::NullPointer(PointerKind::Managed),
+        }
+    } else {
+        LirStaticInitialState::EncodedStaticValue {
+            payload: LirConstantImage::GlobalPointer {
+                global: immortal,
+                kind: PointerKind::Managed,
+            },
+        }
+    };
+    globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::References(vec![0]),
+        init: GlobalInit::Storage {
+            identity: StaticStorageIdentity::property_backing(
+                PropertyOwner::Property(property_id("staticValue")),
+                MaterializationRoot::cone_owned(),
+            )
+            .unwrap(),
+            layout: LayoutIdentity::managed_value(
+                exact_type("StaticStorage"),
+                LirTargetProfile::DARWIN_AARCH64,
+                MaterializationRoot::cone_owned(),
+            )
+            .unwrap(),
+            ty: LirType::Ptr(PointerKind::Managed),
+            initial_state,
+            thread_local: false,
         },
     });
     let module = Module {
@@ -224,6 +281,7 @@ fn foundation(
     CallableRegistrationArtifacts,
     TypeRegistrationArtifacts,
     ImmortalRegistrationArtifacts,
+    StaticStorageArtifacts,
 ) {
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
@@ -265,6 +323,7 @@ fn foundation(
         })
         .unwrap();
     let immortal_registration = immortal_registration_artifacts(immortal);
+    let static_storage = static_storage_artifacts(module);
     let mut canonical = CanonicalLirFoundation::empty();
     canonical
         .set_callable_bodies(vec![body.identity_record().clone()])
@@ -286,7 +345,16 @@ fn foundation(
         )
         .unwrap();
     canonical
-        .set_layouts(vec![type_registration.layout.clone()])
+        .set_layouts(vec![
+            type_registration.layout.clone(),
+            static_storage.layout.clone(),
+        ])
+        .unwrap();
+    canonical
+        .set_scans(vec![static_storage.scan.clone()])
+        .unwrap();
+    canonical
+        .set_static_storages(vec![static_storage.storage.clone()])
         .unwrap();
     canonical
         .set_immortal_objects(vec![immortal_registration.object.clone()])
@@ -308,6 +376,12 @@ fn foundation(
                 .chain([
                     immortal_registration.object_plan.clone(),
                     immortal_registration.registration_plan.clone(),
+                ])
+                .chain([
+                    static_storage.storage_plan.clone(),
+                    static_storage.registration_plan.clone(),
+                    static_storage.layout_plan.clone(),
+                    static_storage.scan_plan.clone(),
                 ])
                 .chain(
                     registrations
@@ -332,6 +406,18 @@ fn foundation(
                     immortal_registration.registration_primary.clone(),
                 ])
                 .chain(
+                    [
+                        Some(static_storage.storage_primary.clone()),
+                        static_storage.template_atom.clone(),
+                        static_storage.relocation_atom.clone(),
+                        Some(static_storage.registration_primary.clone()),
+                        Some(static_storage.layout_primary.clone()),
+                        Some(static_storage.scan_primary.clone()),
+                    ]
+                    .into_iter()
+                    .flatten(),
+                )
+                .chain(
                     registrations
                         .iter()
                         .map(|registration| registration.primary.clone()),
@@ -352,6 +438,12 @@ fn foundation(
                     immortal_registration.object_symbol,
                     immortal_registration.registration_symbol,
                 ])
+                .chain([
+                    static_storage.storage_symbol,
+                    static_storage.registration_symbol,
+                    static_storage.layout_symbol,
+                    static_storage.scan_symbol,
+                ])
                 .chain(registrations.iter().map(|registration| registration.symbol))
                 .collect(),
         )
@@ -363,6 +455,7 @@ fn foundation(
         callable_registration,
         type_registration,
         immortal_registration,
+        static_storage,
     )
 }
 
@@ -401,6 +494,106 @@ struct ImmortalRegistrationArtifacts {
     registration_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     registration_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     registration_symbol: PersistentSymbolRequest,
+}
+
+struct StaticStorageArtifacts {
+    storage: CborIdentityRecord<PersistentStaticStorageId, scoop_identity::StaticStorageKey>,
+    layout: CborIdentityRecord<PersistentLayoutId, LayoutKey>,
+    scan: CborIdentityRecord<PersistentScanId, ScanKey>,
+    storage_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    storage_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    template_atom: Option<CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>>,
+    relocation_atom: Option<CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>>,
+    storage_symbol: PersistentSymbolRequest,
+    registration_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    registration_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    registration_symbol: PersistentSymbolRequest,
+    layout_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    layout_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    layout_symbol: PersistentSymbolRequest,
+    scan_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
+    scan_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    scan_symbol: PersistentSymbolRequest,
+}
+
+fn static_storage_artifacts(module: &Module) -> StaticStorageArtifacts {
+    let (identity, layout, initial_state) = module
+        .globals
+        .iter()
+        .find_map(|(_, global)| match &global.init {
+            GlobalInit::Storage {
+                identity,
+                layout,
+                initial_state,
+                ..
+            } => Some((identity, layout, initial_state)),
+            GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => None,
+        })
+        .unwrap();
+    let storage = identity.identity_record().clone();
+    let layout_record = layout.layout_record().clone();
+    let scan = layout.scan_record().clone();
+    let storage_plan = strong_definition(
+        StrongDefinitionEntity::static_storage(storage.id()),
+        StrongDefinitionRole::StaticStorage,
+    );
+    let registration_plan = strong_definition(
+        StrongDefinitionEntity::static_storage(storage.id()),
+        StrongDefinitionRole::RootRegistration,
+    );
+    let layout_plan = strong_definition(
+        StrongDefinitionEntity::layout(layout_record.id()),
+        StrongDefinitionRole::Layout,
+    );
+    let scan_plan = strong_definition(
+        StrongDefinitionEntity::scan(scan.id()),
+        StrongDefinitionRole::ScanProgram,
+    );
+    let template_atom = matches!(
+        initial_state,
+        LirStaticInitialState::EncodedStaticValue { .. }
+    )
+    .then(|| {
+        CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            storage_plan.id(),
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::StaticStorage(storage.id()),
+        ))
+        .unwrap()
+    });
+    let relocation_atom = matches!(
+        initial_state,
+        LirStaticInitialState::EncodedStaticValue {
+            payload: LirConstantImage::GlobalPointer { .. }
+        }
+    )
+    .then(|| {
+        CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            storage_plan.id(),
+            DefinitionAtomRole::RuntimeRecord,
+            DefinitionAtomSubkey::StaticStorage(storage.id()),
+        ))
+        .unwrap()
+    });
+    StaticStorageArtifacts {
+        storage_symbol: identity.symbol_request(),
+        registration_symbol: strong_symbol(PersistentSymbolKey::RootRegistration(storage.id())),
+        layout_symbol: strong_symbol(PersistentSymbolKey::Layout(layout_record.id())),
+        scan_symbol: strong_symbol(PersistentSymbolKey::ScanProgram(scan.id())),
+        storage_primary: primary_atom(&storage_plan),
+        template_atom,
+        relocation_atom,
+        registration_primary: primary_atom(&registration_plan),
+        layout_primary: primary_atom(&layout_plan),
+        scan_primary: primary_atom(&scan_plan),
+        storage,
+        layout: layout_record,
+        scan,
+        storage_plan,
+        registration_plan,
+        layout_plan,
+        scan_plan,
+    }
 }
 
 fn immortal_registration_artifacts(
@@ -550,6 +743,7 @@ fn digest_plan(
     callable_registration: &CallableRegistrationArtifacts,
     type_registration: &TypeRegistrationArtifacts,
     immortal_registration: &ImmortalRegistrationArtifacts,
+    static_storage: &StaticStorageArtifacts,
 ) -> StrongDigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
@@ -727,6 +921,71 @@ fn digest_plan(
         immortal_registration_object,
         immortal_fingerprint,
     ]);
+
+    let static_storage_object = DigestNodeV1::new(
+        DigestNodeKey::object_definition(static_storage.storage_primary.id()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let static_registration_object = DigestNodeV1::new(
+        DigestNodeKey::object_definition(static_storage.registration_primary.id()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let static_layout_key = DigestNodeKey::layout(static_storage.layout.id());
+    let static_layout_source = DigestNodeId::from_key(&static_layout_key).unwrap();
+    let static_layout = DigestNodeV1::new(
+        static_layout_key,
+        Vec::new(),
+        vec![DigestPatchIntentKey::new(
+            static_layout_source,
+            static_storage.registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::Layout,
+        )],
+    )
+    .unwrap();
+    let static_scan_key = DigestNodeKey::scan(static_storage.scan.id());
+    let static_scan_source = DigestNodeId::from_key(&static_scan_key).unwrap();
+    let static_scan = DigestNodeV1::new(
+        static_scan_key,
+        Vec::new(),
+        vec![DigestPatchIntentKey::new(
+            static_scan_source,
+            static_storage.registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::Scan,
+        )],
+    )
+    .unwrap();
+    let static_key = DigestNodeKey::strong_registration(static_storage.registration_plan.id());
+    let static_source = DigestNodeId::from_key(&static_key).unwrap();
+    let static_fingerprint = DigestNodeV1::new(
+        static_key,
+        vec![
+            DigestInputRefV1::from_node(&static_registration_object),
+            DigestInputRefV1::from_node(&static_storage_object),
+            DigestInputRefV1::from_node(&static_layout),
+            DigestInputRefV1::from_node(&static_scan),
+        ],
+        vec![DigestPatchIntentKey::new(
+            static_source,
+            static_storage.registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DigestSemanticFieldRole::RegistrationDefinition,
+        )],
+    )
+    .unwrap();
+    image_inputs.push(DigestInputRefV1::from_node(&static_fingerprint));
+    nodes.extend([
+        static_storage_object,
+        static_registration_object,
+        static_layout,
+        static_scan,
+        static_fingerprint,
+    ]);
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(foundation.producer()),
@@ -831,11 +1090,7 @@ fn exact_type(name: &str) -> PersistentExactTypeId {
 }
 
 fn immortal_key() -> ImmortalObjectKey {
-    let property = PersistentPropertyId::from_source_declaration(&SourceDeclarationKey::property(
-        source_site(),
-        CanonicalIdentifier::new("text").unwrap(),
-    ))
-    .unwrap();
+    let property = property_id("text");
     ImmortalObjectKey::string_constant(
         ImmortalObjectOwner::Property(PropertyOwner::Property(property)),
         StructuralDefinitionPath::from_first(
@@ -843,6 +1098,14 @@ fn immortal_key() -> ImmortalObjectKey {
             [],
         ),
     )
+}
+
+fn property_id(name: &str) -> PersistentPropertyId {
+    PersistentPropertyId::from_source_declaration(&SourceDeclarationKey::property(
+        source_site(),
+        CanonicalIdentifier::new(name).unwrap(),
+    ))
+    .unwrap()
 }
 
 fn source_site() -> SourceDeclarationSite {

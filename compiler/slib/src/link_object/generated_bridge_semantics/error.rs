@@ -60,6 +60,11 @@ pub enum GeneratedCBridgeSemanticValidationError {
         source: ObjectDefinitionAtomId,
         target: ObjectDefinitionAtomId,
     },
+    UnownedLocalRelocation {
+        unit: GeneratedBridgeUnitId,
+        source: ObjectDefinitionAtomId,
+        table_index: u32,
+    },
     SectionBaseRelocation {
         unit: GeneratedBridgeUnitId,
         atom: ObjectDefinitionAtomId,

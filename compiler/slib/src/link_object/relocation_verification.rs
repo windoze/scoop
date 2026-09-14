@@ -29,7 +29,7 @@ pub enum VerifiedRelocationTargetV1 {
     LocalDefinition {
         table_index: u32,
         name: Vec<u8>,
-        owner_atom: ObjectDefinitionAtomId,
+        owner_atom: Option<ObjectDefinitionAtomId>,
         section_ordinal: NonZeroU8,
         value: u64,
     },
@@ -185,7 +185,7 @@ pub fn verify_member_object_relocations_v1(
     definitions: VerifiedMemberStrongObjectDefinitionIndexV1,
 ) -> Result<VerifiedMemberObjectRelocationIndexV1, ObjectRelocationValidationError> {
     validate_unique_undefined_symbols(&definitions)?;
-    let local_symbol_owners = validate_local_symbol_owners(&definitions)?;
+    let local_symbol_owners = local_symbol_owners(&definitions);
     let envelope = definitions.sections().envelope();
     let mut used_undefined_symbols = BTreeSet::new();
     let mut relocations = Vec::with_capacity(envelope.relocations().len());
@@ -255,21 +255,17 @@ pub fn verify_member_object_relocations_v1(
     })
 }
 
-fn validate_local_symbol_owners(
+fn local_symbol_owners(
     definitions: &VerifiedMemberStrongObjectDefinitionIndexV1,
-) -> Result<BTreeMap<u32, ObjectDefinitionAtomId>, ObjectRelocationValidationError> {
+) -> BTreeMap<u32, ObjectDefinitionAtomId> {
     definitions
         .sections()
         .envelope()
         .symbols()
         .iter()
         .filter(|symbol| symbol.kind() == DarwinArm64SymbolKindV1::LocalSectionDefinition)
-        .map(|symbol| {
-            let section = symbol.section_ordinal().ok_or(
-                ObjectRelocationValidationError::UnownedLocalDefinition {
-                    table_index: symbol.table_index(),
-                },
-            )?;
+        .filter_map(|symbol| {
+            let section = symbol.section_ordinal()?;
             let owner = definitions
                 .definitions()
                 .iter()
@@ -278,11 +274,8 @@ fn validate_local_symbol_owners(
                     atom.section_ordinal() == section
                         && atom.start() <= symbol.value()
                         && symbol.value() < atom.end()
-                })
-                .ok_or(ObjectRelocationValidationError::UnownedLocalDefinition {
-                    table_index: symbol.table_index(),
                 })?;
-            Ok((symbol.table_index(), owner.atom()))
+            Some((symbol.table_index(), owner.atom()))
         })
         .collect()
 }
@@ -471,13 +464,10 @@ fn resolve_target(
                     let section_ordinal = symbol.section_ordinal().ok_or(
                         ObjectRelocationValidationError::InvalidSymbolTarget { table_index },
                     )?;
-                    let owner_atom = local_symbol_owners.get(&table_index).copied().ok_or(
-                        ObjectRelocationValidationError::UnownedLocalDefinition { table_index },
-                    )?;
                     Ok(VerifiedRelocationTargetV1::LocalDefinition {
                         table_index,
                         name: symbol.name().to_vec(),
-                        owner_atom,
+                        owner_atom: local_symbol_owners.get(&table_index).copied(),
                         section_ordinal,
                         value: symbol.value(),
                     })
@@ -522,9 +512,6 @@ pub enum ObjectRelocationValidationError {
     BoundaryRelocationTarget {
         atom: ObjectDefinitionAtomId,
         boundary: VerifiedBoundaryRoleV1,
-    },
-    UnownedLocalDefinition {
-        table_index: u32,
     },
     UnusedExternalUndefined {
         table_index: u32,

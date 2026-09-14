@@ -1579,6 +1579,22 @@ typed sentinel。descriptor的RegistrationDefinition、Scan、Layout三个32-byt
 120、200、232的typed patch site；发射前先验证完整storage集合及所有既有声明，因此任一错误不得留下部分
 descriptor、scan或initial-state support global。
 
+Link侧唯一经`verify_strong_static_storage_registrations_v1`消费完整static-storage生产计划、全量digest patch
+proof与同一批content-digest绑定的Scoop LIR object bytes。验证器逐项重建registration、storage、layout、scan及
+initial-state associated atom，重验296-byte provisional descriptor、物理section/extent/effective alignment、
+canonical scan words、template/table exact bytes、writable storage初值，以及descriptor offset 160/192/264/280
+和全部初值/table relocation的精确target、owner、member、symbol与形状；offset 120/200/232只接受计划中的三项
+typed patch。digest graph必须仍由registration/storage两个ObjectDefinition leaf、Layout、Scan和
+StrongRegistration五类节点按既定edge/writer关系闭合，调用方不能自报byte、target或digest关系。
+
+两个typed empty sentinel不是definition atom：它们只允许由section-base relocation或`owner_atom=None`的
+object-local definition relocation解析到当前member的只读、全零、未被任何计划atom占用的exact extent，template
+sentinel固定1-byte/align 1，relocation sentinel固定16-byte/align 8；同一typed sentinel在整个Cone中必须共享，
+两种sentinel不得重叠或互相冒充。底层`VerifiedRelocationTargetV1::LocalDefinition`因此直接以可选atom owner表达
+物理事实；`None`只是一条“尚未被typed atom认领”的证据，不构成消费授权，必须由本专用验证器认领，generated
+bridge等其他consumer继续显式拒绝。原先“所有local definition都必须伪装成atom owner”的模型直接删除，不保留
+alias、兼容构造器或双路径验证。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

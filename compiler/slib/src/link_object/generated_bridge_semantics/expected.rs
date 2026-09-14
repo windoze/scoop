@@ -222,14 +222,32 @@ impl ExpectedBridgeSet {
                 };
                 for target in relocation_targets(relocation.shape()) {
                     match target {
-                        VerifiedRelocationTargetV1::LocalDefinition { owner_atom, .. }
-                            if *owner_atom == relocation.containing_atom() => {}
-                        VerifiedRelocationTargetV1::LocalDefinition { owner_atom, .. } => {
+                        VerifiedRelocationTargetV1::LocalDefinition {
+                            owner_atom: Some(owner_atom),
+                            ..
+                        } if *owner_atom == relocation.containing_atom() => {}
+                        VerifiedRelocationTargetV1::LocalDefinition {
+                            owner_atom: Some(owner_atom),
+                            ..
+                        } => {
                             return Err(
                                 GeneratedCBridgeSemanticValidationError::CrossAtomLocalRelocation {
                                     unit: source.unit,
                                     source: relocation.containing_atom(),
                                     target: *owner_atom,
+                                },
+                            );
+                        }
+                        VerifiedRelocationTargetV1::LocalDefinition {
+                            owner_atom: None,
+                            table_index,
+                            ..
+                        } => {
+                            return Err(
+                                GeneratedCBridgeSemanticValidationError::UnownedLocalRelocation {
+                                    unit: source.unit,
+                                    source: relocation.containing_atom(),
+                                    table_index: *table_index,
                                 },
                             );
                         }

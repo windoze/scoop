@@ -49,6 +49,9 @@ pub use type_registrations::*;
 mod immortal_registrations;
 pub use immortal_registrations::*;
 
+mod static_storage_registrations;
+pub use static_storage_registrations::*;
+
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 

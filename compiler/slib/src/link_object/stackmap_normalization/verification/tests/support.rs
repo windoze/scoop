@@ -6,7 +6,7 @@ use scoop_lir::{
     StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
     StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
     StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
-    StrongTypeRegistrationPlanSetV1,
+    StrongStaticStorageRegistrationPlanSetV1, StrongTypeRegistrationPlanSetV1,
 };
 
 use crate::SlibMemberId;
@@ -39,6 +39,14 @@ pub(crate) enum Corruption {
     ImmortalObjectDescriptorRelocationTarget,
     ImmortalObjectRelocationTarget,
     ImmortalTypeRegistrationRelocationTarget,
+    StaticRegistrationMagic,
+    StaticScanProgram,
+    StaticStorageRelocationTarget,
+    StaticInitialStorageRelocationTarget,
+    StaticInitialTableRelocationTarget,
+    StaticZeroedInitialState,
+    StaticEncodedEmptyInitialState,
+    StaticSentinelCollision,
     CoreExternalImmortalTypeRegistration,
     WritableRegistrationSection,
     RelocatedRegistration,
@@ -53,6 +61,7 @@ pub(crate) struct Fixture {
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
     pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
+    pub(crate) static_storage_registration_plan: StrongStaticStorageRegistrationPlanSetV1,
     pub(crate) provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
     pub(crate) member: SlibMemberId,
     pub(crate) object_bytes: Vec<u8>,
@@ -90,6 +99,7 @@ impl Fixture {
             &inputs.callable_registration_plan,
             &inputs.type_registration_plan,
             &inputs.immortal_registration_plan,
+            &inputs.static_storage_registration_plan,
             corruption,
         );
         let profile = c_bridge_profile();
@@ -125,6 +135,7 @@ impl Fixture {
             callable_registration_plan: inputs.callable_registration_plan,
             type_registration_plan: inputs.type_registration_plan,
             immortal_registration_plan: inputs.immortal_registration_plan,
+            static_storage_registration_plan: inputs.static_storage_registration_plan,
             provisional_patch_sites,
             member,
             object_bytes: object.bytes,
