@@ -10,7 +10,7 @@ use scoop_identity::{
 pub use scoop_identity::{PersistentScanId, PersistentStaticStorageId};
 
 use crate::{
-    BackendScalarKind, EnumRepr, GlobalId, GlobalInit, LirConstantImage, LirStaticInitialState,
+    BackendScalarKind, EnumRepr, GlobalInit, LirConstantImage, LirStaticInitialState,
     LirTargetProfile, LirType, PointerKind, RefScan,
 };
 
@@ -85,7 +85,6 @@ impl StrongStaticStorageInitialStatePlanV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongStaticStorageSemanticPlanV1 {
     storage: PersistentStaticStorageId,
-    global: GlobalId,
     symbol: PersistentSymbolRequest,
     layout: PersistentLayoutId,
     scan: PersistentScanId,
@@ -100,10 +99,6 @@ pub struct StrongStaticStorageSemanticPlanV1 {
 impl StrongStaticStorageSemanticPlanV1 {
     pub const fn storage(&self) -> PersistentStaticStorageId {
         self.storage
-    }
-
-    pub const fn global(&self) -> GlobalId {
-        self.global
     }
 
     pub const fn symbol(&self) -> PersistentSymbolRequest {
@@ -170,7 +165,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
         enums: &crate::EnumDefs,
     ) -> Result<Self, StrongStaticStorageSemanticPlanBuildError> {
         let mut storages = BTreeMap::new();
-        for (global_id, global) in globals.iter() {
+        for (_, global) in globals.iter() {
             let GlobalInit::Storage {
                 identity,
                 layout,
@@ -293,7 +288,6 @@ impl StrongStaticStorageSemanticPlanSetV1 {
             };
             let plan = StrongStaticStorageSemanticPlanV1 {
                 storage,
-                global: global_id,
                 symbol: identity.symbol_request(),
                 layout: layout.layout_record().id(),
                 scan: layout.scan_record().id(),

@@ -6,7 +6,7 @@ use inkwell::targets::TargetData;
 use inkwell::types::ArrayType;
 use inkwell::values::{GlobalValue, StructValue};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, GlobalId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
     PersistentScanId, PersistentStaticStorageId, RefScan, StrongStaticStorageRegistrationPlanSetV1,
     StrongStaticStorageRegistrationPlanV1,
 };
@@ -76,7 +76,6 @@ impl<'ctx> StaticStorageRegistrationPatchSiteV1<'ctx> {
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongStaticStorageRegistrationV1<'ctx> {
     storage: PersistentStaticStorageId,
-    global: GlobalId,
     descriptor: GlobalValue<'ctx>,
     storage_value: GlobalValue<'ctx>,
     scan_program: GlobalValue<'ctx>,
@@ -89,10 +88,6 @@ pub struct EmittedStrongStaticStorageRegistrationV1<'ctx> {
 impl<'ctx> EmittedStrongStaticStorageRegistrationV1<'ctx> {
     pub const fn storage(self) -> PersistentStaticStorageId {
         self.storage
-    }
-
-    pub const fn global(self) -> GlobalId {
-        self.global
     }
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
@@ -294,7 +289,6 @@ fn emit_registration<'ctx>(
     };
     Ok(EmittedStrongStaticStorageRegistrationV1 {
         storage: semantic.storage(),
-        global: semantic.global(),
         descriptor,
         storage_value: prepared.storage_value,
         scan_program,

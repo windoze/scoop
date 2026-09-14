@@ -38,7 +38,6 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
     );
     for (registration, expected) in emitted.registrations().iter().zip(plan.registrations()) {
         assert_eq!(registration.storage(), expected.semantic().storage());
-        assert_eq!(registration.global(), expected.semantic().global());
         assert_eq!(registration.descriptor().get_linkage(), Linkage::External);
         assert!(registration.descriptor().is_constant());
         assert_eq!(

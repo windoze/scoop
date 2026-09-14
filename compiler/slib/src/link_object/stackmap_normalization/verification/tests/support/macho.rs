@@ -2502,11 +2502,20 @@ fn push_immortal_object(
     module: &scoop_lir::Module,
     registration: StrongImmortalObjectRegistrationPlanV1,
 ) {
-    let scoop_lir::GlobalInit::StringConst { identity, value } =
-        &module.globals[registration.global()].init
-    else {
-        panic!("immortal registration must resolve to a StringConst global")
-    };
+    let (identity, value) = module
+        .globals
+        .iter()
+        .find_map(|(_, global)| match &global.init {
+            scoop_lir::GlobalInit::StringConst { identity, value }
+                if identity.identity_record().id() == registration.object() =>
+            {
+                Some((identity, value))
+            }
+            scoop_lir::GlobalInit::StringConst { .. }
+            | scoop_lir::GlobalInit::Storage { .. }
+            | scoop_lir::GlobalInit::CString { .. } => None,
+        })
+        .expect("immortal registration must resolve to a StringConst global");
     assert_eq!(identity.identity_record().id(), registration.object());
     let start = bytes.len();
     push_u64(bytes, 0);

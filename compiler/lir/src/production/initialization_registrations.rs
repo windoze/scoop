@@ -273,8 +273,8 @@ fn build_unit(
     if storage_global == failure_global {
         return Err(StrongInitializationUnitSemanticPlanBuildError::AliasedStorage(id));
     }
-    let storage = require_storage(static_storages, id, storage_global)?;
-    let failure = require_storage(static_storages, id, failure_global)?;
+    let storage = require_storage(globals, static_storages, id, storage_global)?;
+    let failure = require_storage(globals, static_storages, id, failure_global)?;
     require_zeroed(id, storage, InitializationStorageRoleV1::Value)?;
     require_zeroed(id, failure, InitializationStorageRoleV1::FailureRoot)?;
     validate_value_storage_key(id, unit, &globals[storage_global])?;
@@ -330,15 +330,25 @@ fn build_unit(
     })
 }
 
-fn require_storage(
-    storages: &StrongStaticStorageSemanticPlanSetV1,
+fn require_storage<'storage>(
+    globals: &la_arena::Arena<crate::Global>,
+    storages: &'storage StrongStaticStorageSemanticPlanSetV1,
     unit: PersistentInitializationUnitId,
     global: crate::GlobalId,
-) -> Result<&StrongStaticStorageSemanticPlanV1, StrongInitializationUnitSemanticPlanBuildError> {
+) -> Result<
+    &'storage StrongStaticStorageSemanticPlanV1,
+    StrongInitializationUnitSemanticPlanBuildError,
+> {
+    let GlobalInit::Storage { identity, .. } = &globals[global].init else {
+        return Err(
+            StrongInitializationUnitSemanticPlanBuildError::MissingStaticStorage { unit, global },
+        );
+    };
+    let storage = identity.identity_record().id();
     storages
         .storages()
         .iter()
-        .find(|storage| storage.global() == global)
+        .find(|candidate| candidate.storage() == storage)
         .ok_or(
             StrongInitializationUnitSemanticPlanBuildError::MissingStaticStorage { unit, global },
         )

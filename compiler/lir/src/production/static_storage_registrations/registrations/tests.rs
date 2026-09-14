@@ -13,7 +13,7 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, GlobalId, StaticImmortalRelocationPlanV1, StaticStorageScanKindV1,
+    CanonicalLirFoundation, StaticImmortalRelocationPlanV1, StaticStorageScanKindV1,
     StrongStaticStorageInitialStatePlanV1, StrongStaticStorageSemanticPlanSetV1,
     StrongStaticStorageSemanticPlanV1,
 };
@@ -366,10 +366,8 @@ impl Fixture {
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let mut semantic_storages = storages
             .iter()
-            .enumerate()
-            .map(|(index, artifacts)| StrongStaticStorageSemanticPlanV1 {
+            .map(|artifacts| StrongStaticStorageSemanticPlanV1 {
                 storage: artifacts.storage.id(),
-                global: GlobalId::from_raw(la_arena::RawIdx::from_u32(index as u32)),
                 symbol: symbol(PersistentSymbolKey::StaticStorage(artifacts.storage.id())),
                 layout: shape.layout.id(),
                 scan: shape.scan.id(),

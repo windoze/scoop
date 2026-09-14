@@ -340,10 +340,8 @@ impl Fixture {
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let mut objects = artifacts
             .iter()
-            .enumerate()
-            .map(|(index, artifacts)| StrongImmortalObjectSemanticPlanV1 {
+            .map(|artifacts| StrongImmortalObjectSemanticPlanV1 {
                 object: artifacts.object.id(),
-                global: GlobalId::from_raw(la_arena::RawIdx::from_u32(index as u32)),
                 symbol: symbol(PersistentSymbolKey::ImmortalObject(artifacts.object.id())),
                 object_size: 32,
                 required_alignment: 8,

@@ -13,9 +13,9 @@ use scoop_identity::{
 };
 
 use crate::{
-    DigestInputRefV1, DigestNodeV1, GlobalId, GlobalInit, LirTargetProfile, Module,
-    OdrFreeLirFoundation, PointerKind, RefScan, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1, TypeDescriptorRef,
+    DigestInputRefV1, DigestNodeV1, GlobalInit, LirTargetProfile, Module, OdrFreeLirFoundation,
+    PointerKind, RefScan, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    TypeDescriptorRef,
 };
 
 /// Typed origin of the type registration referenced by an immortal object.
@@ -37,7 +37,6 @@ impl ImmortalObjectTypeRegistrationRefV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongImmortalObjectSemanticPlanV1 {
     object: PersistentImmortalObjectId,
-    global: GlobalId,
     symbol: PersistentSymbolRequest,
     object_size: u64,
     required_alignment: u64,
@@ -47,10 +46,6 @@ pub struct StrongImmortalObjectSemanticPlanV1 {
 impl StrongImmortalObjectSemanticPlanV1 {
     pub const fn object(self) -> PersistentImmortalObjectId {
         self.object
-    }
-
-    pub const fn global(self) -> GlobalId {
-        self.global
     }
 
     pub const fn symbol(self) -> PersistentSymbolRequest {
@@ -101,7 +96,7 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
         string_type: ImmortalObjectTypeRegistrationRefV1,
     ) -> Result<Self, StrongImmortalObjectSemanticPlanBuildError> {
         let mut objects = BTreeMap::new();
-        for (global_id, global) in globals.iter() {
+        for (_, global) in globals.iter() {
             let GlobalInit::StringConst { identity, value } = &global.init else {
                 continue;
             };
@@ -127,7 +122,6 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
             let object_size = string_object_size(target, value.len())?;
             let plan = StrongImmortalObjectSemanticPlanV1 {
                 object: identity.identity_record().id(),
-                global: global_id,
                 symbol,
                 object_size,
                 required_alignment: string_object_alignment(target),
@@ -276,10 +270,6 @@ impl StrongImmortalObjectRegistrationPlanV1 {
 
     pub const fn object(self) -> PersistentImmortalObjectId {
         self.semantic.object()
-    }
-
-    pub const fn global(self) -> GlobalId {
-        self.semantic.global()
     }
 
     pub const fn object_symbol(self) -> PersistentSymbolRequest {

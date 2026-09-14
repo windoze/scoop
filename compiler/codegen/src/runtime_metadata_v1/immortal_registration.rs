@@ -4,7 +4,7 @@ use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::AnyType;
 use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, GlobalId, LinkageClass, ObjectDefinitionAtomId,
+    ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionPlanId, PersistentImmortalObjectId, StrongImmortalObjectRegistrationPlanSetV1,
     StrongImmortalObjectRegistrationPlanV1,
 };
@@ -58,7 +58,6 @@ impl<'ctx> ImmortalObjectRegistrationPatchSiteV1<'ctx> {
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongImmortalObjectRegistrationV1<'ctx> {
     object: PersistentImmortalObjectId,
-    global: GlobalId,
     descriptor: GlobalValue<'ctx>,
     object_value: GlobalValue<'ctx>,
     type_registration: GlobalValue<'ctx>,
@@ -68,10 +67,6 @@ pub struct EmittedStrongImmortalObjectRegistrationV1<'ctx> {
 impl<'ctx> EmittedStrongImmortalObjectRegistrationV1<'ctx> {
     pub const fn object(self) -> PersistentImmortalObjectId {
         self.object
-    }
-
-    pub const fn global(self) -> GlobalId {
-        self.global
     }
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
@@ -310,7 +305,6 @@ fn emit_registration<'ctx>(
 
     EmittedStrongImmortalObjectRegistrationV1 {
         object: plan.object(),
-        global: plan.global(),
         descriptor,
         object_value: prepared.object_value,
         type_registration,

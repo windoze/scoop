@@ -924,9 +924,9 @@ scalar/byte sequence在完成closed-shape、canonical order、typed identity rel
 authority。旧的identity-only field 5 shape直接拒绝，不设版本分支、fallback或兼容reader。
 
 writer构造该surface时同时持有最终`Module`并验证完整semantic plan；但`GlobalId`、function-local ref及其他
-arena handle不进入field 5。codegen需要的arena定位另由不序列化的
-`StrongRegistrationEmissionBindingSetV1`按persistent semantic id一一映射并在同一writer session验证，
-它不进入LIR semantic fingerprint以外的新identity，也不能被artifact reader伪造。Link侧只消费上述稳定
+arena handle不进入field 5，也不保留在registration production plan或codegen emission proof中。codegen只能按
+plan中已验证的persistent semantic id与strong symbol定位已经发射的LLVM definition；需要从arena生成plan的
+writer过程在同一session内完成映射后即丢弃arena id，不建立第二套持久binding。Link侧只消费上述稳定
 production surface；不得要求compiler residual `Module`、调用者补送semantic plan，或从stackmap location
 count、object大小/内容反推出LIR语义。
 

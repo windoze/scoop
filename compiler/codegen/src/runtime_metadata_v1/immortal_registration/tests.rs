@@ -29,7 +29,6 @@ fn emits_closed_strong_descriptor_and_zero_patch_site() {
     assert_eq!(emitted.registrations().len(), 1);
     let registration = emitted.registrations()[0];
     assert_eq!(registration.object(), expected.object());
-    assert_eq!(registration.global(), expected.global());
     assert_eq!(registration.object_value().get_name(), object.get_name());
     let descriptor = registration.descriptor();
     assert_eq!(descriptor.get_linkage(), Linkage::External);
