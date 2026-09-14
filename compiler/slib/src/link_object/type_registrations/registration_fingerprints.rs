@@ -5,7 +5,9 @@ use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
 
-use super::VerifiedStrongTypeRegistrationObjectFingerprintSetV1;
+use super::{
+    VerifiedStrongTypeDependencyFingerprintSetV1, VerifiedStrongTypeDependencyFingerprintV1,
+};
 use crate::link_object::callable_registrations::object_definition::CanonicalDigestInputV1;
 use crate::link_object::{
     LayoutFingerprintV1, ObjectDefinitionFingerprintV1, StrongRegistrationFingerprintV1,
@@ -15,63 +17,6 @@ const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
 const TYPE_REGISTRATION_RECORD_KIND: u32 = 4;
 const STRONG_LINKAGE: u32 = 1;
 const TYPE_DESCRIPTOR_ATOM_ROLE: u32 = 6;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongTypeDependencyFingerprintV1 {
-    pub(in crate::link_object) exact_type: PersistentExactTypeId,
-    pub(in crate::link_object) descriptor_definition_node: DigestNodeId,
-    pub(in crate::link_object) descriptor_definition: ObjectDefinitionFingerprintV1,
-    pub(in crate::link_object) layout_node: DigestNodeId,
-    pub(in crate::link_object) layout: LayoutFingerprintV1,
-}
-
-impl VerifiedStrongTypeDependencyFingerprintV1 {
-    pub const fn exact_type(self) -> PersistentExactTypeId {
-        self.exact_type
-    }
-
-    pub const fn descriptor_definition_node(self) -> DigestNodeId {
-        self.descriptor_definition_node
-    }
-
-    pub const fn descriptor_definition(self) -> ObjectDefinitionFingerprintV1 {
-        self.descriptor_definition
-    }
-
-    pub const fn layout_node(self) -> DigestNodeId {
-        self.layout_node
-    }
-
-    pub const fn layout(self) -> LayoutFingerprintV1 {
-        self.layout
-    }
-}
-
-/// Descriptor-definition and layout fingerprints bound to the same exact
-/// type registration proof. Only their dedicated verified calculators can
-/// construct this set.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongTypeDependencyFingerprintSetV1 {
-    pub(in crate::link_object) registration_objects:
-        VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
-    pub(in crate::link_object) fingerprints: Vec<VerifiedStrongTypeDependencyFingerprintV1>,
-}
-
-impl VerifiedStrongTypeDependencyFingerprintSetV1 {
-    pub const fn producer(&self) -> scoop_identity::ConeIdentity {
-        self.registration_objects.producer()
-    }
-
-    pub const fn registration_objects(
-        &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
-        &self.registration_objects
-    }
-
-    pub fn fingerprints(&self) -> &[VerifiedStrongTypeDependencyFingerprintV1] {
-        &self.fingerprints
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongTypeFingerprintV1 {

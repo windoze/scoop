@@ -2073,6 +2073,28 @@ relocation target使用通用canonical schema编码为同一exact type的`IntraC
 member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；不保留按物理target
 索引或登记专用target格式计算的旧路径。
 
+descriptor ObjectDefinition与managed-instance Layout两个typed dependency只能经
+`compute_strong_type_dependency_fingerprints_v1`继续消费上述registration-object proof和再次匹配content digest
+的object全集产生。计算器从proof持有的checked range读取精确128-byte descriptor，逐byte重建runtime type、
+instance/inline kind、六个size/alignment scalar、itable count与diagnostic length；全部pointer载荷必须是
+zero-addend relocation占位。Primary内relocation offset集合由非空inline/object scan、parent、非空vtable、非空
+itables及必有的diagnostic span机械导出，严格为相应的64/72/80/88/96/112子集；每项必须是只读Primary内的
+8-byte `Unsigned64`且encoded value为零，112项继续复用前述精确diagnostic-atom proof，不能出现额外pointer。
+
+descriptor fingerprint仍使用`scoop-object-definition-v1`：先编码通用Primary bytes、offset 112指向owning
+`AddressTakenConstant` atom起点的canonical relocation、零direct input及唯一diagnostic associated atom，随后
+编码descriptor-semantic kind tag 1、exact type、runtime type、instance Layout/Scan id、完整`TypeInstanceShape`
+（两个scan均用`None=0 | References=1 | Sequence=2 | Array=3`递归编码）、diagnostic byte span、typed parent、
+vtable identity/typed callable slots及按plan顺序的itable identity/interface/typed callable slots。descriptor中的
+scan/table pointer物理地址不进入hash，其完整typed content由同一尾部semantic payload承诺；member、local symbol
+index及地址同样不进入hash。
+
+managed-instance LayoutFingerprint使用domain `scoop-layout-v1`，依次编码managed-instance layout kind tag 2、
+`PersistentLayoutId`、`PersistentExactTypeId`、`PersistentScanId`及同一完整`TypeInstanceShape`；它与
+static-value kind tag 1直接互斥。该入口直接构造字段私有的
+`VerifiedStrongTypeDependencyFingerprintSetV1`，外部不能传入裸digest、替换node或手工拼装proof；原先测试和
+finalizer中直接写入`[7; 32]`/`[11; 32]`的路径删除，不保留兼容构造器。
+
 type的StrongRegistration只能经`compute_strong_type_fingerprints_v1`消费registration object proof以及由
 专用计算器产生、绑定同一exact type/node的descriptor ObjectDefinition与Layout typed proof。canonical
 record依次编码record kind 4、Strong linkage、exact-type semantic id、三个零own/ODR digest、runtime type

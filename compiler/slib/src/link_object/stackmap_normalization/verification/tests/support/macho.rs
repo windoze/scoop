@@ -61,6 +61,7 @@ pub(crate) fn object_bytes(
         | Corruption::CallableEntryRelocationTarget
         | Corruption::TypeRegistrationMagic
         | Corruption::TypeDescriptorRelocationTarget
+        | Corruption::TypeDescriptorScalar
         | Corruption::TypeDescriptorDiagnosticBytes
         | Corruption::TypeDescriptorDiagnosticRelocationTarget
         | Corruption::ImmortalRegistrationMagic
@@ -412,6 +413,16 @@ fn macho_object(
     }
     for registration in type_registrations.registrations() {
         push_type_descriptor(&mut bytes, registration);
+    }
+    if matches!(corruption, Corruption::TypeDescriptorScalar) {
+        let descriptor_offset = usize::try_from(
+            type_descriptor_base(stackmap.len(), registrations, callable_registrations)
+                - TEXT_SIZE
+                - u64::try_from(stackmap.len()).unwrap(),
+        )
+        .unwrap()
+            + usize::try_from(registration_offset).unwrap();
+        bytes[descriptor_offset + 16] ^= 1;
     }
     for registration in type_registrations.registrations() {
         bytes.extend_from_slice(registration.semantic().diagnostic_name().as_bytes());

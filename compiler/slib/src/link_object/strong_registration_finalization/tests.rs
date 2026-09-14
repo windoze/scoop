@@ -3,12 +3,10 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{
-    LayoutFingerprintV1, ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1,
-    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
-    VerifiedStrongInitializationFingerprintSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
-    VerifiedStrongTypeDependencyFingerprintSetV1, VerifiedStrongTypeDependencyFingerprintV1,
-    VerifiedStrongTypeFingerprintSetV1, compute_strong_callable_body_object_fingerprints_v1,
-    compute_strong_callable_fingerprints_v1,
+    ScoopLirObjectCandidateV1, VerifiedStrongCallableFingerprintSetV1,
+    VerifiedStrongImmortalObjectFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
+    VerifiedStrongStaticStorageFingerprintSetV1, VerifiedStrongTypeFingerprintSetV1,
+    compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
     compute_strong_callable_registration_object_fingerprints_v1,
     compute_strong_immortal_object_definition_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1,
@@ -20,7 +18,8 @@ use crate::link_object::{
     compute_strong_static_storage_definition_fingerprints_v1,
     compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_registration_object_fingerprints_v1,
-    compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
+    compute_strong_static_storage_shape_fingerprints_v1,
+    compute_strong_type_dependency_fingerprints_v1, compute_strong_type_fingerprints_v1,
     compute_strong_type_registration_object_fingerprints_v1,
     verify_scoop_lir_digest_patch_sites_v1, verify_strong_callable_registrations_v1,
     verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
@@ -534,18 +533,9 @@ fn verified_type_fingerprints(
     .unwrap();
     let registration_objects =
         compute_strong_type_registration_object_fingerprints_v1(registrations, objects).unwrap();
-    let plan = &fixture.type_registration_plan.registrations()[0];
-    compute_strong_type_fingerprints_v1(VerifiedStrongTypeDependencyFingerprintSetV1 {
-        registration_objects,
-        fingerprints: vec![VerifiedStrongTypeDependencyFingerprintV1 {
-            exact_type: plan.exact_type(),
-            descriptor_definition_node: plan.descriptor_definition_node(),
-            descriptor_definition: ObjectDefinitionFingerprintV1::from_array([7; 32]),
-            layout_node: plan.layout_fingerprint_node(),
-            layout: LayoutFingerprintV1([11; 32]),
-        }],
-    })
-    .unwrap()
+    let dependencies =
+        compute_strong_type_dependency_fingerprints_v1(registration_objects, objects).unwrap();
+    compute_strong_type_fingerprints_v1(dependencies).unwrap()
 }
 
 fn digest_at(bytes: &[u8], offset: u64) -> &[u8] {
