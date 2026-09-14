@@ -8,9 +8,10 @@ use scoop_identity::{
     SemanticOriginFingerprint, ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    DecodedLirFoundation, ImportedLirSet, ValidatedLirFoundation, ValidatedLirTargetSelection,
+    DecodedLirFoundation, ImportedLirFoundation, ValidatedLirFoundation,
+    ValidatedLirTargetSelection,
 };
-use scoop_mir::{DecodedMirFoundation, ImportedMirSet, ValidatedMirFoundation};
+use scoop_mir::{DecodedMirFoundation, ImportedMirFoundation, ValidatedMirFoundation};
 use scoop_wire::{DecodeUsage, WireError, WireErrorKind, WirePath, decode_canonical_with_meter};
 
 use crate::{
@@ -470,8 +471,8 @@ impl CompileCapabilityProfile for SingleConeStrongProfile {
 pub struct ValidatedCompileArtifact<'input, P: CompileCapabilityProfile> {
     graph: ValidatedGraphArtifact<'input>,
     hir: ImportedHirFoundation,
-    mir: ImportedMirSet,
-    lir: ImportedLirSet,
+    mir: ImportedMirFoundation,
+    lir: ImportedLirFoundation,
     production: P::Production,
     profile: PhantomData<fn() -> P>,
 }
@@ -497,8 +498,8 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
         Ok(ValidatedCompileArtifact {
             graph,
             hir: ImportedHirFoundation::from_validated(hir, hir_identities),
-            mir: ImportedMirSet::from_validated(mir, mir_identities),
-            lir: ImportedLirSet::from_validated(lir, lir_identities),
+            mir: ImportedMirFoundation::from_validated(mir, mir_identities),
+            lir: ImportedLirFoundation::from_validated(lir, lir_identities),
             production: (),
             profile: PhantomData,
         })
@@ -509,8 +510,8 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
     pub(crate) fn from_parts(
         graph: ValidatedGraphArtifact<'input>,
         hir: ImportedHirFoundation,
-        mir: ImportedMirSet,
-        lir: ImportedLirSet,
+        mir: ImportedMirFoundation,
+        lir: ImportedLirFoundation,
         production: P::Production,
     ) -> Self {
         Self {
@@ -567,11 +568,11 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
         &self.hir
     }
 
-    pub const fn mir(&self) -> &ImportedMirSet {
+    pub const fn mir(&self) -> &ImportedMirFoundation {
         &self.mir
     }
 
-    pub const fn lir(&self) -> &ImportedLirSet {
+    pub const fn lir(&self) -> &ImportedLirFoundation {
         &self.lir
     }
 

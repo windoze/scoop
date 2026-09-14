@@ -23,12 +23,12 @@ impl<I: PersistentId> ImportedMirId<I> {
 }
 
 /// The MIR identity foundation after atomic import into a semantic session.
-pub struct ImportedMirSet {
+pub struct ImportedMirFoundation {
     canonical: CanonicalMirFoundation,
     identities: ImportedIdentityMap<MirIdentityLayer>,
 }
 
-impl ImportedMirSet {
+impl ImportedMirFoundation {
     #[doc(hidden)]
     pub fn from_validated(
         foundation: ValidatedMirFoundation,
@@ -68,7 +68,7 @@ impl ImportedMirSet {
     }
 }
 
-impl WireEncode for ImportedMirSet {
+impl WireEncode for ImportedMirFoundation {
     fn encode(
         &self,
         encoder: &mut scoop_wire::Encoder,

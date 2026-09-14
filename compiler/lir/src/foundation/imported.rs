@@ -23,12 +23,12 @@ impl<I: PersistentId> ImportedLirId<I> {
 }
 
 /// The LIR identity foundation after atomic import into a semantic session.
-pub struct ImportedLirSet {
+pub struct ImportedLirFoundation {
     canonical: CanonicalLirFoundation,
     identities: ImportedIdentityMap<LirIdentityLayer>,
 }
 
-impl ImportedLirSet {
+impl ImportedLirFoundation {
     #[doc(hidden)]
     pub fn from_validated(
         foundation: ValidatedLirFoundation,
@@ -68,7 +68,7 @@ impl ImportedLirSet {
     }
 }
 
-impl WireEncode for ImportedLirSet {
+impl WireEncode for ImportedLirFoundation {
     fn encode(
         &self,
         encoder: &mut scoop_wire::Encoder,

@@ -31,7 +31,7 @@ pub use wire::{
 mod imported;
 mod projection;
 mod strong_profile;
-pub use imported::{ImportedLirId, ImportedLirSet};
+pub use imported::{ImportedLirFoundation, ImportedLirId};
 pub use strong_profile::{
     DefinitionAtomResolutionError, OdrFreeLirFoundation, OdrFreeLirFoundationError,
     OdrFreeLirFoundationProjectionError,

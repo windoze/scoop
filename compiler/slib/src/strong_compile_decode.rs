@@ -16,14 +16,15 @@ use scoop_identity::{
 };
 use scoop_lir::{
     DecodedLirFoundation, DecodedStrongProductionSectionV1, EntryProductionSourceV1,
-    ImportedLirSet, LirFoundationValidationError, OdrFreeLirFoundation, OdrFreeLirFoundationError,
-    StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
+    ImportedLirFoundation, LirFoundationValidationError, OdrFreeLirFoundation,
+    OdrFreeLirFoundationError, StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
     StrongProductionSectionValidationError,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1, DecodedCoreBootstrapBridgeSectionV1,
-    DecodedMirFoundation, EntryMirBridgeBranchV1, ImportedMirSet, MirFoundationValidationError,
-    MirProductionValidationError, OdrFreeMirFoundation, OdrFreeMirFoundationError,
+    DecodedMirFoundation, EntryMirBridgeBranchV1, ImportedMirFoundation,
+    MirFoundationValidationError, MirProductionValidationError, OdrFreeMirFoundation,
+    OdrFreeMirFoundationError,
 };
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
 
@@ -821,8 +822,8 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
         Ok(ValidatedCompileArtifact::from_parts(
             graph,
             ImportedHirFoundation::from_odr_free(hir_foundation, hir_identities),
-            ImportedMirSet::from_odr_free(mir_foundation, mir_identities),
-            ImportedLirSet::from_odr_free(lir_foundation, lir_identities),
+            ImportedMirFoundation::from_odr_free(mir_foundation, mir_identities),
+            ImportedLirFoundation::from_odr_free(lir_foundation, lir_identities),
             production,
         ))
     }
