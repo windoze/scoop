@@ -197,6 +197,60 @@ fn rejects_a_registration_node_with_the_wrong_direct_inputs() {
 }
 
 #[test]
+fn rejects_a_non_leaf_immortal_object_definition() {
+    let fixture = Fixture::new(Corruption::None);
+    let plan = fixture.immortal_registration_plan.registrations()[0];
+    let lir_definition = DigestNodeV1::new(
+        scoop_identity::DigestNodeKey::lir_definition(plan.object_primary_atom()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let nodes = std::iter::once(lir_definition.clone())
+        .chain(fixture.digest_plan.nodes().iter().map(|node| {
+            if node.id() != plan.object_definition_node() {
+                return node.clone();
+            }
+            DigestNodeV1::new(
+                *node.key(),
+                vec![scoop_lir::DigestInputRefV1::from_node(&lir_definition)],
+                Vec::new(),
+            )
+            .unwrap()
+        }))
+        .collect();
+    let wrong_digest_plan =
+        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let objects = [ScoopLirObjectCandidateV1::new(
+        fixture.member,
+        &fixture.object_bytes,
+    )];
+    let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
+        fixture.builtins.clone(),
+        &fixture.foundation,
+        wrong_digest_plan,
+        &objects,
+        &fixture.provisional_patch_sites,
+    )
+    .unwrap();
+
+    assert_eq!(
+        verify_strong_immortal_object_registrations_v1(
+            patch_sites,
+            fixture.immortal_registration_plan.clone(),
+            &objects,
+        ),
+        Err(
+            StrongImmortalObjectRegistrationValidationError::DigestPlanMismatch {
+                object: plan.object(),
+                kind: ImmortalObjectRegistrationDigestPlanFailureV1::
+                    ImmortalObjectDefinitionDirectInputs,
+            }
+        )
+    );
+}
+
+#[test]
 fn rejects_a_digest_slot_materialized_at_the_wrong_field() {
     let fixture = Fixture::new(Corruption::None);
     let plan = fixture.immortal_registration_plan.registrations()[0];

@@ -28,6 +28,8 @@ pub enum ImmortalObjectRegistrationDigestPlanFailureV1 {
     RegistrationObjectDefinitionPatchSet,
     MissingImmortalObjectDefinitionNode,
     ImmortalObjectDefinitionNodeIdentity,
+    ImmortalObjectDefinitionDirectInputs,
+    ImmortalObjectDefinitionPatchSet,
     MissingRegistrationNode,
     RegistrationNodeIdentity,
     RegistrationDirectInputs,

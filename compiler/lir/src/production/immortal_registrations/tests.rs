@@ -178,6 +178,22 @@ fn registration_plans_require_complete_semantics_symbols_and_digest_edges() {
     ));
     assert!(matches!(
         Fixture::new(Options {
+            immortal_object_input: true,
+            ..Options::default()
+        })
+        .build(),
+        Err(StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectInputs { .. })
+    ));
+    assert!(matches!(
+        Fixture::new(Options {
+            immortal_object_patch: true,
+            ..Options::default()
+        })
+        .build(),
+        Err(StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectPatches { .. })
+    ));
+    assert!(matches!(
+        Fixture::new(Options {
             omit_object_input: true,
             ..Options::default()
         })
@@ -213,6 +229,8 @@ struct Options {
     omit_object_symbol: bool,
     omit_registration_symbol: bool,
     registration_object_input: bool,
+    immortal_object_input: bool,
+    immortal_object_patch: bool,
     omit_object_input: bool,
     omit_registration_patch: bool,
     claim_local_string_type: bool,
@@ -393,12 +411,36 @@ fn digest_plan(
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
     for (index, artifacts) in artifacts.iter().enumerate() {
+        let object_lir_definition = options.immortal_object_input.then(|| {
+            DigestNodeV1::new(
+                DigestNodeKey::lir_definition(artifacts.object_primary.id()),
+                Vec::new(),
+                Vec::new(),
+            )
+            .unwrap()
+        });
+        let object_key = DigestNodeKey::object_definition(artifacts.object_primary.id());
+        let object_id = DigestNodeId::from_key(&object_key).unwrap();
+        let object_patches = if options.immortal_object_patch {
+            vec![DigestPatchIntentKey::new(
+                object_id,
+                artifacts.registration_definition.id(),
+                DefinitionAtomRole::Primary,
+                DigestSemanticFieldRole::DescriptorDefinition,
+            )]
+        } else {
+            Vec::new()
+        };
         let object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(artifacts.object_primary.id()),
-            Vec::new(),
-            Vec::new(),
+            object_key,
+            object_lir_definition
+                .as_ref()
+                .map(|node| vec![DigestInputRefV1::from_node(node)])
+                .unwrap_or_default(),
+            object_patches,
         )
         .unwrap();
+        nodes.extend(object_lir_definition);
         nodes.push(object.clone());
         if options.omit_last_registration && index == 1 {
             continue;

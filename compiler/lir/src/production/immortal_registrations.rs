@@ -503,6 +503,26 @@ fn build_registration(
         digests,
         DigestNodeKey::object_definition(object_primary_atom),
     )?;
+    if !object_node.direct_inputs().is_empty() {
+        return Err(
+            StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectInputs {
+                node: object_node.id(),
+                actual: object_node.direct_inputs().to_vec(),
+            },
+        );
+    }
+    if !object_node.patch_intents().is_empty() {
+        return Err(
+            StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectPatches {
+                node: object_node.id(),
+                actual: object_node
+                    .patch_intents()
+                    .iter()
+                    .map(|patch| *patch.key())
+                    .collect(),
+            },
+        );
+    }
     let registration = require_digest_node(
         digests,
         DigestNodeKey::strong_registration(registration_definition.id()),
@@ -687,6 +707,14 @@ pub enum StrongImmortalObjectRegistrationPlanBuildError {
         actual: Vec<DigestInputRefV1>,
     },
     RegistrationObjectPatches {
+        node: DigestNodeId,
+        actual: Vec<DigestPatchIntentKey>,
+    },
+    ImmortalObjectInputs {
+        node: DigestNodeId,
+        actual: Vec<DigestInputRefV1>,
+    },
+    ImmortalObjectPatches {
         node: DigestNodeId,
         actual: Vec<DigestPatchIntentKey>,
     },

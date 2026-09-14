@@ -1609,6 +1609,8 @@ core-external ref则禁止当前Cone冒充本地登记。registration Primary的
 Primary的ObjectDefinition，patch集合精确为写入registration Primary的`RegistrationDefinition`一项。完整
 plan保留对象global、size/alignment/type关系、两套definition/atom、三个digest node和writer intent；不开放
 接受裸object id、size、type id、node或symbol文本的第二入口。
+实际immortal object的ObjectDefinition同样固定为无input、无patch的leaf；String header中的TypeDescriptor
+relocation由ObjectDefinition的canonical relocation序列承诺，不再额外建立digest edge或writer slot。
 
 codegen唯一经`emit_strong_safepoint_registrations_v1`消费上述完整set，不开放接受裸site或零散字段的
 单record生产入口。每个address-significant全局使用`ConeStrong`外部linkage，按共享header发射magic、

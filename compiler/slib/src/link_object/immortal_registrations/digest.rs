@@ -54,6 +54,12 @@ pub(super) fn validate_digest_graph(
     if immortal_object.id() != plan.object_definition_node() {
         return digest_error(plan.object(), Failure::ImmortalObjectDefinitionNodeIdentity);
     }
+    if !immortal_object.direct_inputs().is_empty() {
+        return digest_error(plan.object(), Failure::ImmortalObjectDefinitionDirectInputs);
+    }
+    if !immortal_object.patch_intents().is_empty() {
+        return digest_error(plan.object(), Failure::ImmortalObjectDefinitionPatchSet);
+    }
 
     let registration = digest_plan
         .nodes()
