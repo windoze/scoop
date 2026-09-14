@@ -184,6 +184,19 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     assert_eq!(symbols.identity(), cone().identity());
     assert!(!symbols.defined_symbols().owners().is_empty());
     assert!(symbols.undefined_symbols().requirements().is_empty());
+    let fingerprints = symbols.fingerprint_registration_dependencies().unwrap();
+    assert_eq!(fingerprints.identity(), cone().identity());
+    assert!(fingerprints.safepoints().fingerprints().is_empty());
+    assert!(fingerprints.callables().fingerprints().is_empty());
+    assert!(
+        fingerprints
+            .type_registration_objects()
+            .fingerprints()
+            .is_empty()
+    );
+    assert!(fingerprints.immortal_objects().fingerprints().is_empty());
+    assert!(fingerprints.static_storages().fingerprints().is_empty());
+    assert!(fingerprints.initializations().fingerprints().is_empty());
 }
 
 #[test]
