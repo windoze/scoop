@@ -55,6 +55,9 @@ pub use static_storage_registrations::*;
 mod initialization_registrations;
 pub use initialization_registrations::*;
 
+mod cone_image;
+pub use cone_image::*;
+
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 

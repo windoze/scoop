@@ -682,11 +682,16 @@ fn validate_registration_inputs(
         )
         .collect::<Vec<_>>();
     expected.sort_unstable();
-    let mut actual = inputs
+    if inputs
         .iter()
-        .filter(|input| input.kind() == DigestKind::StrongRegistration)
-        .map(|input| input.node())
-        .collect::<Vec<_>>();
+        .any(|input| input.kind() != DigestKind::StrongRegistration)
+    {
+        return Err(ConeImagePlanBuildError::RegistrationInputs {
+            expected,
+            actual: inputs.iter().map(|input| input.node()).collect(),
+        });
+    }
+    let mut actual = inputs.iter().map(|input| input.node()).collect::<Vec<_>>();
     actual.sort_unstable();
     if actual == expected {
         Ok(())

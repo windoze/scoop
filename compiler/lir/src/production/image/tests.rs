@@ -121,6 +121,48 @@ fn image_rejects_the_obsolete_primary_only_atom_shape() {
     ));
 }
 
+#[test]
+fn image_rejects_non_registration_direct_inputs() {
+    let coordinate = ConeCoordinate::reserved_single_file();
+    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
+    let primary = foundation
+        .resolve_definition_atom(
+            foundation.definition_plans()[0].id(),
+            DefinitionAtomRole::Primary,
+        )
+        .unwrap()
+        .1;
+    let extra = DigestNodeV1::new(
+        DigestNodeKey::object_definition(primary),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let image = digest_plan
+        .nodes()
+        .iter()
+        .find(|node| node.key() == &DigestNodeKey::runtime_image(coordinate.identity().unwrap()))
+        .unwrap();
+    let image = DigestNodeV1::new(
+        *image.key(),
+        vec![DigestInputRefV1::from_node(&extra)],
+        image
+            .patch_intents()
+            .iter()
+            .map(|patch| *patch.key())
+            .collect(),
+    )
+    .unwrap();
+    let digest_plan = StrongDigestFinalizationPlanV1::new(vec![extra, image], &foundation).unwrap();
+    let registrations =
+        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+
+    assert!(matches!(
+        ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan),
+        Err(ConeImagePlanBuildError::RegistrationInputs { .. })
+    ));
+}
+
 fn image_fixture(
     coordinate: ConeCoordinate,
     registration: Option<PersistentExactTypeId>,
