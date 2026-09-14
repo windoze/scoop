@@ -15,10 +15,9 @@ use scoop_wire::{DecodeLimits, encode};
 use super::*;
 use crate::{
     BootstrapManifest, CanonicalSlibArchive, CodeFingerprint, CompatibilityRecord, ConeKind,
-    ConeRecord, ConeSourceForm, FingerprintAvailability, HirFingerprint, LirFingerprint,
-    ManifestSection, MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection,
-    MirFingerprint, ProducerRecord, RuntimeImageFingerprint, SemanticFingerprintRecord, SlibMember,
-    SlibMemberRole,
+    ConeRecord, ConeSourceForm, FingerprintAvailability, HirFingerprint, ManifestSection,
+    MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection, ProducerRecord,
+    RuntimeImageFingerprint, SemanticFingerprintRecord, SlibMember, SlibMemberRole,
 };
 
 #[test]
@@ -32,9 +31,45 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         .unwrap();
     assert_eq!(sections.identity(), ConeIdentity::CORE);
     assert_eq!(sections.coordinate(), &ConeCoordinate::reserved_core());
+    let _ = sections.hir_foundation_wire();
+    let _ = sections.mir_foundation_wire();
+    let _ = sections.lir_foundation_wire();
     let _ = sections.strong_production_wire();
     let _ = sections.link_identity_closure_wire();
     let _ = sections.production_manifest_wire();
+}
+
+#[test]
+fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints() {
+    let missing = build_artifact(
+        vec![production_manifest_section()],
+        vec![strong_section(), closure_section()],
+        false,
+        false,
+    );
+    assert!(matches!(
+        open_graph(&missing).decode_single_cone_link_sections(),
+        Err(SingleConeLinkSectionDecodeError::MissingSection {
+            location: Some(MetadataLocation::Lir),
+            ..
+        })
+    ));
+
+    let stale = build_artifact(
+        vec![production_manifest_section()],
+        vec![strong_section(), closure_section()],
+        true,
+        true,
+    );
+    assert!(matches!(
+        open_graph(&stale).decode_single_cone_link_sections(),
+        Err(
+            SingleConeLinkSectionDecodeError::SemanticFingerprintMismatch {
+                location: MetadataLocation::Hir,
+                ..
+            }
+        )
+    ));
 }
 
 #[test]
@@ -146,20 +181,87 @@ fn artifact(
     manifest_sections: Vec<ManifestSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    let lir_envelope = MetadataEnvelope::new(MetadataLocation::Lir, lir_sections).unwrap();
+    build_artifact(manifest_sections, lir_sections, true, false)
+}
+
+fn build_artifact(
+    manifest_sections: Vec<ManifestSection>,
+    lir_sections: Vec<MetadataSection>,
+    include_lir_foundation: bool,
+    stale_hir_fingerprint: bool,
+) -> Vec<u8> {
+    let hir_sections = vec![
+        MetadataSection::new(
+            MetadataLocation::Hir,
+            hir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE,
+            encode(&scoop_hir::CanonicalHirFoundation::empty()).unwrap(),
+        )
+        .unwrap(),
+    ];
+    let mir_sections = vec![
+        MetadataSection::new(
+            MetadataLocation::Mir,
+            mir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE,
+            encode(&scoop_mir::CanonicalMirFoundation::empty()).unwrap(),
+        )
+        .unwrap(),
+    ];
+    let mut complete_lir_sections = Vec::new();
+    if include_lir_foundation {
+        let (foundation, _) = strong_production_fixture(ConeCoordinate::reserved_core());
+        complete_lir_sections.push(
+            MetadataSection::new(
+                MetadataLocation::Lir,
+                lir_identity_foundation_capability(),
+                MemberPurposeSet::COMPILE,
+                encode(&foundation).unwrap(),
+            )
+            .unwrap(),
+        );
+    }
+    complete_lir_sections.extend(lir_sections);
+
+    let compatibility =
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+            .unwrap();
+    let semantic = SemanticFingerprintRecord::from_metadata_sections(
+        &compatibility,
+        &[],
+        &known_sections(&hir_sections),
+        &known_sections(&mir_sections),
+        &known_sections(&complete_lir_sections),
+    )
+    .unwrap();
+    let semantic = SemanticFingerprintRecord::from_validated_digests(
+        if stale_hir_fingerprint {
+            HirFingerprint::from_array([9; 32])
+        } else {
+            semantic.hir()
+        },
+        semantic.mir(),
+        semantic.lir(),
+        FingerprintAvailability::Available(CodeFingerprint::from_array([4; 32])),
+        FingerprintAvailability::Available(RuntimeImageFingerprint::from_array([5; 32])),
+    );
+
+    let hir_envelope = MetadataEnvelope::new(MetadataLocation::Hir, hir_sections).unwrap();
+    let mir_envelope = MetadataEnvelope::new(MetadataLocation::Mir, mir_sections).unwrap();
+    let lir_envelope = MetadataEnvelope::new(MetadataLocation::Lir, complete_lir_sections).unwrap();
     let members = vec![
         SlibMember::new(
             ConeIdentity::CORE,
             MemberStableKey::HirMetadata,
             SlibMemberRole::HirMetadata,
-            b"opaque HIR".to_vec(),
+            encode(&hir_envelope).unwrap(),
         )
         .unwrap(),
         SlibMember::new(
             ConeIdentity::CORE,
             MemberStableKey::MirMetadata,
             SlibMemberRole::MirMetadata,
-            b"opaque MIR".to_vec(),
+            encode(&mir_envelope).unwrap(),
         )
         .unwrap(),
         SlibMember::new(
@@ -172,18 +274,11 @@ fn artifact(
     ];
     let manifest = BootstrapManifest::new(
         ProducerRecord::new("test").unwrap(),
-        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
-            .unwrap(),
+        compatibility,
         cone(),
         Vec::new(),
         &members,
-        SemanticFingerprintRecord::from_validated_digests(
-            HirFingerprint::from_array([1; 32]),
-            MirFingerprint::from_array([2; 32]),
-            LirFingerprint::from_array([3; 32]),
-            FingerprintAvailability::Available(CodeFingerprint::from_array([4; 32])),
-            FingerprintAvailability::Available(RuntimeImageFingerprint::from_array([5; 32])),
-        ),
+        semantic,
         manifest_sections,
     )
     .unwrap();
@@ -191,6 +286,16 @@ fn artifact(
         .unwrap()
         .as_bytes()
         .to_vec()
+}
+
+fn known_sections(sections: &[MetadataSection]) -> Vec<MetadataSection> {
+    sections
+        .iter()
+        .filter(|section| {
+            crate::CapabilityContractRegistry::contract(section.capability()).is_some()
+        })
+        .cloned()
+        .collect()
 }
 
 fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {

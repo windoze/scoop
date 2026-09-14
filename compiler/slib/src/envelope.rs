@@ -131,13 +131,6 @@ impl<'input> DecodedSlibEnvelope<'input> {
         self.archive.member(id)
     }
 
-    pub(crate) fn member_and_meter(
-        &mut self,
-        id: SlibMemberId,
-    ) -> (Option<&'input [u8]>, &mut BudgetMeter) {
-        (self.archive.member(id), &mut self.meter)
-    }
-
     pub(crate) fn meter_mut(&mut self) -> &mut BudgetMeter {
         &mut self.meter
     }

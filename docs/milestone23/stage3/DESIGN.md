@@ -2406,6 +2406,12 @@ profile。
 
 ### 15.1 Link proof顺序
 
+Link view虽不借用Compile proof，仍必须独立打开HIR/MIR/LIR三个metadata envelope，以所有known
+Compile sink section重新计算并核对三层semantic fingerprint；随后解码三层identity foundation，供
+identity闭包与`RejectAll`重放使用。HIR/MIR production payload对Link保持hash-covered opaque，Link
+reader不得因自身不解释它们而跳过envelope、inventory或semantic fingerprint验证；同理，LIR
+foundation虽不是Link-purpose section，也不能因Link inventory不枚举它而缺失。
+
 `validate_link::<SingleConeStrongProfile>`固定按以下依赖顺序：
 
 1. 接收已通过的`DecodedSlibEnvelope`和Graph proof；
