@@ -248,6 +248,25 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
 }
 
 #[test]
+fn strong_compile_one_shot_entry_returns_the_final_typed_artifact() {
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact(hir, mir, lir);
+    let external =
+        scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new())
+            .unwrap();
+    let mut session = SemanticIdentitySession::new();
+
+    let compiled =
+        validate_single_cone_strong_compile_artifact(open_graph(&bytes), &external, &mut session)
+            .unwrap();
+
+    assert_eq!(compiled.identity(), cone().identity());
+    assert_eq!(compiled.production().lir().external_bridges(), &external);
+    assert_eq!(session.origin_count(), 1);
+    assert_eq!(session.entity_count(), 15);
+}
+
+#[test]
 fn compile_section_decode_rejects_wrong_profile_before_payloads() {
     let artifact =
         crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(

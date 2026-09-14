@@ -149,6 +149,39 @@ pub struct ValidatedSingleConeStrongProduction {
     lir: StrongProductionSectionV1,
 }
 
+/// Validate and atomically import the complete Compile view of one
+/// `SingleConeStrongProfile` artifact.
+///
+/// This is the only public whole-artifact Compile entry. The intermediate
+/// states remain available for focused verifier tests, but callers cannot
+/// obtain the final proof without replaying every required phase.
+pub fn validate_single_cone_strong_compile_artifact<'input>(
+    graph: ValidatedGraphArtifact<'input>,
+    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    session: &mut SemanticIdentitySession,
+) -> Result<
+    ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
+    StrongCompileArtifactValidationError,
+> {
+    graph
+        .decode_single_cone_compile_sections()
+        .map_err(|error| StrongCompileArtifactValidationError::Decode(Box::new(error)))?
+        .validate_identities()
+        .map_err(|error| StrongCompileArtifactValidationError::Identities(Box::new(error)))?
+        .validate_foundation_structure()
+        .map_err(|error| StrongCompileArtifactValidationError::Foundations(Box::new(error)))?
+        .validate_local_production()
+        .map_err(|error| StrongCompileArtifactValidationError::LocalProduction(Box::new(error)))?
+        .validate_cross_layer()
+        .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?
+        .validate_lir_production(expected_external_bridges)
+        .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
+        .validate_native_boundary()
+        .map_err(|error| StrongCompileArtifactValidationError::NativeBoundary(Box::new(error)))?
+        .commit(session)
+        .map_err(|error| StrongCompileArtifactValidationError::Commit(Box::new(error)))
+}
+
 impl ValidatedSingleConeStrongProduction {
     pub const fn hir(&self) -> &CoreBootstrapInterfaceSectionV1 {
         &self.hir
@@ -1310,6 +1343,42 @@ pub enum SingleConeCompileSectionDecodeError {
         expected: [u8; 32],
         actual: [u8; 32],
     },
+}
+
+#[derive(Debug)]
+pub enum StrongCompileArtifactValidationError {
+    Decode(Box<SingleConeCompileSectionDecodeError>),
+    Identities(Box<IdentityValidationError>),
+    Foundations(Box<StrongProfileFoundationError>),
+    LocalProduction(Box<StrongProfileLocalProductionError>),
+    Relations(Box<StrongProfileRelationError>),
+    LirProduction(Box<StrongProfileLirProductionError>),
+    NativeBoundary(Box<NativeBoundaryCompileError>),
+    Commit(Box<CompileCommitError>),
+}
+
+impl fmt::Display for StrongCompileArtifactValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid SingleConeStrong Compile artifact: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongCompileArtifactValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Decode(error) => error.as_ref(),
+            Self::Identities(error) => error.as_ref(),
+            Self::Foundations(error) => error.as_ref(),
+            Self::LocalProduction(error) => error.as_ref(),
+            Self::Relations(error) => error.as_ref(),
+            Self::LirProduction(error) => error.as_ref(),
+            Self::NativeBoundary(error) => error.as_ref(),
+            Self::Commit(error) => error.as_ref(),
+        })
+    }
 }
 
 impl fmt::Display for SingleConeCompileSectionDecodeError {

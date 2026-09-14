@@ -2497,6 +2497,12 @@ ABI normalization；不得因为本阶段当前fixture没有native extern而跳�
 弱化validator。只有该门禁成功后才可原子导入identity并构造
 `ValidatedCompileArtifact<SingleConeStrongProfile>`。
 
+公开Compile入口固定为`validate_single_cone_strong_compile_artifact`。它消费Graph proof、调用者当前
+semantic session与本请求投影出的external-bridge surface，内部依次完成section decode、identity
+transaction、三层structure/`RejectAll`、local/cross-layer/LIR production、native-boundary重放与原子
+commit；失败保留为`StrongCompileArtifactValidationError`中的精确阶段。中间状态只服务实现与细粒度
+测试，不另设少校验、自动补值或历史兼容入口。
+
 最终Compile proof不能把production证明丢回一个无类型的marker。profile为关联数据选择器：
 `IdentityFoundationProfile`只携带`()`，`SingleConeStrongProfile`必须携带
 `ValidatedSingleConeStrongProduction { hir, mir, lir }`，三项分别是已经重建并验证的HIR core/output
