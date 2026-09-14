@@ -124,6 +124,56 @@ fn strong_compile_validates_hir_and_mir_production_sections() {
 }
 
 #[test]
+fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact(hir, mir, lir);
+    let validated = open_graph(&bytes)
+        .decode_single_cone_compile_sections()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .validate_local_production()
+        .unwrap()
+        .validate_cross_layer()
+        .unwrap();
+    assert_eq!(validated.identity(), cone().identity());
+
+    let executable = ConeRecord::new(
+        cone().coordinate().clone(),
+        ConeKind::Executable,
+        ConeSourceForm::Manifest,
+    )
+    .unwrap();
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact_for_cone(executable, hir, mir, lir);
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_compile_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure()
+            .unwrap()
+            .validate_local_production()
+            .unwrap()
+            .validate_cross_layer(),
+        Err(StrongCompileRelationError::OutputMismatch)
+    ));
+
+    let hir = scoop_hir::CoreHirInterfaceBranchV1::NotCore;
+    let mir = scoop_mir::CoreMirBridgeBranchV1::Core(
+        scoop_mir::CoreMirBridgeV1::try_new(Vec::new()).unwrap(),
+    );
+    let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap();
+    assert_eq!(
+        validate_core_callable_relation(&hir, &mir, &strong),
+        Err(StrongCompileRelationError::CoreBranchMismatch)
+    );
+}
+
+#[test]
 fn compile_section_decode_rejects_wrong_profile_before_payloads() {
     let artifact =
         crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(
@@ -339,7 +389,7 @@ fn artifact(
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(hir_sections, mir_sections, lir_sections, false)
+    build_artifact(cone(), hir_sections, mir_sections, lir_sections, false)
 }
 
 fn artifact_with_semantic_mismatch(
@@ -347,15 +397,26 @@ fn artifact_with_semantic_mismatch(
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(hir_sections, mir_sections, lir_sections, true)
+    build_artifact(cone(), hir_sections, mir_sections, lir_sections, true)
+}
+
+fn artifact_for_cone(
+    cone: ConeRecord,
+    hir_sections: Vec<MetadataSection>,
+    mir_sections: Vec<MetadataSection>,
+    lir_sections: Vec<MetadataSection>,
+) -> Vec<u8> {
+    build_artifact(cone, hir_sections, mir_sections, lir_sections, false)
 }
 
 fn build_artifact(
+    cone: ConeRecord,
     hir_sections: Vec<MetadataSection>,
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
     stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
+    let producer = cone.identity();
     let compatibility =
         CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
             .unwrap();
@@ -383,18 +444,21 @@ fn build_artifact(
     );
     let members = vec![
         metadata_member(
+            producer,
             MetadataLocation::Hir,
             MemberStableKey::HirMetadata,
             SlibMemberRole::HirMetadata,
             hir_sections,
         ),
         metadata_member(
+            producer,
             MetadataLocation::Mir,
             MemberStableKey::MirMetadata,
             SlibMemberRole::MirMetadata,
             mir_sections,
         ),
         metadata_member(
+            producer,
             MetadataLocation::Lir,
             MemberStableKey::LirMetadata,
             SlibMemberRole::LirMetadata,
@@ -410,7 +474,7 @@ fn build_artifact(
     let manifest = BootstrapManifest::new(
         ProducerRecord::new("test").unwrap(),
         compatibility,
-        cone(),
+        cone,
         Vec::new(),
         &members,
         semantic,
@@ -434,19 +498,14 @@ fn known_sections(sections: &[MetadataSection]) -> Vec<MetadataSection> {
 }
 
 fn metadata_member(
+    producer: scoop_identity::ConeIdentity,
     location: MetadataLocation,
     stable_key: MemberStableKey,
     role: SlibMemberRole,
     sections: Vec<MetadataSection>,
 ) -> SlibMember {
     let envelope = MetadataEnvelope::new(location, sections).unwrap();
-    SlibMember::new(
-        cone().identity(),
-        stable_key,
-        role,
-        encode(&envelope).unwrap(),
-    )
-    .unwrap()
+    SlibMember::new(producer, stable_key, role, encode(&envelope).unwrap()).unwrap()
 }
 
 fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {

@@ -5,8 +5,9 @@ use std::fmt;
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
+    CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
     DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, HirFoundationValidationError,
-    OdrFreeHirFoundation, OdrFreeHirFoundationError,
+    HirOutputContractV1, OdrFreeHirFoundation, OdrFreeHirFoundationError,
 };
 use scoop_identity::{
     ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
@@ -17,14 +18,14 @@ use scoop_lir::{
     OdrFreeLirFoundation, OdrFreeLirFoundationError,
 };
 use scoop_mir::{
-    CoreBootstrapBridgeSectionV1, DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation,
-    MirFoundationValidationError, MirProductionValidationError, OdrFreeMirFoundation,
-    OdrFreeMirFoundationError,
+    CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1, DecodedCoreBootstrapBridgeSectionV1,
+    DecodedMirFoundation, EntryMirBridgeBranchV1, MirFoundationValidationError,
+    MirProductionValidationError, OdrFreeMirFoundation, OdrFreeMirFoundationError,
 };
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
 
 use crate::{
-    ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
+    ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError, ConeKind,
     DecodedMetadataEnvelope, DecodedMetadataSection, MetadataLocation, MetadataReadError,
     SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord,
     SlibMemberRole, ValidatedGraphArtifact, hir_core_bootstrap_interface_capability,
@@ -89,6 +90,13 @@ pub struct LocallyValidatedSingleConeCompileProduction<'input> {
     mir_production: CoreBootstrapBridgeSectionV1,
     lir_foundation: OdrFreeLirFoundation,
     lir_production: DecodedStrongProductionSectionV1,
+}
+
+/// HIR and MIR production sections proven to describe the same manifest
+/// output and, for core, the same complete param-free callable bridge surface.
+/// LIR production validation remains the next proof obligation.
+pub struct ValidatedSingleConeCompileSemanticFront<'input> {
+    local: LocallyValidatedSingleConeCompileProduction<'input>,
 }
 
 impl<'input> ValidatedGraphArtifact<'input> {
@@ -485,7 +493,7 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
     }
 }
 
-impl LocallyValidatedSingleConeCompileProduction<'_> {
+impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -529,6 +537,156 @@ impl LocallyValidatedSingleConeCompileProduction<'_> {
     pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         &self.lir_production
     }
+
+    pub fn validate_cross_layer(
+        self,
+    ) -> Result<ValidatedSingleConeCompileSemanticFront<'input>, StrongCompileRelationError> {
+        validate_output_relation(
+            self.graph.kind(),
+            self.hir_production.output_contract(),
+            self.mir_production.entry_bridge(),
+        )?;
+        validate_core_callable_relation(
+            self.hir_production.core_interface(),
+            self.mir_production.core_bridge(),
+            self.mir_production.strong_callable_bridges(),
+        )?;
+        Ok(ValidatedSingleConeCompileSemanticFront { local: self })
+    }
+}
+
+impl ValidatedSingleConeCompileSemanticFront<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.local.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.local.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.local.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.local.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.local.identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        self.local.hir_foundation()
+    }
+
+    pub const fn hir_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        self.local.hir_production()
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        self.local.mir_foundation()
+    }
+
+    pub const fn mir_production(&self) -> &CoreBootstrapBridgeSectionV1 {
+        self.local.mir_production()
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        self.local.lir_foundation()
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        self.local.lir_production_wire()
+    }
+}
+
+fn validate_output_relation(
+    kind: ConeKind,
+    hir: &HirOutputContractV1,
+    mir: &EntryMirBridgeBranchV1,
+) -> Result<(), StrongCompileRelationError> {
+    match (kind, hir, mir) {
+        (ConeKind::Library, HirOutputContractV1::Library, EntryMirBridgeBranchV1::Library) => {
+            Ok(())
+        }
+        (
+            ConeKind::Executable,
+            HirOutputContractV1::Executable(hir),
+            EntryMirBridgeBranchV1::Executable(mir),
+        ) if hir.as_ref() == mir.source() => Ok(()),
+        (ConeKind::Library, _, _) | (ConeKind::Executable, _, _) => {
+            Err(StrongCompileRelationError::OutputMismatch)
+        }
+    }
+}
+
+fn validate_core_callable_relation(
+    hir: &CoreHirInterfaceBranchV1,
+    mir: &CoreMirBridgeBranchV1,
+    strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
+) -> Result<(), StrongCompileRelationError> {
+    let (CoreHirInterfaceBranchV1::Core(hir), CoreMirBridgeBranchV1::Core(mir)) = (hir, mir) else {
+        return match (hir, mir) {
+            (CoreHirInterfaceBranchV1::NotCore, CoreMirBridgeBranchV1::NotCore) => Ok(()),
+            _ => Err(StrongCompileRelationError::CoreBranchMismatch),
+        };
+    };
+
+    let expected = hir
+        .callable_targets()
+        .targets()
+        .iter()
+        .filter(|target| {
+            matches!(
+                target.capability(),
+                CoreHirCallableCapabilityV1::ParamFreeStrong(_)
+            )
+        })
+        .count();
+    if expected != mir.callable_targets().len() {
+        return Err(StrongCompileRelationError::CoreCallableCoverage {
+            expected,
+            actual: mir.callable_targets().len(),
+        });
+    }
+    for (index, (hir, mir)) in hir
+        .callable_targets()
+        .targets()
+        .iter()
+        .filter(|target| {
+            matches!(
+                target.capability(),
+                CoreHirCallableCapabilityV1::ParamFreeStrong(_)
+            )
+        })
+        .zip(mir.callable_targets())
+        .enumerate()
+    {
+        let CoreCallableDefinitionV1::Function(definition) = hir.definition() else {
+            return Err(StrongCompileRelationError::GenericStrongCoreCallable { index });
+        };
+        let CoreHirCallableCapabilityV1::ParamFreeStrong(signature) = hir.capability() else {
+            unreachable!("filtered to param-free strong core callables")
+        };
+        if hir.binding() != mir.binding()
+            || definition != mir.definition()
+            || mir.implementation() != scoop_identity::CallableOwner::Function(definition)
+        {
+            return Err(StrongCompileRelationError::CoreCallableMismatch { index });
+        }
+        let Some(strong) = strong
+            .bridges()
+            .iter()
+            .find(|strong| strong.implementation() == mir.implementation())
+        else {
+            return Err(StrongCompileRelationError::MissingStrongCallable { index });
+        };
+        if strong.signature() != signature {
+            return Err(StrongCompileRelationError::CoreCallableSignatureMismatch { index });
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -580,6 +738,28 @@ impl std::error::Error for StrongCompileProductionError {
         })
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StrongCompileRelationError {
+    OutputMismatch,
+    CoreBranchMismatch,
+    CoreCallableCoverage { expected: usize, actual: usize },
+    GenericStrongCoreCallable { index: usize },
+    CoreCallableMismatch { index: usize },
+    MissingStrongCallable { index: usize },
+    CoreCallableSignatureMismatch { index: usize },
+}
+
+impl fmt::Display for StrongCompileRelationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid strong Compile cross-layer relation: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongCompileRelationError {}
 
 fn require_strong_profile(
     graph: &ValidatedGraphArtifact<'_>,
