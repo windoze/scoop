@@ -41,6 +41,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
     // vtable[0].
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -55,6 +56,19 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   td td0 C @scoop$1$td$eb205ad260a812589e9f030260657692c3e8a971a60e730337a3c28f28bc6cc9 type-id=1930812111026443540 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
@@ -111,6 +125,7 @@ fn interface_calls_look_up_the_itable() {
     // globals-arena entry.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 i: ptr<managed>
     local %1 r: i32
@@ -121,6 +136,19 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   td td0 Describable @scoop$1$td$2297a60bc362ce3d8b2494a877d19cf862c59a12c3f68dc36b859a026e02eecc type-id=2551552645907048390 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
@@ -243,7 +271,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
         );
     }
     assert_eq!(
-        i_td.identity.symbol_request().unwrap().key(),
+        i_td.identity.symbol_request().key(),
         scoop_identity::PersistentSymbolKey::TypeDescriptor(interface_exact)
     );
     assert_eq!(
@@ -264,7 +292,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
 
     assert_eq!(base_td.diagnostic_name, "Base");
     assert_eq!(
-        base_td.identity.symbol_request().unwrap().key(),
+        base_td.identity.symbol_request().key(),
         scoop_identity::PersistentSymbolKey::TypeDescriptor(base_exact)
     );
     // 16-byte header + Int @16 → size 24.
@@ -303,7 +331,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     );
 
     assert_eq!(
-        derived_td.identity.symbol_request().unwrap().key(),
+        derived_td.identity.symbol_request().key(),
         scoop_identity::PersistentSymbolKey::TypeDescriptor(derived_exact)
     );
     assert_eq!(derived_td.parent, Some(base_ref));
@@ -338,10 +366,9 @@ fn type_descriptors_carry_tables_parents_and_itables() {
         .unwrap()
     );
     assert_eq!(
-        string_td.identity.runtime_abi_symbol(),
-        Some(lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)
+        string_td.identity.symbol_request().key(),
+        scoop_identity::PersistentSymbolKey::TypeDescriptor(string_td.identity.exact_type())
     );
-    assert_eq!(string_td.identity.symbol_request(), None);
 }
 
 #[test]

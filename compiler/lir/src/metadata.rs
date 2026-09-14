@@ -356,13 +356,7 @@ pub struct TypeDescriptor {
 pub struct TypeDescriptorIdentity {
     runtime_type: RuntimeTypeMappingRecord,
     materialization: MaterializationIdentity,
-    symbol: TypeDescriptorSymbol,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum TypeDescriptorSymbol {
-    Persistent(MaterializedSymbol),
-    RuntimeAbi(RuntimeAbiSymbolV1),
+    symbol: MaterializedSymbol,
 }
 
 impl TypeDescriptorIdentity {
@@ -371,30 +365,16 @@ impl TypeDescriptorIdentity {
         root: MaterializationRoot,
     ) -> Result<Self, scoop_wire::HashError> {
         let materialization = root.type_descriptor(runtime_type.exact_type())?;
-        let symbol = TypeDescriptorSymbol::Persistent(
-            materialization
-                .symbol(scoop_identity::PersistentSymbolKey::TypeDescriptor(
-                    runtime_type.exact_type(),
-                ))
-                .expect("type-descriptor symbols admit their materialization linkage"),
-        );
+        let symbol = materialization
+            .symbol(scoop_identity::PersistentSymbolKey::TypeDescriptor(
+                runtime_type.exact_type(),
+            ))
+            .expect("type-descriptor symbols admit their materialization linkage");
         Ok(Self {
             runtime_type,
             materialization,
             symbol,
         })
-    }
-
-    /// Bind the one TypeDescriptor currently named by the C runtime ABI.
-    /// Its semantic/runtime identity remains the exact String type; only its
-    /// linker spelling belongs to the runtime ABI rather than the persistent
-    /// Scoop mangling namespace.
-    pub fn runtime_core_string(runtime_type: RuntimeTypeMappingRecord) -> Self {
-        Self {
-            runtime_type,
-            materialization: MaterializationIdentity::cone_owned(),
-            symbol: TypeDescriptorSymbol::RuntimeAbi(RuntimeAbiSymbolV1::CoreStringTypeDescriptor),
-        }
     }
 
     pub const fn runtime_type(&self) -> RuntimeTypeMappingRecord {
@@ -405,25 +385,12 @@ impl TypeDescriptorIdentity {
         self.runtime_type.exact_type()
     }
 
-    pub const fn symbol_request(&self) -> Option<scoop_identity::PersistentSymbolRequest> {
-        match &self.symbol {
-            TypeDescriptorSymbol::Persistent(symbol) => Some(symbol.request()),
-            TypeDescriptorSymbol::RuntimeAbi(_) => None,
-        }
-    }
-
-    pub const fn runtime_abi_symbol(&self) -> Option<RuntimeAbiSymbolV1> {
-        match &self.symbol {
-            TypeDescriptorSymbol::Persistent(_) => None,
-            TypeDescriptorSymbol::RuntimeAbi(symbol) => Some(*symbol),
-        }
+    pub const fn symbol_request(&self) -> scoop_identity::PersistentSymbolRequest {
+        self.symbol.request()
     }
 
     pub fn symbol(&self) -> &str {
-        match &self.symbol {
-            TypeDescriptorSymbol::Persistent(symbol) => symbol.as_str(),
-            TypeDescriptorSymbol::RuntimeAbi(symbol) => symbol.logical_symbol(),
-        }
+        self.symbol.as_str()
     }
 
     pub const fn lir_odr_group_record(
@@ -1466,6 +1433,17 @@ impl StaticStorageIdentity {
     ) -> Result<Self, scoop_wire::HashError> {
         Self::new(
             scoop_identity::StaticStorageKey::initialization_failure_root(unit),
+            root,
+        )
+    }
+
+    pub fn root_entry_failure_root(
+        root_cone: scoop_identity::ConeIdentity,
+        main: scoop_identity::MainCallableBodyId,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::root_entry_failure_root(root_cone, main),
             root,
         )
     }

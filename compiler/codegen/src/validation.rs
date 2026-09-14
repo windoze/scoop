@@ -107,7 +107,7 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
         )));
     }
 
-    for (id, descriptor) in module.meta.type_descriptors.iter() {
+    for (_, descriptor) in module.meta.type_descriptors.iter() {
         if descriptor.diagnostic_name.is_empty() {
             return Err(CodegenError(format!(
                 "type descriptor {} has an empty canonical diagnostic name",
@@ -121,22 +121,6 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
             return Err(CodegenError(format!(
                 "type descriptor `{}` carries an instance layout for another exact type, target, representation, or scan role",
                 descriptor.diagnostic_name
-            )));
-        }
-        if id == string {
-            if descriptor.identity.runtime_abi_symbol()
-                != Some(scoop_lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)
-            {
-                return Err(CodegenError(
-                    "the core String TypeDescriptor must use its typed runtime ABI symbol"
-                        .to_string(),
-                ));
-            }
-        } else if let Some(symbol) = descriptor.identity.runtime_abi_symbol() {
-            return Err(CodegenError(format!(
-                "type descriptor `{}` illegally uses runtime ABI symbol `{}` reserved for core String",
-                descriptor.diagnostic_name,
-                symbol.logical_symbol()
             )));
         }
     }

@@ -109,6 +109,7 @@ fn function_signatures_params_and_calls() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(i32, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -121,6 +122,19 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn0(integer<Int>(0x00000028), integer<Int>(0x00000002))
     store t0 -> local0
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -245,6 +259,7 @@ fn return_inside_a_branch_seals_its_block() {
     // removed; the `return` seals the remaining then block.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -255,6 +270,19 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

@@ -208,6 +208,19 @@ fn lower(module: mir::Module) -> lir::Module {
     try_lower(module).unwrap().into_module()
 }
 
+fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
+    let input = seal_strong_input(module);
+    let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
+    let output = super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64).unwrap();
+    output
+        .build_production_section(
+            scoop_identity::ConeCoordinate::reserved_single_file(),
+            entry_source,
+            &[],
+        )
+        .unwrap()
+}
+
 fn mark_test_nominal_application(module: &mut mir::Module, ty: mir::Type) {
     let argument = module
         .meta
@@ -708,7 +721,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
     assert_eq!(symbols.len(), 6);
     for descriptor in descriptors {
         assert_eq!(
-            descriptor.identity.symbol_request().unwrap().key(),
+            descriptor.identity.symbol_request().key(),
             scoop_identity::PersistentSymbolKey::TypeDescriptor(descriptor.identity.exact_type())
         );
     }

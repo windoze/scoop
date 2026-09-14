@@ -118,9 +118,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .iter()
         .map(|(_, descriptor)| {
             let global = llvm.add_global(td_ty, None, descriptor.identity.symbol());
-            if let Some(request) = descriptor.identity.symbol_request() {
-                apply_persistent_linkage(&global, request)?;
-            }
+            apply_persistent_linkage(&global, descriptor.identity.symbol_request())?;
             Ok(global)
         })
         .collect::<Result<_, CodegenError>>()?;

@@ -162,6 +162,7 @@ fn array_nodes_become_array_instructions() {
     // instruction references its complete typed metadata record.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 a: ptr<managed>
     local %1 x: i32
@@ -179,6 +180,19 @@ Module
     store t3 -> local3
     array_set array1 local3 integer<Long>(0x0000000000000000) integer<Int>(0x00000028)
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   array-type array0 Array<Int> kind=immutable element=i32 size=4 align=4 scan=none td=td0
   array-type array1 MutableArray<Int> kind=mutable element=i32 size=4 align=4 scan=none td=td1
   layout String size=24 align=8 refs=[]

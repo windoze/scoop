@@ -216,15 +216,8 @@ pub(crate) fn class_type_descriptor(
     };
     let runtime_type = runtime_type(module, &descriptor_type);
     let root = identity_roots.for_type(&descriptor_type);
-    let identity = if matches!(
-        def.representation,
-        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
-    ) {
-        lir::TypeDescriptorIdentity::runtime_core_string(runtime_type)
-    } else {
-        lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
-            .expect("validated class exact type must derive descriptor identities")
-    };
+    let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
+        .expect("validated class exact type must derive descriptor identities");
     let instance_layout = lir::LayoutIdentity::managed_object(
         runtime_type.exact_type(),
         context.target_profile(),

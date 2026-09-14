@@ -52,6 +52,7 @@ fn throw_outside_try_is_a_throw_instruction() {
     // the block; the callee stays a plain call.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -65,6 +66,19 @@ Module
     store t0 -> local0
     throw local0
     unreachable
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   td td0 MyError @scoop$1$td$eb205ad260a812589e9f030260657692c3e8a971a60e730337a3c28f28bc6cc9 type-id=1930812111026443540 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]

@@ -6,6 +6,9 @@ pub use definitions::*;
 mod digests;
 pub use digests::*;
 
+mod digest_projection;
+pub use digest_projection::*;
+
 mod external_bridges;
 pub use external_bridges::*;
 

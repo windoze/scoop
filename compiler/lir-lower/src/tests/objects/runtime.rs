@@ -83,6 +83,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
     // td)`. Both checks share one typed descriptor reference.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 a: ptr<managed>
     local %1 v: struct0
@@ -100,6 +101,19 @@ Module
     call no-gc-direct-target0 t4 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td0)
     store t4 -> local2
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   td td0 box<S> @scoop$1$td$9d50e433dbe8bb745ff3db8d7f7f2b38e16509d73219567a1896134c800ac607 type-id=3448932397359138960 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
@@ -208,6 +222,7 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 v: ptr<managed>
     local %1 $call.1: i64
@@ -242,6 +257,19 @@ Module
     call no-gc-direct-target4 t9 = sig=direct4 () -> i64 runtime @scoop_rt_gc_stats()
     store t9 -> local9
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

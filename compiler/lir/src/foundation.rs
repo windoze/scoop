@@ -5,18 +5,20 @@ use std::fmt;
 
 use scoop_identity::{
     CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiSignatureFingerprintRecord,
-    CborIdentityRecord, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DispatchTableKey,
-    ExactTypeKey, GeneratedBridgeAtomId, GeneratedBridgeAtomKey, GeneratedBridgeUnitId,
-    GeneratedBridgeUnitKey, ImmortalObjectKey, LayoutKey, NativeExternalContractRecord,
+    CborIdentityRecord, ConeImageSupportRole, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
+    DefinitionAtomRole, DefinitionAtomSubkey, DispatchTableKey, ExactTypeKey,
+    GeneratedBridgeAtomId, GeneratedBridgeAtomKey, GeneratedBridgeUnitId, GeneratedBridgeUnitKey,
+    ImmortalObjectKey, LayoutKey, LinkageClass, NativeExternalContractRecord,
     NativeLinkRequirementId, NativeLinkRequirementKey, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, OdrGroupId,
-    OdrMemberId, OdrMemberKey, PersistentCallableBodyId, PersistentDispatchTableId,
-    PersistentExactTypeId, PersistentId, PersistentImmortalObjectId, PersistentLayoutId,
-    PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId, RuntimeIdentityRecord,
-    SafepointSiteKey, ScanKey, SpecializationKey, StableIdentityOrderError, StaticStorageKey,
+    ObjectDefinitionAtomKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey, PersistentCallableBodyId,
+    PersistentDispatchTableId, PersistentExactTypeId, PersistentId, PersistentImmortalObjectId,
+    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
+    PersistentSymbolRequest, RuntimeIdentityRecord, SafepointSiteKey, ScanKey, SpecializationKey,
+    StableIdentityOrderError, StaticStorageKey, StrongDefinitionEntity, StrongDefinitionRole,
     stable_topological_identity_delta_order,
 };
-use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
+use scoop_wire::{Encoder, HashError, RuntimeDecodeError, WireEncode, decode_runtime};
 
 use crate::{CallbackBridgeRecord, RuntimeTypeMappingRecord, SafepointMappingRecord};
 use scoop_identity::PersistentSymbolRequestTable;
@@ -530,6 +532,9 @@ pub enum LirFoundationBuildError {
         expected: [u8; 32],
         actual: [u8; 32],
     },
+    DefinitionIdentity(ObjectDefinitionIdentityError),
+    DefinitionHash(HashError),
+    StaticStorageSemantics(crate::StrongStaticStorageSemanticPlanBuildError),
     SymbolRequest(scoop_identity::PersistentSymbolError),
 }
 
@@ -588,6 +593,9 @@ impl fmt::Display for LirFoundationBuildError {
                 HexIdentity(actual),
                 HexIdentity(expected)
             ),
+            Self::DefinitionIdentity(error) => error.fmt(formatter),
+            Self::DefinitionHash(error) => error.fmt(formatter),
+            Self::StaticStorageSemantics(error) => error.fmt(formatter),
             Self::SymbolRequest(error) => error.fmt(formatter),
         }
     }

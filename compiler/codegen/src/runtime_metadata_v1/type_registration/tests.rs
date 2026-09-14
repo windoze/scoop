@@ -136,7 +136,7 @@ fn completes_a_matching_image_declaration_then_rejects_redefinition() {
 }
 
 #[test]
-fn rejects_missing_legacy_or_non_address_significant_type_descriptors() {
+fn rejects_missing_incompatible_or_non_address_significant_type_descriptors() {
     let plan = type_plan(1);
     let expected = &plan.registrations()[0];
     let context = Context::create();
@@ -145,10 +145,10 @@ fn rejects_missing_legacy_or_non_address_significant_type_descriptors() {
     let error = emit_strong_type_registrations_v1(&context, &llvm, &plan).unwrap_err();
     assert!(error.0.contains("is not declared"), "{error}");
 
-    let llvm = context.create_module("legacy-type-descriptor");
+    let llvm = context.create_module("incompatible-type-descriptor");
     let i64 = context.i64_type();
     let ptr = context.ptr_type(AddressSpace::default());
-    let legacy = context.struct_type(
+    let incompatible = context.struct_type(
         &[
             i64.into(),
             i64.into(),
@@ -162,7 +162,11 @@ fn rejects_missing_legacy_or_non_address_significant_type_descriptors() {
         ],
         false,
     );
-    let descriptor = llvm.add_global(legacy, None, expected.descriptor_symbol().symbol().as_str());
+    let descriptor = llvm.add_global(
+        incompatible,
+        None,
+        expected.descriptor_symbol().symbol().as_str(),
+    );
     descriptor.set_linkage(Linkage::External);
     descriptor.set_constant(true);
     let error = emit_strong_type_registrations_v1(&context, &llvm, &plan).unwrap_err();

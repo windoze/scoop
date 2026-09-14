@@ -71,15 +71,16 @@ fn lowers_hello_world() {
             )
         })
         .collect::<Vec<_>>();
-    // Globals: one per MIR string constant, with a persistent symbol and the
-    // unchanged source value.
+    // Immortal globals preserve the two source strings. The executable also
+    // owns one distinct managed failure root for its no-throw gateway.
     let globals: Vec<(&str, &str)> = module
         .globals
         .iter()
-        .map(|(_, g)| match &g.init {
-            lir::GlobalInit::StringConst { value, .. } => (g.symbol(), value.as_str()),
-            lir::GlobalInit::CString { value, .. } => (g.symbol(), value.as_str()),
-            lir::GlobalInit::Storage { .. } => unreachable!("hello has no storage globals"),
+        .filter_map(|(_, g)| match &g.init {
+            lir::GlobalInit::StringConst { value, .. } | lir::GlobalInit::CString { value, .. } => {
+                Some((g.symbol(), value.as_str()))
+            }
+            lir::GlobalInit::Storage { .. } => None,
         })
         .collect();
     assert_eq!(
@@ -101,23 +102,49 @@ fn lowers_hello_world() {
         immortal_objects,
         expected_immortal_objects.iter().collect::<Vec<_>>()
     );
+    let failure_roots = module
+        .globals
+        .iter()
+        .filter_map(|(_, global)| match &global.init {
+            lir::GlobalInit::Storage { identity, .. }
+                if identity.identity_record().key().role()
+                    == scoop_identity::StorageRole::RootEntryFailureRoot =>
+            {
+                Some(global)
+            }
+            lir::GlobalInit::Storage { .. }
+            | lir::GlobalInit::StringConst { .. }
+            | lir::GlobalInit::CString { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(failure_roots.len(), 1);
+    assert_eq!(failure_roots[0].scan, lir::RefScan::References(vec![0]));
 
     let symbols: Vec<&str> = module.functions.iter().map(lir::Function::symbol).collect();
     assert_eq!(
-        symbols,
+        &symbols[..expected_callable_bodies.len()],
         expected_callable_bodies
             .iter()
             .map(lir::CallableBodyIdentity::symbol)
             .collect::<Vec<_>>()
     );
     assert_eq!(
-        module
-            .functions
+        module.functions[..expected_callable_bodies.len()]
             .iter()
             .map(|function| &function.callable_body)
             .collect::<Vec<_>>(),
         expected_callable_bodies.iter().collect::<Vec<_>>()
     );
+    assert_eq!(module.functions.len(), expected_callable_bodies.len() + 1);
+    assert!(matches!(
+        module
+            .functions
+            .last()
+            .expect("executable root gateway")
+            .signature
+            .result(),
+        lir::AbiReturn::Direct(value) if value.storage_type() == &lir::LirType::I32
+    ));
     assert_eq!(
         module
             .executable_entry()
@@ -138,10 +165,13 @@ fn lowers_hello_world() {
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
     );
     assert_eq!(
-        string_descriptor.identity.runtime_abi_symbol(),
-        Some(lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)
+        string_descriptor.identity.symbol_request().key(),
+        scoop_identity::PersistentSymbolKey::TypeDescriptor(string_runtime_type.exact_type())
     );
-    assert_eq!(string_descriptor.identity.symbol_request(), None);
+    assert_eq!(
+        string_descriptor.identity.symbol_request().linkage(),
+        scoop_identity::LinkageClass::ConeStrong
+    );
     assert_eq!(
         string_descriptor.identity.runtime_type(),
         string_runtime_type
@@ -172,6 +202,7 @@ fn lowers_hello_world() {
 Module
   global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "hello, world"
   global @scoop$1$io$6389e5e8389d22f0e2baac5ee54d46413239a4323769000ee665c277f1d369ec = "!"
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   extern ef0 write @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
   block entry
@@ -187,6 +218,19 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void1 () local-fn0()
     t1 = aggregate () : {}
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global2, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -210,6 +254,45 @@ fn preserves_library_output_without_an_entry() {
 
     assert_eq!(module.output, lir::LirOutput::Library);
     assert_eq!(module.executable_entry(), None);
+}
+
+#[test]
+fn strong_writer_projects_the_complete_executable_production_section() {
+    let section = lower_production(hello_world());
+    let registrations = section.registration_production().identities();
+    let registration_count = registrations.static_storages().len()
+        + registrations.immortal_objects().len()
+        + registrations.initialization_units().len()
+        + registrations.type_registrations().len()
+        + registrations.safepoints().len()
+        + registrations.callables().len();
+    let image = section
+        .digest_finalization_plan()
+        .nodes()
+        .iter()
+        .find(|node| node.kind() == scoop_identity::DigestKind::RuntimeImage)
+        .expect("the strong writer always emits one runtime-image node");
+
+    assert_eq!(image.direct_inputs().len(), registration_count);
+    assert!(matches!(
+        section.entry_plan(),
+        lir::EntryProductionPlanV1::Executable(_)
+    ));
+    assert!(section.external_bridges().bridges().is_empty());
+}
+
+#[test]
+fn strong_writer_projects_a_deterministic_library_section() {
+    let mut first = hello_world();
+    first.output = mir::MirOutput::Library;
+    let mut second = hello_world();
+    second.output = mir::MirOutput::Library;
+
+    let first = lower_production(first);
+    let second = lower_production(second);
+
+    assert_eq!(first, second);
+    assert_eq!(first.entry_plan(), &lir::EntryProductionPlanV1::Library);
 }
 
 #[test]

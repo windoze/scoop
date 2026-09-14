@@ -256,7 +256,7 @@ impl CanonicalLirFoundation {
             .chain(
                 descriptors
                     .iter()
-                    .filter_map(|(_, descriptor)| descriptor.identity.symbol_request()),
+                    .map(|(_, descriptor)| descriptor.identity.symbol_request()),
             )
             .chain(
                 globals
@@ -336,6 +336,291 @@ impl CanonicalLirFoundation {
         Ok(())
     }
 
+    /// Materialize the complete strong-only definition graph after the
+    /// `SingleConeStrong` ODR gate has accepted the module.
+    pub(super) fn project_strong_definitions(
+        &mut self,
+        module: &Module,
+    ) -> Result<(), LirFoundationBuildError> {
+        let producer = module.cone;
+        let mut plans = BTreeMap::new();
+        let mut atoms = BTreeMap::new();
+        let mut symbols = BTreeSet::new();
+
+        for function in &module.functions {
+            let body = function.callable_body.id();
+            for role in [
+                StrongDefinitionRole::CallableBody,
+                StrongDefinitionRole::CallableRegistration,
+            ] {
+                insert_strong_definition(
+                    &mut plans,
+                    &mut atoms,
+                    &mut symbols,
+                    producer,
+                    StrongDefinitionEntity::callable_body(body),
+                    role,
+                    Vec::new(),
+                )?;
+            }
+            for safepoint in function.safepoints.iter() {
+                insert_strong_definition(
+                    &mut plans,
+                    &mut atoms,
+                    &mut symbols,
+                    producer,
+                    StrongDefinitionEntity::safepoint_site(safepoint.site_id()),
+                    StrongDefinitionRole::SafepointRegistration,
+                    Vec::new(),
+                )?;
+            }
+        }
+
+        for (_, descriptor) in module.meta.type_descriptors.iter() {
+            let exact = descriptor.identity.exact_type();
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::exact_type(exact),
+                StrongDefinitionRole::TypeDescriptor,
+                vec![(
+                    DefinitionAtomRole::AddressTakenConstant,
+                    DefinitionAtomSubkey::ExactType(exact),
+                )],
+            )?;
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::exact_type(exact),
+                StrongDefinitionRole::TypeRegistration,
+                Vec::new(),
+            )?;
+        }
+        for layout in &self.layouts {
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::layout(layout.id()),
+                StrongDefinitionRole::Layout,
+                Vec::new(),
+            )?;
+        }
+        for scan in &self.scans {
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::scan(scan.id()),
+                StrongDefinitionRole::ScanProgram,
+                Vec::new(),
+            )?;
+        }
+        for table in &self.dispatch_tables {
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::dispatch_table(table.id()),
+                StrongDefinitionRole::DispatchTable,
+                Vec::new(),
+            )?;
+        }
+
+        let storage_semantics = crate::StrongStaticStorageSemanticPlanSetV1::from_module(module)
+            .map_err(LirFoundationBuildError::StaticStorageSemantics)?;
+        for storage in storage_semantics.storages() {
+            let storage_id = storage.storage();
+            let mut associated = Vec::new();
+            if let crate::StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
+                immortal_relocations,
+                ..
+            } = storage.initial_state()
+            {
+                associated.push((
+                    DefinitionAtomRole::AddressTakenConstant,
+                    DefinitionAtomSubkey::StaticStorage(storage_id),
+                ));
+                if !immortal_relocations.is_empty() {
+                    associated.push((
+                        DefinitionAtomRole::RuntimeRecord,
+                        DefinitionAtomSubkey::StaticStorage(storage_id),
+                    ));
+                }
+            }
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::static_storage(storage_id),
+                StrongDefinitionRole::StaticStorage,
+                associated,
+            )?;
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::static_storage(storage_id),
+                StrongDefinitionRole::RootRegistration,
+                Vec::new(),
+            )?;
+        }
+
+        for object in &self.immortal_objects {
+            let object_id = object.id();
+            for role in [
+                StrongDefinitionRole::ImmortalObject,
+                StrongDefinitionRole::ImmortalRegistration,
+            ] {
+                insert_strong_definition(
+                    &mut plans,
+                    &mut atoms,
+                    &mut symbols,
+                    producer,
+                    StrongDefinitionEntity::immortal_object(object_id),
+                    role,
+                    Vec::new(),
+                )?;
+            }
+        }
+
+        for (_, unit) in module.initialization_units.iter() {
+            let unit_id = unit.identity.id();
+            let entity = StrongDefinitionEntity::initialization_unit(unit_id);
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                entity,
+                StrongDefinitionRole::InitializationCell,
+                Vec::new(),
+            )?;
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                entity,
+                StrongDefinitionRole::InitializationDescriptor,
+                vec![(
+                    DefinitionAtomRole::AddressTakenConstant,
+                    DefinitionAtomSubkey::InitializationUnit(unit_id),
+                )],
+            )?;
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                entity,
+                StrongDefinitionRole::InitializationRegistration,
+                Vec::new(),
+            )?;
+        }
+
+        for atom in &self.bridge_atoms {
+            if !atom.key().atom().is_materializable() {
+                continue;
+            }
+            let entity = StrongDefinitionEntity::generated_bridge_atom(atom.key())
+                .map_err(LirFoundationBuildError::DefinitionIdentity)?;
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                entity,
+                StrongDefinitionRole::GeneratedBridge,
+                Vec::new(),
+            )?;
+        }
+
+        let image_support = [
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::CoordinateGroup,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::CoordinateName,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::CoordinateVersion,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::Dependencies,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::StaticStorages,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::ImmortalObjects,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::InitializationUnits,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::TypeRegistrations,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::Safepoints,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::Callables,
+            ),
+        ]
+        .into_iter()
+        .map(|(role, support)| (role, DefinitionAtomSubkey::ConeImageSupport(support)))
+        .collect();
+        insert_strong_definition(
+            &mut plans,
+            &mut atoms,
+            &mut symbols,
+            producer,
+            StrongDefinitionEntity::cone_image(producer),
+            StrongDefinitionRole::ImageDescriptor,
+            image_support,
+        )?;
+
+        if matches!(module.output, crate::LirOutput::Executable { .. }) {
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::root_entry(producer),
+                StrongDefinitionRole::RootEntryDescriptor,
+                Vec::new(),
+            )?;
+        }
+
+        self.set_definition_plans(plans.into_values().collect())?;
+        self.set_definition_atoms(atoms.into_values().collect())?;
+        self.set_symbol_requests(
+            scoop_identity::PersistentSymbolRequestTable::new(symbols.into_iter().collect())
+                .map_err(LirFoundationBuildError::SymbolRequest)?,
+        );
+        Ok(())
+    }
+
     fn from_functions(functions: &[Function]) -> Result<Self, LirFoundationBuildError> {
         let mut callable_bodies = Vec::with_capacity(functions.len());
         let safepoint_count = functions
@@ -374,6 +659,48 @@ impl CanonicalLirFoundation {
         );
         Ok(foundation)
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn insert_strong_definition(
+    plans: &mut BTreeMap<ObjectDefinitionPlanId, DefinitionPlanRecord>,
+    atoms: &mut BTreeMap<ObjectDefinitionAtomId, DefinitionAtomRecord>,
+    symbols: &mut BTreeSet<PersistentSymbolRequest>,
+    producer: scoop_identity::ConeIdentity,
+    entity: StrongDefinitionEntity,
+    role: StrongDefinitionRole,
+    associated: Vec<(DefinitionAtomRole, DefinitionAtomSubkey)>,
+) -> Result<(), LirFoundationBuildError> {
+    let key = ObjectDefinitionPlanKey::strong(producer, entity, role)
+        .map_err(LirFoundationBuildError::DefinitionIdentity)?;
+    let Some(symbol_key) = key.primary_symbol_key() else {
+        return Err(LirFoundationBuildError::DefinitionIdentity(
+            ObjectDefinitionIdentityError::StrongRoleEntityMismatch,
+        ));
+    };
+    symbols.insert(
+        PersistentSymbolRequest::new(symbol_key, LinkageClass::ConeStrong)
+            .map_err(LirFoundationBuildError::SymbolRequest)?,
+    );
+    let plan =
+        CborIdentityRecord::from_key(key).map_err(LirFoundationBuildError::DefinitionHash)?;
+    let plan_id = plan.id();
+    insert_projected_identity(plans, Some(&plan), LirFoundationTable::DefinitionPlan)?;
+
+    let primary = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+        plan_id,
+        DefinitionAtomRole::Primary,
+        DefinitionAtomSubkey::Singleton,
+    ))
+    .map_err(LirFoundationBuildError::DefinitionHash)?;
+    insert_projected_identity(atoms, Some(&primary), LirFoundationTable::DefinitionAtom)?;
+    for (atom_role, subkey) in associated {
+        let atom =
+            CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(plan_id, atom_role, subkey))
+                .map_err(LirFoundationBuildError::DefinitionHash)?;
+        insert_projected_identity(atoms, Some(&atom), LirFoundationTable::DefinitionAtom)?;
+    }
+    Ok(())
 }
 
 fn insert_generated_bridge_entry(

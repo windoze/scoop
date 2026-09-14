@@ -245,6 +245,27 @@ pub fn lower(
             (id, reference)
         })
         .collect::<HashMap<_, _>>();
+    let root_gateway_ref = match input.production().entry_bridge() {
+        mir::EntryMirBridgeBranchV1::Library => None,
+        mir::EntryMirBridgeBranchV1::Executable(_) => {
+            Some(local_function_identities.alloc_managed())
+        }
+    };
+    let root_artifacts = match input.production().entry_bridge() {
+        mir::EntryMirBridgeBranchV1::Library => None,
+        mir::EntryMirBridgeBranchV1::Executable(bridge) => {
+            let mir::MirOutput::Executable { entry } = module.output else {
+                unreachable!("the sealed MIR input keeps output and entry proof aligned")
+            };
+            Some(lower_root_artifacts(
+                module.cone,
+                bridge.source(),
+                local_function_map[&entry],
+                context.target_profile(),
+                &mut globals,
+            ))
+        }
+    };
     let callback_bridges = lower_callback_bridges(
         module,
         &structs,
@@ -279,7 +300,7 @@ pub fn lower(
 
     // Trap message globals (`scoop.cstr.N`), numbered in creation order.
     let mut cstr_count = 0usize;
-    let lowered_functions = module
+    let mut lowered_functions = module
         .top_level
         .iter()
         .map(|&id| {
@@ -304,6 +325,14 @@ pub fn lower(
             )
         })
         .collect::<Vec<_>>();
+    if let (Some(reference), Some(gateway)) = (root_gateway_ref, root_artifacts) {
+        assert_eq!(
+            reference.declaration().into_u32() as usize,
+            lowered_functions.len(),
+            "the root gateway reference must address its appended LIR function"
+        );
+        lowered_functions.push(gateway);
+    }
     let functions = lowered_functions
         .into_iter()
         .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
@@ -404,6 +433,7 @@ use runtime::*;
 use target::*;
 
 pub use production::lower_entry_production_source;
+use production::lower_root_artifacts;
 
 mod function;
 use function::lower_function;

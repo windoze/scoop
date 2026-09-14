@@ -57,6 +57,11 @@ fn finally_runs_on_the_normal_catch_and_rethrow_paths() {
         .push(call_stmt(user_call(cleanup)));
     let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
     let module = lower(b.finish(main));
+    let main = module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize;
     let dump = lir::dump(&module);
 
     // The finally body is inlined on normal completion, after the
@@ -75,7 +80,15 @@ fn finally_runs_on_the_normal_catch_and_rethrow_paths() {
     // A caught normal exit ends directly; catch-body exceptions
     // and no-match/rethrow exits have distinct cleanup pads.
     // Exactly one executes on each path.
-    assert_eq!(dump.matches("end_catch").count(), 3);
+    assert_eq!(
+        module.functions[main]
+            .blocks
+            .iter()
+            .flat_map(|(_, block)| &block.instructions)
+            .filter(|instruction| matches!(instruction, lir::Instruction::EndCatch))
+            .count(),
+        3
+    );
 }
 
 #[test]
@@ -185,6 +198,7 @@ fn return_inside_try_runs_finally_before_returning() {
     // finally copy still runs before the return.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -216,6 +230,19 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

@@ -53,6 +53,16 @@ impl CallableBodyIdentity {
         )
     }
 
+    pub fn for_root_gateway(
+        root_cone: scoop_identity::ConeIdentity,
+        main: scoop_identity::MainCallableBodyId,
+    ) -> Result<Self, CallableBodyIdentityBuildError> {
+        Self::from_key(
+            scoop_identity::CallableBodyKey::root_gateway(root_cone, main),
+            LinkageClass::ConeStrong,
+        )
+    }
+
     pub const fn id(&self) -> scoop_identity::PersistentCallableBodyId {
         self.record.id()
     }

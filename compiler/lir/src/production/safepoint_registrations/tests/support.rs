@@ -418,7 +418,8 @@ fn metadata() -> LirMeta {
         kind: LayoutKind::Intrinsic(IntrinsicTypeRepresentation::String),
     });
     let mut type_descriptors = Arena::new();
-    let identity = TypeDescriptorIdentity::runtime_core_string(runtime_type);
+    let identity =
+        TypeDescriptorIdentity::new(runtime_type, MaterializationRoot::cone_owned()).unwrap();
     let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "String".to_string(),

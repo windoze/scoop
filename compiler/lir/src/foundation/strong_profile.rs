@@ -26,6 +26,12 @@ impl OdrFreeLirFoundation {
     ) -> Result<Self, OdrFreeLirFoundationProjectionError> {
         let foundation = CanonicalLirFoundation::from_module(module)
             .map_err(OdrFreeLirFoundationProjectionError::Foundation)?;
+        let mut foundation = Self::try_new(module.cone, foundation)
+            .map_err(OdrFreeLirFoundationProjectionError::Odr)?
+            .into_canonical();
+        foundation
+            .project_strong_definitions(module)
+            .map_err(OdrFreeLirFoundationProjectionError::Foundation)?;
         Self::try_new(module.cone, foundation).map_err(OdrFreeLirFoundationProjectionError::Odr)
     }
 

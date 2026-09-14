@@ -757,7 +757,11 @@ pub(super) fn string_metadata() -> LirMeta {
     let mut type_descriptors = Arena::new();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "String".to_string(),
-        identity: scoop_lir::TypeDescriptorIdentity::runtime_core_string(runtime_type("String")),
+        identity: scoop_lir::TypeDescriptorIdentity::new(
+            runtime_type("String"),
+            scoop_lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap(),
         instance_layout: layouts[string_layout].identity.clone(),
         instance_shape: TypeInstanceShapeV1::inline_bytes(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,

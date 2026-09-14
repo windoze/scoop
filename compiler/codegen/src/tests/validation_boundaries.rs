@@ -601,7 +601,7 @@ fn safepoint_validation_rejects_an_identity_owned_by_another_body() {
 }
 
 #[test]
-fn runtime_abi_type_descriptor_symbol_is_reserved_for_core_string() {
+fn duplicate_type_descriptor_identity_is_rejected() {
     let mut module = values_module();
     let identity = module
         .meta
@@ -628,7 +628,7 @@ fn runtime_abi_type_descriptor_symbol_is_reserved_for_core_string() {
         itables: Vec::new(),
     });
 
-    assert_module_validation_error(&module, "reserved for core String");
+    assert_module_validation_error(&module, "duplicate persistent symbol request");
 }
 
 #[test]
