@@ -12,10 +12,12 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
 use crate::link_object::{
-    CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
+    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalGeneratedBridgeObjectUnitSetV1,
+    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
     DecodedCanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalUndefinedSymbolRequirementSetV1,
-    DecodedFixedBytesV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
-    PlannedLinkObjectMemberSetV1, ProvisionalDigestPatchSiteV1, VerifiedCodeFingerprintV1,
+    DecodedFixedBytesV1, DefinedLinkSymbolOwnerValidationError, LinkObjectMemberSetPlanError,
+    ObjectUnitSetError, PlannedLinkObjectMemberSetV1, ProvisionalDigestPatchSiteV1,
+    UndefinedSymbolRequirementValidationError, VerifiedCodeFingerprintV1,
     VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use crate::{LinkMemberFingerprint, SlibMemberId};
@@ -362,6 +364,14 @@ pub struct ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
     member_plan: PlannedLinkObjectMemberSetV1,
 }
 
+/// A decoded closure whose object projections and both canonical link-symbol
+/// tables were independently rebuilt and matched byte-for-byte.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
+    decoded: DecodedLinkIdentityClosureSectionV1,
+    member_plan: PlannedLinkObjectMemberSetV1,
+}
+
 impl MaterializationCheckedLinkIdentityClosureSectionV1 {
     pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
         &self.member_plan
@@ -500,6 +510,45 @@ impl DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
 }
 
 impl ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
+    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
+        &self.member_plan
+    }
+
+    pub fn validate_symbol_projections(
+        self,
+        defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
+    ) -> Result<
+        SymbolProjectionCheckedLinkIdentityClosureSectionV1,
+        LinkSymbolProjectionValidationError,
+    > {
+        self.decoded
+            .defined_symbols
+            .clone()
+            .validate_against(defined_symbols)
+            .map_err(LinkSymbolProjectionValidationError::DefinedSymbols)?;
+        self.decoded
+            .undefined_symbols
+            .clone()
+            .validate_against(undefined_symbols)
+            .map_err(LinkSymbolProjectionValidationError::UndefinedSymbols)?;
+        Ok(SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
+            decoded: self.decoded,
+            member_plan: self.member_plan,
+        })
+    }
+
+    pub fn validate(
+        self,
+        code: &VerifiedCodeFingerprintV1,
+    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
+        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
+            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
+        validate_against(self.decoded, &expected)
+    }
+}
+
+impl SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
     pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
         &self.member_plan
     }
@@ -646,6 +695,27 @@ pub enum LinkObjectProjectionValidationError {
     MemberPlanMismatch,
     ProjectionMismatch,
     Encode(scoop_wire::cbor::EncodeError),
+}
+
+#[derive(Debug)]
+pub enum LinkSymbolProjectionValidationError {
+    DefinedSymbols(DefinedLinkSymbolOwnerValidationError),
+    UndefinedSymbols(UndefinedSymbolRequirementValidationError),
+}
+
+impl fmt::Display for LinkSymbolProjectionValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid Link symbol projection: {self:?}")
+    }
+}
+
+impl std::error::Error for LinkSymbolProjectionValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::DefinedSymbols(error) => error,
+            Self::UndefinedSymbols(error) => error,
+        })
+    }
 }
 
 impl fmt::Display for LinkObjectProjectionValidationError {

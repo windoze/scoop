@@ -260,12 +260,49 @@ pub(crate) fn encoded_link_identity_closure_for_patch_test(
                 decode_canonical(&encode(index).unwrap(), DecodeLimits::default()).unwrap()
             })
             .collect();
+        let strong = builtins.strong_relocations().clone();
+        let defined_symbols =
+            CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
+        let undefined_symbols = empty_final_requirements_for_strong(strong);
+        projection.defined_symbols =
+            decode_canonical(&encode(&defined_symbols).unwrap(), DecodeLimits::default()).unwrap();
+        projection.undefined_symbols = decode_canonical(
+            &encode(&undefined_symbols).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
     }
     projection.patch_sites = vec![DecodedMaterializedPatchSiteV1 {
         intent: decode_canonical(&encode(&intent).unwrap(), DecodeLimits::default()).unwrap(),
         member: decode_canonical(&encode(&member).unwrap(), DecodeLimits::default()).unwrap(),
         checked_offset,
     }];
+    encode(&projection).unwrap()
+}
+
+pub(crate) fn encoded_link_identity_closure_without_symbol_projection_for_test(
+    plan: &PlannedLinkObjectMemberSetV1,
+    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
+    intent: DigestPatchIntentId,
+    member: SlibMemberId,
+    checked_offset: u64,
+) -> Vec<u8> {
+    let mut projection = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
+        &encoded_link_identity_closure_for_patch_test(
+            plan,
+            Some(builtins),
+            intent,
+            member,
+            checked_offset,
+        ),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    projection.defined_symbols = decode_canonical(
+        &encode(closure().defined_symbols()).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
     encode(&projection).unwrap()
 }
 

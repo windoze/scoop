@@ -232,6 +232,14 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
     pub fn owners(&self) -> &[DefinedLinkSymbolOwnerV1] {
         &self.owners
     }
+
+    #[cfg(test)]
+    pub(crate) const fn empty_for_test(producer: ConeIdentity) -> Self {
+        Self {
+            producer,
+            owners: Vec::new(),
+        }
+    }
 }
 
 impl WireEncode for CanonicalDefinedLinkSymbolOwnerSetV1 {

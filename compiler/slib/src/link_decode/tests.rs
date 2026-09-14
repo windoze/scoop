@@ -177,6 +177,13 @@ fn strong_graph_decodes_all_link_sections_atomically() {
             .fingerprints()
             .is_empty()
     );
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    let symbols = leaves
+        .validate_link_symbol_requirements(&core_owners, &c_bridge_profile())
+        .unwrap();
+    assert_eq!(symbols.identity(), cone().identity());
+    assert!(!symbols.defined_symbols().owners().is_empty());
+    assert!(symbols.undefined_symbols().requirements().is_empty());
 }
 
 #[test]
@@ -273,6 +280,60 @@ fn link_digest_patch_rejects_a_stale_definition_index_projection() {
             .validate_digest_patch_sites(),
         Err(StrongLinkDigestPatchError::ClosureProjection(
             LinkObjectProjectionValidationError::ProjectionMismatch
+        ))
+    ));
+}
+
+#[test]
+fn link_symbol_validation_rejects_a_stale_defined_owner_projection() {
+    let fixture = link_object_fixture();
+    let stale_closure = MetadataSection::new(
+        MetadataLocation::Lir,
+        lir_link_identity_closure_capability(),
+        MemberPurposeSet::LINK,
+        crate::link_object::encoded_link_identity_closure_without_symbol_projection_for_test(
+            &fixture.plan,
+            &fixture.builtins,
+            digest_patch_intent(),
+            fixture.plan.scoop_lir_members()[0].member_id(),
+            fixture.checked_offset,
+        ),
+    )
+    .unwrap();
+    let bytes = artifact(
+        vec![production_manifest_section()],
+        vec![strong_section(), stale_closure],
+    );
+    let external =
+        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_link_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure()
+            .unwrap()
+            .validate_production(&external)
+            .unwrap()
+            .validate_materializations()
+            .unwrap()
+            .validate_c_bridge_envelopes(&c_bridge_profile())
+            .unwrap()
+            .validate_builtin_objects()
+            .unwrap()
+            .validate_digest_patch_sites()
+            .unwrap()
+            .validate_registration_objects()
+            .unwrap()
+            .fingerprint_registration_leaves()
+            .unwrap()
+            .validate_link_symbol_requirements(&core_owners, &c_bridge_profile()),
+        Err(StrongLinkSymbolRequirementError::ClosureProjection(
+            LinkSymbolProjectionValidationError::DefinedSymbols(
+                crate::DefinedLinkSymbolOwnerValidationError::ProjectionMismatch
+            )
         ))
     ));
 }
