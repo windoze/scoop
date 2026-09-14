@@ -49,6 +49,10 @@ fn joins_unit_storage_callable_and_digest_relations() {
         plan.descriptor_definition_plan()
     );
     assert_eq!(plan.storage().storage(), fixture.storage);
+    assert_eq!(
+        plan.storage().storage_symbol().key(),
+        PersistentSymbolKey::StaticStorage(fixture.storage)
+    );
     assert_eq!(plan.failure_root().storage(), fixture.failure_root);
     assert_eq!(plan.initializer().body(), fixture.initializer);
     assert_eq!(plan.ensure().body(), fixture.ensure);
@@ -399,10 +403,12 @@ impl Fixture {
             (!options.omit_cell_symbol)
                 .then(|| symbol(PersistentSymbolKey::InitializationCell(unit))),
         )
-        .chain(
-            [storage, failure_root]
-                .map(|storage| symbol(PersistentSymbolKey::RootRegistration(storage))),
-        )
+        .chain([storage, failure_root].into_iter().flat_map(|storage| {
+            [
+                symbol(PersistentSymbolKey::StaticStorage(storage)),
+                symbol(PersistentSymbolKey::RootRegistration(storage)),
+            ]
+        }))
         .chain(callables.iter().flat_map(|item| {
             [
                 symbol(PersistentSymbolKey::CallableBody(item.body.id())),

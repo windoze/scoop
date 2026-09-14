@@ -1763,6 +1763,22 @@ image-table声明可以补全；缺失/错误entry、global/function名字冲突
 失败，且失败前不得先留下新的registration declaration。没有接受裸body id、function pointer或patch
 offset的另一发射入口。
 
+initialization registration唯一经`emit_strong_initialization_unit_registrations_v1`消费完整初始化计划集。
+入口先无副作用地验证全部value/failure-root storage已经是external、writable、address-significant定义，
+initializer/ensure已经是external、address-significant的managed `void ()`入口，且Eager gateway已经是
+external、address-significant的no-throw `i32 ()`入口；任一缺失、碰撞、错类型或错linkage都不得留下unit
+自身定义。随后每个unit分别发射可写全零`ic` cell、只读`id` coordinator descriptor与只读352-byte `nr`
+registration，三者都是独立ConeStrong全局，绝不按arena ordinal命名或共用range。
+
+`id`机械保存Eager/Lazy coordinator tag、unit id、非空diagnostic bytes、cell、实际value/failure storage和
+initializer/ensure入口；`nr`使用共享registration header，保存schedule、diagnostic span、cell、两条typed
+static-storage registration地址、initializer/ensure id与入口。Eager还保存gateway id与入口，Lazy三项gateway
+字段固定为零。`nr`内offset 120的`RegistrationDefinition`槽始终为32-byte零值，Eager在offset 312另保留
+`GatewayDefinition`零槽，Lazy没有该patch site。返回的patch proof逐项绑定plan中的intent、registration
+definition、Primary atom、LLVM owner、offset和width；已有同type external声明只能被对应owner补全，已有定义
+直接失败。不保留`scoop.init.cell.<arena-index>`、`scoop.init.descriptor.<arena-index>`、连续
+`scoop_image_initialization_units`或接受裸unit/address/offset的旧发射路径。
+
 type registration唯一经`emit_strong_type_registrations_v1`消费完整type plan set。入口先对全集做无副作用
 预检，再发射任一record；每条record使用`ConeStrong`外部linkage、magic、ABI version 1、size 240、Strong
 linkage、零reserved/ODR字段、exact-type semantic id、非零runtime type id及同一plan指定的M23
@@ -2400,7 +2416,9 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 
 - 六张table分别为空/非空并保留独立count/sentinel；
 - 每种record的semantic id/linkage/zero ODR field/definition/body digest；
-- initialization Eager/Lazy、专用cell/storage/failure root/gateway矩阵；
+- initialization Eager/Lazy、独立`ic/id/nr`、专用storage/failure root/gateway及两种patch-site矩阵；
+- 初始化发射任一storage/callable缺失或错shape时保持原子失败，拒绝owned symbol重定义，且LLVM IR中不出现
+  arena-index descriptor或旧连续image table；
 - callable无safepoint仍登记、native extern不误登记；
 - stackmap Constant/ConstantIndex正规化、owner/root count/record缺失；
 - strong fingerprint逐字段变化、只归零own definition、direct input排序；

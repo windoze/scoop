@@ -23,6 +23,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongInitializationStaticStorageRefPlanV1 {
     storage: PersistentStaticStorageId,
+    storage_symbol: PersistentSymbolRequest,
     registration_symbol: PersistentSymbolRequest,
     registration_definition_plan: ObjectDefinitionPlanId,
     registration_primary_atom: ObjectDefinitionAtomId,
@@ -32,6 +33,10 @@ pub struct StrongInitializationStaticStorageRefPlanV1 {
 impl StrongInitializationStaticStorageRefPlanV1 {
     pub const fn storage(self) -> PersistentStaticStorageId {
         self.storage
+    }
+
+    pub const fn storage_symbol(self) -> PersistentSymbolRequest {
+        self.storage_symbol
     }
 
     pub const fn registration_symbol(self) -> PersistentSymbolRequest {
@@ -513,6 +518,7 @@ fn require_static_storage(
     }
     Ok(StrongInitializationStaticStorageRefPlanV1 {
         storage,
+        storage_symbol: require_symbol(foundation, PersistentSymbolKey::StaticStorage(storage))?,
         registration_symbol: symbol,
         registration_definition_plan: definition.id(),
         registration_primary_atom: primary,

@@ -3,12 +3,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+pub use scoop_identity::PersistentInitializationUnitId;
 use scoop_identity::{
     CallableBodyKey, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DefinitionOwner,
     GeneratedCallableIdentityError, GeneratedCallableKey, InitializationCallableRole,
     InitializationUnitKey, NominalDeclarationOwner, NominalOwner, PersistentCallableBodyId,
-    PersistentGeneratedCallableId, PersistentInitializationUnitId, PersistentStaticStorageId,
-    PropertyOwner, StaticStorageKey, StorageRole, StrongCallableDefinitionOwner,
+    PersistentGeneratedCallableId, PersistentStaticStorageId, PropertyOwner, StaticStorageKey,
+    StorageRole, StrongCallableDefinitionOwner,
 };
 use scoop_wire::{HashError, RuntimeDecodeError, decode_runtime};
 

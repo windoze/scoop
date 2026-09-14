@@ -44,6 +44,13 @@ pub use immortal_registration::{
     ImmortalObjectRegistrationPatchSiteV1, emit_strong_immortal_object_registrations_v1,
 };
 
+mod initialization;
+pub use initialization::{
+    EmittedStrongInitializationUnitRegistrationSetV1,
+    EmittedStrongInitializationUnitRegistrationV1, InitializationRegistrationPatchSiteV1,
+    emit_strong_initialization_unit_registrations_v1,
+};
+
 mod static_storage;
 pub use static_storage::{
     EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,

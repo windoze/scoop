@@ -97,15 +97,17 @@ pub use runtime_metadata_v1::{
     EmittedRootEntryV1, EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
     EmittedStrongCallableRegistrationSetV1, EmittedStrongCallableRegistrationV1,
     EmittedStrongImmortalObjectRegistrationSetV1, EmittedStrongImmortalObjectRegistrationV1,
-    EmittedStrongSafepointRegistrationSetV1, EmittedStrongSafepointRegistrationV1,
-    EmittedStrongStaticStorageRegistrationSetV1, EmittedStrongStaticStorageRegistrationV1,
-    EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1,
-    ImmortalObjectRegistrationPatchSiteV1, RootEntryPatchSiteV1, RuntimeImagePatchSiteV1,
+    EmittedStrongInitializationUnitRegistrationSetV1,
+    EmittedStrongInitializationUnitRegistrationV1, EmittedStrongSafepointRegistrationSetV1,
+    EmittedStrongSafepointRegistrationV1, EmittedStrongStaticStorageRegistrationSetV1,
+    EmittedStrongStaticStorageRegistrationV1, EmittedStrongTypeRegistrationSetV1,
+    EmittedStrongTypeRegistrationV1, ImmortalObjectRegistrationPatchSiteV1,
+    InitializationRegistrationPatchSiteV1, RootEntryPatchSiteV1, RuntimeImagePatchSiteV1,
     SafepointRegistrationPatchSiteV1, StaticStorageRegistrationPatchSiteV1,
     TypeRegistrationPatchSiteV1, emit_cone_image_v1, emit_entry_production_v1,
     emit_strong_callable_registrations_v1, emit_strong_immortal_object_registrations_v1,
-    emit_strong_safepoint_registrations_v1, emit_strong_static_storage_registrations_v1,
-    emit_strong_type_registrations_v1,
+    emit_strong_initialization_unit_registrations_v1, emit_strong_safepoint_registrations_v1,
+    emit_strong_static_storage_registrations_v1, emit_strong_type_registrations_v1,
 };
 use target::ManagedAddressSpace;
 pub use target::{
