@@ -1,7 +1,7 @@
 use scoop_identity::{
     DigestKind, DigestNodeId, NativeLibraryBinding, PersistentCallableBodyId,
-    PersistentExactTypeId, StrongDefinitionEntity, StrongDefinitionEntityKind,
-    StrongDefinitionRole,
+    PersistentExactTypeId, PersistentStaticStorageId, StrongDefinitionEntity,
+    StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 use scoop_wire::{RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
@@ -71,6 +71,14 @@ pub(in crate::link_object) struct CanonicalObjectRelocationV1 {
     targets: Vec<CanonicalRelocationTargetV1>,
 }
 
+#[derive(Clone, Copy)]
+pub(in crate::link_object) enum CanonicalStaticStorageTargetV1 {
+    InitialTemplate(PersistentStaticStorageId),
+    InitialRelocationTable(PersistentStaticStorageId),
+    EmptyTemplateSentinel,
+    EmptyRelocationTableSentinel,
+}
+
 impl CanonicalObjectRelocationV1 {
     pub(super) fn callable_entry(body: PersistentCallableBodyId) -> Self {
         let owner = StrongDefinitionOwnerV1::new(
@@ -106,7 +114,22 @@ impl CanonicalObjectRelocationV1 {
             encoded_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
-                requirement,
+                target: CanonicalRelocationTargetKindV1::Requirement(requirement),
+            }],
+        }
+    }
+
+    pub(in crate::link_object) fn static_storage_target(
+        offset_within_atom: u64,
+        target: CanonicalStaticStorageTargetV1,
+    ) -> Self {
+        Self {
+            offset_within_atom,
+            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            encoded_value: 0,
+            targets: vec![CanonicalRelocationTargetV1 {
+                slot: RelocationTargetSlotV1::Single,
+                target: CanonicalRelocationTargetKindV1::StaticStorage(target),
             }],
         }
     }
@@ -164,7 +187,13 @@ impl RuntimeEncode for CanonicalObjectRelocationV1 {
 #[derive(Clone)]
 struct CanonicalRelocationTargetV1 {
     slot: RelocationTargetSlotV1,
-    requirement: FinalUndefinedSymbolRequirementV1,
+    target: CanonicalRelocationTargetKindV1,
+}
+
+#[derive(Clone, Copy)]
+enum CanonicalRelocationTargetKindV1 {
+    Requirement(FinalUndefinedSymbolRequirementV1),
+    StaticStorage(CanonicalStaticStorageTargetV1),
 }
 
 impl RuntimeEncode for CanonicalRelocationTargetV1 {
@@ -174,7 +203,14 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             RelocationTargetSlotV1::Minuend => 2,
             RelocationTargetSlotV1::Subtrahend => 3,
         })?;
-        encode_requirement(encoder, self.requirement)
+        match self.target {
+            CanonicalRelocationTargetKindV1::Requirement(requirement) => {
+                encode_requirement(encoder, requirement)
+            }
+            CanonicalRelocationTargetKindV1::StaticStorage(target) => {
+                encode_static_storage_target(encoder, target)
+            }
+        }
     }
 }
 
@@ -239,7 +275,7 @@ pub(in crate::link_object) fn canonicalize_relocations(
                 };
                 Ok(CanonicalRelocationTargetV1 {
                     slot: binding.target_slot(),
-                    requirement,
+                    target: CanonicalRelocationTargetKindV1::Requirement(requirement),
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -385,6 +421,32 @@ fn encode_requirement(
         FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { contract } => {
             encoder.u32(7)?;
             encoder.fixed(contract.as_array())
+        }
+    }
+}
+
+fn encode_static_storage_target(
+    encoder: &mut RuntimeEncoder,
+    target: CanonicalStaticStorageTargetV1,
+) -> Result<(), RuntimeEncodeError> {
+    match target {
+        CanonicalStaticStorageTargetV1::InitialTemplate(storage) => {
+            encoder.u32(8)?;
+            encoder.u32(1)?;
+            encoder.fixed(storage.as_array())
+        }
+        CanonicalStaticStorageTargetV1::InitialRelocationTable(storage) => {
+            encoder.u32(8)?;
+            encoder.u32(2)?;
+            encoder.fixed(storage.as_array())
+        }
+        CanonicalStaticStorageTargetV1::EmptyTemplateSentinel => {
+            encoder.u32(9)?;
+            encoder.u32(1)
+        }
+        CanonicalStaticStorageTargetV1::EmptyRelocationTableSentinel => {
+            encoder.u32(9)?;
+            encoder.u32(2)
         }
     }
 }

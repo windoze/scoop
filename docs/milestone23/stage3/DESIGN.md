@@ -1595,6 +1595,15 @@ sentinel固定1-byte/align 1，relocation sentinel固定16-byte/align 8；同一
 bridge等其他consumer继续显式拒绝。原先“所有local definition都必须伪装成atom owner”的模型直接删除，不保留
 alias、兼容构造器或双路径验证。
 
+static-storage registration自身的ObjectDefinition leaf只能经
+`compute_strong_static_storage_registration_object_fingerprints_v1`消费上述完整registration proof与再次匹配
+content digest的object全集产生。计算器把descriptor的四个pointer载荷按verified relocation清零，再以通用
+`scoop-object-definition-v1`编码精确296-byte provisional record、四条offset 160/192/264/280的canonical
+`Unsigned64` relocation和零direct input。storage/scan target使用`IntraConeStrong`；有定义的template/table
+分别使用canonical target tag 8下的typed role 1/2与storage id，共享空template/table则使用tag 9下的typed
+sentinel role 1/2。物理member、atom id、symbol-table index、section-base addend与sentinel地址均不进入hash；
+调用方不能传入裸target或自行选择local target种类。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction
