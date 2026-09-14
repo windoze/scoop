@@ -260,7 +260,7 @@ impl WireDecode for DecodedMemberId {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct DecodedStrongDefinitionOwnerV1 {
+pub(super) struct DecodedStrongDefinitionOwnerV1 {
     entity: DecodedStrongDefinitionEntity,
     role: StrongDefinitionRole,
 }

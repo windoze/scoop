@@ -9,7 +9,7 @@ use scoop_lir::{
     StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongExternalTypeDescriptorBridgeV1, ValidatedLirTargetSelection,
 };
-use scoop_wire::encode;
+use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::super::c_bridge_production::tests::profile;
 use super::super::c_bridge_target_requirements::{
@@ -35,6 +35,7 @@ use crate::{
 #[test]
 fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
     let runtime = final_from_external(classify(b"_scoop_rt_allocation_context"));
+    assert_projection_round_trip(&runtime);
     assert_eq!(runtime.requirements().len(), 1);
     assert!(matches!(
         runtime.requirements()[0].requirement(),
@@ -46,6 +47,7 @@ fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
     );
 
     let eh = final_from_external(classify(b"__Unwind_Resume"));
+    assert_projection_round_trip(&eh);
     assert!(matches!(
         eh.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::TargetEhSupport { .. }
@@ -84,6 +86,7 @@ fn finalizes_a_semantically_verified_c_bridge_target_support_use() {
         seal_builtin_object_external_requirements_v1(external).unwrap(),
     )
     .unwrap();
+    assert_projection_round_trip(&final_set);
 
     assert_eq!(final_set.requirements().len(), 2);
     assert!(final_set.requirements().iter().any(|requirement| matches!(
@@ -120,6 +123,7 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
     let final_set =
         finalize_undefined_symbol_requirements_v1(current, sealed_without_externals(strong))
             .unwrap();
+    assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::IntraConeStrong { .. }
@@ -130,6 +134,7 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
     let final_set =
         finalize_undefined_symbol_requirements_v1(current, sealed_without_externals(strong))
             .unwrap();
+    assert_projection_round_trip(&final_set);
     assert_eq!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::GeneratedBridge { unit }
@@ -175,6 +180,7 @@ fn finalizes_core_and_source_external_requirements() {
     let final_set =
         finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
             .unwrap();
+    assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::CoreStrong {
@@ -219,6 +225,7 @@ fn finalizes_core_and_source_external_requirements() {
     let final_set =
         finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
             .unwrap();
+    assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::SourceExtern {
@@ -246,6 +253,50 @@ fn rejects_proofs_built_from_different_strong_closures() {
         finalize_undefined_symbol_requirements_v1(current, external),
         Err(UndefinedSymbolRequirementFinalizationError::StrongClosureMismatch)
     );
+}
+
+#[test]
+fn decoded_requirement_projection_rejects_another_verified_object_projection() {
+    let runtime = final_from_external(classify(b"_scoop_rt_allocation_context"));
+    let eh = final_from_external(classify(b"__Unwind_Resume"));
+    let decoded = decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(
+        &encode(&runtime).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+
+    assert!(matches!(
+        decoded.validate_against(&eh),
+        Err(UndefinedSymbolRequirementValidationError::ProjectionMismatch)
+    ));
+}
+
+#[test]
+fn decoded_requirement_sum_rejects_unknown_and_incomplete_variants() {
+    for bytes in [
+        vec![0xa1, 0x00, 0x18, 0xff],
+        vec![0xa1, 0x00, 0x01],
+        vec![0xa2, 0x00, 0x05, 0x01, 0x58, 0x1f],
+    ] {
+        assert!(
+            decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(
+                &bytes,
+                DecodeLimits::default()
+            )
+            .is_err()
+        );
+    }
+}
+
+fn assert_projection_round_trip(expected: &CanonicalUndefinedSymbolRequirementSetV1) {
+    let bytes = encode(expected).unwrap();
+    let decoded = decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(
+        &bytes,
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    let actual = decoded.validate_against(expected).unwrap();
+    assert_eq!(actual, *expected);
 }
 
 fn final_from_external(
