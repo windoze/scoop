@@ -1539,6 +1539,16 @@ typed id去重后共同投影，并保留各自materialization关系。后续sta
 typed identity，不从`LirType`、global序号、scan bytes或恰好相等的size/alignment反推；旧的无layout storage
 variant直接删除，不保留默认identity或兼容构造路径。
 
+static-storage registration先由唯一、非wire入口`StrongStaticStorageSemanticPlanSetV1::from_module(module)`
+从最终LIR收窄语义。每个`Storage`必须是非TLS、Raw地址provenance、ConeStrong writable global；logical
+`byte_size`和`required_alignment`由target与完整LIR value type做checked结构计算，`allocation_extent`固定为
+`max(byte_size, 1)`。scan只能是canonical empty或Recursive，且layout/scan identity必须绑定当前target、非
+ManagedObject representation与InlineValue scan role。`EncodedStaticValue`递归核对value/type/field layout，
+每个非null managed pointer只允许指向同一module中的typed immutable `StringConst`，并输出按pointer offset排序、
+无重复的`StaticImmortalRelocationPlanV1`；`ZeroedForRuntimeUnit`没有relocation。结果按
+`PersistentStaticStorageId`排序，错type、悬空/非immortal target、size溢出、重复identity或非canonical空scan
+均在codegen前失败，不从LLVM initializer反推semantic relation。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

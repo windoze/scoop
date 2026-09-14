@@ -45,6 +45,9 @@ pub use type_registrations::*;
 mod immortal_registrations;
 pub use immortal_registrations::*;
 
+mod static_storage_registrations;
+pub use static_storage_registrations::*;
+
 mod image;
 pub use image::*;
 
