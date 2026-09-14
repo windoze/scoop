@@ -238,6 +238,11 @@ impl std::error::Error for SingleConeLinkSectionDecodeError {
 pub(crate) mod tests;
 
 #[cfg(test)]
-pub(crate) fn strong_production_for_test() -> scoop_lir::StrongProductionSectionV1 {
-    tests::strong_production()
+pub(crate) fn strong_production_fixture_for_test(
+    coordinate: ConeCoordinate,
+) -> (
+    scoop_lir::CanonicalLirFoundation,
+    scoop_lir::StrongProductionSectionV1,
+) {
+    tests::strong_production_fixture(coordinate)
 }

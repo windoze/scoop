@@ -184,6 +184,21 @@ fn interface_relations_require_one_shared_complete_surface() {
     );
 }
 
+#[test]
+fn core_shape_support_sources_are_derived_from_param_free_source_nominals() {
+    let fixture = fixture();
+    let foundation = OdrFreeHirFoundation::try_new(fixture.foundation).unwrap();
+    let sources = fixture
+        .interface
+        .param_free_shape_support_sources(&foundation)
+        .unwrap();
+    assert_eq!(sources.len(), 1);
+    assert_eq!(
+        PersistentTypeId::from_source_declaration(&sources[0]).unwrap(),
+        fixture.interface.string_capability().source_type()
+    );
+}
+
 fn decode_interface(interface: &CoreHirInterfaceV1) -> DecodedCoreHirInterfaceV1 {
     decode_canonical(&encode(interface).unwrap(), DecodeLimits::default()).unwrap()
 }

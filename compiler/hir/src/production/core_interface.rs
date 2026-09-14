@@ -1,8 +1,9 @@
 //! Atomic HIR production interface for ordinary and trusted core Cones.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::ConeIdentity;
+use scoop_identity::{ConeIdentity, PersistentTypeId, SourceDeclarationKey};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
@@ -80,6 +81,33 @@ impl CoreHirInterfaceV1 {
 
     pub const fn value_targets(&self) -> &CoreValueTargetSurfaceV1 {
         &self.value_targets
+    }
+
+    /// Derives the complete core shape-support obligation set from the
+    /// already validated public type surface. Type aliases do not create a
+    /// second obligation for their nominal target.
+    pub fn param_free_shape_support_sources(
+        &self,
+        foundation: &OdrFreeHirFoundation,
+    ) -> Result<Vec<SourceDeclarationKey>, CoreShapeSupportSourceProjectionError> {
+        let mut sources = BTreeMap::new();
+        for target in self.type_targets.targets() {
+            let (
+                CoreTypeDefinitionV1::Type(source_type),
+                CoreHirTypeCapabilityV1::ParamFreeStrong(_),
+            ) = (target.definition(), target.capability())
+            else {
+                continue;
+            };
+            let (_, source) = foundation
+                .as_canonical()
+                .source_type_by_bytes(source_type.as_array())
+                .ok_or(CoreShapeSupportSourceProjectionError::MissingSourceNominal(
+                    source_type,
+                ))?;
+            sources.entry(source_type).or_insert_with(|| source.clone());
+        }
+        Ok(sources.into_values().collect())
     }
 }
 
@@ -448,6 +476,22 @@ impl fmt::Display for CoreHirInterfaceBuildError {
 }
 
 impl std::error::Error for CoreHirInterfaceBuildError {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoreShapeSupportSourceProjectionError {
+    MissingSourceNominal(PersistentTypeId),
+}
+
+impl fmt::Display for CoreShapeSupportSourceProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "cannot project core shape-support source obligations: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for CoreShapeSupportSourceProjectionError {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CoreHirInterfaceValidationError {

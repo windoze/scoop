@@ -728,6 +728,13 @@ CoreBootstrapInterfaceSectionV1 {
 5 = value_targets: CoreValueTargetSurfaceV1
 ```
 
+第7.3节所述shape-support obligation集合不是第六个wire字段。它必须从同一已验证
+`type_targets`中`definition=Type`且`capability=ParamFreeStrong`的source nominal按
+`PersistentTypeId`去重并以identity bytes排序后唯一派生；`TypeAlias`即使最终指向nominal也不重复
+产生obligation。reader必须用同一HIR foundation取回每个完整`SourceDeclarationKey`，LIR
+strong-production验证不得接收调用方另传的source列表，也不得从LIR payload自身枚举source来声称
+coverage完整。
+
 五个constituent必须针对同一个foundation和同一个`direct_public_surface`原子验证；三张target
 surface的binding并集必须逐byte等于direct surface且互不重叠，出现普通`EnumVariant` binding
 直接拒绝。prelude中的ordinary bindings也必须逐byte等于direct surface。String capability必须

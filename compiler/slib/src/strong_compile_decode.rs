@@ -6,16 +6,19 @@ use std::fmt;
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
     CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
-    DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, HirFoundationValidationError,
-    HirOutputContractV1, OdrFreeHirFoundation, OdrFreeHirFoundationError,
+    CoreShapeSupportSourceProjectionError, DecodedCoreBootstrapInterfaceSectionV1,
+    DecodedHirFoundation, HirFoundationValidationError, HirOutputContractV1, OdrFreeHirFoundation,
+    OdrFreeHirFoundationError,
 };
 use scoop_identity::{
     ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
     IdentityValidationError, PendingIdentityValidation, ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    DecodedLirFoundation, DecodedStrongProductionSectionV1, LirFoundationValidationError,
-    OdrFreeLirFoundation, OdrFreeLirFoundationError,
+    DecodedLirFoundation, DecodedStrongProductionSectionV1, EntryProductionSourceV1,
+    LirFoundationValidationError, OdrFreeLirFoundation, OdrFreeLirFoundationError,
+    StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
+    StrongProductionSectionValidationError,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1, DecodedCoreBootstrapBridgeSectionV1,
@@ -97,6 +100,21 @@ pub struct LocallyValidatedSingleConeCompileProduction<'input> {
 /// LIR production validation remains the next proof obligation.
 pub struct ValidatedSingleConeCompileSemanticFront<'input> {
     local: LocallyValidatedSingleConeCompileProduction<'input>,
+}
+
+/// Every strong Compile payload structurally proven against the same ODR-free
+/// HIR, MIR, and LIR front. External bridge equality is checked against a
+/// typed selection projection; trusted-core authority remains a later proof
+/// obligation. Entry and core shape sources are not caller-supplied.
+pub struct StructurallyValidatedSingleConeCompileProduction<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: OdrFreeHirFoundation,
+    hir_production: CoreBootstrapInterfaceSectionV1,
+    mir_foundation: OdrFreeMirFoundation,
+    mir_production: CoreBootstrapBridgeSectionV1,
+    lir_foundation: OdrFreeLirFoundation,
+    lir_production: StrongProductionSectionV1,
 }
 
 impl<'input> ValidatedGraphArtifact<'input> {
@@ -555,7 +573,7 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
     }
 }
 
-impl ValidatedSingleConeCompileSemanticFront<'_> {
+impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.local.coordinate()
     }
@@ -598,6 +616,105 @@ impl ValidatedSingleConeCompileSemanticFront<'_> {
 
     pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         self.local.lir_production_wire()
+    }
+
+    /// Closes the LIR production proof without accepting independently
+    /// supplied entry or shape-source lists.
+    pub fn validate_lir_production(
+        self,
+        expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    ) -> Result<
+        StructurallyValidatedSingleConeCompileProduction<'input>,
+        StrongCompileLirProductionError,
+    > {
+        let LocallyValidatedSingleConeCompileProduction {
+            graph,
+            mut identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self.local;
+        let entry_source = match mir_production.entry_bridge() {
+            EntryMirBridgeBranchV1::Library => EntryProductionSourceV1::Library,
+            EntryMirBridgeBranchV1::Executable(bridge) => {
+                EntryProductionSourceV1::executable(bridge.source().clone())
+            }
+        };
+        let core_shape_sources = match hir_production.core_interface() {
+            CoreHirInterfaceBranchV1::NotCore => Vec::new(),
+            CoreHirInterfaceBranchV1::Core(interface) => interface
+                .param_free_shape_support_sources(&hir_foundation)
+                .map_err(StrongCompileLirProductionError::ShapeSources)?,
+        };
+        let lir_production = lir_production
+            .validate(
+                graph.coordinate().clone(),
+                &lir_foundation,
+                expected_external_bridges,
+                entry_source,
+                &core_shape_sources,
+                &mut identities,
+            )
+            .map_err(StrongCompileLirProductionError::Production)?;
+        Ok(StructurallyValidatedSingleConeCompileProduction {
+            graph,
+            identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        })
+    }
+}
+
+impl StructurallyValidatedSingleConeCompileProduction<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production(&self) -> &CoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production(&self) -> &StrongProductionSectionV1 {
+        &self.lir_production
     }
 }
 
@@ -735,6 +852,27 @@ impl std::error::Error for StrongCompileProductionError {
         Some(match self {
             Self::Hir(error) => error,
             Self::Mir(error) => error,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum StrongCompileLirProductionError {
+    ShapeSources(CoreShapeSupportSourceProjectionError),
+    Production(StrongProductionSectionValidationError),
+}
+
+impl fmt::Display for StrongCompileLirProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid strong Compile LIR production: {self:?}")
+    }
+}
+
+impl std::error::Error for StrongCompileLirProductionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::ShapeSources(error) => error,
+            Self::Production(error) => error,
         })
     }
 }

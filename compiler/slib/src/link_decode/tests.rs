@@ -230,7 +230,12 @@ fn closure_section() -> MetadataSection {
 }
 
 pub(crate) fn strong_production() -> StrongProductionSectionV1 {
-    let coordinate = ConeCoordinate::reserved_core();
+    strong_production_fixture(ConeCoordinate::reserved_core()).1
+}
+
+pub(crate) fn strong_production_fixture(
+    coordinate: ConeCoordinate,
+) -> (CanonicalLirFoundation, StrongProductionSectionV1) {
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
@@ -253,7 +258,7 @@ pub(crate) fn strong_production() -> StrongProductionSectionV1 {
         .set_definition_atoms(image_atoms(definition_id))
         .unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = OdrFreeLirFoundation::try_new(producer, canonical.clone()).unwrap();
     let image_key = DigestNodeKey::runtime_image(producer);
     let image_id = DigestNodeId::from_key(&image_key).unwrap();
     let patch = DigestPatchIntentKey::new(
@@ -265,7 +270,7 @@ pub(crate) fn strong_production() -> StrongProductionSectionV1 {
     let image = scoop_lir::DigestNodeV1::new(image_key, Vec::new(), vec![patch]).unwrap();
     let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
-    StrongProductionSectionV1::new(
+    let production = StrongProductionSectionV1::new(
         coordinate,
         &foundation,
         external,
@@ -273,7 +278,8 @@ pub(crate) fn strong_production() -> StrongProductionSectionV1 {
         EntryProductionSourceV1::Library,
         &[],
     )
-    .unwrap()
+    .unwrap();
+    (canonical, production)
 }
 
 fn image_atoms(

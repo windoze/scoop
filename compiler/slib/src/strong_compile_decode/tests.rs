@@ -48,8 +48,8 @@ fn strong_compile_sections_validate_foundation_identities_as_one_transaction() {
         .validate_identities()
         .unwrap();
     assert_eq!(checked.identity(), cone().identity());
-    assert_eq!(checked.identity_count(), 5);
-    assert_eq!(checked.declared_identity_count(), 3);
+    assert_eq!(checked.identity_count(), 17);
+    assert_eq!(checked.declared_identity_count(), 15);
     let _ = checked.hir_production_wire();
     let _ = checked.mir_production_wire();
     let _ = checked.lir_production_wire();
@@ -67,7 +67,7 @@ fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
         .validate_foundation_structure()
         .unwrap();
     assert_eq!(checked.identity(), cone().identity());
-    assert_eq!(checked.identity_count(), 5);
+    assert_eq!(checked.identity_count(), 17);
     assert_eq!(
         checked.hir_foundation().as_canonical().counts().odr_groups,
         0
@@ -174,6 +174,65 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
 }
 
 #[test]
+fn strong_compile_validates_lir_production_from_the_semantic_front() {
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact(hir, mir, lir);
+    let external =
+        scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new())
+            .unwrap();
+    let validated = open_graph(&bytes)
+        .decode_single_cone_compile_sections()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .validate_local_production()
+        .unwrap()
+        .validate_cross_layer()
+        .unwrap()
+        .validate_lir_production(&external)
+        .unwrap();
+    assert_eq!(validated.identity(), cone().identity());
+    assert_eq!(validated.lir_production().external_bridges(), &external);
+    assert!(matches!(
+        validated.lir_production().entry_plan(),
+        scoop_lir::EntryProductionPlanV1::Library
+    ));
+    assert!(matches!(
+        validated.lir_production().core_shape_support(),
+        scoop_lir::CoreShapeSupportPlanV1::NotCore
+    ));
+
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact(hir, mir, lir);
+    let wrong_external = scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(
+        scoop_identity::ConeIdentity::CORE,
+        Vec::new(),
+    )
+    .unwrap();
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_compile_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure()
+            .unwrap()
+            .validate_local_production()
+            .unwrap()
+            .validate_cross_layer()
+            .unwrap()
+            .validate_lir_production(&wrong_external),
+        Err(StrongCompileLirProductionError::Production(
+            scoop_lir::StrongProductionSectionValidationError::Expected(
+                scoop_lir::StrongProductionSectionBuildError::ExternalBridgeProducer
+            )
+        ))
+    ));
+}
+
+#[test]
 fn compile_section_decode_rejects_wrong_profile_before_payloads() {
     let artifact =
         crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(
@@ -270,6 +329,8 @@ fn required_sections() -> (
     Vec<MetadataSection>,
     Vec<MetadataSection>,
 ) {
+    let (lir_foundation, lir_production) =
+        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone());
     let mut hir_foundation = CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -319,13 +380,13 @@ fn required_sections() -> (
             MetadataLocation::Lir,
             lir_identity_foundation_capability(),
             MemberPurposeSet::COMPILE,
-            encode(&CanonicalLirFoundation::empty()).unwrap(),
+            encode(&lir_foundation).unwrap(),
         ),
         section(
             MetadataLocation::Lir,
             lir_strong_production_capability(),
             MemberPurposeSet::COMPILE_AND_LINK,
-            encode(&crate::link_decode::strong_production_for_test()).unwrap(),
+            encode(&lir_production).unwrap(),
         ),
         section(
             MetadataLocation::Lir,
