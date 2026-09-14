@@ -36,8 +36,8 @@ fn binds_profile_production_plan_members_and_object_envelopes() {
     )];
 
     let verified = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production.clone(),
         &profile,
         &member_plan,
         &objects,
@@ -72,8 +72,8 @@ fn accepts_explicit_not_used_only_when_plan_and_members_are_empty() {
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
 
     let verified = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production.clone(),
         &profile,
         &member_plan,
         &[],
@@ -100,8 +100,8 @@ fn rejects_used_for_an_empty_plan_and_not_used_for_a_nonempty_plan() {
 
     assert_eq!(
         verify_c_bridge_production_envelopes_v1(
-            &empty_bridge_plan,
-            &used_production,
+            empty_bridge_plan,
+            used_production,
             &profile,
             &empty_member_plan,
             &[],
@@ -110,8 +110,8 @@ fn rejects_used_for_an_empty_plan_and_not_used_for_a_nonempty_plan() {
     );
     assert_eq!(
         verify_c_bridge_production_envelopes_v1(
-            &used_bridge_plan,
-            &CBridgeProductionSetV1::NotUsed,
+            used_bridge_plan,
+            CBridgeProductionSetV1::NotUsed,
             &profile,
             &used_member_plan,
             &[],
@@ -138,8 +138,8 @@ fn rejects_manifest_profile_even_when_object_deployment_would_validate() {
 
     assert_eq!(
         verify_c_bridge_production_envelopes_v1(
-            &bridge_plan,
-            &production,
+            bridge_plan,
+            production,
             &request_profile,
             &member_plan,
             &objects,
@@ -161,8 +161,8 @@ fn rejects_missing_duplicate_and_wrong_deployment_objects() {
 
     assert_eq!(
         verify_c_bridge_production_envelopes_v1(
-            &bridge_plan,
-            &production,
+            bridge_plan.clone(),
+            production.clone(),
             &profile,
             &member_plan,
             &[],
@@ -176,8 +176,8 @@ fn rejects_missing_duplicate_and_wrong_deployment_objects() {
     ];
     assert_eq!(
         verify_c_bridge_production_envelopes_v1(
-            &bridge_plan,
-            &production,
+            bridge_plan.clone(),
+            production.clone(),
             &profile,
             &member_plan,
             &duplicate,
@@ -189,8 +189,8 @@ fn rejects_missing_duplicate_and_wrong_deployment_objects() {
     let wrong = [GeneratedCBridgeObjectCandidateV1::new(member, &wrong_bytes)];
     assert!(matches!(
         verify_c_bridge_production_envelopes_v1(
-            &bridge_plan,
-            &production,
+            bridge_plan.clone(),
+            production.clone(),
             &profile,
             &member_plan,
             &wrong,
@@ -216,8 +216,8 @@ fn rejects_member_plan_for_a_different_generated_unit() {
 
     assert_eq!(
         verify_c_bridge_production_envelopes_v1(
-            &bridge_plan,
-            &production,
+            bridge_plan,
+            production,
             &profile,
             &other_member_plan,
             &[],

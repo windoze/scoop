@@ -48,8 +48,8 @@ fn verifies_the_complete_mixed_builtin_member_set() {
     )];
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
     let production_proof = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production,
         &profile,
         &member_plan,
         &bridge_objects,
@@ -101,8 +101,8 @@ fn rejects_missing_scoop_members_before_partial_verification() {
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
     let production_proof = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production,
         &profile,
         &member_plan,
         &[],
@@ -157,8 +157,8 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
     )];
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
     let production_proof = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production,
         &profile,
         &member_plan,
         &bridge_objects,

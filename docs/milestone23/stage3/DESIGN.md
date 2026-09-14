@@ -1042,6 +1042,36 @@ bootstrap manifest field 9中Code/RuntimeImage两槽必须为`Available`且逐by
 
 `ExecutableRootProjection`保存main body、source signature fingerprint、gateway body/fingerprint、failure-root identity和entry owner member。raw pointer、object-local symbol index或未来program graph不进入manifest。
 
+其wire固定为closed product：`1=main: MainCallableBodyId`、
+`2=source_signature_fingerprint: SourceSignatureFingerprint`、
+`3=gateway: PersistentCallableBodyId`、
+`4=gateway_definition_fingerprint: ObjectDefinitionFingerprintV1`、
+`5=failure_root: PersistentStaticStorageId`、`6=entry_owner_member: SlibMemberId`。这些值只能从
+`VerifiedEntryPatchSetV1`中的同一entry/runtime-image proof投影：gateway fingerprint必须是该gateway
+callable registration已经验证的body-definition fingerprint，owner member必须是实际root descriptor
+所在member。`Library`分支不得携带上述任一字段。
+
+为切断manifest field 7的自引用，进入Code sink的manifest贡献不是“把field 7置零”，而是独立的
+`SingleConeProductionCodeProjectionV1` closed product：`1=distribution`、`2=output`、
+`3=image_owner_member`、`4=runtime_registration_projection`、`5=strong_registration_set`、
+`6=runtime_image_fingerprint`。manifest fields 8--10已经作为Code的直接输入，不在该投影中重复。
+writer先从strong/object/image/entry proof构造这六个字段并计算Code fingerprint，再把所得digest与同一
+投影、native surface和C bridge production一起封装为完整manifest；reader以相同proof重建投影并逐
+byte比较。不存在含`Option<CodeFingerprint>`的中间manifest、全零占位digest或“encode时临时忽略field
+7”的入口。
+
+manifest field 8的精确类型是去除source/diagnostic provenance的
+`CanonicalNativeExternalContractCodeSetV1`；field 9是按`NativeLinkRequirementId`严格递增的
+`CanonicalVec<CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>>`；field 10的
+精确类型是`CBridgeProductionSetV1`。三者都从同一个已经验证的native/C-bridge production proof
+重建，decoded payload不能直接提升为authority。
+
+`VerifiedCBridgeProductionEnvelopeSetV1`必须拥有它已经验证的
+`GeneratedBridgePlanSetV1`和`CBridgeProductionSetV1`，不能只留下producer摘要；验证入口消费这两个
+值，成功后由proof独占保存。这样manifest/Code构造器才能把C bridge envelopes逐byte绑定回
+`StrongProductionSectionV1.generated_bridge_plan`。旧的借用后丢弃plan的proof结构和构造签名直接
+删除，不提供兼容重载。
+
 ### 9.6 wire字段与tag冻结
 
 本阶段新增payload继续使用M23-2第6章冻结的Wire CBOR规则：product是以正整数field id为key的definite-length map，closed product遇到未知、重复、缺失或多余field均失败；sum是map，field `0`为正整数tag，其余field由该variant定义；array按相应typed key的canonical byte顺序排列。不得编码Rust enum discriminant、源码声明顺序、hash-map遍历顺序或host path。嵌套的既有persistent identity、foundation record与fingerprint复用其所属schema的canonical wire，不另造简写。
@@ -2275,6 +2305,21 @@ packager只有在全部Link-purpose输入就绪后计算：
 - `CanonicalUndefinedSymbolRequirementSet`；
 - `CanonicalNativeExternalContractSet`与target-tagged native library requirements；
 - strong/image verification surface中registry指定进入Code sink的canonical projection。
+
+上述输入的canonical CBOR顶层固定为`CodeFingerprintInputV1` closed product：
+`1=link_object_members: CodeLinkObjectMemberSetV1`、
+`2=link_extension_contributions: CanonicalVec<KnownLinkExtensionCodeContributionV1>`、
+`3=c_bridge_production: CBridgeProductionSetV1`、
+`4=native_library_requirements: CanonicalVec<CborIdentityRecord<NativeLinkRequirementId,
+NativeLinkRequirementKey>>`、`5=defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1`、
+`6=undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1`、
+`7=native_contracts: CanonicalNativeExternalContractCodeSetV1`、
+`8=strong_production: StrongProductionSectionV1`、
+`9=manifest_projection: SingleConeProductionCodeProjectionV1`。M23-3没有known Link extension handler，
+因此field 2必须是空array；出现Link-required extension已在member-set verification处失败，不能产生
+伪造的空贡献。fields 3--9必须与field 1持有的最终object proof具有同一producer、target、digest plan、
+registration/image/entry branch及C-bridge envelope proof；构造器逐项核对后才返回typed
+`VerifiedCodeFingerprintV1`。这份九字段结构取代实现大纲2.6中较早的六类简写，不保留旧hash入口。
 
 其中`CanonicalNativeExternalContractCodeSetV1`只保存Link判等所需的contract，不携带
 source/diagnostic provenance。它编码为array，元素`NativeExternalContractCodeRecordV1`固定为

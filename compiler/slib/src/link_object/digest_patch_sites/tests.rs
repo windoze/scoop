@@ -324,8 +324,8 @@ fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFi
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
     let production = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production,
         &profile,
         &member_plan,
         &[],

@@ -421,8 +421,8 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     )];
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
     let production_proof = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production,
         &profile,
         &member_plan,
         &bridge_objects,

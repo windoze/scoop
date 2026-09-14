@@ -325,8 +325,8 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     let c_profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &c_profile);
     let production = verify_c_bridge_production_envelopes_v1(
-        &bridge_plan,
-        &production,
+        bridge_plan.clone(),
+        production,
         &c_profile,
         &member_plan,
         &[],

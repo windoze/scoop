@@ -57,14 +57,18 @@ impl VerifiedGeneratedCBridgeMemberEnvelopeV1 {
 /// generated-C object envelopes assigned by the member plan.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedCBridgeProductionEnvelopeSetV1 {
-    producer: ConeIdentity,
+    bridge_plan: GeneratedBridgePlanSetV1,
     production: CBridgeProductionSetV1,
     members: Vec<VerifiedGeneratedCBridgeMemberEnvelopeV1>,
 }
 
 impl VerifiedCBridgeProductionEnvelopeSetV1 {
     pub const fn producer(&self) -> ConeIdentity {
-        self.producer
+        self.bridge_plan.producer()
+    }
+
+    pub const fn bridge_plan(&self) -> &GeneratedBridgePlanSetV1 {
+        &self.bridge_plan
     }
 
     pub const fn production(&self) -> &CBridgeProductionSetV1 {
@@ -77,8 +81,8 @@ impl VerifiedCBridgeProductionEnvelopeSetV1 {
 }
 
 pub fn verify_c_bridge_production_envelopes_v1(
-    bridge_plan: &GeneratedBridgePlanSetV1,
-    production: &CBridgeProductionSetV1,
+    bridge_plan: GeneratedBridgePlanSetV1,
+    production: CBridgeProductionSetV1,
     profile: &CBridgeToolchainProfileV1,
     member_plan: &PlannedLinkObjectMemberSetV1,
     objects: &[GeneratedCBridgeObjectCandidateV1<'_>],
@@ -95,7 +99,7 @@ pub fn verify_c_bridge_production_envelopes_v1(
         .iter()
         .map(|unit| unit.unit())
         .collect::<Vec<_>>();
-    validate_production(production, profile, &expected_units)?;
+    validate_production(&production, profile, &expected_units)?;
     validate_planned_unit_coverage(member_plan, &expected_units)?;
     validate_canonical_object_order(objects)?;
 
@@ -144,8 +148,8 @@ pub fn verify_c_bridge_production_envelopes_v1(
     }
 
     Ok(VerifiedCBridgeProductionEnvelopeSetV1 {
-        producer: bridge_plan.producer(),
-        production: production.clone(),
+        bridge_plan,
+        production,
         members,
     })
 }

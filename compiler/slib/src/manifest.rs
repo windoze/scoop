@@ -4,6 +4,9 @@ pub use fingerprint::*;
 mod records;
 pub use records::*;
 
+mod production;
+pub use production::*;
+
 mod decode;
 pub use decode::*;
 

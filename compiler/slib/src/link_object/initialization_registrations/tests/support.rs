@@ -75,8 +75,8 @@ impl Fixture {
         let profile = c_bridge_profile();
         let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
         let production_proof = verify_c_bridge_production_envelopes_v1(
-            &bridge_plan,
-            &production,
+            bridge_plan.clone(),
+            production,
             &profile,
             &member_plan,
             &[],
