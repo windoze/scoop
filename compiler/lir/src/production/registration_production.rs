@@ -25,6 +25,9 @@ use crate::{
     StrongTypeRegistrationPlanV1,
 };
 
+mod wire;
+pub use wire::*;
+
 /// Complete member-independent registration authority produced from one final
 /// LIR module. Every table has already been checked against the same foundation
 /// and digest graph.

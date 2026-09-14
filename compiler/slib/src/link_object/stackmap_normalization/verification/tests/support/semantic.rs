@@ -14,7 +14,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
-    CanonicalLirFoundation, CoreExternalTypeDescriptor, DigestInputRefV1, DigestNodeV1, EnumDefs,
+    CanonicalLirFoundation, CoreExternalTypeDescriptor,
+    DecodedStrongRegistrationProductionSurfaceV1, DigestInputRefV1, DigestNodeV1, EnumDefs,
     ExternFunctions, Function, GcEffect, Global, GlobalInit, ImmortalObjectIdentity, Instruction,
     IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirConstantImage, LirMeta,
     LirStaticInitialState, LirTargetProfile, LirType, LocalFunctionIdentities, LocalFunctionRef,
@@ -120,8 +121,25 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
 
 #[test]
 fn complete_registration_production_uses_the_closed_seven_field_shape() {
-    let encoded = scoop_wire::encode(&inputs(Corruption::None).registration_production).unwrap();
+    let inputs = inputs(Corruption::None);
+    let encoded = scoop_wire::encode(&inputs.registration_production).unwrap();
     assert_eq!(encoded[0], 0xa7);
+    let decoded = scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
+        &encoded,
+        scoop_wire::DecodeLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(scoop_wire::encode(&decoded).unwrap(), encoded);
+
+    let old_identity_only =
+        scoop_wire::encode(inputs.registration_production.identities()).unwrap();
+    assert!(
+        scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
+            &old_identity_only,
+            scoop_wire::DecodeLimits::default(),
+        )
+        .is_err()
+    );
 }
 
 fn semantic_module(
