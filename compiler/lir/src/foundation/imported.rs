@@ -3,7 +3,9 @@ use scoop_identity::{
 };
 use scoop_wire::WireEncode;
 
-use super::{CanonicalLirFoundation, LirFoundationCounts, ValidatedLirFoundation};
+use super::{
+    CanonicalLirFoundation, LirFoundationCounts, OdrFreeLirFoundation, ValidatedLirFoundation,
+};
 
 /// Session-local LIR identity. It cannot be interchanged with imported HIR or
 /// MIR identities even when the persistent kind is the same.
@@ -30,6 +32,17 @@ impl ImportedLirSet {
     #[doc(hidden)]
     pub fn from_validated(
         foundation: ValidatedLirFoundation,
+        identities: ImportedIdentityMap<LirIdentityLayer>,
+    ) -> Self {
+        Self {
+            canonical: foundation.into_canonical(),
+            identities,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn from_odr_free(
+        foundation: OdrFreeLirFoundation,
         identities: ImportedIdentityMap<LirIdentityLayer>,
     ) -> Self {
         Self {

@@ -3,7 +3,9 @@ use scoop_identity::{
 };
 use scoop_wire::WireEncode;
 
-use super::{CanonicalHirFoundation, HirFoundationCounts, ValidatedHirFoundation};
+use super::{
+    CanonicalHirFoundation, HirFoundationCounts, OdrFreeHirFoundation, ValidatedHirFoundation,
+};
 
 /// Session-local HIR identity. Its type is distinct from current HIR ids and
 /// from imported MIR/LIR ids.
@@ -30,6 +32,17 @@ impl ImportedHirSet {
     #[doc(hidden)]
     pub fn from_validated(
         foundation: ValidatedHirFoundation,
+        identities: ImportedIdentityMap<HirIdentityLayer>,
+    ) -> Self {
+        Self {
+            canonical: foundation.into_canonical(),
+            identities,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn from_odr_free(
+        foundation: OdrFreeHirFoundation,
         identities: ImportedIdentityMap<HirIdentityLayer>,
     ) -> Self {
         Self {

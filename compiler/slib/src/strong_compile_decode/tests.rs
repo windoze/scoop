@@ -2,7 +2,7 @@ use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{
     CapabilityId, CborIdentityRecord, ConeCoordinate, CoreBuiltinNominal, ExactTypeKey, LayoutKey,
     LinkageClass, PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
-    RepresentationRole,
+    RepresentationRole, SemanticIdentitySession,
 };
 use scoop_lir::CanonicalLirFoundation;
 use scoop_mir::CanonicalMirFoundation;
@@ -205,6 +205,19 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
     ));
     let native = validated.validate_native_boundary().unwrap();
     assert_eq!(native.identity(), cone().identity());
+    let mut session = SemanticIdentitySession::new();
+    let compiled = native.commit(&mut session).unwrap();
+    assert_eq!(compiled.identity(), cone().identity());
+    assert_eq!(compiled.hir().origin(), cone().identity());
+    assert_eq!(compiled.mir().origin(), cone().identity());
+    assert_eq!(compiled.lir().origin(), cone().identity());
+    assert_eq!(session.origin_count(), 1);
+    assert_eq!(session.entity_count(), 15);
+    assert!(matches!(
+        compiled.production().hir().core_interface(),
+        scoop_hir::CoreHirInterfaceBranchV1::NotCore
+    ));
+    assert_eq!(compiled.production().lir().external_bridges(), &external);
 
     let (hir, mir, lir) = required_sections();
     let bytes = artifact(hir, mir, lir);

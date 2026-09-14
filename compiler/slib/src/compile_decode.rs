@@ -3,9 +3,9 @@ use std::marker::PhantomData;
 
 use scoop_hir::{DecodedHirFoundation, ImportedHirSet, ValidatedHirFoundation};
 use scoop_identity::{
-    CapabilityId, ConeCoordinate, ConeIdentity, IdentityValidationError, PendingIdentityValidation,
-    SemanticIdentityImportError, SemanticIdentitySession, SemanticOriginFingerprint,
-    ValidatedIdentityGraph,
+    CapabilityId, ConeCoordinate, ConeIdentity, IdentityValidationError, ImportedIdentityLayers,
+    PendingIdentityValidation, SemanticIdentityImportError, SemanticIdentitySession,
+    SemanticOriginFingerprint, ValidatedIdentityGraph,
 };
 use scoop_lir::{DecodedLirFoundation, ImportedLirSet, ValidatedLirFoundation};
 use scoop_mir::{DecodedMirFoundation, ImportedMirSet, ValidatedMirFoundation};
@@ -427,7 +427,9 @@ mod profile_seal {
 
 /// Marker implemented only by compile capability profiles whose proof chain
 /// is available in this compiler.
-pub trait CompileCapabilityProfile: profile_seal::Sealed {}
+pub trait CompileCapabilityProfile: profile_seal::Sealed {
+    type Production;
+}
 
 /// The non-publishable identity-foundation Compile profile implemented by
 /// M23-2.
@@ -435,7 +437,19 @@ pub trait CompileCapabilityProfile: profile_seal::Sealed {}
 pub struct IdentityFoundationProfile;
 
 impl profile_seal::Sealed for IdentityFoundationProfile {}
-impl CompileCapabilityProfile for IdentityFoundationProfile {}
+impl CompileCapabilityProfile for IdentityFoundationProfile {
+    type Production = ();
+}
+
+/// The M23-3 production Compile profile for one Cone whose definitions all
+/// use strong linkage.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct SingleConeStrongProfile;
+
+impl profile_seal::Sealed for SingleConeStrongProfile {}
+impl CompileCapabilityProfile for SingleConeStrongProfile {
+    type Production = crate::SingleConeStrongCompileProduction;
+}
 
 /// A graph artifact whose complete Compile profile was structurally
 /// validated, typed-remapped, and committed to the caller's semantic session.
@@ -447,6 +461,7 @@ pub struct ValidatedCompileArtifact<'input, P: CompileCapabilityProfile> {
     hir: ImportedHirSet,
     mir: ImportedMirSet,
     lir: ImportedLirSet,
+    production: P::Production,
     profile: PhantomData<fn() -> P>,
 }
 
@@ -466,39 +481,37 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
             mir,
             lir,
         } = self.foundations;
-        let semantic = graph.envelope.manifest().semantic_fingerprints();
-        let fingerprint = SemanticOriginFingerprint::new(
-            *semantic.hir().as_array(),
-            *semantic.mir().as_array(),
-            *semantic.lir().as_array(),
-        );
-        let remap_count = u64::try_from(identities.declared_identity_count()).map_err(|_| {
-            CompileCommitError::Resource(WireError::new(
-                WireErrorKind::IntegerOutOfRange,
-                WirePath::default(),
-                None,
-            ))
-        })?;
-        graph
-            .envelope
-            .meter_mut()
-            .charge_pending_remap(remap_count, &WirePath::default())
-            .map_err(CompileCommitError::Resource)?;
-        let imported = session
-            .import(graph.identity(), fingerprint, &identities)
-            .map_err(CompileCommitError::SemanticImport)?;
+        let imported = commit_identity_graph(&mut graph, &identities, session)?;
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
         Ok(ValidatedCompileArtifact {
             graph,
             hir: ImportedHirSet::from_validated(hir, hir_identities),
             mir: ImportedMirSet::from_validated(mir, mir_identities),
             lir: ImportedLirSet::from_validated(lir, lir_identities),
+            production: (),
             profile: PhantomData,
         })
     }
 }
 
-impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<'_, P> {
+impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
+    pub(crate) fn from_parts(
+        graph: ValidatedGraphArtifact<'input>,
+        hir: ImportedHirSet,
+        mir: ImportedMirSet,
+        lir: ImportedLirSet,
+        production: P::Production,
+    ) -> Self {
+        Self {
+            graph,
+            hir,
+            mir,
+            lir,
+            production,
+            profile: PhantomData,
+        }
+    }
+
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -530,6 +543,38 @@ impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<'_, P> {
     pub const fn lir(&self) -> &ImportedLirSet {
         &self.lir
     }
+
+    pub const fn production(&self) -> &P::Production {
+        &self.production
+    }
+}
+
+pub(crate) fn commit_identity_graph(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    identities: &ValidatedIdentityGraph,
+    session: &mut SemanticIdentitySession,
+) -> Result<ImportedIdentityLayers, CompileCommitError> {
+    let semantic = graph.envelope.manifest().semantic_fingerprints();
+    let fingerprint = SemanticOriginFingerprint::new(
+        *semantic.hir().as_array(),
+        *semantic.mir().as_array(),
+        *semantic.lir().as_array(),
+    );
+    let remap_count = u64::try_from(identities.declared_identity_count()).map_err(|_| {
+        CompileCommitError::Resource(WireError::new(
+            WireErrorKind::IntegerOutOfRange,
+            WirePath::default(),
+            None,
+        ))
+    })?;
+    graph
+        .envelope
+        .meter_mut()
+        .charge_pending_remap(remap_count, &WirePath::default())
+        .map_err(CompileCommitError::Resource)?;
+    session
+        .import(graph.identity(), fingerprint, identities)
+        .map_err(CompileCommitError::SemanticImport)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

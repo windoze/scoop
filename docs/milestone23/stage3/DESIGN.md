@@ -2397,6 +2397,13 @@ ABI normalization；不得因为本阶段当前fixture没有native extern而跳�
 弱化validator。只有该门禁成功后才可原子导入identity并构造
 `ValidatedCompileArtifact<SingleConeStrongProfile>`。
 
+最终Compile proof不能把production证明丢回一个无类型的marker。profile为关联数据选择器：
+`IdentityFoundationProfile`只携带`()`，`SingleConeStrongProfile`必须携带
+`SingleConeStrongCompileProduction { hir, mir, lir }`，三项分别是已经重建并验证的HIR core/output
+interface、MIR core/entry bridge与LIR strong production。ODR-free foundation则在同一次identity session
+transaction后变成三层`Imported*Set`；不能先导入普通foundation，再通过cast或二次包装声称它满足strong
+profile。
+
 ### 15.1 Link proof顺序
 
 `validate_link::<SingleConeStrongProfile>`固定按以下依赖顺序：
