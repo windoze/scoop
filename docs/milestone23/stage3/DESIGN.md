@@ -568,6 +568,12 @@ toolchain compatibility仍与authority一致。普通parsed variant没有该投�
 production section构造错误都不会产生partial HIR stage成功值，后续stage也不能把core graph改配为executable或
 遗漏mandatory HIR section。
 
+进入MIR时，driver只暴露消费上述sealed HIR product的`lower_mir(self)`；它在同一原子操作中运行正式
+`mir-lower`、从结果构造`OdrFreeMirFoundation`并投影mandatory `CoreBootstrapBridgeSectionV1`，成功后返回
+`TrustedCoreBootstrapMirOutput`。该product拥有而不是借用前一阶段的`TrustedCoreBootstrapHirOutput`，同时私有持有
+MIR graph、ODR-free foundation与MIR production section；任一foundation/ODR/production错误都不产生partial
+MIR stage成功值，也不存在接收裸HIR、裸MIR或单独section的driver兼容入口。
+
 ### 7.3 core Compile capability
 
 本阶段新增的HIR/MIR section都使用封闭`NotCore | Core`分支。writer只有持有`CoreBootstrapAuthority`，且current Cone为reserved core、source form为Manifest、output为Library、dependency table为空时，才可构造`Core`；普通writer只能构造`NotCore`，不能携带空的伪core表。raw reader只验证`Core`分支的结构与内容关系，不因看见reserved coordinate或该tag就授予authority；consumer仍须从trusted slot单独构造7.4节的`ValidatedTrustedCoreArtifact`。

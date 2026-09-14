@@ -489,6 +489,82 @@ impl TrustedCoreBootstrapHirOutput {
     pub const fn production_section(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
         &self.production_section
     }
+
+    /// Advances this exact sealed HIR product through MIR lowering.
+    ///
+    /// Consuming `self` keeps the HIR graph, its mandatory production
+    /// section, the MIR graph, and the derived ODR-free foundation in one
+    /// inseparable stage product.
+    pub fn lower_mir(self) -> Result<TrustedCoreBootstrapMirOutput, CoreBootstrapMirStageError> {
+        let mir = scoop_mir_lower::lower(&self.hir.local);
+        let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
+            .map_err(CoreBootstrapMirStageError::Foundation)?;
+        let production_section = scoop_mir_lower::lower_production_section(
+            mir.cone,
+            &self.production_section,
+            &foundation,
+        )
+        .map_err(CoreBootstrapMirStageError::ProductionSection)?;
+        Ok(TrustedCoreBootstrapMirOutput {
+            hir: self,
+            mir,
+            foundation,
+            production_section,
+        })
+    }
+}
+
+/// Atomic trusted-core MIR product for the single-Cone strong pipeline.
+///
+/// The previous HIR stage is owned rather than referenced so no caller can
+/// pair this MIR graph or production section with a different HIR proof.
+pub struct TrustedCoreBootstrapMirOutput {
+    hir: TrustedCoreBootstrapHirOutput,
+    mir: scoop_mir::Module,
+    foundation: scoop_mir::OdrFreeMirFoundation,
+    production_section: scoop_mir::CoreBootstrapBridgeSectionV1,
+}
+
+impl TrustedCoreBootstrapMirOutput {
+    pub const fn hir(&self) -> &TrustedCoreBootstrapHirOutput {
+        &self.hir
+    }
+
+    pub const fn mir(&self) -> &scoop_mir::Module {
+        &self.mir
+    }
+
+    pub const fn foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
+        &self.foundation
+    }
+
+    pub const fn production_section(&self) -> &scoop_mir::CoreBootstrapBridgeSectionV1 {
+        &self.production_section
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapMirStageError {
+    Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
+    ProductionSection(scoop_mir_lower::MirProductionLoweringError),
+}
+
+impl fmt::Display for CoreBootstrapMirStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Foundation(source) => source.fmt(formatter),
+            Self::ProductionSection(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapMirStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Foundation(source) => source,
+            Self::ProductionSection(source) => source,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -1009,6 +1085,35 @@ mod tests {
                     scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(_)
                 ))
                 .count()
+        );
+
+        let candidate_count = interface
+            .callable_targets()
+            .targets()
+            .iter()
+            .filter(|target| {
+                matches!(
+                    target.capability(),
+                    scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(_)
+                )
+            })
+            .count();
+        let real_mir = output.lower_mir().unwrap();
+        assert_eq!(real_mir.mir().cone, scoop_identity::ConeIdentity::CORE);
+        let scoop_mir::CoreMirBridgeBranchV1::Core(real_core_bridge) =
+            real_mir.production_section().core_bridge()
+        else {
+            panic!("the real trusted bootstrap MIR product has a core bridge")
+        };
+        assert!(candidate_count > 0);
+        assert!(real_core_bridge.callable_targets().is_empty());
+        assert_eq!(
+            real_mir
+                .production_section()
+                .strong_callable_bridges()
+                .bridges()
+                .len(),
+            real_mir.mir().meta.callable_signatures.len()
         );
     }
 
