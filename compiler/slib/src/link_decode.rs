@@ -26,18 +26,19 @@ use crate::strong_compile_decode::{
 };
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
-    CBridgeCheckedSingleConeProductionManifestV1, CBridgeProductionEnvelopeValidationError,
-    DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
-    DecodedSingleConeProductionManifestV1, GeneratedCBridgeObjectCandidateV1,
-    LinkObjectMaterializationValidationError, ManifestSection,
+    BuiltinObjectSetValidationError, CBridgeCheckedSingleConeProductionManifestV1,
+    CBridgeProductionEnvelopeValidationError, DecodedLinkIdentityClosureSectionV1,
+    DecodedMetadataEnvelope, DecodedSingleConeProductionManifestV1,
+    GeneratedCBridgeObjectCandidateV1, LinkObjectMaterializationValidationError, ManifestSection,
     MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
-    ScoopLirObjectCandidateV1, SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId,
-    SlibMemberRecord, SlibMemberRole, ValidatedGraphArtifact, ValidatedSingleConeStrongProduction,
-    VerifiedCBridgeProductionEnvelopeSetV1, hir_core_bootstrap_interface_capability,
-    hir_identity_foundation_capability, lir_identity_foundation_capability,
-    lir_link_identity_closure_capability, lir_strong_production_capability,
-    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1, SemanticFingerprintError,
+    SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord, SlibMemberRole,
+    StrongObjectSymbolPlanningError, ValidatedGraphArtifact, ValidatedSingleConeStrongProduction,
+    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedCBridgeProductionEnvelopeSetV1,
+    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
+    lir_identity_foundation_capability, lir_link_identity_closure_capability,
+    lir_strong_production_capability, manifest_single_cone_production_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 
 const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
@@ -123,6 +124,21 @@ pub struct CBridgeCheckedSingleConeLinkSections<'input> {
     scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
     generated_bridge_objects: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
     c_bridge_production: VerifiedCBridgeProductionEnvelopeSetV1,
+    production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
+}
+
+/// Every built-in object member through exact symbol, atom-range,
+/// relocation, and current-Cone strong-target closure validation. Digest,
+/// registration, image, entry, and final fingerprint proofs remain pending.
+pub struct BuiltinObjectCheckedSingleConeLinkSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    production: ValidatedSingleConeStrongProduction,
+    link_identity_closure: MaterializationCheckedLinkIdentityClosureSectionV1,
+    scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
+    generated_bridge_objects: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
+    builtin_objects: VerifiedBuiltinObjectStrongRelocationSetV1,
     production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 
@@ -663,7 +679,7 @@ impl<'input> MaterializationCheckedSingleConeLinkSections<'input> {
     }
 }
 
-impl CBridgeCheckedSingleConeLinkSections<'_> {
+impl<'input> CBridgeCheckedSingleConeLinkSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -714,6 +730,106 @@ impl CBridgeCheckedSingleConeLinkSections<'_> {
 
     pub const fn c_bridge_production(&self) -> &VerifiedCBridgeProductionEnvelopeSetV1 {
         &self.c_bridge_production
+    }
+
+    pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+
+    pub fn validate_builtin_objects(
+        self,
+    ) -> Result<BuiltinObjectCheckedSingleConeLinkSections<'input>, StrongLinkBuiltinObjectError>
+    {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects,
+            c_bridge_production,
+            production_manifest,
+        } = self;
+        let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
+            graph.target_selection().target(),
+            production.lir().canonical_definitions(),
+            link_identity_closure.member_plan(),
+        )
+        .map_err(StrongLinkBuiltinObjectError::SymbolPlan)?;
+        let builtin_objects = crate::verify_builtin_object_strong_relocations_v1(
+            link_identity_closure.member_plan(),
+            &symbol_plan,
+            &scoop_objects,
+            c_bridge_production,
+            &generated_bridge_objects,
+        )
+        .map_err(StrongLinkBuiltinObjectError::ObjectSet)?;
+        Ok(BuiltinObjectCheckedSingleConeLinkSections {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects,
+            builtin_objects,
+            production_manifest,
+        })
+    }
+}
+
+impl BuiltinObjectCheckedSingleConeLinkSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub const fn production(&self) -> &ValidatedSingleConeStrongProduction {
+        &self.production
+    }
+
+    pub const fn materializations(&self) -> &MaterializationCheckedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub fn scoop_objects(&self) -> &[ScoopLirObjectCandidateV1<'_>] {
+        &self.scoop_objects
+    }
+
+    pub fn generated_bridge_objects(&self) -> &[GeneratedCBridgeObjectCandidateV1<'_>] {
+        &self.generated_bridge_objects
+    }
+
+    pub const fn builtin_objects(&self) -> &VerifiedBuiltinObjectStrongRelocationSetV1 {
+        &self.builtin_objects
     }
 
     pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
@@ -1040,6 +1156,30 @@ impl std::error::Error for StrongLinkCBridgeError {
         Some(match self {
             Self::ManifestProduction(error) => error,
             Self::ObjectEnvelopes(error) => error,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum StrongLinkBuiltinObjectError {
+    SymbolPlan(StrongObjectSymbolPlanningError),
+    ObjectSet(BuiltinObjectSetValidationError),
+}
+
+impl fmt::Display for StrongLinkBuiltinObjectError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid strong Link built-in object set: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongLinkBuiltinObjectError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::SymbolPlan(error) => error,
+            Self::ObjectSet(error) => error,
         })
     }
 }

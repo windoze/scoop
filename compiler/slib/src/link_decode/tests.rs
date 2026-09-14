@@ -9,7 +9,8 @@ use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, CanonicalLirFoundation,
     DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, EntryProductionSourceV1,
     OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
-    StrongProducerUnitPartitionV1, StrongProductionSectionV1, ValidatedLirTargetSelection,
+    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
+    ValidatedLirTargetSelection,
 };
 use scoop_wire::{DecodeLimits, encode};
 
@@ -18,8 +19,9 @@ use crate::{
     BootstrapManifest, CanonicalSlibArchive, CodeFingerprint, CompatibilityRecord, ConeKind,
     ConeRecord, ConeSourceForm, FingerprintAvailability, HirFingerprint, ManifestSection,
     MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection,
-    PlannedLinkObjectMemberSetV1, ProducerRecord, RuntimeImageFingerprint,
-    SemanticFingerprintRecord, SlibMember, SlibMemberRole, StrongProfileLirProductionError,
+    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProducerRecord,
+    RuntimeImageFingerprint, SemanticFingerprintRecord, SlibMember, SlibMemberRole,
+    StrongProfileLirProductionError,
 };
 
 #[test]
@@ -91,6 +93,16 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         c_bridge.production_manifest().c_bridge_production(),
         scoop_lir::CBridgeProductionSetV1::NotUsed
     ));
+    let builtins = c_bridge.validate_builtin_objects().unwrap();
+    assert_eq!(builtins.identity(), cone().identity());
+    assert_eq!(
+        builtins
+            .builtin_objects()
+            .strong_relocations()
+            .members()
+            .len(),
+        1
+    );
 }
 
 #[test]
@@ -446,7 +458,7 @@ fn build_artifact(
                 cone().identity(),
                 member.stable_key().clone(),
                 member.role().clone(),
-                vec![0xaa, 0xbb, 0xcc, 0xdd],
+                link_object_bytes(),
             )
             .unwrap(),
         );
@@ -654,6 +666,16 @@ fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
     )
     .unwrap();
     PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap()
+}
+
+fn link_object_bytes() -> Vec<u8> {
+    let (canonical, _) = strong_production_fixture(cone().coordinate().clone());
+    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let plan = link_object_plan();
+    let symbols =
+        PlannedStrongObjectSymbolSetV1::new(selection().target(), &surface, &plan).unwrap();
+    crate::link_object::scoop_object_bytes_for_symbol_plan_test(&symbols.members()[0])
 }
 
 fn selection() -> ValidatedLirTargetSelection {

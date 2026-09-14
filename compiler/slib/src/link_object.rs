@@ -115,6 +115,46 @@ pub use link_identity_closure::*;
 mod macho;
 pub use macho::*;
 
+#[cfg(test)]
+pub(crate) fn scoop_object_bytes_for_symbol_plan_test(
+    plan: &PlannedMemberStrongObjectSymbolsV1,
+) -> Vec<u8> {
+    let mut atoms = plan
+        .symbols()
+        .iter()
+        .filter_map(|symbol| match symbol.role() {
+            PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { atom, .. } => Some(atom),
+            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { .. }
+            | PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    atoms.sort_unstable();
+    atoms.dedup();
+    let offsets = atoms
+        .iter()
+        .enumerate()
+        .map(|(index, atom)| (*atom, u64::try_from(index).unwrap() * 8))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let section_bytes = atoms
+        .iter()
+        .flat_map(|_| [0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0])
+        .collect::<Vec<_>>();
+    symbol_verification::tests::object_for_plan_with_deployment(
+        plan,
+        |role| match role {
+            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { primary_atom, .. }
+            | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+                atom: primary_atom, ..
+            } => offsets[&primary_atom],
+            PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { atom, .. } => offsets[&atom] + 4,
+        },
+        &[],
+        None,
+        &section_bytes,
+    )
+    .bytes
+}
+
 macro_rules! typed_digest {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
