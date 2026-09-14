@@ -7,6 +7,7 @@ use scoop_identity::{
     RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite,
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
+use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
 use crate::CanonicalLirFoundation;
@@ -46,6 +47,54 @@ fn derives_primary_and_every_atom_boundary_from_typed_plans() {
         assert_eq!(boundary.start().linkage(), LinkageClass::ConeStrong);
         assert_eq!(boundary.end().linkage(), LinkageClass::ConeStrong);
     }
+}
+
+#[test]
+fn wire_reader_only_returns_the_independently_rebuilt_surface() {
+    let fixture = fixture(true);
+    let surface =
+        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let encoded = encode(&surface).unwrap();
+    let decoded: DecodedStrongObjectSymbolSurfaceV1 =
+        decode_canonical(&encoded, DecodeLimits::default()).unwrap();
+
+    assert_eq!(decoded.validate(&fixture.foundation), Ok(surface));
+}
+
+#[test]
+fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
+    let fixture = fixture(true);
+    let surface =
+        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let encoded = encode(&surface).unwrap();
+    assert_eq!(encoded[0], 0x81);
+    assert_eq!(encoded[1], 0xa6);
+
+    let mut missing_definition_field = encoded.clone();
+    missing_definition_field[1] = 0xa5;
+    assert!(
+        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(
+            &missing_definition_field,
+            DecodeLimits::default(),
+        )
+        .is_err()
+    );
+
+    let boundary_map = encoded
+        .windows(2)
+        .position(|window| window == [0x06, 0x82])
+        .map(|index| index + 2)
+        .unwrap();
+    assert_eq!(encoded[boundary_map], 0xa4);
+    let mut extra_boundary_field = encoded;
+    extra_boundary_field[boundary_map] = 0xa5;
+    assert!(
+        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(
+            &extra_boundary_field,
+            DecodeLimits::default(),
+        )
+        .is_err()
+    );
 }
 
 #[test]

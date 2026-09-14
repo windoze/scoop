@@ -888,14 +888,14 @@ subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementatio
 ```text
 StrongProductionSectionV1 {
     external_bridges: CanonicalVec<StrongExternalLirBridgeV1>,
-    canonical_definitions: CanonicalVec<CanonicalLirDefinition>,
-    object_definition_plans: CanonicalVec<ObjectDefinitionPlan>,
-    digest_finalization_plan: DigestFinalizationPlan,
-    registration_plans: StrongRegistrationPlanSet,
-    image_plan: ConeImagePlan,
+    canonical_definitions: StrongObjectSymbolSurfaceV1,
+    object_definition_plans: StrongObjectDefinitionPlanSurfaceV1,
+    digest_finalization_plan: StrongDigestFinalizationPlanV1,
+    registration_plans: StrongRegistrationIdentitySurfaceV1,
+    image_plan: ConeImagePlanV1,
     entry_plan: Library | Executable(ExecutableEntryPlan),
     core_shape_support: NotCore | Core(ParamFreeShapeSupportPlanSet),
-    generated_bridge_plan: GeneratedBridgePlanSet,
+    generated_bridge_plan: GeneratedBridgePlanSetV1,
 }
 ```
 
@@ -928,6 +928,14 @@ HIR/MIR/LIR及trusted-core artifact重建出的完整typed surface逐byte匹配�
 decoded identity cast为已验证记录。
 
 `object_definition_plans`覆盖每个参与definition/digest的strong primary和associated atom，但不含member assignment。`DigestFinalizationPlan`可使用M23总设计已经冻结的全部kind enum；本profile只允许SourceSignature/Layout/Scan/LirDefinition/ObjectSupport/ObjectDefinition/StackmapRecord/StrongRegistration/RuntimeImage，出现OdrDefinition node即拒绝。
+
+`canonical_definitions`不是另一个开放的LIR body容器；它精确使用从同一ODR-free foundation重建的
+`StrongObjectSymbolSurfaceV1`。顶层按definition plan id严格递增。每个
+`StrongDefinitionSymbolPlanV1`固定为`1=definition_plan`、`2=owner`、
+`3=definition_role`、`4=primary_atom`、`5=primary_symbol`、`6=atom_boundaries`；boundary固定为
+`1=atom`、`2=atom_role`、`3=start`、`4=end`并按atom id严格递增。owner、role、primary atom/symbol
+以及每个start/end request都由foundation的typed definition plan/atom唯一重建；reader逐byte比较并
+只返回重建结果，不能把decoded owner、id或symbol request提升为authority。
 
 本阶段`DigestFinalizationPlanV1`的wire固定为node array；每个node是closed product：
 `1=identity: CborIdentityRecord<DigestNodeId, DigestNodeKeyV1>`、
