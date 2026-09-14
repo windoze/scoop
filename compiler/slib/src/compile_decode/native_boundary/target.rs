@@ -27,9 +27,10 @@ use scoop_identity::{
 use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
-    NativeBoundaryCompileError, NativeBoundarySourceValidatedFoundations, index_records,
-    records_by_id,
+    NativeBoundaryCompileError, NativeBoundaryFoundationView,
+    NativeBoundarySourceValidatedFoundations, index_records, records_by_id,
 };
+use crate::ValidatedGraphArtifact;
 
 mod layout;
 
@@ -43,7 +44,20 @@ impl<'input> NativeBoundarySourceValidatedFoundations<'input> {
     pub fn validate_target(
         mut self,
     ) -> Result<NativeBoundaryValidatedFoundations<'input>, NativeBoundaryCompileError> {
-        validate_target_normalization(&mut self.foundations)?;
+        let view = NativeBoundaryFoundationView {
+            source_contracts: self.foundations.hir.source_native_contracts(),
+            type_definitions: self.foundations.hir.native_boundary_types(),
+            callback_applications: self.foundations.mir.callback_application_records(),
+            native_contracts: self.foundations.lir.native_contracts(),
+            c_abi_signatures: self.foundations.lir.c_abi_signatures(),
+            c_abi_layouts: self.foundations.lir.c_abi_layouts(),
+            callback_bridges: self.foundations.lir.callback_bridges(),
+        };
+        validate_target_normalization(
+            &mut self.foundations.graph,
+            &self.foundations.identities,
+            &view,
+        )?;
         Ok(NativeBoundaryValidatedFoundations {
             foundations: self.foundations,
         })
@@ -56,12 +70,13 @@ impl NativeBoundaryValidatedFoundations<'_> {
     }
 }
 
-fn validate_target_normalization(
-    foundations: &mut super::super::StructurallyValidatedFoundations<'_>,
+pub(super) fn validate_target_normalization(
+    artifact: &mut ValidatedGraphArtifact<'_>,
+    graph: &scoop_identity::ValidatedIdentityGraph,
+    view: &NativeBoundaryFoundationView<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
-    let graph = &foundations.identities;
-    let target = foundations.graph.target_selection().target();
-    let meter = foundations.graph.envelope.meter_mut();
+    let target = artifact.target_selection().target();
+    let meter = artifact.envelope.meter_mut();
     let exact_types = records_by_id(
         [
             graph
@@ -142,32 +157,32 @@ fn validate_target_normalization(
         &WirePath::root().field(9),
     )?;
     let definitions = index_records(
-        foundations.hir.native_boundary_types(),
+        view.type_definitions,
         NativeBoundaryTypeDefinitionRecord::owner,
         meter,
         &WirePath::root().field(30),
     )?;
 
     let actual_contracts = index_records(
-        foundations.lir.native_contracts(),
+        view.native_contracts,
         NativeExternalContractRecord::source,
         meter,
         &WirePath::root().field(14),
     )?;
     let application_records = index_records(
-        foundations.mir.callback_application_records(),
+        view.callback_applications,
         scoop_mir::CallbackApplicationRecord::application,
         meter,
         &WirePath::root().field(10),
     )?;
     let actual_signatures = index_records(
-        foundations.lir.c_abi_signatures(),
+        view.c_abi_signatures,
         CanonicalCAbiSignatureFingerprintRecord::fingerprint,
         meter,
         &WirePath::root().field(15),
     )?;
     let actual_layouts = index_records(
-        foundations.lir.c_abi_layouts(),
+        view.c_abi_layouts,
         CanonicalCAbiLayoutFingerprintRecord::fingerprint,
         meter,
         &WirePath::root().field(16),
@@ -189,7 +204,7 @@ fn validate_target_normalization(
     meter
         .try_reserve_map_slots(
             &mut expected_contracts,
-            foundations.hir.source_native_contracts().len(),
+            view.source_contracts.len(),
             &WirePath::root().field(14),
         )
         .map_err(NativeBoundaryCompileError::Resource)?;
@@ -202,7 +217,7 @@ fn validate_target_normalization(
         &definitions,
     );
 
-    for source in foundations.hir.source_native_contracts() {
+    for source in view.source_contracts {
         let expected = normalizer.normalize_external(source)?;
         expected_contracts.insert(expected.source(), expected);
     }
@@ -214,7 +229,7 @@ fn validate_target_normalization(
         NativeBoundaryTargetError::NativeContractMismatch,
     )?;
 
-    for bridge in foundations.lir.callback_bridges() {
+    for bridge in view.callback_bridges {
         charge_relations(normalizer.meter, 1, &WirePath::root().field(13))?;
         let application = callback_applications.get(&bridge.application()).ok_or(
             NativeBoundaryTargetError::MissingCallbackApplication {

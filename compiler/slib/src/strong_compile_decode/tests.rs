@@ -203,6 +203,8 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
         validated.lir_production().core_shape_support(),
         scoop_lir::CoreShapeSupportPlanV1::NotCore
     ));
+    let native = validated.validate_native_boundary().unwrap();
+    assert_eq!(native.identity(), cone().identity());
 
     let (hir, mir, lir) = required_sections();
     let bytes = artifact(hir, mir, lir);

@@ -30,11 +30,12 @@ use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError, ConeKind,
     DecodedMetadataEnvelope, DecodedMetadataSection, MetadataLocation, MetadataReadError,
-    SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord,
-    SlibMemberRole, ValidatedGraphArtifact, hir_core_bootstrap_interface_capability,
-    hir_identity_foundation_capability, lir_identity_foundation_capability,
-    lir_strong_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    NativeBoundaryCompileError, SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId,
+    SlibMemberRecord, SlibMemberRole, ValidatedGraphArtifact,
+    compile_decode::{NativeBoundaryFoundationView, validate_native_boundary_parts},
+    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
+    lir_identity_foundation_capability, lir_strong_production_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 
 const COMPILE_SECTION_HANDLER_BASE_WORK: u64 = 64;
@@ -115,6 +116,13 @@ pub struct StructurallyValidatedSingleConeCompileProduction<'input> {
     mir_production: CoreBootstrapBridgeSectionV1,
     lir_foundation: OdrFreeLirFoundation,
     lir_production: StrongProductionSectionV1,
+}
+
+/// Structurally valid strong Compile production whose source and target
+/// native-boundary closures were replayed against the same canonical
+/// foundations.
+pub struct NativeBoundaryValidatedSingleConeCompileProduction<'input> {
+    structural: StructurallyValidatedSingleConeCompileProduction<'input>,
 }
 
 impl<'input> ValidatedGraphArtifact<'input> {
@@ -672,7 +680,7 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
     }
 }
 
-impl StructurallyValidatedSingleConeCompileProduction<'_> {
+impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -715,6 +723,43 @@ impl StructurallyValidatedSingleConeCompileProduction<'_> {
 
     pub const fn lir_production(&self) -> &StrongProductionSectionV1 {
         &self.lir_production
+    }
+
+    pub fn validate_native_boundary(
+        mut self,
+    ) -> Result<
+        NativeBoundaryValidatedSingleConeCompileProduction<'input>,
+        NativeBoundaryCompileError,
+    > {
+        let view = NativeBoundaryFoundationView::from_odr_free(
+            &self.hir_foundation,
+            &self.mir_foundation,
+            &self.lir_foundation,
+        );
+        validate_native_boundary_parts(&mut self.graph, &self.identities, &view)?;
+        Ok(NativeBoundaryValidatedSingleConeCompileProduction { structural: self })
+    }
+}
+
+impl NativeBoundaryValidatedSingleConeCompileProduction<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.structural.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.structural.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.structural.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.structural.decode_usage()
+    }
+
+    pub const fn structural(&self) -> &StructurallyValidatedSingleConeCompileProduction<'_> {
+        &self.structural
     }
 }
 

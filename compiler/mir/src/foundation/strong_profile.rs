@@ -60,6 +60,11 @@ impl OdrFreeMirFoundation {
         &self.0
     }
 
+    #[doc(hidden)]
+    pub fn callback_application_records(&self) -> &[crate::CallbackApplicationRecord] {
+        &self.0.callback_application_records
+    }
+
     pub fn into_canonical(self) -> CanonicalMirFoundation {
         self.0
     }

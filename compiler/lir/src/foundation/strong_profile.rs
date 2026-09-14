@@ -111,6 +111,26 @@ impl OdrFreeLirFoundation {
         &self.canonical
     }
 
+    #[doc(hidden)]
+    pub fn native_contracts(&self) -> &[scoop_identity::NativeExternalContractRecord] {
+        &self.canonical.native_contracts
+    }
+
+    #[doc(hidden)]
+    pub fn c_abi_signatures(&self) -> &[scoop_identity::CanonicalCAbiSignatureFingerprintRecord] {
+        &self.canonical.c_abi_signatures
+    }
+
+    #[doc(hidden)]
+    pub fn c_abi_layouts(&self) -> &[scoop_identity::CanonicalCAbiLayoutFingerprintRecord] {
+        &self.canonical.c_abi_layouts
+    }
+
+    #[doc(hidden)]
+    pub fn callback_bridges(&self) -> &[crate::CallbackBridgeRecord] {
+        &self.canonical.callback_bridges
+    }
+
     pub fn resolve_definition_atom(
         &self,
         definition: ObjectDefinitionPlanId,
@@ -265,10 +285,6 @@ impl OdrFreeLirFoundation {
 
     pub(crate) fn bridge_atoms(&self) -> &[super::BridgeAtomRecord] {
         &self.canonical.bridge_atoms
-    }
-
-    pub(crate) fn native_contracts(&self) -> &[scoop_identity::NativeExternalContractRecord] {
-        &self.canonical.native_contracts
     }
 
     pub(crate) fn native_link_requirements(&self) -> &[super::NativeLinkRequirementRecord] {

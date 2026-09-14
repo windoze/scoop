@@ -2391,6 +2391,12 @@ domain固定为`scoop-code-v1`。optional blob、diagnostic attachment、physica
 
 ## 15. Link reader与双视图发布
 
+strong profile的Compile proof在提交semantic session前，必须对同一份已通过`RejectAll`与三层
+production关系验证的canonical foundations重放M23-2既有的native-boundary source closure和target
+ABI normalization；不得因为本阶段当前fixture没有native extern而跳过，也不得复制一套strong专用的
+弱化validator。只有该门禁成功后才可原子导入identity并构造
+`ValidatedCompileArtifact<SingleConeStrongProfile>`。
+
 ### 15.1 Link proof顺序
 
 `validate_link::<SingleConeStrongProfile>`固定按以下依赖顺序：

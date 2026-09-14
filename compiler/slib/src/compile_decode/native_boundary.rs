@@ -3,19 +3,26 @@ use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use scoop_hir::NativeBoundaryNominalOwner;
+use scoop_hir::{
+    NativeBoundaryNominalOwner, NativeBoundaryTypeDefinitionRecord, OdrFreeHirFoundation,
+};
 use scoop_identity::{
     CallableApplicationKey, CallableArguments, CallableInstantiationOwner,
     CallableMaterializationContext, CallbackApplicationKey, CallbackRegistrationKey,
+    CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiSignatureFingerprintRecord,
     CborIdentityRecord, ExactTypeKey, IdentityLayer, IdentityValidationError,
-    InitializationUnitKey, OptionalSignatureType, PersistentCallableApplicationId,
-    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentInitializationUnitId,
-    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceExternFunctionAbi,
-    SourceNativeExternalContract, SourceScoopAbiFunctionSignature,
+    InitializationUnitKey, NativeExternalContractRecord, OptionalSignatureType,
+    PersistentCallableApplicationId, PersistentCallbackApplicationId, PersistentExactTypeId,
+    PersistentInitializationUnitId, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceExternFunctionAbi, SourceNativeExternalContract,
+    SourceNativeExternalContractRecord, SourceScoopAbiFunctionSignature, ValidatedIdentityGraph,
 };
+use scoop_lir::{CallbackBridgeRecord, OdrFreeLirFoundation};
+use scoop_mir::{CallbackApplicationRecord, OdrFreeMirFoundation};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::StructurallyValidatedFoundations;
+use crate::ValidatedGraphArtifact;
 
 mod target;
 pub use target::{NativeBoundaryTargetError, NativeBoundaryValidatedFoundations};
@@ -27,11 +34,48 @@ pub struct NativeBoundarySourceValidatedFoundations<'input> {
     pub(super) foundations: StructurallyValidatedFoundations<'input>,
 }
 
+pub(crate) struct NativeBoundaryFoundationView<'foundation> {
+    pub(super) source_contracts: &'foundation [SourceNativeExternalContractRecord],
+    pub(super) type_definitions: &'foundation [NativeBoundaryTypeDefinitionRecord],
+    pub(super) callback_applications: &'foundation [CallbackApplicationRecord],
+    pub(super) native_contracts: &'foundation [NativeExternalContractRecord],
+    pub(super) c_abi_signatures: &'foundation [CanonicalCAbiSignatureFingerprintRecord],
+    pub(super) c_abi_layouts: &'foundation [CanonicalCAbiLayoutFingerprintRecord],
+    pub(super) callback_bridges: &'foundation [CallbackBridgeRecord],
+}
+
+impl<'foundation> NativeBoundaryFoundationView<'foundation> {
+    pub(crate) fn from_odr_free(
+        hir: &'foundation OdrFreeHirFoundation,
+        mir: &'foundation OdrFreeMirFoundation,
+        lir: &'foundation OdrFreeLirFoundation,
+    ) -> Self {
+        Self {
+            source_contracts: hir.source_native_contracts(),
+            type_definitions: hir.native_boundary_types(),
+            callback_applications: mir.callback_application_records(),
+            native_contracts: lir.native_contracts(),
+            c_abi_signatures: lir.c_abi_signatures(),
+            c_abi_layouts: lir.c_abi_layouts(),
+            callback_bridges: lir.callback_bridges(),
+        }
+    }
+}
+
 impl<'input> StructurallyValidatedFoundations<'input> {
     pub fn validate_native_boundary_source(
         mut self,
     ) -> Result<NativeBoundarySourceValidatedFoundations<'input>, NativeBoundaryCompileError> {
-        validate_source_closure(&mut self)?;
+        let view = NativeBoundaryFoundationView {
+            source_contracts: self.hir.source_native_contracts(),
+            type_definitions: self.hir.native_boundary_types(),
+            callback_applications: self.mir.callback_application_records(),
+            native_contracts: self.lir.native_contracts(),
+            c_abi_signatures: self.lir.c_abi_signatures(),
+            c_abi_layouts: self.lir.c_abi_layouts(),
+            callback_bridges: self.lir.callback_bridges(),
+        };
+        validate_source_closure(&mut self.graph, &self.identities, &view)?;
         Ok(NativeBoundarySourceValidatedFoundations { foundations: self })
     }
 }
@@ -42,11 +86,21 @@ impl NativeBoundarySourceValidatedFoundations<'_> {
     }
 }
 
-fn validate_source_closure(
-    foundations: &mut StructurallyValidatedFoundations<'_>,
+pub(crate) fn validate_native_boundary_parts(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    identities: &ValidatedIdentityGraph,
+    view: &NativeBoundaryFoundationView<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
-    let graph = &foundations.identities;
-    let meter = foundations.graph.envelope.meter_mut();
+    validate_source_closure(graph, identities, view)?;
+    target::validate_target_normalization(graph, identities, view)
+}
+
+fn validate_source_closure(
+    artifact: &mut ValidatedGraphArtifact<'_>,
+    graph: &ValidatedIdentityGraph,
+    view: &NativeBoundaryFoundationView<'_>,
+) -> Result<(), NativeBoundaryCompileError> {
+    let meter = artifact.envelope.meter_mut();
     let exact_types = records_by_id(
         [
             graph
@@ -115,14 +169,14 @@ fn validate_source_closure(
         )
         .map_err(NativeBoundaryCompileError::Identity)?;
     let definitions = index_records(
-        foundations.hir.native_boundary_types(),
+        view.type_definitions,
         scoop_hir::NativeBoundaryTypeDefinitionRecord::owner,
         meter,
         &WirePath::root().field(30),
     )?;
 
     let mut closure = SourceClosureState::new(meter);
-    for source in foundations.hir.source_native_contracts() {
+    for source in view.source_contracts {
         collect_source_contract(source.contract(), &mut closure, &WirePath::root().field(26))?;
     }
     for registration in callback_registrations {

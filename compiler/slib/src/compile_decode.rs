@@ -27,6 +27,7 @@ pub use native_boundary::{
     NativeBoundaryCompileError, NativeBoundarySourceValidatedFoundations,
     NativeBoundaryTargetError, NativeBoundaryValidatedFoundations,
 };
+pub(crate) use native_boundary::{NativeBoundaryFoundationView, validate_native_boundary_parts};
 
 /// Canonically decoded foundation payloads whose artifact, profile inventory,
 /// outer envelopes, inner wire products, and semantic fingerprints agree.

@@ -51,6 +51,16 @@ impl OdrFreeHirFoundation {
         &self.0
     }
 
+    #[doc(hidden)]
+    pub fn source_native_contracts(&self) -> &[scoop_identity::SourceNativeExternalContractRecord] {
+        &self.0.source_native_contracts
+    }
+
+    #[doc(hidden)]
+    pub fn native_boundary_types(&self) -> &[crate::NativeBoundaryTypeDefinitionRecord] {
+        &self.0.native_boundary_types
+    }
+
     pub fn into_canonical(self) -> CanonicalHirFoundation {
         self.0
     }
