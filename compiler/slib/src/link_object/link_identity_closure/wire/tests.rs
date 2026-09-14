@@ -61,6 +61,43 @@ fn closure_reader_rejects_old_extended_and_unknown_sum_shapes() {
     );
 }
 
+#[test]
+fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
+    let (partition, plan) = materialization_plan();
+    let bytes = encoded_link_identity_closure_for_member_plan_test(&plan);
+    let decoded =
+        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
+            .unwrap();
+    let checked = decoded.validate_materializations(&partition).unwrap();
+    assert_eq!(checked.member_plan(), &plan);
+
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
+        &encoded_link_identity_closure_for_test(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert!(matches!(
+        decoded.validate_materializations(&partition),
+        Err(LinkObjectMaterializationValidationError::UnknownScoopLirDefinition(_))
+    ));
+
+    let mut stale_member = closure();
+    let stale_member_id = stale_member.materializations[0].member();
+    stale_member.materializations = vec![super::super::LinkObjectMaterializationV1::ScoopLir {
+        member: stale_member_id,
+        units: plan.scoop_lir_members()[0].units().clone(),
+    }];
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
+        &encode(&stale_member).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert!(matches!(
+        decoded.validate_materializations(&partition),
+        Err(LinkObjectMaterializationValidationError::ProjectionMismatch)
+    ));
+}
+
 fn closure() -> LinkIdentityClosureSectionV1 {
     let fixture = fixture_named("closureWireProjection");
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![
@@ -115,4 +152,31 @@ fn closure() -> LinkIdentityClosureSectionV1 {
 
 pub(crate) fn encoded_link_identity_closure_for_test() -> Vec<u8> {
     encode(&closure()).unwrap()
+}
+
+pub(crate) fn encoded_link_identity_closure_for_member_plan_test(
+    plan: &PlannedLinkObjectMemberSetV1,
+) -> Vec<u8> {
+    let mut projection = closure();
+    projection.materializations = super::super::materializations(plan);
+    encode(&projection).unwrap()
+}
+
+fn materialization_plan() -> (
+    scoop_lir::StrongProducerUnitPartitionV1,
+    PlannedLinkObjectMemberSetV1,
+) {
+    let (canonical, _) = crate::link_decode::strong_production_fixture_for_test(
+        scoop_identity::ConeCoordinate::reserved_core(),
+    );
+    let foundation =
+        scoop_lir::OdrFreeLirFoundation::try_new(scoop_identity::ConeIdentity::CORE, canonical)
+            .unwrap();
+    let partition =
+        scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let units =
+        CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
+            .unwrap();
+    let plan = PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap();
+    (partition, plan)
 }

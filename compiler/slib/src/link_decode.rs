@@ -1,5 +1,6 @@
 //! Link-view section inventory and atomic payload decoding.
 
+use std::collections::BTreeSet;
 use std::fmt;
 
 use scoop_hir::{
@@ -11,7 +12,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation,
-    StrongExternalLirBridgeSurfaceV1,
+    StrongExternalLirBridgeSurfaceV1, StrongProducerUnitPartitionError,
+    StrongProducerUnitPartitionV1,
 };
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
@@ -25,9 +27,11 @@ use crate::strong_compile_decode::{
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
     DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
-    DecodedSingleConeProductionManifestV1, ManifestSection, MetadataLocation, MetadataReadError,
-    SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord,
-    SlibMemberRole, ValidatedGraphArtifact, ValidatedSingleConeStrongProduction,
+    DecodedSingleConeProductionManifestV1, GeneratedCBridgeObjectCandidateV1,
+    LinkObjectMaterializationValidationError, ManifestSection,
+    MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
+    ScoopLirObjectCandidateV1, SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId,
+    SlibMemberRecord, SlibMemberRole, ValidatedGraphArtifact, ValidatedSingleConeStrongProduction,
     hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
     lir_identity_foundation_capability, lir_link_identity_closure_capability,
     lir_strong_production_capability, manifest_single_cone_production_capability,
@@ -88,6 +92,20 @@ pub struct ProductionValidatedSingleConeLinkSections<'input> {
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
+    production_manifest: DecodedSingleConeProductionManifestV1,
+}
+
+/// Link sections whose decoded materializations and archive directory were
+/// proven to describe the same complete built-in object member plan. Object
+/// bytes remain unverified candidates.
+pub struct MaterializationCheckedSingleConeLinkSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    production: ValidatedSingleConeStrongProduction,
+    link_identity_closure: MaterializationCheckedLinkIdentityClosureSectionV1,
+    scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
+    generated_bridge_objects: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
     production_manifest: DecodedSingleConeProductionManifestV1,
 }
 
@@ -454,7 +472,7 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
     }
 }
 
-impl ProductionValidatedSingleConeLinkSections<'_> {
+impl<'input> ProductionValidatedSingleConeLinkSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -502,6 +520,180 @@ impl ProductionValidatedSingleConeLinkSections<'_> {
     pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
         &self.production_manifest
     }
+
+    pub fn validate_materializations(
+        self,
+    ) -> Result<MaterializationCheckedSingleConeLinkSections<'input>, StrongLinkMaterializationError>
+    {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            production_manifest,
+        } = self;
+        let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundations.lir)
+            .map_err(StrongLinkMaterializationError::ProducerUnits)?;
+        let link_identity_closure = link_identity_closure
+            .validate_materializations(&partition)
+            .map_err(StrongLinkMaterializationError::Closure)?;
+        let (scoop_objects, generated_bridge_objects) =
+            validate_object_directory(&graph, link_identity_closure.member_plan())?;
+        Ok(MaterializationCheckedSingleConeLinkSections {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects,
+            production_manifest,
+        })
+    }
+}
+
+impl MaterializationCheckedSingleConeLinkSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub const fn production(&self) -> &ValidatedSingleConeStrongProduction {
+        &self.production
+    }
+
+    pub const fn materializations(&self) -> &MaterializationCheckedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub fn scoop_objects(&self) -> &[ScoopLirObjectCandidateV1<'_>] {
+        &self.scoop_objects
+    }
+
+    pub fn generated_bridge_objects(&self) -> &[GeneratedCBridgeObjectCandidateV1<'_>] {
+        &self.generated_bridge_objects
+    }
+
+    pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+}
+
+fn validate_object_directory<'input>(
+    graph: &ValidatedGraphArtifact<'input>,
+    plan: &crate::PlannedLinkObjectMemberSetV1,
+) -> Result<
+    (
+        Vec<ScoopLirObjectCandidateV1<'input>>,
+        Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
+    ),
+    StrongLinkMaterializationError,
+> {
+    let expected = plan
+        .scoop_lir_members()
+        .iter()
+        .map(|member| member.member_id())
+        .chain(
+            plan.generated_bridge_members()
+                .iter()
+                .map(|member| member.member_id()),
+        )
+        .collect::<BTreeSet<_>>();
+    let actual = graph
+        .envelope
+        .manifest()
+        .members()
+        .iter()
+        .filter(|member| matches!(member.role(), SlibMemberRole::LinkObject { .. }))
+        .map(SlibMemberRecord::id)
+        .collect::<BTreeSet<_>>();
+    if let Some(member) = actual.difference(&expected).next() {
+        return Err(StrongLinkMaterializationError::UnexpectedObjectMember(
+            *member,
+        ));
+    }
+    if let Some(member) = expected.difference(&actual).next() {
+        return Err(StrongLinkMaterializationError::MissingObjectMember(*member));
+    }
+
+    let scoop_objects = plan
+        .scoop_lir_members()
+        .iter()
+        .map(|member| {
+            required_object_payload(
+                graph,
+                member.member_id(),
+                member.stable_key(),
+                member.role(),
+            )
+            .map(|bytes| ScoopLirObjectCandidateV1::new(member.member_id(), bytes))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let generated_bridge_objects = plan
+        .generated_bridge_members()
+        .iter()
+        .map(|member| {
+            required_object_payload(
+                graph,
+                member.member_id(),
+                member.stable_key(),
+                member.role(),
+            )
+            .map(|bytes| GeneratedCBridgeObjectCandidateV1::new(member.member_id(), bytes))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok((scoop_objects, generated_bridge_objects))
+}
+
+fn required_object_payload<'input>(
+    graph: &ValidatedGraphArtifact<'input>,
+    member: SlibMemberId,
+    stable_key: &crate::MemberStableKey,
+    role: &SlibMemberRole,
+) -> Result<&'input [u8], StrongLinkMaterializationError> {
+    let record = graph
+        .envelope
+        .manifest()
+        .members()
+        .binary_search_by_key(&member, SlibMemberRecord::id)
+        .ok()
+        .map(|index| &graph.envelope.manifest().members()[index])
+        .ok_or(StrongLinkMaterializationError::MissingObjectMember(member))?;
+    if record.stable_key() != stable_key || record.role() != role {
+        return Err(StrongLinkMaterializationError::ObjectRecordMismatch(member));
+    }
+    graph
+        .envelope
+        .member(member)
+        .ok_or(StrongLinkMaterializationError::MissingObjectPayload(member))
 }
 
 fn require_strong_profile(
@@ -682,6 +874,35 @@ fn require_fingerprint(
                 actual: *actual,
             },
         )
+    }
+}
+
+#[derive(Debug)]
+pub enum StrongLinkMaterializationError {
+    ProducerUnits(StrongProducerUnitPartitionError),
+    Closure(LinkObjectMaterializationValidationError),
+    UnexpectedObjectMember(SlibMemberId),
+    MissingObjectMember(SlibMemberId),
+    ObjectRecordMismatch(SlibMemberId),
+    MissingObjectPayload(SlibMemberId),
+}
+
+impl fmt::Display for StrongLinkMaterializationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid strong Link materialization: {self:?}")
+    }
+}
+
+impl std::error::Error for StrongLinkMaterializationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ProducerUnits(error) => Some(error),
+            Self::Closure(error) => Some(error),
+            Self::UnexpectedObjectMember(_)
+            | Self::MissingObjectMember(_)
+            | Self::ObjectRecordMismatch(_)
+            | Self::MissingObjectPayload(_) => None,
+        }
     }
 }
 

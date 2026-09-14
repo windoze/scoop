@@ -1036,6 +1036,13 @@ field 7 `VerifiedImageOwnerProjectionV1`固定为`1=member`、`2=definition`、`
 物理位置来自相同最终object proof。整个section只能从`VerifiedCodeFingerprintV1`持有的proof链投影；
 writer不接受上述八段裸值，reader重建完整expected section并逐byte比较。
 
+为启动object reader，Link可以先消费decoded field 1形成
+`MaterializationCheckedLinkIdentityClosureSectionV1`，但该中间证明必须把每个decoded unit id逐项匹配到
+同producer的`StrongProducerUnitPartitionV1` typed id，重建canonical unit set、member stable key与
+member id，并对完整materialization array做canonical byte等值。它必须继续拥有其余未验证closure字段；
+不能把field 1中的裸id/member bytes直接提升，也不能用该中间状态冒充完整closure proof。最终仍以
+`VerifiedCodeFingerprintV1`重建并核对全部八个字段。
+
 它不贡献新的LIR semantic bytes。reader从`StrongProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
 
 ### 9.5 manifest production section

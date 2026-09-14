@@ -1,17 +1,21 @@
 //! Strict untrusted wire projection for the Link identity closure.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
     DecodedPersistentId, DefinitionAtomRole, DigestPatchIntentId, GeneratedBridgeUnitId,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentId,
 };
+use scoop_lir::StrongProducerUnitPartitionV1;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
 use crate::link_object::{
+    CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
     DecodedCanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalUndefinedSymbolRequirementSetV1,
-    DecodedFixedBytesV1, VerifiedCodeFingerprintV1,
+    DecodedFixedBytesV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
+    PlannedLinkObjectMemberSetV1, VerifiedCodeFingerprintV1,
 };
 use crate::{LinkMemberFingerprint, SlibMemberId};
 
@@ -330,7 +334,103 @@ pub struct DecodedLinkIdentityClosureSectionV1 {
     entry_owner: DecodedEntryOwnerBranchV1,
 }
 
+/// A decoded closure whose materialization array has been rebuilt from one
+/// typed producer partition. The remaining closure fields are still
+/// untrusted until the complete Code proof is available.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MaterializationCheckedLinkIdentityClosureSectionV1 {
+    decoded: DecodedLinkIdentityClosureSectionV1,
+    member_plan: PlannedLinkObjectMemberSetV1,
+}
+
+impl MaterializationCheckedLinkIdentityClosureSectionV1 {
+    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
+        &self.member_plan
+    }
+
+    pub fn validate(
+        self,
+        code: &VerifiedCodeFingerprintV1,
+    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
+        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
+            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
+        validate_against(self.decoded, &expected)
+    }
+}
+
 impl DecodedLinkIdentityClosureSectionV1 {
+    pub fn validate_materializations(
+        self,
+        partition: &StrongProducerUnitPartitionV1,
+    ) -> Result<
+        MaterializationCheckedLinkIdentityClosureSectionV1,
+        LinkObjectMaterializationValidationError,
+    > {
+        let scoop_ids = partition
+            .scoop_lir_definition_plans()
+            .iter()
+            .map(|id| (*id.as_array(), *id))
+            .collect::<BTreeMap<_, _>>();
+        let bridge_ids = partition
+            .generated_bridge_units()
+            .iter()
+            .map(|unit| (*unit.unit().as_array(), unit.unit()))
+            .collect::<BTreeMap<_, _>>();
+        let mut scoop_unit_sets = Vec::new();
+        let mut bridge_unit_sets = Vec::new();
+        for materialization in &self.materializations {
+            match materialization {
+                DecodedLinkObjectMaterializationV1::ScoopLir { units, .. } => {
+                    let units = units
+                        .iter()
+                        .map(|unit| {
+                            scoop_ids.get(unit.as_array()).copied().ok_or(
+                                LinkObjectMaterializationValidationError::UnknownScoopLirDefinition(
+                                    *unit.as_array(),
+                                ),
+                            )
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    scoop_unit_sets.push(
+                        CanonicalScoopLirObjectUnitSetV1::new(units)
+                            .map_err(LinkObjectMaterializationValidationError::ScoopUnitSet)?,
+                    );
+                }
+                DecodedLinkObjectMaterializationV1::GeneratedCBridge { units, .. } => {
+                    let units = units
+                        .iter()
+                        .map(|unit| {
+                            bridge_ids.get(unit.as_array()).copied().ok_or(
+                                LinkObjectMaterializationValidationError::UnknownGeneratedBridgeUnit(
+                                    *unit.as_array(),
+                                ),
+                            )
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    bridge_unit_sets.push(
+                        CanonicalGeneratedBridgeObjectUnitSetV1::new(units)
+                            .map_err(LinkObjectMaterializationValidationError::BridgeUnitSet)?,
+                    );
+                }
+            }
+        }
+        let member_plan =
+            PlannedLinkObjectMemberSetV1::new(partition, scoop_unit_sets, bridge_unit_sets)
+                .map_err(LinkObjectMaterializationValidationError::MemberPlan)?;
+        let expected = super::materializations(&member_plan);
+        let actual_bytes = encode(&WireArray(&self.materializations))
+            .map_err(LinkObjectMaterializationValidationError::Encode)?;
+        let expected_bytes = encode(&WireArray(&expected))
+            .map_err(LinkObjectMaterializationValidationError::Encode)?;
+        if actual_bytes != expected_bytes {
+            return Err(LinkObjectMaterializationValidationError::ProjectionMismatch);
+        }
+        Ok(MaterializationCheckedLinkIdentityClosureSectionV1 {
+            decoded: self,
+            member_plan,
+        })
+    }
+
     /// Rebuilds the entire closure from the same verified Code/object proof
     /// and only promotes the decoded payload after exact byte equality.
     pub fn validate(
@@ -340,6 +440,36 @@ impl DecodedLinkIdentityClosureSectionV1 {
         let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
             .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
         validate_against(self, &expected)
+    }
+}
+
+#[derive(Debug)]
+pub enum LinkObjectMaterializationValidationError {
+    UnknownScoopLirDefinition([u8; 32]),
+    UnknownGeneratedBridgeUnit([u8; 32]),
+    ScoopUnitSet(ObjectUnitSetError),
+    BridgeUnitSet(ObjectUnitSetError),
+    MemberPlan(LinkObjectMemberSetPlanError),
+    ProjectionMismatch,
+    Encode(scoop_wire::cbor::EncodeError),
+}
+
+impl fmt::Display for LinkObjectMaterializationValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid Link object materialization: {self:?}")
+    }
+}
+
+impl std::error::Error for LinkObjectMaterializationValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ScoopUnitSet(error) | Self::BridgeUnitSet(error) => Some(error),
+            Self::MemberPlan(error) => Some(error),
+            Self::Encode(error) => Some(error),
+            Self::UnknownScoopLirDefinition(_)
+            | Self::UnknownGeneratedBridgeUnit(_)
+            | Self::ProjectionMismatch => None,
+        }
     }
 }
 
@@ -451,6 +581,14 @@ fn encode_array(
         value.encode(encoder)?;
     }
     Ok(())
+}
+
+struct WireArray<'values, T>(&'values [T]);
+
+impl<T: WireEncode> WireEncode for WireArray<'_, T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_array(encoder, self.0)
+    }
 }
 
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {

@@ -7,8 +7,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CanonicalLirFoundation, EntryProductionSourceV1, OdrFreeLirFoundation,
-    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
-    ValidatedLirTargetSelection,
+    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
+    StrongProducerUnitPartitionV1, StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
 use scoop_wire::{DecodeLimits, encode};
 
@@ -16,9 +16,9 @@ use super::*;
 use crate::{
     BootstrapManifest, CanonicalSlibArchive, CodeFingerprint, CompatibilityRecord, ConeKind,
     ConeRecord, ConeSourceForm, FingerprintAvailability, HirFingerprint, ManifestSection,
-    MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection, ProducerRecord,
-    RuntimeImageFingerprint, SemanticFingerprintRecord, SlibMember, SlibMemberRole,
-    StrongProfileLirProductionError,
+    MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection,
+    PlannedLinkObjectMemberSetV1, ProducerRecord, RuntimeImageFingerprint,
+    SemanticFingerprintRecord, SlibMember, SlibMemberRole, StrongProfileLirProductionError,
 };
 
 #[test]
@@ -73,6 +73,14 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     assert_eq!(validated.production().lir().external_bridges(), &external);
     let _ = validated.link_identity_closure_wire();
     let _ = validated.production_manifest_wire();
+    let materialized = validated.validate_materializations().unwrap();
+    assert_eq!(materialized.identity(), cone().identity());
+    assert_eq!(materialized.scoop_objects().len(), 1);
+    assert!(materialized.generated_bridge_objects().is_empty());
+    assert_eq!(
+        materialized.materializations().member_plan().producer(),
+        cone().identity()
+    );
 }
 
 #[test]
@@ -103,6 +111,33 @@ fn link_production_rejects_an_external_surface_for_another_producer() {
 }
 
 #[test]
+fn link_materialization_requires_the_complete_planned_object_directory() {
+    let bytes = build_artifact(
+        vec![production_manifest_section()],
+        vec![strong_section(), closure_section()],
+        true,
+        true,
+        false,
+        false,
+    );
+    let external =
+        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_link_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure()
+            .unwrap()
+            .validate_production(&external)
+            .unwrap()
+            .validate_materializations(),
+        Err(StrongLinkMaterializationError::MissingObjectMember(_))
+    ));
+}
+
+#[test]
 fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints() {
     let missing = build_artifact(
         vec![production_manifest_section()],
@@ -110,6 +145,7 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
         true,
         false,
         false,
+        true,
     );
     assert!(matches!(
         open_graph(&missing).decode_single_cone_link_sections(),
@@ -125,6 +161,7 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
         false,
         true,
         false,
+        true,
     );
     assert!(matches!(
         open_graph(&missing_hir_production).decode_single_cone_link_sections(),
@@ -137,6 +174,7 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
     let stale = build_artifact(
         vec![production_manifest_section()],
         vec![strong_section(), closure_section()],
+        true,
         true,
         true,
         true,
@@ -261,7 +299,7 @@ fn artifact(
     manifest_sections: Vec<ManifestSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(manifest_sections, lir_sections, true, true, false)
+    build_artifact(manifest_sections, lir_sections, true, true, false, true)
 }
 
 fn build_artifact(
@@ -270,6 +308,7 @@ fn build_artifact(
     include_hir_production: bool,
     include_lir_foundation: bool,
     stale_hir_fingerprint: bool,
+    include_link_object: bool,
 ) -> Vec<u8> {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
@@ -366,7 +405,7 @@ fn build_artifact(
     let hir_envelope = MetadataEnvelope::new(MetadataLocation::Hir, hir_sections).unwrap();
     let mir_envelope = MetadataEnvelope::new(MetadataLocation::Mir, mir_sections).unwrap();
     let lir_envelope = MetadataEnvelope::new(MetadataLocation::Lir, complete_lir_sections).unwrap();
-    let members = vec![
+    let mut members = vec![
         SlibMember::new(
             cone().identity(),
             MemberStableKey::HirMetadata,
@@ -389,6 +428,19 @@ fn build_artifact(
         )
         .unwrap(),
     ];
+    if include_link_object {
+        let plan = link_object_plan();
+        let member = &plan.scoop_lir_members()[0];
+        members.push(
+            SlibMember::new(
+                cone().identity(),
+                member.stable_key().clone(),
+                member.role().clone(),
+                vec![0xaa, 0xbb, 0xcc, 0xdd],
+            )
+            .unwrap(),
+        );
+    }
     let manifest = BootstrapManifest::new(
         ProducerRecord::new("test").unwrap(),
         compatibility,
@@ -446,7 +498,7 @@ fn closure_section() -> MetadataSection {
         MetadataLocation::Lir,
         lir_link_identity_closure_capability(),
         MemberPurposeSet::LINK,
-        crate::link_object::encoded_link_identity_closure_for_test(),
+        crate::link_object::encoded_link_identity_closure_for_member_plan_test(&link_object_plan()),
     )
     .unwrap()
 }
@@ -581,6 +633,17 @@ fn empty_not_core_library_section() -> Vec<u8> {
     vec![
         0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
     ]
+}
+
+fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
+    let (canonical, _) = strong_production_fixture(cone().coordinate().clone());
+    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let units = crate::CanonicalScoopLirObjectUnitSetV1::new(
+        partition.scoop_lir_definition_plans().to_vec(),
+    )
+    .unwrap();
+    PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap()
 }
 
 fn selection() -> ValidatedLirTargetSelection {

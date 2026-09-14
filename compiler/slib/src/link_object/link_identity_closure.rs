@@ -12,11 +12,21 @@ use super::{
 use crate::SlibMemberId;
 
 mod wire;
-pub use wire::{DecodedLinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError};
+pub use wire::{
+    DecodedLinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError,
+    LinkObjectMaterializationValidationError, MaterializationCheckedLinkIdentityClosureSectionV1,
+};
 
 #[cfg(test)]
 pub(crate) fn encoded_link_identity_closure_for_test() -> Vec<u8> {
     wire::tests::encoded_link_identity_closure_for_test()
+}
+
+#[cfg(test)]
+pub(crate) fn encoded_link_identity_closure_for_member_plan_test(
+    plan: &PlannedLinkObjectMemberSetV1,
+) -> Vec<u8> {
+    wire::tests::encoded_link_identity_closure_for_member_plan_test(plan)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
