@@ -539,6 +539,7 @@ dependencies = [
  "scoop-lir",
  "scoop-mir",
  "scoop-wire",
+ "tempfile",
 ]
 
 [[package]]

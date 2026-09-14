@@ -1,6 +1,8 @@
 //! Final two-view publication proof for one strong single-Cone artifact.
 
 use std::fmt;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use scoop_hir::HirOutputContractV1;
 use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
@@ -229,6 +231,185 @@ pub fn validate_publishable_single_cone_artifact(
         .map_err(PublishableArtifactValidationError::ViewMismatch)
 }
 
+/// Atomically publish exact final archive bytes after a closed-write,
+/// read-only round trip through both strong views.
+///
+/// The caller must validate output aliasing before entering this function.
+/// This function never changes an existing destination unless validation has
+/// completed successfully.
+#[allow(clippy::too_many_arguments)]
+pub fn publish_single_cone_artifact(
+    final_bytes: &[u8],
+    destination: &Path,
+    limits: DecodeLimits,
+    target_selection: ValidatedLirTargetSelection,
+    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+) -> Result<PublishedSingleConeArtifact, SingleConeArtifactPublishError> {
+    let parent = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .ok_or_else(|| SingleConeArtifactPublishError::MissingParent {
+            destination: destination.to_path_buf(),
+        })?;
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".scoop-publish-")
+        .suffix(".slib.tmp")
+        .tempfile_in(parent)
+        .map_err(|source| {
+            SingleConeArtifactPublishError::io(
+                PublishIoOperation::CreateTemporary,
+                parent.to_path_buf(),
+                source,
+            )
+        })?;
+    temporary.write_all(final_bytes).map_err(|source| {
+        SingleConeArtifactPublishError::io(
+            PublishIoOperation::WriteTemporary,
+            temporary.path().to_path_buf(),
+            source,
+        )
+    })?;
+    temporary.flush().map_err(|source| {
+        SingleConeArtifactPublishError::io(
+            PublishIoOperation::FlushTemporary,
+            temporary.path().to_path_buf(),
+            source,
+        )
+    })?;
+    temporary.as_file().sync_all().map_err(|source| {
+        SingleConeArtifactPublishError::io(
+            PublishIoOperation::SyncTemporary,
+            temporary.path().to_path_buf(),
+            source,
+        )
+    })?;
+
+    // `into_temp_path` closes the writable file handle while retaining the
+    // delete-on-drop guard. Validation therefore observes a fresh read-only
+    // open of exactly the file that will be renamed.
+    let temporary = temporary.into_temp_path();
+    let round_trip_bytes = std::fs::read(&temporary).map_err(|source| {
+        SingleConeArtifactPublishError::io(
+            PublishIoOperation::ReadTemporary,
+            temporary.to_path_buf(),
+            source,
+        )
+    })?;
+    let validation = validate_publishable_single_cone_artifact(
+        &round_trip_bytes,
+        limits,
+        target_selection,
+        expected_external_bridges,
+        core_owners,
+        c_bridge_profile,
+    )
+    .map_err(|source| SingleConeArtifactPublishError::Validation(Box::new(source)))?;
+    temporary.persist(destination).map_err(|error| {
+        SingleConeArtifactPublishError::io(
+            PublishIoOperation::RenameTemporary,
+            destination.to_path_buf(),
+            error.error,
+        )
+    })?;
+
+    Ok(PublishedSingleConeArtifact {
+        path: destination.to_path_buf(),
+        validation,
+    })
+}
+
+#[derive(Debug)]
+pub struct PublishedSingleConeArtifact {
+    path: PathBuf,
+    validation: PublishableSingleConeArtifact,
+}
+
+impl PublishedSingleConeArtifact {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub const fn validation(&self) -> &PublishableSingleConeArtifact {
+        &self.validation
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PublishIoOperation {
+    CreateTemporary,
+    WriteTemporary,
+    FlushTemporary,
+    SyncTemporary,
+    ReadTemporary,
+    RenameTemporary,
+}
+
+impl fmt::Display for PublishIoOperation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::CreateTemporary => "create private publication file",
+            Self::WriteTemporary => "write private publication file",
+            Self::FlushTemporary => "flush private publication file",
+            Self::SyncTemporary => "sync private publication file",
+            Self::ReadTemporary => "reopen private publication file",
+            Self::RenameTemporary => "atomically publish validated artifact",
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum SingleConeArtifactPublishError {
+    MissingParent {
+        destination: PathBuf,
+    },
+    Io {
+        operation: PublishIoOperation,
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    Validation(Box<PublishableArtifactValidationError>),
+}
+
+impl SingleConeArtifactPublishError {
+    fn io(operation: PublishIoOperation, path: PathBuf, source: std::io::Error) -> Self {
+        Self::Io {
+            operation,
+            path,
+            source,
+        }
+    }
+}
+
+impl fmt::Display for SingleConeArtifactPublishError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingParent { destination } => write!(
+                formatter,
+                "artifact destination {} has no parent directory",
+                destination.display()
+            ),
+            Self::Io {
+                operation,
+                path,
+                source,
+            } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
+            Self::Validation(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for SingleConeArtifactPublishError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io { source, .. } => Some(source),
+            Self::Validation(source) => Some(source.as_ref()),
+            Self::MissingParent { .. } => None,
+        }
+    }
+}
+
 fn output_matches(
     kind: ConeKind,
     compile: &HirOutputContractV1,
@@ -355,5 +536,67 @@ mod tests {
         .unwrap_err();
 
         assert!(matches!(error, PublishableArtifactValidationError::Link(_)));
+    }
+
+    #[test]
+    fn atomic_publisher_replaces_the_destination_only_after_both_views_pass() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("current.slib");
+        std::fs::write(&destination, b"previous artifact").unwrap();
+        let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
+        let external = StrongExternalLirBridgeSurfaceV1::try_new(
+            crate::link_decode::complete_strong_artifact_identity_for_test(),
+            Vec::new(),
+        )
+        .unwrap();
+        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+
+        let published = publish_single_cone_artifact(
+            &bytes,
+            &destination,
+            DecodeLimits::default(),
+            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            &external,
+            &core_owners,
+            &crate::link_decode::c_bridge_profile_for_test(),
+        )
+        .unwrap();
+
+        assert_eq!(published.path(), destination);
+        assert_eq!(std::fs::read(&destination).unwrap(), bytes);
+        assert_eq!(published.validation().identity(), external.producer());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn failed_round_trip_preserves_the_previous_destination() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("current.slib");
+        std::fs::write(&destination, b"previous artifact").unwrap();
+        let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
+        let external = StrongExternalLirBridgeSurfaceV1::try_new(
+            crate::link_decode::complete_strong_artifact_identity_for_test(),
+            Vec::new(),
+        )
+        .unwrap();
+        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+
+        let error = publish_single_cone_artifact(
+            &bytes,
+            &destination,
+            DecodeLimits::default(),
+            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            &external,
+            &core_owners,
+            &crate::link_decode::c_bridge_profile_for_test(),
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            SingleConeArtifactPublishError::Validation(_)
+        ));
+        assert_eq!(std::fs::read(&destination).unwrap(), b"previous artifact");
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
     }
 }

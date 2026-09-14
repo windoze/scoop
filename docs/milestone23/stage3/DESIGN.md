@@ -2602,6 +2602,12 @@ slice分别创建独立budget/envelope/Graph状态，调用唯一strong Compile�
 构造`PublishableSingleConeArtifact`。该proof只保留不可变identity、target与两条view summary；不存在从
 Graph、Compile或未闭合Link状态直接构造publication authority的兼容入口。
 
+文件系统发布固定由`publish_single_cone_artifact`完成。它在destination同目录创建私有临时文件，写入并
+flush/sync后关闭写句柄，再以只读方式重开临时路径并调用上述双视图入口；只有得到
+`PublishableSingleConeArtifact`才把该临时路径原子rename到destination。验证或I/O失败依靠临时路径的
+delete-on-drop守卫清理，且不得提前删除、截断或覆盖已有destination。output alias检查由进入本API前的
+typed request门负责，发布函数不接受跳过双视图验证的proof或callback。
+
 output destination不能与current manifest/source、trusted core input或任一dependency artifact解析为同一文件；检查失败早于写入。host I/O error不伪造成source diagnostic。
 
 ### 15.4 core input门
