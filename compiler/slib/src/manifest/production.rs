@@ -7,8 +7,8 @@ use scoop_identity::{
     PersistentStaticStorageId, SourceSignatureFingerprint,
 };
 use scoop_lir::{
-    EntryProductionPlanV1, StrongProductionSectionV1, StrongRegistrationIdentitySurfaceV1,
-    StrongRegistrationIdentityV1,
+    CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, EntryProductionPlanV1,
+    StrongProductionSectionV1, StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityV1,
 };
 use scoop_wire::{Encoder, WireEncode};
 
@@ -16,8 +16,9 @@ use super::{ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, RuntimeImage
 use crate::SlibMemberId;
 use crate::link_object::{
     CanonicalStrongRegistrationFingerprintSetV1, ObjectDefinitionFingerprintV1,
-    StrongRegistrationFingerprintProjectionError, VerifiedCodeLinkObjectMemberSetV1,
-    VerifiedEntryProductionBranchV1, VerifiedStrongRegistrationPatchSetV1,
+    StrongRegistrationFingerprintProjectionError, VerifiedCodeFingerprintV1,
+    VerifiedCodeLinkObjectMemberSetV1, VerifiedEntryProductionBranchV1,
+    VerifiedStrongRegistrationPatchSetV1,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -188,6 +189,95 @@ impl VerifiedSingleConeProductionCodeProjectionV1 {
 
     pub const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
         &self.projection
+    }
+}
+
+/// The complete ten-field manifest payload. All fields remain derived from
+/// the owned code proof, so repeated digests and projections cannot diverge.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SingleConeProductionManifestV1 {
+    code: VerifiedCodeFingerprintV1,
+}
+
+impl SingleConeProductionManifestV1 {
+    pub const fn from_verified_code(code: VerifiedCodeFingerprintV1) -> Self {
+        Self { code }
+    }
+
+    pub const fn code_proof(&self) -> &VerifiedCodeFingerprintV1 {
+        &self.code
+    }
+
+    pub const fn distribution(&self) -> ArtifactDistributionClassV1 {
+        self.projection().distribution()
+    }
+
+    pub const fn output(&self) -> &SingleConeProductionOutputV1 {
+        self.projection().output()
+    }
+
+    pub const fn image_owner_member(&self) -> SlibMemberId {
+        self.projection().image_owner_member()
+    }
+
+    pub const fn runtime_registration_projection(&self) -> &StrongRegistrationIdentitySurfaceV1 {
+        self.projection().runtime_registration_projection()
+    }
+
+    pub const fn strong_registration_set(&self) -> &CanonicalStrongRegistrationFingerprintSetV1 {
+        self.projection().strong_registration_set()
+    }
+
+    pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
+        self.projection().runtime_image_fingerprint()
+    }
+
+    pub const fn code_fingerprint(&self) -> super::CodeFingerprint {
+        self.code.fingerprint()
+    }
+
+    pub const fn native_contracts(
+        &self,
+    ) -> &crate::link_object::CanonicalNativeExternalContractCodeSetV1 {
+        self.code.native_contracts()
+    }
+
+    pub fn native_library_requirements(&self) -> &[CanonicalNativeLibraryRequirementV1] {
+        self.code.native_requirements().library_requirements()
+    }
+
+    pub const fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
+        self.code.c_bridge_production()
+    }
+
+    const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
+        self.code.production().projection()
+    }
+}
+
+impl WireEncode for SingleConeProductionManifestV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(10)?;
+        encoder.field(1)?;
+        self.distribution().encode(encoder)?;
+        encoder.field(2)?;
+        self.output().encode(encoder)?;
+        encoder.field(3)?;
+        self.image_owner_member().encode(encoder)?;
+        encoder.field(4)?;
+        self.runtime_registration_projection().encode(encoder)?;
+        encoder.field(5)?;
+        self.strong_registration_set().encode(encoder)?;
+        encoder.field(6)?;
+        self.runtime_image_fingerprint().encode(encoder)?;
+        encoder.field(7)?;
+        self.code_fingerprint().encode(encoder)?;
+        encoder.field(8)?;
+        self.native_contracts().encode(encoder)?;
+        encoder.field(9)?;
+        encode_array(encoder, self.native_library_requirements())?;
+        encoder.field(10)?;
+        self.c_bridge_production().encode(encoder)
     }
 }
 
@@ -452,6 +542,17 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
     encoder.map(1)?;
     encoder.field(0)?;
     encoder.unsigned(tag)
+}
+
+fn encode_array(
+    encoder: &mut Encoder,
+    values: &[impl WireEncode],
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.array(values.len() as u64)?;
+    for value in values {
+        value.encode(encoder)?;
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

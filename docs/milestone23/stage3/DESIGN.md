@@ -1060,6 +1060,11 @@ writer先从strong/object/image/entry proof构造这六个字段并计算Code fi
 byte比较。不存在含`Option<CodeFingerprint>`的中间manifest、全零占位digest或“encode时临时忽略field
 7”的入口。
 
+writer侧`SingleConeProductionManifestV1`拥有`VerifiedCodeFingerprintV1`，十个getter与wire字段都从
+这条proof链派生，不复制出可分别修改的第二套状态。bootstrap `SemanticFingerprintRecordV1`的production
+构造入口接收该manifest proof并同时写入Code/RuntimeImage两个`Available`槽；不提供接收两个裸digest的
+production构造器。
+
 manifest field 8的精确类型是去除source/diagnostic provenance的
 `CanonicalNativeExternalContractCodeSetV1`；field 9是按`NativeLinkRequirementId`严格递增的
 `CanonicalVec<CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>>`；field 10的
