@@ -5,9 +5,9 @@ use scoop_identity::{
     ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{DecodeLimits, decode_canonical, encode, encode_runtime};
 
-use super::{ConeImagePlanBuildError, ConeImagePlanV1, DecodedConeImagePlanV1};
+use super::{ConeImagePlanBuildError, ConeImagePlanV1, ConeRecordV1, DecodedConeImagePlanV1};
 use crate::{
     CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation,
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
@@ -64,6 +64,19 @@ fn core_image_has_no_dependency_edge() {
     let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan).unwrap();
 
     assert!(plan.dependencies().is_empty());
+}
+
+#[test]
+fn cone_record_runtime_encoding_uses_declared_field_order() {
+    let record = ConeRecordV1::new(ConeCoordinate::reserved_single_file()).unwrap();
+    let mut expected = Vec::new();
+    for value in [b"scoop".as_slice(), b"single-file", b"0.0.0"] {
+        expected.extend_from_slice(&(value.len() as u64).to_le_bytes());
+        expected.extend_from_slice(value);
+    }
+    expected.extend_from_slice(ConeIdentity::SINGLE_FILE.as_array());
+
+    assert_eq!(encode_runtime(&record).unwrap(), expected);
 }
 
 #[test]

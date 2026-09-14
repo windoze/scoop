@@ -55,6 +55,12 @@ impl LirFingerprint {
     }
 }
 
+impl RuntimeImageFingerprint {
+    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+}
+
 impl ArtifactFingerprint {
     pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
         Self(bytes)

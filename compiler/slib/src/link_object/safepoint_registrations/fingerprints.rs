@@ -218,23 +218,37 @@ struct StrongSafepointRegistrationFingerprintInput<'a> {
 
 impl RuntimeEncode for StrongSafepointRegistrationFingerprintInput<'_> {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        encoder.u32(SAFEPOINT_REGISTRATION_RECORD_KIND)?;
-        encoder.u32(STRONG_LINKAGE)?;
-        encoder.fixed(self.plan.site().as_array())?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.u64(self.plan.safepoint().get())?;
-        encoder.u32(self.plan.role().tag())?;
-        encoder.u32(self.plan.root_pair_count())?;
-        encoder.fixed(self.plan.owner().as_array())?;
-        encoder.fixed(self.normalized_stackmap)?;
+        runtime_encode_strong_safepoint_record_v1(
+            encoder,
+            self.plan,
+            &[0; 32],
+            self.normalized_stackmap,
+        )?;
         encoder.sequence_length(self.direct_inputs.len())?;
         for input in self.direct_inputs {
             input.runtime_encode(encoder)?;
         }
         Ok(())
     }
+}
+
+pub(in crate::link_object) fn runtime_encode_strong_safepoint_record_v1(
+    encoder: &mut RuntimeEncoder,
+    plan: scoop_lir::StrongSafepointRegistrationPlanV1,
+    registration: &[u8; 32],
+    normalized_stackmap: &[u8; 32],
+) -> Result<(), RuntimeEncodeError> {
+    encoder.u32(SAFEPOINT_REGISTRATION_RECORD_KIND)?;
+    encoder.u32(STRONG_LINKAGE)?;
+    encoder.fixed(plan.site().as_array())?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(registration)?;
+    encoder.u64(plan.safepoint().get())?;
+    encoder.u32(plan.role().tag())?;
+    encoder.u32(plan.root_pair_count())?;
+    encoder.fixed(plan.owner().as_array())?;
+    encoder.fixed(normalized_stackmap)
 }
 
 #[derive(Clone, Copy)]

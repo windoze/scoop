@@ -3,8 +3,10 @@
 mod error;
 pub use error::*;
 
+mod fingerprint;
 mod physical;
 mod record;
+pub use fingerprint::*;
 mod verification;
 pub use verification::*;
 

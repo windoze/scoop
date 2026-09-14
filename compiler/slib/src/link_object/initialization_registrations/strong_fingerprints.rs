@@ -280,38 +280,54 @@ struct StrongInitializationFingerprintInputV1<'a> {
 
 impl RuntimeEncode for StrongInitializationFingerprintInputV1<'_> {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        let semantic = self.plan.semantic();
-        encoder.u32(INITIALIZATION_RECORD_KIND)?;
-        encoder.u32(STRONG_LINKAGE)?;
-        encoder.fixed(semantic.unit().as_array())?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.u32(semantic.schedule().tag())?;
-        encoder.byte_span(semantic.diagnostic_path().as_bytes())?;
-        encoder.u32(OWN_INITIALIZATION_CELL_ROLE)?;
-        encoder.fixed(semantic.unit().as_array())?;
-        encoder.fixed(semantic.storage().as_array())?;
-        encoder.fixed(semantic.failure_root().as_array())?;
-        encoder.u32(CALLABLE_ENTRY_ROLE)?;
-        encoder.fixed(semantic.initializer().as_array())?;
-        encoder.u32(CALLABLE_ENTRY_ROLE)?;
-        encoder.fixed(semantic.ensure().as_array())?;
-        match self.gateway {
-            None => encoder.u32(NO_GATEWAY)?,
-            Some(gateway) => {
-                encoder.u32(UNIT_GATEWAY)?;
-                encoder.u32(UNIT_GATEWAY_ROLE)?;
-                encoder.fixed(gateway.body.as_array())?;
-                encoder.fixed(gateway.fingerprint.as_array())?;
-            }
-        }
+        runtime_encode_strong_initialization_record_v1(
+            encoder,
+            self.plan,
+            &[0; 32],
+            self.gateway
+                .map(|gateway| (gateway.body, gateway.fingerprint)),
+        )?;
         encoder.sequence_length(self.direct_inputs.len())?;
         for input in self.direct_inputs {
             input.runtime_encode(encoder)?;
         }
         Ok(())
     }
+}
+
+pub(in crate::link_object) fn runtime_encode_strong_initialization_record_v1(
+    encoder: &mut RuntimeEncoder,
+    plan: &StrongInitializationUnitRegistrationPlanV1,
+    registration: &[u8; 32],
+    gateway: Option<(PersistentCallableBodyId, ObjectDefinitionFingerprintV1)>,
+) -> Result<(), RuntimeEncodeError> {
+    let semantic = plan.semantic();
+    encoder.u32(INITIALIZATION_RECORD_KIND)?;
+    encoder.u32(STRONG_LINKAGE)?;
+    encoder.fixed(semantic.unit().as_array())?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(registration)?;
+    encoder.u32(semantic.schedule().tag())?;
+    encoder.byte_span(semantic.diagnostic_path().as_bytes())?;
+    encoder.u32(OWN_INITIALIZATION_CELL_ROLE)?;
+    encoder.fixed(semantic.unit().as_array())?;
+    encoder.fixed(semantic.storage().as_array())?;
+    encoder.fixed(semantic.failure_root().as_array())?;
+    encoder.u32(CALLABLE_ENTRY_ROLE)?;
+    encoder.fixed(semantic.initializer().as_array())?;
+    encoder.u32(CALLABLE_ENTRY_ROLE)?;
+    encoder.fixed(semantic.ensure().as_array())?;
+    match gateway {
+        None => encoder.u32(NO_GATEWAY)?,
+        Some((body, fingerprint)) => {
+            encoder.u32(UNIT_GATEWAY)?;
+            encoder.u32(UNIT_GATEWAY_ROLE)?;
+            encoder.fixed(body.as_array())?;
+            encoder.fixed(fingerprint.as_array())?;
+        }
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

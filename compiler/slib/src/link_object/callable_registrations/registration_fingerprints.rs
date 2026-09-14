@@ -174,21 +174,35 @@ struct StrongCallableRegistrationFingerprintInputV1 {
 
 impl RuntimeEncode for StrongCallableRegistrationFingerprintInputV1 {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        encoder.u32(CALLABLE_REGISTRATION_RECORD_KIND)?;
-        encoder.u32(STRONG_LINKAGE)?;
-        encoder.fixed(self.body.as_array())?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(self.body_definition.as_array())?;
-        encoder.u32(OWN_CALLABLE_ENTRY_ROLE)?;
-        encoder.fixed(self.body.as_array())?;
+        runtime_encode_strong_callable_record_v1(
+            encoder,
+            self.body,
+            &[0; 32],
+            self.body_definition.as_array(),
+        )?;
         encoder.sequence_length(self.direct_inputs.len())?;
         for input in self.direct_inputs {
             input.runtime_encode(encoder)?;
         }
         Ok(())
     }
+}
+
+pub(in crate::link_object) fn runtime_encode_strong_callable_record_v1(
+    encoder: &mut RuntimeEncoder,
+    body: PersistentCallableBodyId,
+    registration: &[u8; 32],
+    body_definition: &[u8; 32],
+) -> Result<(), RuntimeEncodeError> {
+    encoder.u32(CALLABLE_REGISTRATION_RECORD_KIND)?;
+    encoder.u32(STRONG_LINKAGE)?;
+    encoder.fixed(body.as_array())?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(registration)?;
+    encoder.fixed(body_definition)?;
+    encoder.u32(OWN_CALLABLE_ENTRY_ROLE)?;
+    encoder.fixed(body.as_array())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -244,48 +244,65 @@ struct StrongStaticStorageFingerprintInputV1<'a> {
 
 impl RuntimeEncode for StrongStaticStorageFingerprintInputV1<'_> {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        let semantic = self.plan.semantic();
-        encoder.u32(STATIC_STORAGE_RECORD_KIND)?;
-        encoder.u32(STRONG_LINKAGE)?;
-        encoder.fixed(semantic.storage().as_array())?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.u32(semantic.scan_kind().tag())?;
-        encoder.u32(OWN_STORAGE_ATOM_ROLE)?;
-        encoder.u64(semantic.byte_size())?;
-        encoder.u64(semantic.allocation_extent())?;
-        encoder.u64(semantic.required_alignment())?;
-        match semantic.scan_kind() {
-            StaticStorageScanKindV1::None => encoder.u32(EMPTY_SCAN_CHOICE)?,
-            StaticStorageScanKindV1::Recursive => {
-                encoder.u32(SCAN_PROGRAM_CHOICE)?;
-                self.scan.runtime_encode(encoder)?;
-            }
-        }
-        self.scan.runtime_encode(encoder)?;
-        self.layout.runtime_encode(encoder)?;
-        match semantic.initial_state() {
-            StrongStaticStorageInitialStatePlanV1::ZeroedForRuntimeUnit => encoder.u32(1)?,
-            StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
-                initial_template,
-                immortal_relocations,
-            } => {
-                encoder.u32(2)?;
-                encoder.byte_span(initial_template)?;
-                encoder.sequence_length(immortal_relocations.len())?;
-                for relocation in immortal_relocations {
-                    encoder.u64(relocation.pointer_offset())?;
-                    encoder.fixed(relocation.target().as_array())?;
-                }
-            }
-        }
+        runtime_encode_strong_static_storage_record_v1(
+            encoder,
+            self.plan,
+            &[0; 32],
+            self.layout,
+            self.scan,
+        )?;
         encoder.sequence_length(self.direct_inputs.len())?;
         for input in self.direct_inputs {
             input.runtime_encode(encoder)?;
         }
         Ok(())
     }
+}
+
+pub(in crate::link_object) fn runtime_encode_strong_static_storage_record_v1(
+    encoder: &mut RuntimeEncoder,
+    plan: &StrongStaticStorageRegistrationPlanV1,
+    registration: &[u8; 32],
+    layout: LayoutFingerprintV1,
+    scan: ScanFingerprintV1,
+) -> Result<(), RuntimeEncodeError> {
+    let semantic = plan.semantic();
+    encoder.u32(STATIC_STORAGE_RECORD_KIND)?;
+    encoder.u32(STRONG_LINKAGE)?;
+    encoder.fixed(semantic.storage().as_array())?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(registration)?;
+    encoder.u32(semantic.scan_kind().tag())?;
+    encoder.u32(OWN_STORAGE_ATOM_ROLE)?;
+    encoder.u64(semantic.byte_size())?;
+    encoder.u64(semantic.allocation_extent())?;
+    encoder.u64(semantic.required_alignment())?;
+    match semantic.scan_kind() {
+        StaticStorageScanKindV1::None => encoder.u32(EMPTY_SCAN_CHOICE)?,
+        StaticStorageScanKindV1::Recursive => {
+            encoder.u32(SCAN_PROGRAM_CHOICE)?;
+            scan.runtime_encode(encoder)?;
+        }
+    }
+    scan.runtime_encode(encoder)?;
+    layout.runtime_encode(encoder)?;
+    match semantic.initial_state() {
+        StrongStaticStorageInitialStatePlanV1::ZeroedForRuntimeUnit => encoder.u32(1)?,
+        StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
+            initial_template,
+            immortal_relocations,
+        } => {
+            encoder.u32(2)?;
+            encoder.byte_span(initial_template)?;
+            encoder.sequence_length(immortal_relocations.len())?;
+            for relocation in immortal_relocations {
+                encoder.u64(relocation.pointer_offset())?;
+                encoder.fixed(relocation.target().as_array())?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

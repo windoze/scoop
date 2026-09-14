@@ -184,23 +184,41 @@ struct StrongImmortalObjectRegistrationFingerprintInputV1 {
 
 impl RuntimeEncode for StrongImmortalObjectRegistrationFingerprintInputV1 {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        encoder.u32(IMMORTAL_OBJECT_REGISTRATION_RECORD_KIND)?;
-        encoder.u32(STRONG_LINKAGE)?;
-        encoder.fixed(self.object.as_array())?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.u32(OWN_IMMORTAL_ATOM_ROLE)?;
-        encoder.fixed(self.object.as_array())?;
-        encoder.u64(self.object_size)?;
-        encoder.u64(self.required_alignment)?;
-        encoder.fixed(self.type_registration.as_array())?;
+        runtime_encode_strong_immortal_object_record_v1(
+            encoder,
+            self.object,
+            self.object_size,
+            self.required_alignment,
+            self.type_registration,
+            &[0; 32],
+        )?;
         encoder.sequence_length(self.direct_inputs.len())?;
         for input in self.direct_inputs {
             input.runtime_encode(encoder)?;
         }
         Ok(())
     }
+}
+
+pub(in crate::link_object) fn runtime_encode_strong_immortal_object_record_v1(
+    encoder: &mut RuntimeEncoder,
+    object: PersistentImmortalObjectId,
+    object_size: u64,
+    required_alignment: u64,
+    type_registration: scoop_identity::PersistentExactTypeId,
+    registration: &[u8; 32],
+) -> Result<(), RuntimeEncodeError> {
+    encoder.u32(IMMORTAL_OBJECT_REGISTRATION_RECORD_KIND)?;
+    encoder.u32(STRONG_LINKAGE)?;
+    encoder.fixed(object.as_array())?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(registration)?;
+    encoder.u32(OWN_IMMORTAL_ATOM_ROLE)?;
+    encoder.fixed(object.as_array())?;
+    encoder.u64(object_size)?;
+    encoder.u64(required_alignment)?;
+    encoder.fixed(type_registration.as_array())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

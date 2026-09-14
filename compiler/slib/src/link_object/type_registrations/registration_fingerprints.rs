@@ -254,23 +254,41 @@ struct StrongTypeRegistrationFingerprintInputV1 {
 
 impl RuntimeEncode for StrongTypeRegistrationFingerprintInputV1 {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        encoder.u32(TYPE_REGISTRATION_RECORD_KIND)?;
-        encoder.u32(STRONG_LINKAGE)?;
-        encoder.fixed(self.exact_type.as_array())?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.fixed(&[0; 32])?;
-        encoder.u64(self.runtime_type)?;
-        encoder.u32(TYPE_DESCRIPTOR_ATOM_ROLE)?;
-        encoder.fixed(self.exact_type.as_array())?;
-        encoder.fixed(self.descriptor_definition.as_array())?;
-        encoder.fixed(self.layout.as_array())?;
+        runtime_encode_strong_type_record_v1(
+            encoder,
+            self.exact_type,
+            self.runtime_type,
+            &[0; 32],
+            self.descriptor_definition.as_array(),
+            self.layout.as_array(),
+        )?;
         encoder.sequence_length(self.direct_inputs.len())?;
         for input in self.direct_inputs {
             input.runtime_encode(encoder)?;
         }
         Ok(())
     }
+}
+
+pub(in crate::link_object) fn runtime_encode_strong_type_record_v1(
+    encoder: &mut RuntimeEncoder,
+    exact_type: PersistentExactTypeId,
+    runtime_type: u64,
+    registration: &[u8; 32],
+    descriptor_definition: &[u8; 32],
+    layout: &[u8; 32],
+) -> Result<(), RuntimeEncodeError> {
+    encoder.u32(TYPE_REGISTRATION_RECORD_KIND)?;
+    encoder.u32(STRONG_LINKAGE)?;
+    encoder.fixed(exact_type.as_array())?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(&[0; 32])?;
+    encoder.fixed(registration)?;
+    encoder.u64(runtime_type)?;
+    encoder.u32(TYPE_DESCRIPTOR_ATOM_ROLE)?;
+    encoder.fixed(exact_type.as_array())?;
+    encoder.fixed(descriptor_definition)?;
+    encoder.fixed(layout)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

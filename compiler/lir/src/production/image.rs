@@ -11,7 +11,10 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 pub use scoop_identity::{DigestPatchIntentId, ObjectDefinitionPlanId};
-use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, encode};
+use scoop_wire::{
+    Decoder, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireDecode,
+    WireEncode, WireError, encode,
+};
 
 use crate::{
     DigestInputRefV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
@@ -49,6 +52,15 @@ impl WireEncode for ConeRecordV1 {
         self.coordinate.encode(encoder)?;
         encoder.field(2)?;
         self.identity.encode(encoder)
+    }
+}
+
+impl RuntimeEncode for ConeRecordV1 {
+    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
+        encoder.byte_span(self.coordinate.group().as_bytes())?;
+        encoder.byte_span(self.coordinate.name().as_bytes())?;
+        encoder.byte_span(self.coordinate.version().as_bytes())?;
+        encoder.fixed(self.identity.as_array())
     }
 }
 
