@@ -106,6 +106,9 @@ pub use defined_owners::*;
 mod code_fingerprint;
 pub use code_fingerprint::*;
 
+mod link_identity_closure;
+pub use link_identity_closure::*;
+
 mod macho;
 pub use macho::*;
 

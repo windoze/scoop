@@ -1007,6 +1007,28 @@ LinkIdentityClosureSectionV1 {
 }
 ```
 
+上述伪类型在M23-3精确化如下。field 1为按member id严格递增的
+`LinkObjectMaterializationV1` array；元素sum tag为`ScoopLir=1`、`GeneratedCBridge=2`，两个variant
+均固定为`1=member: SlibMemberId`、`2=units`，units分别使用
+`CanonicalScoopLirObjectUnitSetV1`与`CanonicalGeneratedBridgeObjectUnitSetV1`。field 2为按
+`(member, definition)`严格递增的`VerifiedObjectDefinitionIndexV1` array；每项固定为
+`1=member`、`2=definition`、`3=primary_atom`、`4=primary_symbol_table_index`、`5=atoms`，atom范围
+固定为`1=atom`、`2=atom_role`、`3=section_ordinal`、`4=start`、`5=end`、`6=padding_end`并按atom id
+严格递增。section role从同一verified object inventory的ordinal唯一重建，不在wire重复。
+
+field 3精确复用按intent id严格递增的`VerifiedMaterializedPatchSiteV1` array，其wire仍是已冻结的
+`1=intent`、`2=member`、`3=checked_offset`；其余source/definition/atom/role/width只能从strong digest
+plan、field 1--2及actual object重建。fields 4--5精确复用
+`CanonicalDefinedLinkSymbolOwnerSetV1`和`CanonicalUndefinedSymbolRequirementSetV1`。field 6精确复用
+`CodeLinkObjectMemberSetV1`，不是另一套object digest摘要。
+
+field 7 `VerifiedImageOwnerProjectionV1`固定为`1=member`、`2=definition`、`3=primary_atom`、
+`4=primary_symbol_table_index`、`5=checked_offset`、`6=byte_size`。field 8的sum tag仍为
+`Library=1`、`Executable=2`；Executable payload `VerifiedEntryOwnerProjectionV1`固定为
+`1=member`、`2=definition`、`3=checked_offset`。definition/atom来自strong section的image/entry plan，
+物理位置来自相同最终object proof。整个section只能从`VerifiedCodeFingerprintV1`持有的proof链投影；
+writer不接受上述八段裸值，reader重建完整expected section并逐byte比较。
+
 它不贡献新的LIR semantic bytes。reader从`StrongProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
 
 ### 9.5 manifest production section
@@ -1402,8 +1424,10 @@ Frozen LIR semantic projection
   -> typed patch writes
   -> full final object re-verification
   -> immutable VerifiedLinkObjectMember set
-  -> Link closure section + manifest production section
-  -> Code/Artifact fingerprint
+  -> Link closure/manifest-code reconstruction inputs
+  -> Code fingerprint
+  -> sealed Link closure section + manifest production section
+  -> Artifact fingerprint
   -> deterministic ar
 ```
 
