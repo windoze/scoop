@@ -624,11 +624,18 @@ pub(crate) fn strong_production_fixture(
     let image = scoop_lir::DigestNodeV1::new(image_key, Vec::new(), vec![patch]).unwrap();
     let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
+    let registrations = scoop_lir::StrongRegistrationProductionSurfaceV1::empty(
+        selection().target(),
+        &foundation,
+        &digests,
+    )
+    .unwrap();
     let production = StrongProductionSectionV1::new(
         coordinate,
         &foundation,
         external,
         digests,
+        registrations,
         EntryProductionSourceV1::Library,
         &[],
     )

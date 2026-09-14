@@ -330,7 +330,10 @@ pub fn verify_single_cone_production_code_projection_v1(
     {
         return Err(ProductionCodeProjectionError::GeneratedBridgePlanMismatch);
     }
-    if !registration_identities_match(strong_production.registration_plans(), registrations) {
+    if !registration_identities_match(
+        strong_production.registration_production().identities(),
+        registrations,
+    ) {
         return Err(ProductionCodeProjectionError::RegistrationIdentityMismatch);
     }
 
@@ -351,7 +354,10 @@ pub fn verify_single_cone_production_code_projection_v1(
         distribution,
         output,
         image_owner_member: runtime_image.image().member(),
-        runtime_registration_projection: strong_production.registration_plans().clone(),
+        runtime_registration_projection: strong_production
+            .registration_production()
+            .identities()
+            .clone(),
         strong_registration_set,
         runtime_image_fingerprint: runtime_image.fingerprint(),
     };

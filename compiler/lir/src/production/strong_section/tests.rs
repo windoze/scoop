@@ -9,7 +9,7 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::{DigestNodeV1, StrongExternalLirBridgeSurfaceV1};
+use crate::{DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
 
 #[test]
 fn strong_section_has_nine_closed_fields_and_rebuilds_from_authority() {
@@ -17,11 +17,18 @@ fn strong_section_has_nine_closed_fields_and_rebuilds_from_authority() {
     let (foundation, digests) = fixture(&coordinate);
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::CORE, Vec::new()).unwrap();
+    let registrations = StrongRegistrationProductionSurfaceV1::empty(
+        LirTargetProfile::DARWIN_AARCH64,
+        &foundation,
+        &digests,
+    )
+    .unwrap();
     let section = StrongProductionSectionV1::new(
         coordinate.clone(),
         &foundation,
         external.clone(),
         digests,
+        registrations,
         EntryProductionSourceV1::Library,
         &[],
     )
@@ -35,6 +42,7 @@ fn strong_section_has_nine_closed_fields_and_rebuilds_from_authority() {
     let validated = decoded
         .validate(
             coordinate,
+            LirTargetProfile::DARWIN_AARCH64,
             &foundation,
             &external,
             EntryProductionSourceV1::Library,

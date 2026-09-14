@@ -896,6 +896,7 @@ fn validate_strong_profile_lir_production(
     };
     lir.validate(
         graph.coordinate().clone(),
+        graph.target_selection().target(),
         front.lir_foundation,
         expected_external_bridges,
         entry_source,

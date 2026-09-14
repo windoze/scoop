@@ -53,9 +53,9 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             &self.callables,
             crate::StrongCallableRegistrationPlanSetV1::new(foundation, &identities, digests)
                 .map_err(|error| {
-                    StrongRegistrationProductionValidationError::Expected(
+                    StrongRegistrationProductionValidationError::Expected(Box::new(
                         StrongRegistrationProductionBuildError::Callables(error),
-                    )
+                    ))
                 })?
                 .registrations(),
         )?;
@@ -64,9 +64,9 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             &self.types,
             crate::StrongTypeRegistrationPlanSetV1::new(target, foundation, &identities, digests)
                 .map_err(|error| {
-                    StrongRegistrationProductionValidationError::Expected(
+                    StrongRegistrationProductionValidationError::Expected(Box::new(
                         StrongRegistrationProductionBuildError::Types(error),
-                    )
+                    ))
                 })?
                 .registrations(),
         )?;
@@ -95,7 +95,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             immortal_semantics,
             initialization_semantics,
         )
-        .map_err(StrongRegistrationProductionValidationError::Expected)?;
+        .map_err(|error| StrongRegistrationProductionValidationError::Expected(Box::new(error)))?;
         let expected_bytes =
             encode(&expected).map_err(StrongRegistrationProductionValidationError::Encode)?;
         if actual != expected_bytes {
@@ -903,7 +903,7 @@ pub enum StrongRegistrationProductionValidationError {
         index: usize,
         field: &'static str,
     },
-    Expected(StrongRegistrationProductionBuildError),
+    Expected(Box<StrongRegistrationProductionBuildError>),
     SurfaceMismatch,
 }
 

@@ -10,13 +10,13 @@ use crate::{
     DecodedCoreShapeSupportPlanV1, DecodedEntryProductionPlanV1, DecodedGeneratedBridgePlanSetV1,
     DecodedStrongDigestFinalizationPlanV1, DecodedStrongExternalLirBridgeSurfaceV1,
     DecodedStrongObjectDefinitionPlanSurfaceV1, DecodedStrongObjectSymbolSurfaceV1,
-    DecodedStrongRegistrationIdentitySurfaceV1, DigestPlanError, EntryProductionPlanBuildError,
+    DecodedStrongRegistrationProductionSurfaceV1, DigestPlanError, EntryProductionPlanBuildError,
     EntryProductionPlanV1, EntryProductionSourceV1, GeneratedBridgePlanBuildError,
     GeneratedBridgePlanSetV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
     StrongDigestPlanValidationError, StrongExternalLirBridgeSurfaceV1,
     StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
     StrongObjectSymbolSurfaceBuildError, StrongObjectSymbolSurfaceV1,
-    StrongRegistrationIdentityBuildError, StrongRegistrationIdentitySurfaceV1,
+    StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError,
 };
 
 use crate::{ConeImagePlanBuildError, ConeImagePlanV1};
@@ -28,7 +28,7 @@ pub struct StrongProductionSectionV1 {
     canonical_definitions: StrongObjectSymbolSurfaceV1,
     object_definition_plans: StrongObjectDefinitionPlanSurfaceV1,
     digest_finalization_plan: StrongDigestFinalizationPlanV1,
-    registration_plans: StrongRegistrationIdentitySurfaceV1,
+    registration_production: StrongRegistrationProductionSurfaceV1,
     image_plan: ConeImagePlanV1,
     entry_plan: EntryProductionPlanV1,
     core_shape_support: CoreShapeSupportPlanV1,
@@ -41,6 +41,7 @@ impl StrongProductionSectionV1 {
         foundation: &OdrFreeLirFoundation,
         external_bridges: StrongExternalLirBridgeSurfaceV1,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
+        registration_production: StrongRegistrationProductionSurfaceV1,
         entry_source: EntryProductionSourceV1,
         core_shape_sources: &[SourceDeclarationKey],
     ) -> Result<Self, StrongProductionSectionBuildError> {
@@ -56,28 +57,26 @@ impl StrongProductionSectionV1 {
         let object_definition_plans =
             StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
                 .map_err(StrongProductionSectionBuildError::ObjectDefinitions)?;
-        let registration_plans = StrongRegistrationIdentitySurfaceV1::from_foundation(
-            foundation,
-            &digest_finalization_plan,
-        )
-        .map_err(StrongProductionSectionBuildError::Registrations)?;
         let image_plan = ConeImagePlanV1::new(
             coordinate,
             foundation,
-            &registration_plans,
+            registration_production.identities(),
             &digest_finalization_plan,
         )
         .map_err(StrongProductionSectionBuildError::Image)?;
         let entry_plan = EntryProductionPlanV1::new(
             entry_source,
             foundation,
-            &registration_plans,
+            registration_production.identities(),
             &digest_finalization_plan,
         )
         .map_err(StrongProductionSectionBuildError::Entry)?;
-        let core_shape_support =
-            CoreShapeSupportPlanV1::new(core_shape_sources.iter(), foundation, &registration_plans)
-                .map_err(StrongProductionSectionBuildError::CoreShapeSupport)?;
+        let core_shape_support = CoreShapeSupportPlanV1::new(
+            core_shape_sources.iter(),
+            foundation,
+            registration_production.identities(),
+        )
+        .map_err(StrongProductionSectionBuildError::CoreShapeSupport)?;
         let generated_bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(foundation)
             .map_err(StrongProductionSectionBuildError::GeneratedBridges)?;
         Ok(Self {
@@ -85,7 +84,7 @@ impl StrongProductionSectionV1 {
             canonical_definitions,
             object_definition_plans,
             digest_finalization_plan,
-            registration_plans,
+            registration_production,
             image_plan,
             entry_plan,
             core_shape_support,
@@ -109,8 +108,8 @@ impl StrongProductionSectionV1 {
         &self.digest_finalization_plan
     }
 
-    pub const fn registration_plans(&self) -> &StrongRegistrationIdentitySurfaceV1 {
-        &self.registration_plans
+    pub const fn registration_production(&self) -> &StrongRegistrationProductionSurfaceV1 {
+        &self.registration_production
     }
 
     pub const fn image_plan(&self) -> &ConeImagePlanV1 {
@@ -142,7 +141,7 @@ impl WireEncode for StrongProductionSectionV1 {
         encoder.field(4)?;
         self.digest_finalization_plan.encode(encoder)?;
         encoder.field(5)?;
-        self.registration_plans.encode(encoder)?;
+        self.registration_production.encode(encoder)?;
         encoder.field(6)?;
         self.image_plan.encode(encoder)?;
         encoder.field(7)?;
@@ -160,7 +159,7 @@ pub struct DecodedStrongProductionSectionV1 {
     canonical_definitions: DecodedStrongObjectSymbolSurfaceV1,
     object_definition_plans: DecodedStrongObjectDefinitionPlanSurfaceV1,
     digest_finalization_plan: DecodedStrongDigestFinalizationPlanV1,
-    registration_plans: DecodedStrongRegistrationIdentitySurfaceV1,
+    registration_production: DecodedStrongRegistrationProductionSurfaceV1,
     image_plan: DecodedConeImagePlanV1,
     entry_plan: DecodedEntryProductionPlanV1,
     core_shape_support: DecodedCoreShapeSupportPlanV1,
@@ -168,9 +167,11 @@ pub struct DecodedStrongProductionSectionV1 {
 }
 
 impl DecodedStrongProductionSectionV1 {
+    #[allow(clippy::too_many_arguments)]
     pub fn validate(
         self,
         coordinate: ConeCoordinate,
+        target: crate::LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
         entry_source: EntryProductionSourceV1,
@@ -182,11 +183,21 @@ impl DecodedStrongProductionSectionV1 {
             .digest_finalization_plan
             .validate(identities, foundation)
             .map_err(StrongProductionSectionValidationError::DigestPlan)?;
+        let registration_production = self
+            .registration_production
+            .validate(
+                target,
+                foundation,
+                &digest_finalization_plan,
+                expected_external_bridges,
+            )
+            .map_err(StrongProductionSectionValidationError::Registrations)?;
         let expected = StrongProductionSectionV1::new(
             coordinate,
             foundation,
             expected_external_bridges.clone(),
             digest_finalization_plan,
+            registration_production,
             entry_source,
             core_shape_sources,
         )
@@ -212,7 +223,7 @@ impl WireEncode for DecodedStrongProductionSectionV1 {
         encoder.field(4)?;
         self.digest_finalization_plan.encode(encoder)?;
         encoder.field(5)?;
-        self.registration_plans.encode(encoder)?;
+        self.registration_production.encode(encoder)?;
         encoder.field(6)?;
         self.image_plan.encode(encoder)?;
         encoder.field(7)?;
@@ -234,8 +245,8 @@ impl WireDecode for DecodedStrongProductionSectionV1 {
                 .field(3, DecodedStrongObjectDefinitionPlanSurfaceV1::decode)?,
             digest_finalization_plan: decoder
                 .field(4, DecodedStrongDigestFinalizationPlanV1::decode)?,
-            registration_plans: decoder
-                .field(5, DecodedStrongRegistrationIdentitySurfaceV1::decode)?,
+            registration_production: decoder
+                .field(5, DecodedStrongRegistrationProductionSurfaceV1::decode)?,
             image_plan: decoder.field(6, DecodedConeImagePlanV1::decode)?,
             entry_plan: decoder.field(7, DecodedEntryProductionPlanV1::decode)?,
             core_shape_support: decoder.field(8, DecodedCoreShapeSupportPlanV1::decode)?,
@@ -250,7 +261,6 @@ pub enum StrongProductionSectionBuildError {
     CanonicalDefinitions(StrongObjectSymbolSurfaceBuildError),
     ObjectDefinitions(StrongObjectDefinitionPlanBuildError),
     DigestPlan(DigestPlanError),
-    Registrations(StrongRegistrationIdentityBuildError),
     Image(ConeImagePlanBuildError),
     Entry(EntryProductionPlanBuildError),
     CoreShapeSupport(CoreShapeSupportPlanBuildError),
@@ -269,6 +279,7 @@ impl std::error::Error for StrongProductionSectionBuildError {}
 pub enum StrongProductionSectionValidationError {
     Encode(scoop_wire::cbor::EncodeError),
     DigestPlan(StrongDigestPlanValidationError),
+    Registrations(StrongRegistrationProductionValidationError),
     Expected(StrongProductionSectionBuildError),
     SectionMismatch,
 }

@@ -46,6 +46,30 @@ pub struct StrongRegistrationProductionSurfaceV1 {
 }
 
 impl StrongRegistrationProductionSurfaceV1 {
+    pub fn empty(
+        target: crate::LirTargetProfile,
+        foundation: &OdrFreeLirFoundation,
+        digests: &StrongDigestFinalizationPlanV1,
+    ) -> Result<Self, StrongRegistrationProductionBuildError> {
+        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
+            .map_err(StrongRegistrationProductionBuildError::Identities)?;
+        Self::from_semantics(
+            target,
+            foundation,
+            digests,
+            identities,
+            StrongSafepointSemanticPlanSetV1::from_artifact(foundation.producer(), Vec::new()),
+            StrongImmortalObjectSemanticPlanSetV1::from_artifact(foundation.producer(), Vec::new()),
+            StrongInitializationUnitSemanticPlanSetV1::from_artifact(
+                crate::StrongStaticStorageSemanticPlanSetV1::from_artifact(
+                    foundation.producer(),
+                    Vec::new(),
+                ),
+                Vec::new(),
+            ),
+        )
+    }
+
     pub fn from_module(
         module: &Module,
         foundation: &OdrFreeLirFoundation,
