@@ -1107,6 +1107,12 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 精确类型是`CBridgeProductionSetV1`。三者都从同一个已经验证的native/C-bridge production proof
 重建，decoded payload不能直接提升为authority。
 
+为打破generated-C envelope验证与完整Code proof之间的依赖环，reader可以先把decoded field 10收窄为
+`CBridgeCheckedSingleConeProductionManifestV1`：它只能用已验证的`GeneratedBridgePlanSetV1`和请求级
+`CBridgeToolchainProfileV1`重建expected `CBridgeProductionSetV1`并做canonical byte等值，同时继续拥有
+其余九个未验证字段。该状态只授权C-bridge object envelope验证，不授权读取其他manifest语义；最终仍
+必须从同一`VerifiedCodeFingerprintV1`重建并核对完整十字段manifest。
+
 `VerifiedCBridgeProductionEnvelopeSetV1`必须拥有它已经验证的
 `GeneratedBridgePlanSetV1`和`CBridgeProductionSetV1`，不能只留下producer摘要；验证入口消费这两个
 值，成功后由proof独占保存。这样manifest/Code构造器才能把C bridge envelopes逐byte绑定回

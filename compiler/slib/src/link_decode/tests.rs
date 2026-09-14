@@ -6,8 +6,9 @@ use scoop_identity::{
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, EntryProductionSourceV1, OdrFreeLirFoundation,
-    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
+    AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, CanonicalLirFoundation,
+    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, EntryProductionSourceV1,
+    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
     StrongProducerUnitPartitionV1, StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
 use scoop_wire::{DecodeLimits, encode};
@@ -81,6 +82,15 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         materialized.materializations().member_plan().producer(),
         cone().identity()
     );
+    let c_bridge = materialized
+        .validate_c_bridge_envelopes(&c_bridge_profile())
+        .unwrap();
+    assert_eq!(c_bridge.identity(), cone().identity());
+    assert!(c_bridge.c_bridge_production().members().is_empty());
+    assert!(matches!(
+        c_bridge.production_manifest().c_bridge_production(),
+        scoop_lir::CBridgeProductionSetV1::NotUsed
+    ));
 }
 
 #[test]
@@ -648,4 +658,17 @@ fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
 
 fn selection() -> ValidatedLirTargetSelection {
     ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+}
+
+fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
+    CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+        DarwinCBridgeDeploymentContractV1::new(
+            DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
+            DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
+            Vec::new(),
+        )
+        .unwrap(),
+        AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap(),
+    )
+    .unwrap()
 }

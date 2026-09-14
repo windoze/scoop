@@ -7,7 +7,11 @@ use scoop_identity::{
     NativeLinkRequirementId, PersistentCallableBodyId, PersistentStaticStorageId,
     SourceSignatureFingerprint,
 };
-use scoop_lir::{DecodedCBridgeProductionSetV1, DecodedStrongRegistrationIdentitySurfaceV1};
+use scoop_lir::{
+    CBridgeProductionSetV1, CBridgeProductionValidationError, CBridgeToolchainProfileV1,
+    DecodedCBridgeProductionSetV1, DecodedStrongRegistrationIdentitySurfaceV1,
+    GeneratedBridgePlanSetV1,
+};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use super::SingleConeProductionManifestV1;
@@ -152,19 +156,50 @@ pub struct DecodedSingleConeProductionManifestV1 {
     c_bridge_production: DecodedCBridgeProductionSetV1,
 }
 
+/// A decoded production manifest whose generated-C production branch was
+/// rebuilt from one typed bridge plan and toolchain profile. The other nine
+/// fields remain untrusted until the complete Code proof is available.
+#[derive(Debug)]
+pub struct CBridgeCheckedSingleConeProductionManifestV1 {
+    decoded: DecodedSingleConeProductionManifestV1,
+    c_bridge_production: CBridgeProductionSetV1,
+}
+
+impl CBridgeCheckedSingleConeProductionManifestV1 {
+    pub const fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
+        &self.c_bridge_production
+    }
+
+    pub fn validate(
+        self,
+        code: &VerifiedCodeFingerprintV1,
+    ) -> Result<SingleConeProductionManifestV1, SingleConeProductionManifestValidationError> {
+        validate_manifest(self.decoded, code)
+    }
+}
+
 impl DecodedSingleConeProductionManifestV1 {
+    pub fn validate_c_bridge_production(
+        self,
+        bridge_plan: &GeneratedBridgePlanSetV1,
+        profile: &CBridgeToolchainProfileV1,
+    ) -> Result<CBridgeCheckedSingleConeProductionManifestV1, CBridgeProductionValidationError>
+    {
+        let expected = CBridgeProductionSetV1::from_generated_bridge_plan(bridge_plan, profile);
+        let c_bridge_production = self.c_bridge_production.clone().validate(&expected)?;
+        Ok(CBridgeCheckedSingleConeProductionManifestV1 {
+            decoded: self,
+            c_bridge_production,
+        })
+    }
+
     /// Rebuilds the complete manifest from the verified Code proof and only
     /// promotes that trusted projection after exact canonical equality.
     pub fn validate(
         self,
         code: &VerifiedCodeFingerprintV1,
     ) -> Result<SingleConeProductionManifestV1, SingleConeProductionManifestValidationError> {
-        let expected = SingleConeProductionManifestV1::from_verified_code(code.clone());
-        let actual = encode(&self).map_err(SingleConeProductionManifestValidationError::Encode)?;
-        let expected_bytes =
-            encode(&expected).map_err(SingleConeProductionManifestValidationError::Encode)?;
-        ensure_projection_equality(&actual, &expected_bytes)?;
-        Ok(expected)
+        validate_manifest(self, code)
     }
 }
 
@@ -252,6 +287,18 @@ fn ensure_projection_equality(
     } else {
         Err(SingleConeProductionManifestValidationError::ProjectionMismatch)
     }
+}
+
+fn validate_manifest(
+    decoded: DecodedSingleConeProductionManifestV1,
+    code: &VerifiedCodeFingerprintV1,
+) -> Result<SingleConeProductionManifestV1, SingleConeProductionManifestValidationError> {
+    let expected = SingleConeProductionManifestV1::from_verified_code(code.clone());
+    let actual = encode(&decoded).map_err(SingleConeProductionManifestValidationError::Encode)?;
+    let expected_bytes =
+        encode(&expected).map_err(SingleConeProductionManifestValidationError::Encode)?;
+    ensure_projection_equality(&actual, &expected_bytes)?;
+    Ok(expected)
 }
 
 fn encode_array(

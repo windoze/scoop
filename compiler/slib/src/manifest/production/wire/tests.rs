@@ -46,6 +46,28 @@ fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
     );
 }
 
+#[test]
+fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
+    let bytes = library_manifest_bytes();
+    let decoded =
+        decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes, DecodeLimits::default())
+            .unwrap();
+    let foundation = scoop_lir::OdrFreeLirFoundation::try_new(
+        scoop_identity::ConeIdentity::CORE,
+        scoop_lir::CanonicalLirFoundation::empty(),
+    )
+    .unwrap();
+    let bridge_plan =
+        scoop_lir::GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
+    let checked = decoded
+        .validate_c_bridge_production(&bridge_plan, &c_bridge_profile())
+        .unwrap();
+    assert_eq!(
+        checked.c_bridge_production(),
+        &scoop_lir::CBridgeProductionSetV1::NotUsed
+    );
+}
+
 pub(crate) fn library_manifest_bytes() -> Vec<u8> {
     let mut bytes = vec![0xaa];
     field(&mut bytes, 1);
@@ -86,4 +108,17 @@ fn fixed(bytes: &mut Vec<u8>, value: u8) {
 
 fn field(bytes: &mut Vec<u8>, field: u8) {
     bytes.push(field);
+}
+
+fn c_bridge_profile() -> scoop_lir::CBridgeToolchainProfileV1 {
+    scoop_lir::CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+        scoop_lir::DarwinCBridgeDeploymentContractV1::new(
+            scoop_lir::DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
+            scoop_lir::DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
+            Vec::new(),
+        )
+        .unwrap(),
+        scoop_lir::AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap(),
+    )
+    .unwrap()
 }
