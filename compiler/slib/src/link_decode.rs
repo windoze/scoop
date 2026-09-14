@@ -316,6 +316,45 @@ pub struct ValidatedSingleConeStrongLinkArtifact<'input> {
     production_manifest: SingleConeProductionManifestV1,
 }
 
+pub fn validate_single_cone_strong_link_artifact<'input>(
+    graph: ValidatedGraphArtifact<'input>,
+    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+) -> Result<ValidatedSingleConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+    graph
+        .decode_single_cone_link_sections()
+        .map_err(|error| StrongLinkArtifactValidationError::Decode(Box::new(error)))?
+        .validate_identities()
+        .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
+        .validate_foundation_structure()
+        .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?
+        .validate_production(expected_external_bridges)
+        .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
+        .validate_materializations()
+        .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?
+        .validate_c_bridge_envelopes(c_bridge_profile)
+        .map_err(|error| StrongLinkArtifactValidationError::CBridge(Box::new(error)))?
+        .validate_builtin_objects()
+        .map_err(|error| StrongLinkArtifactValidationError::BuiltinObjects(Box::new(error)))?
+        .validate_digest_patch_sites()
+        .map_err(|error| StrongLinkArtifactValidationError::DigestPatches(Box::new(error)))?
+        .validate_registration_objects()
+        .map_err(|error| StrongLinkArtifactValidationError::RegistrationObjects(Box::new(error)))?
+        .fingerprint_registration_leaves()
+        .map_err(|error| StrongLinkArtifactValidationError::RegistrationLeaves(Box::new(error)))?
+        .validate_link_symbol_requirements(core_owners, c_bridge_profile)
+        .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
+        .fingerprint_registration_dependencies()
+        .map_err(|error| {
+            StrongLinkArtifactValidationError::RegistrationDependencies(Box::new(error))
+        })?
+        .finalize_strong_objects()
+        .map_err(|error| StrongLinkArtifactValidationError::ObjectFinalization(Box::new(error)))?
+        .validate_code_and_closure()
+        .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
+}
+
 impl<'input> ValidatedGraphArtifact<'input> {
     pub fn decode_single_cone_link_sections(
         mut self,
@@ -2627,6 +2666,54 @@ impl std::error::Error for StrongLinkFinalValidationError {
             Self::ProductionManifest(error) => Some(error),
             Self::LinkIdentityClosure(error) => Some(error),
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum StrongLinkArtifactValidationError {
+    Decode(Box<SingleConeLinkSectionDecodeError>),
+    Identities(Box<IdentityValidationError>),
+    Foundations(Box<StrongProfileFoundationError>),
+    Production(Box<StrongProfileProductionError>),
+    Materializations(Box<StrongLinkMaterializationError>),
+    CBridge(Box<StrongLinkCBridgeError>),
+    BuiltinObjects(Box<StrongLinkBuiltinObjectError>),
+    DigestPatches(Box<StrongLinkDigestPatchError>),
+    RegistrationObjects(Box<StrongLinkRegistrationObjectError>),
+    RegistrationLeaves(Box<StrongLinkRegistrationLeafFingerprintError>),
+    Symbols(Box<StrongLinkSymbolRequirementError>),
+    RegistrationDependencies(Box<StrongLinkRegistrationDependencyFingerprintError>),
+    ObjectFinalization(Box<StrongLinkObjectFinalizationError>),
+    FinalProof(Box<StrongLinkFinalValidationError>),
+}
+
+impl fmt::Display for StrongLinkArtifactValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid SingleConeStrong Link artifact: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongLinkArtifactValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Decode(error) => error.as_ref(),
+            Self::Identities(error) => error.as_ref(),
+            Self::Foundations(error) => error.as_ref(),
+            Self::Production(error) => error.as_ref(),
+            Self::Materializations(error) => error.as_ref(),
+            Self::CBridge(error) => error.as_ref(),
+            Self::BuiltinObjects(error) => error.as_ref(),
+            Self::DigestPatches(error) => error.as_ref(),
+            Self::RegistrationObjects(error) => error.as_ref(),
+            Self::RegistrationLeaves(error) => error.as_ref(),
+            Self::Symbols(error) => error.as_ref(),
+            Self::RegistrationDependencies(error) => error.as_ref(),
+            Self::ObjectFinalization(error) => error.as_ref(),
+            Self::FinalProof(error) => error.as_ref(),
+        })
     }
 }
 

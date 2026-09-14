@@ -216,35 +216,13 @@ fn strong_graph_validates_the_complete_final_link_view() {
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
     let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
-    let artifact = open_graph(&bytes)
-        .decode_single_cone_link_sections()
-        .unwrap()
-        .validate_identities()
-        .unwrap()
-        .validate_foundation_structure()
-        .unwrap()
-        .validate_production(&external)
-        .unwrap()
-        .validate_materializations()
-        .unwrap()
-        .validate_c_bridge_envelopes(&c_bridge_profile())
-        .unwrap()
-        .validate_builtin_objects()
-        .unwrap()
-        .validate_digest_patch_sites()
-        .unwrap()
-        .validate_registration_objects()
-        .unwrap()
-        .fingerprint_registration_leaves()
-        .unwrap()
-        .validate_link_symbol_requirements(&core_owners, &c_bridge_profile())
-        .unwrap()
-        .fingerprint_registration_dependencies()
-        .unwrap()
-        .finalize_strong_objects()
-        .unwrap()
-        .validate_code_and_closure()
-        .unwrap();
+    let artifact = validate_single_cone_strong_link_artifact(
+        open_graph(&bytes),
+        &external,
+        &core_owners,
+        &c_bridge_profile(),
+    )
+    .unwrap();
 
     assert_eq!(artifact.identity(), cone().identity());
     assert_eq!(

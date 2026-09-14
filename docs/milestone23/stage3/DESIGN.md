@@ -2545,6 +2545,11 @@ Link identity closure及bootstrap semantic record中的Code/RuntimeImage两项�
 
 Link验证不要求先构造Compile view，也不借用Compile已commit的session-local arena。两条proof可以共享同一raw envelope/hash bytes，但必须分别解码/验证自己需要的semantic surface。这样link-only consumer无需把HIR导入semantic world。
 
+公开Link入口固定为`validate_single_cone_strong_link_artifact`。它消费Graph proof，并显式接收同请求已经验证的
+external-bridge surface、trusted-core defined-owner proof与C bridge toolchain profile；内部只能按15.1节顺序
+消费各typed state，返回`ValidatedSingleConeStrongLinkArtifact`或保留精确失败层的
+`StrongLinkArtifactValidationError`。各中间方法用于实现与细粒度测试，不另设少校验、自动补值或历史兼容入口。
+
 ### 15.2 Link API
 
 ```text
