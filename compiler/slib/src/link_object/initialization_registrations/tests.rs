@@ -315,3 +315,36 @@ fn initialization_registration_object_hashing_rechecks_object_bytes() {
         )) if member == fixture.member
     ));
 }
+
+#[test]
+fn computes_canonical_initialization_definition_leaves() {
+    let fixture = Fixture::new(false, Corruption::None);
+    let objects = fixture.objects();
+    let registrations = verify_strong_initialization_registrations_v1(
+        fixture.verified_patch_sites(),
+        fixture.plan.clone(),
+        &objects,
+    )
+    .unwrap();
+    let registration_objects =
+        compute_strong_initialization_registration_object_fingerprints_v1(registrations, &objects)
+            .unwrap();
+    let definitions =
+        compute_strong_initialization_definition_fingerprints_v1(registration_objects, &objects)
+            .unwrap();
+
+    assert_eq!(definitions.fingerprints().len(), 1);
+    let actual = definitions.fingerprints()[0];
+    let plan = &fixture.plan.registrations()[0];
+    assert_eq!(actual.unit(), plan.semantic().unit());
+    assert_eq!(actual.cell_node(), plan.cell_definition_node());
+    assert_eq!(actual.descriptor_node(), plan.descriptor_definition_node());
+    assert_eq!(
+        actual.cell().to_string(),
+        "fef44222d61515cf41819495ce12d74e5d045b1a8aa1aab159bed810e3658735"
+    );
+    assert_eq!(
+        actual.descriptor().to_string(),
+        "2b7188a7e3c35a816aba0e91924a58d7984327dc3bc7dd14a6f8b7b8022b4045"
+    );
+}

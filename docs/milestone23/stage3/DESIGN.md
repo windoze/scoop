@@ -1682,6 +1682,17 @@ index、Mach-O symbol spelling与最终地址均不进入hash。该target tag只
 associated atom，不能用于跨definition引用、无owner section或任意local symbol；不保留忽略diagnostic relocation
 或把它降格为物理索引的旧hash路径。
 
+initialization cell与coordinator descriptor的ObjectDefinition leaf只能经
+`compute_strong_initialization_definition_fingerprints_v1`继续消费registration-object proof与再次匹配content
+digest的object全集成对产生。cell使用通用单Primary编码，内容固定为16-byte zero cell、relocation count 0和
+direct-input count 0。descriptor先编码Primary role tag 1、精确88-byte provisional coordinator、六条canonical
+`Unsigned64` relocation与direct-input count 0，再追加associated-atom sequence count 1；唯一元素依次编码
+diagnostic atom id、`AddressTakenConstant` role tag 7、`diagnostic_path || NUL` byte span和relocation count 0。
+Primary中的diagnostic/cell/storage/failure-root/initializer/ensure relocation分别规范化为同一associated atom、
+`InitializationCell`、两个`StaticStorage`与两个`CallableBody` typed target。associated atom序列是该descriptor
+leaf的专用、不可省略后缀；不能把path bytes并入Primary byte span、只靠StrongRegistration间接承诺、另算
+无graph node的辅助digest或继续接受只hash Primary的旧格式。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

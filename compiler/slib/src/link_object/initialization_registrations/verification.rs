@@ -44,6 +44,7 @@ pub struct VerifiedStrongInitializationRegistrationV1 {
     descriptor_member: SlibMemberId,
     descriptor_primary_symbol_table_index: u32,
     descriptor_checked_offset: u64,
+    diagnostic_checked_offset: u64,
     coordinator_diagnostic_relocation: VerifiedRelocationUseV1,
     coordinator_cell_relocation: StrongRelocationBindingV1,
     coordinator_storage_relocation: StrongRelocationBindingV1,
@@ -100,6 +101,10 @@ impl VerifiedStrongInitializationRegistrationV1 {
 
     pub const fn descriptor_checked_offset(&self) -> u64 {
         self.descriptor_checked_offset
+    }
+
+    pub const fn diagnostic_checked_offset(&self) -> u64 {
+        self.diagnostic_checked_offset
     }
 
     pub const fn coordinator_diagnostic_relocation(&self) -> &VerifiedRelocationUseV1 {
@@ -263,7 +268,7 @@ fn verify_registration(
             BuiltinObjectSectionRoleV1::ReadOnlyData,
             COORDINATOR_SIZE as u64,
         )?;
-    require_diagnostic_atom(descriptor_index, plan)?;
+    let diagnostic_checked_offset = require_diagnostic_atom(descriptor_index, plan)?;
     validate_coordinator_bytes(objects[&descriptor_member], descriptor_start, plan)?;
     debug_assert_eq!(descriptor_end - descriptor_start, COORDINATOR_SIZE as u64);
 
@@ -327,6 +332,7 @@ fn verify_registration(
         descriptor_member,
         descriptor_primary_symbol_table_index,
         descriptor_start,
+        diagnostic_checked_offset,
         relocations,
         registration_definition_patch,
         gateway_definition_patch,
@@ -336,7 +342,7 @@ fn verify_registration(
 fn require_diagnostic_atom(
     member: &VerifiedMemberObjectRelocationIndexV1,
     plan: &StrongInitializationUnitRegistrationPlanV1,
-) -> Result<(), StrongInitializationRegistrationValidationError> {
+) -> Result<u64, StrongInitializationRegistrationValidationError> {
     let definition = member
         .definitions()
         .definition(plan.descriptor_definition_plan())
@@ -382,7 +388,7 @@ fn require_diagnostic_atom(
             },
         );
     }
-    Ok(())
+    Ok(start)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -397,6 +403,7 @@ fn build_verified(
     descriptor_member: SlibMemberId,
     descriptor_primary_symbol_table_index: u32,
     descriptor_checked_offset: u64,
+    diagnostic_checked_offset: u64,
     relocations: VerifiedInitializationRelocationsV1,
     registration_definition_patch: VerifiedMaterializedPatchSiteV1,
     gateway_definition_patch: Option<VerifiedMaterializedPatchSiteV1>,
@@ -412,6 +419,7 @@ fn build_verified(
         descriptor_member,
         descriptor_primary_symbol_table_index,
         descriptor_checked_offset,
+        diagnostic_checked_offset,
         coordinator_diagnostic_relocation: relocations.coordinator_diagnostic,
         coordinator_cell_relocation: relocations.coordinator_cell,
         coordinator_storage_relocation: relocations.coordinator_storage,

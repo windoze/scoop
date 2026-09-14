@@ -32,6 +32,35 @@ pub(in crate::link_object) struct ObjectDefinitionFingerprintInputV1<'a> {
     pub(in crate::link_object) direct_inputs: &'a [CanonicalDigestInputV1],
 }
 
+pub(in crate::link_object) struct CanonicalAssociatedObjectAtomV1<'a> {
+    pub(in crate::link_object) atom: ObjectDefinitionAtomId,
+    pub(in crate::link_object) role: DefinitionAtomRole,
+    pub(in crate::link_object) bytes: &'a [u8],
+    pub(in crate::link_object) relocations: &'a [CanonicalObjectRelocationV1],
+}
+
+pub(in crate::link_object) struct ObjectDefinitionLeafWithAssociatedAtomsInputV1<'a> {
+    pub(in crate::link_object) primary: ObjectDefinitionFingerprintInputV1<'a>,
+    pub(in crate::link_object) associated_atoms: &'a [CanonicalAssociatedObjectAtomV1<'a>],
+}
+
+impl RuntimeEncode for ObjectDefinitionLeafWithAssociatedAtomsInputV1<'_> {
+    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
+        self.primary.runtime_encode(encoder)?;
+        encoder.sequence_length(self.associated_atoms.len())?;
+        for atom in self.associated_atoms {
+            encoder.fixed(atom.atom.as_array())?;
+            encoder.u32(definition_atom_role_tag(atom.role))?;
+            encoder.byte_span(atom.bytes)?;
+            encoder.sequence_length(atom.relocations.len())?;
+            for relocation in atom.relocations {
+                relocation.runtime_encode(encoder)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 impl RuntimeEncode for ObjectDefinitionFingerprintInputV1<'_> {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         encoder.u32(PRIMARY_ATOM_ROLE)?;
