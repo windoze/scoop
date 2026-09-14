@@ -466,10 +466,18 @@ fn image_object(
         locations[&support.coordinate_version()].0,
         plan.cone().coordinate().version().as_bytes(),
     );
+    let dependency_bytes = if plan.dependencies().is_empty() {
+        vec![0; 32]
+    } else {
+        plan.dependencies()
+            .iter()
+            .flat_map(|identity| identity.as_array().iter().copied())
+            .collect()
+    };
     copy_atom_bytes(
         &mut section,
         locations[&support.dependencies()].0,
-        scoop_identity::ConeIdentity::CORE.as_array(),
+        &dependency_bytes,
     );
     match corruption {
         Corruption::CoordinateByte => {
@@ -522,6 +530,17 @@ fn image_object(
         &relocation_offsets,
         &relocation_targets,
         section,
+    )
+}
+
+pub(crate) fn empty_image_object_for_link_decode_test(
+    symbols: &PlannedMemberStrongObjectSymbolsV1,
+    plan: &ConeImagePlanV1,
+) -> (Vec<u8>, u64) {
+    let object = image_object(symbols, plan, None, Corruption::None);
+    (
+        object.bytes,
+        u64::try_from(object.section_offset).unwrap() + 96,
     )
 }
 

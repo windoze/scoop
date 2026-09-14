@@ -115,62 +115,6 @@ pub use link_identity_closure::*;
 mod macho;
 pub use macho::*;
 
-#[cfg(test)]
-pub(crate) fn scoop_object_with_digest_slot_for_symbol_plan_test(
-    plan: &PlannedMemberStrongObjectSymbolsV1,
-) -> (Vec<u8>, u64) {
-    let mut atoms = plan
-        .symbols()
-        .iter()
-        .filter_map(|symbol| match symbol.role() {
-            PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { atom, .. } => Some(atom),
-            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { .. }
-            | PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => None,
-        })
-        .collect::<Vec<_>>();
-    atoms.sort_unstable();
-    atoms.dedup();
-    let primary_atom = plan
-        .symbols()
-        .iter()
-        .find_map(|symbol| match symbol.role() {
-            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { primary_atom, .. } => {
-                Some(primary_atom)
-            }
-            PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { .. }
-            | PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => None,
-        })
-        .unwrap();
-    let mut offsets = std::collections::BTreeMap::new();
-    let mut section_bytes = Vec::new();
-    for atom in atoms {
-        let start = u64::try_from(section_bytes.len()).unwrap();
-        if atom == primary_atom {
-            section_bytes.extend_from_slice(&[0; 64]);
-            offsets.insert(atom, (start, start + 64));
-        } else {
-            section_bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0]);
-            offsets.insert(atom, (start, start + 4));
-        }
-    }
-    let object = symbol_verification::tests::object_for_plan_with_deployment(
-        plan,
-        |role| match role {
-            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { primary_atom, .. }
-            | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
-                atom: primary_atom, ..
-            } => offsets[&primary_atom].0,
-            PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { atom, .. } => offsets[&atom].1,
-        },
-        &[],
-        None,
-        &section_bytes,
-    );
-    let patch_offset =
-        u64::try_from(object.section_offset).unwrap() + offsets[&primary_atom].0 + 16;
-    (object.bytes, patch_offset)
-}
-
 macro_rules! typed_digest {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

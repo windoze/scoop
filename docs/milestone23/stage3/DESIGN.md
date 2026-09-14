@@ -2527,6 +2527,11 @@ production虽然不由Link inventory列为mandatory Link section，Link reader�
 10. 重算Code fingerprint、member/artifact fingerprint交叉关系；
 11. 原子构造immutable `ValidatedLinkArtifact<SingleConeStrongProfile>`。
 
+步骤8进入步骤9时使用单一消费式状态转换：先在provisional bytes上验证唯一image与entry分支，再原子写入
+六表StrongRegistration、重算并写入RuntimeImage，最后写入executable entry的source-signature/gateway
+digest；每次写入后都重验Mach-O envelope与shape。转换结果只暴露`VerifiedEntryPatchSetV1`承载的最终
+对象，不保留可绕过上述顺序的provisional-object helper或兼容完成态。
+
 Link验证不要求先构造Compile view，也不借用Compile已commit的session-local arena。两条proof可以共享同一raw envelope/hash bytes，但必须分别解码/验证自己需要的semantic surface。这样link-only consumer无需把HIR导入semantic world。
 
 ### 15.2 Link API

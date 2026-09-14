@@ -31,37 +31,39 @@ use crate::{
     BuiltinObjectExternalRequirementClosureError, BuiltinObjectSetValidationError,
     CBridgeCheckedSingleConeProductionManifestV1, CBridgeProductionEnvelopeValidationError,
     CBridgeTargetSupportRequirementValidationError, CanonicalDefinedLinkSymbolOwnerSetV1,
-    CanonicalUndefinedSymbolRequirementSetV1, CoreStrongRequirementValidationError,
-    CurrentConeUndefinedRequirementValidationError, DecodedLinkIdentityClosureSectionV1,
-    DecodedMetadataEnvelope, DecodedSingleConeProductionManifestV1,
-    DefinedLinkSymbolOwnerBuildError, DigestPatchSiteValidationError,
+    CanonicalUndefinedSymbolRequirementSetV1, ConeImageValidationError,
+    CoreStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
+    DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
+    DecodedSingleConeProductionManifestV1, DefinedLinkSymbolOwnerBuildError,
+    DigestPatchSiteValidationError, EntryPatchError, EntryProductionValidationError,
     GeneratedCBridgeObjectCandidateV1, GeneratedCBridgeSemanticValidationError,
     LinkDigestPatchInputValidationError, LinkObjectMaterializationValidationError,
     LinkObjectProjectionValidationError, LinkSymbolProjectionValidationError, ManifestSection,
     MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
     ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
-    RuntimeAndEhRequirementValidationError, ScoopLirObjectCandidateV1,
-    ScoopLirStackmapValidationError, SemanticFingerprintError, SemanticFingerprintRecord,
-    SlibMemberId, SlibMemberRecord, SlibMemberRole, SourceExternalRequirementValidationError,
-    StrongCallableBodyFingerprintError, StrongCallableFingerprintError,
-    StrongCallableRegistrationObjectFingerprintError, StrongCallableRegistrationValidationError,
-    StrongImmortalObjectDefinitionFingerprintError, StrongImmortalObjectFingerprintError,
-    StrongImmortalObjectRegistrationObjectFingerprintError,
+    RuntimeAndEhRequirementValidationError, RuntimeImageFingerprintError, RuntimeImagePatchError,
+    ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError, SemanticFingerprintError,
+    SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord, SlibMemberRole,
+    SourceExternalRequirementValidationError, StrongCallableBodyFingerprintError,
+    StrongCallableFingerprintError, StrongCallableRegistrationObjectFingerprintError,
+    StrongCallableRegistrationValidationError, StrongImmortalObjectDefinitionFingerprintError,
+    StrongImmortalObjectFingerprintError, StrongImmortalObjectRegistrationObjectFingerprintError,
     StrongImmortalObjectRegistrationValidationError,
     StrongInitializationDefinitionFingerprintError, StrongInitializationFingerprintError,
     StrongInitializationRegistrationObjectFingerprintError,
     StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
-    StrongSafepointFingerprintError, StrongSafepointRegistrationValidationError,
-    StrongStaticStorageDefinitionFingerprintError, StrongStaticStorageFingerprintError,
-    StrongStaticStorageRegistrationObjectFingerprintError,
+    StrongRegistrationPatchError, StrongSafepointFingerprintError,
+    StrongSafepointRegistrationValidationError, StrongStaticStorageDefinitionFingerprintError,
+    StrongStaticStorageFingerprintError, StrongStaticStorageRegistrationObjectFingerprintError,
     StrongStaticStorageRegistrationValidationError, StrongStaticStorageShapeFingerprintError,
     StrongTypeDependencyFingerprintError, StrongTypeFingerprintError,
     StrongTypeRegistrationObjectFingerprintError, StrongTypeRegistrationValidationError,
     SymbolProjectionCheckedLinkIdentityClosureSectionV1,
     UndefinedSymbolRequirementFinalizationError, ValidatedGraphArtifact,
     ValidatedSingleConeStrongProduction, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableFingerprintSetV1,
+    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedEntryPatchSetV1,
+    VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapSetV1,
+    VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     VerifiedStrongCallableRegistrationSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
     VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
@@ -285,6 +287,21 @@ pub struct RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
     immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
     static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
     initializations: VerifiedStrongInitializationFingerprintSetV1,
+    production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
+}
+
+/// Link sections whose six strong-registration tables, runtime image, and
+/// entry branch have been patched into copied object bytes and revalidated.
+/// Code/member fingerprints and the final Link identity closure remain.
+pub struct FinalizedStrongLinkObjectSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    production: ValidatedSingleConeStrongProduction,
+    link_identity_closure: SymbolProjectionCheckedLinkIdentityClosureSectionV1,
+    defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
+    undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
+    final_objects: VerifiedEntryPatchSetV1,
     production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 
@@ -1712,7 +1729,7 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
     }
 }
 
-impl RegistrationDependencyFingerprintedSingleConeLinkSections<'_> {
+impl<'input> RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -1791,6 +1808,125 @@ impl RegistrationDependencyFingerprintedSingleConeLinkSections<'_> {
 
     pub const fn initializations(&self) -> &VerifiedStrongInitializationFingerprintSetV1 {
         &self.initializations
+    }
+
+    pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+
+    pub fn finalize_strong_objects(
+        self,
+    ) -> Result<FinalizedStrongLinkObjectSections<'input>, StrongLinkObjectFinalizationError> {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects: _,
+            defined_symbols,
+            undefined_symbols,
+            safepoints,
+            callables,
+            types,
+            immortal_objects,
+            static_storages,
+            initializations,
+            production_manifest,
+        } = self;
+
+        let patch_sites = safepoints.registrations().patch_sites().clone();
+        let image = crate::verify_cone_image_v1(
+            patch_sites.clone(),
+            production.lir().image_plan().clone(),
+            &scoop_objects,
+        )
+        .map_err(StrongLinkObjectFinalizationError::ImageValidation)?;
+        let entry = crate::verify_entry_production_v1(
+            patch_sites,
+            production.lir().entry_plan().clone(),
+            &scoop_objects,
+        )
+        .map_err(StrongLinkObjectFinalizationError::EntryValidation)?;
+        let registrations = crate::patch_strong_registration_fingerprints_v1(
+            safepoints,
+            callables,
+            types,
+            immortal_objects,
+            static_storages,
+            initializations,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkObjectFinalizationError::RegistrationPatch)?;
+        let image_fingerprint = crate::compute_runtime_image_fingerprint_v1(
+            image,
+            registrations,
+            graph.envelope.manifest().compatibility().clone(),
+        )
+        .map_err(StrongLinkObjectFinalizationError::ImageFingerprint)?;
+        let runtime_images = crate::patch_runtime_image_fingerprint_v1(image_fingerprint)
+            .map_err(StrongLinkObjectFinalizationError::ImagePatch)?;
+        let final_objects = crate::patch_entry_production_v1(runtime_images, entry)
+            .map_err(StrongLinkObjectFinalizationError::EntryPatch)?;
+
+        Ok(FinalizedStrongLinkObjectSections {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            defined_symbols,
+            undefined_symbols,
+            final_objects,
+            production_manifest,
+        })
+    }
+}
+
+impl FinalizedStrongLinkObjectSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub const fn production(&self) -> &ValidatedSingleConeStrongProduction {
+        &self.production
+    }
+
+    pub const fn symbol_projections(&self) -> &SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        &self.defined_symbols
+    }
+
+    pub const fn undefined_symbols(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        &self.undefined_symbols
+    }
+
+    pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV1 {
+        &self.final_objects
     }
 
     pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
@@ -2270,6 +2406,38 @@ pub enum StrongLinkRegistrationDependencyFingerprintError {
     StaticStorages(StrongStaticStorageFingerprintError),
     InitializationDefinitions(StrongInitializationDefinitionFingerprintError),
     Initializations(StrongInitializationFingerprintError),
+}
+
+#[derive(Debug)]
+pub enum StrongLinkObjectFinalizationError {
+    ImageValidation(ConeImageValidationError),
+    EntryValidation(EntryProductionValidationError),
+    RegistrationPatch(StrongRegistrationPatchError),
+    ImageFingerprint(RuntimeImageFingerprintError),
+    ImagePatch(RuntimeImagePatchError),
+    EntryPatch(EntryPatchError),
+}
+
+impl fmt::Display for StrongLinkObjectFinalizationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed to finalize strong Link objects: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongLinkObjectFinalizationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::ImageValidation(error) => error,
+            Self::EntryValidation(error) => error,
+            Self::RegistrationPatch(error) => error,
+            Self::ImageFingerprint(error) => error,
+            Self::ImagePatch(error) => error,
+            Self::EntryPatch(error) => error,
+        })
+    }
 }
 
 impl fmt::Display for StrongLinkRegistrationDependencyFingerprintError {

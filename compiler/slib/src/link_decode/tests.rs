@@ -192,6 +192,22 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     assert!(fingerprints.immortal_objects().fingerprints().is_empty());
     assert!(fingerprints.static_storages().fingerprints().is_empty());
     assert!(fingerprints.initializations().fingerprints().is_empty());
+    let finalized = fingerprints.finalize_strong_objects().unwrap();
+    assert_eq!(finalized.identity(), cone().identity());
+    assert_eq!(finalized.final_objects().objects().len(), 1);
+    assert!(matches!(
+        finalized.final_objects().entry().branch(),
+        crate::VerifiedEntryProductionBranchV1::Library
+    ));
+    assert_ne!(
+        finalized
+            .final_objects()
+            .runtime_images()
+            .fingerprint()
+            .fingerprint()
+            .as_array(),
+        &[0; 32]
+    );
 }
 
 #[test]
@@ -883,10 +899,10 @@ fn link_object_fixture() -> LinkObjectFixture {
     let plan = link_object_plan();
     let symbols =
         PlannedStrongObjectSymbolSetV1::new(selection().target(), &surface, &plan).unwrap();
-    let (bytes, checked_offset) =
-        crate::link_object::scoop_object_with_digest_slot_for_symbol_plan_test(
-            &symbols.members()[0],
-        );
+    let (bytes, checked_offset) = crate::link_object::empty_image_object_for_link_decode_test(
+        &symbols.members()[0],
+        production.image_plan(),
+    );
     let bridge_plan = production.generated_bridge_plan().clone();
     let profile = c_bridge_profile();
     let bridge_production =
