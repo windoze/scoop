@@ -23,12 +23,10 @@ use scoop_lir::{
     RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity, SafepointMappingRecord,
     SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet,
     StaticStorageIdentity, StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
-    StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectSemanticPlanSetV1,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanSetV1,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanSetV1,
-    StrongSafepointSemanticPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
-    StrongStaticStorageSemanticPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs, Terminator,
-    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan,
+    StrongImmortalObjectRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanSetV1,
+    StrongRegistrationProductionSurfaceV1, StrongSafepointRegistrationPlanSetV1,
+    StrongStaticStorageRegistrationPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs,
+    Terminator, TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan,
     VoidCallSignature, VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
@@ -50,12 +48,6 @@ pub(crate) struct SemanticInputs {
 
 pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
     let (module, body, safepoints) = semantic_module(corruption);
-    let semantics = StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
-    let immortal_semantics = StrongImmortalObjectSemanticPlanSetV1::from_module(&module).unwrap();
-    let static_storage_semantics =
-        StrongStaticStorageSemanticPlanSetV1::from_module(&module).unwrap();
-    let initialization_semantics =
-        StrongInitializationUnitSemanticPlanSetV1::from_module(&module).unwrap();
     let (
         foundation,
         registrations,
@@ -73,45 +65,15 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         &immortal_registration,
         &static_storage,
     );
-    let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
-    let registration_plan = StrongSafepointRegistrationPlanSetV1::new(
-        &foundation,
-        &identities,
-        &semantics,
-        &digest_plan,
-    )
-    .unwrap();
-    let immortal_registration_plan = StrongImmortalObjectRegistrationPlanSetV1::new(
-        &foundation,
-        &identities,
-        &immortal_semantics,
-        &digest_plan,
-    )
-    .unwrap();
-    let static_storage_registration_plan = StrongStaticStorageRegistrationPlanSetV1::new(
-        &foundation,
-        &identities,
-        &static_storage_semantics,
-        &digest_plan,
-    )
-    .unwrap();
-    let initialization_registration_plan = StrongInitializationUnitRegistrationPlanSetV1::new(
-        &foundation,
-        &identities,
-        &initialization_semantics,
-        &digest_plan,
-    )
-    .unwrap();
-    let callable_registration_plan =
-        StrongCallableRegistrationPlanSetV1::new(&foundation, &identities, &digest_plan).unwrap();
-    let type_registration_plan = StrongTypeRegistrationPlanSetV1::new(
-        LirTargetProfile::DARWIN_AARCH64,
-        &foundation,
-        &identities,
-        &digest_plan,
-    )
-    .unwrap();
+    let registration_production =
+        StrongRegistrationProductionSurfaceV1::from_module(&module, &foundation, &digest_plan)
+            .unwrap();
+    let registration_plan = registration_production.safepoints().clone();
+    let callable_registration_plan = registration_production.callables().clone();
+    let type_registration_plan = registration_production.types().clone();
+    let immortal_registration_plan = registration_production.immortal_objects().clone();
+    let static_storage_registration_plan = registration_production.static_storages().clone();
+    let initialization_registration_plan = registration_production.initialization_units().clone();
     let definitions = std::iter::once(definition_plan(body.id()))
         .chain(std::iter::once(callable_registration.plan.id()))
         .chain([

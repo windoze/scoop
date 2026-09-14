@@ -30,6 +30,9 @@ pub use object_symbols::*;
 mod registrations;
 pub use registrations::*;
 
+mod registration_production;
+pub use registration_production::*;
+
 mod stackmaps;
 pub use stackmaps::*;
 
