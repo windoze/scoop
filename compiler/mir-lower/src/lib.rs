@@ -145,6 +145,10 @@ use types::{
 /// Lower one output-sealed LocalConcrete HIR graph to MIR.
 pub fn lower(output: &scoop_hir::LocalConcreteHirOutput) -> mir::Module {
     let module = output.module();
+    let core_shape_support = match output.materialization() {
+        scoop_hir::LocalConcreteMaterializationContract::Ordinary => &[][..],
+        scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) => plan.roots(),
+    };
     let output = match output.output_kind() {
         scoop_hir::LocalConeOutputKind::Library => LoweringOutput::Library,
         scoop_hir::LocalConeOutputKind::Executable { local_entry } => {
@@ -216,7 +220,7 @@ pub fn lower(output: &scoop_hir::LocalConcreteHirOutput) -> mir::Module {
         finalized_function_bridges: HashSet::new(),
         boxing_adjusts: Vec::new(),
     }
-    .run(module)
+    .run(module, core_shape_support)
 }
 
 struct Lowerer {

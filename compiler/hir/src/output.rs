@@ -4,13 +4,13 @@ use std::fmt;
 use std::ops::Deref;
 
 use scoop_identity::{
-    CallableMaterializationContext, CallableTemplateOwner, ExecutableSourceEntryIdentity,
-    PersistentFunctionId,
+    CallableMaterializationContext, CallableTemplateOwner, CoreBuiltinNominal, ExactTypeKey,
+    ExecutableSourceEntryIdentity, PersistentExactTypeId, PersistentFunctionId, PersistentTypeId,
 };
 
 use crate::{
-    ConeOutputKind, ExportHir, HirNativeBoundaryTypeDefinitions, LocalConcreteHir,
-    LocalExecutableEntry, LocalExecutableEntryError, concrete,
+    ConeOutputKind, CoreShapeSupportRequirementsV1, ExportHir, HirNativeBoundaryTypeDefinitions,
+    LocalConcreteHir, LocalExecutableEntry, LocalExecutableEntryError, concrete,
 };
 
 /// Export HIR paired with its validated library/executable contract.
@@ -141,17 +141,133 @@ pub enum LocalConeOutputKind {
     },
 }
 
+/// One core shape-support requirement translated into the LocalConcrete HIR
+/// type-id domain without discarding its persistent HIR authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LocalCoreShapeSupportRoot {
+    source: PersistentTypeId,
+    exact: PersistentExactTypeId,
+    ty: concrete::TypeId,
+    boxed_value: LocalCoreBoxedValueRequirement,
+}
+
+impl LocalCoreShapeSupportRoot {
+    pub const fn source(self) -> PersistentTypeId {
+        self.source
+    }
+
+    pub const fn exact(self) -> PersistentExactTypeId {
+        self.exact
+    }
+
+    pub const fn ty(self) -> concrete::TypeId {
+        self.ty
+    }
+
+    pub const fn boxed_value(self) -> LocalCoreBoxedValueRequirement {
+        self.boxed_value
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LocalCoreBoxedValueRequirement {
+    Required,
+    NotApplicable,
+}
+
+/// Complete local projection of the trusted core's strong shape-support set.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LocalCoreShapeSupportPlan {
+    roots: Vec<LocalCoreShapeSupportRoot>,
+}
+
+impl LocalCoreShapeSupportPlan {
+    pub fn try_new(
+        module: &LocalConcreteHir,
+        requirements: &CoreShapeSupportRequirementsV1,
+    ) -> Result<Self, LocalCoreShapeSupportPlanError> {
+        let mut roots = Vec::with_capacity(requirements.roots().len());
+        for requirement in requirements.roots() {
+            let ty = module
+                .exact_type_identities
+                .type_for_identity(requirement.exact())
+                .ok_or(LocalCoreShapeSupportPlanError::MissingExactType(
+                    requirement.exact(),
+                ))?;
+            let record = &module.exact_type_identities[ty];
+            if record.key() != &ExactTypeKey::Nominal(requirement.source()) {
+                return Err(LocalCoreShapeSupportPlanError::IdentityMismatch {
+                    source: requirement.source(),
+                    exact: requirement.exact(),
+                });
+            }
+            let source = requirement.source();
+            let value_nominal =
+                source == CoreBuiltinNominal::Unit.identity_record().id()
+                    || module.structs.iter().any(|(_, declaration)| {
+                        declaration.origin.concrete_type_id() == Some(source)
+                    })
+                    || module.enums.iter().any(|(_, declaration)| {
+                        declaration.origin.concrete_type_id() == Some(source)
+                    });
+            let reference_nominal =
+                source == CoreBuiltinNominal::Any.identity_record().id()
+                    || module.classes.iter().any(|(_, declaration)| {
+                        declaration.origin.concrete_type_id() == Some(source)
+                    })
+                    || module.interfaces.iter().any(|(_, declaration)| {
+                        declaration.origin.concrete_type_id() == Some(source)
+                    })
+                    || module.objects.iter().any(|(_, declaration)| {
+                        declaration.origin.concrete_type_id() == Some(source)
+                    });
+            let boxed_value = match (value_nominal, reference_nominal) {
+                (true, false) => LocalCoreBoxedValueRequirement::Required,
+                (false, true) => LocalCoreBoxedValueRequirement::NotApplicable,
+                (false, false) => {
+                    return Err(LocalCoreShapeSupportPlanError::MissingSourceNominal(source));
+                }
+                (true, true) => {
+                    return Err(LocalCoreShapeSupportPlanError::AmbiguousSourceNominal(
+                        source,
+                    ));
+                }
+            };
+            roots.push(LocalCoreShapeSupportRoot {
+                source,
+                exact: requirement.exact(),
+                ty,
+                boxed_value,
+            });
+        }
+        Ok(Self { roots })
+    }
+
+    pub fn roots(&self) -> &[LocalCoreShapeSupportRoot] {
+        &self.roots
+    }
+}
+
+/// The lowering contract carried by a closed LocalConcrete HIR product.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LocalConcreteMaterializationContract {
+    Ordinary,
+    CoreShapeSupport(LocalCoreShapeSupportPlan),
+}
+
 /// LocalConcrete HIR paired with its closed output branch.
 #[derive(Debug, Clone)]
 pub struct LocalConcreteHirOutput {
     module: LocalConcreteHir,
     output_kind: LocalConeOutputKind,
+    materialization: LocalConcreteMaterializationContract,
 }
 
 impl LocalConcreteHirOutput {
     pub fn try_new(
         module: LocalConcreteHir,
         output_kind: LocalConeOutputKind,
+        materialization: LocalConcreteMaterializationContract,
     ) -> Result<Self, LocalConcreteHirOutputError> {
         if let LocalConeOutputKind::Executable { local_entry } = &output_kind {
             local_entry
@@ -161,6 +277,7 @@ impl LocalConcreteHirOutput {
         Ok(Self {
             module,
             output_kind,
+            materialization,
         })
     }
 
@@ -170,6 +287,10 @@ impl LocalConcreteHirOutput {
 
     pub const fn output_kind(&self) -> &LocalConeOutputKind {
         &self.output_kind
+    }
+
+    pub const fn materialization(&self) -> &LocalConcreteMaterializationContract {
+        &self.materialization
     }
 
     pub fn into_module(self) -> LocalConcreteHir {
@@ -325,6 +446,28 @@ impl std::error::Error for ConcreteExecutableEntryError {}
 pub enum LocalConcreteHirOutputError {
     InvalidEntry(ConcreteExecutableEntryError),
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LocalCoreShapeSupportPlanError {
+    MissingExactType(PersistentExactTypeId),
+    MissingSourceNominal(PersistentTypeId),
+    AmbiguousSourceNominal(PersistentTypeId),
+    IdentityMismatch {
+        source: PersistentTypeId,
+        exact: PersistentExactTypeId,
+    },
+}
+
+impl fmt::Display for LocalCoreShapeSupportPlanError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "cannot project core shape support into LocalConcrete HIR: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for LocalCoreShapeSupportPlanError {}
 
 impl fmt::Display for LocalConcreteHirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

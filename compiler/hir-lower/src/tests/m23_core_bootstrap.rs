@@ -23,7 +23,27 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     assert_eq!(source.identity.logical_path().as_str(), "src/core.scoop");
     assert_eq!(source.name, "<core>");
     assert!(source.source.is_empty());
-    scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+    let interface = scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+    let requirements = interface.shape_support_requirements();
+    let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) =
+        output.local.materialization()
+    else {
+        panic!("the trusted core LocalConcrete output carries its strong shape plan")
+    };
+    assert_eq!(plan.roots().len(), requirements.roots().len());
+    assert!(
+        plan.roots()
+            .iter()
+            .all(|root| { output.local.exact_type_identities[root.ty()].id() == root.exact() })
+    );
+    assert!(
+        plan.roots().iter().any(|root| {
+            root.boxed_value() == scoop_hir::LocalCoreBoxedValueRequirement::Required
+        })
+    );
+    assert!(plan.roots().iter().any(|root| {
+        root.boxed_value() == scoop_hir::LocalCoreBoxedValueRequirement::NotApplicable
+    }));
 }
 
 #[test]

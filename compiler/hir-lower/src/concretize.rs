@@ -36,6 +36,20 @@ pub(crate) fn lower(module: &export::Module) -> concrete::Module {
 }
 
 pub(crate) fn lower_output(output: &export::ExportHirOutput) -> export::LocalConcreteHirOutput {
+    lower_output_with_contract(output, None)
+}
+
+pub(crate) fn lower_core_output(
+    output: &export::ExportHirOutput,
+    requirements: &export::CoreShapeSupportRequirementsV1,
+) -> export::LocalConcreteHirOutput {
+    lower_output_with_contract(output, Some(requirements))
+}
+
+fn lower_output_with_contract(
+    output: &export::ExportHirOutput,
+    requirements: Option<&export::CoreShapeSupportRequirementsV1>,
+) -> export::LocalConcreteHirOutput {
     let module = output.module();
     export::validate_iteration_plans(module)
         .expect("Export HIR iteration plans must pass the complete reader boundary validator");
@@ -57,7 +71,16 @@ pub(crate) fn lower_output(output: &export::ExportHirOutput) -> export::LocalCon
             )
         }
     };
-    export::LocalConcreteHirOutput::try_new(module, output_kind)
+    let materialization = requirements.map_or(
+        export::LocalConcreteMaterializationContract::Ordinary,
+        |requirements| {
+            export::LocalConcreteMaterializationContract::CoreShapeSupport(
+                export::LocalCoreShapeSupportPlan::try_new(&module, requirements)
+                    .expect("validated core shape roots survive concretization"),
+            )
+        },
+    );
+    export::LocalConcreteHirOutput::try_new(module, output_kind, materialization)
         .expect("concretization produces a structurally valid closed output")
 }
 

@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, PersistentTypeId, SourceDeclarationKey};
+use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
@@ -31,6 +31,37 @@ pub struct CoreHirInterfaceV1 {
     callable_targets: CoreCallableTargetSurfaceV1,
     type_targets: CoreTypeTargetSurfaceV1,
     value_targets: CoreValueTargetSurfaceV1,
+}
+
+/// One parameter-free source nominal whose complete runtime shape is a
+/// mandatory strong-production obligation of the trusted core Cone.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CoreShapeSupportRequirementV1 {
+    source: PersistentTypeId,
+    exact: PersistentExactTypeId,
+}
+
+impl CoreShapeSupportRequirementV1 {
+    pub const fn source(self) -> PersistentTypeId {
+        self.source
+    }
+
+    pub const fn exact(self) -> PersistentExactTypeId {
+        self.exact
+    }
+}
+
+/// Complete, deterministically ordered shape-support requirement set derived
+/// from the validated core HIR interface.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CoreShapeSupportRequirementsV1 {
+    roots: Vec<CoreShapeSupportRequirementV1>,
+}
+
+impl CoreShapeSupportRequirementsV1 {
+    pub fn roots(&self) -> &[CoreShapeSupportRequirementV1] {
+        &self.roots
+    }
 }
 
 impl CoreHirInterfaceV1 {
@@ -84,6 +115,27 @@ impl CoreHirInterfaceV1 {
         &self.value_targets
     }
 
+    /// Projects the authoritative source/exact pairs that every later stage
+    /// must materialize. Aliases never introduce a second nominal root.
+    pub fn shape_support_requirements(&self) -> CoreShapeSupportRequirementsV1 {
+        let mut roots = BTreeMap::new();
+        for target in self.type_targets.targets() {
+            let (
+                CoreTypeDefinitionV1::Type(source),
+                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
+            ) = (target.definition(), target.capability())
+            else {
+                continue;
+            };
+            roots
+                .entry(source)
+                .or_insert(CoreShapeSupportRequirementV1 { source, exact });
+        }
+        CoreShapeSupportRequirementsV1 {
+            roots: roots.into_values().collect(),
+        }
+    }
+
     /// Derives the complete core shape-support obligation set from the
     /// already validated public type surface. Type aliases do not create a
     /// second obligation for their nominal target.
@@ -92,14 +144,8 @@ impl CoreHirInterfaceV1 {
         foundation: &OdrFreeHirFoundation,
     ) -> Result<Vec<SourceDeclarationKey>, CoreShapeSupportSourceProjectionError> {
         let mut sources = BTreeMap::new();
-        for target in self.type_targets.targets() {
-            let (
-                CoreTypeDefinitionV1::Type(source_type),
-                CoreHirTypeCapabilityV1::ParamFreeStrong(_),
-            ) = (target.definition(), target.capability())
-            else {
-                continue;
-            };
+        for requirement in self.shape_support_requirements().roots {
+            let source_type = requirement.source();
             let (_, source) = foundation
                 .as_canonical()
                 .source_type_by_bytes(source_type.as_array())

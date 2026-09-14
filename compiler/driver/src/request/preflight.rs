@@ -1175,6 +1175,39 @@ mod tests {
             .count();
         let real_mir = output.lower_mir().unwrap();
         assert_eq!(real_mir.mir().cone, scoop_identity::ConeIdentity::CORE);
+        let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(shape_plan) =
+            real_mir.hir().hir().local.materialization()
+        else {
+            panic!("trusted core MIR retains the authoritative local shape plan")
+        };
+        assert_eq!(shape_plan.roots().len(), expected_shape_roots);
+        for root in shape_plan.roots() {
+            let exact = root.exact();
+            let mir = real_mir.mir();
+            assert!(
+                mir.meta
+                    .coroutine_steps
+                    .iter()
+                    .any(|(_, step)| { step.identity().result_record().id() == exact })
+            );
+            assert!(
+                mir.meta
+                    .coroutine_slots
+                    .iter()
+                    .any(|(_, slot)| { slot.identity().value_record().id() == exact })
+            );
+            let boxed = mir.meta.boxed_types.iter().any(|boxed| {
+                matches!(
+                    boxed.identity().generated_type_record().key(),
+                    scoop_identity::GeneratedNominalKey::BoxedValue { payload }
+                        if *payload == exact
+                )
+            });
+            assert_eq!(
+                boxed,
+                root.boxed_value() == scoop_hir::LocalCoreBoxedValueRequirement::Required
+            );
+        }
         let scoop_mir::CoreMirBridgeBranchV1::Core(real_core_bridge) =
             real_mir.production_section().core_bridge()
         else {

@@ -216,16 +216,50 @@ impl SingleConeStrongMirInput {
             CoreMirBridgeBranchV1::Core(core) => core.shape_support_roots().to_vec(),
         };
         for root in &core_shape_support_roots {
-            if !source_nominal_shapes
+            let source_shape = source_nominal_shapes
                 .iter()
-                .any(|shape| shape.source() == root.source() && shape.exact() == root.exact())
-            {
+                .find(|shape| shape.source() == root.source() && shape.exact() == root.exact());
+            let Some(source_shape) = source_shape else {
                 return Err(
                     SingleConeStrongMirInputError::MissingCoreShapeSupportSource {
                         source: root.source(),
                         exact: root.exact(),
                     },
                 );
+            };
+            if !module
+                .meta
+                .coroutine_steps
+                .iter()
+                .any(|(_, step)| step.identity().result_record().id() == root.exact())
+            {
+                return Err(SingleConeStrongMirInputError::MissingCoreCoroutineStep(
+                    root.exact(),
+                ));
+            }
+            if !module
+                .meta
+                .coroutine_slots
+                .iter()
+                .any(|(_, slot)| slot.identity().value_record().id() == root.exact())
+            {
+                return Err(SingleConeStrongMirInputError::MissingCoreCoroutineSlot(
+                    root.exact(),
+                ));
+            }
+            if matches!(
+                source_shape.ty(),
+                Type::Unit | Type::Integer(_) | Type::Boolean | Type::Struct(_) | Type::Enum(_, _)
+            ) && !module.meta.boxed_types.iter().any(|boxed| {
+                matches!(
+                    boxed.identity().generated_type_record().key(),
+                    scoop_identity::GeneratedNominalKey::BoxedValue { payload }
+                        if *payload == root.exact()
+                )
+            }) {
+                return Err(SingleConeStrongMirInputError::MissingCoreBoxedValue(
+                    root.exact(),
+                ));
             }
         }
         let materialization = SingleConeStrongMaterializationPlan {
@@ -360,6 +394,9 @@ pub enum SingleConeStrongMirInputError {
         source: PersistentTypeId,
         exact: PersistentExactTypeId,
     },
+    MissingCoreBoxedValue(PersistentExactTypeId),
+    MissingCoreCoroutineStep(PersistentExactTypeId),
+    MissingCoreCoroutineSlot(PersistentExactTypeId),
     MissingStrongCallableBridge {
         index: usize,
         implementation: CallableOwner,
@@ -392,6 +429,9 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::OdrCallableSubject(_)
             | Self::OdrGeneratedNominalShape(_)
             | Self::MissingCoreShapeSupportSource { .. }
+            | Self::MissingCoreBoxedValue(_)
+            | Self::MissingCoreCoroutineStep(_)
+            | Self::MissingCoreCoroutineSlot(_)
             | Self::MissingStrongCallableBridge { .. }
             | Self::OutputMismatch
             | Self::MissingEntryRoot(_)

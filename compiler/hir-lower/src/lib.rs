@@ -430,7 +430,21 @@ fn finish_output(
             format!("failed to seal Export HIR output: {error}"),
         )]
     })?;
-    let local = concretize::lower_output(&export);
+    let local = if export.module().cone == scoop_identity::ConeIdentity::CORE {
+        let production =
+            hir::CoreBootstrapInterfaceSectionV1::from_export(&export).map_err(|error| {
+                vec![Diagnostic::at(
+                    Span { start: 0, end: 0 },
+                    format!("failed to project core HIR interface: {error}"),
+                )]
+            })?;
+        let hir::CoreHirInterfaceBranchV1::Core(interface) = production.core_interface() else {
+            unreachable!("the core HIR production section carries its core interface")
+        };
+        concretize::lower_core_output(&export, &interface.shape_support_requirements())
+    } else {
+        concretize::lower_output(&export)
+    };
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module())
             .map_err(native_boundary_diagnostic)?;
