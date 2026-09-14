@@ -1,7 +1,7 @@
 use scoop_identity::{
-    DigestKind, DigestNodeId, NativeLibraryBinding, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentStaticStorageId, StrongDefinitionEntity,
-    StrongDefinitionEntityKind, StrongDefinitionRole,
+    DefinitionAtomRole, DigestKind, DigestNodeId, NativeLibraryBinding, ObjectDefinitionAtomId,
+    PersistentCallableBodyId, PersistentExactTypeId, PersistentStaticStorageId,
+    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 use scoop_wire::{RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
@@ -134,6 +134,27 @@ impl CanonicalObjectRelocationV1 {
         }
     }
 
+    pub(in crate::link_object) fn owning_associated_atom_offset(
+        offset_within_atom: u64,
+        atom: ObjectDefinitionAtomId,
+        role: DefinitionAtomRole,
+        target_offset_within_atom: u64,
+    ) -> Self {
+        Self {
+            offset_within_atom,
+            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            encoded_value: 0,
+            targets: vec![CanonicalRelocationTargetV1 {
+                slot: RelocationTargetSlotV1::Single,
+                target: CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                    atom,
+                    role,
+                    offset_within_atom: target_offset_within_atom,
+                },
+            }],
+        }
+    }
+
     pub(in crate::link_object) fn normalize_bytes(
         &self,
         bytes: &mut [u8],
@@ -194,6 +215,11 @@ struct CanonicalRelocationTargetV1 {
 enum CanonicalRelocationTargetKindV1 {
     Requirement(FinalUndefinedSymbolRequirementV1),
     StaticStorage(CanonicalStaticStorageTargetV1),
+    OwningAssociatedAtomOffset {
+        atom: ObjectDefinitionAtomId,
+        role: DefinitionAtomRole,
+        offset_within_atom: u64,
+    },
 }
 
 impl RuntimeEncode for CanonicalRelocationTargetV1 {
@@ -209,6 +235,16 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             }
             CanonicalRelocationTargetKindV1::StaticStorage(target) => {
                 encode_static_storage_target(encoder, target)
+            }
+            CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                atom,
+                role,
+                offset_within_atom,
+            } => {
+                encoder.u32(10)?;
+                encoder.fixed(atom.as_array())?;
+                encoder.u32(definition_atom_role_tag(role))?;
+                encoder.u64(offset_within_atom)
             }
         }
     }
@@ -448,6 +484,18 @@ fn encode_static_storage_target(
             encoder.u32(9)?;
             encoder.u32(2)
         }
+    }
+}
+
+fn definition_atom_role_tag(role: DefinitionAtomRole) -> u32 {
+    match role {
+        DefinitionAtomRole::Primary => 1,
+        DefinitionAtomRole::Lsda => 2,
+        DefinitionAtomRole::EhFrame => 3,
+        DefinitionAtomRole::CompactUnwind => 4,
+        DefinitionAtomRole::Stackmap => 5,
+        DefinitionAtomRole::RuntimeRecord => 6,
+        DefinitionAtomRole::AddressTakenConstant => 7,
     }
 }
 

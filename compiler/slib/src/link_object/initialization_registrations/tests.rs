@@ -244,3 +244,74 @@ fn rejects_gateway_digest_slot_at_the_wrong_field() {
         )
     );
 }
+
+#[test]
+fn computes_canonical_initialization_registration_object_leaves() {
+    let eager = Fixture::new(false, Corruption::None);
+    let eager_objects = eager.objects();
+    let eager_verified = verify_strong_initialization_registrations_v1(
+        eager.verified_patch_sites(),
+        eager.plan.clone(),
+        &eager_objects,
+    )
+    .unwrap();
+    let eager_fingerprints = compute_strong_initialization_registration_object_fingerprints_v1(
+        eager_verified,
+        &eager_objects,
+    )
+    .unwrap();
+    let eager_fingerprint = eager_fingerprints.fingerprints()[0];
+    let eager_plan = &eager.plan.registrations()[0];
+    assert_eq!(eager_fingerprint.unit(), eager_plan.semantic().unit());
+    assert_eq!(
+        eager_fingerprint.node(),
+        eager_plan.registration_object_node()
+    );
+    assert_eq!(
+        eager_fingerprint.fingerprint().to_string(),
+        "e33aaabaca1f05ee46642103c796b4a2b87d4e6cbcad896dee204659c9d76a27"
+    );
+
+    let lazy = Fixture::new(true, Corruption::None);
+    let lazy_objects = lazy.objects();
+    let lazy_verified = verify_strong_initialization_registrations_v1(
+        lazy.verified_patch_sites(),
+        lazy.plan.clone(),
+        &lazy_objects,
+    )
+    .unwrap();
+    let lazy_fingerprint = compute_strong_initialization_registration_object_fingerprints_v1(
+        lazy_verified,
+        &lazy_objects,
+    )
+    .unwrap()
+    .fingerprints()[0]
+        .fingerprint();
+
+    assert_ne!(eager_fingerprint.fingerprint(), lazy_fingerprint);
+}
+
+#[test]
+fn initialization_registration_object_hashing_rechecks_object_bytes() {
+    let fixture = Fixture::new(false, Corruption::None);
+    let original = fixture.objects();
+    let verified = verify_strong_initialization_registrations_v1(
+        fixture.verified_patch_sites(),
+        fixture.plan.clone(),
+        &original,
+    )
+    .unwrap();
+    let mut changed = fixture.object_bytes.clone();
+    *changed.last_mut().unwrap() ^= 1;
+    let changed = [crate::link_object::ScoopLirObjectCandidateV1::new(
+        fixture.member,
+        &changed,
+    )];
+
+    assert!(matches!(
+        compute_strong_initialization_registration_object_fingerprints_v1(verified, &changed),
+        Err(StrongInitializationRegistrationObjectFingerprintError::ObjectValidation(
+            StrongInitializationRegistrationValidationError::ObjectBytesMismatch(member)
+        )) if member == fixture.member
+    ));
+}

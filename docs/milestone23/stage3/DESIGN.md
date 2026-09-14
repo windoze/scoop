@@ -1670,6 +1670,18 @@ typed callable id与entry relocation进入canonical record，并不因为被引�
 同理由typed static-registration identity进入。完整计划按unit id排序并保留全部definition/atom/node/patch id，后端
 不得按owner、符号前缀或arena ordinal二次推断。
 
+initialization registration自身的ObjectDefinition leaf只能经
+`compute_strong_initialization_registration_object_fingerprints_v1`消费上述完整registration proof与再次匹配
+content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确352-byte
+provisional record、按atom offset排序的六条Lazy或七条Eager canonical `Unsigned64` relocation及direct-input
+count 0；全部pointer载荷在hash前按verified encoded value归零。cell、storage registration、failure-root
+registration与initializer/ensure/gateway分别编码为精确typed `IntraConeStrong` owner。diagnostic path relocation
+不得伪装成strong definition target，而以canonical target tag 10编码`OwningAssociatedAtomOffset`，随后写
+associated atom id、`AddressTakenConstant` role tag 7及atom内offset 0；member、section ordinal、symbol-table
+index、Mach-O symbol spelling与最终地址均不进入hash。该target tag只授权同一ObjectDefinition plan拥有的
+associated atom，不能用于跨definition引用、无owner section或任意local symbol；不保留忽略diagnostic relocation
+或把它降格为物理索引的旧hash路径。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction
