@@ -59,3 +59,6 @@ pub use entry::*;
 
 mod shape_support;
 pub use shape_support::*;
+
+mod strong_section;
+pub use strong_section::*;
