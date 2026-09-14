@@ -27,6 +27,9 @@ pub use graph::*;
 mod compile_decode;
 pub use compile_decode::*;
 
+mod link_decode;
+pub use link_decode::*;
+
 mod metadata;
 pub use metadata::*;
 

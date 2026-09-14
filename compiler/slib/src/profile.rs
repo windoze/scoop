@@ -136,7 +136,137 @@ impl ArtifactCapabilityProfile {
     pub fn fingerprint(self) -> Result<ArtifactCapabilityProfileFingerprint, HashError> {
         ArtifactCapabilityProfileFingerprint::from_descriptor(&self.descriptor())
     }
+
+    pub(crate) fn validate_link_manifest_inventory(
+        self,
+        sections: &[crate::ManifestSection],
+    ) -> Result<(), ArtifactProfileLinkInventoryError> {
+        let descriptor = self.descriptor();
+        for (index, section) in sections.iter().enumerate() {
+            if section.required_for().contains(MemberPurposeSet::LINK)
+                && !descriptor
+                    .required_manifest()
+                    .contains(section.capability())
+            {
+                return Err(
+                    ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
+                        location: SectionLocation::Manifest,
+                        index,
+                        capability: section.capability().clone(),
+                    },
+                );
+            }
+        }
+        for capability in descriptor.required_manifest().iter().filter(|capability| {
+            CapabilityContractRegistry::contract(capability)
+                .is_some_and(|contract| contract.required_for().contains(MemberPurposeSet::LINK))
+        }) {
+            if !sections
+                .iter()
+                .any(|section| section.capability() == capability)
+            {
+                return Err(
+                    ArtifactProfileLinkInventoryError::MissingRequiredCapability {
+                        location: SectionLocation::Manifest,
+                        capability: capability.clone(),
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_link_metadata_inventory(
+        self,
+        location: crate::MetadataLocation,
+        sections: &[crate::DecodedMetadataSection<'_>],
+    ) -> Result<(), ArtifactProfileLinkInventoryError> {
+        let descriptor = self.descriptor();
+        let expected = match location {
+            crate::MetadataLocation::Hir => descriptor.required_hir(),
+            crate::MetadataLocation::Mir => descriptor.required_mir(),
+            crate::MetadataLocation::Lir => descriptor.required_lir(),
+        };
+        let section_location = match location {
+            crate::MetadataLocation::Hir => SectionLocation::Hir,
+            crate::MetadataLocation::Mir => SectionLocation::Mir,
+            crate::MetadataLocation::Lir => SectionLocation::Lir,
+        };
+        for (index, section) in sections.iter().enumerate() {
+            if section.required_for().contains(MemberPurposeSet::LINK)
+                && !expected.contains(section.capability())
+            {
+                return Err(
+                    ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
+                        location: section_location,
+                        index,
+                        capability: section.capability().clone(),
+                    },
+                );
+            }
+        }
+        for capability in expected.iter().filter(|capability| {
+            CapabilityContractRegistry::contract(capability)
+                .is_some_and(|contract| contract.required_for().contains(MemberPurposeSet::LINK))
+        }) {
+            if !sections
+                .iter()
+                .any(|section| section.capability() == capability)
+            {
+                return Err(
+                    ArtifactProfileLinkInventoryError::MissingRequiredCapability {
+                        location: section_location,
+                        capability: capability.clone(),
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ArtifactProfileLinkInventoryError {
+    MissingRequiredCapability {
+        location: SectionLocation,
+        capability: CapabilityId,
+    },
+    UnsupportedRequiredCapability {
+        location: SectionLocation,
+        index: usize,
+        capability: CapabilityId,
+    },
+}
+
+impl fmt::Display for ArtifactProfileLinkInventoryError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingRequiredCapability {
+                location,
+                capability,
+            } => write!(
+                formatter,
+                "artifact profile requires {location} capability {}/{}/{} for Link",
+                capability.namespace(),
+                capability.name(),
+                capability.major_version(),
+            ),
+            Self::UnsupportedRequiredCapability {
+                location,
+                index,
+                capability,
+            } => write!(
+                formatter,
+                "{location} section {index} requires unsupported Link capability {}/{}/{}",
+                capability.namespace(),
+                capability.name(),
+                capability.major_version(),
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ArtifactProfileLinkInventoryError {}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SectionLocation {
@@ -727,6 +857,53 @@ mod tests {
                 &CapabilityId::new("org.scoop-lang.test", "unknown", 1).unwrap()
             )
             .is_none()
+        );
+    }
+
+    #[test]
+    fn manifest_inventory_is_closed_by_artifact_profile() {
+        let production = crate::ManifestSection::new(
+            manifest_single_cone_production_capability(),
+            MemberPurposeSet::LINK,
+            Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG.validate_link_manifest_inventory(&[]),
+            Err(
+                ArtifactProfileLinkInventoryError::MissingRequiredCapability {
+                    location: SectionLocation::Manifest,
+                    capability: manifest_single_cone_production_capability()
+                }
+            )
+        );
+        assert!(
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG
+                .validate_link_manifest_inventory(std::slice::from_ref(&production))
+                .is_ok()
+        );
+        assert!(matches!(
+            ArtifactCapabilityProfile::IDENTITY_FOUNDATION
+                .validate_link_manifest_inventory(std::slice::from_ref(&production)),
+            Err(
+                ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
+                    location: SectionLocation::Manifest,
+                    index: 0,
+                    ..
+                }
+            )
+        ));
+
+        let optional = crate::ManifestSection::new(
+            CapabilityId::new("org.scoop-lang.test", "optional", 1).unwrap(),
+            MemberPurposeSet::NONE,
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(
+            ArtifactCapabilityProfile::IDENTITY_FOUNDATION
+                .validate_link_manifest_inventory(&[optional])
+                .is_ok()
         );
     }
 

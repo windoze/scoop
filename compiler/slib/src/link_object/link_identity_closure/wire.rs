@@ -478,4 +478,4 @@ fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

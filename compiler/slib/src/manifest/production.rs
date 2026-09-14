@@ -26,6 +26,11 @@ pub use wire::{
     DecodedSingleConeProductionManifestV1, SingleConeProductionManifestValidationError,
 };
 
+#[cfg(test)]
+pub(crate) fn encoded_library_production_manifest_for_test() -> Vec<u8> {
+    wire::tests::library_manifest_bytes()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ArtifactDistributionClassV1 {
     DistributableCone,

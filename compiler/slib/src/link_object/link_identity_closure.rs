@@ -14,6 +14,11 @@ use crate::SlibMemberId;
 mod wire;
 pub use wire::{DecodedLinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError};
 
+#[cfg(test)]
+pub(crate) fn encoded_link_identity_closure_for_test() -> Vec<u8> {
+    wire::tests::encoded_link_identity_closure_for_test()
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LinkObjectMaterializationV1 {
     ScoopLir {

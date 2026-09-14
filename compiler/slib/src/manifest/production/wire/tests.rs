@@ -46,7 +46,7 @@ fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
     );
 }
 
-fn library_manifest_bytes() -> Vec<u8> {
+pub(crate) fn library_manifest_bytes() -> Vec<u8> {
     let mut bytes = vec![0xaa];
     field(&mut bytes, 1);
     bytes.extend_from_slice(&[0xa1, 0x00, 0x01]);

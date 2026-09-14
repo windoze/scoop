@@ -112,3 +112,7 @@ fn closure() -> LinkIdentityClosureSectionV1 {
         entry_owner: super::super::VerifiedEntryOwnerBranchV1::Library,
     }
 }
+
+pub(crate) fn encoded_link_identity_closure_for_test() -> Vec<u8> {
+    encode(&closure()).unwrap()
+}
