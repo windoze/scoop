@@ -17,6 +17,9 @@ use crate::{
     StrongRegistrationIdentitySurfaceV1,
 };
 
+mod semantics;
+pub use semantics::*;
+
 /// All semantic identities and graph writers required to emit one strong
 /// type-registration record.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
