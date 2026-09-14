@@ -10,9 +10,9 @@ use scoop_identity::{
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalLirFoundation, ConeImagePlanV1, GeneratedBridgePlanSetV1,
-    LirTargetProfile, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
-    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
+    CBridgeProductionSetV1, CanonicalLirFoundation, ConeImagePlanV1, EntryProductionPlanV1,
+    GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
+    StrongDigestFinalizationPlanV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
     StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -178,6 +178,25 @@ fn patches_only_the_verified_runtime_image_slot_and_rechecks_the_record() {
             &expected,
         ),
         Err(RuntimeImagePatchError::NonZeroPatchSlot { offset: 0 })
+    ));
+}
+
+#[test]
+fn library_entry_proof_accepts_the_complete_object_set_without_root_artifacts() {
+    let fixture = fixture(Corruption::None, false);
+    let verified = crate::link_object::verify_entry_production_v1(
+        fixture.patch_sites,
+        EntryProductionPlanV1::Library,
+        &[ScoopLirObjectCandidateV1::new(
+            fixture.member,
+            &fixture.bytes,
+        )],
+    )
+    .unwrap();
+
+    assert!(matches!(
+        verified.branch(),
+        crate::link_object::VerifiedEntryProductionBranchV1::Library
     ));
 }
 

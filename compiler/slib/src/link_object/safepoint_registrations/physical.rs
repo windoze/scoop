@@ -73,7 +73,7 @@ pub(in crate::link_object) fn verified_member(
         .ok_or(StrongSafepointRegistrationValidationError::MissingVerifiedMember(member))
 }
 
-pub(super) fn atom_file_range(
+pub(in crate::link_object) fn atom_file_range(
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: VerifiedDefinitionAtomRangeV1,
 ) -> Result<(BuiltinObjectSectionRoleV1, u64, u64), SafepointRegistrationAtomFileRangeFailureV1> {

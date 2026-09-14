@@ -58,6 +58,9 @@ pub use initialization_registrations::*;
 mod cone_image;
 pub use cone_image::*;
 
+mod entry_production;
+pub use entry_production::*;
+
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 
