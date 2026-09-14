@@ -34,9 +34,9 @@ pub use trusted_core::{
     TrustedCoreArtifactAuthorityError, TrustedCoreArtifactInput, TrustedCoreArtifactInputError,
     TrustedCoreArtifactLoadError, TrustedCoreArtifactLoadOperation, TrustedCoreArtifactSlot,
     TrustedCoreArtifactValidationError, TrustedCoreArtifactView, TrustedCoreBootstrapInput,
-    TrustedCoreSlot, TrustedCoreSlotError, TrustedCoreSlotErrorKind, TrustedCoreSlotIoOperation,
-    TrustedCoreSourceSlot, ValidatedCoreInterface, ValidatedTrustedCoreArtifact,
-    resolve_trusted_core_slot,
+    TrustedCoreCallableProjectionError, TrustedCoreSlot, TrustedCoreSlotError,
+    TrustedCoreSlotErrorKind, TrustedCoreSlotIoOperation, TrustedCoreSourceSlot,
+    ValidatedTrustedCoreArtifact, resolve_trusted_core_slot,
 };
 
 /// Text dumps of every pipeline stage, for golden-dump testing and

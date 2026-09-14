@@ -108,6 +108,8 @@ impl ImportedHirFoundation {
                 .ok_or(CorePreludeImportError::MissingBindingIdentity(binding))?;
             let target = core_prelude_target(interface, binding)?;
             bindings.push(ImportedCorePreludeBinding {
+                foundation: self,
+                interface,
                 identity,
                 key,
                 target,
@@ -215,6 +217,8 @@ impl ImportedHirSet<'_, CorePreludeOnly> {
 }
 
 pub struct ImportedCorePreludeBinding<'a> {
+    foundation: &'a ImportedHirFoundation,
+    interface: &'a CoreHirInterfaceV1,
     identity: ImportedHirId<PersistentExportBindingId>,
     key: &'a ExportBindingKey,
     target: ImportedCorePreludeTarget<'a>,
@@ -278,6 +282,8 @@ impl<'a> ImportedCorePreludeBinding<'a> {
                 required,
             }),
             None => Ok(SelectedImportedCoreTarget {
+                foundation: self.foundation,
+                interface: self.interface,
                 binding: self.identity,
                 target: self.target,
             }),
@@ -297,8 +303,10 @@ pub enum ImportedCorePreludeTarget<'a> {
 /// Its fields are private so a raw lookup candidate or persistent id cannot
 /// be promoted without checking the capability attached by the trusted core
 /// artifact.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct SelectedImportedCoreTarget<'a> {
+    foundation: &'a ImportedHirFoundation,
+    interface: &'a CoreHirInterfaceV1,
     binding: ImportedHirId<PersistentExportBindingId>,
     target: ImportedCorePreludeTarget<'a>,
 }
@@ -310,6 +318,25 @@ impl<'a> SelectedImportedCoreTarget<'a> {
 
     pub const fn target(self) -> ImportedCorePreludeTarget<'a> {
         self.target
+    }
+
+    #[doc(hidden)]
+    pub fn belongs_to(
+        self,
+        foundation: &ImportedHirFoundation,
+        interface: &CoreHirInterfaceV1,
+    ) -> bool {
+        std::ptr::eq(self.foundation, foundation) && std::ptr::eq(self.interface, interface)
+    }
+}
+
+impl fmt::Debug for SelectedImportedCoreTarget<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SelectedImportedCoreTarget")
+            .field("binding", &self.binding)
+            .field("target", &self.target)
+            .finish_non_exhaustive()
     }
 }
 

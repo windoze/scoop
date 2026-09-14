@@ -233,6 +233,11 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
                 == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
     ));
     let selected = string[0].select_param_free_strong().unwrap();
+    let other_imported = imported_foundation(&fixture.foundation);
+    let other_interface = fixture.interface.clone();
+    assert!(selected.belongs_to(&imported, &fixture.interface));
+    assert!(!selected.belongs_to(&other_imported, &fixture.interface));
+    assert!(!selected.belongs_to(&imported, &other_interface));
     assert_eq!(selected.binding(), string[0].identity());
     assert!(matches!(
         selected.target(),

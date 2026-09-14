@@ -26,7 +26,10 @@ pub use wire::{
 mod imported;
 mod projection;
 mod strong_profile;
-pub use imported::{ImportedMirFoundation, ImportedMirId};
+pub use imported::{
+    ImportedMirCallableProjectionError, ImportedMirFoundation, ImportedMirId,
+    SelectedImportedMirCallable,
+};
 pub use strong_profile::{
     OdrFreeMirFoundation, OdrFreeMirFoundationError, OdrFreeMirFoundationProjectionError,
 };

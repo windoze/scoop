@@ -5,11 +5,18 @@ use std::path::{Path, PathBuf};
 
 use scoop_codegen::ResolvedTargetProfile;
 use scoop_hir::{
-    CoreHirInterfaceBranchV1, CoreHirInterfaceV1, CorePreludeImportError, CorePreludeOnly,
-    ImportedHirSet,
+    CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
+    CoreHirInterfaceV1, CorePreludeImportError, CorePreludeOnly, ImportedCorePreludeTarget,
+    ImportedHirSet, SelectedImportedCoreTarget,
 };
-use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
-use scoop_lir::{StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection};
+use scoop_identity::{
+    ConeCoordinate, ConeIdentity, PersistentExportBindingId, SemanticIdentitySession,
+};
+use scoop_lir::{
+    ImportedLirCallableProjectionError, SelectedImportedLirCallable,
+    StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
+};
+use scoop_mir::{ImportedMirCallableProjectionError, SelectedImportedMirCallable};
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CompositeIdentityAbiFingerprint, ConeKind,
     ConeSourceForm, DecodedSlibEnvelope, GraphValidationError, PublishViewMismatchError,
@@ -248,7 +255,7 @@ impl LoadedTrustedCoreArtifact {
             authority: TrustedCoreArtifactAuthority::from_input(&self.input),
             core_interface,
             publication,
-            semantic_session,
+            _semantic_session: semantic_session,
         })
     }
 }
@@ -341,7 +348,7 @@ impl TrustedCoreArtifactAuthority {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ValidatedCoreInterface {
+struct ValidatedCoreInterface {
     interface: CoreHirInterfaceV1,
 }
 
@@ -351,24 +358,14 @@ pub struct ValidatedTrustedCoreArtifact<'input> {
     authority: TrustedCoreArtifactAuthority,
     core_interface: ValidatedCoreInterface,
     publication: PublishableSingleConeArtifact,
-    semantic_session: SemanticIdentitySession,
+    // Retained as the owner of the session-local identity world. It is not a
+    // lookup surface and deliberately has no projection getter.
+    _semantic_session: SemanticIdentitySession,
 }
 
 impl<'input> ValidatedTrustedCoreArtifact<'input> {
-    pub const fn compile(&self) -> &ValidatedCompileArtifact<'input, SingleConeStrongProfile> {
-        &self.compile
-    }
-
-    pub const fn link(&self) -> &ValidatedSingleConeStrongLinkArtifact<'input> {
-        &self.link
-    }
-
     pub const fn authority(&self) -> &TrustedCoreArtifactAuthority {
         &self.authority
-    }
-
-    pub const fn core_interface(&self) -> &ValidatedCoreInterface {
-        &self.core_interface
     }
 
     /// Projects the only HIR lookup capability authorized for an M23-3
@@ -381,16 +378,145 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .import_core_prelude(&self.core_interface.interface)
     }
 
+    /// Projects one checked param-free callable candidate through this exact
+    /// trusted artifact's HIR and MIR production surfaces.
+    pub fn project_core_callable_to_mir<'artifact>(
+        &'artifact self,
+        selected: SelectedImportedCoreTarget<'_>,
+    ) -> Result<SelectedImportedMirCallable<'artifact>, TrustedCoreCallableProjectionError> {
+        let ImportedCorePreludeTarget::Callable(selected_target) = selected.target() else {
+            return Err(TrustedCoreCallableProjectionError::NotCallable {
+                binding: selected.binding().persistent(),
+            });
+        };
+        let binding = selected.binding();
+        if !selected.belongs_to(self.compile.hir(), &self.core_interface.interface) {
+            return Err(TrustedCoreCallableProjectionError::ForeignHirSelection {
+                binding: binding.persistent(),
+            });
+        }
+        let own_target = self
+            .core_interface
+            .interface
+            .callable_targets()
+            .targets()
+            .iter()
+            .find(|target| target.binding() == binding.persistent())
+            .ok_or(TrustedCoreCallableProjectionError::MissingHirCallable {
+                binding: binding.persistent(),
+            })?;
+        if own_target != selected_target {
+            return Err(TrustedCoreCallableProjectionError::ForeignHirSelection {
+                binding: binding.persistent(),
+            });
+        }
+        let CoreCallableDefinitionV1::Function(definition) = own_target.definition() else {
+            return Err(
+                TrustedCoreCallableProjectionError::InvalidHirCallableDefinition {
+                    binding: binding.persistent(),
+                },
+            );
+        };
+        let CoreHirCallableCapabilityV1::ParamFreeStrong(signature) = own_target.capability()
+        else {
+            return Err(TrustedCoreCallableProjectionError::UnavailableHirCallable {
+                binding: binding.persistent(),
+            });
+        };
+        self.compile
+            .mir()
+            .project_core_callable(
+                self.compile.production().mir(),
+                binding.persistent(),
+                definition,
+                signature.clone(),
+            )
+            .map_err(TrustedCoreCallableProjectionError::Mir)
+    }
+
+    /// Projects an MIR selection from this artifact into the exact LIR body,
+    /// symbol request, and strong definition authority supplied by the same
+    /// artifact. A value borrowed from another proof is rejected before any
+    /// persistent identity is reused, even if both artifacts have equal bytes.
+    pub fn project_core_callable_to_lir<'artifact>(
+        &'artifact self,
+        selected: &SelectedImportedMirCallable<'_>,
+    ) -> Result<SelectedImportedLirCallable<'artifact>, TrustedCoreCallableProjectionError> {
+        if !selected.belongs_to(self.compile.mir(), self.compile.production().mir()) {
+            return Err(TrustedCoreCallableProjectionError::ForeignMirSelection {
+                binding: selected.binding(),
+            });
+        }
+        self.compile
+            .lir()
+            .project_core_callable(
+                self.compile.production().lir().canonical_definitions(),
+                selected.binding(),
+                selected.implementation(),
+                selected.signature().clone(),
+            )
+            .map_err(TrustedCoreCallableProjectionError::Lir)
+    }
+
     pub const fn publication(&self) -> &PublishableSingleConeArtifact {
         &self.publication
     }
 
-    pub const fn semantic_session(&self) -> &SemanticIdentitySession {
-        &self.semantic_session
-    }
-
     pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
         self.link.link_identity_closure().defined_symbols()
+    }
+}
+
+#[derive(Debug)]
+pub enum TrustedCoreCallableProjectionError {
+    NotCallable { binding: PersistentExportBindingId },
+    ForeignHirSelection { binding: PersistentExportBindingId },
+    MissingHirCallable { binding: PersistentExportBindingId },
+    InvalidHirCallableDefinition { binding: PersistentExportBindingId },
+    UnavailableHirCallable { binding: PersistentExportBindingId },
+    Mir(ImportedMirCallableProjectionError),
+    ForeignMirSelection { binding: PersistentExportBindingId },
+    Lir(ImportedLirCallableProjectionError),
+}
+
+impl fmt::Display for TrustedCoreCallableProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotCallable { binding } => {
+                write!(formatter, "selected core binding {binding} is not callable")
+            }
+            Self::ForeignHirSelection { binding } => write!(
+                formatter,
+                "selected core HIR binding {binding} belongs to another artifact projection"
+            ),
+            Self::MissingHirCallable { binding } => {
+                write!(formatter, "trusted core HIR callable {binding} is missing")
+            }
+            Self::InvalidHirCallableDefinition { binding } => write!(
+                formatter,
+                "trusted core HIR callable {binding} is not a param-free function definition"
+            ),
+            Self::UnavailableHirCallable { binding } => write!(
+                formatter,
+                "trusted core HIR callable {binding} is unavailable to this production profile"
+            ),
+            Self::Mir(error) => error.fmt(formatter),
+            Self::ForeignMirSelection { binding } => write!(
+                formatter,
+                "selected core MIR binding {binding} belongs to another artifact projection"
+            ),
+            Self::Lir(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for TrustedCoreCallableProjectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Mir(error) => Some(error),
+            Self::Lir(error) => Some(error),
+            _ => None,
+        }
     }
 }
 
