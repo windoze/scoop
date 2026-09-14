@@ -16,6 +16,7 @@ use crate::link_object::{
     DecodedCanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalUndefinedSymbolRequirementSetV1,
     DecodedFixedBytesV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
     PlannedLinkObjectMemberSetV1, ProvisionalDigestPatchSiteV1, VerifiedCodeFingerprintV1,
+    VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use crate::{LinkMemberFingerprint, SlibMemberId};
 
@@ -353,6 +354,14 @@ pub struct DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
     provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
 }
 
+/// A decoded closure whose first three fields are canonical projections of
+/// the checked member plan and exact verified object/digest proofs.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
+    decoded: DecodedLinkIdentityClosureSectionV1,
+    member_plan: PlannedLinkObjectMemberSetV1,
+}
+
 impl MaterializationCheckedLinkIdentityClosureSectionV1 {
     pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
         &self.member_plan
@@ -457,6 +466,42 @@ impl DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
 
     pub fn provisional_patch_sites(&self) -> &[ProvisionalDigestPatchSiteV1] {
         &self.provisional_patch_sites
+    }
+
+    pub fn validate_object_projections(
+        self,
+        patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
+    ) -> Result<
+        ObjectProjectionCheckedLinkIdentityClosureSectionV1,
+        LinkObjectProjectionValidationError,
+    > {
+        if patch_sites.builtins().member_plan() != &self.member_plan {
+            return Err(LinkObjectProjectionValidationError::MemberPlanMismatch);
+        }
+        validate_array_projection(
+            &self.decoded.definition_indexes,
+            &super::definition_indexes(patch_sites.builtins()),
+        )?;
+        validate_array_projection(&self.decoded.patch_sites, patch_sites.sites())?;
+        Ok(ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
+            decoded: self.decoded,
+            member_plan: self.member_plan,
+        })
+    }
+
+    pub fn validate(
+        self,
+        code: &VerifiedCodeFingerprintV1,
+    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
+        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
+            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
+        validate_against(self.decoded, &expected)
+    }
+}
+
+impl ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
+    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
+        &self.member_plan
     }
 
     pub fn validate(
@@ -596,6 +641,28 @@ impl fmt::Display for LinkDigestPatchInputValidationError {
 
 impl std::error::Error for LinkDigestPatchInputValidationError {}
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum LinkObjectProjectionValidationError {
+    MemberPlanMismatch,
+    ProjectionMismatch,
+    Encode(scoop_wire::cbor::EncodeError),
+}
+
+impl fmt::Display for LinkObjectProjectionValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid Link object projection: {self:?}")
+    }
+}
+
+impl std::error::Error for LinkObjectProjectionValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Encode(error) => Some(error),
+            Self::MemberPlanMismatch | Self::ProjectionMismatch => None,
+        }
+    }
+}
+
 impl fmt::Display for LinkObjectMaterializationValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "invalid Link object materialization: {self:?}")
@@ -673,6 +740,20 @@ fn validate_against(
         return Err(LinkIdentityClosureSectionValidationError::ProjectionMismatch);
     }
     Ok(expected.clone())
+}
+
+fn validate_array_projection(
+    actual: &[impl WireEncode],
+    expected: &[impl WireEncode],
+) -> Result<(), LinkObjectProjectionValidationError> {
+    let actual = encode(&WireArray(actual)).map_err(LinkObjectProjectionValidationError::Encode)?;
+    let expected =
+        encode(&WireArray(expected)).map_err(LinkObjectProjectionValidationError::Encode)?;
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(LinkObjectProjectionValidationError::ProjectionMismatch)
+    }
 }
 
 #[derive(Debug)]

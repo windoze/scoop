@@ -6,11 +6,11 @@ use scoop_identity::{
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, CanonicalLirFoundation,
-    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, EntryProductionSourceV1,
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
-    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
-    ValidatedLirTargetSelection,
+    AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
+    CanonicalLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
+    EntryProductionSourceV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    StrongExternalLirBridgeSurfaceV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
+    StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
 use scoop_wire::{DecodeLimits, encode};
 
@@ -163,6 +163,50 @@ fn link_materialization_requires_the_complete_planned_object_directory() {
             .unwrap()
             .validate_materializations(),
         Err(StrongLinkMaterializationError::MissingObjectMember(_))
+    ));
+}
+
+#[test]
+fn link_digest_patch_rejects_a_stale_definition_index_projection() {
+    let fixture = link_object_fixture();
+    let stale_closure = MetadataSection::new(
+        MetadataLocation::Lir,
+        lir_link_identity_closure_capability(),
+        MemberPurposeSet::LINK,
+        crate::link_object::encoded_link_identity_closure_without_object_projection_for_test(
+            &fixture.plan,
+            digest_patch_intent(),
+            fixture.plan.scoop_lir_members()[0].member_id(),
+            fixture.checked_offset,
+        ),
+    )
+    .unwrap();
+    let bytes = artifact(
+        vec![production_manifest_section()],
+        vec![strong_section(), stale_closure],
+    );
+    let external =
+        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_link_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure()
+            .unwrap()
+            .validate_production(&external)
+            .unwrap()
+            .validate_materializations()
+            .unwrap()
+            .validate_c_bridge_envelopes(&c_bridge_profile())
+            .unwrap()
+            .validate_builtin_objects()
+            .unwrap()
+            .validate_digest_patch_sites(),
+        Err(StrongLinkDigestPatchError::ClosureProjection(
+            LinkObjectProjectionValidationError::ProjectionMismatch
+        ))
     ));
 }
 
@@ -523,17 +567,17 @@ fn strong_section() -> MetadataSection {
 }
 
 fn closure_section() -> MetadataSection {
-    let plan = link_object_plan();
-    let (_, checked_offset) = link_object_fixture();
+    let fixture = link_object_fixture();
     MetadataSection::new(
         MetadataLocation::Lir,
         lir_link_identity_closure_capability(),
         MemberPurposeSet::LINK,
         crate::link_object::encoded_link_identity_closure_for_patch_test(
-            &plan,
+            &fixture.plan,
+            &fixture.builtins,
             digest_patch_intent(),
-            plan.scoop_lir_members()[0].member_id(),
-            checked_offset,
+            fixture.plan.scoop_lir_members()[0].member_id(),
+            fixture.checked_offset,
         ),
     )
     .unwrap()
@@ -682,18 +726,57 @@ fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
     PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap()
 }
 
-fn link_object_fixture() -> (Vec<u8>, u64) {
-    let (canonical, _) = strong_production_fixture(cone().coordinate().clone());
+struct LinkObjectFixture {
+    bytes: Vec<u8>,
+    checked_offset: u64,
+    plan: PlannedLinkObjectMemberSetV1,
+    builtins: crate::VerifiedBuiltinObjectStrongRelocationSetV1,
+}
+
+fn link_object_fixture() -> LinkObjectFixture {
+    let (canonical, production) = strong_production_fixture(cone().coordinate().clone());
     let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let plan = link_object_plan();
     let symbols =
         PlannedStrongObjectSymbolSetV1::new(selection().target(), &surface, &plan).unwrap();
-    crate::link_object::scoop_object_with_digest_slot_for_symbol_plan_test(&symbols.members()[0])
+    let (bytes, checked_offset) =
+        crate::link_object::scoop_object_with_digest_slot_for_symbol_plan_test(
+            &symbols.members()[0],
+        );
+    let bridge_plan = production.generated_bridge_plan().clone();
+    let profile = c_bridge_profile();
+    let bridge_production =
+        CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
+    let bridge_production = crate::verify_c_bridge_production_envelopes_v1(
+        bridge_plan,
+        bridge_production,
+        &profile,
+        &plan,
+        &[],
+    )
+    .unwrap();
+    let builtins = crate::verify_builtin_object_strong_relocations_v1(
+        &plan,
+        &symbols,
+        &[crate::ScoopLirObjectCandidateV1::new(
+            plan.scoop_lir_members()[0].member_id(),
+            &bytes,
+        )],
+        bridge_production,
+        &[],
+    )
+    .unwrap();
+    LinkObjectFixture {
+        bytes,
+        checked_offset,
+        plan,
+        builtins,
+    }
 }
 
 fn link_object_bytes() -> Vec<u8> {
-    link_object_fixture().0
+    link_object_fixture().bytes
 }
 
 fn digest_patch_intent() -> scoop_identity::DigestPatchIntentId {

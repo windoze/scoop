@@ -7,7 +7,8 @@ use crate::link_object::symbol_verification::tests::fixture_named;
 use crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong;
 use crate::link_object::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1,
-    empty_code_link_object_member_set_for_test, verify_current_cone_strong_relocation_closure_v1,
+    VerifiedBuiltinObjectStrongRelocationSetV1, empty_code_link_object_member_set_for_test,
+    verify_current_cone_strong_relocation_closure_v1,
 };
 
 #[test]
@@ -122,7 +123,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
                 .target_definition(),
         )
         .unwrap();
-    let bytes = encoded_link_identity_closure_for_patch_test(&plan, intent, member, 144);
+    let bytes = encoded_link_identity_closure_for_patch_test(&plan, None, intent, member, 144);
     let decoded =
         decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
             .unwrap();
@@ -162,7 +163,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     .unwrap();
     assert_ne!(unknown_intent, intent);
     let unknown = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
-        &encoded_link_identity_closure_for_patch_test(&plan, unknown_intent, member, 144),
+        &encoded_link_identity_closure_for_patch_test(&plan, None, unknown_intent, member, 144),
         DecodeLimits::default(),
     )
     .unwrap()
@@ -242,6 +243,7 @@ pub(crate) fn encoded_link_identity_closure_for_member_plan_test(
 
 pub(crate) fn encoded_link_identity_closure_for_patch_test(
     plan: &PlannedLinkObjectMemberSetV1,
+    builtins: Option<&VerifiedBuiltinObjectStrongRelocationSetV1>,
     intent: DigestPatchIntentId,
     member: SlibMemberId,
     checked_offset: u64,
@@ -251,6 +253,14 @@ pub(crate) fn encoded_link_identity_closure_for_patch_test(
         DecodeLimits::default(),
     )
     .unwrap();
+    if let Some(builtins) = builtins {
+        projection.definition_indexes = super::super::definition_indexes(builtins)
+            .iter()
+            .map(|index| {
+                decode_canonical(&encode(index).unwrap(), DecodeLimits::default()).unwrap()
+            })
+            .collect();
+    }
     projection.patch_sites = vec![DecodedMaterializedPatchSiteV1 {
         intent: decode_canonical(&encode(&intent).unwrap(), DecodeLimits::default()).unwrap(),
         member: decode_canonical(&encode(&member).unwrap(), DecodeLimits::default()).unwrap(),

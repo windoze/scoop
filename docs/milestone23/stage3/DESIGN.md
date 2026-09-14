@@ -1053,6 +1053,13 @@ typed expected值，数组必须按intent严格递增、无重复且完整覆盖
 verifier，并继续拥有其余未验证closure字段；只有物理range、零值与relocation检查完成后，才产生
 `VerifiedScoopLirDigestPatchSiteSetV1`。最终仍从同一Code proof重建并核对完整八字段closure。
 
+同一物理证明完成后，reader必须从
+`VerifiedBuiltinObjectStrongRelocationSetV1`重建完整field 2 definition index，并从
+`VerifiedScoopLirDigestPatchSiteSetV1`重建完整field 3 patch site projection，对两个array分别做canonical
+byte等值后才形成`ObjectProjectionCheckedLinkIdentityClosureSectionV1`。该状态连同前述materialization
+证明一起只授权closure fields 1--3；definition range、symbol-table index、member或offset不允许从decoded
+carrier直接提升，其余fields 4--8仍保持未验证，最终完整八字段比较不能省略。
+
 它不贡献新的LIR semantic bytes。reader从`StrongProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
 
 ### 9.5 manifest production section

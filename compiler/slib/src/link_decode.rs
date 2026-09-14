@@ -28,20 +28,19 @@ use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
     BuiltinObjectSetValidationError, CBridgeCheckedSingleConeProductionManifestV1,
     CBridgeProductionEnvelopeValidationError, DecodedLinkIdentityClosureSectionV1,
-    DecodedMetadataEnvelope, DecodedSingleConeProductionManifestV1,
-    DigestPatchInputCheckedLinkIdentityClosureSectionV1, DigestPatchSiteValidationError,
+    DecodedMetadataEnvelope, DecodedSingleConeProductionManifestV1, DigestPatchSiteValidationError,
     GeneratedCBridgeObjectCandidateV1, LinkDigestPatchInputValidationError,
-    LinkObjectMaterializationValidationError, ManifestSection,
+    LinkObjectMaterializationValidationError, LinkObjectProjectionValidationError, ManifestSection,
     MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
-    PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1, SemanticFingerprintError,
-    SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord, SlibMemberRole,
-    StrongObjectSymbolPlanningError, ValidatedGraphArtifact, ValidatedSingleConeStrongProduction,
-    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedCBridgeProductionEnvelopeSetV1,
-    VerifiedScoopLirDigestPatchSiteSetV1, hir_core_bootstrap_interface_capability,
-    hir_identity_foundation_capability, lir_identity_foundation_capability,
-    lir_link_identity_closure_capability, lir_strong_production_capability,
-    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
+    ScoopLirObjectCandidateV1, SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId,
+    SlibMemberRecord, SlibMemberRole, StrongObjectSymbolPlanningError, ValidatedGraphArtifact,
+    ValidatedSingleConeStrongProduction, VerifiedBuiltinObjectStrongRelocationSetV1,
+    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
+    lir_identity_foundation_capability, lir_link_identity_closure_capability,
+    lir_strong_production_capability, manifest_single_cone_production_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 
 const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
@@ -153,7 +152,7 @@ pub struct DigestPatchCheckedSingleConeLinkSections<'input> {
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
-    link_identity_closure: DigestPatchInputCheckedLinkIdentityClosureSectionV1,
+    link_identity_closure: ObjectProjectionCheckedLinkIdentityClosureSectionV1,
     scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
     generated_bridge_objects: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
     digest_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
@@ -880,6 +879,9 @@ impl<'input> BuiltinObjectCheckedSingleConeLinkSections<'input> {
             link_identity_closure.provisional_patch_sites(),
         )
         .map_err(StrongLinkDigestPatchError::ObjectSites)?;
+        let link_identity_closure = link_identity_closure
+            .validate_object_projections(&digest_patch_sites)
+            .map_err(StrongLinkDigestPatchError::ClosureProjection)?;
         Ok(DigestPatchCheckedSingleConeLinkSections {
             graph,
             identities,
@@ -931,7 +933,7 @@ impl DigestPatchCheckedSingleConeLinkSections<'_> {
         &self.production
     }
 
-    pub const fn patch_inputs(&self) -> &DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
+    pub const fn object_projections(&self) -> &ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
         &self.link_identity_closure
     }
 
@@ -1303,6 +1305,7 @@ impl std::error::Error for StrongLinkBuiltinObjectError {
 pub enum StrongLinkDigestPatchError {
     ClosureInput(LinkDigestPatchInputValidationError),
     ObjectSites(DigestPatchSiteValidationError),
+    ClosureProjection(LinkObjectProjectionValidationError),
 }
 
 impl fmt::Display for StrongLinkDigestPatchError {
@@ -1316,6 +1319,7 @@ impl std::error::Error for StrongLinkDigestPatchError {
         Some(match self {
             Self::ClosureInput(error) => error,
             Self::ObjectSites(error) => error,
+            Self::ClosureProjection(error) => error,
         })
     }
 }
