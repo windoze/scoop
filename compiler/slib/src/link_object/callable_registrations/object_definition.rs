@@ -5,7 +5,6 @@ use scoop_identity::{
 };
 use scoop_wire::{RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
-use super::body_fingerprints::CallableBodyRelocationFailureV1;
 use crate::link_object::{
     CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
     FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
@@ -16,6 +15,16 @@ use crate::link_object::{
 };
 
 const PRIMARY_ATOM_ROLE: u32 = 1;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ObjectDefinitionRelocationFailureV1 {
+    BindingCount,
+    UnsupportedLocalOrSectionTarget,
+    UnsupportedObjectLocalOwner,
+    MissingUndefinedRequirement,
+    Range,
+    EncodedValue,
+}
 
 pub(in crate::link_object) struct ObjectDefinitionFingerprintInputV1<'a> {
     pub(in crate::link_object) bytes: &'a [u8],
@@ -102,21 +111,21 @@ impl CanonicalObjectRelocationV1 {
         }
     }
 
-    pub(super) fn normalize_bytes(
+    pub(in crate::link_object) fn normalize_bytes(
         &self,
         bytes: &mut [u8],
-    ) -> Result<(), CallableBodyRelocationFailureV1> {
+    ) -> Result<(), ObjectDefinitionRelocationFailureV1> {
         let start = usize::try_from(self.offset_within_atom)
-            .map_err(|_| CallableBodyRelocationFailureV1::Range)?;
+            .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
         match self.form {
             VerifiedDarwinArm64RelocationFormV1::Unsigned64
             | VerifiedDarwinArm64RelocationFormV1::Subtractor64 => {
                 let slot = bytes
                     .get_mut(start..start + 8)
-                    .ok_or(CallableBodyRelocationFailureV1::Range)?;
+                    .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
                 let actual = u64::from_le_bytes(slot.try_into().expect("eight-byte slot"));
                 if actual != self.encoded_value {
-                    return Err(CallableBodyRelocationFailureV1::EncodedValue);
+                    return Err(ObjectDefinitionRelocationFailureV1::EncodedValue);
                 }
                 slot.fill(0);
             }
@@ -169,13 +178,13 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
     }
 }
 
-pub(super) fn canonicalize_relocations(
+pub(in crate::link_object) fn canonicalize_relocations(
     bytes: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: scoop_identity::ObjectDefinitionAtomId,
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     requirements: &CanonicalUndefinedSymbolRequirementSetV1,
-) -> Result<Vec<CanonicalObjectRelocationV1>, CallableBodyRelocationFailureV1> {
+) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
     let mut output = Vec::new();
     for relocation in member
         .relocations()
@@ -183,7 +192,7 @@ pub(super) fn canonicalize_relocations(
         .filter(|relocation| relocation.containing_atom() == atom)
     {
         if shape_has_local_or_section_target(relocation.shape()) {
-            return Err(CallableBodyRelocationFailureV1::UnsupportedLocalOrSectionTarget);
+            return Err(ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget);
         }
         let bindings = closure
             .bindings()
@@ -199,7 +208,7 @@ pub(super) fn canonicalize_relocations(
             VerifiedDarwinArm64RelocationFormV1::Subtractor64
         )) + 1;
         if bindings.len() != expected_count {
-            return Err(CallableBodyRelocationFailureV1::BindingCount);
+            return Err(ObjectDefinitionRelocationFailureV1::BindingCount);
         }
         let mut targets = bindings
             .into_iter()
@@ -211,7 +220,7 @@ pub(super) fn canonicalize_relocations(
                         }
                         _ => {
                             return Err(
-                                CallableBodyRelocationFailureV1::UnsupportedObjectLocalOwner,
+                                ObjectDefinitionRelocationFailureV1::UnsupportedObjectLocalOwner,
                             );
                         }
                     },
@@ -223,7 +232,9 @@ pub(super) fn canonicalize_relocations(
                             .iter()
                             .find(|requirement| requirement.use_site() == &use_site)
                             .map(|requirement| requirement.requirement())
-                            .ok_or(CallableBodyRelocationFailureV1::MissingUndefinedRequirement)?
+                            .ok_or(
+                                ObjectDefinitionRelocationFailureV1::MissingUndefinedRequirement,
+                            )?
                     }
                 };
                 Ok(CanonicalRelocationTargetV1 {
@@ -243,14 +254,14 @@ pub(super) fn canonicalize_relocations(
     output.sort_unstable_by_key(|relocation| relocation.offset_within_atom);
     for relocation in &output {
         let start = usize::try_from(relocation.offset_within_atom)
-            .map_err(|_| CallableBodyRelocationFailureV1::Range)?;
+            .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
         let width = match relocation.form {
             VerifiedDarwinArm64RelocationFormV1::Unsigned64
             | VerifiedDarwinArm64RelocationFormV1::Subtractor64 => 8,
             _ => 4,
         };
         if bytes.get(start..start + width).is_none() {
-            return Err(CallableBodyRelocationFailureV1::Range);
+            return Err(ObjectDefinitionRelocationFailureV1::Range);
         }
     }
     Ok(output)
@@ -287,13 +298,13 @@ fn normalize_u32(
     start: usize,
     expected: u64,
     keep_mask: u32,
-) -> Result<(), CallableBodyRelocationFailureV1> {
+) -> Result<(), ObjectDefinitionRelocationFailureV1> {
     let slot = bytes
         .get_mut(start..start + 4)
-        .ok_or(CallableBodyRelocationFailureV1::Range)?;
+        .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
     let actual = u32::from_le_bytes(slot.try_into().expect("four-byte slot"));
     if u64::from(actual) != expected {
-        return Err(CallableBodyRelocationFailureV1::EncodedValue);
+        return Err(ObjectDefinitionRelocationFailureV1::EncodedValue);
     }
     slot.copy_from_slice(&(actual & keep_mask).to_le_bytes());
     Ok(())

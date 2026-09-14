@@ -1688,6 +1688,16 @@ ImmortalObject` owner；后者由plan中的typed来源唯一编码为同一exact
 TypeRegistration` owner。member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；
 不接受调用方传入裸target、core标记或自组relocation数组。
 
+实际immutable String object的ObjectDefinition只能经
+`compute_strong_immortal_object_definition_fingerprints_v1`消费registration-object proof、完整最终undefined
+requirement proof和再次匹配content digest的object全集产生。计算器反查plan指定的`ImmortalObject` definition与
+只读Primary atom，要求范围精确等于plan的object size；对象必须是`{ TypeDescriptor*; zero GC word; u64 UTF-8
+length; exact UTF-8 bytes; zero alignment padding }`，且atom中只有offset 0的一条8-byte、zero-addend、
+`Unsigned64` relocation。local分支必须解析到当前Cone同一exact type的`TypeDescriptor` strong owner；
+core-external分支必须保持external candidate，并由最终requirement proof提升为同一exact type的`CoreStrong
+TypeDescriptor` owner。哈希前将指针载荷归零，并用通用canonical relocation schema连同精确对象bytes编码；
+不接受长度不闭合、非法UTF-8、非零padding、错owner或未分类external，也不从String显示值重建另一份旁路hash。
+
 type registration自身的ObjectDefinition leaf只能经
 `compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content
 digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确240-byte

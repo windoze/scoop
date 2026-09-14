@@ -35,6 +35,8 @@ pub(crate) enum Corruption {
     TypeRegistrationMagic,
     TypeDescriptorRelocationTarget,
     ImmortalRegistrationMagic,
+    ImmortalObjectLength,
+    ImmortalObjectDescriptorRelocationTarget,
     ImmortalObjectRelocationTarget,
     ImmortalTypeRegistrationRelocationTarget,
     CoreExternalImmortalTypeRegistration,
@@ -81,6 +83,7 @@ impl Fixture {
         .unwrap();
         let member = member_plan.scoop_lir_members()[0].member_id();
         let object = macho::object_bytes(
+            &inputs.module,
             symbol_plan.member(member).unwrap(),
             &inputs.safepoint_ids,
             &inputs.registration_plan,
@@ -153,9 +156,24 @@ impl Fixture {
     }
 
     pub(crate) fn undefined_requirements(&self) -> CanonicalUndefinedSymbolRequirementSetV1 {
-        crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong(
-            self.builtins.strong_relocations().clone(),
-        )
+        match self.immortal_registration_plan.registrations()[0]
+            .semantic()
+            .type_registration_ref()
+        {
+            scoop_lir::ImmortalObjectTypeRegistrationRefV1::Local(_) => {
+                crate::link_object::undefined_requirements::tests::
+                    empty_final_requirements_for_strong(
+                        self.builtins.strong_relocations().clone(),
+                    )
+            }
+            scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(exact_type) => {
+                crate::link_object::undefined_requirements::tests::
+                    core_type_final_requirements_for_strong(
+                        self.builtins.strong_relocations().clone(),
+                        exact_type,
+                    )
+            }
+        }
     }
 }
 

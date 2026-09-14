@@ -1,6 +1,7 @@
 use object::macho;
 use scoop_identity::{
-    DefinitionAtomRole, DigestPatchIntentId, ObjectDefinitionPlanId, StrongDefinitionRole,
+    DefinitionAtomRole, DigestPatchIntentId, LinkageClass, ObjectDefinitionPlanId,
+    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionRole,
 };
 use scoop_lir::{
     StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
@@ -27,7 +28,9 @@ pub(crate) struct ObjectFixture {
     pub(crate) patch_offsets: Vec<(DigestPatchIntentId, u64)>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn object_bytes(
+    module: &scoop_lir::Module,
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     safepoints: &[u64],
     registrations: &StrongSafepointRegistrationPlanSetV1,
@@ -53,6 +56,8 @@ pub(crate) fn object_bytes(
         | Corruption::TypeRegistrationMagic
         | Corruption::TypeDescriptorRelocationTarget
         | Corruption::ImmortalRegistrationMagic
+        | Corruption::ImmortalObjectLength
+        | Corruption::ImmortalObjectDescriptorRelocationTarget
         | Corruption::ImmortalObjectRelocationTarget
         | Corruption::ImmortalTypeRegistrationRelocationTarget
         | Corruption::CoreExternalImmortalTypeRegistration
@@ -60,6 +65,7 @@ pub(crate) fn object_bytes(
         | Corruption::RelocatedRegistration => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
     };
     macho_object(
+        module,
         symbols,
         &text,
         &stackmap,
@@ -105,6 +111,7 @@ fn push_record(bytes: &mut Vec<u8>, safepoint: u64, instruction_offset: u32) {
 
 #[allow(clippy::too_many_arguments)]
 fn macho_object(
+    module: &scoop_lir::Module,
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     instructions: &[u32; 4],
     stackmap: &[u8],
@@ -144,7 +151,7 @@ fn macho_object(
         + 3 * u32::try_from(immortal_registrations.registrations().len()).unwrap()
         + u32::from(matches!(corruption, Corruption::RelocatedRegistration));
     let symbol_offset = relocation_offset + 8 * (2 + registration_relocation_count);
-    let external_type_registration = immortal_registrations
+    let external_type = immortal_registrations
         .registrations()
         .iter()
         .find(|registration| {
@@ -153,17 +160,33 @@ fn macho_object(
                 scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(_)
             )
         })
-        .map(|registration| {
-            let normalization = scoop_lir::LirTargetProfile::DARWIN_AARCH64
-                .contract()
-                .native_symbol_normalization();
+        .map(|registration| registration.type_registration());
+    let external_type_symbols = external_type.map(|exact_type| {
+        let normalization = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+            .contract()
+            .native_symbol_normalization();
+        let descriptor = PersistentSymbolRequest::new(
+            PersistentSymbolKey::TypeDescriptor(exact_type),
+            LinkageClass::ConeStrong,
+        )
+        .unwrap();
+        let registration = PersistentSymbolRequest::new(
+            PersistentSymbolKey::TypeRegistration(exact_type),
+            LinkageClass::ConeStrong,
+        )
+        .unwrap();
+        [
             normalization
-                .compiler_generated_object_symbol(
-                    registration.type_registration_symbol().symbol().as_str(),
-                )
-                .into_bytes()
-        });
-    let undefined_symbol_count = usize::from(external_type_registration.is_some());
+                .compiler_generated_object_symbol(descriptor.symbol().as_str())
+                .into_bytes(),
+            normalization
+                .compiler_generated_object_symbol(registration.symbol().as_str())
+                .into_bytes(),
+        ]
+    });
+    let undefined_symbol_count = external_type_symbols
+        .as_ref()
+        .map_or(0, |symbols| symbols.len());
     let symbol_bytes =
         u32::try_from((symbols.symbols().len() + undefined_symbol_count) * 16).unwrap();
     let string_offset = symbol_offset + symbol_bytes;
@@ -178,11 +201,13 @@ fn macho_object(
             index
         })
         .collect::<Vec<_>>();
-    let external_string_index = external_type_registration.as_ref().map(|symbol| {
-        let index = u32::try_from(strings.len()).unwrap();
-        strings.extend_from_slice(symbol);
-        strings.push(0);
-        index
+    let external_string_indexes = external_type_symbols.as_ref().map(|symbols| {
+        symbols.each_ref().map(|symbol| {
+            let index = u32::try_from(strings.len()).unwrap();
+            strings.extend_from_slice(symbol);
+            strings.push(0);
+            index
+        })
     });
     let string_size = u32::try_from(strings.len()).unwrap();
     let mut bytes = Vec::with_capacity((string_offset + string_size) as usize);
@@ -268,11 +293,13 @@ fn macho_object(
     for registration in type_registrations.registrations() {
         push_type_registration(&mut bytes, *registration);
     }
+    let first_immortal_object_offset = bytes.len();
     for registration in immortal_registrations.registrations() {
-        bytes.extend(std::iter::repeat_n(
-            0,
-            usize::try_from(registration.object_size()).unwrap(),
-        ));
+        push_immortal_object(&mut bytes, module, *registration);
+    }
+    if matches!(corruption, Corruption::ImmortalObjectLength) {
+        bytes[first_immortal_object_offset + 16..first_immortal_object_offset + 24]
+            .copy_from_slice(&u64::MAX.to_le_bytes());
     }
     for registration in immortal_registrations.registrations() {
         push_immortal_registration(&mut bytes, *registration);
@@ -446,19 +473,44 @@ fn macho_object(
                 immortal_registrations,
             );
             let section_base = TEXT_SIZE + u64::try_from(stackmap.len()).unwrap();
-            let descriptor_target = symbols
-                .symbols()
-                .iter()
-                .position(|symbol| {
-                    matches!(
-                        symbol.role(),
-                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                            definition_role: StrongDefinitionRole::TypeDescriptor,
-                            ..
-                        }
-                    )
-                })
-                .unwrap();
+            let descriptor_target = if matches!(
+                corruption,
+                Corruption::ImmortalObjectDescriptorRelocationTarget
+            ) && index == 0
+            {
+                symbols
+                    .symbols()
+                    .iter()
+                    .position(|symbol| {
+                        matches!(
+                            symbol.role(),
+                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                definition_role: StrongDefinitionRole::ImmortalRegistration,
+                                ..
+                            }
+                        )
+                    })
+                    .unwrap()
+            } else if matches!(
+                registration.semantic().type_registration_ref(),
+                scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(_)
+            ) {
+                symbols.symbols().len()
+            } else {
+                symbols
+                    .symbols()
+                    .iter()
+                    .position(|symbol| {
+                        matches!(
+                            symbol.role(),
+                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                definition_role: StrongDefinitionRole::TypeDescriptor,
+                                ..
+                            }
+                        )
+                    })
+                    .unwrap()
+            };
             push_u32(
                 &mut bytes,
                 u32::try_from(object_start - section_base).unwrap(),
@@ -512,7 +564,7 @@ fn macho_object(
                 registration.semantic().type_registration_ref(),
                 scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(_)
             ) {
-                symbols.symbols().len()
+                symbols.symbols().len() + 1
             } else if matches!(
                 corruption,
                 Corruption::ImmortalTypeRegistrationRelocationTarget
@@ -559,12 +611,14 @@ fn macho_object(
         push_u16(&mut bytes, 0);
         push_u64(&mut bytes, value);
     }
-    if let Some(string_index) = external_string_index {
-        push_u32(&mut bytes, string_index);
-        bytes.push(macho::N_UNDF | macho::N_EXT);
-        bytes.push(0);
-        push_u16(&mut bytes, 0);
-        push_u64(&mut bytes, 0);
+    if let Some(string_indexes) = external_string_indexes {
+        for string_index in string_indexes {
+            push_u32(&mut bytes, string_index);
+            bytes.push(macho::N_UNDF | macho::N_EXT);
+            bytes.push(0);
+            push_u16(&mut bytes, 0);
+            push_u64(&mut bytes, 0);
+        }
     }
     bytes.extend_from_slice(&strings);
     let mut patch_offsets = registrations
@@ -1318,6 +1372,28 @@ fn push_immortal_registration(
     push_u64(bytes, registration.object_size());
     push_u64(bytes, registration.required_alignment());
     push_u64(bytes, 0);
+}
+
+fn push_immortal_object(
+    bytes: &mut Vec<u8>,
+    module: &scoop_lir::Module,
+    registration: StrongImmortalObjectRegistrationPlanV1,
+) {
+    let scoop_lir::GlobalInit::StringConst { identity, value } =
+        &module.globals[registration.global()].init
+    else {
+        panic!("immortal registration must resolve to a StringConst global")
+    };
+    assert_eq!(identity.identity_record().id(), registration.object());
+    let start = bytes.len();
+    push_u64(bytes, 0);
+    push_u64(bytes, 0);
+    push_u64(bytes, u64::try_from(value.len()).unwrap());
+    bytes.extend_from_slice(value.as_bytes());
+    bytes.resize(
+        start + usize::try_from(registration.object_size()).unwrap(),
+        0,
+    );
 }
 
 fn align_zero(bytes: &mut Vec<u8>, alignment: usize) {

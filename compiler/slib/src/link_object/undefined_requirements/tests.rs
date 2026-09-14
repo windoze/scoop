@@ -315,6 +315,37 @@ pub(in crate::link_object) fn empty_final_requirements_for_strong(
     finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
 }
 
+pub(in crate::link_object) fn core_type_final_requirements_for_strong(
+    strong: crate::VerifiedCurrentConeStrongRelocationClosureV1,
+    target: PersistentExactTypeId,
+) -> CanonicalUndefinedSymbolRequirementSetV1 {
+    let producer = strong.producer();
+    let current =
+        verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
+            .unwrap();
+    let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
+        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+    );
+    let core = verify_core_strong_requirements_v1(
+        LirTargetProfile::DARWIN_AARCH64,
+        strong,
+        StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap(),
+        core_owner_set(target),
+    )
+    .unwrap();
+    let source = verify_source_external_requirements_v1(
+        core,
+        native_surface(producer, Vec::new(), Vec::new()),
+    )
+    .unwrap();
+    let external = verify_runtime_and_eh_requirements_v1(
+        source,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    )
+    .unwrap();
+    finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
+}
+
 fn seal_without_generated(
     external: crate::VerifiedRuntimeAndEhRequirementClosureV1,
 ) -> SealedBuiltinObjectExternalRequirementClosureV1 {

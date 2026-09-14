@@ -11,6 +11,9 @@ mod relocations;
 mod fingerprints;
 pub use fingerprints::*;
 
+mod object_fingerprints;
+pub use object_fingerprints::*;
+
 mod verification;
 pub use verification::*;
 

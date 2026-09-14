@@ -7,7 +7,7 @@ use scoop_wire::{HashError, domain_separated_runtime_hash};
 
 use super::object_definition::{
     CanonicalDigestInputV1, CanonicalObjectRelocationV1, ObjectDefinitionFingerprintInputV1,
-    canonicalize_relocations,
+    ObjectDefinitionRelocationFailureV1, canonicalize_relocations,
 };
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::{
@@ -16,9 +16,8 @@ use super::{
 };
 use crate::SlibMemberId;
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, CanonicalUndefinedRelocationUseV1,
-    CanonicalUndefinedSymbolRequirementSetV1, ObjectDefinitionFingerprintV1,
-    ScoopLirObjectCandidateV1, StrongRelocationResolutionV1, VerifiedScoopLirStackmapSetV1,
+    BuiltinObjectSectionRoleV1, CanonicalUndefinedSymbolRequirementSetV1,
+    ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1, VerifiedScoopLirStackmapSetV1,
 };
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
@@ -212,30 +211,7 @@ fn validate_undefined_requirements(
     builtins: &crate::link_object::VerifiedBuiltinObjectStrongRelocationSetV1,
     requirements: &CanonicalUndefinedSymbolRequirementSetV1,
 ) -> Result<(), StrongCallableBodyFingerprintError> {
-    if requirements.producer() != builtins.producer()
-        || requirements.selection()
-            != scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
-    {
-        return Err(StrongCallableBodyFingerprintError::UndefinedRequirementProofMismatch);
-    }
-    let expected = builtins
-        .strong_relocations()
-        .bindings()
-        .iter()
-        .filter(|binding| {
-            !matches!(
-                binding.resolution(),
-                StrongRelocationResolutionV1::ObjectLocalStrong { .. }
-            )
-        })
-        .map(CanonicalUndefinedRelocationUseV1::from)
-        .collect::<Vec<_>>();
-    let actual = requirements
-        .requirements()
-        .iter()
-        .map(|requirement| requirement.use_site().clone())
-        .collect::<Vec<_>>();
-    if actual != expected {
+    if !requirements.matches_strong_closure(builtins) {
         return Err(StrongCallableBodyFingerprintError::UndefinedRequirementProofMismatch);
     }
     Ok(())
@@ -341,22 +317,12 @@ fn checked_atom_bytes(
 fn normalize_atom_bytes(
     bytes: &[u8],
     relocations: &[CanonicalObjectRelocationV1],
-) -> Result<Vec<u8>, CallableBodyRelocationFailureV1> {
+) -> Result<Vec<u8>, ObjectDefinitionRelocationFailureV1> {
     let mut normalized = bytes.to_vec();
     for relocation in relocations {
         relocation.normalize_bytes(&mut normalized)?;
     }
     Ok(normalized)
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CallableBodyRelocationFailureV1 {
-    BindingCount,
-    UnsupportedLocalOrSectionTarget,
-    UnsupportedObjectLocalOwner,
-    MissingUndefinedRequirement,
-    Range,
-    EncodedValue,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -408,7 +374,7 @@ pub enum StrongCallableBodyFingerprintError {
     },
     Relocation {
         body: PersistentCallableBodyId,
-        kind: CallableBodyRelocationFailureV1,
+        kind: ObjectDefinitionRelocationFailureV1,
     },
     Hash {
         body: PersistentCallableBodyId,

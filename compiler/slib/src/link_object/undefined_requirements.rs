@@ -124,6 +124,33 @@ impl CanonicalUndefinedSymbolRequirementSetV1 {
     pub fn requirements(&self) -> &[CanonicalUndefinedSymbolRequirementV1] {
         &self.requirements
     }
+
+    pub(in crate::link_object) fn matches_strong_closure(
+        &self,
+        builtins: &super::VerifiedBuiltinObjectStrongRelocationSetV1,
+    ) -> bool {
+        if self.producer != builtins.producer()
+            || self.selection != ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+        {
+            return false;
+        }
+        let expected = builtins
+            .strong_relocations()
+            .bindings()
+            .iter()
+            .filter(|binding| {
+                !matches!(
+                    binding.resolution(),
+                    StrongRelocationResolutionV1::ObjectLocalStrong { .. }
+                )
+            })
+            .map(CanonicalUndefinedRelocationUseV1::from);
+        let actual = self
+            .requirements
+            .iter()
+            .map(|requirement| requirement.use_site().clone());
+        actual.eq(expected)
+    }
 }
 
 impl WireEncode for CanonicalUndefinedSymbolRequirementSetV1 {
