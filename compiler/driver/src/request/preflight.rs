@@ -505,12 +505,10 @@ impl TrustedCoreBootstrapHirOutput {
             &foundation,
         )
         .map_err(CoreBootstrapMirStageError::ProductionSection)?;
-        Ok(TrustedCoreBootstrapMirOutput {
-            hir: self,
-            mir,
-            foundation,
-            production_section,
-        })
+        let strong =
+            scoop_mir::SingleConeStrongMirInput::try_new(mir, foundation, production_section)
+                .map_err(CoreBootstrapMirStageError::Sealing)?;
+        Ok(TrustedCoreBootstrapMirOutput { hir: self, strong })
     }
 }
 
@@ -520,9 +518,7 @@ impl TrustedCoreBootstrapHirOutput {
 /// pair this MIR graph or production section with a different HIR proof.
 pub struct TrustedCoreBootstrapMirOutput {
     hir: TrustedCoreBootstrapHirOutput,
-    mir: scoop_mir::Module,
-    foundation: scoop_mir::OdrFreeMirFoundation,
-    production_section: scoop_mir::CoreBootstrapBridgeSectionV1,
+    strong: scoop_mir::SingleConeStrongMirInput,
 }
 
 impl TrustedCoreBootstrapMirOutput {
@@ -531,15 +527,19 @@ impl TrustedCoreBootstrapMirOutput {
     }
 
     pub const fn mir(&self) -> &scoop_mir::Module {
-        &self.mir
+        self.strong.module()
     }
 
     pub const fn foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
-        &self.foundation
+        self.strong.foundation()
     }
 
     pub const fn production_section(&self) -> &scoop_mir::CoreBootstrapBridgeSectionV1 {
-        &self.production_section
+        self.strong.production()
+    }
+
+    pub const fn materialization_plan(&self) -> &scoop_mir::SingleConeStrongMaterializationPlan {
+        self.strong.materialization()
     }
 }
 
@@ -547,6 +547,7 @@ impl TrustedCoreBootstrapMirOutput {
 pub enum CoreBootstrapMirStageError {
     Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
     ProductionSection(scoop_mir_lower::MirProductionLoweringError),
+    Sealing(scoop_mir::SingleConeStrongMirInputError),
 }
 
 impl fmt::Display for CoreBootstrapMirStageError {
@@ -554,6 +555,7 @@ impl fmt::Display for CoreBootstrapMirStageError {
         match self {
             Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
+            Self::Sealing(source) => source.fmt(formatter),
         }
     }
 }
@@ -563,6 +565,7 @@ impl std::error::Error for CoreBootstrapMirStageError {
         Some(match self {
             Self::Foundation(source) => source,
             Self::ProductionSection(source) => source,
+            Self::Sealing(source) => source,
         })
     }
 }
@@ -1125,6 +1128,20 @@ mod tests {
         assert_eq!(
             real_core_bridge.shape_support_roots().len(),
             expected_shape_roots
+        );
+        assert_eq!(
+            real_mir.materialization_plan().callable_roots().len(),
+            real_mir.mir().top_level.len()
+        );
+        assert_eq!(
+            real_mir.materialization_plan().core_shape_support_roots(),
+            real_core_bridge.shape_support_roots()
+        );
+        assert!(
+            !real_mir
+                .materialization_plan()
+                .source_nominal_shapes()
+                .is_empty()
         );
         assert_eq!(
             real_mir

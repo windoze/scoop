@@ -36,6 +36,8 @@ pub use exact_owner::*;
 
 mod source_exact_types;
 pub use source_exact_types::*;
+mod strong_input;
+pub use strong_input::*;
 
 mod generated_exact_types;
 pub use generated_exact_types::*;
