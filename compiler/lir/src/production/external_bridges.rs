@@ -178,6 +178,13 @@ pub struct StrongExternalLirBridgeSurfaceV1 {
 }
 
 impl StrongExternalLirBridgeSurfaceV1 {
+    pub const fn empty_core_bootstrap() -> Self {
+        Self {
+            producer: scoop_identity::ConeIdentity::CORE,
+            bridges: Vec::new(),
+        }
+    }
+
     pub fn from_module(module: &Module) -> Result<Self, StrongExternalLirBridgeBuildError> {
         let mut bridges = Vec::with_capacity(
             module.meta.core_external_callables.len()

@@ -4,7 +4,10 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::DecodeUsage;
 
-use crate::{ArtifactFingerprint, ConeKind, ConeSourceForm, DecodedSlibEnvelope, DependencyRecord};
+use crate::{
+    ArtifactFingerprint, CompatibilityRecord, ConeKind, ConeSourceForm, DecodedSlibEnvelope,
+    DependencyRecord,
+};
 
 /// A single artifact whose immutable envelope is valid as a graph node.
 ///
@@ -57,6 +60,10 @@ impl ValidatedGraphArtifact<'_> {
 
     pub fn direct_dependencies(&self) -> &[DependencyRecord] {
         self.envelope.manifest().direct_dependencies()
+    }
+
+    pub const fn compatibility(&self) -> &CompatibilityRecord {
+        self.envelope.manifest().compatibility()
     }
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {

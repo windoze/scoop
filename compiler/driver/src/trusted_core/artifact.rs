@@ -1,0 +1,664 @@
+use std::fmt;
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+
+use scoop_codegen::ResolvedTargetProfile;
+use scoop_hir::{CoreHirInterfaceBranchV1, CoreHirInterfaceV1};
+use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
+use scoop_lir::{StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection};
+use scoop_slib::{
+    CanonicalDefinedLinkSymbolOwnerSetV1, CompositeIdentityAbiFingerprint, ConeKind,
+    ConeSourceForm, DecodedSlibEnvelope, GraphValidationError, PublishViewMismatchError,
+    PublishableSingleConeArtifact, SingleConeStrongProfile, SlibReadError,
+    StrongCompileArtifactValidationError, StrongLinkArtifactValidationError,
+    ValidatedCompileArtifact, ValidatedGraphArtifact, ValidatedSingleConeStrongLinkArtifact,
+    validate_single_cone_strong_compile_artifact, validate_single_cone_strong_link_artifact,
+};
+use scoop_wire::DecodeLimits;
+
+use super::TrustedCoreArtifactInput;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TrustedCoreArtifactLoadOperation {
+    Open,
+    Inspect,
+    Read,
+}
+
+impl fmt::Display for TrustedCoreArtifactLoadOperation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Open => "open",
+            Self::Inspect => "inspect",
+            Self::Read => "read",
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum TrustedCoreArtifactLoadError {
+    Io {
+        operation: TrustedCoreArtifactLoadOperation,
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    NotRegularFile(PathBuf),
+    ArtifactTooLarge {
+        path: PathBuf,
+        actual: u64,
+        limit: u64,
+    },
+}
+
+impl fmt::Display for TrustedCoreArtifactLoadError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io {
+                operation,
+                path,
+                source,
+            } => write!(
+                formatter,
+                "cannot {operation} trusted core artifact {}: {source}",
+                path.display()
+            ),
+            Self::NotRegularFile(path) => write!(
+                formatter,
+                "trusted core artifact {} is not a regular file",
+                path.display()
+            ),
+            Self::ArtifactTooLarge {
+                path,
+                actual,
+                limit,
+            } => write!(
+                formatter,
+                "trusted core artifact {} has {actual} bytes, exceeding the {limit}-byte input limit",
+                path.display()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TrustedCoreArtifactLoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io { source, .. } => Some(source),
+            Self::NotRegularFile(_) | Self::ArtifactTooLarge { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LoadedTrustedCoreArtifact {
+    input: TrustedCoreArtifactInput,
+    bytes: Vec<u8>,
+    limits: DecodeLimits,
+}
+
+impl TrustedCoreArtifactInput {
+    pub fn load(
+        self,
+        limits: DecodeLimits,
+    ) -> Result<LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError> {
+        let path = self.path.clone();
+        let file = File::open(&path).map_err(|source| TrustedCoreArtifactLoadError::Io {
+            operation: TrustedCoreArtifactLoadOperation::Open,
+            path: path.clone(),
+            source,
+        })?;
+        let metadata = file
+            .metadata()
+            .map_err(|source| TrustedCoreArtifactLoadError::Io {
+                operation: TrustedCoreArtifactLoadOperation::Inspect,
+                path: path.clone(),
+                source,
+            })?;
+        if !metadata.is_file() {
+            return Err(TrustedCoreArtifactLoadError::NotRegularFile(path));
+        }
+        require_input_size(&path, metadata.len(), limits.owned_bytes)?;
+
+        let mut bytes = Vec::new();
+        file.take(limits.owned_bytes.saturating_add(1))
+            .read_to_end(&mut bytes)
+            .map_err(|source| TrustedCoreArtifactLoadError::Io {
+                operation: TrustedCoreArtifactLoadOperation::Read,
+                path: path.clone(),
+                source,
+            })?;
+        let actual = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+        require_input_size(&path, actual, limits.owned_bytes)?;
+        Ok(LoadedTrustedCoreArtifact {
+            input: self,
+            bytes,
+            limits,
+        })
+    }
+}
+
+fn require_input_size(
+    path: &Path,
+    actual: u64,
+    limit: u64,
+) -> Result<(), TrustedCoreArtifactLoadError> {
+    if actual > limit {
+        Err(TrustedCoreArtifactLoadError::ArtifactTooLarge {
+            path: path.to_path_buf(),
+            actual,
+            limit,
+        })
+    } else {
+        Ok(())
+    }
+}
+
+impl LoadedTrustedCoreArtifact {
+    pub fn path(&self) -> &Path {
+        self.input.path()
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn validate<'input>(
+        &'input self,
+        target: &ResolvedTargetProfile,
+    ) -> Result<ValidatedTrustedCoreArtifact<'input>, TrustedCoreArtifactValidationError> {
+        self.validate_against(
+            target.lir_target_selection(),
+            target.c_bridge_toolchain().profile(),
+        )
+    }
+
+    fn validate_against<'input>(
+        &'input self,
+        target_selection: ValidatedLirTargetSelection,
+        c_bridge_profile: &scoop_lir::CBridgeToolchainProfileV1,
+    ) -> Result<ValidatedTrustedCoreArtifact<'input>, TrustedCoreArtifactValidationError> {
+        if self.input.target != target_selection {
+            return Err(TrustedCoreArtifactValidationError::authority(
+                TrustedCoreArtifactAuthorityError::TargetSelection {
+                    expected: self.input.target,
+                    actual: target_selection,
+                },
+            ));
+        }
+
+        let external_bridges = StrongExternalLirBridgeSurfaceV1::empty_core_bootstrap();
+        let empty_core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+
+        let link_graph = DecodedSlibEnvelope::open(&self.bytes, self.limits, target_selection)
+            .map_err(|source| TrustedCoreArtifactValidationError::Envelope {
+                view: TrustedCoreArtifactView::Link,
+                source: Box::new(source),
+            })?
+            .validate_graph()
+            .map_err(|source| TrustedCoreArtifactValidationError::Graph {
+                view: TrustedCoreArtifactView::Link,
+                source: Box::new(source),
+            })?;
+        validate_graph_authority(&link_graph, &self.input)?;
+        let link = validate_single_cone_strong_link_artifact(
+            link_graph,
+            &external_bridges,
+            &empty_core_owners,
+            c_bridge_profile,
+        )
+        .map_err(|source| TrustedCoreArtifactValidationError::Link(Box::new(source)))?;
+
+        let compile_graph = DecodedSlibEnvelope::open(&self.bytes, self.limits, target_selection)
+            .map_err(|source| TrustedCoreArtifactValidationError::Envelope {
+                view: TrustedCoreArtifactView::Compile,
+                source: Box::new(source),
+            })?
+            .validate_graph()
+            .map_err(|source| TrustedCoreArtifactValidationError::Graph {
+                view: TrustedCoreArtifactView::Compile,
+                source: Box::new(source),
+            })?;
+        validate_graph_authority(&compile_graph, &self.input)?;
+        let mut semantic_session = SemanticIdentitySession::new();
+        let compile = validate_single_cone_strong_compile_artifact(
+            compile_graph,
+            &external_bridges,
+            &mut semantic_session,
+        )
+        .map_err(|source| TrustedCoreArtifactValidationError::Compile(Box::new(source)))?;
+
+        let publication = PublishableSingleConeArtifact::from_validated_views(&compile, &link)
+            .map_err(TrustedCoreArtifactValidationError::ViewMismatch)?;
+        let core_interface = match compile.production().hir().core_interface() {
+            CoreHirInterfaceBranchV1::Core(interface) => ValidatedCoreInterface {
+                interface: interface.as_ref().clone(),
+            },
+            CoreHirInterfaceBranchV1::NotCore => {
+                return Err(TrustedCoreArtifactValidationError::MissingCoreInterface);
+            }
+        };
+
+        Ok(ValidatedTrustedCoreArtifact {
+            compile,
+            link,
+            authority: TrustedCoreArtifactAuthority::from_input(&self.input),
+            core_interface,
+            publication,
+            semantic_session,
+        })
+    }
+}
+
+fn validate_graph_authority(
+    graph: &ValidatedGraphArtifact<'_>,
+    input: &TrustedCoreArtifactInput,
+) -> Result<(), TrustedCoreArtifactValidationError> {
+    if graph.coordinate() != &input.expected_coordinate {
+        return Err(TrustedCoreArtifactValidationError::authority(
+            TrustedCoreArtifactAuthorityError::Coordinate {
+                expected: input.expected_coordinate.clone(),
+                actual: graph.coordinate().clone(),
+            },
+        ));
+    }
+    if graph.identity() != ConeIdentity::CORE {
+        return Err(TrustedCoreArtifactValidationError::authority(
+            TrustedCoreArtifactAuthorityError::Identity {
+                actual: graph.identity(),
+            },
+        ));
+    }
+    if graph.kind() != ConeKind::Library {
+        return Err(TrustedCoreArtifactValidationError::authority(
+            TrustedCoreArtifactAuthorityError::Kind {
+                actual: graph.kind(),
+            },
+        ));
+    }
+    if graph.source_form() != ConeSourceForm::Manifest {
+        return Err(TrustedCoreArtifactValidationError::authority(
+            TrustedCoreArtifactAuthorityError::SourceForm {
+                actual: graph.source_form(),
+            },
+        ));
+    }
+    if !graph.direct_dependencies().is_empty() {
+        return Err(TrustedCoreArtifactValidationError::authority(
+            TrustedCoreArtifactAuthorityError::Dependencies {
+                actual: graph.direct_dependencies().len(),
+            },
+        ));
+    }
+    let actual_abi = graph.compatibility().composite_identity_abi();
+    if actual_abi != input.toolchain_compatibility {
+        return Err(TrustedCoreArtifactValidationError::authority(
+            TrustedCoreArtifactAuthorityError::ToolchainCompatibility {
+                expected: input.toolchain_compatibility,
+                actual: actual_abi,
+            },
+        ));
+    }
+    Ok(())
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TrustedCoreArtifactAuthority {
+    path: PathBuf,
+    coordinate: ConeCoordinate,
+    target: ValidatedLirTargetSelection,
+    toolchain_compatibility: CompositeIdentityAbiFingerprint,
+}
+
+impl TrustedCoreArtifactAuthority {
+    fn from_input(input: &TrustedCoreArtifactInput) -> Self {
+        Self {
+            path: input.path.clone(),
+            coordinate: input.expected_coordinate.clone(),
+            target: input.target,
+            toolchain_compatibility: input.toolchain_compatibility,
+        }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        &self.coordinate
+    }
+
+    pub const fn target(&self) -> ValidatedLirTargetSelection {
+        self.target
+    }
+
+    pub const fn toolchain_compatibility(&self) -> CompositeIdentityAbiFingerprint {
+        self.toolchain_compatibility
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ValidatedCoreInterface {
+    interface: CoreHirInterfaceV1,
+}
+
+impl ValidatedCoreInterface {
+    pub const fn interface(&self) -> &CoreHirInterfaceV1 {
+        &self.interface
+    }
+}
+
+pub struct ValidatedTrustedCoreArtifact<'input> {
+    compile: ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
+    link: ValidatedSingleConeStrongLinkArtifact<'input>,
+    authority: TrustedCoreArtifactAuthority,
+    core_interface: ValidatedCoreInterface,
+    publication: PublishableSingleConeArtifact,
+    semantic_session: SemanticIdentitySession,
+}
+
+impl<'input> ValidatedTrustedCoreArtifact<'input> {
+    pub const fn compile(&self) -> &ValidatedCompileArtifact<'input, SingleConeStrongProfile> {
+        &self.compile
+    }
+
+    pub const fn link(&self) -> &ValidatedSingleConeStrongLinkArtifact<'input> {
+        &self.link
+    }
+
+    pub const fn authority(&self) -> &TrustedCoreArtifactAuthority {
+        &self.authority
+    }
+
+    pub const fn core_interface(&self) -> &ValidatedCoreInterface {
+        &self.core_interface
+    }
+
+    pub const fn publication(&self) -> &PublishableSingleConeArtifact {
+        &self.publication
+    }
+
+    pub const fn semantic_session(&self) -> &SemanticIdentitySession {
+        &self.semantic_session
+    }
+
+    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        self.link.link_identity_closure().defined_symbols()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TrustedCoreArtifactView {
+    Compile,
+    Link,
+}
+
+impl fmt::Display for TrustedCoreArtifactView {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Compile => "Compile",
+            Self::Link => "Link",
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TrustedCoreArtifactAuthorityError {
+    Coordinate {
+        expected: ConeCoordinate,
+        actual: ConeCoordinate,
+    },
+    Identity {
+        actual: ConeIdentity,
+    },
+    Kind {
+        actual: ConeKind,
+    },
+    SourceForm {
+        actual: ConeSourceForm,
+    },
+    Dependencies {
+        actual: usize,
+    },
+    TargetSelection {
+        expected: ValidatedLirTargetSelection,
+        actual: ValidatedLirTargetSelection,
+    },
+    ToolchainCompatibility {
+        expected: CompositeIdentityAbiFingerprint,
+        actual: CompositeIdentityAbiFingerprint,
+    },
+}
+
+impl fmt::Display for TrustedCoreArtifactAuthorityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Coordinate { expected, actual } => write!(
+                formatter,
+                "trusted core coordinate mismatch: expected {expected}, found {actual}"
+            ),
+            Self::Identity { actual } => write!(
+                formatter,
+                "trusted core identity mismatch: expected {}, found {actual}",
+                ConeIdentity::CORE
+            ),
+            Self::Kind { actual } => write!(
+                formatter,
+                "trusted core must be a library, found {actual:?}"
+            ),
+            Self::SourceForm { actual } => write!(
+                formatter,
+                "trusted core must use Manifest source form, found {actual:?}"
+            ),
+            Self::Dependencies { actual } => write!(
+                formatter,
+                "trusted core must have no direct dependencies, found {actual}"
+            ),
+            Self::TargetSelection { expected, actual } => write!(
+                formatter,
+                "trusted core target mismatch: expected {expected:?}, requested {actual:?}"
+            ),
+            Self::ToolchainCompatibility { expected, actual } => write!(
+                formatter,
+                "trusted core identity ABI mismatch: expected {expected}, found {actual}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TrustedCoreArtifactAuthorityError {}
+
+#[derive(Debug)]
+pub enum TrustedCoreArtifactValidationError {
+    Authority(Box<TrustedCoreArtifactAuthorityError>),
+    Envelope {
+        view: TrustedCoreArtifactView,
+        source: Box<SlibReadError>,
+    },
+    Graph {
+        view: TrustedCoreArtifactView,
+        source: Box<GraphValidationError>,
+    },
+    Compile(Box<StrongCompileArtifactValidationError>),
+    Link(Box<StrongLinkArtifactValidationError>),
+    ViewMismatch(PublishViewMismatchError),
+    MissingCoreInterface,
+}
+
+impl TrustedCoreArtifactValidationError {
+    fn authority(source: TrustedCoreArtifactAuthorityError) -> Self {
+        Self::Authority(Box::new(source))
+    }
+}
+
+impl fmt::Display for TrustedCoreArtifactValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Authority(error) => error.fmt(formatter),
+            Self::Envelope { view, source } => {
+                write!(
+                    formatter,
+                    "trusted core {view} envelope validation failed: {source}"
+                )
+            }
+            Self::Graph { view, source } => {
+                write!(
+                    formatter,
+                    "trusted core {view} graph validation failed: {source}"
+                )
+            }
+            Self::Compile(error) => {
+                write!(formatter, "trusted core Compile validation failed: {error}")
+            }
+            Self::Link(error) => write!(formatter, "trusted core Link validation failed: {error}"),
+            Self::ViewMismatch(error) => error.fmt(formatter),
+            Self::MissingCoreInterface => {
+                formatter.write_str("trusted core Compile proof has no Core HIR interface")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TrustedCoreArtifactValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Authority(error) => Some(error),
+            Self::Envelope { source, .. } => Some(source.as_ref()),
+            Self::Graph { source, .. } => Some(source.as_ref()),
+            Self::Compile(error) => Some(error.as_ref()),
+            Self::Link(error) => Some(error.as_ref()),
+            Self::ViewMismatch(error) => Some(error),
+            Self::MissingCoreInterface => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use scoop_hir::CanonicalHirFoundation;
+    use scoop_identity::ConeCoordinate;
+    use scoop_lir::{
+        AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, CanonicalLirFoundation,
+        DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
+    };
+    use scoop_mir::CanonicalMirFoundation;
+    use scoop_slib::{
+        ConeRecord, IdentityFoundationArtifact, IdentityFoundationArtifactInput, ProducerRecord,
+    };
+
+    use super::*;
+
+    #[test]
+    fn loader_binds_the_exact_opened_bytes_and_budget() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("scoop.core.slib");
+        std::fs::write(&path, b"trusted bytes").unwrap();
+        let input = TrustedCoreArtifactInput::for_test(path.clone());
+
+        let loaded = input.load(DecodeLimits::default()).unwrap();
+
+        assert_eq!(loaded.path(), path);
+        assert_eq!(loaded.bytes(), b"trusted bytes");
+    }
+
+    #[test]
+    fn loader_rejects_an_artifact_larger_than_the_owned_input_budget() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("scoop.core.slib");
+        std::fs::write(&path, b"oversized").unwrap();
+        let limits = DecodeLimits {
+            owned_bytes: 4,
+            ..DecodeLimits::default()
+        };
+
+        assert!(matches!(
+            TrustedCoreArtifactInput::for_test(path.clone()).load(limits),
+            Err(TrustedCoreArtifactLoadError::ArtifactTooLarge {
+                path: actual_path,
+                actual: 9,
+                limit: 4,
+            }) if actual_path == path
+        ));
+    }
+
+    #[test]
+    fn validation_rejects_a_non_core_artifact_before_profile_decoding() {
+        let coordinate = ConeCoordinate::new("test", "ordinary", "0.0.0").unwrap();
+        let bytes = foundation_artifact(
+            ConeRecord::new(
+                coordinate.clone(),
+                ConeKind::Library,
+                ConeSourceForm::Manifest,
+            )
+            .unwrap(),
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("scoop.core.slib");
+        std::fs::write(&path, bytes).unwrap();
+        let loaded = TrustedCoreArtifactInput::for_test(path)
+            .load(DecodeLimits::default())
+            .unwrap();
+
+        assert!(matches!(
+            loaded.validate_against(selection(), &c_bridge_profile()),
+            Err(TrustedCoreArtifactValidationError::Authority(error))
+                if matches!(error.as_ref(),
+                    TrustedCoreArtifactAuthorityError::Coordinate { actual, .. }
+                        if actual == &coordinate)
+        ));
+    }
+
+    #[test]
+    fn validation_requires_the_complete_strong_profile_after_core_authority() {
+        let bytes = foundation_artifact(
+            ConeRecord::new(
+                ConeCoordinate::reserved_core(),
+                ConeKind::Library,
+                ConeSourceForm::Manifest,
+            )
+            .unwrap(),
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("scoop.core.slib");
+        std::fs::write(&path, bytes).unwrap();
+        let loaded = TrustedCoreArtifactInput::for_test(path)
+            .load(DecodeLimits::default())
+            .unwrap();
+
+        assert!(matches!(
+            loaded.validate_against(selection(), &c_bridge_profile()),
+            Err(TrustedCoreArtifactValidationError::Link(_))
+        ));
+    }
+
+    fn foundation_artifact(cone: ConeRecord) -> Vec<u8> {
+        IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
+            ProducerRecord::new("trusted-core-test").unwrap(),
+            cone,
+            selection(),
+            &CanonicalHirFoundation::empty(),
+            &CanonicalMirFoundation::empty(),
+            &CanonicalLirFoundation::empty(),
+        ))
+        .unwrap()
+        .as_bytes()
+        .to_vec()
+    }
+
+    fn selection() -> ValidatedLirTargetSelection {
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    }
+
+    fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
+        CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+            DarwinCBridgeDeploymentContractV1::new(
+                DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
+                DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
+                Vec::new(),
+            )
+            .unwrap(),
+            AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap(),
+        )
+        .unwrap()
+    }
+}

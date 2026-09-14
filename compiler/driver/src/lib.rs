@@ -24,9 +24,12 @@ pub use request::{
     normalize_protocol_build_request,
 };
 pub use trusted_core::{
-    CoreBootstrapAuthority, TrustedCoreArtifactInput, TrustedCoreArtifactInputError,
-    TrustedCoreArtifactSlot, TrustedCoreBootstrapInput, TrustedCoreSlot, TrustedCoreSlotError,
-    TrustedCoreSlotErrorKind, TrustedCoreSlotIoOperation, TrustedCoreSourceSlot,
+    CoreBootstrapAuthority, LoadedTrustedCoreArtifact, TrustedCoreArtifactAuthority,
+    TrustedCoreArtifactAuthorityError, TrustedCoreArtifactInput, TrustedCoreArtifactInputError,
+    TrustedCoreArtifactLoadError, TrustedCoreArtifactLoadOperation, TrustedCoreArtifactSlot,
+    TrustedCoreArtifactValidationError, TrustedCoreArtifactView, TrustedCoreBootstrapInput,
+    TrustedCoreSlot, TrustedCoreSlotError, TrustedCoreSlotErrorKind, TrustedCoreSlotIoOperation,
+    TrustedCoreSourceSlot, ValidatedCoreInterface, ValidatedTrustedCoreArtifact,
     resolve_trusted_core_slot,
 };
 

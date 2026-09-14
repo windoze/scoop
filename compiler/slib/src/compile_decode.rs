@@ -547,6 +547,10 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
         self.graph.direct_dependencies()
     }
 
+    pub const fn compatibility(&self) -> &crate::CompatibilityRecord {
+        self.graph.compatibility()
+    }
+
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
     }

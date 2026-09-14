@@ -167,6 +167,13 @@ pub struct CanonicalDefinedLinkSymbolOwnerSetV1 {
 }
 
 impl CanonicalDefinedLinkSymbolOwnerSetV1 {
+    pub const fn empty_core_bootstrap() -> Self {
+        Self {
+            producer: ConeIdentity::CORE,
+            owners: Vec::new(),
+        }
+    }
+
     pub fn from_verified_strong_closure(
         closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     ) -> Result<Self, DefinedLinkSymbolOwnerBuildError> {
@@ -231,14 +238,6 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
 
     pub fn owners(&self) -> &[DefinedLinkSymbolOwnerV1] {
         &self.owners
-    }
-
-    #[cfg(test)]
-    pub(crate) const fn empty_for_test(producer: ConeIdentity) -> Self {
-        Self {
-            producer,
-            owners: Vec::new(),
-        }
     }
 }
 

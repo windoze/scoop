@@ -88,8 +88,8 @@ pub struct PublishableSingleConeArtifact {
 
 impl PublishableSingleConeArtifact {
     pub fn from_validated_views(
-        compile: ValidatedCompileArtifact<'_, SingleConeStrongProfile>,
-        link: ValidatedSingleConeStrongLinkArtifact<'_>,
+        compile: &ValidatedCompileArtifact<'_, SingleConeStrongProfile>,
+        link: &ValidatedSingleConeStrongLinkArtifact<'_>,
     ) -> Result<Self, PublishViewMismatchError> {
         if compile.artifact_fingerprint() != link.artifact_fingerprint() {
             return Err(PublishViewMismatchError::ArtifactFingerprint);
@@ -102,6 +102,9 @@ impl PublishableSingleConeArtifact {
         }
         if compile.target_selection() != link.target_selection() {
             return Err(PublishViewMismatchError::TargetSelection);
+        }
+        if compile.compatibility() != link.compatibility() {
+            return Err(PublishViewMismatchError::Compatibility);
         }
 
         let compile_semantic = compile.semantic_fingerprints();
@@ -227,7 +230,7 @@ pub fn validate_publishable_single_cone_artifact(
     )
     .map_err(|error| PublishableArtifactValidationError::Link(Box::new(error)))?;
 
-    PublishableSingleConeArtifact::from_validated_views(compile, link)
+    PublishableSingleConeArtifact::from_validated_views(&compile, &link)
         .map_err(PublishableArtifactValidationError::ViewMismatch)
 }
 
@@ -435,6 +438,7 @@ pub enum PublishViewMismatchError {
     Cone,
     ConeShape,
     TargetSelection,
+    Compatibility,
     SemanticFingerprints,
     CodeFingerprint,
     RuntimeImageFingerprint,
@@ -484,8 +488,6 @@ impl std::error::Error for PublishableArtifactValidationError {
 
 #[cfg(test)]
 mod tests {
-    use scoop_identity::ConeIdentity;
-
     use super::*;
 
     #[test]
@@ -496,7 +498,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
         let publishable = validate_publishable_single_cone_artifact(
             &bytes,
             DecodeLimits::default(),
@@ -524,7 +526,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
         let error = validate_publishable_single_cone_artifact(
             &bytes,
             DecodeLimits::default(),
@@ -549,7 +551,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
 
         let published = publish_single_cone_artifact(
             &bytes,
@@ -579,7 +581,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
 
         let error = publish_single_cone_artifact(
             &bytes,

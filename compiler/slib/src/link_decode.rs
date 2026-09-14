@@ -2048,6 +2048,10 @@ impl ValidatedSingleConeStrongLinkArtifact<'_> {
         self.graph.source_form()
     }
 
+    pub const fn compatibility(&self) -> &crate::CompatibilityRecord {
+        self.graph.compatibility()
+    }
+
     pub const fn target_selection(&self) -> scoop_lir::ValidatedLirTargetSelection {
         self.graph.target_selection()
     }

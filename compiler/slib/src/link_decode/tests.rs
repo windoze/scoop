@@ -177,7 +177,7 @@ fn strong_graph_decodes_all_link_sections_atomically() {
             .fingerprints()
             .is_empty()
     );
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
     let symbols = leaves
         .validate_link_symbol_requirements(&core_owners, &c_bridge_profile())
         .unwrap();
@@ -215,7 +215,7 @@ fn strong_graph_validates_the_complete_final_link_view() {
     let bytes = complete_artifact(false);
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
     let artifact = validate_single_cone_strong_link_artifact(
         open_graph(&bytes),
         &external,
@@ -254,7 +254,7 @@ fn strong_graph_rejects_final_object_bytes_that_do_not_reconstruct() {
     let bytes = complete_artifact(true);
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
     assert!(matches!(
         open_graph(&bytes)
             .decode_single_cone_link_sections()
@@ -408,7 +408,7 @@ fn link_symbol_validation_rejects_a_stale_defined_owner_projection() {
     );
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE);
+    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
     assert!(matches!(
         open_graph(&bytes)
             .decode_single_cone_link_sections()
@@ -1425,7 +1425,7 @@ fn empty_undefined_requirements(
         selection().target(),
         strong,
         production.external_bridges().clone(),
-        crate::CanonicalDefinedLinkSymbolOwnerSetV1::empty_for_test(ConeIdentity::CORE),
+        crate::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap(),
     )
     .unwrap();
     let source = crate::verify_source_external_requirements_v1(core, native.clone()).unwrap();

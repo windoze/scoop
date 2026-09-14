@@ -571,6 +571,7 @@ dependencies = [
  "scoop-protocol",
  "scoop-slib",
  "scoop-wire",
+ "tempfile",
  "toml",
 ]
 

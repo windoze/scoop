@@ -553,6 +553,18 @@ ValidatedTrustedCoreArtifact {
 
 构造器验证reserved coordinate、Manifest、Library、empty dependency、profile、target/ABI、`Core` section、prelude/well-known完整性、unique image及String capability relation。`authority`证明实际locator来自trusted slot；artifact内容相同但经`--direct-slib`传入仍不能构造该类型。
 
+具体入口分为两个不能跳过的状态：`TrustedCoreArtifactInput::load`对trusted slot对应的同一已打开regular
+file读取不可变bytes，并在分配/读取时执行artifact input byte budget；`LoadedTrustedCoreArtifact::validate`
+再使用请求的完整`ResolvedTargetProfile`。校验为同一bytes分别创建独立Link与Compile
+budget/envelope/Graph状态，先逐一核对slot authority中的coordinate、identity、kind、source form、空dependency、
+target selection与composite identity ABI，再运行完整strong Link/Compile入口。core bootstrap的expected external
+bridge与external core-owner输入只能由`empty_core_bootstrap()`构造，不能由任意producer参数伪造。
+
+成功值保留两份最终proof、私有`SemanticIdentitySession`、`TrustedCoreArtifactAuthority`、从已验证`Core`
+分支复制出的非可选`ValidatedCoreInterface`以及双视图publication summary；defined symbol owner surface只能从其
+Link identity closure导出。普通artifact locator、Graph-only、foundation profile、`NotCore`分支或任一条view
+失败都不能得到该类型，也不存在兼容旧reader的降级入口。
+
 ### 7.5 M23-3 resolver边界
 
 HIR只从`ValidatedCoreInterface`构造：
@@ -2595,11 +2607,12 @@ PublishableSingleConeArtifact {
 }
 ```
 
-构造器要求两份proof来自同一ArtifactFingerprint/Cone/profile，output kind、三层/Code/RuntimeImage fingerprint一致。只有成功后才以同目录atomic rename发布`--out-slib`。任一步失败删除temporary，不覆盖现有成功artifact。
+构造器要求两份proof来自同一ArtifactFingerprint/Cone/profile，compatibility、output kind、三层/Code/RuntimeImage fingerprint一致。只有成功后才以同目录atomic rename发布`--out-slib`。任一步失败删除temporary，不覆盖现有成功artifact。
 
 `validate_publishable_single_cone_artifact`是上述round-trip的唯一整体入口：它对调用者提供的final byte
-slice分别创建独立budget/envelope/Graph状态，调用唯一strong Compile与Link入口，再消费两份最终proof
-构造`PublishableSingleConeArtifact`。该proof只保留不可变identity、target与两条view summary；不存在从
+slice分别创建独立budget/envelope/Graph状态，调用唯一strong Compile与Link入口，再借用两份最终proof
+构造`PublishableSingleConeArtifact`。调用者可在形成summary后继续
+持有这两条typed proof；publication proof自身只保留不可变identity、target与两条view summary。不存在从
 Graph、Compile或未闭合Link状态直接构造publication authority的兼容入口。
 
 文件系统发布固定由`publish_single_cone_artifact`完成。它在destination同目录创建私有临时文件，写入并

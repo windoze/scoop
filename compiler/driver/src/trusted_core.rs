@@ -7,6 +7,9 @@ use scoop_manifest::{LoadedConeManifest, ManifestRootError, ManifestRootLocator}
 use scoop_slib::{CompositeIdentityAbiFingerprint, IdentityAbiDescriptor};
 use scoop_wire::HashError;
 
+mod artifact;
+pub use artifact::*;
+
 const CORE_SOURCE_RELATIVE_PATH: &str = "lib/scoop.core";
 const CORE_ARTIFACTS_RELATIVE_PATH: &str = "artifacts";
 const CORE_ARTIFACT_FILE_NAME: &str = "scoop.core.slib";
