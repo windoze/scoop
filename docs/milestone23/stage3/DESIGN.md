@@ -1620,6 +1620,14 @@ representation。ScanFingerprint使用domain `scoop-scan-v1`和总设计的`None
 offsets }` runtime encoding；static plan已拒绝Sequence及非canonical offsets。输出把两个digest分别绑定到
 plan中的Layout/Scan node id，并继续拥有同一完整物理proof。
 
+static storage的StrongRegistration只能经`compute_strong_static_storage_fingerprints_v1`消费上述完整shape
+proof产生。canonical record严格使用record-kind `StaticStorage=1`一次，随后编码Strong registration identity、
+`OwnStorageAtom=1`、size/extent/alignment、`EmptyScan=0 | ScanProgram=1 { scan fingerprint }`、独立scan/layout
+fingerprint，以及`ZeroedForRuntimeUnit=1 | EncodedStaticValue=2 { template byte span, sorted
+{pointer_offset, immortal object id} sequence }`。own definition槽与ODR字段固定为零；四项direct input精确为
+registration/storage ObjectDefinition、Layout、Scan并按`(kind,node id)`排序。initial-state物理support地址、
+member和symbol不进入hash，任一输入proof owner/node不一致都在hash前失败。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

@@ -8,12 +8,14 @@ pub(in crate::link_object) mod record;
 mod relocations;
 mod shape_fingerprints;
 mod storage_fingerprints;
+mod strong_fingerprints;
 mod verification;
 
 pub use error::*;
 pub use fingerprints::*;
 pub use shape_fingerprints::*;
 pub use storage_fingerprints::*;
+pub use strong_fingerprints::*;
 pub use verification::*;
 
 #[cfg(test)]
