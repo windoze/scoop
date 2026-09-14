@@ -140,47 +140,54 @@ impl ArtifactCapabilityProfile {
     pub(crate) fn validate_link_manifest_inventory(
         self,
         sections: &[crate::ManifestSection],
-    ) -> Result<(), ArtifactProfileLinkInventoryError> {
-        let descriptor = self.descriptor();
-        for (index, section) in sections.iter().enumerate() {
-            if section.required_for().contains(MemberPurposeSet::LINK)
-                && !descriptor
-                    .required_manifest()
-                    .contains(section.capability())
-            {
-                return Err(
-                    ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
-                        location: SectionLocation::Manifest,
-                        index,
-                        capability: section.capability().clone(),
-                    },
-                );
-            }
-        }
-        for capability in descriptor.required_manifest().iter().filter(|capability| {
-            CapabilityContractRegistry::contract(capability)
-                .is_some_and(|contract| contract.required_for().contains(MemberPurposeSet::LINK))
-        }) {
-            if !sections
-                .iter()
-                .any(|section| section.capability() == capability)
-            {
-                return Err(
-                    ArtifactProfileLinkInventoryError::MissingRequiredCapability {
-                        location: SectionLocation::Manifest,
-                        capability: capability.clone(),
-                    },
-                );
-            }
-        }
-        Ok(())
+    ) -> Result<(), ArtifactProfileInventoryError> {
+        self.validate_manifest_inventory(ArtifactProfileView::Link, sections)
+    }
+
+    pub(crate) fn validate_compile_manifest_inventory(
+        self,
+        sections: &[crate::ManifestSection],
+    ) -> Result<(), ArtifactProfileInventoryError> {
+        self.validate_manifest_inventory(ArtifactProfileView::Compile, sections)
     }
 
     pub(crate) fn validate_link_metadata_inventory(
         self,
         location: crate::MetadataLocation,
         sections: &[crate::DecodedMetadataSection<'_>],
-    ) -> Result<(), ArtifactProfileLinkInventoryError> {
+    ) -> Result<(), ArtifactProfileInventoryError> {
+        self.validate_metadata_inventory(ArtifactProfileView::Link, location, sections)
+    }
+
+    pub(crate) fn validate_compile_metadata_inventory(
+        self,
+        location: crate::MetadataLocation,
+        sections: &[crate::DecodedMetadataSection<'_>],
+    ) -> Result<(), ArtifactProfileInventoryError> {
+        self.validate_metadata_inventory(ArtifactProfileView::Compile, location, sections)
+    }
+
+    fn validate_manifest_inventory(
+        self,
+        view: ArtifactProfileView,
+        sections: &[crate::ManifestSection],
+    ) -> Result<(), ArtifactProfileInventoryError> {
+        validate_inventory(
+            view,
+            SectionLocation::Manifest,
+            self.descriptor().required_manifest(),
+            sections,
+            crate::ManifestSection::capability,
+            crate::ManifestSection::required_for,
+        )
+    }
+
+    fn validate_metadata_inventory(
+        self,
+        view: ArtifactProfileView,
+        location: crate::MetadataLocation,
+        sections: &[crate::DecodedMetadataSection<'_>],
+    ) -> Result<(), ArtifactProfileInventoryError> {
         let descriptor = self.descriptor();
         let expected = match location {
             crate::MetadataLocation::Hir => descriptor.required_hir(),
@@ -192,72 +199,118 @@ impl ArtifactCapabilityProfile {
             crate::MetadataLocation::Mir => SectionLocation::Mir,
             crate::MetadataLocation::Lir => SectionLocation::Lir,
         };
-        for (index, section) in sections.iter().enumerate() {
-            if section.required_for().contains(MemberPurposeSet::LINK)
-                && !expected.contains(section.capability())
-            {
-                return Err(
-                    ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
-                        location: section_location,
-                        index,
-                        capability: section.capability().clone(),
-                    },
-                );
-            }
+        validate_inventory(
+            view,
+            section_location,
+            expected,
+            sections,
+            crate::DecodedMetadataSection::capability,
+            crate::DecodedMetadataSection::required_for,
+        )
+    }
+}
+
+fn validate_inventory<S>(
+    view: ArtifactProfileView,
+    location: SectionLocation,
+    expected: &[CapabilityId],
+    sections: &[S],
+    capability_of: impl Fn(&S) -> &CapabilityId,
+    purpose_of: impl Fn(&S) -> MemberPurposeSet,
+) -> Result<(), ArtifactProfileInventoryError> {
+    let purpose = view.member_purpose();
+    for (index, section) in sections.iter().enumerate() {
+        let capability = capability_of(section);
+        if purpose_of(section).contains(purpose) && !expected.contains(capability) {
+            return Err(
+                ArtifactProfileInventoryError::UnsupportedRequiredCapability {
+                    view,
+                    location,
+                    index,
+                    capability: capability.clone(),
+                },
+            );
         }
-        for capability in expected.iter().filter(|capability| {
-            CapabilityContractRegistry::contract(capability)
-                .is_some_and(|contract| contract.required_for().contains(MemberPurposeSet::LINK))
-        }) {
-            if !sections
-                .iter()
-                .any(|section| section.capability() == capability)
-            {
-                return Err(
-                    ArtifactProfileLinkInventoryError::MissingRequiredCapability {
-                        location: section_location,
-                        capability: capability.clone(),
-                    },
-                );
-            }
+    }
+    for capability in expected.iter().filter(|capability| {
+        CapabilityContractRegistry::contract(capability)
+            .is_some_and(|contract| contract.required_for().contains(purpose))
+    }) {
+        if !sections
+            .iter()
+            .any(|section| capability_of(section) == capability)
+        {
+            return Err(ArtifactProfileInventoryError::MissingRequiredCapability {
+                view,
+                location,
+                capability: capability.clone(),
+            });
         }
-        Ok(())
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ArtifactProfileView {
+    Compile,
+    Link,
+}
+
+impl ArtifactProfileView {
+    const fn member_purpose(self) -> MemberPurposeSet {
+        match self {
+            Self::Compile => MemberPurposeSet::COMPILE,
+            Self::Link => MemberPurposeSet::LINK,
+        }
+    }
+}
+
+impl fmt::Display for ArtifactProfileView {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Compile => "Compile",
+            Self::Link => "Link",
+        })
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ArtifactProfileLinkInventoryError {
+pub enum ArtifactProfileInventoryError {
     MissingRequiredCapability {
+        view: ArtifactProfileView,
         location: SectionLocation,
         capability: CapabilityId,
     },
     UnsupportedRequiredCapability {
+        view: ArtifactProfileView,
         location: SectionLocation,
         index: usize,
         capability: CapabilityId,
     },
 }
 
-impl fmt::Display for ArtifactProfileLinkInventoryError {
+impl fmt::Display for ArtifactProfileInventoryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::MissingRequiredCapability {
+                view,
                 location,
                 capability,
             } => write!(
                 formatter,
-                "artifact profile requires {location} capability {}/{}/{} for Link",
+                "artifact profile requires {location} capability {}/{}/{} for {view}",
                 capability.namespace(),
                 capability.name(),
                 capability.major_version(),
             ),
             Self::UnsupportedRequiredCapability {
+                view,
                 location,
                 index,
                 capability,
             } => write!(
                 formatter,
-                "{location} section {index} requires unsupported Link capability {}/{}/{}",
+                "{location} section {index} requires unsupported {view} capability {}/{}/{}",
                 capability.namespace(),
                 capability.name(),
                 capability.major_version(),
@@ -266,7 +319,7 @@ impl fmt::Display for ArtifactProfileLinkInventoryError {
     }
 }
 
-impl std::error::Error for ArtifactProfileLinkInventoryError {}
+impl std::error::Error for ArtifactProfileInventoryError {}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SectionLocation {
@@ -870,12 +923,11 @@ mod tests {
         .unwrap();
         assert_eq!(
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG.validate_link_manifest_inventory(&[]),
-            Err(
-                ArtifactProfileLinkInventoryError::MissingRequiredCapability {
-                    location: SectionLocation::Manifest,
-                    capability: manifest_single_cone_production_capability()
-                }
-            )
+            Err(ArtifactProfileInventoryError::MissingRequiredCapability {
+                view: ArtifactProfileView::Link,
+                location: SectionLocation::Manifest,
+                capability: manifest_single_cone_production_capability()
+            })
         );
         assert!(
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG
@@ -886,7 +938,8 @@ mod tests {
             ArtifactCapabilityProfile::IDENTITY_FOUNDATION
                 .validate_link_manifest_inventory(std::slice::from_ref(&production)),
             Err(
-                ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
+                ArtifactProfileInventoryError::UnsupportedRequiredCapability {
+                    view: ArtifactProfileView::Link,
                     location: SectionLocation::Manifest,
                     index: 0,
                     ..

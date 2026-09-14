@@ -158,10 +158,10 @@ impl SemanticFingerprintRecord {
         lir: &[MetadataSection],
     ) -> Result<Self, SemanticFingerprintError> {
         let dependencies = OrderedDependencies::sorted(direct_dependencies)?;
-        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, None)
+        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, None, None)
     }
 
-    pub(crate) fn from_decoded_metadata_sections(
+    pub(crate) fn from_decoded_compile_metadata_sections(
         compatibility: &CompatibilityRecord,
         direct_dependencies: &[DependencyRecord],
         hir: &[DecodedMetadataSection<'_>],
@@ -170,7 +170,15 @@ impl SemanticFingerprintRecord {
         meter: &mut BudgetMeter,
     ) -> Result<Self, SemanticFingerprintError> {
         let dependencies = OrderedDependencies::canonical(direct_dependencies);
-        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, Some(meter))
+        metadata_fingerprints(
+            compatibility,
+            hir,
+            mir,
+            lir,
+            &dependencies,
+            Some(meter),
+            Some(MemberPurposeSet::COMPILE),
+        )
     }
 }
 
@@ -181,6 +189,7 @@ fn metadata_fingerprints<S: SemanticSection>(
     lir: &[S],
     dependencies: &OrderedDependencies<'_>,
     mut meter: Option<&mut BudgetMeter>,
+    required_view: Option<MemberPurposeSet>,
 ) -> Result<SemanticFingerprintRecord, SemanticFingerprintError> {
     let hir = calculate_layer_fingerprint(
         FoundationLayer::Hir,
@@ -188,6 +197,7 @@ fn metadata_fingerprints<S: SemanticSection>(
         hir,
         dependencies,
         meter.as_deref_mut(),
+        required_view,
     )?;
     let mir = calculate_layer_fingerprint(
         FoundationLayer::Mir,
@@ -195,6 +205,7 @@ fn metadata_fingerprints<S: SemanticSection>(
         mir,
         dependencies,
         meter.as_deref_mut(),
+        required_view,
     )?;
     let lir = calculate_layer_fingerprint(
         FoundationLayer::Lir,
@@ -202,6 +213,7 @@ fn metadata_fingerprints<S: SemanticSection>(
         lir,
         dependencies,
         meter,
+        required_view,
     )?;
     Ok(SemanticFingerprintRecord::from_foundation_digests(
         HirFingerprint::from_array(*hir.as_array()),
@@ -259,8 +271,10 @@ fn calculate_layer_fingerprint<S: SemanticSection>(
     sections: &[S],
     dependencies: &OrderedDependencies<'_>,
     mut meter: Option<&mut BudgetMeter>,
+    required_view: Option<MemberPurposeSet>,
 ) -> Result<scoop_wire::Digest256, SemanticFingerprintError> {
-    let contributions = collect_contributions(layer, sections, meter.as_deref_mut())?;
+    let contributions =
+        collect_contributions(layer, sections, meter.as_deref_mut(), required_view)?;
     let input = LayerFingerprintInput {
         context: LayerFingerprintContext {
             layer,
@@ -286,6 +300,7 @@ fn collect_contributions<'section, S: SemanticSection>(
     layer: FoundationLayer,
     sections: &'section [S],
     meter: Option<&mut BudgetMeter>,
+    required_view: Option<MemberPurposeSet>,
 ) -> Result<Vec<CanonicalSemanticContribution<'section>>, SemanticFingerprintError> {
     if let Some(meter) = meter {
         meter
@@ -308,7 +323,10 @@ fn collect_contributions<'section, S: SemanticSection>(
             });
         }
         let Some(contract) = CapabilityContractRegistry::contract(section.capability()) else {
-            if section.required_for() != MemberPurposeSet::NONE {
+            if required_view.map_or(
+                section.required_for() != MemberPurposeSet::NONE,
+                |purpose| section.required_for().contains(purpose),
+            ) {
                 return Err(SemanticFingerprintError::UnsupportedRequiredCapability {
                     layer,
                     index,
@@ -657,6 +675,7 @@ mod tests {
                 std::slice::from_ref(&hir),
                 &dependencies,
                 Some(&mut meter),
+                None,
             )
             .unwrap();
             meter.usage().validation_work_units
@@ -674,6 +693,7 @@ mod tests {
                 std::slice::from_ref(&hir),
                 &dependencies,
                 Some(&mut meter),
+                None,
             );
             assert_eq!(result.is_ok(), accepted);
             if !accepted {

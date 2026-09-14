@@ -62,7 +62,7 @@ fn link_section_decode_closes_manifest_inventory() {
     assert!(matches!(
         open_graph(&missing).decode_single_cone_link_sections(),
         Err(SingleConeLinkSectionDecodeError::Inventory(
-            ArtifactProfileLinkInventoryError::MissingRequiredCapability {
+            ArtifactProfileInventoryError::MissingRequiredCapability {
                 location: crate::SectionLocation::Manifest,
                 ..
             }
@@ -82,7 +82,7 @@ fn link_section_decode_closes_manifest_inventory() {
     assert!(matches!(
         open_graph(&unsupported).decode_single_cone_link_sections(),
         Err(SingleConeLinkSectionDecodeError::Inventory(
-            ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
+            ArtifactProfileInventoryError::UnsupportedRequiredCapability {
                 location: crate::SectionLocation::Manifest,
                 ..
             }
@@ -96,7 +96,7 @@ fn link_section_decode_closes_lir_inventory_but_keeps_optional_opaque() {
     assert!(matches!(
         open_graph(&missing).decode_single_cone_link_sections(),
         Err(SingleConeLinkSectionDecodeError::Inventory(
-            ArtifactProfileLinkInventoryError::MissingRequiredCapability {
+            ArtifactProfileInventoryError::MissingRequiredCapability {
                 location: crate::SectionLocation::Lir,
                 ..
             }
@@ -117,7 +117,7 @@ fn link_section_decode_closes_lir_inventory_but_keeps_optional_opaque() {
     assert!(matches!(
         open_graph(&unsupported).decode_single_cone_link_sections(),
         Err(SingleConeLinkSectionDecodeError::Inventory(
-            ArtifactProfileLinkInventoryError::UnsupportedRequiredCapability {
+            ArtifactProfileInventoryError::UnsupportedRequiredCapability {
                 location: crate::SectionLocation::Lir,
                 ..
             }
@@ -229,7 +229,7 @@ fn closure_section() -> MetadataSection {
     .unwrap()
 }
 
-fn strong_production() -> StrongProductionSectionV1 {
+pub(crate) fn strong_production() -> StrongProductionSectionV1 {
     let coordinate = ConeCoordinate::reserved_core();
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(

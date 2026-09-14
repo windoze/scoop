@@ -7,7 +7,7 @@ use scoop_lir::DecodedStrongProductionSectionV1;
 use scoop_wire::{DecodeUsage, WireError, decode_canonical_with_meter};
 
 use crate::{
-    ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileLinkInventoryError,
+    ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
     DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
     DecodedSingleConeProductionManifestV1, ManifestSection, MetadataLocation, MetadataReadError,
     SlibMemberId, SlibMemberRecord, SlibMemberRole, ValidatedGraphArtifact,
@@ -192,7 +192,7 @@ pub enum SingleConeLinkSectionDecodeError {
     WrongProfile {
         actual: ArtifactCapabilityProfileId,
     },
-    Inventory(ArtifactProfileLinkInventoryError),
+    Inventory(ArtifactProfileInventoryError),
     MissingMetadataMember {
         location: MetadataLocation,
     },
@@ -235,4 +235,9 @@ impl std::error::Error for SingleConeLinkSectionDecodeError {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
+
+#[cfg(test)]
+pub(crate) fn strong_production_for_test() -> scoop_lir::StrongProductionSectionV1 {
+    tests::strong_production()
+}
