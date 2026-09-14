@@ -1926,17 +1926,17 @@ target要等associated-record归一化器提供owner-relative语义后再开放�
 digest或裸bytes重新拼装写入计划。
 
 `patch_strong_registration_fingerprints_v1`是当前已实现strong registration slot的唯一writer入口，必须
-同时消费完整safepoint、callable、type与immortal-object fingerprint proof；旧的较少参数公开patch入口不存在。
-四份proof必须拥有逐项相等的完整patch-site proof，且safepoint/callable共享同一stackmap proof，从而绑定
+同时消费完整safepoint、callable、type、immortal-object与static-storage fingerprint proof；旧的较少参数公开
+patch入口不存在。五份proof必须拥有逐项相等的完整patch-site proof，且safepoint/callable共享同一stackmap proof，从而绑定
 同一built-in object closure和digest graph。
 入口再次匹配provisional content digest的完整Scoop object member集合，先复制bytes，再只按proof中的
 `VerifiedMaterializedPatchSiteV1`写入：safepoint的normalized-stackmap/registration digest，以及callable的
 body-definition/registration digest、type的descriptor-definition/layout/registration digest与immortal-object
-的registration digest；不暴露接受
+的registration digest、static storage的scan/layout/registration digest；不暴露接受
 裸member、offset或digest的公共写函数。写后分别逐record重建最终232-byte safepoint、192-byte callable与
-240-byte type、184-byte immortal-object ABI并比较，同时把全部已写slot归零后要求member长度/content digest精确回到provisional
-envelope，再重新解析Mach-O并要求section、symbol、relocation及
-deployment形状逐项未变。输出拥有四份fingerprint proof和final object副本，明确仍是当前registration
+240-byte type、184-byte immortal-object与296-byte static-storage ABI并比较，同时把全部已写slot归零后要求member
+长度/content digest精确回到provisional envelope，再重新解析Mach-O并要求section、symbol、relocation及
+deployment形状逐项未变。输出拥有五份fingerprint proof和final object副本，明确仍是当前registration
 覆盖面的typed中间proof，不冒充完成其余registration kind与整个digest graph后的`VerifiedLinkObjectMember`。
 
 ### 13.3 registration完备性
