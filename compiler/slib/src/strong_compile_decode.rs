@@ -972,57 +972,49 @@ fn validate_core_callable_relation(
         };
     };
 
-    let expected = hir
-        .callable_targets()
-        .targets()
-        .iter()
-        .filter(|target| {
-            matches!(
-                target.capability(),
-                CoreHirCallableCapabilityV1::ParamFreeStrong(_)
-            )
-        })
-        .count();
-    if expected != mir.callable_targets().len() {
-        return Err(StrongProfileRelationError::CoreCallableCoverage {
-            expected,
-            actual: mir.callable_targets().len(),
-        });
-    }
-    for (index, (hir, mir)) in hir
-        .callable_targets()
-        .targets()
-        .iter()
-        .filter(|target| {
-            matches!(
-                target.capability(),
-                CoreHirCallableCapabilityV1::ParamFreeStrong(_)
-            )
-        })
-        .zip(mir.callable_targets())
-        .enumerate()
-    {
-        let CoreCallableDefinitionV1::Function(definition) = hir.definition() else {
-            return Err(StrongProfileRelationError::GenericStrongCoreCallable { index });
+    let mut expected = Vec::new();
+    for (index, target) in hir.callable_targets().targets().iter().enumerate() {
+        let CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) = target.capability() else {
+            continue;
         };
-        let CoreHirCallableCapabilityV1::ParamFreeStrong(signature) = hir.capability() else {
-            unreachable!("filtered to param-free strong core callables")
+        let CoreCallableDefinitionV1::Function(definition) = target.definition() else {
+            return Err(
+                StrongProfileRelationError::InvalidCoreCallableCandidateDefinition { index },
+            );
         };
-        if hir.binding() != mir.binding()
-            || definition != mir.definition()
-            || mir.implementation() != scoop_identity::CallableOwner::Function(definition)
-        {
-            return Err(StrongProfileRelationError::CoreCallableMismatch { index });
-        }
+        let implementation = scoop_identity::CallableOwner::Function(definition);
         let Some(strong) = strong
             .bridges()
             .iter()
-            .find(|strong| strong.implementation() == mir.implementation())
+            .find(|strong| strong.implementation() == implementation)
         else {
-            return Err(StrongProfileRelationError::MissingStrongCallable { index });
+            continue;
         };
         if strong.signature() != signature {
             return Err(StrongProfileRelationError::CoreCallableSignatureMismatch { index });
+        }
+        expected.push((target, implementation));
+    }
+
+    if expected.len() != mir.callable_targets().len() {
+        return Err(StrongProfileRelationError::CoreCallableCoverage {
+            expected: expected.len(),
+            actual: mir.callable_targets().len(),
+        });
+    }
+    for (index, ((hir, implementation), mir)) in
+        expected.iter().zip(mir.callable_targets()).enumerate()
+    {
+        let CoreCallableDefinitionV1::Function(definition) = hir.definition() else {
+            return Err(
+                StrongProfileRelationError::InvalidCoreCallableCandidateDefinition { index },
+            );
+        };
+        if hir.binding() != mir.binding()
+            || definition != mir.definition()
+            || mir.implementation() != *implementation
+        {
+            return Err(StrongProfileRelationError::CoreCallableMismatch { index });
         }
     }
     Ok(())
@@ -1160,9 +1152,8 @@ pub enum StrongProfileRelationError {
     OutputMismatch,
     CoreBranchMismatch,
     CoreCallableCoverage { expected: usize, actual: usize },
-    GenericStrongCoreCallable { index: usize },
+    InvalidCoreCallableCandidateDefinition { index: usize },
     CoreCallableMismatch { index: usize },
-    MissingStrongCallable { index: usize },
     CoreCallableSignatureMismatch { index: usize },
 }
 

@@ -208,7 +208,9 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);
 
-    let prelude = imported.import_core_prelude(&fixture.interface).unwrap();
+    let prelude = imported
+        .import_core_prelude(&fixture.interface, &[])
+        .unwrap();
 
     assert_eq!(prelude.origin(), ConeIdentity::CORE);
     let string = prelude
@@ -235,9 +237,9 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
     let selected = string[0].select_param_free_strong().unwrap();
     let other_imported = imported_foundation(&fixture.foundation);
     let other_interface = fixture.interface.clone();
-    assert!(selected.belongs_to(&imported, &fixture.interface));
-    assert!(!selected.belongs_to(&other_imported, &fixture.interface));
-    assert!(!selected.belongs_to(&imported, &other_interface));
+    assert!(selected.belongs_to(&imported, &fixture.interface, &[]));
+    assert!(!selected.belongs_to(&other_imported, &fixture.interface, &[]));
+    assert!(!selected.belongs_to(&imported, &other_interface, &[]));
     assert_eq!(selected.binding(), string[0].identity());
     assert!(matches!(
         selected.target(),
@@ -253,10 +255,7 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
     let error = option.select_param_free_strong().unwrap_err();
     assert_eq!(error.required(), CorePreludeUnavailableCapability::Generic);
     assert_eq!(error.binding(), option.identity());
-    assert_eq!(
-        crate::CorePreludeCapabilityError::CODE,
-        "SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE"
-    );
+    assert_eq!(error.code(), "SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE");
     assert_eq!(prelude.string_exact().persistent(), fixture.string_exact);
     assert_eq!(
         prelude.option_some().persistent(),
@@ -281,8 +280,15 @@ fn imported_core_prelude_rejects_an_interface_from_another_foundation() {
     let imported = imported_foundation(&missing_binding);
 
     assert!(matches!(
-        imported.import_core_prelude(&fixture.interface),
+        imported.import_core_prelude(&fixture.interface, &[]),
         Err(CorePreludeImportError::MissingBindingKey(binding)) if binding == first_binding
+    ));
+
+    assert!(matches!(
+        imported_foundation(&fixture.foundation)
+            .import_core_prelude(&fixture.interface, &[first_binding]),
+        Err(CorePreludeImportError::UnknownStrongCallableBinding(binding))
+            if binding == first_binding
     ));
 }
 

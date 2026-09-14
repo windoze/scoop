@@ -83,7 +83,7 @@ impl WireDecode for DecodedCoreCallableDefinitionV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CoreHirCallableCapabilityV1 {
-    ParamFreeStrong(ExactCallableSignature),
+    ParamFreeCandidate(ExactCallableSignature),
     StructuralUnavailable(ExactCallableSignature),
     GenericUnavailable { type_parameter_count: u32 },
 }
@@ -91,7 +91,7 @@ pub enum CoreHirCallableCapabilityV1 {
 impl WireEncode for CoreHirCallableCapabilityV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::ParamFreeStrong(signature) => encode_value_sum(encoder, 1, signature),
+            Self::ParamFreeCandidate(signature) => encode_value_sum(encoder, 1, signature),
             Self::StructuralUnavailable(signature) => encode_value_sum(encoder, 2, signature),
             Self::GenericUnavailable {
                 type_parameter_count,
@@ -108,7 +108,7 @@ impl WireEncode for CoreHirCallableCapabilityV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedCoreHirCallableCapabilityV1 {
-    ParamFreeStrong(DecodedExactCallableSignature),
+    ParamFreeCandidate(DecodedExactCallableSignature),
     StructuralUnavailable(DecodedExactCallableSignature),
     GenericUnavailable { type_parameter_count: u32 },
 }
@@ -116,7 +116,7 @@ pub enum DecodedCoreHirCallableCapabilityV1 {
 impl WireEncode for DecodedCoreHirCallableCapabilityV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::ParamFreeStrong(signature) => encode_value_sum(encoder, 1, signature),
+            Self::ParamFreeCandidate(signature) => encode_value_sum(encoder, 1, signature),
             Self::StructuralUnavailable(signature) => encode_value_sum(encoder, 2, signature),
             Self::GenericUnavailable {
                 type_parameter_count,
@@ -145,7 +145,7 @@ impl WireDecode for DecodedCoreHirCallableCapabilityV1 {
         match tag {
             1 => decoder
                 .field(1, DecodedExactCallableSignature::decode)
-                .map(Self::ParamFreeStrong),
+                .map(Self::ParamFreeCandidate),
             2 => decoder
                 .field(1, DecodedExactCallableSignature::decode)
                 .map(Self::StructuralUnavailable),
@@ -536,7 +536,7 @@ fn build_target(
     } else {
         let exact = exact_signature(export, binding, declaration, receiver, &parameters, effect)?;
         if exact_signature_is_nominal(export, &exact) {
-            CoreHirCallableCapabilityV1::ParamFreeStrong(exact)
+            CoreHirCallableCapabilityV1::ParamFreeCandidate(exact)
         } else {
             CoreHirCallableCapabilityV1::StructuralUnavailable(exact)
         }
@@ -806,7 +806,7 @@ fn validate_capability(
                 type_parameter_count: actual,
             })
         }
-        DecodedCoreHirCallableCapabilityV1::ParamFreeStrong(decoded) => {
+        DecodedCoreHirCallableCapabilityV1::ParamFreeCandidate(decoded) => {
             if type_parameter_count != 0 {
                 return Err(CoreCallableTargetSurfaceValidationError::CapabilityMismatch(binding));
             }
@@ -814,7 +814,7 @@ fn validate_capability(
             if !exact_roots_are_nominal(foundation, &exact) {
                 return Err(CoreCallableTargetSurfaceValidationError::CapabilityMismatch(binding));
             }
-            Ok(CoreHirCallableCapabilityV1::ParamFreeStrong(exact))
+            Ok(CoreHirCallableCapabilityV1::ParamFreeCandidate(exact))
         }
         DecodedCoreHirCallableCapabilityV1::StructuralUnavailable(decoded) => {
             if type_parameter_count != 0 {

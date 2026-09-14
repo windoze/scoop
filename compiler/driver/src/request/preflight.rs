@@ -889,14 +889,14 @@ mod tests {
             .targets()
             .iter()
             .filter_map(|target| {
-                let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeStrong(signature) =
+                let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) =
                     target.capability()
                 else {
                     return None;
                 };
                 let scoop_hir::CoreCallableDefinitionV1::Function(definition) = target.definition()
                 else {
-                    panic!("a param-free strong core callable has a source function definition")
+                    panic!("a param-free core callable candidate has a source function definition")
                 };
                 Some(scoop_mir::CallableSignatureRecord::new(
                     scoop_mir::CallableSignatureSubject::Strong(
@@ -911,14 +911,37 @@ mod tests {
         let empty_mir_foundation =
             scoop_mir::OdrFreeMirFoundation::try_new(scoop_mir::CanonicalMirFoundation::empty())
                 .unwrap();
-        assert!(matches!(
-            scoop_mir_lower::lower_production_section(
-                scoop_identity::ConeIdentity::CORE,
-                output.production_section(),
-                &empty_mir_foundation,
-            ),
-            Err(scoop_mir_lower::MirProductionLoweringError::MissingStrongCoreCallable { .. })
-        ));
+        let empty_production = scoop_mir_lower::lower_production_section(
+            scoop_identity::ConeIdentity::CORE,
+            output.production_section(),
+            &empty_mir_foundation,
+        )
+        .unwrap();
+        let scoop_mir::CoreMirBridgeBranchV1::Core(empty_core_bridge) =
+            empty_production.core_bridge()
+        else {
+            panic!("the trusted bootstrap MIR production has a core bridge")
+        };
+        assert!(empty_core_bridge.callable_targets().is_empty());
+
+        let mut partial_foundation = scoop_mir::CanonicalMirFoundation::empty();
+        partial_foundation
+            .set_callable_signatures(vec![signatures[0].clone()])
+            .unwrap();
+        let partial_foundation =
+            scoop_mir::OdrFreeMirFoundation::try_new(partial_foundation).unwrap();
+        let partial_production = scoop_mir_lower::lower_production_section(
+            scoop_identity::ConeIdentity::CORE,
+            output.production_section(),
+            &partial_foundation,
+        )
+        .unwrap();
+        let scoop_mir::CoreMirBridgeBranchV1::Core(partial_core_bridge) =
+            partial_production.core_bridge()
+        else {
+            panic!("the trusted bootstrap MIR production has a core bridge")
+        };
+        assert_eq!(partial_core_bridge.callable_targets().len(), 1);
 
         let mut mismatched_signatures = signatures.clone();
         let expected = mismatched_signatures[0].signature();
@@ -983,7 +1006,7 @@ mod tests {
                 .iter()
                 .filter(|target| matches!(
                     target.capability(),
-                    scoop_hir::CoreHirCallableCapabilityV1::ParamFreeStrong(_)
+                    scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(_)
                 ))
                 .count()
         );

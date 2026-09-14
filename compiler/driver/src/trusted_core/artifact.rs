@@ -16,7 +16,9 @@ use scoop_lir::{
     ImportedLirCallableProjectionError, SelectedImportedLirCallable,
     StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
 };
-use scoop_mir::{ImportedMirCallableProjectionError, SelectedImportedMirCallable};
+use scoop_mir::{
+    CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, SelectedImportedMirCallable,
+};
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CompositeIdentityAbiFingerprint, ConeKind,
     ConeSourceForm, DecodedSlibEnvelope, GraphValidationError, PublishViewMismatchError,
@@ -240,13 +242,25 @@ impl LoadedTrustedCoreArtifact {
 
         let publication = PublishableSingleConeArtifact::from_validated_views(&compile, &link)
             .map_err(TrustedCoreArtifactValidationError::ViewMismatch)?;
-        let core_interface = match compile.production().hir().core_interface() {
-            CoreHirInterfaceBranchV1::Core(interface) => ValidatedCoreInterface {
-                interface: interface.as_ref().clone(),
-            },
+        let interface = match compile.production().hir().core_interface() {
+            CoreHirInterfaceBranchV1::Core(interface) => interface.as_ref().clone(),
             CoreHirInterfaceBranchV1::NotCore => {
                 return Err(TrustedCoreArtifactValidationError::MissingCoreInterface);
             }
+        };
+        let strong_callable_bindings = match compile.production().mir().core_bridge() {
+            CoreMirBridgeBranchV1::Core(bridge) => bridge
+                .callable_targets()
+                .iter()
+                .map(|target| target.binding())
+                .collect(),
+            CoreMirBridgeBranchV1::NotCore => {
+                return Err(TrustedCoreArtifactValidationError::MissingCoreMirBridge);
+            }
+        };
+        let core_interface = ValidatedCoreInterface {
+            interface,
+            strong_callable_bindings,
         };
 
         Ok(ValidatedTrustedCoreArtifact {
@@ -350,6 +364,7 @@ impl TrustedCoreArtifactAuthority {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ValidatedCoreInterface {
     interface: CoreHirInterfaceV1,
+    strong_callable_bindings: Vec<PersistentExportBindingId>,
 }
 
 pub struct ValidatedTrustedCoreArtifact<'input> {
@@ -373,9 +388,10 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
     pub fn import_core_prelude(
         &self,
     ) -> Result<ImportedHirSet<'_, CorePreludeOnly>, CorePreludeImportError> {
-        self.compile
-            .hir()
-            .import_core_prelude(&self.core_interface.interface)
+        self.compile.hir().import_core_prelude(
+            &self.core_interface.interface,
+            &self.core_interface.strong_callable_bindings,
+        )
     }
 
     /// Projects one checked param-free callable candidate through this exact
@@ -390,7 +406,11 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             });
         };
         let binding = selected.binding();
-        if !selected.belongs_to(self.compile.hir(), &self.core_interface.interface) {
+        if !selected.belongs_to(
+            self.compile.hir(),
+            &self.core_interface.interface,
+            &self.core_interface.strong_callable_bindings,
+        ) {
             return Err(TrustedCoreCallableProjectionError::ForeignHirSelection {
                 binding: binding.persistent(),
             });
@@ -417,7 +437,7 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
                 },
             );
         };
-        let CoreHirCallableCapabilityV1::ParamFreeStrong(signature) = own_target.capability()
+        let CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) = own_target.capability()
         else {
             return Err(TrustedCoreCallableProjectionError::UnavailableHirCallable {
                 binding: binding.persistent(),
@@ -616,6 +636,7 @@ pub enum TrustedCoreArtifactValidationError {
     Link(Box<StrongLinkArtifactValidationError>),
     ViewMismatch(PublishViewMismatchError),
     MissingCoreInterface,
+    MissingCoreMirBridge,
 }
 
 impl TrustedCoreArtifactValidationError {
@@ -648,6 +669,9 @@ impl fmt::Display for TrustedCoreArtifactValidationError {
             Self::MissingCoreInterface => {
                 formatter.write_str("trusted core Compile proof has no Core HIR interface")
             }
+            Self::MissingCoreMirBridge => {
+                formatter.write_str("trusted core Compile proof has no Core MIR bridge")
+            }
         }
     }
 }
@@ -661,7 +685,7 @@ impl std::error::Error for TrustedCoreArtifactValidationError {
             Self::Compile(error) => Some(error.as_ref()),
             Self::Link(error) => Some(error.as_ref()),
             Self::ViewMismatch(error) => Some(error),
-            Self::MissingCoreInterface => None,
+            Self::MissingCoreInterface | Self::MissingCoreMirBridge => None,
         }
     }
 }

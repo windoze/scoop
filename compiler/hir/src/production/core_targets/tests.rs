@@ -110,7 +110,7 @@ fn callable_surface_replays_definition_origin_signature_and_capability() {
         .position(|target| {
             matches!(
                 target.capability(),
-                CoreHirCallableCapabilityV1::ParamFreeStrong(_)
+                CoreHirCallableCapabilityV1::ParamFreeCandidate(_)
             )
         })
         .unwrap();
@@ -155,7 +155,7 @@ fn callable_surface_replays_definition_origin_signature_and_capability() {
     ));
 
     let mut wrong_capability = fixture.surface.targets().to_vec();
-    let CoreHirCallableCapabilityV1::ParamFreeStrong(exact) =
+    let CoreHirCallableCapabilityV1::ParamFreeCandidate(exact) =
         wrong_capability[plain_index].capability.clone()
     else {
         panic!("fixture must contain a param-free Strong callable")
@@ -191,7 +191,7 @@ fn callable_surface_replays_definition_origin_signature_and_capability() {
     .unwrap();
     let mut unknown_exact_signature = fixture.surface.targets().to_vec();
     unknown_exact_signature[plain_index].capability =
-        CoreHirCallableCapabilityV1::ParamFreeStrong(ExactCallableSignature::new(
+        CoreHirCallableCapabilityV1::ParamFreeCandidate(ExactCallableSignature::new(
             Effect::Ordinary,
             None,
             vec![unknown_exact.id()],
@@ -303,7 +303,7 @@ fn fixture() -> Fixture {
             vec![SignatureTypeKey::Nominal(source_type)],
             SignatureTypeKey::Nominal(source_type),
         ),
-        capability: CoreHirCallableCapabilityV1::ParamFreeStrong(ExactCallableSignature::new(
+        capability: CoreHirCallableCapabilityV1::ParamFreeCandidate(ExactCallableSignature::new(
             Effect::Ordinary,
             None,
             vec![nominal_exact.id()],

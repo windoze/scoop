@@ -45,11 +45,13 @@ fn lower_core_bridge(
 
     let mut callable_targets = Vec::new();
     for (index, target) in interface.callable_targets().targets().iter().enumerate() {
-        let CoreHirCallableCapabilityV1::ParamFreeStrong(signature) = target.capability() else {
+        let CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) = target.capability() else {
             continue;
         };
         let CoreCallableDefinitionV1::Function(definition) = target.definition() else {
-            return Err(MirProductionLoweringError::GenericStrongCoreCallable { index });
+            return Err(
+                MirProductionLoweringError::InvalidCoreCallableCandidateDefinition { index },
+            );
         };
         let implementation = CallableOwner::Function(definition);
         let Some(bridge) = strong
@@ -57,10 +59,7 @@ fn lower_core_bridge(
             .iter()
             .find(|bridge| bridge.implementation() == implementation)
         else {
-            return Err(MirProductionLoweringError::MissingStrongCoreCallable {
-                index,
-                implementation,
-            });
+            continue;
         };
         if bridge.signature() != signature {
             return Err(MirProductionLoweringError::CoreCallableSignatureMismatch {
@@ -97,12 +96,8 @@ fn lower_entry_bridge(
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum MirProductionLoweringError {
-    GenericStrongCoreCallable {
+    InvalidCoreCallableCandidateDefinition {
         index: usize,
-    },
-    MissingStrongCoreCallable {
-        index: usize,
-        implementation: CallableOwner,
     },
     CoreCallableSignatureMismatch {
         index: usize,
@@ -121,8 +116,7 @@ impl std::error::Error for MirProductionLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Production(source) => Some(source),
-            Self::GenericStrongCoreCallable { .. }
-            | Self::MissingStrongCoreCallable { .. }
+            Self::InvalidCoreCallableCandidateDefinition { .. }
             | Self::CoreCallableSignatureMismatch { .. } => None,
         }
     }

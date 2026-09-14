@@ -11,7 +11,10 @@ use scoop_wire::WireEncode;
 use super::{
     CanonicalHirFoundation, HirFoundationCounts, OdrFreeHirFoundation, ValidatedHirFoundation,
 };
-use crate::{CoreCallableTargetV1, CoreHirInterfaceV1, CoreTypeTargetV1, CoreValueTargetV1};
+use crate::{
+    CoreCallableDefinitionV1, CoreCallableTargetV1, CoreHirCallableCapabilityV1,
+    CoreHirInterfaceV1, CoreTypeTargetV1, CoreValueTargetV1,
+};
 
 /// Session-local HIR identity. Its type is distinct from current HIR ids and
 /// from imported MIR/LIR ids.
@@ -80,10 +83,12 @@ impl ImportedHirFoundation {
     pub fn import_core_prelude<'a>(
         &'a self,
         interface: &'a CoreHirInterfaceV1,
+        strong_callable_bindings: &'a [PersistentExportBindingId],
     ) -> Result<ImportedHirSet<'a, CorePreludeOnly>, CorePreludeImportError> {
         if self.origin() != ConeIdentity::CORE {
             return Err(CorePreludeImportError::FoundationNotCore(self.origin()));
         }
+        validate_strong_callable_bindings(interface, strong_callable_bindings)?;
 
         let mut bindings = Vec::with_capacity(
             interface
@@ -110,6 +115,7 @@ impl ImportedHirFoundation {
             bindings.push(ImportedCorePreludeBinding {
                 foundation: self,
                 interface,
+                strong_callable_bindings,
                 identity,
                 key,
                 target,
@@ -219,6 +225,7 @@ impl ImportedHirSet<'_, CorePreludeOnly> {
 pub struct ImportedCorePreludeBinding<'a> {
     foundation: &'a ImportedHirFoundation,
     interface: &'a CoreHirInterfaceV1,
+    strong_callable_bindings: &'a [PersistentExportBindingId],
     identity: ImportedHirId<PersistentExportBindingId>,
     key: &'a ExportBindingKey,
     target: ImportedCorePreludeTarget<'a>,
@@ -248,15 +255,12 @@ impl<'a> ImportedCorePreludeBinding<'a> {
         &'selected self,
     ) -> Result<SelectedImportedCoreTarget<'selected>, CorePreludeCapabilityError> {
         let unavailable = match self.target {
-            ImportedCorePreludeTarget::Callable(target) => match target.capability() {
-                crate::CoreHirCallableCapabilityV1::ParamFreeStrong(_) => None,
-                crate::CoreHirCallableCapabilityV1::StructuralUnavailable(_) => {
-                    Some(CorePreludeUnavailableCapability::Structural)
-                }
-                crate::CoreHirCallableCapabilityV1::GenericUnavailable { .. } => {
-                    Some(CorePreludeUnavailableCapability::Generic)
-                }
-            },
+            ImportedCorePreludeTarget::Callable(target) => callable_unavailability(
+                target.capability(),
+                self.strong_callable_bindings
+                    .binary_search(&self.identity.persistent())
+                    .is_ok(),
+            ),
             ImportedCorePreludeTarget::Type(target) => match target.capability() {
                 crate::CoreHirTypeCapabilityV1::ParamFreeStrong(_) => None,
                 crate::CoreHirTypeCapabilityV1::StructuralUnavailable(_) => {
@@ -284,6 +288,7 @@ impl<'a> ImportedCorePreludeBinding<'a> {
             None => Ok(SelectedImportedCoreTarget {
                 foundation: self.foundation,
                 interface: self.interface,
+                strong_callable_bindings: self.strong_callable_bindings,
                 binding: self.identity,
                 target: self.target,
             }),
@@ -307,6 +312,7 @@ pub enum ImportedCorePreludeTarget<'a> {
 pub struct SelectedImportedCoreTarget<'a> {
     foundation: &'a ImportedHirFoundation,
     interface: &'a CoreHirInterfaceV1,
+    strong_callable_bindings: &'a [PersistentExportBindingId],
     binding: ImportedHirId<PersistentExportBindingId>,
     target: ImportedCorePreludeTarget<'a>,
 }
@@ -325,8 +331,11 @@ impl<'a> SelectedImportedCoreTarget<'a> {
         self,
         foundation: &ImportedHirFoundation,
         interface: &CoreHirInterfaceV1,
+        strong_callable_bindings: &[PersistentExportBindingId],
     ) -> bool {
-        std::ptr::eq(self.foundation, foundation) && std::ptr::eq(self.interface, interface)
+        std::ptr::eq(self.foundation, foundation)
+            && std::ptr::eq(self.interface, interface)
+            && std::ptr::eq(self.strong_callable_bindings, strong_callable_bindings)
     }
 }
 
@@ -342,6 +351,7 @@ impl fmt::Debug for SelectedImportedCoreTarget<'_> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CorePreludeUnavailableCapability {
+    Implementation,
     Structural,
     Generic,
 }
@@ -353,14 +363,16 @@ pub struct CorePreludeCapabilityError {
 }
 
 impl CorePreludeCapabilityError {
-    pub const CODE: &'static str = "SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE";
-
     pub const fn binding(self) -> ImportedHirId<PersistentExportBindingId> {
         self.binding
     }
 
     pub const fn required(self) -> CorePreludeUnavailableCapability {
         self.required
+    }
+
+    pub const fn code(self) -> &'static str {
+        capability_error_code(self.required)
     }
 }
 
@@ -369,13 +381,41 @@ impl fmt::Display for CorePreludeCapabilityError {
         write!(
             formatter,
             "{}: imported core binding requires unavailable {:?} materialization",
-            Self::CODE,
+            self.code(),
             self.required
         )
     }
 }
 
 impl std::error::Error for CorePreludeCapabilityError {}
+
+const fn capability_error_code(required: CorePreludeUnavailableCapability) -> &'static str {
+    match required {
+        CorePreludeUnavailableCapability::Implementation => {
+            "SCOOPC_CAPABILITY_CORE_IMPLEMENTATION_UNAVAILABLE"
+        }
+        CorePreludeUnavailableCapability::Structural
+        | CorePreludeUnavailableCapability::Generic => "SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE",
+    }
+}
+
+fn callable_unavailability(
+    capability: &CoreHirCallableCapabilityV1,
+    has_strong_implementation: bool,
+) -> Option<CorePreludeUnavailableCapability> {
+    match capability {
+        CoreHirCallableCapabilityV1::ParamFreeCandidate(_) if has_strong_implementation => None,
+        CoreHirCallableCapabilityV1::ParamFreeCandidate(_) => {
+            Some(CorePreludeUnavailableCapability::Implementation)
+        }
+        CoreHirCallableCapabilityV1::StructuralUnavailable(_) => {
+            Some(CorePreludeUnavailableCapability::Structural)
+        }
+        CoreHirCallableCapabilityV1::GenericUnavailable { .. } => {
+            Some(CorePreludeUnavailableCapability::Generic)
+        }
+    }
+}
 
 fn core_prelude_target(
     interface: &CoreHirInterfaceV1,
@@ -405,9 +445,44 @@ fn core_prelude_target(
     }
 }
 
+fn validate_strong_callable_bindings(
+    interface: &CoreHirInterfaceV1,
+    bindings: &[PersistentExportBindingId],
+) -> Result<(), CorePreludeImportError> {
+    if bindings.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(CorePreludeImportError::NonCanonicalStrongCallableBindings);
+    }
+    for &binding in bindings {
+        let Some(target) = interface
+            .callable_targets()
+            .targets()
+            .iter()
+            .find(|target| target.binding() == binding)
+        else {
+            return Err(CorePreludeImportError::UnknownStrongCallableBinding(
+                binding,
+            ));
+        };
+        if !matches!(target.definition(), CoreCallableDefinitionV1::Function(_))
+            || !matches!(
+                target.capability(),
+                CoreHirCallableCapabilityV1::ParamFreeCandidate(_)
+            )
+        {
+            return Err(CorePreludeImportError::IneligibleStrongCallableBinding(
+                binding,
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CorePreludeImportError {
     FoundationNotCore(ConeIdentity),
+    NonCanonicalStrongCallableBindings,
+    UnknownStrongCallableBinding(PersistentExportBindingId),
+    IneligibleStrongCallableBinding(PersistentExportBindingId),
     MissingBindingKey(PersistentExportBindingId),
     ForeignBinding {
         binding: PersistentExportBindingId,
@@ -430,3 +505,33 @@ impl fmt::Display for CorePreludeImportError {
 }
 
 impl std::error::Error for CorePreludeImportError {}
+
+#[cfg(test)]
+mod tests {
+    use scoop_identity::{
+        CoreBuiltinNominal, Effect, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId,
+    };
+
+    use super::*;
+
+    #[test]
+    fn callable_candidate_requires_the_joined_mir_implementation_proof() {
+        let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap();
+        let candidate = CoreHirCallableCapabilityV1::ParamFreeCandidate(
+            ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
+        );
+
+        assert_eq!(callable_unavailability(&candidate, true), None);
+        assert_eq!(
+            callable_unavailability(&candidate, false),
+            Some(CorePreludeUnavailableCapability::Implementation)
+        );
+        assert_eq!(
+            capability_error_code(CorePreludeUnavailableCapability::Implementation),
+            "SCOOPC_CAPABILITY_CORE_IMPLEMENTATION_UNAVAILABLE"
+        );
+    }
+}
