@@ -65,15 +65,18 @@ impl DiscoveredSource {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DiscoveredManifestSources(Vec<DiscoveredSource>);
+pub struct DiscoveredManifestSources {
+    first: DiscoveredSource,
+    rest: Vec<DiscoveredSource>,
+}
 
 impl DiscoveredManifestSources {
-    pub fn as_slice(&self) -> &[DiscoveredSource] {
-        &self.0
+    pub const fn first(&self) -> &DiscoveredSource {
+        &self.first
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &DiscoveredSource> {
-        self.0.iter()
+        std::iter::once(&self.first).chain(&self.rest)
     }
 }
 
@@ -258,13 +261,6 @@ pub fn discover_manifest_sources(
             ));
         }
     }
-    if candidates.is_empty() {
-        return Err(SourceDiscoveryError::new(
-            src_locator,
-            SourceDiscoveryErrorKind::EmptySourceSet,
-        ));
-    }
-
     let cone = manifest
         .parsed()
         .semantic()
@@ -276,58 +272,69 @@ pub fn discover_manifest_sources(
                 SourceDiscoveryErrorKind::IdentityHash(error.to_string()),
             )
         })?;
-    let mut sources = Vec::with_capacity(candidates.len());
-    for candidate in candidates {
-        let bytes = std::fs::read(&candidate.physical_path).map_err(|error| {
-            SourceDiscoveryError::io(
-                DiscoveryIoOperation::ReadSource,
-                candidate.display_path.clone(),
-                error,
-            )
-        })?;
-        let after_read = std::fs::canonicalize(&candidate.physical_path).map_err(|error| {
-            SourceDiscoveryError::io(
-                DiscoveryIoOperation::Canonicalize,
-                candidate.display_path.clone(),
-                error,
-            )
-        })?;
-        if after_read != candidate.physical_path
-            || !std::fs::metadata(&after_read)
-                .map_err(|error| {
-                    SourceDiscoveryError::io(
-                        DiscoveryIoOperation::Inspect,
-                        candidate.display_path.clone(),
-                        error,
-                    )
-                })?
-                .is_file()
-        {
-            return Err(SourceDiscoveryError::new(
-                candidate.display_path,
-                SourceDiscoveryErrorKind::SourceChangedDuringDiscovery,
-            ));
-        }
-        let source_text = String::from_utf8(bytes).map_err(|_| {
-            SourceDiscoveryError::new(
-                candidate.display_path.clone(),
-                SourceDiscoveryErrorKind::InvalidUtf8Source,
-            )
-        })?;
-        let identity = SourceIdentity::new(cone, candidate.logical_path).map_err(|error| {
-            SourceDiscoveryError::new(
-                candidate.display_path.clone(),
-                SourceDiscoveryErrorKind::InvalidSourceIdentity(error.to_string()),
-            )
-        })?;
-        sources.push(DiscoveredSource::new(
-            identity,
-            SourceDisplayLocator::new(candidate.display_path),
-            source_text,
+    let mut candidates = candidates.into_iter();
+    let first_candidate = candidates.next().ok_or_else(|| {
+        SourceDiscoveryError::new(src_locator, SourceDiscoveryErrorKind::EmptySourceSet)
+    })?;
+    let first = read_discovered_source(first_candidate, cone)?;
+    let rest = candidates
+        .map(|candidate| read_discovered_source(candidate, cone))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(DiscoveredManifestSources { first, rest })
+}
+
+fn read_discovered_source(
+    candidate: SourceCandidate,
+    cone: scoop_identity::ConeIdentity,
+) -> Result<DiscoveredSource, SourceDiscoveryError> {
+    let bytes = std::fs::read(&candidate.physical_path).map_err(|error| {
+        SourceDiscoveryError::io(
+            DiscoveryIoOperation::ReadSource,
+            candidate.display_path.clone(),
+            error,
+        )
+    })?;
+    let after_read = std::fs::canonicalize(&candidate.physical_path).map_err(|error| {
+        SourceDiscoveryError::io(
+            DiscoveryIoOperation::Canonicalize,
+            candidate.display_path.clone(),
+            error,
+        )
+    })?;
+    if after_read != candidate.physical_path
+        || !std::fs::metadata(&after_read)
+            .map_err(|error| {
+                SourceDiscoveryError::io(
+                    DiscoveryIoOperation::Inspect,
+                    candidate.display_path.clone(),
+                    error,
+                )
+            })?
+            .is_file()
+    {
+        return Err(SourceDiscoveryError::new(
+            candidate.display_path,
+            SourceDiscoveryErrorKind::SourceChangedDuringDiscovery,
         ));
     }
-
-    Ok(DiscoveredManifestSources(sources))
+    let source_text = String::from_utf8(bytes).map_err(|_| {
+        SourceDiscoveryError::new(
+            candidate.display_path.clone(),
+            SourceDiscoveryErrorKind::InvalidUtf8Source,
+        )
+    })?;
+    let identity = SourceIdentity::new(cone, candidate.logical_path).map_err(|error| {
+        SourceDiscoveryError::new(
+            candidate.display_path.clone(),
+            SourceDiscoveryErrorKind::InvalidSourceIdentity(error.to_string()),
+        )
+    })?;
+    Ok(DiscoveredSource::new(
+        identity,
+        SourceDisplayLocator::new(candidate.display_path),
+        source_text,
+    ))
 }
 
 fn walk_directory(
@@ -553,7 +560,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(paths, ["src/a.scoop", "src/z/b.scoop"]);
         assert_eq!(
-            sources.as_slice()[0].content_digest(),
+            sources.first().content_digest(),
             SourceContentDigest::from_utf8("package a\n")
         );
     }
