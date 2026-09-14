@@ -5,12 +5,15 @@ use std::fmt;
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
     DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    ObjectDefinitionAtomKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
-use super::{StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1};
+use super::{
+    StrongStaticStorageInitialStatePlanV1, StrongStaticStorageSemanticPlanSetV1,
+    StrongStaticStorageSemanticPlanV1,
+};
 use crate::{
     DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
@@ -26,6 +29,8 @@ pub struct StrongStaticStorageRegistrationPlanV1 {
     registration_primary_atom: ObjectDefinitionAtomId,
     storage_definition_plan: ObjectDefinitionPlanId,
     storage_primary_atom: ObjectDefinitionAtomId,
+    initial_artifacts: StrongStaticStorageInitialArtifactPlanV1,
+    immortal_registration_symbols: Vec<PersistentSymbolRequest>,
     layout_symbol: PersistentSymbolRequest,
     layout_definition_plan: ObjectDefinitionPlanId,
     layout_primary_atom: ObjectDefinitionAtomId,
@@ -65,6 +70,14 @@ impl StrongStaticStorageRegistrationPlanV1 {
 
     pub const fn storage_primary_atom(&self) -> ObjectDefinitionAtomId {
         self.storage_primary_atom
+    }
+
+    pub const fn initial_artifacts(&self) -> StrongStaticStorageInitialArtifactPlanV1 {
+        self.initial_artifacts
+    }
+
+    pub fn immortal_registration_symbols(&self) -> &[PersistentSymbolRequest] {
+        &self.immortal_registration_symbols
     }
 
     pub const fn layout_symbol(&self) -> PersistentSymbolRequest {
@@ -163,6 +176,25 @@ impl StrongStaticStorageRegistrationPlanSetV1 {
                 actual,
             });
         }
+        for semantic in semantics.storages() {
+            for relocation in semantic.initial_state().immortal_relocations() {
+                let target = relocation.target();
+                let actual = identities
+                    .immortal_objects()
+                    .iter()
+                    .filter(|identity| identity.semantic_id() == target)
+                    .count();
+                if actual != 1 {
+                    return Err(
+                        StrongStaticStorageRegistrationPlanBuildError::ImmortalTargetRegistrationSet {
+                            storage: semantic.storage(),
+                            target,
+                            actual,
+                        },
+                    );
+                }
+            }
+        }
 
         let registrations = semantics
             .storages()
@@ -216,7 +248,20 @@ fn build_registration(
         StrongDefinitionRole::StaticStorage,
     )?;
     let storage_primary_atom = require_primary_atom(foundation, storage_definition.id())?;
+    let initial_artifacts =
+        require_initial_artifacts(foundation, storage_definition.id(), semantic)?;
     require_symbol(foundation, semantic.symbol())?;
+    let immortal_registration_symbols = semantic
+        .initial_state()
+        .immortal_relocations()
+        .iter()
+        .map(|relocation| {
+            require_symbol_key(
+                foundation,
+                PersistentSymbolKey::ImmortalRegistration(relocation.target()),
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     let registration_definition = require_definition(
         foundation,
@@ -335,6 +380,8 @@ fn build_registration(
         registration_primary_atom,
         storage_definition_plan: storage_definition.id(),
         storage_primary_atom,
+        initial_artifacts,
+        immortal_registration_symbols,
         layout_symbol,
         layout_definition_plan: layout_definition.id(),
         layout_primary_atom,
@@ -350,6 +397,90 @@ fn build_registration(
         layout_fingerprint_patch,
         scan_fingerprint_patch,
     })
+}
+
+fn require_initial_artifacts(
+    foundation: &OdrFreeLirFoundation,
+    storage_definition: ObjectDefinitionPlanId,
+    semantic: &StrongStaticStorageSemanticPlanV1,
+) -> Result<StrongStaticStorageInitialArtifactPlanV1, StrongStaticStorageRegistrationPlanBuildError>
+{
+    let storage = semantic.storage();
+    let template_key = ObjectDefinitionAtomKey::new(
+        storage_definition,
+        DefinitionAtomRole::AddressTakenConstant,
+        scoop_identity::DefinitionAtomSubkey::StaticStorage(storage),
+    );
+    let relocation_key = ObjectDefinitionAtomKey::new(
+        storage_definition,
+        DefinitionAtomRole::RuntimeRecord,
+        scoop_identity::DefinitionAtomSubkey::StaticStorage(storage),
+    );
+    let (mut expected, initial_artifacts) = match semantic.initial_state() {
+        StrongStaticStorageInitialStatePlanV1::ZeroedForRuntimeUnit => (
+            Vec::new(),
+            StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit,
+        ),
+        StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
+            immortal_relocations,
+            ..
+        } => {
+            let template_atom = require_atom(foundation, &template_key)?;
+            let relocation_table = if immortal_relocations.is_empty() {
+                StaticStorageRelocationTableArtifactV1::SharedEmptySentinel
+            } else {
+                StaticStorageRelocationTableArtifactV1::Defined {
+                    atom: require_atom(foundation, &relocation_key)?,
+                }
+            };
+            let mut expected = vec![template_key];
+            if !immortal_relocations.is_empty() {
+                expected.push(relocation_key);
+            }
+            (
+                expected,
+                StrongStaticStorageInitialArtifactPlanV1::EncodedStaticValue {
+                    template_atom,
+                    relocation_table,
+                },
+            )
+        }
+    };
+    expected.sort_unstable();
+    let mut actual = foundation
+        .definition_atoms()
+        .iter()
+        .filter(|record| {
+            record.key().plan() == storage_definition
+                && record.key().role() != DefinitionAtomRole::Primary
+        })
+        .map(|record| record.key().clone())
+        .collect::<Vec<_>>();
+    actual.sort_unstable();
+    if actual != expected {
+        return Err(
+            StrongStaticStorageRegistrationPlanBuildError::InitialArtifactSet {
+                storage,
+                expected,
+                actual,
+            },
+        );
+    }
+    Ok(initial_artifacts)
+}
+
+fn require_atom(
+    foundation: &OdrFreeLirFoundation,
+    key: &ObjectDefinitionAtomKey,
+) -> Result<ObjectDefinitionAtomId, StrongStaticStorageRegistrationPlanBuildError> {
+    foundation
+        .definition_atoms()
+        .iter()
+        .find(|record| record.key() == key)
+        .map(|record| record.id())
+        .ok_or_else(|| {
+            StrongStaticStorageRegistrationPlanBuildError::MissingAtom(Box::new(key.clone()))
+        })
 }
 
 fn require_definition(
@@ -487,6 +618,21 @@ pub enum StaticStorageObjectLeafV1 {
     Storage,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StaticStorageRelocationTableArtifactV1 {
+    SharedEmptySentinel,
+    Defined { atom: ObjectDefinitionAtomId },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StrongStaticStorageInitialArtifactPlanV1 {
+    ZeroedForRuntimeUnit,
+    EncodedStaticValue {
+        template_atom: ObjectDefinitionAtomId,
+        relocation_table: StaticStorageRelocationTableArtifactV1,
+    },
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongStaticStorageRegistrationPlanBuildError {
     DefinitionIdentity(ObjectDefinitionIdentityError),
@@ -499,6 +645,11 @@ pub enum StrongStaticStorageRegistrationPlanBuildError {
         expected: Vec<scoop_identity::PersistentStaticStorageId>,
         actual: Vec<scoop_identity::PersistentStaticStorageId>,
     },
+    ImmortalTargetRegistrationSet {
+        storage: scoop_identity::PersistentStaticStorageId,
+        target: scoop_identity::PersistentImmortalObjectId,
+        actual: usize,
+    },
     MissingStorage(scoop_identity::PersistentStaticStorageId),
     MissingLayout {
         storage: scoop_identity::PersistentStaticStorageId,
@@ -509,6 +660,12 @@ pub enum StrongStaticStorageRegistrationPlanBuildError {
         scan: scoop_identity::PersistentScanId,
     },
     MissingDefinition(Box<ObjectDefinitionPlanKey>),
+    MissingAtom(Box<ObjectDefinitionAtomKey>),
+    InitialArtifactSet {
+        storage: scoop_identity::PersistentStaticStorageId,
+        expected: Vec<ObjectDefinitionAtomKey>,
+        actual: Vec<ObjectDefinitionAtomKey>,
+    },
     RegistrationDefinitionMismatch {
         storage: scoop_identity::PersistentStaticStorageId,
         expected: ObjectDefinitionPlanId,

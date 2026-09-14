@@ -1549,6 +1549,15 @@ ManagedObject representation与InlineValue scan role。`EncodedStaticValue`递�
 `PersistentStaticStorageId`排序，错type、悬空/非immortal target、size溢出、重复identity或非canonical空scan
 均在codegen前失败，不从LLVM initializer反推semantic relation。
 
+`EncodedStaticValue`的semantic plan还直接保存长度恰为`allocation_extent`的`initial_template` bytes：
+integer与tag按target little-endian写入，struct field按已验证offset写入，padding、ZST identity token、null及
+全部managed pointer leaf保持零。template分配/写入越界立即失败，不能把LLVM constant或object section内容
+当作初值真相。其StaticStorage definition除writable Primary外，必须有
+`AddressTakenConstant + StaticStorage(storage)`表示`StaticInitialTemplate`；relocation非空时还必须有
+`RuntimeRecord + StaticStorage(storage)`表示`StaticInitialRelocationTable`，空表使用共享typed sentinel，
+不伪造零尺寸atom。registration plan精确核对该associated-atom集合，并要求每个typed immortal target在
+同一registration identity surface中恰有一条immortal-object registration及其ConeStrong symbol。
+
 codegen只接受`StrongStaticStorageRegistrationPlanSetV1::new(foundation, identities, semantics,
 digests)`闭合后的static-storage生产计划。该入口要求semantic producer与foundation一致，并使semantic
 storage全集和registration identity surface逐项相等；每项同时证明storage、RootRegistration、layout、

@@ -1,17 +1,19 @@
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
     DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LayoutKey, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentLayoutId,
-    PersistentPropertyId, PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey,
-    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner,
-    RepresentationRole, ScanKey, ScanRole, SourceDeclarationKey, SourceDeclarationSite,
-    SourceNominalKind, StaticStorageKey, StrongDefinitionEntity, StrongDefinitionRole,
+    DigestSemanticFieldRole, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, LayoutKey,
+    LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath,
+    PersistentExactTypeId, PersistentImmortalObjectId, PersistentLayoutId, PersistentPropertyId,
+    PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, RepresentationRole, ScanKey,
+    ScanRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StaticStorageKey,
+    StrongDefinitionEntity, StrongDefinitionRole, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, GlobalId, StaticStorageScanKindV1,
+    CanonicalLirFoundation, GlobalId, StaticImmortalRelocationPlanV1, StaticStorageScanKindV1,
     StrongStaticStorageInitialStatePlanV1, StrongStaticStorageSemanticPlanSetV1,
     StrongStaticStorageSemanticPlanV1,
 };
@@ -84,6 +86,44 @@ fn requires_complete_static_storage_registration_coverage() {
 }
 
 #[test]
+fn requires_every_typed_immortal_target_registration() {
+    let mut fixture = Fixture::new(Options::default());
+    let target = PersistentImmortalObjectId::from_key(&ImmortalObjectKey::string_constant(
+        ImmortalObjectOwner::Property(PropertyOwner::Property(
+            PersistentPropertyId::from_source_declaration(&SourceDeclarationKey::property(
+                source_site(),
+                CanonicalIdentifier::new("immortal").unwrap(),
+            ))
+            .unwrap(),
+        )),
+        StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::StringConstant, 0),
+            [],
+        ),
+    ))
+    .unwrap();
+    fixture.semantics.storages[0].initial_state =
+        StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
+            initial_template: vec![0; 8],
+            immortal_relocations: vec![StaticImmortalRelocationPlanV1 {
+                pointer_offset: 0,
+                target,
+            }],
+        };
+
+    assert_eq!(
+        fixture.build(),
+        Err(
+            StrongStaticStorageRegistrationPlanBuildError::ImmortalTargetRegistrationSet {
+                storage: fixture.semantics.storages[0].storage(),
+                target,
+                actual: 0,
+            }
+        )
+    );
+}
+
+#[test]
 fn requires_storage_registration_and_shape_symbols() {
     for options in [
         Options {
@@ -135,6 +175,20 @@ fn requires_leaf_registration_and_storage_object_nodes() {
 }
 
 #[test]
+fn requires_the_initial_state_specific_associated_atoms() {
+    assert!(matches!(
+        Fixture::new(Options {
+            omit_template_atom: true,
+            ..Options::default()
+        })
+        .build(),
+        Err(StrongStaticStorageRegistrationPlanBuildError::MissingAtom(
+            _
+        )) | Err(StrongStaticStorageRegistrationPlanBuildError::InitialArtifactSet { .. })
+    ));
+}
+
+#[test]
 fn requires_exact_registration_inputs_and_all_three_digest_writers() {
     assert!(matches!(
         Fixture::new(Options {
@@ -183,6 +237,7 @@ struct Options {
     omit_registration_patch: bool,
     omit_layout_patch: bool,
     omit_scan_patch: bool,
+    omit_template_atom: bool,
 }
 
 struct StorageArtifacts {
@@ -190,6 +245,8 @@ struct StorageArtifacts {
     storage_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     storage_primary:
+        CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    template_atom:
         CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     registration_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
@@ -259,12 +316,15 @@ impl Fixture {
                     .chain(storages.iter().flat_map(|artifacts| {
                         [
                             artifacts.storage_primary.clone(),
+                            artifacts.template_atom.clone(),
                             artifacts.registration_primary.clone(),
                         ]
                     }))
                     .filter(|atom| {
                         !(options.omit_last_registration
                             && atom.key().plan() == storages[1].registration_definition.id())
+                            && !(options.omit_template_atom
+                                && atom.id() == storages[0].template_atom.id())
                     })
                     .collect(),
             )
@@ -318,6 +378,7 @@ impl Fixture {
                 allocation_extent: 8,
                 required_alignment: 8,
                 initial_state: StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
+                    initial_template: vec![0; 8],
                     immortal_relocations: Vec::new(),
                 },
             })
@@ -393,6 +454,12 @@ fn storage_artifacts(name: &str) -> StorageArtifacts {
         StrongDefinitionRole::StaticStorage,
     );
     let storage_primary = primary(&storage_definition);
+    let template_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+        storage_definition.id(),
+        DefinitionAtomRole::AddressTakenConstant,
+        DefinitionAtomSubkey::StaticStorage(storage.id()),
+    ))
+    .unwrap();
     let registration_definition = definition(
         StrongDefinitionEntity::static_storage(storage.id()),
         StrongDefinitionRole::RootRegistration,
@@ -402,6 +469,7 @@ fn storage_artifacts(name: &str) -> StorageArtifacts {
         storage,
         storage_definition,
         storage_primary,
+        template_atom,
         registration_definition,
         registration_primary,
     }

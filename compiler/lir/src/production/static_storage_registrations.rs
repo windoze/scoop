@@ -48,6 +48,7 @@ impl StaticImmortalRelocationPlanV1 {
 pub enum StrongStaticStorageInitialStatePlanV1 {
     ZeroedForRuntimeUnit,
     EncodedStaticValue {
+        initial_template: Vec<u8>,
         immortal_relocations: Vec<StaticImmortalRelocationPlanV1>,
     },
 }
@@ -65,7 +66,17 @@ impl StrongStaticStorageInitialStatePlanV1 {
             Self::ZeroedForRuntimeUnit => &[],
             Self::EncodedStaticValue {
                 immortal_relocations,
+                ..
             } => immortal_relocations,
+        }
+    }
+
+    pub fn initial_template(&self) -> &[u8] {
+        match self {
+            Self::ZeroedForRuntimeUnit => &[],
+            Self::EncodedStaticValue {
+                initial_template, ..
+            } => initial_template,
         }
     }
 }
@@ -229,12 +240,29 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     StrongStaticStorageInitialStatePlanV1::ZeroedForRuntimeUnit
                 }
                 LirStaticInitialState::EncodedStaticValue { payload } => {
+                    let template_length = usize::try_from(allocation_extent).map_err(|_| {
+                        StrongStaticStorageSemanticPlanBuildError::TemplateExtent {
+                            storage,
+                            allocation_extent,
+                        }
+                    })?;
+                    let mut initial_template = Vec::new();
+                    initial_template
+                        .try_reserve_exact(template_length)
+                        .map_err(
+                            |_| StrongStaticStorageSemanticPlanBuildError::TemplateExtent {
+                                storage,
+                                allocation_extent,
+                            },
+                        )?;
+                    initial_template.resize(template_length, 0);
                     let mut immortal_relocations = Vec::new();
-                    InitialRelocationCollector {
+                    StaticInitialStateEncoder {
                         globals,
                         structs,
                         enums,
                         storage,
+                        template: &mut initial_template,
                         relocations: &mut immortal_relocations,
                     }
                     .collect(ty, payload, 0)?;
@@ -251,6 +279,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                         );
                     }
                     StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
+                        initial_template,
                         immortal_relocations,
                     }
                 }
@@ -468,15 +497,16 @@ fn shift_scan(scan: &RefScan, base_offset: u64) -> Result<RefScan, StaticStorage
     }
 }
 
-struct InitialRelocationCollector<'a> {
+struct StaticInitialStateEncoder<'a> {
     globals: &'a la_arena::Arena<crate::Global>,
     structs: &'a crate::StructDefs,
     enums: &'a crate::EnumDefs,
     storage: PersistentStaticStorageId,
+    template: &'a mut [u8],
     relocations: &'a mut Vec<StaticImmortalRelocationPlanV1>,
 }
 
-impl InitialRelocationCollector<'_> {
+impl StaticInitialStateEncoder<'_> {
     fn collect(
         &mut self,
         expected: &LirType,
@@ -489,8 +519,14 @@ impl InitialRelocationCollector<'_> {
             kind: StaticStorageInitialValueFailureV1::TypeMismatch,
         };
         match value {
-            LirConstantImage::Integer(value) if &value.scalar_type() == expected => Ok(()),
-            LirConstantImage::Bool(_) if expected == &LirType::I1 => Ok(()),
+            LirConstantImage::Integer(value) if &value.scalar_type() == expected => {
+                let width = usize::try_from(value.kind().width().bits() / 8)
+                    .expect("source integer widths fit usize");
+                self.write(base_offset, &value.raw_bits().to_le_bytes()[..width])
+            }
+            LirConstantImage::Bool(value) if expected == &LirType::I1 => {
+                self.write(base_offset, &[u8::from(*value)])
+            }
             LirConstantImage::NullPointer(kind) if expected == &LirType::Ptr(*kind) => Ok(()),
             LirConstantImage::GlobalPointer { global, kind }
                 if expected == &LirType::Ptr(*kind) && *kind == PointerKind::Managed =>
@@ -546,7 +582,12 @@ impl InitialRelocationCollector<'_> {
                         kind: StaticStorageInitialValueFailureV1::PayloadEnumVariant,
                     });
                 }
-                Ok(())
+                match &self.enums[*expected_enum].repr {
+                    EnumRepr::Niche { .. } => Ok(()),
+                    EnumRepr::Tagged { .. } => {
+                        self.write(base_offset, &u64::from(variant.index()).to_le_bytes())
+                    }
+                }
             }
             LirConstantImage::Struct { struct_id, fields } => {
                 if expected != &LirType::Struct(*struct_id) {
@@ -587,6 +628,34 @@ impl InitialRelocationCollector<'_> {
             _ => Err(type_mismatch()),
         }
     }
+
+    fn write(
+        &mut self,
+        offset: u64,
+        bytes: &[u8],
+    ) -> Result<(), StrongStaticStorageSemanticPlanBuildError> {
+        let storage = self.storage;
+        let start = usize::try_from(offset).map_err(|_| {
+            StrongStaticStorageSemanticPlanBuildError::InitialValue {
+                storage,
+                kind: StaticStorageInitialValueFailureV1::TemplateBounds,
+            }
+        })?;
+        let end = start.checked_add(bytes.len()).ok_or(
+            StrongStaticStorageSemanticPlanBuildError::InitialValue {
+                storage,
+                kind: StaticStorageInitialValueFailureV1::TemplateBounds,
+            },
+        )?;
+        let target = self.template.get_mut(start..end).ok_or(
+            StrongStaticStorageSemanticPlanBuildError::InitialValue {
+                storage,
+                kind: StaticStorageInitialValueFailureV1::TemplateBounds,
+            },
+        )?;
+        target.copy_from_slice(bytes);
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -611,6 +680,7 @@ pub enum StaticStorageInitialValueFailureV1 {
     UnknownStruct,
     StructFieldCount,
     OffsetOverflow,
+    TemplateBounds,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -652,6 +722,10 @@ pub enum StrongStaticStorageSemanticPlanBuildError {
     DuplicateRelocation {
         storage: PersistentStaticStorageId,
         offset: u64,
+    },
+    TemplateExtent {
+        storage: PersistentStaticStorageId,
+        allocation_extent: u64,
     },
 }
 

@@ -63,6 +63,7 @@ fn semantic_plans_bind_storage_shape_scan_and_immortal_initializers() {
     assert_eq!(first.scan_kind(), StaticStorageScanKindV1::Recursive);
     assert_eq!((first.byte_size(), first.allocation_extent()), (8, 8));
     assert_eq!(first.required_alignment(), 8);
+    assert_eq!(first.initial_state().initial_template(), &[0; 8]);
     assert_eq!(first.initial_state().immortal_relocations().len(), 1);
     assert_eq!(
         first.initial_state().immortal_relocations()[0].target(),
@@ -78,6 +79,62 @@ fn semantic_plans_bind_storage_shape_scan_and_immortal_initializers() {
         .unwrap();
     assert_eq!(second.scan_kind(), StaticStorageScanKindV1::None);
     assert_eq!((second.byte_size(), second.allocation_extent()), (0, 1));
+}
+
+#[test]
+fn encoded_integer_templates_preserve_target_bits_and_zero_padding() {
+    let mut structs = crate::StructDefs::default();
+    let pair = structs.alloc_scoop(
+        "Pair".to_string(),
+        8,
+        4,
+        false,
+        vec![
+            crate::StructField {
+                ty: LirType::I8,
+                layout: crate::FieldLayout {
+                    offset: 0,
+                    access_align: 1,
+                },
+            },
+            crate::StructField {
+                ty: LirType::I32,
+                layout: crate::FieldLayout {
+                    offset: 4,
+                    access_align: 4,
+                },
+            },
+        ],
+    );
+    let mut globals = Arena::new();
+    globals.alloc(storage_global(
+        "bits",
+        LirType::Struct(pair),
+        RefScan::None,
+        LirStaticInitialState::EncodedStaticValue {
+            payload: LirConstantImage::Struct {
+                struct_id: pair,
+                fields: vec![
+                    LirConstantImage::Integer(crate::LirIntegerConstant::Unsigned8(0xab)),
+                    LirConstantImage::Integer(crate::LirIntegerConstant::Unsigned32(0x1234_5678)),
+                ],
+            },
+        },
+    ));
+
+    let plans = StrongStaticStorageSemanticPlanSetV1::from_parts(
+        ConeIdentity::SINGLE_FILE,
+        LirTargetProfile::DARWIN_AARCH64,
+        &globals,
+        &structs,
+        &crate::EnumDefs::default(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        plans.storages()[0].initial_state().initial_template(),
+        &[0xab, 0, 0, 0, 0x78, 0x56, 0x34, 0x12]
+    );
 }
 
 #[test]
