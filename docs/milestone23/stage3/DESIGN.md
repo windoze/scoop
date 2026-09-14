@@ -54,7 +54,7 @@ M23-3 的“core-only”描述依赖关系，不等于恢复 core 专用的名�
 - `ScoopImageDescriptorV1`和六类descriptor的compiler-side producer及共享C ABI header；
 - 基础 `ValidatedLinkArtifact<SingleConeStrongProfile>`；
 - core bootstrap、core-only library/executable、single-file local root、reproducibility和损坏矩阵测试；
-- legacy executable fixture runner与新artifact pipeline的单向隔离。
+- 现有可复用fixture迁移到新artifact pipeline，并删除legacy executable runner及其专用fixture。
 
 ### 1.2 本阶段明确不做
 
@@ -80,7 +80,7 @@ M23-3 的“core-only”描述依赖关系，不等于恢复 core 专用的名�
 | M23-7 | `RejectAll` production profile、已经冻结但不可发布的ODR identity | 新profile以完整member/definition proof开放ODR；不得把本阶段强定义事后解释为ODR |
 | M23-8 | compiler侧完整image/registration ABI、canonical hash与object proof | runtime consumer、registry commit和启动；不得修改M23-3共享header布局 |
 | M23-9/10 | 非空verified link-object集合、image owner、defined/undefined/native contract | artifact-only program-link和native provider闭包；不得补造本阶段缺失的requirement |
-| M23-11 | 新single-file request与独立artifact路径、隔离的legacy runner | 启用正式CLI并删除legacy runner |
+| M23-11 | 新single-file request与独立artifact路径，旧runner和兼容入口已经删除 | 启用正式CLI，不再承担M23-3旧路径清理 |
 
 ### 1.4 本阶段的封闭成功子集
 
@@ -883,7 +883,7 @@ subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementatio
 
 ### 9.3 LIR strong production section
 
-`StrongProductionSectionV1`至少包含：
+`StrongProductionSectionV1`精确包含：
 
 ```text
 StrongProductionSectionV1 {
@@ -2633,7 +2633,7 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - 同输入在不同absolute checkout/temp目录、不同source/member输入顺序下逐byte相同；
 - writer输出重新读取后Compile/Link均成功，任一metadata/object/digest/owner/requirement bit flip至少使一条view稳定失败；
 - 正式`scoopc build`只产生`.slib`，没有runtime build、native linker或binary副作用；
-- 全部现有unit/golden继续回归，legacy executable fixture只经隔离入口运行。
+- 全部仍适用于新语义的unit/golden迁移后继续回归；legacy executable runner及仅服务该入口的fixture直接删除，不保留隔离入口。
 
 ## 19. 实现顺序
 
