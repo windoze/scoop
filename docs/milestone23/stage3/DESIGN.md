@@ -578,10 +578,13 @@ production section构造错误都不会产生partial HIR stage成功值，后续
 - typed prelude binding snapshot，至少覆盖现有普通prelude function/type及`Option` variant scope；
 - well-known compiler relation与`RuntimeCoreCapability::String`的source/exact identity；
 - 每个binding的最终typed target、signature/parameter shape、visibility/export witness和definition origin；
-- 每个target在M23-3是否可作为`ParamFreeStrong`消费的checked capability；
+- 每个target在HIR层是否满足M23-3 param-free shape约束的checked capability；callable的最终
+  `ParamFreeStrong`可用性必须再与MIR strong implementation bridge合取，不能由HIR单独授予；
 - exported param-free source nominal的shape-support obligation集合。
 
-`CoreMirBridgeV1::Core`包含HIR允许target到strong exact signature subject、callable/global/constructor/accessor implementation和generated helper的typed bridge。`CoreLirBridgeV1`位于第9章strong production section，进一步给出external calling convention、effect/root-plan、persistent symbol request和param-free shape-support definition引用。
+`CoreMirBridgeV1::Core`包含HIR callable candidate到实际存在的strong exact signature subject及
+implementation的typed bridge；没有strong body的extern或intrinsic不会被伪造成bridge。
+`CoreLirBridgeV1`位于第9章strong production section，进一步给出external calling convention、effect/root-plan、persistent symbol request和param-free shape-support definition引用。
 
 这些record由同一`ExportHir`/MIR/LIR正式投影产生，不通过扫描名字、文件顺序或旧core arena补造。`NotCore`分支编码为显式tag，不用缺section表示。
 
@@ -607,8 +610,10 @@ budget/envelope/Graph状态，先逐一核对slot authority中的coordinate、id
 target selection与composite identity ABI，再运行完整strong Link/Compile入口。core bootstrap的expected external
 bridge与external core-owner输入只能由`empty_core_bootstrap()`构造，不能由任意producer参数伪造。
 
-成功值保留两份最终proof、私有`SemanticIdentitySession`、`TrustedCoreArtifactAuthority`、从已验证`Core`
-分支复制出的非可选`ValidatedCoreInterface`以及双视图publication summary；defined symbol owner surface只能从其
+成功值保留两份最终proof、私有`SemanticIdentitySession`、`TrustedCoreArtifactAuthority`、从已验证HIR `Core`
+分支与同一Compile proof的MIR bridge合取出的非可选`ValidatedCoreInterface`以及双视图publication summary；
+`ValidatedCoreInterface`把每个HIR callable candidate精化为“有strong implementation”或
+“implementation unavailable”，不能只复制HIR capability。defined symbol owner surface只能从其
 Link identity closure导出。普通artifact locator、Graph-only、foundation profile、`NotCore`分支或任一条view
 失败都不能得到该类型，也不存在兼容旧reader的降级入口。
 
@@ -636,11 +641,14 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
 
 - 省略import时的prelude lookup可选中core typed target；
 - 源码显式`import scoop.core.X`、`import scoop.core.*`与任何`public import`仍以阶段能力诊断结束；
-- 选中target若不是`ParamFreeStrong`，或替换/materialization需要generic/structural/ODR能力，报告`SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE`；
+- generic/structural target或替换/materialization需要generic/structural/ODR能力时，报告
+  `SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE`；HIR中的`ParamFreeCandidate`若未被同一artifact的MIR bridge
+  证明为strong implementation，报告`SCOOPC_CAPABILITY_CORE_IMPLEMENTATION_UNAVAILABLE`；
 - raw prelude candidate只用于overload/type/value适用性检查；只有其私有构造的
   `SelectedImportedCoreTarget`可进入selected set。该proof只能由candidate的
-  `select_param_free_strong`产生，`StructuralUnavailable`与`GenericUnavailable`都返回上述稳定诊断，不能把raw
-  target或persistent id直接提升；
+  `select_param_free_strong`在同一`ValidatedCoreInterface`精化结果上产生；callable的
+  `ParamFreeCandidate`本身不能进入selected set，`StructuralUnavailable`、`GenericUnavailable`和缺失MIR
+  implementation分别返回上述稳定诊断，不能把raw target或persistent id直接提升；
 - selected target只能通过同一core proof投影成`SelectedImportedMir`/`SelectedImportedLir`；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
@@ -855,13 +863,13 @@ target为`Function`或`GenericFunction`的每个binding。元素
 2 = definition: Function(PersistentFunctionId) | GenericFunction(PersistentGenericFunctionId)
 3 = signature: SignatureCallableShape
 4 = capability:
-      ParamFreeStrong(ExactCallableSignature)
+      ParamFreeCandidate(ExactCallableSignature)
     | StructuralUnavailable(ExactCallableSignature)
     | GenericUnavailable(type_parameter_count)
 ```
 
 `definition`的sum tag固定为`Function=1, GenericFunction=2`；`capability`的sum tag固定为
-`ParamFreeStrong=1, StructuralUnavailable=2, GenericUnavailable=3`，三个variant都使用
+`ParamFreeCandidate=1, StructuralUnavailable=2, GenericUnavailable=3`，三个variant都使用
 field `1`保存上述payload。`binding`只引用foundation binding record；`definition`必须逐类型
 等于该binding的最终target，并且foundation中必须存在对应definition origin。
 `SignatureCallableShape`复用identity schema，receiver/parameters必须逐结构等于source
@@ -874,11 +882,12 @@ bodyless intrinsic/extern按定义没有body local，而source interface仍必�
 
 非generic target必须携带`ExactCallableSignature`，reader从foundation exact-type图把它递归
 重放为`SignatureCallableShape`并逐结构比较。receiver、parameter和result的根exact key全部
-为`ExactTypeKey::Nominal`时只能编码`ParamFreeStrong`；任一根为nominal application、tuple、
+为`ExactTypeKey::Nominal`时只能编码`ParamFreeCandidate`；任一根为nominal application、tuple、
 function、raw pointer或native function pointer时只能编码`StructuralUnavailable`。generic
 target只能编码`GenericUnavailable`且count必须等于source declaration；不能省略不可用target，
-也不能用空exact id或未知reason模拟不可用。MIR section随后必须完整覆盖这里授予的每个
-`ParamFreeStrong` callable，HIR capability本身不替代implementation bridge证明。
+也不能用空exact id或未知reason模拟不可用。`ParamFreeCandidate`只证明source/exact signature满足本阶段
+shape边界，不声称该declaration在MIR中拥有strong body；最终可消费性只能由同一artifact的MIR section精化。
+实现直接删除旧的`ParamFreeStrong` callable variant，不保留别名或双语义分支。
 
 `CoreTypeTargetSurfaceV1`是type-namespace constituent，wire同样是按`binding` bytes严格递增
 且完整覆盖`direct_public_surface`中target为`Type`、`GenericType`或`TypeAlias`的array。
@@ -963,7 +972,12 @@ subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementatio
 同一MIR foundation的全部callable signature record；foundation出现ODR subject、缺项、多项、
 重复owner或signature不一致均拒绝，不能排序修复reader输入。
 
-每个callable bridge连接HIR persistent declaration/generated identity、MIR `CallableSignatureSubjectV1::Strong`、exact signature与实现origin；subject必须递归回到当前Cone。Core分支完整覆盖HIR中标为`ParamFreeStrong`的prelude callable，不能多出未授权target或漏项。entry bridge只能指向当前Cone main。
+每个callable bridge连接HIR persistent declaration identity、MIR
+`CallableSignatureSubjectV1::Strong`、exact signature与实现origin；subject必须递归回到当前Cone。
+Core分支是HIR `ParamFreeCandidate`与同一MIR foundation中
+`CallableOwner::Function(definition)` strong subject的规范最大交集：candidate不存在对应strong subject时不产生
+bridge并在consumer侧保持implementation unavailable；subject存在但signature不一致时拒绝；存在且signature一致时
+必须且只能出现一次，不能漏项；generic/structural target及generated helper不能混入。entry bridge只能指向当前Cone main。
 
 本section不保存machine body、link symbol或object member；这些由LIR决定。
 
