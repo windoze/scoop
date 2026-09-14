@@ -4,7 +4,7 @@ use scoop_identity::{OdrGroupId, OdrMemberId};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{CanonicalMirFoundation, MirFoundationBuildError};
-use crate::CallableSignatureSubject;
+use crate::{CallableSignatureSubject, ValidatedMirFoundation};
 
 /// A canonical MIR identity foundation proven to satisfy the M23-3
 /// `SingleConeStrong` profile's `RejectAll` ODR policy.
@@ -48,6 +48,12 @@ impl OdrFreeMirFoundation {
             return Err(OdrFreeMirFoundationError::OdrMember(record.id()));
         }
         Ok(Self(foundation))
+    }
+
+    pub fn from_validated(
+        foundation: ValidatedMirFoundation,
+    ) -> Result<Self, OdrFreeMirFoundationError> {
+        Self::try_new(foundation.into_canonical())
     }
 
     pub const fn as_canonical(&self) -> &CanonicalMirFoundation {

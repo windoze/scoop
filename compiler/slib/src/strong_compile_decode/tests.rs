@@ -1,5 +1,9 @@
 use scoop_hir::CanonicalHirFoundation;
-use scoop_identity::{CapabilityId, ConeCoordinate, ConeIdentity};
+use scoop_identity::{
+    CapabilityId, CborIdentityRecord, ConeCoordinate, ConeIdentity, CoreBuiltinNominal,
+    ExactTypeKey, LayoutKey, LinkageClass, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, RepresentationRole,
+};
 use scoop_lir::CanonicalLirFoundation;
 use scoop_mir::CanonicalMirFoundation;
 use scoop_wire::{DecodeLimits, encode};
@@ -44,11 +48,55 @@ fn strong_compile_sections_validate_foundation_identities_as_one_transaction() {
         .validate_identities()
         .unwrap();
     assert_eq!(checked.identity(), ConeIdentity::CORE);
-    assert_eq!(checked.identity_count(), 1);
-    assert_eq!(checked.declared_identity_count(), 0);
+    assert_eq!(checked.identity_count(), 4);
+    assert_eq!(checked.declared_identity_count(), 3);
     let _ = checked.hir_production_wire();
     let _ = checked.mir_production_wire();
     let _ = checked.lir_production_wire();
+}
+
+#[test]
+fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact(hir, mir, lir);
+    let checked = open_graph(&bytes)
+        .decode_single_cone_compile_sections()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap();
+    assert_eq!(checked.identity(), ConeIdentity::CORE);
+    assert_eq!(checked.identity_count(), 4);
+    assert_eq!(
+        checked.hir_foundation().as_canonical().counts().odr_groups,
+        0
+    );
+    assert_eq!(
+        checked.mir_foundation().as_canonical().counts().odr_groups,
+        0
+    );
+    assert_eq!(
+        checked.lir_foundation().as_canonical().counts().odr_groups,
+        0
+    );
+
+    let (hir, mir, lir) = sections_with_lir_odr_symbol();
+    let bytes = artifact(hir, mir, lir);
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_compile_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure(),
+        Err(StrongCompileFoundationError::LirOdr(
+            scoop_lir::OdrFreeLirFoundationError::NonStrongSymbolRequest {
+                linkage: LinkageClass::OdrWeak,
+                ..
+            }
+        ))
+    ));
 }
 
 #[test]
@@ -148,12 +196,28 @@ fn required_sections() -> (
     Vec<MetadataSection>,
     Vec<MetadataSection>,
 ) {
+    let mut hir_foundation = CanonicalHirFoundation::empty();
+    hir_foundation
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    let mut mir_foundation = CanonicalMirFoundation::empty();
+    mir_foundation
+        .set_exact_types(vec![
+            CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+                CoreBuiltinNominal::Unit.identity_record().id(),
+            ))
+            .unwrap(),
+        ])
+        .unwrap();
     let hir = vec![
         section(
             MetadataLocation::Hir,
             hir_identity_foundation_capability(),
             MemberPurposeSet::COMPILE,
-            encode(&CanonicalHirFoundation::empty()).unwrap(),
+            encode(&hir_foundation).unwrap(),
         ),
         section(
             MetadataLocation::Hir,
@@ -167,7 +231,7 @@ fn required_sections() -> (
             MetadataLocation::Mir,
             mir_identity_foundation_capability(),
             MemberPurposeSet::COMPILE,
-            encode(&CanonicalMirFoundation::empty()).unwrap(),
+            encode(&mir_foundation).unwrap(),
         ),
         section(
             MetadataLocation::Mir,
@@ -196,6 +260,44 @@ fn required_sections() -> (
             crate::link_object::encoded_link_identity_closure_for_test(),
         ),
     ];
+    (hir, mir, lir)
+}
+
+fn sections_with_lir_odr_symbol() -> (
+    Vec<MetadataSection>,
+    Vec<MetadataSection>,
+    Vec<MetadataSection>,
+) {
+    let (hir, mir, mut lir) = required_sections();
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))
+    .unwrap()
+    .id();
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
+        exact,
+        selection().target().wire_id(),
+        RepresentationRole::ManagedValue,
+    ))
+    .unwrap();
+    let request = PersistentSymbolRequest::new(
+        PersistentSymbolKey::Layout(layout.id()),
+        LinkageClass::OdrWeak,
+    )
+    .unwrap();
+    let mut foundation = CanonicalLirFoundation::empty();
+    foundation.set_layouts(vec![layout]).unwrap();
+    foundation.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
+    let foundation_section = lir
+        .iter_mut()
+        .find(|section| section.capability() == &lir_identity_foundation_capability())
+        .unwrap();
+    *foundation_section = section(
+        MetadataLocation::Lir,
+        lir_identity_foundation_capability(),
+        MemberPurposeSet::COMPILE,
+        encode(&foundation).unwrap(),
+    );
     (hir, mir, lir)
 }
 

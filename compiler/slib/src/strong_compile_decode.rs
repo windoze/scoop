@@ -3,13 +3,22 @@
 
 use std::fmt;
 
-use scoop_hir::{DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation};
+use scoop_hir::{
+    DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, HirFoundationValidationError,
+    OdrFreeHirFoundation, OdrFreeHirFoundationError,
+};
 use scoop_identity::{
     ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
     IdentityValidationError, PendingIdentityValidation, ValidatedIdentityGraph,
 };
-use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1};
-use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation};
+use scoop_lir::{
+    DecodedLirFoundation, DecodedStrongProductionSectionV1, LirFoundationValidationError,
+    OdrFreeLirFoundation, OdrFreeLirFoundationError,
+};
+use scoop_mir::{
+    DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, MirFoundationValidationError,
+    OdrFreeMirFoundation, OdrFreeMirFoundationError,
+};
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
 
 use crate::{
@@ -49,6 +58,20 @@ pub struct IdentityCheckedSingleConeCompileSections<'input> {
     mir_foundation: DecodedMirFoundation,
     mir_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
+    lir_production: DecodedStrongProductionSectionV1,
+}
+
+/// Strong-profile foundations whose local structure and `RejectAll` ODR
+/// policy both passed. Production sections remain decoded references and are
+/// validated only by the following cross-section phase.
+pub struct OdrCheckedSingleConeCompileFoundations<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: OdrFreeHirFoundation,
+    hir_production: DecodedCoreBootstrapInterfaceSectionV1,
+    mir_foundation: OdrFreeMirFoundation,
+    mir_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_foundation: OdrFreeLirFoundation,
     lir_production: DecodedStrongProductionSectionV1,
 }
 
@@ -266,7 +289,7 @@ impl<'input> DecodedSingleConeCompileSections<'input> {
     }
 }
 
-impl IdentityCheckedSingleConeCompileSections<'_> {
+impl<'input> IdentityCheckedSingleConeCompileSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -313,6 +336,132 @@ impl IdentityCheckedSingleConeCompileSections<'_> {
 
     pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         &self.lir_production
+    }
+
+    /// Validates all three foundation structures before replaying the strong
+    /// profile's ODR rejection over each canonical layer.
+    pub fn validate_foundation_structure(
+        self,
+    ) -> Result<OdrCheckedSingleConeCompileFoundations<'input>, StrongCompileFoundationError> {
+        let Self {
+            mut graph,
+            mut identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self;
+        let coordinate = graph.coordinate().clone();
+        let producer = graph.identity();
+        let meter = graph.envelope.meter_mut();
+        let hir_foundation = hir_foundation
+            .validate(&coordinate, &mut identities, meter)
+            .map_err(StrongCompileFoundationError::HirStructure)?;
+        let mir_foundation = mir_foundation
+            .validate(&mut identities, meter)
+            .map_err(StrongCompileFoundationError::MirStructure)?;
+        let lir_foundation = lir_foundation
+            .validate(producer, &mut identities, meter)
+            .map_err(StrongCompileFoundationError::LirStructure)?;
+
+        let hir_foundation = OdrFreeHirFoundation::from_validated(hir_foundation)
+            .map_err(StrongCompileFoundationError::HirOdr)?;
+        let mir_foundation = OdrFreeMirFoundation::from_validated(mir_foundation)
+            .map_err(StrongCompileFoundationError::MirOdr)?;
+        let lir_foundation = OdrFreeLirFoundation::from_validated(lir_foundation)
+            .map_err(StrongCompileFoundationError::LirOdr)?;
+
+        Ok(OdrCheckedSingleConeCompileFoundations {
+            graph,
+            identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        })
+    }
+}
+
+impl OdrCheckedSingleConeCompileFoundations<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_production
+    }
+}
+
+#[derive(Debug)]
+pub enum StrongCompileFoundationError {
+    HirStructure(HirFoundationValidationError),
+    MirStructure(MirFoundationValidationError),
+    LirStructure(LirFoundationValidationError),
+    HirOdr(OdrFreeHirFoundationError),
+    MirOdr(OdrFreeMirFoundationError),
+    LirOdr(OdrFreeLirFoundationError),
+}
+
+impl fmt::Display for StrongCompileFoundationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid strong Compile foundation: {self:?}")
+    }
+}
+
+impl std::error::Error for StrongCompileFoundationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::HirStructure(error) => error,
+            Self::MirStructure(error) => error,
+            Self::LirStructure(error) => error,
+            Self::HirOdr(error) => error,
+            Self::MirOdr(error) => error,
+            Self::LirOdr(error) => error,
+        })
     }
 }
 
