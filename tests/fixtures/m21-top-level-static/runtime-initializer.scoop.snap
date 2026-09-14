@@ -819,7 +819,7 @@ Module
     ensure init0 top-level:runtimeValue
     return
       GlobalRead runtimeValue : Int
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
 

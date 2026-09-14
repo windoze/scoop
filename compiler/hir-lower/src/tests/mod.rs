@@ -54,10 +54,10 @@ mod m23_explicit_receiver_calls;
 mod m23_expression_qualifiers;
 mod m23_extension_properties;
 mod m23_hir_foundation;
-mod m23_legacy_entry;
 mod m23_local_value_identities;
 mod m23_local_value_selectors;
 mod m23_named_calls;
+mod m23_output_kind;
 mod m23_pattern_paths;
 mod m23_source_model;
 mod m3;
@@ -78,7 +78,35 @@ use ast::{
 pub(crate) use builders::*;
 pub(crate) use core::*;
 
-fn lower(files: &[ast::SourceFile]) -> Result<hir::LegacyExecutableOutput, Vec<ast::Diagnostic>> {
+trait TestExecutableEntry {
+    type FunctionId: Copy;
+
+    fn entry(&self) -> Self::FunctionId;
+}
+
+impl TestExecutableEntry for hir::ExportHirOutput {
+    type FunctionId = hir::FunctionId;
+
+    fn entry(&self) -> Self::FunctionId {
+        let hir::ConeOutputKind::Executable { local_entry } = self.output_kind() else {
+            panic!("test expected executable Export HIR")
+        };
+        local_entry.local_function().function()
+    }
+}
+
+impl TestExecutableEntry for hir::LocalConcreteHirOutput {
+    type FunctionId = hir::concrete::FunctionId;
+
+    fn entry(&self) -> Self::FunctionId {
+        let hir::LocalConeOutputKind::Executable { local_entry } = self.output_kind() else {
+            panic!("test expected executable LocalConcrete HIR")
+        };
+        local_entry.local_function().function()
+    }
+}
+
+fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     const CORE_PATHS: [&str; 4] = [
         "src/core.scoop",
         "src/core-extra.scoop",
@@ -119,7 +147,11 @@ fn lower(files: &[ast::SourceFile]) -> Result<hir::LegacyExecutableOutput, Vec<a
             }
         })
         .expect("explicit test source identities are valid");
-    lower_legacy_combined_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    lower_combined_sources(
+        scoop_identity::RequestedConeKind::Executable,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
 }
 
 pub(crate) fn test_source_identity(path: &str) -> scoop_identity::SourceIdentity {
@@ -174,7 +206,7 @@ pub(crate) fn lower_test_sources(
     user_display_locator: &str,
     user_source_text: &str,
     policy: IntrinsicDeclarationPolicy,
-) -> Result<hir::LegacyExecutableOutput, Vec<ast::Diagnostic>> {
+) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let parsed = ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
         ast::IdentifiedParsedSource::new(test_source_identity("src/user.scoop"), user.clone()),
         Vec::new(),
@@ -186,7 +218,11 @@ pub(crate) fn lower_test_sources(
             source_text: user_source_text,
         })
         .expect("explicit test source identities are valid");
-    lower_legacy_combined_executable(&input, policy)
+    lower_combined_sources(
+        scoop_identity::RequestedConeKind::Executable,
+        &input,
+        policy,
+    )
 }
 
 fn integer_syntax(magnitude: u64) -> ast::IntegerLiteralSyntax {

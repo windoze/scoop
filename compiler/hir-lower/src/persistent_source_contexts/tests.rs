@@ -110,8 +110,12 @@ fn lower(unrelated_prefix: bool, display_locator: &str) -> hir::Output {
         },
     )
     .expect("source-context identity test inputs are valid");
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("source-context identity fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("source-context identity fixture lowers")
 }
 
 fn source_function_named(module: &hir::Module, name: &str) -> hir::FunctionId {

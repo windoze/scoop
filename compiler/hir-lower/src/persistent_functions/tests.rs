@@ -46,8 +46,12 @@ fn lower(declarations: Vec<ast::Decl>) -> hir::Output {
         },
     )
     .expect("test sources are valid");
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("persistent function identity fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("persistent function identity fixture lowers")
 }
 
 fn source_function_named(module: &hir::Module, name: &str) -> hir::FunctionId {

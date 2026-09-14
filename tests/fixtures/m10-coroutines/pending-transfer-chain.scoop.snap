@@ -1284,7 +1284,7 @@ Module
       Local throwOuter : Gate
     MethodCall Gate.complete : Unit
       Local $receiver : Gate
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance suspendCoroutine<Unit>

@@ -40,7 +40,7 @@ fn try_expr(body: Expr, catch: Expr) -> Expr {
     }))
 }
 
-fn assert_option_int(module: &hir::LegacyExecutableExportHir, local: &str) {
+fn assert_option_int(module: &hir::ExportHirOutput, local: &str) {
     assert_eq!(
         hir::type_name(
             module,

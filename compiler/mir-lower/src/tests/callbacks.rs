@@ -43,8 +43,8 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
         function_pointer,
     )));
 
-    let export = legacy_executable(source, entry);
-    let concrete = scoop_hir_lower::concretize_legacy_export(&export);
+    let export = executable_output(source, entry);
+    let concrete = scoop_hir_lower::concretize_output(&export);
     let module = crate::lower(&concrete);
     let (_, bridge) = module
         .callback_bridges
@@ -287,8 +287,8 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     )
     .unwrap();
 
-    let source = legacy_executable(source, entry);
-    let concrete = scoop_hir_lower::concretize_legacy_export(&source);
+    let source = executable_output(source, entry);
+    let concrete = scoop_hir_lower::concretize_output(&source);
     let concrete_reference = concrete
         .module()
         .callable_references

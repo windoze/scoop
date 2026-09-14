@@ -919,7 +919,7 @@ Module
     ensure init0 top-level:EXTENSION_FALLBACK
     return
       GlobalRead EXTENSION_FALLBACK : Int8
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Boolean>

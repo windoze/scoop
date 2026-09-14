@@ -808,7 +808,7 @@ Module
   fun main(): Unit
     throw
       ClassInit M25UncaughtError : M25UncaughtError
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
 

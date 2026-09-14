@@ -20,8 +20,36 @@ mod singletons;
 mod source_exact_types;
 mod value_types;
 
-fn lower(module: &hir::LegacyExecutableExportHir) -> mir::Module {
-    let concrete = scoop_hir_lower::concretize_legacy_export(module);
+trait TestExecutableEntry {
+    type FunctionId: Copy;
+
+    fn entry(&self) -> Self::FunctionId;
+}
+
+impl TestExecutableEntry for hir::ExportHirOutput {
+    type FunctionId = hir::FunctionId;
+
+    fn entry(&self) -> Self::FunctionId {
+        let hir::ConeOutputKind::Executable { local_entry } = self.output_kind() else {
+            panic!("test expected executable Export HIR")
+        };
+        local_entry.local_function().function()
+    }
+}
+
+impl TestExecutableEntry for hir::LocalConcreteHirOutput {
+    type FunctionId = hir::concrete::FunctionId;
+
+    fn entry(&self) -> Self::FunctionId {
+        let hir::LocalConeOutputKind::Executable { local_entry } = self.output_kind() else {
+            panic!("test expected executable LocalConcrete HIR")
+        };
+        local_entry.local_function().function()
+    }
+}
+
+fn lower(module: &hir::ExportHirOutput) -> mir::Module {
+    let concrete = scoop_hir_lower::concretize_output(module);
     let mut module = super::lower(&concrete);
     // Handcrafted unit modules use hidden, valid exception shells to satisfy
     // LocalConcreteHir's complete core contract. Keep their constructor
@@ -72,12 +100,16 @@ fn assert_mir_foundation_projection(module: &mir::Module) -> mir::MirFoundationC
     counts
 }
 
-fn legacy_executable(
-    module: hir::Module,
-    entry: hir::FunctionId,
-) -> hir::LegacyExecutableExportHir {
-    hir::LegacyExecutableExportHir::try_new(module, entry)
-        .expect("the MIR test keeps its typed legacy entry structurally valid")
+fn executable_output(module: hir::Module, entry: hir::FunctionId) -> hir::ExportHirOutput {
+    let local_entry = hir::LocalExecutableEntry::try_new(&module, entry)
+        .expect("the MIR test keeps its executable entry structurally valid");
+    hir::ExportHirOutput::try_new(
+        module,
+        hir::ConeOutputKind::Executable {
+            local_entry: Box::new(local_entry),
+        },
+    )
+    .expect("the MIR test keeps its executable output structurally valid")
 }
 
 fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
@@ -777,7 +809,7 @@ fn module_interface_application(
 
 /// `main` calls `println("hello, world")` then `helper()`, which
 /// calls `print("!")`.
-fn hello_world() -> hir::LegacyExecutableExportHir {
+fn hello_world() -> hir::ExportHirOutput {
     let mut h = Harness::new();
     let print = h.print_string();
     let println = h.println_string();

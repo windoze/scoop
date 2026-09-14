@@ -227,10 +227,10 @@ fn destructuring_declarations() {
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 /// `var` destructuring: bindings are mutable.

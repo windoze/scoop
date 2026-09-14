@@ -1,58 +1,21 @@
 use super::body::{dump_statements, generic_method_owner_arguments};
 use super::*;
 
-mod sealed {
-    pub trait Sealed {}
-
-    impl Sealed for super::Module {}
-    impl Sealed for super::LegacyExecutableExportHir {}
-}
-
-/// Closed input family for [`dump`].
-///
-/// This keeps the historical `dump(&module)` API while ensuring a legacy
-/// executable wrapper cannot be implicitly dereferenced into a base module
-/// and silently lose its typed entry in the dump.
-#[doc(hidden)]
-#[allow(private_bounds)]
-pub trait HirDumpInput: sealed::Sealed {
-    fn module(&self) -> &Module;
-    fn legacy_entry(&self) -> Option<FunctionId>;
-}
-
-impl HirDumpInput for Module {
-    fn module(&self) -> &Module {
-        self
-    }
-
-    fn legacy_entry(&self) -> Option<FunctionId> {
-        None
-    }
-}
-
-impl HirDumpInput for LegacyExecutableExportHir {
-    fn module(&self) -> &Module {
-        self.module()
-    }
-
-    fn legacy_entry(&self) -> Option<FunctionId> {
-        Some(self.entry())
-    }
-}
-
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
-pub fn dump(input: &(impl HirDumpInput + ?Sized)) -> String {
-    let entry = input.legacy_entry();
-    dump_with(input.module(), move |module, out| {
-        if let Some(entry) = entry {
-            out.push_str(&format!("  entry {}\n", module.functions[entry].name));
-        }
+pub fn dump(output: &ExportHirOutput) -> String {
+    dump_with(output.module(), |module, out| match output.output_kind() {
+        ConeOutputKind::Library => out.push_str("  output library\n"),
+        ConeOutputKind::Executable { local_entry } => out.push_str(&format!(
+            "  output executable {}\n",
+            module.functions[local_entry.local_function().function()].name
+        )),
     })
 }
 
-/// M22-compatible dump which keeps the legacy executable entry line.
-pub fn dump_legacy_executable(executable: &LegacyExecutableExportHir) -> String {
-    dump(executable)
+/// Dump a raw Export HIR module for tests which intentionally inspect an
+/// intermediate graph before output-kind selection.
+pub fn dump_module(module: &Module) -> String {
+    dump_with(module, |_, _| {})
 }
 
 fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) -> String {

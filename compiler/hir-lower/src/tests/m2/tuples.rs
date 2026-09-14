@@ -113,11 +113,11 @@ fn tuples_and_indexing() {
       Local $argument.0 : Int
     Call print<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance println<String>
   instance print<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 #[test]

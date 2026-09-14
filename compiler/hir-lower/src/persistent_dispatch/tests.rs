@@ -76,8 +76,12 @@ fn lower(mut declarations: Vec<ast::Decl>, unrelated_prefix: bool) -> hir::Outpu
         },
     )
     .expect("dispatch identity test sources are valid");
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("dispatch identity fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("dispatch identity fixture lowers")
 }
 
 fn virtual_fixture(unrelated_prefix: bool) -> hir::Output {

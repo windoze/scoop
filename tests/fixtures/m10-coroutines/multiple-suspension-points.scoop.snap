@@ -993,7 +993,7 @@ Module
     MethodCall BooleanGate.complete : Unit
       Local $receiver : BooleanGate
       Local $parameter.value : Boolean
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance suspendCoroutine<Int>

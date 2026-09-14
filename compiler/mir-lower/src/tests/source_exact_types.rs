@@ -27,7 +27,7 @@ fn mir_records_exact_identities_without_materializing_unused_types() {
         },
     );
     let export = harness.finish(entry);
-    let concrete = scoop_hir_lower::concretize_legacy_export(&export);
+    let concrete = scoop_hir_lower::concretize_output(&export);
     let module = lower(&export);
 
     let expected = concrete

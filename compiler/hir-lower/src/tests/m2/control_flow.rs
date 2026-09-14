@@ -136,10 +136,10 @@ fn var_rebinding_and_control_flow() {
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-  entry main
+  output executable main
   instance println<String>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 #[test]
@@ -289,9 +289,9 @@ fn inner_scopes_shadow_and_do_not_leak() {
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance println<String>
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }

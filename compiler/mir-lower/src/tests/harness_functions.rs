@@ -373,22 +373,19 @@ impl Harness {
         .expect("test Iterator has the core shape")
     }
 
-    pub(super) fn finish(self, entry: hir::FunctionId) -> hir::LegacyExecutableExportHir {
+    pub(super) fn finish(self, entry: hir::FunctionId) -> hir::ExportHirOutput {
         self.finish_with_coroutine_core(entry, false)
     }
 
     pub(super) fn finish_with_initialization_core(
         mut self,
         entry: hir::FunctionId,
-    ) -> hir::LegacyExecutableExportHir {
+    ) -> hir::ExportHirOutput {
         self.needs_initialization_core = true;
         self.finish(entry)
     }
 
-    pub(super) fn finish_coroutines(
-        self,
-        entry: hir::FunctionId,
-    ) -> hir::LegacyExecutableExportHir {
+    pub(super) fn finish_coroutines(self, entry: hir::FunctionId) -> hir::ExportHirOutput {
         self.finish_with_coroutine_core(entry, true)
     }
 
@@ -396,7 +393,7 @@ impl Harness {
         mut self,
         entry: hir::FunctionId,
         include_exceptions: bool,
-    ) -> hir::LegacyExecutableExportHir {
+    ) -> hir::ExportHirOutput {
         let exception_core = self.test_exception_core(include_exceptions);
         let coroutine_core = self.test_coroutine_core(exception_core.throwable.class());
         let t = self
@@ -688,7 +685,11 @@ impl Harness {
                     scoop_identity::DeclarationScope::ConeWide,
                 )
                 .unwrap();
-                let source_name = format!("fixture_function_{}", function.into_raw().into_u32());
+                let source_name = if function == entry {
+                    "main".to_string()
+                } else {
+                    format!("fixture_function_{}", function.into_raw().into_u32())
+                };
                 let name = scoop_identity::CanonicalIdentifier::new(&source_name).unwrap();
                 let own_type_parameters = match &declaration.genericity {
                     hir::FunctionGenericity::Generic { parameters, .. } => parameters.len(),
@@ -734,6 +735,31 @@ impl Harness {
             function_identity_rows,
         )
         .expect("the MIR test fixture functions have persistent identities");
+        let hir::HirSourceFunctionIdentity::Plain(entry_identity) = function_identities[entry]
+            .source_identity()
+            .expect("the executable entry is a source function")
+        else {
+            panic!("the executable entry is non-generic")
+        };
+        let entry_source = scoop_identity::SourceIdentity::single_file();
+        let entry_context = scoop_identity::SourceContextKey::File {
+            source: entry_source.clone(),
+        };
+        let entry_span = self.functions[entry].span;
+        let entry_origin = scoop_identity::DefinitionOrigin::new(
+            entry_source,
+            scoop_identity::SourceSpan::new(u64::from(entry_span.start), u64::from(entry_span.end))
+                .unwrap(),
+            &entry_context,
+        )
+        .unwrap();
+        let export_definition_origins = hir::HirExportDefinitionOrigins::canonicalize(vec![
+            scoop_identity::DefinitionOriginRecord::new(
+                scoop_identity::DefinitionOriginSubject::Function(entry_identity.id()),
+                entry_origin,
+            ),
+        ])
+        .unwrap();
         let dispatch_key =
             |function: hir::FunctionId, interface: bool| match &function_identities[function] {
                 hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(record)) => {
@@ -898,7 +924,7 @@ impl Harness {
             dispatch_slot_identities,
             source_context_identities,
             source_native_contracts,
-            export_definition_origins: hir::HirExportDefinitionOrigins::default(),
+            export_definition_origins,
             public_surface,
             source_files,
             source_contexts,
@@ -977,7 +1003,14 @@ impl Harness {
             },
             instantiations: self.instantiations,
         };
-        hir::LegacyExecutableExportHir::try_new(module, entry)
-            .expect("the MIR test harness builds a valid legacy executable entry")
+        let local_entry = hir::LocalExecutableEntry::try_new(&module, entry)
+            .expect("the MIR test harness builds a valid executable entry");
+        hir::ExportHirOutput::try_new(
+            module,
+            hir::ConeOutputKind::Executable {
+                local_entry: Box::new(local_entry),
+            },
+        )
+        .expect("the MIR test harness builds a valid executable output")
     }
 }

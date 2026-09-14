@@ -47,7 +47,7 @@ fn try_expr(body: Expr, catch: Expr) -> Expr {
     }))
 }
 
-fn main_body(module: &hir::LegacyExecutableExportHir) -> &hir::Body {
+fn main_body(module: &hir::ExportHirOutput) -> &hir::Body {
     let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("main must have a user body")
     };

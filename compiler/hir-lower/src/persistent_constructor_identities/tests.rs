@@ -70,8 +70,12 @@ fn lower_fixture(extra_type: bool) -> hir::Output {
         },
     )
     .unwrap();
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("the constructor identity fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("the constructor identity fixture lowers")
 }
 
 fn rebuild(
@@ -204,7 +208,7 @@ fn constructor_identity_ignores_unrelated_arena_insertions() {
 #[test]
 fn constructor_identity_relation_rejects_adapter_shape_corruption() {
     let output = lower_fixture(false);
-    let mut module = output.export;
+    let mut module = output.export.module().clone();
     let adapter = module
         .class_constructors
         .iter()
@@ -235,7 +239,7 @@ fn constructor_identity_relation_rejects_adapter_shape_corruption() {
 #[test]
 fn constructor_identity_relation_rejects_invalid_parameter_type_application() {
     let output = lower_fixture(false);
-    let mut module = output.export;
+    let mut module = output.export.module().clone();
     let consumer = module
         .classes
         .iter()
@@ -262,7 +266,7 @@ fn constructor_identity_relation_rejects_invalid_parameter_type_application() {
 #[test]
 fn constructor_identity_relation_rejects_invalid_parameter_type_arity() {
     let output = lower_fixture(false);
-    let mut module = output.export;
+    let mut module = output.export.module().clone();
     let consumer = module
         .classes
         .iter()

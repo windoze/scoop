@@ -956,7 +956,7 @@ Module
       IntegerOperation int.sub target=function133 <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

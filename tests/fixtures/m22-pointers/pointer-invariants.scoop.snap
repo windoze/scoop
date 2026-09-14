@@ -1008,7 +1008,7 @@ Module
       Local $argument.0 : Ptr<Unit>
     Call free : Unit
       Local $parameter.pointer : Ptr<Unit>
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance reconstruct<T0>

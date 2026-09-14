@@ -510,7 +510,11 @@ fn lower_sources_with_core(
         },
     )
     .expect("explicit test source identities are valid");
-    crate::lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
 }
 
 fn invalid_raw_string_property(name: &str) -> ast::Decl {

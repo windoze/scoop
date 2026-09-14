@@ -4398,7 +4398,7 @@ Module
     Call endpointsDoNotWrap : Unit
     Call cursorsAreFreshAndStayExhausted : Unit
     Call invalidStepsThrow : Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>

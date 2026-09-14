@@ -900,7 +900,7 @@ Module
       Local $argument.0 : ULong
     Call println<ULong> : Unit
       Local $parameter.value : ULong
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<ULong>

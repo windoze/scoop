@@ -1308,7 +1308,7 @@ Module
     assign singleton-root#8
       ClassInit NestedCompanion : ObjectHost.NestedCompanion
   fun $init$ensure$8(): Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>

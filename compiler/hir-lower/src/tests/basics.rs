@@ -120,11 +120,11 @@ fn lowers_hello_world() {
       Local $argument.0 : String
     Call print<String> : Unit
       Local $parameter.value : String
-  entry main
+  output executable main
   instance println<String>
   instance print<String>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 #[test]
@@ -206,15 +206,15 @@ fn user_function_arity_is_an_error() {
 }
 
 #[test]
-fn missing_main_is_an_error_with_file_span() {
+fn missing_main_is_an_error_with_current_source_anchor() {
     let file = file(vec![fun("helper", vec![])]);
     let errors = lower_user(file.clone()).expect_err("missing `main` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "missing entry point: declare `fun main()`"
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
     );
-    assert_eq!(errors[0].span, Some(file.span));
+    assert_eq!(errors[0].span, Some(Span::new(0, 0)));
 }
 
 #[test]

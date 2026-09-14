@@ -1173,7 +1173,7 @@ Module
   fun $get$callable(): Callable
     return
       ClassInit Callable : Callable
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

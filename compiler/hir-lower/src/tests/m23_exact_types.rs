@@ -2,7 +2,7 @@ use scoop_identity::{ExactTypeKey, SpecializationKey};
 
 use super::*;
 
-fn exact_type_fixture(include_noise: bool) -> hir::LegacyExecutableOutput {
+fn exact_type_fixture(include_noise: bool) -> hir::Output {
     let mut declarations = Vec::new();
     if include_noise {
         declarations.push(struct_decl("Noise", Vec::new()));

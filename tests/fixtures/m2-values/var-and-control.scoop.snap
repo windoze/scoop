@@ -907,7 +907,7 @@ Module
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

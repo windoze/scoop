@@ -852,7 +852,7 @@ Module
     assign singleton-root#1
       ClassInit Companion : Right.Companion
   fun $init$ensure$1(): Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

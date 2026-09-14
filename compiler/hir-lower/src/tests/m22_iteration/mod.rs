@@ -119,7 +119,7 @@ fn async_element_declarations() -> Vec<Decl> {
     ]
 }
 
-fn checked_suspend_component_iteration_export() -> hir::LegacyExecutableExportHir {
+fn checked_suspend_component_iteration_export() -> hir::ExportHirOutput {
     let mut declarations = async_element_declarations();
     declarations.push(suspend_fun(
         "consume",
@@ -133,7 +133,7 @@ fn checked_suspend_component_iteration_export() -> hir::LegacyExecutableExportHi
     lower_user(file(declarations)).expect("a suspend component plan passes its reader boundary")
 }
 
-fn checked_suspend_iterator_iteration_export() -> hir::LegacyExecutableExportHir {
+fn checked_suspend_iterator_iteration_export() -> hir::ExportHirOutput {
     let iterator = with_suspend(operator_method(
         false,
         ty_named("SuspendIterator"),
@@ -230,7 +230,7 @@ fn continue_stmt() -> Statement {
     }
 }
 
-fn checked_basic_iteration_export() -> hir::LegacyExecutableExportHir {
+fn checked_basic_iteration_export() -> hir::ExportHirOutput {
     lower_user(file(vec![
         iterator_class("CheckedIterator", ty_named("Int")),
         source_class("CheckedSource", "CheckedIterator"),
@@ -246,7 +246,7 @@ fn checked_basic_iteration_export() -> hir::LegacyExecutableExportHir {
     .expect("the producer emits a valid source for plan")
 }
 
-fn checked_bound_iteration_export() -> hir::LegacyExecutableExportHir {
+fn checked_bound_iteration_export() -> hir::ExportHirOutput {
     lower_user(file(vec![
         iteration_source_interface(),
         generic_iteration_consumer(),

@@ -893,7 +893,7 @@ Module
     assign singleton-root#0
       ClassInit Companion : Broken.Companion
   fun $init$ensure$0(): Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

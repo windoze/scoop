@@ -269,9 +269,14 @@ impl Lowerer {
         self.transform_suspend_abis(module);
         coroutine::transform(&mut self, module);
 
-        // The entry point is a non-generic user function, hence always
-        // in the map.
-        let entry = self.function_map[&self.entry];
+        let output = match self.output {
+            LoweringOutput::Library => mir::MirOutput::Library,
+            // The executable entry is a non-generic user function, hence
+            // always in the map.
+            LoweringOutput::Executable(entry) => mir::MirOutput::Executable {
+                entry: self.function_map[&entry],
+            },
+        };
         let boxed_entries = std::mem::take(&mut self.boxed.entries);
         let boxed_types: Vec<mir::BoxedType> = boxed_entries
             .into_iter()
@@ -323,7 +328,7 @@ impl Lowerer {
             classes: self.classes,
             interfaces: self.interfaces.defs,
             option_core,
-            output: mir::MirOutput::Executable { entry },
+            output,
             meta: mir::MirMeta {
                 source_exact_types: self.source_exact_types.finish(),
                 generated_exact_types,

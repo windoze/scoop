@@ -1088,7 +1088,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     Call explicitUnitFieldBinding : Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

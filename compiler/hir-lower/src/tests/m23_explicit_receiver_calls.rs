@@ -72,7 +72,11 @@ fn lower_sources(
         },
     )
     .expect("explicit test source identities are valid");
-    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
 }
 
 fn core_with(declarations: Vec<Decl>) -> ast::SourceFile {

@@ -940,7 +940,7 @@ Module
   fun $get$kind(this: Cell<Int>): String
     return
       StringLiteral "int" : String
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance $get$item<Int>

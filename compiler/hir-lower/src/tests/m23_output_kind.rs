@@ -49,18 +49,14 @@ fn extern_main() -> ast::Decl {
     };
     function.annotations = vec![ast::Annotation {
         name: ident("Extern"),
-        args: [
-            ("lib", ""),
-            ("name", "legacy_native_main"),
-            ("abi", "scoop"),
-        ]
-        .into_iter()
-        .map(|(name, value)| ast::AnnotationArg {
-            name: Some(ident(name)),
-            value: ast::AnnotationLiteral::String(value.to_string()),
-            span: sp(),
-        })
-        .collect(),
+        args: [("lib", ""), ("name", "native_main"), ("abi", "scoop")]
+            .into_iter()
+            .map(|(name, value)| ast::AnnotationArg {
+                name: Some(ident(name)),
+                value: ast::AnnotationLiteral::String(value.to_string()),
+                span: sp(),
+            })
+            .collect(),
         span: sp(),
     }];
     function.body = ast::FunctionBody::None;
@@ -106,9 +102,13 @@ fn combined_input<'a>(
 fn lower_sources(
     core: &ast::SourceFile,
     user_sources: Vec<(u32, ast::SourceFile)>,
-) -> Result<hir::LegacyExecutableOutput, Vec<ast::Diagnostic>> {
+) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let input = combined_input(core, parsed_sources(user_sources));
-    lower_legacy_combined_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    lower_combined_sources(
+        scoop_identity::RequestedConeKind::Executable,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
 }
 
 fn lower_frontend_sources(
@@ -116,8 +116,12 @@ fn lower_frontend_sources(
     user_sources: Vec<(u32, ast::SourceFile)>,
 ) -> hir::Output {
     let input = combined_input(core, parsed_sources(user_sources));
-    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("entry-selection fixtures have otherwise valid frontend HIR")
+    lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("entry-selection fixtures have otherwise valid frontend HIR")
 }
 
 #[test]
@@ -127,8 +131,12 @@ fn frontend_lowering_does_not_require_main() {
         &core,
         parsed_sources(vec![(0, file(vec![fun("libraryFunction", Vec::new())]))]),
     );
-    let output = lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("frontend HIR accepts a current unit without an executable entry");
+    let output = lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("frontend HIR accepts a current unit without an executable entry");
     assert!(
         output
             .export
@@ -136,18 +144,22 @@ fn frontend_lowering_does_not_require_main() {
             .iter()
             .any(|(_, function)| function.name == "libraryFunction")
     );
+    assert!(matches!(output.output_kind(), hir::ConeOutputKind::Library));
+    assert!(matches!(
+        output.local.output_kind(),
+        hir::LocalConeOutputKind::Library
+    ));
 }
 
 #[test]
-fn hir_dump_dispatch_preserves_only_a_legacy_executable_entry() {
+fn hir_dump_records_only_the_selected_closed_output_branch() {
     let output = lower_sources(&core_file(), vec![(0, file(vec![fun("main", Vec::new())]))])
-        .expect("the legacy executable has one valid entry");
-    let legacy_dump = hir::dump(&output.export);
-    assert_eq!(legacy_dump, hir::dump_legacy_executable(&output.export));
-    assert!(legacy_dump.contains("\n  entry main\n"));
+        .expect("the executable has one valid entry");
+    let dump = hir::dump(&output.export);
+    assert!(dump.contains("\n  output executable main\n"));
 
-    let base_dump = hir::dump(output.export.module());
-    assert!(!base_dump.contains("\n  entry "));
+    let base_dump = hir::dump_module(output.export.module());
+    assert!(!base_dump.contains("\n  output "));
 }
 
 #[test]
@@ -224,7 +236,8 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
             (10, valid),
         ]),
     );
-    let output = lower_legacy_combined_executable(
+    let output = lower_combined_sources(
+        scoop_identity::RequestedConeKind::Executable,
         &input,
         IntrinsicDeclarationPolicy::AllowListedForTesting {
             providers: std::collections::HashSet::from([hir::IntrinsicProviderId::from_raw(29)]),
@@ -242,129 +255,17 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
 }
 
 #[test]
-fn non_unit_main_has_a_focused_legacy_entry_diagnostic() {
-    let span = Span::new(41, 57);
-    let declaration = declaration_at(
-        fun_expr(
-            "main",
-            Vec::new(),
-            Vec::new(),
-            Some(ty_named("Int")),
-            int_lit(1),
-        ),
-        span,
-    );
-    let errors = lower_sources(&core_file(), vec![(0, file(vec![declaration]))])
-        .expect_err("a legacy executable main must return Unit");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`main` must return `Unit`");
-    assert_eq!(errors[0].span, Some(span));
-}
-
-#[test]
-fn invalid_main_diagnostic_belongs_to_its_declaring_source() {
-    let span = Span::new(51, 64);
-    let generic = in_package(
-        file(vec![declaration_at(
-            fun_sig("main", vec!["T"], Vec::new(), None, Vec::new()),
-            span,
-        )]),
-        "generic",
-    );
-    let errors = lower_sources(&core_file(), vec![(1, file(Vec::new())), (9, generic)])
-        .expect_err("a generic main cannot be a legacy entry");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`main` must not be generic");
-    assert_eq!(errors[0].file, 2);
-    assert_eq!(errors[0].span, Some(span));
-}
-
-#[test]
-fn valid_mains_in_different_packages_are_multiple_entries() {
-    let first = in_package(file(vec![fun("main", Vec::new())]), "first");
-    let second = in_package(file(vec![fun("main", Vec::new())]), "second");
-    let errors = lower_sources(&core_file(), vec![(5, first), (9, second)])
-        .expect_err("package qualification does not distinguish executable entries");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "multiple entry points: declare exactly one `fun main()`"
-    );
-}
-
-fn entry_error_owner(
-    core: &ast::SourceFile,
-    user_sources: Vec<(u32, ast::SourceFile)>,
-    expected_message: &str,
-) -> (scoop_identity::SourceIdentity, Option<Span>) {
-    let input = combined_input(core, parsed_sources(user_sources));
-    let errors = lower_legacy_combined_executable(&input, IntrinsicDeclarationPolicy::CoreOnly)
-        .expect_err("the test input has no unique legacy entry");
-    let diagnostic = errors
-        .iter()
-        .find(|diagnostic| diagnostic.message == expected_message)
-        .expect("the expected legacy entry diagnostic is present");
-    let user_index = diagnostic
-        .file
-        .checked_sub(1)
-        .expect("legacy entry diagnostics belong to a user source");
-    let identity = input
-        .user_sources()
-        .sources()
-        .iter()
-        .nth(user_index)
-        .expect("diagnostic file maps to a parsed user source")
-        .identity()
-        .clone();
-    (identity, diagnostic.span)
-}
-
-#[test]
-fn legacy_entry_anchor_uses_the_smallest_source_identity_across_container_permutations() {
-    let core = core_file();
-    let low_identity = source_identity(3);
-    let low_span = Span::new(30, 39);
-    let high_span = Span::new(80, 99);
-
-    for (low_source, high_source, message) in [
-        (
-            file(Vec::new()),
-            file(Vec::new()),
-            "missing entry point: declare `fun main()`",
-        ),
-        (
-            in_package(file(vec![fun("main", Vec::new())]), "low"),
-            in_package(file(vec![fun("main", Vec::new())]), "high"),
-            "multiple entry points: declare exactly one `fun main()`",
-        ),
-    ] {
-        let mut low_source = low_source;
-        low_source.span = low_span;
-        let mut high_source = high_source;
-        high_source.span = high_span;
-
-        for sources in [
-            vec![(90, high_source.clone()), (3, low_source.clone())],
-            vec![(3, low_source.clone()), (90, high_source.clone())],
-        ] {
-            let (owner, span) = entry_error_owner(&core, sources, message);
-            assert_eq!(owner, low_identity);
-            assert_eq!(span, Some(low_span));
-        }
-    }
-}
-
-#[test]
 fn library_output_skips_entry_selection_entirely() {
     let first = in_package(file(vec![fun("main", Vec::new())]), "first");
     let second = in_package(file(vec![fun("main", Vec::new())]), "second");
     let output = lower_frontend_sources(&core_file(), vec![(9, second), (1, first)]);
 
-    assert_eq!(
-        select_cone_output_kind(&output.export, scoop_identity::RequestedConeKind::Library)
-            .expect("library output never requires an executable entry"),
-        hir::ConeOutputKind::Library
-    );
+    assert!(matches!(output.output_kind(), hir::ConeOutputKind::Library));
+    assert!(matches!(
+        output.local.output_kind(),
+        hir::LocalConeOutputKind::Library
+    ));
+    assert!(hir::dump(&output.export).contains("\n  output library\n"));
 }
 
 #[test]
@@ -380,14 +281,15 @@ fn executable_output_seals_private_current_main_and_exact_signature() {
     };
     let mut core = core_file();
     core.declarations.push(fun("main", Vec::new()));
-    let output = lower_frontend_sources(&core, vec![(10, file(vec![declaration]))]);
-
-    let selected = select_cone_output_kind(
-        &output.export,
+    let input = combined_input(&core, parsed_sources(vec![(10, file(vec![declaration]))]));
+    let output = lower_combined_sources(
         scoop_identity::RequestedConeKind::Executable,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
     )
     .expect("the private current-Cone main is a valid entry");
-    let hir::ConeOutputKind::Executable { local_entry } = selected else {
+
+    let hir::ConeOutputKind::Executable { local_entry } = output.output_kind() else {
         panic!("the requested executable has a sealed entry")
     };
     let function = local_entry.local_function().function();
@@ -423,6 +325,19 @@ fn executable_output_seals_private_current_main_and_exact_signature() {
         local_entry.source_signature_fingerprint(),
         scoop_identity::SourceSignatureFingerprint::from_signature(local_entry.source_signature())
             .unwrap()
+    );
+    let hir::LocalConeOutputKind::Executable {
+        local_entry: concrete_entry,
+    } = output.local.output_kind()
+    else {
+        panic!("LocalConcrete HIR preserves the executable branch")
+    };
+    assert_eq!(concrete_entry.identity(), local_entry.identity());
+    assert_eq!(
+        output.local.functions[concrete_entry.local_function().function()]
+            .materialization
+            .template(),
+        scoop_identity::CallableTemplateOwner::Function(local_entry.declaration())
     );
 }
 

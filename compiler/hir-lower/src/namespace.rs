@@ -431,17 +431,6 @@ impl TopLevelNamespaces {
             .collect()
     }
 
-    pub(crate) fn current_unit_functions_named(&self, name: &str) -> Vec<hir::FunctionId> {
-        let mut functions = self
-            .current
-            .values()
-            .flat_map(|namespace| namespace.functions.get(name).into_iter().flatten())
-            .copied()
-            .collect::<Vec<_>>();
-        functions.sort_by_key(|function| function.into_raw().into_u32());
-        functions
-    }
-
     pub(crate) fn register_property(
         &mut self,
         file: usize,

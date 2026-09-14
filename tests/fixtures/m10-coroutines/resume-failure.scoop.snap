@@ -922,7 +922,7 @@ Module
       Local uncaught : FailureGate
     MethodCall FailureGate.fail : Unit
       Local $receiver : FailureGate
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance startCoroutine<Int>

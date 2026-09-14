@@ -6,9 +6,9 @@
 //! Structural completeness rules (see AGENTS.md): every expression
 //! carries its resolved type (`Expr::ty`), every call carries its
 //! resolved target and type arguments, patterns carry resolved
-//! variant/field indices and binding locals. Executable entry identity is
-//! carried only by the temporary, explicitly legacy wrappers below; library
-//! and frontend HIR modules do not require one.
+//! variant/field indices and binding locals. Every successful HIR product
+//! carries a closed library/executable branch in both the export and local-
+//! concrete id domains; an executable entry is never optional.
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Diagnostic;
@@ -25,11 +25,13 @@ pub type LocalConcreteHir = concrete::Module;
 
 /// HIR has two structurally isolated products for two different consumers.
 /// Export ids and local-concrete ids belong to separate Rust type families and
-/// therefore cannot cross the boundary accidentally.
+/// therefore cannot cross the boundary accidentally. The constructor is the
+/// only public way to pair them, so their output branches cannot disagree.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct Output {
-    pub export: ExportHir,
-    pub local: LocalConcreteHir,
+    pub export: ExportHirOutput,
+    pub local: LocalConcreteHirOutput,
     /// Exact native-boundary witness derived from both the source graph and
     /// the concrete callback-application graph.
     pub native_boundary_types: HirNativeBoundaryTypeDefinitions,
@@ -38,8 +40,8 @@ pub struct Output {
     pub warnings: Vec<Diagnostic>,
 }
 
-mod legacy;
-pub use legacy::*;
+mod output;
+pub use output::*;
 
 mod output_kind;
 pub use output_kind::*;
@@ -146,6 +148,4 @@ mod source_interfaces;
 pub use source_interfaces::*;
 
 mod dump;
-#[doc(hidden)]
-pub use dump::HirDumpInput;
-pub use dump::{dump, dump_legacy_executable, dump_pattern};
+pub use dump::{dump, dump_module, dump_pattern};

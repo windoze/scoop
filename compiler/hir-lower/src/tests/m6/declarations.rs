@@ -84,10 +84,10 @@ fn class_hierarchy_golden() {
     Call write : Unit
       Local $parameter.message : String
   fun main(): Unit
-  entry main
+  output executable main
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 // --- positive: declaration structure ---

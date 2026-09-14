@@ -111,10 +111,10 @@ fn expression_body_and_parameters() {
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 #[test]
@@ -136,7 +136,7 @@ fn block_body_with_return_and_parameters() {
         ),
     ]);
     let module = lower_user(file).expect("block body must lower");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(dump.contains("fun add(a: Int, b: Int): Int"), "{dump}");
     assert!(dump.contains("Call add : Int"), "{dump}");
 }
@@ -228,8 +228,8 @@ fn return_with_unit_value_is_a_bare_return() {
     Call println<String> : Unit
       Local $parameter.value : String
     return
-  entry main
+  output executable main
   instance println<String>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }

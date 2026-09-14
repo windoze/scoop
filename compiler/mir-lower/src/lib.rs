@@ -142,11 +142,17 @@ use types::{
     lower_integer_kind, mir_type_gc_free, raise_integer_kind, remap_idx,
 };
 
-/// Lower a complete legacy executable HIR graph to MIR.
-pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
-    let module = executable.module();
+/// Lower one output-sealed LocalConcrete HIR graph to MIR.
+pub fn lower(output: &scoop_hir::LocalConcreteHirOutput) -> mir::Module {
+    let module = output.module();
+    let output = match output.output_kind() {
+        scoop_hir::LocalConeOutputKind::Library => LoweringOutput::Library,
+        scoop_hir::LocalConeOutputKind::Executable { local_entry } => {
+            LoweringOutput::Executable(local_entry.local_function().function())
+        }
+    };
     Lowerer {
-        entry: executable.entry(),
+        output,
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
@@ -214,8 +220,7 @@ pub fn lower(executable: &scoop_hir::LegacyExecutableLocalHir) -> mir::Module {
 }
 
 struct Lowerer {
-    /// Typed local-concrete identity selected by the legacy executable adapter.
-    entry: hir::FunctionId,
+    output: LoweringOutput,
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
@@ -297,6 +302,12 @@ struct Lowerer {
     /// Persistent identity and exact physical itable location of every box
     /// adjust thunk.
     boxing_adjusts: Vec<mir::BoxingAdjust>,
+}
+
+#[derive(Clone, Copy)]
+enum LoweringOutput {
+    Library,
+    Executable(hir::FunctionId),
 }
 
 fn materialization_odr_group(

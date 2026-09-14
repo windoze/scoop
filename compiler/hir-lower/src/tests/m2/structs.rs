@@ -119,10 +119,10 @@ fn struct_construction_and_field_access() {
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn struct_init_node_also_constructs() {
         ),
     ]);
     let module = lower_user(file).expect("StructInit node must lower");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(dump.contains("StructInit Point : Point"), "{dump}");
 }
 
@@ -150,7 +150,7 @@ fn struct_shadows_function_in_call_position() {
         fun("main", vec![val("p", call("Point", vec![int_lit(5)]))]),
     ]);
     let module = lower_user(file).expect("struct/function name sharing must lower");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(dump.contains("StructInit Point : Point"), "{dump}");
     assert!(dump.contains("fun Point"), "{dump}");
 }

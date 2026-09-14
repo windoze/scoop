@@ -130,8 +130,12 @@ fn lower(unrelated_prefix: bool) -> hir::Output {
         },
     )
     .expect("local binding test sources are valid");
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("local binding fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("local binding fixture lowers")
 }
 
 fn records(

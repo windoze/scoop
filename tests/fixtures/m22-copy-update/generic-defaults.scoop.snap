@@ -1159,7 +1159,7 @@ Module
       Local $argument.0 : Cell<String>
     Call printTextCell : Unit
       Local $parameter.cell : Cell<String>
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

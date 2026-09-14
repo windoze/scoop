@@ -918,7 +918,7 @@ Module
       Local $argument.0 : Long
     Call println<Long> : Unit
       Local $parameter.value : Long
-  entry main
+  output executable main
   instance println<Int>
   instance println<String>
   instance startCoroutine<T0>

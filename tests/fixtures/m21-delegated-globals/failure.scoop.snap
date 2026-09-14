@@ -828,7 +828,7 @@ Module
       MethodCall ExplodingDelegate.getValue : Int
         GlobalRead $delegate$top-level:failed : ExplodingDelegate
         UnitLiteral : Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>

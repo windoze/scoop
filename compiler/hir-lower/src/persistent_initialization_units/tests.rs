@@ -160,8 +160,12 @@ fn lower_fixture() -> hir::Output {
         },
     )
     .unwrap();
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("the initialization-unit fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("the initialization-unit fixture lowers")
 }
 
 fn rebuild(
@@ -253,7 +257,7 @@ fn initialization_identity_ignores_display_names_and_dependency_order() {
         .iter()
         .map(|(id, _)| output.export.initialization_unit_identities[id].id())
         .collect::<Vec<_>>();
-    let mut changed = output.export.clone();
+    let mut changed = output.export.module().clone();
     for (_, unit) in changed.initialization_units.iter_mut() {
         unit.display_name = "changed display name".to_string();
         unit.dependencies.reverse();
@@ -270,7 +274,7 @@ fn initialization_identity_ignores_display_names_and_dependency_order() {
 #[test]
 fn initialization_identity_rejects_inconsistent_unit_relations() {
     let output = lower_fixture();
-    let mut changed = output.export.clone();
+    let mut changed = output.export.module().clone();
     let (unit, _) = changed
         .initialization_units
         .iter()
@@ -282,7 +286,7 @@ fn initialization_identity_rejects_inconsistent_unit_relations() {
         Err(hir::HirInitializationUnitIdentityError::Schedule { .. })
     ));
 
-    let mut changed = output.export.clone();
+    let mut changed = output.export.module().clone();
     let units = changed
         .initialization_units
         .iter()

@@ -1039,7 +1039,7 @@ Module
     MethodCall ChoiceGate.complete : Unit
       Local $receiver : ChoiceGate
       Local $parameter.value : Choice
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance suspendCoroutine<T0>

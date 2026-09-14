@@ -167,11 +167,11 @@ fn gc_intrinsics_golden() {
     Call gcCollect : Unit
     val local13
       Call gcStats : ULong
-  entry main
+  output executable main
   instance pin<String>
   instance unpin<String>
   instance getGcHandle<String>
   instance releaseGcHandle<String>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }

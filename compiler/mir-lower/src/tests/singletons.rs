@@ -93,7 +93,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     source.type_identities = rebuild_type_identities(&source);
     source.initialization_unit_identities = rebuild_initialization_unit_identities(&source);
 
-    let source = legacy_executable(source, entry);
+    let source = executable_output(source, entry);
     let expected_identity = source.initialization_unit_identities[initialization].clone();
     let expected_singleton_owner = source.nominal_identities[object]
         .concrete_type_id()

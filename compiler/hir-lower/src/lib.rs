@@ -110,7 +110,6 @@ mod ffi;
 mod generic_entities;
 mod globals;
 mod imports;
-mod legacy_entry;
 mod lowering_context;
 mod model;
 mod namespace;
@@ -392,9 +391,10 @@ pub enum IntrinsicDeclarationPolicy {
     },
 }
 
-/// Lower an explicitly provided non-empty set of user sources together with
-/// the existing M22 core source/backing input.
-pub fn lower_legacy_combined_sources(
+/// Lower an explicitly provided non-empty source set and seal its requested
+/// library/executable output branch after all source diagnostics have passed.
+pub fn lower_combined_sources(
+    requested: scoop_identity::RequestedConeKind,
     input: &LegacyCombinedSources<'_>,
     policy: IntrinsicDeclarationPolicy,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
@@ -402,15 +402,8 @@ pub fn lower_legacy_combined_sources(
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run(&files)?;
-    let local = concretize::lower(&export);
-    let native_boundary_types = crate::persistent_native_boundary::build(&export, &local)
-        .map_err(native_boundary_diagnostic)?;
-    Ok(hir::Output {
-        export,
-        local,
-        native_boundary_types,
-        warnings,
-    })
+    let output_kind = select_cone_output_kind(&export, requested)?;
+    finish_output(export, output_kind, warnings)
 }
 
 /// Lowers the trusted core directly from the atomic current-Cone parser
@@ -423,37 +416,29 @@ pub fn lower_core_bootstrap(
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .run(&files)?;
-    let local = concretize::lower(&export);
-    let native_boundary_types = crate::persistent_native_boundary::build(&export, &local)
-        .map_err(native_boundary_diagnostic)?;
-    Ok(hir::Output {
-        export,
-        local,
-        native_boundary_types,
-        warnings,
-    })
+    finish_output(export, hir::ConeOutputKind::Library, warnings)
 }
 
-/// Lower the combined source set for the temporary M22 executable pipeline.
-/// Unlike the base frontend entry point, this adapter requires exactly one
-/// strict legacy `main` and retains its typed identity in both HIR products.
-pub fn lower_legacy_combined_executable(
-    input: &LegacyCombinedSources<'_>,
-    policy: IntrinsicDeclarationPolicy,
-) -> Result<hir::LegacyExecutableOutput, Vec<Diagnostic>> {
-    let (files, sources) = materialize_combined_sources(input);
-    let (export, warnings) = Lowerer::new()
-        .with_intrinsic_sources(sources, policy)
-        .run_legacy_executable(&files)?;
-    let local = concretize::lower_legacy_executable(&export);
+fn finish_output(
+    export: hir::ExportHir,
+    output_kind: hir::ConeOutputKind,
+    warnings: Vec<Diagnostic>,
+) -> Result<hir::Output, Vec<Diagnostic>> {
+    let export = hir::ExportHirOutput::try_new(export, output_kind).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal Export HIR output: {error}"),
+        )]
+    })?;
+    let local = concretize::lower_output(&export);
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module())
             .map_err(native_boundary_diagnostic)?;
-    Ok(hir::LegacyExecutableOutput {
-        export,
-        local,
-        native_boundary_types,
-        warnings,
+    hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal HIR output: {error}"),
+        )]
     })
 }
 
@@ -544,12 +529,10 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
     concretize::lower(export)
 }
 
-/// Concretize a checked legacy executable while preserving its typed entry
-/// identity across the export/local id-domain boundary.
-pub fn concretize_legacy_export(
-    export: &hir::LegacyExecutableExportHir,
-) -> hir::LegacyExecutableLocalHir {
-    concretize::lower_legacy_executable(export)
+/// Concretize a checked, output-sealed Export HIR graph while translating the
+/// output branch into the LocalConcrete HIR id domain.
+pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHirOutput {
+    concretize::lower_output(export)
 }
 
 #[derive(Clone)]

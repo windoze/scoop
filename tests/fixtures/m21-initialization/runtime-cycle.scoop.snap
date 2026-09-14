@@ -844,7 +844,7 @@ Module
     ensure init1 top-level:right
     return
       GlobalRead right : Int
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>

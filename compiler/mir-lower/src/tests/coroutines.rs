@@ -672,7 +672,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     source.top_level.push(caller);
     extend_function_identities(&mut source, preserved_functions);
 
-    let source = legacy_executable(source, entry);
+    let source = executable_output(source, entry);
     let module = lower(&source);
     let (_, coroutine) = module
         .meta
@@ -808,7 +808,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     hir_module.top_level.push(launcher);
     extend_function_identities(&mut hir_module, preserved_functions);
 
-    let hir_module = legacy_executable(hir_module, entry);
+    let hir_module = executable_output(hir_module, entry);
     let module = lower(&hir_module);
     let launcher = module
         .functions

@@ -130,9 +130,9 @@ fn enum_declaration_all_variant_forms() {
       VariantConstruct Shape.Named : Shape
         Local $parameter.w : Int
         Local $parameter.h : Int
-  entry main
+  output executable main
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 /// A generic enum with several instantiations coexisting; `T?`
@@ -165,7 +165,7 @@ fn generic_enum_instantiations_and_interning() {
     let locals: Vec<TypeId> = body.locals.iter().map(|(_, local)| local.ty).collect();
     assert_eq!(locals[0], locals[1], "Option<Int> must be interned");
     assert_ne!(locals[0], locals[2], "Option<String> is a different type");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(
         dump.contains("VariantConstruct Option.None<Int> : Option<Int>"),
         "{dump}"
@@ -287,7 +287,7 @@ fn non_literal_variant_default_is_typed_at_the_definition() {
         ),
     ]);
     let module = lower_user(file).expect("a typed call is a valid variant default");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(dump.contains("Call f : Int"), "{dump}");
     assert!(
         dump.contains("VariantConstruct Shape.WithDefault : Shape"),

@@ -251,7 +251,15 @@ fn main_cannot_be_suspend() {
     let errors = lower_user(file(vec![suspend_fun("main", vec![])]))
         .expect_err("the process entry point cannot suspend");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`main` must not be suspend");
+    assert_eq!(
+        errors[0].message,
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
+    );
+    assert_eq!(errors[0].notes.len(), 1);
+    assert_eq!(
+        errors[0].notes[0].message,
+        "`main` is not eligible because it is suspend"
+    );
 }
 
 #[test]

@@ -891,7 +891,7 @@ Module
         Local $argument.0 : Boolean
       Call println<Boolean> : Unit
         Local $parameter.value : Boolean
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

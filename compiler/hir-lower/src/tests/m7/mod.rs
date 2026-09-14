@@ -54,7 +54,7 @@ fn body_of(module: &hir::Module, function: hir::FunctionId) -> &hir::Body {
 /// `unnest` is set, the interesting inner call is found in its preceding
 /// argument-evaluation temporary.
 fn call_in_main(
-    module: &hir::LegacyExecutableExportHir,
+    module: &hir::ExportHirOutput,
     index: usize,
     unnest: bool,
 ) -> (hir::FunctionId, &[hir::Expr]) {

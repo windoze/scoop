@@ -43,9 +43,12 @@ fn identities(
         },
     )
     .unwrap();
-    let output =
-        crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-            .expect("the object-value fixture lowers");
+    let output = crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("the object-value fixture lowers");
     let (object_id, declaration) = output
         .export
         .objects

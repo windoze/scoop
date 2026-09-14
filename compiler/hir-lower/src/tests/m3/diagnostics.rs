@@ -138,7 +138,15 @@ fn generic_main_is_an_error() {
     let file = file(vec![fun_sig("main", vec!["T"], vec![], None, vec![])]);
     let errors = lower_user(file).expect_err("generic main must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`main` must not be generic");
+    assert_eq!(
+        errors[0].message,
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
+    );
+    assert_eq!(errors[0].notes.len(), 1);
+    assert_eq!(
+        errors[0].notes[0].message,
+        "`main` is not eligible because it is generic"
+    );
 }
 
 // --- negative: generics ---

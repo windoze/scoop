@@ -449,13 +449,11 @@ impl<'a> TrustedCoreBootstrapHirInput<'a> {
     pub fn lower(&self) -> Result<TrustedCoreBootstrapHirOutput, CoreBootstrapHirStageError> {
         let hir = scoop_hir_lower::lower_core_bootstrap(&self.sources)
             .map_err(CoreBootstrapHirStageError::Lowering)?;
-        let output_kind = scoop_hir::ConeOutputKind::Library;
         let production_section =
-            scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export, &output_kind)
+            scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
                 .map_err(CoreBootstrapHirStageError::ProductionSection)?;
         Ok(TrustedCoreBootstrapHirOutput {
             hir,
-            output_kind,
             production_section,
         })
     }
@@ -471,12 +469,11 @@ impl<'a> TrustedCoreBootstrapHirInput<'a> {
 
 /// Atomic trusted-core HIR product for the single-Cone production pipeline.
 ///
-/// The private fields prevent downstream orchestration from pairing the core
-/// graph with an executable contract or omitting its mandatory production
-/// section. All three views are derived during the same successful stage.
+/// The private fields prevent downstream orchestration from omitting the
+/// mandatory production section. The graph already owns its output contract,
+/// and both are derived during the same successful stage.
 pub struct TrustedCoreBootstrapHirOutput {
     hir: scoop_hir::Output,
-    output_kind: scoop_hir::ConeOutputKind,
     production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
 }
 
@@ -486,7 +483,7 @@ impl TrustedCoreBootstrapHirOutput {
     }
 
     pub const fn output_kind(&self) -> &scoop_hir::ConeOutputKind {
-        &self.output_kind
+        self.hir.output_kind()
     }
 
     pub const fn production_section(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {

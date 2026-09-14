@@ -6,7 +6,7 @@ fn iteration_plan_validator_checks_the_enclosing_suspend_contract() {
         checked_suspend_iterator_iteration_export(),
         checked_suspend_component_iteration_export(),
     ]
-    .map(hir::LegacyExecutableExportHir::into_module)
+    .map(hir::ExportHirOutput::into_module)
     {
         hir::validate_iteration_plans(&export)
             .expect("the producer's suspend function permits its protocol call");

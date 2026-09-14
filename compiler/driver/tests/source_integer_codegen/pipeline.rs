@@ -79,7 +79,8 @@ pub(super) fn lower_program(source: &str) -> (scoop_mir::Module, scoop_lir::Modu
         },
     )
     .expect("the integer test has unique source identities");
-    let hir = scoop_hir_lower::lower_legacy_combined_executable(
+    let hir = scoop_hir_lower::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Executable,
         &input,
         scoop_hir_lower::IntrinsicDeclarationPolicy::default(),
     )

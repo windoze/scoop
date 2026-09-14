@@ -1015,7 +1015,7 @@ Module
     MethodCall Holder.failThenResume : Unit
       Local $receiver : Holder
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance startCoroutine<Int>

@@ -413,7 +413,7 @@ fn user_body(module: &hir::Module, function: hir::FunctionId) -> &hir::Body {
     body
 }
 
-fn main_body(module: &hir::LegacyExecutableExportHir) -> &hir::Body {
+fn main_body(module: &hir::ExportHirOutput) -> &hir::Body {
     user_body(module, module.entry())
 }
 

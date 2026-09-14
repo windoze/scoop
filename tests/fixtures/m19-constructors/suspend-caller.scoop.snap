@@ -896,7 +896,7 @@ Module
     MethodCall Gate.complete : Unit
       Local $receiver : Gate
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance println<String>
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>

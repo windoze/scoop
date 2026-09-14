@@ -64,9 +64,12 @@ fn identity(
         },
     )
     .unwrap();
-    let output =
-        crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-            .expect("the type-alias fixture lowers");
+    let output = crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("the type-alias fixture lowers");
     let (id, _) = output
         .export
         .type_aliases

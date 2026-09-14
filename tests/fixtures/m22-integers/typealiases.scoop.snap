@@ -1101,7 +1101,7 @@ Module
     assign singleton-root#0
       ClassInit Factory : Container.Factory
   fun $init$ensure$0(): Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance keep<Slot<Int>>

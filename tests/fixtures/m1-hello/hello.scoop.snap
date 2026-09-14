@@ -826,7 +826,7 @@ Module
   fun main(): Unit
     Call hello : Unit
     Call world : Unit
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance print<String>

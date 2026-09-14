@@ -79,9 +79,12 @@ fn identities(
         },
     )
     .unwrap();
-    let output =
-        crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-            .expect("the field-identity fixture lowers");
+    let output = crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("the field-identity fixture lowers");
     let mut result = BTreeMap::new();
 
     let (structure_id, structure) = output

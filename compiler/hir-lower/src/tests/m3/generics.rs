@@ -114,13 +114,13 @@ fn generic_identity_infers_type_arguments() {
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
-  entry main
+  output executable main
   instance identity<Int>
   instance println<Int>
   instance identity<String>
   instance println<String>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 #[test]
@@ -221,7 +221,7 @@ fn generic_inference_is_independent_of_argument_order() {
         ),
     ]);
     let module = lower_user(file).expect("a later argument must type an earlier None");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(dump.contains("Call choose<Int> : Int"));
     assert!(dump.contains("VariantConstruct Option.None<Int> : Option<Int>"));
 }
@@ -247,7 +247,7 @@ fn outer_expected_type_fixes_a_return_only_type_parameter() {
     ]);
 
     let module = lower_user(file).expect("the call result context must infer T as Int");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(dump.contains("Call empty<Int> : Option<Int>"), "{dump}");
     assert!(dump.contains("instance empty<Int>"), "{dump}");
 }
@@ -270,7 +270,7 @@ fn multiple_type_parameters() {
         ),
     ]);
     let module = lower_user(file).expect("two type parameters must lower");
-    let dump = hir::dump_legacy_executable(&module);
+    let dump = hir::dump(&module);
     assert!(
         dump.contains("fun pair<T, U>(a: T0, b: T1): (T0, T1)"),
         "{dump}"
@@ -433,12 +433,12 @@ fn nested_generic_calls_record_param_instantiations() {
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance identity<T0>
   instance twice<Int>
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 /// `Option<T>` in a parameter type binds recursively against an
@@ -574,9 +574,9 @@ fn generic_option_roundtrip() {
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance unwrapOr<Int>
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }

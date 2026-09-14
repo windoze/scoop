@@ -888,7 +888,7 @@ Module
       Local $argument.0 : ForeignCallback<(Ptr<Unit>, Int) -> Unit>
     ForeignCallbackRelease : Unit
       Local $parameter.callback : ForeignCallback<(Ptr<Unit>, Int) -> Unit>
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>

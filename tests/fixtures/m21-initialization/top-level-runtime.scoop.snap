@@ -971,7 +971,7 @@ Module
     ensure init4 top-level:betaOrder
     return
       GlobalRead betaOrder : Int
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>

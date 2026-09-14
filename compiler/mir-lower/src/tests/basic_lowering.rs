@@ -19,7 +19,7 @@ fn string_identity(
 #[test]
 fn lowers_hello_world() {
     let source = hello_world();
-    let concrete = scoop_hir_lower::concretize_legacy_export(&source);
+    let concrete = scoop_hir_lower::concretize_output(&source);
     let expected_string_identities = [
         string_identity(concrete.functions[concrete.top_level[1]].materialization, 0),
         string_identity(concrete.functions[concrete.top_level[2]].materialization, 0),
@@ -125,6 +125,23 @@ Module
 }
 
 #[test]
+fn library_hir_lowers_to_library_mir_without_an_entry() {
+    let executable = hello_world();
+    let library =
+        hir::ExportHirOutput::try_new(executable.module().clone(), hir::ConeOutputKind::Library)
+            .expect("the same checked graph can be requested as a library");
+    let module = lower(&library);
+
+    assert!(matches!(module.output, mir::MirOutput::Library));
+    assert!(
+        module
+            .functions
+            .iter()
+            .any(|(_, function)| function.name == "main")
+    );
+}
+
+#[test]
 fn repeated_literals_get_separate_constants_deterministically() {
     let executable = hello_world();
     // Add another `println("hello, world")` to `main`. The
@@ -159,7 +176,7 @@ fn repeated_literals_get_separate_constants_deterministically() {
         span: SPAN,
     });
 
-    let hir_module = legacy_executable(hir_module, main_id);
+    let hir_module = executable_output(hir_module, main_id);
     let module = lower(&hir_module);
     let values: Vec<&str> = module
         .strings

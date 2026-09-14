@@ -82,8 +82,12 @@ fn lower_fixture_with_extra_type(extra_type: bool) -> hir::Output {
         },
     )
     .unwrap();
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("the persistent type fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("the persistent type fixture lowers")
 }
 
 fn lower_fixture() -> hir::Output {
@@ -212,7 +216,7 @@ fn exact_type_identity_is_independent_of_type_arena_positions() {
 #[test]
 fn type_identity_rejects_noncanonical_and_duplicate_type_entries() {
     let output = lower_fixture();
-    let mut changed = output.export.clone();
+    let mut changed = output.export.module().clone();
     let application = changed
         .struct_applications
         .iter()
@@ -230,14 +234,14 @@ fn type_identity_rejects_noncanonical_and_duplicate_type_entries() {
         Err(hir::HirTypeIdentityError::InvalidApplication { .. })
     ));
 
-    let mut changed = output.export.clone();
+    let mut changed = output.export.module().clone();
     changed.types.alloc(hir::Type::Unit);
     assert!(matches!(
         rebuild(&changed),
         Err(hir::HirTypeIdentityError::DuplicateExactIdentity { .. })
     ));
 
-    let mut changed = output.export.clone();
+    let mut changed = output.export.module().clone();
     let first = changed
         .types
         .alloc(hir::Type::Param(hir::TypeParamId::with_substitution_slot(
@@ -254,7 +258,7 @@ fn type_identity_rejects_noncanonical_and_duplicate_type_entries() {
         Err(hir::HirTypeIdentityError::ConflictingBinderSlot { identity: 999, .. })
     ));
 
-    let mut changed = output.export.clone();
+    let mut changed = output.export.module().clone();
     changed.intrinsic_type_core.boolean = hir::StructId::from_raw(999_u32.into());
     assert!(matches!(
         rebuild(&changed),

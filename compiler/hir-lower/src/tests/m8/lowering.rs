@@ -177,11 +177,11 @@ fn try_catch_finally_golden() {
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-  entry main
+  output executable main
   instance println<String>
   instance println<Int>
 "#;
-    assert_eq!(hir::dump_legacy_executable(&module), expected);
+    assert_eq!(hir::dump(&module), expected);
 }
 
 // --- positive: structure and scoping ---

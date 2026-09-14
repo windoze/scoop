@@ -20,7 +20,8 @@ use super::{
     RuntimeCoreCapabilityBuildError, RuntimeCoreCapabilityV1, RuntimeCoreCapabilityValidationError,
 };
 use crate::{
-    CanonicalHirFoundation, ConeOutputKind, ExportHir, OdrFreeHirFoundation, ValidatedHirFoundation,
+    CanonicalHirFoundation, ExportHir, ExportHirOutput, OdrFreeHirFoundation,
+    ValidatedHirFoundation,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -264,19 +265,17 @@ pub struct CoreBootstrapInterfaceSectionV1 {
 }
 
 impl CoreBootstrapInterfaceSectionV1 {
-    pub fn from_export(
-        export: &ExportHir,
-        output: &ConeOutputKind,
-    ) -> Result<Self, CoreBootstrapInterfaceBuildError> {
-        let direct_public_surface = CanonicalDirectPublicSurfaceV1::from_export_hir(export)
+    pub fn from_export(export: &ExportHirOutput) -> Result<Self, CoreBootstrapInterfaceBuildError> {
+        let module = export.module();
+        let direct_public_surface = CanonicalDirectPublicSurfaceV1::from_export_hir(module)
             .map_err(CoreBootstrapInterfaceBuildError::DirectSurface)?;
-        let output_contract = HirOutputContractV1::from_output_kind(output);
-        let core_interface = if export.cone == ConeIdentity::CORE {
+        let output_contract = HirOutputContractV1::from_output_kind(export.output_kind());
+        let core_interface = if module.cone == ConeIdentity::CORE {
             if output_contract != HirOutputContractV1::Library {
                 return Err(CoreBootstrapInterfaceBuildError::CoreMustBeLibrary);
             }
             CoreHirInterfaceBranchV1::Core(Box::new(
-                CoreHirInterfaceV1::from_core_export_against(export, &direct_public_surface)
+                CoreHirInterfaceV1::from_core_export_against(module, &direct_public_surface)
                     .map_err(CoreBootstrapInterfaceBuildError::CoreInterface)?,
             ))
         } else {

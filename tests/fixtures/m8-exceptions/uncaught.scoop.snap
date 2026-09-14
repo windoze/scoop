@@ -806,7 +806,7 @@ Module
   fun main(): Unit
     throw
       ClassInit UnwrapException : UnwrapException
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
 

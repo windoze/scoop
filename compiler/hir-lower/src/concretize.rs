@@ -35,15 +35,30 @@ pub(crate) fn lower(module: &export::Module) -> concrete::Module {
     Concretizer::new(module).run()
 }
 
-pub(crate) fn lower_legacy_executable(
-    executable: &export::LegacyExecutableExportHir,
-) -> export::LegacyExecutableLocalHir {
-    let module = executable.module();
+pub(crate) fn lower_output(output: &export::ExportHirOutput) -> export::LocalConcreteHirOutput {
+    let module = output.module();
     export::validate_iteration_plans(module)
         .expect("Export HIR iteration plans must pass the complete reader boundary validator");
-    let (module, entry) = Concretizer::new(module).run_with_entry(executable.entry());
-    export::LegacyExecutableLocalHir::try_new(module, entry)
-        .expect("concretization preserves the structurally valid legacy entry")
+    let (module, output_kind) = match output.output_kind() {
+        export::ConeOutputKind::Library => (
+            Concretizer::new(module).run(),
+            export::LocalConeOutputKind::Library,
+        ),
+        export::ConeOutputKind::Executable { local_entry } => {
+            let (module, entry) =
+                Concretizer::new(module).run_with_entry(local_entry.local_function().function());
+            let entry = export::ConcreteExecutableEntry::try_new(&module, local_entry, entry)
+                .expect("concretization preserves the validated executable entry");
+            (
+                module,
+                export::LocalConeOutputKind::Executable {
+                    local_entry: Box::new(entry),
+                },
+            )
+        }
+    };
+    export::LocalConcreteHirOutput::try_new(module, output_kind)
+        .expect("concretization produces a structurally valid closed output")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

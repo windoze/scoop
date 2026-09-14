@@ -42,7 +42,11 @@ fn lower_user_sources(
         },
     )
     .expect("explicit test source identities are valid");
-    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
 }
 
 fn set_private(declaration: &mut ast::Decl) {
@@ -140,7 +144,7 @@ fn multiple_user_sources_share_one_current_unit_and_keep_file_private_domains() 
 
     let output = lower_user_sources(&core, &first, &[(&second, "second.scoop")])
         .expect("all user sources are one current-unit declaration side");
-    let module = output.export;
+    let module = output.export.module().clone();
     let user_provider = hir::IntrinsicProviderId::from_raw(29);
     let user_cone = test_source_identity("src/first.scoop").cone();
     let shared = module
@@ -194,7 +198,7 @@ fn definition_origins_use_semantic_source_identity_when_spans_are_identical() {
 
     let output = lower_user_sources(&core, &first, &[(&second, "second.scoop")])
         .expect("both source declarations must lower");
-    let module = output.export;
+    let module = output.export.module().clone();
     for (name, expected_source) in [
         ("firstSource", test_source_identity("src/first.scoop")),
         ("main", test_source_identity("src/second.scoop")),
@@ -542,7 +546,11 @@ fn lower_sparse_sources(
         },
     )
     .expect("explicit test source identities are valid");
-    lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
+    lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
 }
 
 #[test]
@@ -727,9 +735,13 @@ fn validated_input_retains_source_identities_independently_of_dense_file_indices
             },
         )
         .expect("explicit test source identities are valid");
-        let output = lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
-            .expect("source order and display locator do not affect private lookup");
-        let module = output.export;
+        let output = lower_combined_sources(
+            scoop_identity::RequestedConeKind::Library,
+            &input,
+            IntrinsicDeclarationPolicy::CoreOnly,
+        )
+        .expect("source order and display locator do not affect private lookup");
+        let module = output.export.module().clone();
         assert_eq!(
             module.source_files[dense_file].identity,
             expected_source.clone()
@@ -791,8 +803,12 @@ fn shared_display_locator_does_not_merge_distinct_private_sources() {
     )
     .expect("explicit test source identities are valid");
 
-    let errors = lower_legacy_combined_sources(&input, IntrinsicDeclarationPolicy::CoreOnly)
-        .expect_err("equal diagnostic labels cannot grant file-private access");
+    let errors = lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect_err("equal diagnostic labels cannot grant file-private access");
     assert!(errors.iter().any(|error| error.file == 2
         && error.message == "function `privateHelper` is not accessible here"));
 }

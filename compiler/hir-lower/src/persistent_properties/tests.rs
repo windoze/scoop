@@ -120,8 +120,12 @@ fn lower(sources: &[(u32, ast::SourceFile)], locator: &str) -> hir::Output {
         },
     )
     .expect("test source identities are valid");
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("test current unit lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("test current unit lowers")
 }
 
 fn ordinary_property_identities(

@@ -969,7 +969,7 @@ Module
   fun $get$action(this: Counter): Action
     return
       ClassInit Action : Action
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>

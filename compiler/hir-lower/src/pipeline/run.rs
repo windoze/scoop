@@ -2,32 +2,9 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn run(
-        self,
-        files: &[ast::SourceFile],
-    ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
-        let (module, (), warnings) = self.run_with(files, |_, _, _| ())?;
-        Ok((module, warnings))
-    }
-
-    pub(crate) fn run_legacy_executable(
-        self,
-        files: &[ast::SourceFile],
-    ) -> Result<(hir::LegacyExecutableExportHir, Vec<Diagnostic>), Vec<Diagnostic>> {
-        let (module, entry, warnings) =
-            self.run_with(files, |lowerer, sources, primary_user_file| {
-                lowerer.select_legacy_entry(sources, primary_user_file)
-            })?;
-        let entry = entry.expect("a failed legacy entry selection is always diagnosed");
-        let executable = hir::LegacyExecutableExportHir::try_new(module, entry)
-            .expect("the legacy selector returns a structurally valid entry");
-        Ok((executable, warnings))
-    }
-
-    fn run_with<Extra>(
         mut self,
         files: &[ast::SourceFile],
-        finish: impl FnOnce(&mut Self, &[ast::SourceFile], usize) -> Extra,
-    ) -> Result<(hir::Module, Extra, Vec<Diagnostic>), Vec<Diagnostic>> {
+    ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
         if files.is_empty() {
             return Err(vec![Diagnostic::without_span(
                 ast::DiagnosticSeverity::Error,
@@ -468,8 +445,6 @@ impl Lowerer {
         self.check_no_gc_types();
         self.check_no_gc_functions();
 
-        let extra = finish(&mut self, files, primary_output_file);
-
         self.warnings.sort_by_key(|diagnostic| {
             let span = diagnostic.span.unwrap_or(Span {
                 start: u32::MAX,
@@ -483,8 +458,8 @@ impl Lowerer {
         }
         let warnings = std::mem::take(&mut self.warnings);
         // Invariant: empty diagnostics implies every mandatory core protocol
-        // validated above. Executable entry selection is an explicit legacy
-        // adapter layered over this base frontend run.
+        // validated above. Output-kind selection consumes this complete graph
+        // after the frontend run succeeds.
         let option_core = self
             .option_core
             .expect("a missing or invalid core `Option` is always diagnosed");
@@ -867,6 +842,6 @@ impl Lowerer {
             source_location_core,
             instantiations: self.instantiations,
         };
-        Ok((module, extra, warnings))
+        Ok((module, warnings))
     }
 }

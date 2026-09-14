@@ -865,7 +865,7 @@ Module
       Local gate : UnitGate
     MethodCall UnitGate.complete : Unit
       Local $receiver : UnitGate
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance startCoroutine<Unit>

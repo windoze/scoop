@@ -882,7 +882,7 @@ Module
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
-  entry main
+  output executable main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>

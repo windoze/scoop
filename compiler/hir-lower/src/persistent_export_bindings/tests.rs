@@ -151,8 +151,12 @@ fn lower(unrelated_prefix: bool) -> hir::Output {
         },
     )
     .expect("export binding test sources are valid");
-    crate::lower_legacy_combined_sources(&input, crate::IntrinsicDeclarationPolicy::CoreOnly)
-        .expect("export binding fixture lowers")
+    crate::lower_combined_sources(
+        scoop_identity::RequestedConeKind::Library,
+        &input,
+        crate::IntrinsicDeclarationPolicy::CoreOnly,
+    )
+    .expect("export binding fixture lowers")
 }
 
 fn current_records(output: &hir::Output) -> Vec<(PersistentExportBindingId, ExportBindingKey)> {
