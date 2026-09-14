@@ -12,8 +12,7 @@ use scoop_hir::{
 };
 use scoop_identity::{
     ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
-    IdentityValidationError, PendingIdentityValidation, SemanticIdentitySession,
-    ValidatedIdentityGraph,
+    IdentityValidationError, SemanticIdentitySession, ValidatedIdentityGraph,
 };
 use scoop_lir::{
     DecodedLirFoundation, DecodedStrongProductionSectionV1, EntryProductionSourceV1,
@@ -35,7 +34,8 @@ use crate::{
     SlibMemberRecord, SlibMemberRole, ValidatedGraphArtifact,
     compile_decode::{
         CompileCommitError, NativeBoundaryFoundationView, SingleConeStrongProfile,
-        ValidatedCompileArtifact, commit_identity_graph, validate_native_boundary_parts,
+        ValidatedCompileArtifact, commit_identity_graph, validate_foundation_identity_graph,
+        validate_native_boundary_parts,
     },
     hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
     lir_identity_foundation_capability, lir_strong_production_capability,
@@ -127,6 +127,12 @@ pub struct StructurallyValidatedSingleConeCompileProduction<'input> {
 /// foundations.
 pub struct NativeBoundaryValidatedSingleConeCompileProduction<'input> {
     structural: StructurallyValidatedSingleConeCompileProduction<'input>,
+}
+
+pub(crate) struct OdrFreeStrongFoundationSet {
+    pub(crate) hir: OdrFreeHirFoundation,
+    pub(crate) mir: OdrFreeMirFoundation,
+    pub(crate) lir: OdrFreeLirFoundation,
 }
 
 /// The validated HIR, MIR, and LIR production surfaces retained by a
@@ -330,27 +336,12 @@ impl<'input> DecodedSingleConeCompileSections<'input> {
             lir_foundation,
             lir_production,
         } = self;
-        let producer = graph.identity();
-        let (manifest, meter) = graph.envelope.manifest_and_meter();
-        let mut validation = PendingIdentityValidation::with_meter(meter);
-        validation.register_authority(ConeIdentity::CORE)?;
-        if producer != ConeIdentity::CORE {
-            validation.register_authority(producer)?;
-        }
-        for dependency in manifest.direct_dependencies() {
-            let authority = dependency.identity();
-            if authority != ConeIdentity::CORE && authority != producer {
-                validation.register_authority(authority)?;
-            }
-        }
-
-        hir_foundation.register_identities(&mut validation)?;
-        mir_foundation.register_identities(&mut validation)?;
-        lir_foundation.register_identities(&mut validation)?;
-        hir_foundation.resolve_identities(&mut validation)?;
-        mir_foundation.resolve_identities(&mut validation)?;
-        lir_foundation.resolve_identities(&mut validation)?;
-        let identities = validation.finish()?;
+        let identities = validate_foundation_identity_graph(
+            &mut graph,
+            &hir_foundation,
+            &mir_foundation,
+            &lir_foundation,
+        )?;
 
         Ok(IdentityCheckedSingleConeCompileSections {
             graph,
@@ -418,7 +409,7 @@ impl<'input> IdentityCheckedSingleConeCompileSections<'input> {
     /// profile's ODR rejection over each canonical layer.
     pub fn validate_foundation_structure(
         self,
-    ) -> Result<OdrCheckedSingleConeCompileFoundations<'input>, StrongCompileFoundationError> {
+    ) -> Result<OdrCheckedSingleConeCompileFoundations<'input>, StrongProfileFoundationError> {
         let Self {
             mut graph,
             mut identities,
@@ -429,34 +420,22 @@ impl<'input> IdentityCheckedSingleConeCompileSections<'input> {
             lir_foundation,
             lir_production,
         } = self;
-        let coordinate = graph.coordinate().clone();
-        let producer = graph.identity();
-        let meter = graph.envelope.meter_mut();
-        let hir_foundation = hir_foundation
-            .validate(&coordinate, &mut identities, meter)
-            .map_err(StrongCompileFoundationError::HirStructure)?;
-        let mir_foundation = mir_foundation
-            .validate(&mut identities, meter)
-            .map_err(StrongCompileFoundationError::MirStructure)?;
-        let lir_foundation = lir_foundation
-            .validate(producer, &mut identities, meter)
-            .map_err(StrongCompileFoundationError::LirStructure)?;
-
-        let hir_foundation = OdrFreeHirFoundation::from_validated(hir_foundation)
-            .map_err(StrongCompileFoundationError::HirOdr)?;
-        let mir_foundation = OdrFreeMirFoundation::from_validated(mir_foundation)
-            .map_err(StrongCompileFoundationError::MirOdr)?;
-        let lir_foundation = OdrFreeLirFoundation::from_validated(lir_foundation)
-            .map_err(StrongCompileFoundationError::LirOdr)?;
+        let foundations = validate_strong_profile_foundations(
+            &mut graph,
+            &mut identities,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+        )?;
 
         Ok(OdrCheckedSingleConeCompileFoundations {
             graph,
             identities,
-            hir_foundation,
+            hir_foundation: foundations.hir,
             hir_production,
-            mir_foundation,
+            mir_foundation: foundations.mir,
             mir_production,
-            lir_foundation,
+            lir_foundation: foundations.lir,
             lir_production,
         })
     }
@@ -909,8 +888,38 @@ fn validate_core_callable_relation(
     Ok(())
 }
 
+pub(crate) fn validate_strong_profile_foundations(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    identities: &mut ValidatedIdentityGraph,
+    hir: DecodedHirFoundation,
+    mir: DecodedMirFoundation,
+    lir: DecodedLirFoundation,
+) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
+    let coordinate = graph.coordinate().clone();
+    let producer = graph.identity();
+    let meter = graph.envelope.meter_mut();
+    let hir = hir
+        .validate(&coordinate, identities, meter)
+        .map_err(StrongProfileFoundationError::HirStructure)?;
+    let mir = mir
+        .validate(identities, meter)
+        .map_err(StrongProfileFoundationError::MirStructure)?;
+    let lir = lir
+        .validate(producer, identities, meter)
+        .map_err(StrongProfileFoundationError::LirStructure)?;
+
+    Ok(OdrFreeStrongFoundationSet {
+        hir: OdrFreeHirFoundation::from_validated(hir)
+            .map_err(StrongProfileFoundationError::HirOdr)?,
+        mir: OdrFreeMirFoundation::from_validated(mir)
+            .map_err(StrongProfileFoundationError::MirOdr)?,
+        lir: OdrFreeLirFoundation::from_validated(lir)
+            .map_err(StrongProfileFoundationError::LirOdr)?,
+    })
+}
+
 #[derive(Debug)]
-pub enum StrongCompileFoundationError {
+pub enum StrongProfileFoundationError {
     HirStructure(HirFoundationValidationError),
     MirStructure(MirFoundationValidationError),
     LirStructure(LirFoundationValidationError),
@@ -919,13 +928,13 @@ pub enum StrongCompileFoundationError {
     LirOdr(OdrFreeLirFoundationError),
 }
 
-impl fmt::Display for StrongCompileFoundationError {
+impl fmt::Display for StrongProfileFoundationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid strong Compile foundation: {self:?}")
+        write!(formatter, "invalid strong-profile foundation: {self:?}")
     }
 }
 
-impl std::error::Error for StrongCompileFoundationError {
+impl std::error::Error for StrongProfileFoundationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::HirStructure(error) => error,

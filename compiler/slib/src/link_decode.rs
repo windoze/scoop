@@ -2,12 +2,19 @@
 
 use std::fmt;
 
-use scoop_hir::DecodedHirFoundation;
-use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity};
-use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1};
-use scoop_mir::DecodedMirFoundation;
+use scoop_hir::{DecodedHirFoundation, OdrFreeHirFoundation};
+use scoop_identity::{
+    ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
+    IdentityValidationError, ValidatedIdentityGraph,
+};
+use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
+use scoop_mir::{DecodedMirFoundation, OdrFreeMirFoundation};
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
 
+use crate::compile_decode::validate_foundation_identity_graph;
+use crate::strong_compile_decode::{
+    StrongProfileFoundationError, validate_strong_profile_foundations,
+};
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
     DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
@@ -30,6 +37,33 @@ pub struct DecodedSingleConeLinkSections<'input> {
     hir_foundation: DecodedHirFoundation,
     mir_foundation: DecodedMirFoundation,
     lir_foundation: DecodedLirFoundation,
+    strong_production: DecodedStrongProductionSectionV1,
+    link_identity_closure: DecodedLinkIdentityClosureSectionV1,
+    production_manifest: DecodedSingleConeProductionManifestV1,
+}
+
+/// Link sections whose complete HIR-to-LIR foundation identity graph passed
+/// one transaction. Foundation structure and the strong profile's ODR policy
+/// remain unproven.
+pub struct IdentityCheckedSingleConeLinkSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: DecodedHirFoundation,
+    mir_foundation: DecodedMirFoundation,
+    lir_foundation: DecodedLirFoundation,
+    strong_production: DecodedStrongProductionSectionV1,
+    link_identity_closure: DecodedLinkIdentityClosureSectionV1,
+    production_manifest: DecodedSingleConeProductionManifestV1,
+}
+
+/// Link sections backed by structurally valid foundations that satisfy the
+/// `SingleConeStrongProfile` `RejectAll` ODR policy.
+pub struct OdrCheckedSingleConeLinkFoundations<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: OdrFreeHirFoundation,
+    mir_foundation: OdrFreeMirFoundation,
+    lir_foundation: OdrFreeLirFoundation,
     strong_production: DecodedStrongProductionSectionV1,
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     production_manifest: DecodedSingleConeProductionManifestV1,
@@ -122,7 +156,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
     }
 }
 
-impl DecodedSingleConeLinkSections<'_> {
+impl<'input> DecodedSingleConeLinkSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -148,6 +182,158 @@ impl DecodedSingleConeLinkSections<'_> {
     }
 
     pub const fn lir_foundation_wire(&self) -> &DecodedLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.strong_production
+    }
+
+    pub const fn link_identity_closure_wire(&self) -> &DecodedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+
+    /// Registers and resolves every foundation identity before any Link
+    /// payload can use a persistent identity as trusted input.
+    pub fn validate_identities(
+        self,
+    ) -> Result<IdentityCheckedSingleConeLinkSections<'input>, IdentityValidationError> {
+        let Self {
+            mut graph,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+            strong_production,
+            link_identity_closure,
+            production_manifest,
+        } = self;
+        let identities = validate_foundation_identity_graph(
+            &mut graph,
+            &hir_foundation,
+            &mir_foundation,
+            &lir_foundation,
+        )?;
+        Ok(IdentityCheckedSingleConeLinkSections {
+            graph,
+            identities,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+            strong_production,
+            link_identity_closure,
+            production_manifest,
+        })
+    }
+}
+
+impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.strong_production
+    }
+
+    pub const fn link_identity_closure_wire(&self) -> &DecodedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+
+    pub fn validate_foundation_structure(
+        self,
+    ) -> Result<OdrCheckedSingleConeLinkFoundations<'input>, StrongProfileFoundationError> {
+        let Self {
+            mut graph,
+            mut identities,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+            strong_production,
+            link_identity_closure,
+            production_manifest,
+        } = self;
+        let foundations = validate_strong_profile_foundations(
+            &mut graph,
+            &mut identities,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+        )?;
+        Ok(OdrCheckedSingleConeLinkFoundations {
+            graph,
+            identities,
+            hir_foundation: foundations.hir,
+            mir_foundation: foundations.mir,
+            lir_foundation: foundations.lir,
+            strong_production,
+            link_identity_closure,
+            production_manifest,
+        })
+    }
+}
+
+impl OdrCheckedSingleConeLinkFoundations<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
         &self.lir_foundation
     }
 

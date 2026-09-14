@@ -37,6 +37,24 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     let _ = sections.strong_production_wire();
     let _ = sections.link_identity_closure_wire();
     let _ = sections.production_manifest_wire();
+    let checked = sections.validate_identities().unwrap();
+    assert_eq!(checked.identity_count(), 16);
+    assert_eq!(checked.declared_identity_count(), 15);
+    let odr_free = checked.validate_foundation_structure().unwrap();
+    assert_eq!(odr_free.identity(), ConeIdentity::CORE);
+    assert_eq!(odr_free.declared_identity_count(), 15);
+    assert_eq!(
+        odr_free.hir_foundation().as_canonical().counts().odr_groups,
+        0
+    );
+    assert_eq!(
+        odr_free.mir_foundation().as_canonical().counts().odr_groups,
+        0
+    );
+    assert_eq!(
+        odr_free.lir_foundation().as_canonical().counts().odr_groups,
+        0
+    );
 }
 
 #[test]
@@ -190,12 +208,30 @@ fn build_artifact(
     include_lir_foundation: bool,
     stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
+    let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
+    hir_foundation
+        .set_types(vec![
+            scoop_identity::CoreBuiltinNominal::Unit.identity_record(),
+            scoop_identity::CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
+    mir_foundation
+        .set_exact_types(vec![
+            CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Nominal(
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id(),
+            ))
+            .unwrap(),
+        ])
+        .unwrap();
     let hir_sections = vec![
         MetadataSection::new(
             MetadataLocation::Hir,
             hir_identity_foundation_capability(),
             MemberPurposeSet::COMPILE,
-            encode(&scoop_hir::CanonicalHirFoundation::empty()).unwrap(),
+            encode(&hir_foundation).unwrap(),
         )
         .unwrap(),
     ];
@@ -204,7 +240,7 @@ fn build_artifact(
             MetadataLocation::Mir,
             mir_identity_foundation_capability(),
             MemberPurposeSet::COMPILE,
-            encode(&scoop_mir::CanonicalMirFoundation::empty()).unwrap(),
+            encode(&mir_foundation).unwrap(),
         )
         .unwrap(),
     ];

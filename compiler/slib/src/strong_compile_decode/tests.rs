@@ -90,7 +90,7 @@ fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
             .validate_identities()
             .unwrap()
             .validate_foundation_structure(),
-        Err(StrongCompileFoundationError::LirOdr(
+        Err(StrongProfileFoundationError::LirOdr(
             scoop_lir::OdrFreeLirFoundationError::NonStrongSymbolRequest {
                 linkage: LinkageClass::OdrWeak,
                 ..

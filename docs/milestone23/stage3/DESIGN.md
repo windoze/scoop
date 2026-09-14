@@ -2411,6 +2411,10 @@ Compile sink section重新计算并核对三层semantic fingerprint；随后解�
 identity闭包与`RejectAll`重放使用。HIR/MIR production payload对Link保持hash-covered opaque，Link
 reader不得因自身不解释它们而跳过envelope、inventory或semantic fingerprint验证；同理，LIR
 foundation虽不是Link-purpose section，也不能因Link inventory不枚举它而缺失。
+三层foundation identity的authority注册、canonical key解析、结构验证与`RejectAll`转换由Compile/Link
+两条reader调用同一实现；两条路径各自持有独立graph与budget状态，但不得复制或弱化规则。共享转换
+产出`OdrFreeHirFoundation`、`OdrFreeMirFoundation`、`OdrFreeLirFoundation`，Link后续object proof只能
+从这组三层typed foundation继续。
 
 `validate_link::<SingleConeStrongProfile>`固定按以下依赖顺序：
 

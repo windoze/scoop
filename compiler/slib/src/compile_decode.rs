@@ -272,6 +272,22 @@ fn validate_foundation_identities<'input>(
         mir,
         lir,
     } = foundations;
+    let identities = validate_foundation_identity_graph(&mut graph, &hir, &mir, &lir)?;
+    Ok(IdentityCheckedFoundations {
+        graph,
+        identities,
+        hir,
+        mir,
+        lir,
+    })
+}
+
+pub(crate) fn validate_foundation_identity_graph(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    hir: &DecodedHirFoundation,
+    mir: &DecodedMirFoundation,
+    lir: &DecodedLirFoundation,
+) -> Result<ValidatedIdentityGraph, IdentityValidationError> {
     let producer = graph.identity();
     let (manifest, meter) = graph.envelope.manifest_and_meter();
     let mut validation = PendingIdentityValidation::with_meter(meter);
@@ -294,14 +310,7 @@ fn validate_foundation_identities<'input>(
     mir.resolve_identities(&mut validation)?;
     lir.resolve_identities(&mut validation)?;
 
-    let identities = validation.finish()?;
-    Ok(IdentityCheckedFoundations {
-        graph,
-        identities,
-        hir,
-        mir,
-        lir,
-    })
+    validation.finish()
 }
 
 impl<'input> IdentityCheckedFoundations<'input> {
