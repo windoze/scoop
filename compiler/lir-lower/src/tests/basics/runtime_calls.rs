@@ -21,7 +21,7 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
             call_stmt(user_call(helper)),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // top_level order: helper first, then main.
     let function = &module.functions[1];
@@ -72,7 +72,7 @@ fn string_compare_uses_the_closed_signed_64_runtime_abi() {
             ),
         )],
     );
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::Call { site } = instructions[0] else {

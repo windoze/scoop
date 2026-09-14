@@ -32,7 +32,7 @@ fn struct_values_keep_named_lir_identity() {
             ),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let local_types: Vec<lir::LirType> =
@@ -91,7 +91,7 @@ fn raw_struct_construction_lowers_fields_in_declaration_order() {
         )],
     );
 
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::MakeAggregate { elements, .. } = instructions[0] else {
@@ -118,7 +118,7 @@ fn unit_is_the_empty_aggregate() {
     let mut locals = Arena::new();
     let u = locals.alloc(local("u", mir::Type::Unit));
     let main = b.main(locals, vec![val_decl(u, mir::Expr::unit())]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let (_, u_local) = function.locals.iter().next().expect("one local");
@@ -138,7 +138,7 @@ fn unit_is_the_empty_aggregate() {
 fn all_eight_integer_kinds_use_their_exact_target_scalar_layout() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
 
     for mir_kind in mir::IntegerKind::ALL {
@@ -194,24 +194,7 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
     });
     let main = builder.main(Arena::new(), Vec::new());
     let source = builder.finish(main);
-    let data_type = mir::Type::Ptr(Box::new(mir::Type::Integer(mir::IntegerKind::UNSIGNED_16)));
-    let code_type = mir::Type::FunPtr(signature);
-    let data_exact = source
-        .meta
-        .source_exact_types
-        .get(&data_type)
-        .expect("raw pointer layout has an exact identity")
-        .identity_record()
-        .id();
-    let code_exact = source
-        .meta
-        .source_exact_types
-        .get(&code_type)
-        .expect("native function pointer layout has an exact identity")
-        .identity_record()
-        .id();
-    let module = lower(&source);
-    let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
+    let module = lower(source);
 
     let data_representation = lir::IntrinsicTypeRepresentation::Ptr {
         pointee: lir::LirDataPointee::Value(Box::new(lir::LirType::I16)),
@@ -231,49 +214,12 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         lir::StructRepresentation::Intrinsic(code_representation.clone())
     );
 
-    for (name, kind, representation, exact, role) in [
-        (
-            "Ptr<UInt16>",
-            lir::PointerKind::Raw,
-            data_representation,
-            data_exact,
-            scoop_identity::RepresentationRole::ManagedValue,
-        ),
-        (
-            "FunPtr<(Int8, Ptr<Unit>) -> Unit>",
-            lir::PointerKind::Code,
-            code_representation,
-            code_exact,
-            scoop_identity::RepresentationRole::NativeFunctionPointer,
-        ),
-    ] {
-        let layout = layout_values(&module)
-            .find(|layout| layout.name == name)
-            .unwrap_or_else(|| panic!("missing compiler pointer layout {name}"));
-        let expected = context.pointer_layout(kind);
-        assert_eq!((layout.size, layout.align), (expected.size, expected.align));
-        assert_eq!(layout.kind, lir::LayoutKind::Intrinsic(representation),);
-        let identity = match role {
-            scoop_identity::RepresentationRole::ManagedValue => lir::LayoutIdentity::managed_value(
-                exact,
-                lir::LirTargetProfile::DARWIN_AARCH64,
-                lir::MaterializationRoot::lir_structural_odr(exact).unwrap(),
-            ),
-            scoop_identity::RepresentationRole::NativeFunctionPointer => {
-                lir::LayoutIdentity::native_function_pointer(
-                    exact,
-                    lir::LirTargetProfile::DARWIN_AARCH64,
-                    lir::MaterializationRoot::lir_structural_odr(exact).unwrap(),
-                )
-            }
-            scoop_identity::RepresentationRole::ManagedObject
-            | scoop_identity::RepresentationRole::CValue => {
-                unreachable!("the fixture contains only compiler pointer layouts")
-            }
-        }
-        .unwrap();
-        assert_eq!(layout.identity, identity);
-    }
+    assert!(
+        layout_values(&module).all(|layout| {
+            layout.name != "Ptr<UInt16>" && layout.name != "FunPtr<(Int8, Ptr<Unit>) -> Unit>"
+        }),
+        "structural pointer shapes must not acquire persistent layouts"
+    );
 }
 
 #[test]
@@ -284,7 +230,7 @@ fn uint_and_int_are_exact_32_bit_scalars() {
     let mut locals = Arena::new();
     let u = locals.alloc(local("u", UINT));
     let main = b.main(locals, vec![val_decl(u, uint_expr(1))]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let (_, u_local) = function.locals.iter().next().expect("one local");
@@ -317,7 +263,7 @@ fn layouts_mark_reference_fields_for_the_gc() {
     let mut locals = Arena::new();
     let _t = locals.alloc(local("t", mir::Type::Tuple(vec![mir::Type::Boolean, INT])));
     let main = b.main(locals, vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let by_name = |name: &str| {
         layout_values(&module)
@@ -335,20 +281,8 @@ fn layouts_mark_reference_fields_for_the_gc() {
     assert_eq!(
         names,
         [
-            "S",
-            "Outer",
-            "Int8",
-            "Int16",
-            "Int",
-            "Long",
-            "UInt8",
-            "UInt16",
-            "UInt",
-            "ULong",
-            "Boolean",
-            "String",
-            "(String, Int)",
-            "(Boolean, Int)"
+            "S", "Outer", "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong",
+            "Boolean", "String"
         ]
     );
 
@@ -367,16 +301,10 @@ fn layouts_mark_reference_fields_for_the_gc() {
     assert_eq!((outer.size, outer.align), (24, 8));
     assert_eq!(plain_refs(outer), [8]);
 
-    // The tuple field type gets its own layout too.
-    let pair_layout = by_name("(String, Int)");
-    assert_eq!((pair_layout.size, pair_layout.align), (16, 8));
-    assert_eq!(plain_refs(pair_layout), [0]);
-
-    // (Boolean, Int): Int is 4-aligned, so it sits at offset 4 and
-    // the size rounds up to 8.
-    let padded = by_name("(Boolean, Int)");
-    assert_eq!((padded.size, padded.align), (8, 4));
-    assert!(plain_refs(padded).is_empty());
+    assert!(
+        layout_values(&module).all(|layout| !layout.name.starts_with('(')),
+        "tuple shapes are transient and must not acquire persistent layouts"
+    );
 }
 
 #[test]
@@ -415,7 +343,7 @@ fn compiler_pointer_element_offsets_keep_their_domain_and_dedicated_stride() {
             ),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::PtrOffset {
@@ -463,7 +391,7 @@ fn pointer_load_cannot_relabel_a_machine_pointee_as_source_integer() {
         )],
     );
 
-    let _ = lower(&b.finish(main));
+    let _ = lower(b.finish(main));
 }
 
 #[test]
@@ -487,5 +415,5 @@ fn pointer_store_cannot_write_a_source_integer_as_a_machine_pointee() {
         )))],
     );
 
-    let _ = lower(&b.finish(main));
+    let _ = lower(b.finish(main));
 }

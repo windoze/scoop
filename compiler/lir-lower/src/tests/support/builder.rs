@@ -486,9 +486,14 @@ impl Builder {
                 .collect();
             let result =
                 test_exact_type(&self.function_types, &function.return_ty, &mut exact_types);
+            let declaration_name = if function_id == entry {
+                "main".to_string()
+            } else {
+                format!("testFunction{declaration_index}")
+            };
             let declaration = SourceDeclarationKey::function(
                 test_declaration_site(),
-                CanonicalIdentifier::new(&format!("testFunction{declaration_index}")).unwrap(),
+                CanonicalIdentifier::new(&declaration_name).unwrap(),
                 0,
                 None,
                 Vec::new(),

@@ -1,6 +1,55 @@
 use super::*;
 
 #[test]
+fn reachable_structural_function_descriptor_reports_strong_capability_error() {
+    let mut b = Builder::new();
+    let function_type = b.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: Vec::new(),
+        return_type: mir::Type::Unit,
+    });
+    let mut locals = Arena::new();
+    let callable = locals.alloc(local("callable", mir::Type::Any));
+    let main = b.main(
+        locals,
+        vec![call_stmt(mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::FunctionBridge { function_type },
+                callee: mir::Callee::FunctionBridge(function_type),
+            },
+            args: vec![local_expr(callable, mir::Type::Any)],
+            pending: mir::CoroutinePendingContext::Root,
+        })],
+    );
+    let mut source = b.finish(main);
+    register_test_source_exact_type(&mut source, mir::Type::Function(function_type));
+
+    let error = match try_lower(source) {
+        Err(error) => error,
+        Ok(_) => panic!("reachable function bridge must fail strong LIR capability validation"),
+    };
+    assert!(
+        error
+            .to_string()
+            .starts_with(StrongLirCapabilityError::CODE)
+    );
+    match error {
+        StrongLirLoweringError::Capability(error) => {
+            assert_eq!(error.function(), main);
+            assert_eq!(
+                error.requirement(),
+                &StrongLirMaterializationRequirement::TypeDescriptor(mir::Type::Function(
+                    function_type
+                ))
+            );
+        }
+        StrongLirLoweringError::Foundation(_) => {
+            panic!("capability validation must run before LIR foundation projection")
+        }
+    }
+}
+
+#[test]
 fn function_signatures_params_and_calls() {
     let mut b = Builder::new();
     // fun add(x: Int, y: Int): Int { return x + y }
@@ -38,7 +87,7 @@ fn function_signatures_params_and_calls() {
             },
         )],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // Parameters are SSA values (`Value::Param`), not stack slots;
     // the add body has no locals at all.
@@ -65,7 +114,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = integer_Add<Int> param0, param1 : i32
     ret t0
-  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 r: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -82,7 +131,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -103,7 +152,7 @@ fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
             vec![integer_expr(mir::IntegerKind::SIGNED_8, 7)],
         ))],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
@@ -190,7 +239,7 @@ fn return_inside_a_branch_seals_its_block() {
     );
     let _ = f;
     let main = b.main(Arena::new(), vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // The constant branch is folded and its unreachable merge path is
     // removed; the `return` seals the remaining then block.
@@ -202,7 +251,7 @@ Module
     br @if.then.1
   block if.then.1
     ret param0
-  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
@@ -216,6 +265,6 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }

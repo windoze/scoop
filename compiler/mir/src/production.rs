@@ -87,7 +87,7 @@ pub struct StrongCallableBridgeSurfaceV1 {
 
 impl StrongCallableBridgeSurfaceV1 {
     pub fn from_odr_free_foundation(foundation: &OdrFreeMirFoundation) -> Self {
-        let bridges = foundation
+        let mut bridges = foundation
             .as_canonical()
             .callable_signatures()
             .iter()
@@ -97,7 +97,8 @@ impl StrongCallableBridgeSurfaceV1 {
                 };
                 StrongCallableBridgeV1::new(implementation, record.signature().clone())
             })
-            .collect();
+            .collect::<Vec<_>>();
+        bridges.sort_unstable_by_key(StrongCallableBridgeV1::implementation);
         Self { bridges }
     }
 

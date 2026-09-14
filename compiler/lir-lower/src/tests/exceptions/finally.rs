@@ -56,7 +56,7 @@ fn finally_runs_on_the_normal_catch_and_rethrow_paths() {
         .statements
         .push(call_stmt(user_call(cleanup)));
     let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
     let dump = lir::dump(&module);
 
     // The finally body is inlined on normal completion, after the
@@ -178,7 +178,7 @@ fn return_inside_try_runs_finally_before_returning() {
     );
     let _ = f;
     let main = b.main(Arena::new(), vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // This body cannot enter the unwind path, so final LIR prunes that
     // detached copy together with the dead merge block. The reachable
@@ -212,7 +212,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn2()
     t5 = aggregate () : {}
     ret local0
-  fun @scoop$1$cb$e45a777f304bed09d4fbc294f091313dd5a64c3b2660b61a78f1f3cac5e407c4() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
@@ -226,6 +226,6 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  output executable @scoop$1$cb$e45a777f304bed09d4fbc294f091313dd5a64c3b2660b61a78f1f3cac5e407c4
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }

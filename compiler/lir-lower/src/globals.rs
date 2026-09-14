@@ -193,7 +193,7 @@ fn static_storage_layout_identity(
 ) -> lir::LayoutIdentity {
     let exact_type = exact_type_record(module, &global.ty).id();
     let target = context.target_profile();
-    let root = identity_roots.for_type(&global.ty);
+    let root = identity_roots.for_static_storage(global.storage_owner);
     let identity = match &global.ty {
         mir::Type::Struct(id) => {
             let mir::StructRepresentation::Declared { c_layout, .. } =

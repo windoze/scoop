@@ -65,7 +65,7 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
         .expect("C-layout struct has an exact identity")
         .identity_record()
         .id();
-    let module = lower(&source);
+    let module = lower(source);
 
     let inner_def = &module.structs[struct_def_id(inner)];
     assert_eq!((inner_def.size, inner_def.align), (8, 8));
@@ -264,7 +264,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     locals.alloc(local("messages", messages_array));
     locals.alloc(local("nestedValues", nested_array));
     let main = b.main(locals, Vec::new());
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let by_name = |name: &str| {
         layout_values(&module)

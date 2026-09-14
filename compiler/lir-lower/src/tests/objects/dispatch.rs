@@ -34,7 +34,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
             },
         )],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // The receiver's object header (index 0) holds the TD; its
     // vtable pointer is ScoopTypeDescriptor field 5; the callee is
@@ -45,7 +45,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000001)
-  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 p: ptr<managed>
     local %1 r: i32
   block entry
@@ -67,7 +67,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout C size=16 align=8 refs=[]
-  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -104,14 +104,14 @@ fn interface_calls_look_up_the_itable() {
             },
         )],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // `scoop_rt_itable_lookup(td, iface_td)` finds the table; the
     // interface TD is a typed metadata reference, not an ordinary
     // globals-arena entry.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 i: ptr<managed>
     local %1 r: i32
   block entry
@@ -132,7 +132,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -209,7 +209,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let interface_exact = exact_type(&mir::Type::Interface(iface));
     let base_exact = exact_type(&mir::Type::Class(base));
     let derived_exact = exact_type(&mir::Type::Class(derived));
-    let module = lower(&source);
+    let module = lower(source);
 
     // Interfaces first (itable keys), then classes
     // base-before-derived — references always name
@@ -379,7 +379,7 @@ fn class_layouts_shift_ref_offsets_by_the_header() {
         "S",
         SourceNominalKind::Struct,
     );
-    let module = lower(&mir_module);
+    let module = lower(mir_module);
 
     let by_name = |name: &str| {
         layout_values(&module)

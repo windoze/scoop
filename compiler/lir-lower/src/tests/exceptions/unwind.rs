@@ -46,7 +46,7 @@ fn throw_outside_try_is_a_throw_instruction() {
             },
         ),
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // Outside a try the throw is the `Throw` instruction ending
     // the block; the callee stays a plain call.
@@ -57,7 +57,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
     ret t0
-  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -77,7 +77,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
-  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -110,7 +110,7 @@ fn throw_inside_try_invokes_to_the_own_landingpad() {
         unwind,
     };
     let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[module
         .executable_entry()
@@ -291,7 +291,7 @@ fn nested_trys_unwind_to_their_own_pads() {
         None,
     );
     let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[module
         .executable_entry()

@@ -6,12 +6,12 @@ use super::*;
 fn option_of_string_uses_the_niche_representation() {
     // Option<String>: the payload maps to `Ptr`, so the value is
     // the pointer itself with None = null (spec 7.4).
-    let module = lower(&option_round_trip("Option<String>", mir::Type::String));
+    let module = lower(option_round_trip("Option<String>", mir::Type::String));
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   enum Option<String> niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 o: enum0
     local %1 t: machine<enum-tag>
     local %2 p: ptr<managed>
@@ -38,7 +38,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option<String> size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -47,7 +47,7 @@ fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
     let mut builder = Builder::new();
     let option = builder.option_enum("Option<Ptr<Int>>", mir::Type::Ptr(Box::new(INT)));
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
 
     assert!(matches!(
         edef(&module, option).repr,
@@ -96,7 +96,7 @@ fn option_of_code_pointer_records_code_niche_provenance() {
     let main = builder.main(Arena::new(), Vec::new());
     let mir_module = builder.finish(main);
 
-    let module = lower(&mir_module);
+    let module = lower(mir_module);
 
     assert!(matches!(
         edef(&module, option).repr,
@@ -111,12 +111,12 @@ fn option_of_code_pointer_records_code_niche_provenance() {
 fn option_of_int_uses_the_tagged_representation() {
     // Option<Int>: the `{ i64 tag, [4 x i8] payload }` tagged
     // form — size 16, align 8.
-    let module = lower(&option_round_trip("Option<Int>", INT));
+    let module = lower(option_round_trip("Option<Int>", INT));
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   enum Option<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 o: enum0
     local %1 t: machine<enum-tag>
     local %2 p: i32
@@ -143,7 +143,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option<Int> size=16 align=8 enum-scan=none
-  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -203,7 +203,7 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
         ],
     });
     let main = b.main(Arena::new(), Vec::new());
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     assert!(matches!(
         edef(&module, option_s).repr,

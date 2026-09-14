@@ -38,7 +38,7 @@ fn try_catch_lowers_to_invoke_landingpad_and_rethrow() {
             vec![call_stmt(user_call(handled))],
         ),
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
@@ -50,7 +50,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$bf6cfaf71a9a7fbc42690a582257c2f479b94a120f839f3af0395e5a8990d370() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 e: ptr<managed>
     local %1 $sc.1: exception_record
     local %2 $sc.2: ptr<raw>
@@ -117,7 +117,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
-  output executable @scoop$1$cb$bf6cfaf71a9a7fbc42690a582257c2f479b94a120f839f3af0395e5a8990d370
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -183,12 +183,19 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
         mir::Type::Unit,
         body,
     );
-    let module = lower(&b.finish(main));
-    let main = &module.functions[module
-        .executable_entry()
-        .expect("test module is executable")
-        .declaration()
-        .into_u32() as usize];
+    let module = lower(b.finish(main));
+    let main = module
+        .functions
+        .iter()
+        .find(|function| {
+            function.blocks.iter().any(|(_, block)| {
+                block
+                    .instructions
+                    .iter()
+                    .any(|instruction| matches!(instruction, lir::Instruction::Invoke { .. }))
+            })
+        })
+        .expect("test module contains the invoking function");
     let roots = main
         .blocks
         .iter()

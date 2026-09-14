@@ -23,7 +23,13 @@ impl Drop for TemporarySource {
     }
 }
 
-pub(super) fn lower_program(source: &str) -> (scoop_mir::Module, scoop_lir::Module, String) {
+pub(super) fn lower_program(
+    source: &str,
+) -> (
+    scoop_mir::SingleConeStrongMirInput,
+    scoop_lir::Module,
+    String,
+) {
     let temporary = TemporarySource::new(source);
     let inputs = scoopc::load_inputs(temporary.path()).expect("load compiler inputs");
     let user_index = inputs.len() - 1;
@@ -90,10 +96,21 @@ pub(super) fn lower_program(source: &str) -> (scoop_mir::Module, scoop_lir::Modu
             scoopc::render_diagnostics(&errors, &inputs, "<integer-test>", source)
         )
     });
+    let hir_production = scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
+        .expect("integer test HIR has a complete production section");
     let mir = scoop_mir_lower::lower(&hir.local);
+    let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
+        .expect("integer test MIR satisfies the strong profile");
+    let production =
+        scoop_mir_lower::lower_production_section(mir.cone, &hir_production, &foundation)
+            .expect("integer test MIR has a complete production section");
+    let mir = scoop_mir::SingleConeStrongMirInput::try_new(mir, foundation, production)
+        .expect("integer test MIR seals as one strong input");
     let profile =
         scoop_codegen::ResolvedTargetProfile::resolve_host().expect("supported host profile");
-    let lir = scoop_lir_lower::lower(&mir, profile.lir_target());
+    let lir = scoop_lir_lower::lower(&mir, profile.lir_target())
+        .expect("integer test lowers to ODR-free LIR")
+        .into_module();
     let llvm =
         scoop_codegen::render_llvm_ir(&lir, profile.backend()).expect("render verified LLVM IR");
     (mir, lir, llvm)

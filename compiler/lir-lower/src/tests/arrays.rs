@@ -1,6 +1,54 @@
 use super::*;
 
 #[test]
+fn reachable_generic_array_reports_stable_strong_capability_error() {
+    let mut b = Builder::new();
+    let array_int = b.array("Array<Int>", INT);
+    let mir::Type::Class(array_class) = array_int else {
+        unreachable!("Array<Int> is a class application")
+    };
+    let mut locals = Arena::new();
+    let values = locals.alloc(local("values", mir::Type::Class(array_class)));
+    let main = b.main(
+        locals,
+        vec![val_decl(
+            values,
+            expr(
+                mir::Type::Class(array_class),
+                mir::ExprKind::ArrayLiteral {
+                    array_type: array_class,
+                    elements: vec![int_expr(1)],
+                },
+            ),
+        )],
+    );
+    let mut source = b.finish(main);
+    mark_test_nominal_application(&mut source, mir::Type::Class(array_class));
+
+    let error = match try_lower(source) {
+        Err(error) => error,
+        Ok(_) => panic!("reachable generic array must fail strong LIR capability validation"),
+    };
+    assert!(
+        error
+            .to_string()
+            .starts_with(StrongLirCapabilityError::CODE)
+    );
+    match error {
+        StrongLirLoweringError::Capability(error) => {
+            assert_eq!(error.function(), main);
+            assert_eq!(
+                error.requirement(),
+                &StrongLirMaterializationRequirement::ArrayType(array_class)
+            );
+        }
+        StrongLirLoweringError::Foundation(_) => {
+            panic!("capability validation must run before LIR foundation projection")
+        }
+    }
+}
+
+#[test]
 fn array_nodes_become_array_instructions() {
     // val a = [1, 2]; val x = a[0]; val n = a.size
     // val m = MutableArray(a); m[0] = 40
@@ -89,7 +137,7 @@ fn array_nodes_become_array_instructions() {
         mutable_identity.owner(),
         mir::SourceExactTypeOwner::ConeOwned
     );
-    let module = lower(&source);
+    let module = lower(source);
 
     assert_eq!(
         array_metadata(&module, "Array<Int>").identity,
@@ -114,7 +162,7 @@ fn array_nodes_become_array_instructions() {
     // instruction references its complete typed metadata record.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 a: ptr<managed>
     local %1 x: i32
     local %2 n: i64
@@ -143,7 +191,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -188,7 +236,7 @@ fn array_assembly_becomes_one_typed_allocation_instruction() {
             ),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
     let dump = lir::dump(&module);
     assert!(dump.contains("array_assembly array0"), "{dump}");
     assert!(dump.contains("element integer<Int>(0x00000001)"), "{dump}");
@@ -213,7 +261,7 @@ fn array_layouts_mark_reference_elements() {
     let _points = locals.alloc(local("points", array_point));
     let _nested = locals.alloc(local("nested", array_nested));
     let main = b.main(locals, vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let array_layout = |name: &str| {
         let array = array_metadata(&module, name);
@@ -253,7 +301,7 @@ fn array_fields_are_reference_fields() {
     let array_int = b.array("Array<Int>", INT);
     let _holder = b.strukt("Holder", &[("flag", mir::Type::Boolean), ("xs", array_int)]);
     let main = b.main(Arena::new(), vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // flag @0 (1 byte), xs @8: an array value is a pointer-sized
     // reference.

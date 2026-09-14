@@ -122,7 +122,7 @@ fn trap_calls_branch_to_a_shared_trap_block() {
     );
     let _ = f;
     let main = b.main(Arena::new(), Vec::new());
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // Both `!!` share the one trap block of the function.
     insta::assert_snapshot!(lir::dump(&module), @r###"
@@ -160,7 +160,7 @@ Module
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
@@ -175,6 +175,6 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option<Int> size=16 align=8 enum-scan=none
-  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }

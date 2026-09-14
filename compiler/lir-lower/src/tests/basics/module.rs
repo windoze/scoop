@@ -1,35 +1,23 @@
 use super::*;
 
 #[test]
-fn odr_callable_subject_becomes_the_exact_odr_body_identity() {
-    let mut module = hello_world();
-    let function = mir::FunctionId::from_raw(99_u32.into());
-    let exact = exact_callback_signature().result();
-    let generated =
-        CborIdentityRecord::from_key(GeneratedCallableKey::CoroutineStart { result: exact })
-            .unwrap();
-    let group =
-        scoop_identity::OdrGroupId::from_key(&scoop_identity::SpecializationKey::StructuralType {
-            exact_type: exact,
-        })
-        .unwrap();
-    let member_key = scoop_identity::OdrMemberKey::new(
-        group,
-        scoop_identity::OdrMemberRole::CallableBody,
-        scoop_identity::OdrMemberDiscriminator::GeneratedCallable(generated.id()),
-    )
-    .unwrap();
-    let member = scoop_identity::CallableOdrMemberId::from_key(&member_key).unwrap();
-    let subject = mir::CallableSignatureSubject::odr(member);
-    module.meta.generated_callables =
-        mir::MirGeneratedCallableIdentities::checked(vec![mir::MirGeneratedCallableIdentity::new(
-            function, &generated, subject,
-        )])
-        .unwrap();
+fn strong_callable_owner_becomes_the_exact_cone_body_identity() {
+    let module = hello_world();
+    let function = module.top_level[0];
+    let subject = module
+        .meta
+        .callable_signature_subject(function)
+        .expect("hello-world function has a callable subject");
+    let mir::CallableSignatureSubject::Strong(owner) = subject else {
+        panic!("sealed strong input excludes ODR callable subjects")
+    };
 
-    let body = crate::callable_body_identity(&module, function);
+    let body = crate::callable_body_identity(owner);
     assert_eq!(body, expected_callable_body(subject));
-    assert_eq!(body.symbol_request().linkage(), lir::LinkageClass::OdrWeak);
+    assert_eq!(
+        body.symbol_request().linkage(),
+        lir::LinkageClass::ConeStrong
+    );
     assert_eq!(
         body.symbol_request().key(),
         scoop_identity::PersistentSymbolKey::CallableBody(body.id())
@@ -73,7 +61,7 @@ fn lowers_hello_world() {
                 .expect("MIR string identity has canonical CBOR")
         })
         .collect::<Vec<_>>();
-    let module = lower(&source);
+    let module = lower(source);
 
     let expected_global_symbols = expected_immortal_objects
         .iter()
@@ -191,7 +179,7 @@ Module
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[] sig=void0 (ptr<managed>) extern0(global1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[] sig=void0 (ptr<managed>) extern0(global0)
@@ -209,7 +197,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -218,7 +206,7 @@ fn preserves_library_output_without_an_entry() {
     let mut source = hello_world();
     source.output = mir::MirOutput::Library;
 
-    let module = lower(&source);
+    let module = lower(source);
 
     assert_eq!(module.output, lir::LirOutput::Library);
     assert_eq!(module.executable_entry(), None);
@@ -266,7 +254,7 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
         },
     });
 
-    let module = lower(&module);
+    let module = lower(module);
     let string_constant = module
         .globals
         .iter()

@@ -17,18 +17,18 @@ pub use inputs::{load_inputs, render_diagnostics};
 use linking::{LinkRequest, build_runtime, compile_c_bridge, link};
 pub use request::{
     BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,
-    CoreBootstrapMirStageError, CoreOnlyRequestValidationError, CurrentConeInput,
-    CurrentConeOperandError, CurrentConeOperandErrorKind, CurrentConeSourceStageError,
-    DiagnosticOutputPolicy, ExplicitDependencyInputs, HostArtifactLocator, LoadedCurrentConeInput,
-    LoadedSingleConeBuildRequest, LoadedTrustedCoreInput, NonCoreDependencyInput,
-    OrdinaryCoreOnlyHirInputError, OutputAliasRole, OutputIsolationErrorKind,
-    ParsedCoreBootstrapBuildRequest, ParsedOrdinaryConeBuildRequest, ParsedSingleConeBuildRequest,
-    SingleConeBuildRequest, SingleConeBuildRequestError, SingleConePreflightError,
-    SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreBootstrapHirInput,
-    TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapMirOutput, TrustedCoreInput,
-    ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput, ValidatedExplicitDependencyInputSet,
-    classify_current_cone_operand, normalize_direct_build_request,
-    normalize_protocol_build_request,
+    CoreBootstrapLirStageError, CoreBootstrapMirStageError, CoreOnlyRequestValidationError,
+    CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
+    CurrentConeSourceStageError, DiagnosticOutputPolicy, ExplicitDependencyInputs,
+    HostArtifactLocator, LoadedCurrentConeInput, LoadedSingleConeBuildRequest,
+    LoadedTrustedCoreInput, NonCoreDependencyInput, OrdinaryCoreOnlyHirInputError, OutputAliasRole,
+    OutputIsolationErrorKind, ParsedCoreBootstrapBuildRequest, ParsedOrdinaryConeBuildRequest,
+    ParsedSingleConeBuildRequest, SingleConeBuildRequest, SingleConeBuildRequestError,
+    SingleConePreflightError, SlibOutputDestination, StageDumpKind, StageDumpPolicy,
+    TrustedCoreBootstrapHirInput, TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapLirOutput,
+    TrustedCoreBootstrapMirOutput, TrustedCoreInput, ValidatedCoreOnlyBuildRequest,
+    ValidatedCurrentConeInput, ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
+    normalize_direct_build_request, normalize_protocol_build_request,
 };
 pub use trusted_core::{
     CoreBootstrapAuthority, LoadedTrustedCoreArtifact, TrustedCoreArtifactAuthority,
@@ -185,6 +185,13 @@ pub fn compile_file_with_options(
         &hir_input,
         options.intrinsic_declaration_policy.clone(),
     )?;
+    let hir_production = scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
+        .map_err(|error| {
+            vec![no_span(
+                user_index,
+                format!("HIR production projection failed: {error}"),
+            )]
+        })?;
     let hir_dump = scoop_hir::dump(&hir.export);
     let warnings = hir.warnings;
 
@@ -196,9 +203,33 @@ pub fn compile_file_with_options(
         )]
     })?;
     let mir_dump = scoop_mir::dump(&mir);
+    let mir_foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir).map_err(|error| {
+        vec![no_span(
+            user_index,
+            format!("MIR strong-profile projection failed: {error}"),
+        )]
+    })?;
+    let mir_production =
+        scoop_mir_lower::lower_production_section(mir.cone, &hir_production, &mir_foundation)
+            .map_err(|error| {
+                vec![no_span(
+                    user_index,
+                    format!("MIR production projection failed: {error}"),
+                )]
+            })?;
+    let strong_mir =
+        scoop_mir::SingleConeStrongMirInput::try_new(mir, mir_foundation, mir_production).map_err(
+            |error| {
+                vec![no_span(
+                    user_index,
+                    format!("MIR strong-profile sealing failed: {error}"),
+                )]
+            },
+        )?;
 
-    let lir = scoop_lir_lower::lower(&mir, target_profile.lir_target());
-    let lir_dump = scoop_lir::dump(&lir);
+    let lir = scoop_lir_lower::lower(&strong_mir, target_profile.lir_target())
+        .map_err(|error| vec![no_span(user_index, format!("LIR lowering failed: {error}"))])?;
+    let lir_dump = scoop_lir::dump(lir.module());
 
     let build = (|| -> Result<(StageDumps, PathBuf), Vec<Diagnostic>> {
         std::fs::create_dir_all(out_dir).map_err(|e| {
@@ -214,10 +245,10 @@ pub fn compile_file_with_options(
         let object = out_dir.join(format!("{stem}.o"));
         let binary = out_dir.join(stem);
 
-        scoop_codegen::emit_object(&lir, &object, target_profile.backend())
+        scoop_codegen::emit_object(lir.module(), &object, target_profile.backend())
             .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
 
-        let bridge_object = match scoop_codegen::c_bridge_source(&lir).map_err(|e| {
+        let bridge_object = match scoop_codegen::c_bridge_source(lir.module()).map_err(|e| {
             vec![no_span(
                 user_index,
                 format!("C bridge generation failed: {e}"),
@@ -245,12 +276,12 @@ pub fn compile_file_with_options(
 
         let runtime_lib = build_runtime(user_index, target_profile.runtime_build())?;
         let mut libraries = Vec::new();
-        for (_, extern_) in lir.extern_functions.iter() {
+        for (_, extern_) in lir.module().extern_functions.iter() {
             if !extern_.library.is_empty() && !libraries.contains(&extern_.library) {
                 libraries.push(extern_.library.clone());
             }
         }
-        for (_, global) in lir.native_globals.iter() {
+        for (_, global) in lir.module().native_globals.iter() {
             if !global.library.is_empty() && !libraries.contains(&global.library) {
                 libraries.push(global.library.clone());
             }

@@ -7,65 +7,21 @@ pub(crate) use objects::*;
 pub(crate) use shapes::*;
 pub(crate) use values::*;
 
-/// The meta layouts (DESIGN 2.4 / 3.4): the runtime `String` object
-/// header, the `Int` / `Boolean` scalars, every struct in declaration
-/// order, every enum in declaration order (with fixed reference
-/// offsets), every class in declaration order (M6: header + fields),
-/// and every tuple type that appears in the module. Concrete arrays have a
-/// separate, typed metadata arena rather than a second layout identity.
+/// Persistent layouts selected by the sealed strong materialization plan.
+/// Generic and structural types still participate in physical shape
+/// calculation, but never acquire independent LIR layout identities.
 pub(crate) fn layouts(
     context: &LoweringContext,
     identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-    from_code: &[mir::Type],
 ) -> (Arena<lir::Layout>, lir::WellKnownLayouts) {
-    // Tuple types reachable from struct / enum / class declarations
-    // appear even when no code value mentions them directly.
-    let mut types = Vec::new();
-    for (_, def) in module.structs.iter() {
-        match &def.representation {
-            mir::StructRepresentation::Declared { fields, .. } => {
-                for field in fields {
-                    record_layout_types(&field.ty, &mut types);
-                }
-            }
-            mir::StructRepresentation::Intrinsic(_) => {}
-        }
-    }
-    for (_, def) in module.enums.iter() {
-        for variant in &def.variants {
-            for field in &variant.fields {
-                record_layout_types(&field.ty, &mut types);
-            }
-        }
-    }
-    for (_, def) in module.classes.iter() {
-        match &def.representation {
-            mir::ClassRepresentation::Declared { fields, .. } => {
-                for field in fields {
-                    record_layout_types(&field.ty, &mut types);
-                }
-            }
-            mir::ClassRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::Array { element }
-                | mir::IntrinsicTypeRepresentation::MutableArray { element },
-            ) => record_layout_types(element, &mut types),
-            mir::ClassRepresentation::Intrinsic(_) => {}
-        }
-    }
-    for (_, def) in module.closure_classes.iter() {
-        for field in &def.captures {
-            record_layout_types(&field.ty, &mut types);
-        }
-    }
-    for ty in from_code {
-        record_layout_types(ty, &mut types);
-    }
-
     let mut layouts = Arena::new();
     for (id, def) in module.structs.iter() {
         let ty = def.physical_type(id);
+        if !identity_roots.materializes_type(&ty) {
+            continue;
+        }
         layouts.alloc(struct_layout(
             context,
             module,
@@ -76,6 +32,9 @@ pub(crate) fn layouts(
     }
     for (id, def) in module.enums.iter() {
         let ty = mir::Type::Enum(id, def.type_arguments.clone());
+        if !identity_roots.materializes_type(&ty) {
+            continue;
+        }
         layouts.alloc(enum_layout(
             context,
             enums,
@@ -86,18 +45,24 @@ pub(crate) fn layouts(
     }
     let mut string = None;
     for (id, def) in module.classes.iter() {
+        let ty = if matches!(
+            def.representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+        ) {
+            mir::Type::String
+        } else {
+            mir::Type::Class(id)
+        };
+        if !identity_roots.materializes_type(&ty) {
+            continue;
+        }
         match def.representation {
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
                 let layout = class_definition_layout(
                     context,
                     module,
                     enums,
-                    managed_object_layout_identity(
-                        context,
-                        identity_roots,
-                        module,
-                        &mir::Type::String,
-                    ),
+                    managed_object_layout_identity(context, identity_roots, module, &ty),
                     def,
                 );
                 assert!(
@@ -114,12 +79,7 @@ pub(crate) fn layouts(
                     context,
                     module,
                     enums,
-                    managed_object_layout_identity(
-                        context,
-                        identity_roots,
-                        module,
-                        &mir::Type::Class(id),
-                    ),
+                    managed_object_layout_identity(context, identity_roots, module, &ty),
                     def,
                 ));
             }
@@ -143,19 +103,6 @@ pub(crate) fn layouts(
             interior_mutable: false,
             kind: lir::LayoutKind::Plain { scan },
         });
-    }
-    // Tuple layouts keep their first-appearance order.
-    for ty in &types {
-        if let mir::Type::Tuple(elements) = ty {
-            layouts.alloc(aggregate_layout(
-                context,
-                module,
-                enums,
-                managed_value_layout_identity(context, identity_roots, module, ty),
-                mir::type_name(module, ty),
-                elements,
-            ));
-        }
     }
     (
         layouts,

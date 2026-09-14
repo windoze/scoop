@@ -150,18 +150,3 @@ pub(crate) fn size_align(
         mir::Type::Enum(id, _) => enum_shape(*id),
     }
 }
-
-/// Record every tuple type reachable from `ty`
-/// (first-appearance order, duplicates skipped) so each gets a meta
-/// layout. Structs and enums are covered by their own
-/// declaration-driven layout sections.
-pub(crate) fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
-    if let mir::Type::Tuple(elements) = ty {
-        if !types.contains(ty) {
-            types.push(ty.clone());
-        }
-        for element in elements {
-            record_layout_types(element, types);
-        }
-    }
-}

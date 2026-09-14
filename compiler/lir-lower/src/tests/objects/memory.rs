@@ -28,7 +28,7 @@ fn class_field_reads_are_heap_loads() {
             ),
         )],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // The String field follows the 16-byte header and Int field,
     // so its natural byte offset is 24.
@@ -109,7 +109,7 @@ fn class_allocation_and_initializer_store_fields() {
             }),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // `scoop_rt_alloc(td, size)` with the class layout size (16
     // header + Int @16 + String @24 = 32), then the fields at
@@ -123,7 +123,7 @@ Module
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 p: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -144,7 +144,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Point size=32 align=8 refs=[24]
-  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -164,7 +164,7 @@ fn field_set_lowers_to_a_heap_store() {
             value: int_expr(3),
         })],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
@@ -220,7 +220,7 @@ fn machine_state_fields_use_the_closed_heap_instruction_family() {
             ),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
@@ -281,7 +281,7 @@ fn retype_rejects_machine_scalar_to_source_integer() {
         )],
     );
 
-    let _ = lower(&b.finish(main));
+    let _ = lower(b.finish(main));
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn a_trap_only_body_seals_the_function() {
         ))],
     );
     let main = b.main(Arena::new(), vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     assert!(matches!(

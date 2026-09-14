@@ -8,16 +8,17 @@ use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
-    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, FieldIdentityKey,
-    GeneratedCallableKey, InitializationUnitKey, LexicalCallableParent, LexicalCallableRole,
-    PackagePath, PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFieldId,
-    PersistentFunctionId, PersistentPropertyId, PersistentTypeId, SignatureCallableShape,
-    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
-    SourceDeclarationSite, SourceExternFunctionAbi, SourceNativeExternalContract,
-    SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
-    SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
-    SourceScoopAbiFunctionSignature, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactOrdinaryNoArgUnitSignature,
+    ExactTypeKey, ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey,
+    InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
+    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFieldId,
+    PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId, PersistentTypeId,
+    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
+    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
+    SourceNativeExternalContract, SourceNativeExternalContractKey,
+    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
+    SourceNominalKind, SourceScoopAbiFunctionSignature, SpecializationKey,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 fn test_field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {
@@ -134,8 +135,119 @@ fn test_source_native_data_contract(
     .unwrap()
 }
 
-fn lower(module: &mir::Module) -> lir::Module {
-    super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
+fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
+    if let mir::MirOutput::Executable { entry } = module.output
+        && (!module.functions[entry].params.is_empty()
+            || module.functions[entry].return_ty != mir::Type::Unit)
+    {
+        module.output = mir::MirOutput::Library;
+    }
+    let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
+    let strong_callable_bridges =
+        mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
+    let entry_bridge = match module.output {
+        mir::MirOutput::Library => mir::EntryMirBridgeBranchV1::Library,
+        mir::MirOutput::Executable { entry } => {
+            assert!(module.top_level.contains(&entry), "test entry is emitted");
+            let declaration = CborIdentityRecord::from_key(SourceDeclarationKey::function(
+                SourceDeclarationSite::new(
+                    ConeIdentity::SINGLE_FILE,
+                    PackagePath::root(),
+                    DefinitionOwnerChain::top_level(),
+                    DeclarationScope::ConeWide,
+                )
+                .unwrap(),
+                CanonicalIdentifier::new("main").unwrap(),
+                0,
+                None,
+                Vec::new(),
+            ))
+            .unwrap();
+            let unit = module
+                .meta
+                .source_exact_types
+                .get(&mir::Type::Unit)
+                .expect("test module supplies Unit exact type")
+                .identity_record()
+                .id();
+            let source = ExecutableSourceEntryIdentity::try_new(
+                &declaration,
+                ExactOrdinaryNoArgUnitSignature::new(unit),
+            )
+            .unwrap();
+            let mir::CallableSignatureSubject::Strong(implementation) = module
+                .meta
+                .callable_signature_subject(entry)
+                .expect("test entry has a callable subject")
+            else {
+                panic!("strong test entry cannot have an ODR callable subject")
+            };
+            mir::EntryMirBridgeBranchV1::Executable(Box::new(
+                mir::EntryMirBridgeV1::new(source, implementation).unwrap(),
+            ))
+        }
+    };
+    let production = mir::CoreBootstrapBridgeSectionV1::try_new(
+        module.cone,
+        mir::CoreMirBridgeBranchV1::NotCore,
+        entry_bridge,
+        strong_callable_bridges,
+    )
+    .unwrap();
+    mir::SingleConeStrongMirInput::try_new(module, foundation, production).unwrap()
+}
+
+fn try_lower(
+    module: mir::Module,
+) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+    let input = seal_strong_input(module);
+    super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64)
+}
+
+fn lower(module: mir::Module) -> lir::Module {
+    try_lower(module).unwrap().into_module()
+}
+
+fn mark_test_nominal_application(module: &mut mir::Module, ty: mir::Type) {
+    let argument = module
+        .meta
+        .source_exact_types
+        .get(&INT)
+        .expect("test module supplies Int exact type")
+        .identity_record()
+        .id();
+    let declaration = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("GenericArray").unwrap(),
+        SourceNominalKind::Class,
+        1,
+    );
+    let origin = PersistentGenericTypeId::from_source_declaration(&declaration).unwrap();
+    let arguments = NonEmptyVec::from_first(argument, []);
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::NominalApplication {
+        origin,
+        arguments: arguments.clone(),
+    })
+    .unwrap();
+    let specialization =
+        CborIdentityRecord::from_key(SpecializationKey::Nominal { origin, arguments }).unwrap();
+    let replacement =
+        mir::SourceExactTypeIdentity::checked(ty.clone(), exact, Some(specialization)).unwrap();
+    let entries = module
+        .meta
+        .source_exact_types
+        .iter()
+        .filter(|entry| entry.ty() != &ty)
+        .cloned()
+        .chain([replacement])
+        .collect();
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(entries).unwrap();
 }
 
 fn register_test_source_exact_type(module: &mut mir::Module, ty: mir::Type) {
@@ -178,25 +290,10 @@ fn test_callable_body(symbol: &str) -> lir::CallableBodyIdentity {
 }
 
 fn expected_callable_body(subject: mir::CallableSignatureSubject) -> lir::CallableBodyIdentity {
-    match subject {
-        mir::CallableSignatureSubject::Strong(owner) => match owner {
-            mir::CallableOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
-            mir::CallableOwner::Constructor(id) => lir::CallableBodyIdentity::for_constructor(id),
-            mir::CallableOwner::Accessor(id) => {
-                lir::CallableBodyIdentity::for_property_accessor(id)
-            }
-            mir::CallableOwner::Generated(id) => {
-                lir::CallableBodyIdentity::for_generated_callable(id)
-            }
-            mir::CallableOwner::GenericTemplate(_) | mir::CallableOwner::Application(_) => {
-                panic!("test subject must name a concrete strong definition")
-            }
-        },
-        mir::CallableSignatureSubject::Odr(member) => {
-            lir::CallableBodyIdentity::for_odr_member(member)
-        }
-    }
-    .unwrap()
+    let mir::CallableSignatureSubject::Strong(owner) = subject else {
+        panic!("strong test subject cannot use ODR ownership")
+    };
+    crate::callable_body_identity(owner)
 }
 
 fn callback_application()
@@ -382,7 +479,7 @@ fn initialization_unit_identity() -> mir::InitializationUnitIdentityRecord {
 fn selected_target_profile_is_embedded_in_lir_meta() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
 
     assert_eq!(
         module.meta.target_profile,
@@ -438,15 +535,13 @@ fn initialization_display_name_survives_lir_lowering() {
         },
     });
     assert_eq!(unit, unit_id);
+    let expected_unit_identity = source.initialization_units[unit].identity.clone();
 
-    let module = lower(&source);
+    let module = lower(source);
     let lowered_unit =
         &module.initialization_units[lir::InitializationUnitId::from_raw(unit_id.into_raw())];
     assert_eq!(lowered_unit.display_name, "top-level:value");
-    assert_eq!(
-        lowered_unit.identity,
-        source.initialization_units[unit].identity
-    );
+    assert_eq!(lowered_unit.identity, expected_unit_identity);
     let lir::GlobalInit::Storage {
         identity: storage_identity,
         layout: storage_layout,
@@ -591,7 +686,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
         mir::SourceCallableMaterializations::checked(source_callables).unwrap();
     install_generated_exact_types(&mut source);
     install_callable_signatures(&mut source);
-    let module = lower(&source);
+    let module = lower(source);
 
     let descriptors = module
         .meta
@@ -720,7 +815,7 @@ fn no_gc_effect_is_preserved_in_lir() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
     builder.functions[main].gc_effect = mir::GcEffect::NoGc;
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     assert_eq!(module.functions[0].gc_effect, lir::GcEffect::NoGc);
     assert!(lir::dump(&module).contains("-> void <no-gc>"));
 }
@@ -740,7 +835,7 @@ fn scoop_extern_produces_one_exact_target_contract() {
         .identity_record()
         .id();
 
-    let module = lower(&source);
+    let module = lower(source);
     let storage = scoop_identity::CanonicalScoopStorage::new(
         exact_int,
         4,
@@ -819,7 +914,23 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         "function<{}>",
         mir::type_name(&mir_module, &mir::Type::Function(native_signature))
     );
-    let module = lower(&mir_module);
+    let integer_exact_types = mir::IntegerKind::ALL.map(|kind| {
+        mir_module
+            .meta
+            .source_exact_types
+            .get(&mir::Type::Integer(kind))
+            .expect("every source integer has an exact identity")
+            .identity_record()
+            .id()
+    });
+    let return_exact = mir_module
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Integer(mir::IntegerKind::UNSIGNED_64))
+        .expect("the source return type has an exact identity")
+        .identity_record()
+        .id();
+    let module = lower(mir_module);
     let (_, function) = module
         .extern_functions
         .iter()
@@ -862,15 +973,8 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
 
     let expected_parameters = mir::IntegerKind::ALL
         .into_iter()
-        .map(|kind| {
-            let ty = mir::Type::Integer(kind);
-            let exact_type = mir_module
-                .meta
-                .source_exact_types
-                .get(&ty)
-                .expect("every source integer has an exact identity")
-                .identity_record()
-                .id();
+        .zip(integer_exact_types)
+        .map(|(kind, exact_type)| {
             let storage = scoop_identity::CanonicalCStorageType::Integer {
                 exact_type,
                 signedness: match kind.signedness() {
@@ -887,14 +991,6 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
             scoop_identity::CanonicalCAbiParameter::new(exact_type, storage).unwrap()
         })
         .collect();
-    let return_type = mir::Type::Integer(mir::IntegerKind::UNSIGNED_64);
-    let return_exact = mir_module
-        .meta
-        .source_exact_types
-        .get(&return_type)
-        .expect("the source return type has an exact identity")
-        .identity_record()
-        .id();
     let expected_signature = scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
         scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
             expected_parameters,
@@ -982,7 +1078,7 @@ fn canonical_c_abi_metadata_handles_struct_function_pointer_recursion() {
         .identity_record()
         .id();
 
-    let module = lower(&source);
+    let module = lower(source);
     let expected_layout = scoop_identity::CanonicalCAbiLayoutFingerprintRecord::new(
         scoop_identity::CanonicalCAbiLayout::new(
             node_exact,
@@ -1074,7 +1170,7 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
         },
     });
 
-    let module = lower(&source);
+    let module = lower(source);
     assert!(module.meta.canonical_c_abi.signatures().is_empty());
     assert_eq!(module.meta.canonical_c_abi.layouts().len(), 1);
     let native_contracts = module.meta.native_externals.contracts();
@@ -1133,7 +1229,7 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
     });
     let main = builder.main(Arena::new(), Vec::new());
 
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let (_, function) = module.extern_functions.iter().next().expect("one C extern");
     let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
         panic!("C declaration remains a C bridge")
@@ -1212,7 +1308,7 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     });
     let main = builder.main(Arena::new(), Vec::new());
 
-    let _ = lower(&builder.finish(main));
+    let _ = lower(builder.finish(main));
 }
 
 #[test]
@@ -1349,7 +1445,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     register_test_source_exact_type(&mut module, mir::Type::Ptr(Box::new(mir::Type::Unit)));
     install_callable_signatures(&mut module);
 
-    let lowered = lower(&module);
+    let lowered = lower(module);
     let lowered_bridge = lowered
         .foreign_callback_bridges
         .iter()

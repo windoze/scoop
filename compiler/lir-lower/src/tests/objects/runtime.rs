@@ -62,7 +62,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
         "S",
         SourceNominalKind::Struct,
     );
-    let module = lower(&mir_module);
+    let module = lower(mir_module);
 
     let descriptor_symbols = module
         .meta
@@ -83,7 +83,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
     // td)`. Both checks share one typed descriptor reference.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 a: ptr<managed>
     local %1 v: struct0
     local %2 chk: i1
@@ -113,7 +113,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout S size=4 align=4 refs=[]
   layout box<S> size=24 align=8 refs=[]
-  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -204,11 +204,11 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
             call_value(n, runtime_call(mir::RuntimeFn::GcStats, vec![])),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 v: ptr<managed>
     local %1 $call.1: i64
     local %2 h: struct0
@@ -254,6 +254,6 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout PinnedPtr<String> size=8 align=8 refs=[]
   layout GcHandle<String> size=8 align=8 refs=[]
-  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }

@@ -1,41 +1,5 @@
 use super::*;
 
-/// Layout of an aggregate value (struct / tuple / Unit): fields in
-/// declaration order at their natural alignment. The recursive scan
-/// program preserves references nested in aggregates and tagged enums.
-pub(crate) fn aggregate_layout(
-    context: &LoweringContext,
-    module: &mir::Module,
-    enums: &lir::EnumDefs,
-    identity: lir::LayoutIdentity,
-    name: String,
-    fields: &[mir::Type],
-) -> lir::Layout {
-    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-    let (offsets, size, align) = aggregate_shape(context, module, &enum_shape, fields);
-    let scan = scan_fields(context, module, enums, fields, &offsets, 0);
-    lir::Layout {
-        identity,
-        name,
-        size,
-        align,
-        fields: offsets
-            .iter()
-            .zip(fields)
-            .map(|(&offset, field)| {
-                let (_, access_align) = size_align(context, module, &enum_shape, field);
-                lir::FieldLayout {
-                    offset,
-                    access_align,
-                }
-            })
-            .collect(),
-        c_layout: None,
-        interior_mutable: false,
-        kind: lir::LayoutKind::Plain { scan },
-    }
-}
-
 pub(crate) fn struct_layout(
     context: &LoweringContext,
     module: &mir::Module,

@@ -18,7 +18,6 @@ pub(crate) fn class_order(module: &mir::Module) -> Vec<mir::ClassId> {
 pub(crate) struct TypeDescriptorRefs {
     classes: HashMap<mir::ClassId, lir::TypeDescriptorRef>,
     interfaces: HashMap<mir::InterfaceId, lir::TypeDescriptorRef>,
-    function_types: HashMap<mir::FunctionTypeId, lir::TypeDescriptorRef>,
     closures: HashMap<mir::ClosureClassId, lir::TypeDescriptorRef>,
     boxed: Vec<(mir::Type, lir::TypeDescriptorRef)>,
     string: Option<lir::TypeDescriptorRef>,
@@ -34,7 +33,6 @@ impl TypeDescriptorRefs {
             mir::Type::Class(id) => self.classes[id],
             mir::Type::Interface(id) => self.interfaces[id],
             mir::Type::String => self.string.expect("typed String descriptor"),
-            mir::Type::Function(id) => self.function_types[id],
             mir::Type::Struct(_)
             | mir::Type::Enum(..)
             | mir::Type::Tuple(_)
@@ -48,7 +46,9 @@ impl TypeDescriptorRefs {
                 .iter()
                 .find_map(|(payload, descriptor)| (payload == ty).then_some(*descriptor))
                 .unwrap_or_else(|| panic!("MIR did not supply a boxed descriptor for {ty:?}")),
-            mir::Type::Any => unreachable!("Any has no referenceable TypeDescriptor"),
+            mir::Type::Function(_) | mir::Type::Any => {
+                unreachable!("the strong capability gate rejects this TypeDescriptor request")
+            }
         }
     }
 }
@@ -87,6 +87,9 @@ pub(crate) fn type_descriptors(
     let mut refs = TypeDescriptorRefs::default();
     for (interface, def) in module.interfaces.iter() {
         let ty = mir::Type::Interface(interface);
+        if !identity_roots.materializes_type(&ty) {
+            continue;
+        }
         let runtime_type = runtime_type(module, &ty);
         let root = identity_roots.for_type(&ty);
         let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
@@ -111,44 +114,6 @@ pub(crate) fn type_descriptors(
         refs.interfaces
             .insert(interface, lir::TypeDescriptorRef::Local(id));
     }
-    let mut function_types = module
-        .meta
-        .source_exact_types
-        .iter()
-        .filter_map(|identity| match identity.ty() {
-            mir::Type::Function(id) => Some((*id, identity.identity_record().id())),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    function_types.sort_by_key(|(_, identity)| *identity);
-    for (id, exact_type) in function_types {
-        let ty = mir::Type::Function(id);
-        let name = format!("function<{}>", mir::type_name(module, &ty));
-        let runtime_type = lir::RuntimeTypeMappingRecord::new(exact_type)
-            .expect("validated function exact type must derive a nonzero runtime id");
-        let root = identity_roots.for_type(&ty);
-        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
-            .expect("validated function exact type must derive descriptor identities");
-        let instance_layout = lir::LayoutIdentity::managed_object(
-            runtime_type.exact_type(),
-            context.target_profile(),
-            root,
-        )
-        .expect("validated function exact type must derive its instance layout identity");
-        let vtable = lir::VtableRecord::new(&identity, Vec::new())
-            .expect("validated function exact type must derive a vtable identity");
-        let descriptor = descriptors.alloc(lir::TypeDescriptor {
-            diagnostic_name: name,
-            identity,
-            instance_layout,
-            instance_shape: lir::TypeInstanceShapeV1::abstract_ref(),
-            parent: None,
-            vtable,
-            itables: Vec::new(),
-        });
-        refs.function_types
-            .insert(id, lir::TypeDescriptorRef::Local(descriptor));
-    }
     let mut string = None;
     for id in class_order(module) {
         let def = &module.classes[id];
@@ -156,6 +121,14 @@ pub(crate) fn type_descriptors(
             def.representation,
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
         );
+        let descriptor_type = if is_string {
+            mir::Type::String
+        } else {
+            mir::Type::Class(id)
+        };
+        if !identity_roots.materializes_type(&descriptor_type) {
+            continue;
+        }
         let descriptor = class_type_descriptor(
             context,
             identity_roots,
@@ -190,22 +163,6 @@ pub(crate) fn type_descriptors(
         .expect("validated closure exact type must derive its instance layout identity");
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated closure exact type must derive a vtable identity");
-        let itables = def
-            .bridges
-            .iter()
-            .map(|bridge| {
-                lir::ItableRecord::new(
-                    &identity,
-                    exact_type_record(module, &mir::Type::Function(bridge.target)).id(),
-                    refs.function_types[&bridge.target],
-                    vec![dispatch_entry(
-                        &mir::TableSlot::Function(bridge.function),
-                        local_functions,
-                    )],
-                )
-                .expect("validated closure and function exact types must derive an itable identity")
-            })
-            .collect();
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             diagnostic_name: def.name.clone(),
             identity,
@@ -217,9 +174,9 @@ pub(crate) fn type_descriptors(
                 scan,
             )
             .expect("validated closure layout must form a managed instance shape"),
-            parent: Some(refs.function_types[&def.function_type]),
+            parent: None,
             vtable,
-            itables,
+            itables: Vec::new(),
         });
         refs.closures
             .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
@@ -228,7 +185,12 @@ pub(crate) fn type_descriptors(
         .meta
         .boxed_types
         .iter()
-        .map(|boxed| (boxed.payload().clone(), refs.classes[&boxed.class()]))
+        .filter_map(|boxed| {
+            refs.classes
+                .get(&boxed.class())
+                .copied()
+                .map(|descriptor| (boxed.payload().clone(), descriptor))
+        })
         .collect();
     let string = string.expect("LocalConcreteHir supplies the typed intrinsic String descriptor");
     (descriptors, refs, lir::WellKnownTypeDescriptors { string })
@@ -328,11 +290,12 @@ pub(crate) fn class_type_descriptor(
     let itables = def
         .itables
         .iter()
-        .map(|record| {
+        .filter_map(|record| {
+            let interface = refs.interfaces.get(&record.interface).copied()?;
             lir::ItableRecord::new(
                 &identity,
                 exact_type_record(module, &mir::Type::Interface(record.interface)).id(),
-                refs.interfaces[&record.interface],
+                interface,
                 record
                     .slots
                     .iter()
@@ -340,6 +303,7 @@ pub(crate) fn class_type_descriptor(
                     .collect(),
             )
             .expect("validated class and interface exact types must derive an itable identity")
+            .into()
         })
         .collect();
     lir::TypeDescriptor {
@@ -347,7 +311,9 @@ pub(crate) fn class_type_descriptor(
         identity,
         instance_layout,
         instance_shape,
-        parent: def.base_class().map(|base| refs.classes[&base]),
+        parent: def
+            .base_class()
+            .and_then(|base| refs.classes.get(&base).copied()),
         vtable,
         itables,
     }
@@ -382,6 +348,10 @@ pub(crate) fn array_types(
     let mut arrays = Arena::new();
     let mut ids = HashMap::new();
     for (class_id, class) in module.classes.iter() {
+        let ty = mir::Type::Class(class_id);
+        if !identity_roots.materializes_type(&ty) {
+            continue;
+        }
         let (kind, element) = match &class.representation {
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Array {
                 element,
@@ -396,9 +366,9 @@ pub(crate) fn array_types(
         let (element_size, element_align, _) = class_layout(context, module, enums, class);
         let id = arrays.alloc(lir::ArrayType {
             identity: lir::LayoutIdentity::managed_array(
-                exact_type_record(module, &mir::Type::Class(class_id)).id(),
+                exact_type_record(module, &ty).id(),
                 context.target_profile(),
-                identity_roots.for_type(&mir::Type::Class(class_id)),
+                identity_roots.for_type(&ty),
             )
             .expect("validated array exact type and target must derive layout identities"),
             kind,

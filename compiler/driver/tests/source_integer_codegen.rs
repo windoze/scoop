@@ -91,6 +91,7 @@ fun {function}(lhs: {ty}, rhs: {ty}, count: Long): {ty} {{
 #[test]
 fn source_integer_division_reaches_only_guarded_llvm_blocks() {
     let (mir, lir, llvm) = pipeline::lower_program(&integer_program());
+    let mir = mir.module();
     for case in INTEGER_CASES {
         let (function_id, function) = mir
             .functions

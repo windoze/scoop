@@ -95,7 +95,6 @@ pub(super) fn lower_function<'a>(
     storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
     cstr_count: &mut usize,
-    layout_types: &mut Vec<mir::Type>,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
@@ -120,7 +119,6 @@ pub(super) fn lower_function<'a>(
         .zip(signature.arguments())
         .enumerate()
     {
-        record_layout_types(&param.ty, layout_types);
         assert_eq!(
             &lir_type(&param.ty),
             abi_argument.logical_storage_type(),
@@ -138,7 +136,6 @@ pub(super) fn lower_function<'a>(
         if local_map.contains_key(&mir_id) {
             continue; // a parameter
         }
-        record_layout_types(&local.ty, layout_types);
         let lir_id = locals.alloc(lir::Local {
             name: local.name.clone(),
             ty: lir_type(&local.ty),
@@ -147,7 +144,6 @@ pub(super) fn lower_function<'a>(
     }
 
     // Unit-returning functions are void at the LLVM level (DESIGN 2.4).
-    record_layout_types(&function.return_ty, layout_types);
     let returns_void = matches!(signature.result(), lir::AbiReturn::UnitVoid);
     assert_eq!(returns_void, function.return_ty == mir::Type::Unit);
     if let Some(storage_type) = signature.result().logical_storage_type() {
@@ -184,7 +180,6 @@ pub(super) fn lower_function<'a>(
         storage_globals,
         globals,
         cstr_count,
-        layout_types,
         structs,
         enums,
         array_types,
@@ -277,8 +272,6 @@ struct FunctionLowerer<'a> {
     /// Sink for ordinary globals such as trap-message C strings.
     globals: &'a mut Arena<lir::Global>,
     cstr_count: &'a mut usize,
-    /// Sink for tuple types encountered in value types (meta layouts).
-    layout_types: &'a mut Vec<mir::Type>,
     /// Complete value layouts used to classify return conventions and scans.
     structs: &'a lir::StructDefs,
     /// Enum definitions with fixed representations (enum value
@@ -407,10 +400,8 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// The LIR value type of a MIR type; tuple types are recorded for
-    /// the meta layouts on the way.
+    /// The transient physical LIR shape of a MIR value type.
     fn value_type(&mut self, ty: &mir::Type) -> lir::LirType {
-        record_layout_types(ty, self.layout_types);
         lir_type(ty)
     }
 }

@@ -12,7 +12,9 @@
 //! SSA construction is left to LLVM's mem2reg. Struct / tuple / Unit values are LLVM literal
 //! structs, and the type layouts — including reference-field offsets,
 //! which the M9 GC depends on — are computed into the LIR meta. This
-//! stage never fails: all errors were already reported by hir-lower.
+//! The strong production entry can still reject a persistent materialization
+//! that requires ODR ownership. This is a target-profile capability error,
+//! not a source-language type error.
 //!
 //! M3: function signatures. Parameters are SSA values (`Value::Param`),
 //! not stack slots — they are immutable, so no store ever targets them.
@@ -126,6 +128,7 @@
 //! and keeping it out of LIR keeps these dumps stable.
 
 use std::collections::HashMap;
+use std::fmt;
 
 use la_arena::Arena;
 use scoop_lir as lir;
@@ -135,17 +138,29 @@ use scoop_mir as mir;
 mod identity_roots;
 use identity_roots::IdentityRoots;
 
-/// Lower MIR to LIR.
-pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir::Module {
+mod capability;
+use capability::validate_strong_materialization;
+pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequirement};
+
+/// Lower one sealed single-Cone strong MIR product to ODR-free LIR.
+pub fn lower(
+    input: &mir::SingleConeStrongMirInput,
+    target_profile: lir::LirTargetProfile,
+) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+    let module = input.module();
     module
         .validate()
         .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
     let context = LoweringContext::new(target_profile);
-    let identity_roots = IdentityRoots::new(module);
-    // Every MIR string constant becomes a global with the same symbol.
+    let identity_roots = IdentityRoots::new(input);
+    validate_strong_materialization(input, &identity_roots)
+        .map_err(StrongLirLoweringError::Capability)?;
+    // Every string selected by the sealed materialization plan becomes a
+    // global with the same typed identity.
     let mut globals = Arena::new();
     let mut string_global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
-    for (id, string) in module.strings.iter() {
+    for &id in input.materialization().strings() {
+        let string = &module.strings[id];
         let global = globals.alloc(lir::Global {
             address_kind: lir::PointerKind::Managed,
             scan: lir::RefScan::None,
@@ -204,12 +219,22 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         },
         &mut globals,
     );
+    let callable_owners = input
+        .materialization()
+        .callable_roots()
+        .iter()
+        .map(|root| (root.function(), root.implementation()))
+        .collect::<HashMap<_, _>>();
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
         .top_level
         .iter()
-        .map(|id| {
-            let reference = match module.functions[*id].gc_effect {
+        .map(|&id| {
+            assert!(
+                callable_owners.contains_key(&id),
+                "every emitted function is selected by the sealed strong plan"
+            );
+            let reference = match module.functions[id].gc_effect {
                 mir::GcEffect::Managed => {
                     lir::LocalFunctionRef::Managed(local_function_identities.alloc_managed())
                 }
@@ -217,7 +242,7 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
                     lir::LocalFunctionRef::NoGc(local_function_identities.alloc_no_gc())
                 }
             };
-            (*id, reference)
+            (id, reference)
         })
         .collect::<HashMap<_, _>>();
     let callback_bridges = lower_callback_bridges(
@@ -252,9 +277,6 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         &type_descriptor_refs,
     );
 
-    // Tuple types encountered while mapping value types, in
-    // first-appearance order; each one gets a meta layout.
-    let mut layout_types = Vec::new();
     // Trap message globals (`scoop.cstr.N`), numbered in creation order.
     let mut cstr_count = 0usize;
     let lowered_functions = module
@@ -264,14 +286,13 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             lower_function(
                 &context,
                 module,
-                callable_body_identity(module, id),
+                callable_body_identity(callable_owners[&id]),
                 &module.functions[id],
                 &function_signatures[&id],
                 &string_global_map,
                 &storage_globals,
                 &mut globals,
                 &mut cstr_count,
-                &mut layout_types,
                 &structs,
                 &enums,
                 &array_type_map,
@@ -288,9 +309,8 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
         .collect();
 
-    let (layouts, well_known_layouts) =
-        layouts(&context, &identity_roots, module, &enums, &layout_types);
-    lir::Module {
+    let (layouts, well_known_layouts) = layouts(&context, &identity_roots, module, &enums);
+    let module = lir::Module {
         cone: module.cone,
         globals,
         initialization_units,
@@ -321,36 +341,45 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
             core_external_type_descriptors: Arena::new(),
             core_external_callables: Arena::new(),
         },
-    }
+    };
+    lir::SingleConeStrongLirOutput::try_new(module).map_err(StrongLirLoweringError::Foundation)
 }
 
-fn callable_body_identity(
-    module: &mir::Module,
-    function: mir::FunctionId,
-) -> lir::CallableBodyIdentity {
-    let subject = module
-        .meta
-        .callable_signature_subject(function)
-        .expect("validated MIR gives every emitted function one callable subject");
-    let identity = match subject {
-        mir::CallableSignatureSubject::Strong(owner) => match owner {
-            mir::CallableOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
-            mir::CallableOwner::Constructor(id) => lir::CallableBodyIdentity::for_constructor(id),
-            mir::CallableOwner::Accessor(id) => {
-                lir::CallableBodyIdentity::for_property_accessor(id)
-            }
-            mir::CallableOwner::Generated(id) => {
-                lir::CallableBodyIdentity::for_generated_callable(id)
-            }
-            mir::CallableOwner::GenericTemplate(_) | mir::CallableOwner::Application(_) => {
-                panic!("validated MIR cannot assign a non-defining strong callable subject")
-            }
-        },
-        mir::CallableSignatureSubject::Odr(member) => {
-            lir::CallableBodyIdentity::for_odr_member(member)
+fn callable_body_identity(owner: mir::CallableOwner) -> lir::CallableBodyIdentity {
+    let identity = match owner {
+        mir::CallableOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
+        mir::CallableOwner::Constructor(id) => lir::CallableBodyIdentity::for_constructor(id),
+        mir::CallableOwner::Accessor(id) => lir::CallableBodyIdentity::for_property_accessor(id),
+        mir::CallableOwner::Generated(id) => lir::CallableBodyIdentity::for_generated_callable(id),
+        mir::CallableOwner::GenericTemplate(_) | mir::CallableOwner::Application(_) => {
+            unreachable!("the sealed strong plan excludes non-defining callable owners")
         }
     };
     identity.expect("validated callable-body subjects have canonical runtime identities")
+}
+
+#[derive(Debug)]
+pub enum StrongLirLoweringError {
+    Capability(StrongLirCapabilityError),
+    Foundation(lir::OdrFreeLirFoundationProjectionError),
+}
+
+impl fmt::Display for StrongLirLoweringError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Capability(source) => source.fmt(formatter),
+            Self::Foundation(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for StrongLirLoweringError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Capability(source) => Some(source),
+            Self::Foundation(source) => Some(source),
+        }
+    }
 }
 
 mod abi;

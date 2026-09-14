@@ -663,7 +663,6 @@ impl<'a> FunctionLowerer<'a> {
             // recursive scan program into the managed runtime entry.
             mir::ExprKind::Box(operand) => {
                 let payload_ty = operand.ty.clone();
-                record_layout_types(&payload_ty, self.layout_types);
                 let payload = self.lower_expr(operand);
                 let payload_lir_type = self.value_type(&payload_ty);
                 let payload_storage = self.new_hidden_local(payload_lir_type);

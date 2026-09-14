@@ -541,6 +541,64 @@ impl TrustedCoreBootstrapMirOutput {
     pub const fn materialization_plan(&self) -> &scoop_mir::SingleConeStrongMaterializationPlan {
         self.strong.materialization()
     }
+
+    /// Advances this exact sealed MIR product through strong LIR lowering.
+    ///
+    /// Consuming `self` keeps the complete bootstrap proof chain attached to
+    /// the resulting ODR-free LIR graph.
+    pub fn lower_lir(
+        self,
+        target_profile: scoop_lir::LirTargetProfile,
+    ) -> Result<TrustedCoreBootstrapLirOutput, CoreBootstrapLirStageError> {
+        let lir = scoop_lir_lower::lower(&self.strong, target_profile)
+            .map_err(CoreBootstrapLirStageError::Lowering)?;
+        Ok(TrustedCoreBootstrapLirOutput { mir: self, lir })
+    }
+}
+
+/// Atomic trusted-core LIR product for the single-Cone strong pipeline.
+///
+/// Its LIR graph is inseparable from the strong MIR input that selected every
+/// persistent materialization root, and from the projected ODR-free
+/// foundation that proves lowering did not introduce an ODR-owned entity.
+pub struct TrustedCoreBootstrapLirOutput {
+    mir: TrustedCoreBootstrapMirOutput,
+    lir: scoop_lir::SingleConeStrongLirOutput,
+}
+
+impl TrustedCoreBootstrapLirOutput {
+    pub const fn mir_stage(&self) -> &TrustedCoreBootstrapMirOutput {
+        &self.mir
+    }
+
+    pub const fn lir(&self) -> &scoop_lir::Module {
+        self.lir.module()
+    }
+
+    pub const fn foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
+        self.lir.foundation()
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapLirStageError {
+    Lowering(scoop_lir_lower::StrongLirLoweringError),
+}
+
+impl fmt::Display for CoreBootstrapLirStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lowering(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapLirStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Lowering(source) => Some(source),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1157,6 +1215,31 @@ mod tests {
                 .bridges()
                 .len(),
             real_mir.mir().meta.callable_signatures.len()
+        );
+        let real_lir = real_mir
+            .lower_lir(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+            .unwrap();
+        let lir_counts = real_lir.foundation().as_canonical().counts();
+        assert_eq!(lir_counts.odr_groups, 0);
+        assert_eq!(lir_counts.odr_members, 0);
+        assert!(
+            !real_lir
+                .lir()
+                .meta
+                .layouts
+                .iter()
+                .any(|(_, layout)| layout.name.starts_with("Option<"))
+        );
+        assert!(
+            !real_lir
+                .lir()
+                .meta
+                .type_descriptors
+                .iter()
+                .any(
+                    |(_, descriptor)| descriptor.diagnostic_name.starts_with("Iterable<")
+                        || descriptor.diagnostic_name.starts_with("Iterator<")
+                )
         );
     }
 

@@ -86,7 +86,7 @@ fn lower_variant_primitives(
             loop_header_polls: Vec::new(),
         },
     );
-    lower(&builder.finish(main))
+    lower(builder.finish(main))
 }
 
 fn primitive_instructions(
@@ -243,7 +243,7 @@ fn typed_variant_primitives_lower_through_niche_layout() {
             loop_header_polls: Vec::new(),
         },
     );
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let (wrap, test, project) = primitive_instructions(&module);
     let lir::Instruction::EnumWrap {
         variant: wrapped, ..

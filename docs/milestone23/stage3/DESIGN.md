@@ -590,6 +590,11 @@ generic value shape属于transient shape calculation：它可以贡献字段offs
 从source nominal owner唯一派生的closed shape-support role可以成为额外strong实体。旧的
 `lir_lower::lower(&Module)`完整图production入口在接入本路径时直接删除，不保留wrapper、profile默认值或后过滤旁路。
 
+driver只暴露消费上述sealed MIR product的`lower_lir(self, lir_target)`；成功值
+`TrustedCoreBootstrapLirOutput`私有拥有此前的`TrustedCoreBootstrapMirOutput`、最终LIR graph与由该graph投影的
+`OdrFreeLirFoundation`。因此调用方不能把另一份MIR proof、materialization plan或foundation与LIR结果重新配对；
+capability失败或LIR foundation出现ODR record时均不产生partial stage成功值，也不存在接收裸MIR的driver入口。
+
 ### 7.3 core Compile capability
 
 本阶段新增的HIR/MIR section都使用封闭`NotCore | Core`分支。writer只有持有`CoreBootstrapAuthority`，且current Cone为reserved core、source form为Manifest、output为Library、dependency table为空时，才可构造`Core`；普通writer只能构造`NotCore`，不能携带空的伪core表。raw reader只验证`Core`分支的结构与内容关系，不因看见reserved coordinate或该tag就授予authority；consumer仍须从trusted slot单独构造7.4节的`ValidatedTrustedCoreArtifact`。
