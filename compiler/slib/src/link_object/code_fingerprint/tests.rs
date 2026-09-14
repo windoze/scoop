@@ -1,10 +1,11 @@
 use scoop_identity::{
     CanonicalCAbiFunctionSignature, CanonicalCAbiReturn, CanonicalIdentifier,
-    CanonicalNativeLibraryName, CborIdentityRecord, ConeIdentity, DeclarationScope,
+    CanonicalNativeLibraryName, CapabilityId, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionOwnerChain, NativeExternalContract, NativeExternalContractRecord,
-    NativeExternalSymbolKey, NativeLibraryBinding, NativeLinkRequirementKey, PackagePath,
-    PersistentSourceNativeExternalContractId, SourceDeclarationKey, SourceDeclarationSite,
-    SourceNativeExternalContractKey, SourceNativeSymbol,
+    NativeExternalSymbolKey, NativeLibraryBinding, NativeLinkRequirementKey, ObjectFormatId,
+    PackagePath, PersistentSourceNativeExternalContractId, SourceDeclarationKey,
+    SourceDeclarationSite, SourceNativeExternalContractKey, SourceNativeSymbol,
+    TargetProfileWireId,
 };
 use scoop_lir::{
     CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, LirTargetProfile,
@@ -12,6 +13,61 @@ use scoop_lir::{
 };
 
 use super::*;
+use crate::{ExtensionRequirement, LogicalMemberKey, MemberStableKey, SlibMemberRecord};
+
+#[test]
+fn link_object_projection_is_canonical_and_ignores_non_code_members() {
+    let first = object_record("first", b"first");
+    let second = object_record("second", b"second");
+    let mut expected = vec![expected(&first), expected(&second)];
+    expected.sort_unstable_by_key(|member| member.member);
+    let metadata = SlibMemberRecord::new(
+        ConeIdentity::CORE,
+        MemberStableKey::HirMetadata,
+        SlibMemberRole::HirMetadata,
+        b"metadata",
+    )
+    .unwrap();
+
+    let actual =
+        verify_directory_records(&expected, &[second.clone(), metadata, first.clone()]).unwrap();
+
+    assert_eq!(actual.len(), 2);
+    assert_eq!(actual[0].member(), first.id().min(second.id()));
+    assert_eq!(actual[1].member(), first.id().max(second.id()));
+}
+
+#[test]
+fn link_object_projection_rejects_content_drift_and_link_extensions() {
+    let record = object_record("object", b"final");
+    let expected = vec![expected(&record)];
+    let changed = object_record("object", b"changed");
+    assert_eq!(
+        verify_directory_records(&expected, &[changed]),
+        Err(CodeLinkObjectMemberValidationError::MemberContentMismatch(
+            record.id()
+        ))
+    );
+
+    let capability = CapabilityId::new("example.extension", "required", 1).unwrap();
+    let extension = SlibMemberRecord::new(
+        ConeIdentity::CORE,
+        MemberStableKey::ExtensionBlob {
+            capability: capability.clone(),
+            logical_key: LogicalMemberKey::new(b"extension".to_vec()).unwrap(),
+        },
+        SlibMemberRole::ExtensionBlob {
+            capability: capability.clone(),
+            requirement: ExtensionRequirement::Link,
+        },
+        b"extension",
+    )
+    .unwrap();
+    assert_eq!(
+        verify_directory_records(&expected, &[record, extension]),
+        Err(CodeLinkObjectMemberValidationError::UnsupportedLinkExtension(capability))
+    );
+}
 
 #[test]
 fn omits_source_provenance_and_uses_native_symbol_order() {
@@ -140,4 +196,32 @@ fn source(seed: u8) -> PersistentSourceNativeExternalContractId {
         &SourceNativeExternalContractKey::function(&declaration).unwrap(),
     )
     .unwrap()
+}
+
+fn object_record(logical_key: &str, payload: &[u8]) -> SlibMemberRecord {
+    let capability = crate::scoop_lir_link_object_capability();
+    SlibMemberRecord::new(
+        ConeIdentity::CORE,
+        MemberStableKey::LinkObject {
+            verifier_capability: capability.clone(),
+            logical_key: LogicalMemberKey::new(logical_key.as_bytes().to_vec()).unwrap(),
+        },
+        SlibMemberRole::LinkObject {
+            target_profile: TargetProfileWireId::darwin_aarch64(),
+            object_format: ObjectFormatId::macho_relocatable(),
+            verifier_capability: capability,
+        },
+        payload,
+    )
+    .unwrap()
+}
+
+fn expected(record: &SlibMemberRecord) -> ExpectedFinalLinkObjectMemberV1 {
+    ExpectedFinalLinkObjectMemberV1 {
+        member: record.id(),
+        stable_key: record.stable_key().clone(),
+        role: record.role().clone(),
+        byte_length: record.byte_length(),
+        content_digest: record.sha256(),
+    }
 }

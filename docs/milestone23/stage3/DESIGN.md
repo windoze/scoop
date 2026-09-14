@@ -2269,6 +2269,15 @@ requirement array按requirement id严格递增编码。多个source声明归并�
 library requirement任一变化都必须改变Code fingerprint。reader从已验证LIR native requirement
 surface重建该集合，不从hash input提升decoded identity。
 
+`CodeLinkObjectMemberSetV1`编码为按`SlibMemberId`严格递增的
+`LinkMemberFingerprint` array；排序key不另行编码，因为每个fingerprint已经覆盖完整
+`SlibMemberRecord`（包括member id、stable key、role、byte length与content digest）。构造该集合前，
+packager必须把directory中的全部`LinkObject`与最终`VerifiedEntryPatchSetV1`逐member一一对应：Scoop
+LIR member使用完成全部registration/image/entry patch并重验后的bytes，generated-C member使用同一
+`CBridgeProductionSet`已经验证的最终envelope。缺失、额外、重复member，stable key/role不等，或
+directory length/digest与最终proof不等都失败。M23-3没有known Link-required extension handler；
+directory出现任一`ExtensionBlob(requirement=Link)`直接失败，不能把它当optional blob忽略。
+
 domain固定为`scoop-code-v1`。optional blob、diagnostic attachment、physical ar name、host path和producer临时目录不进入。只改object分片会改变member/Code fingerprint但不改变LIR semantic fingerprint；只改optional附件只改变Artifact fingerprint。
 
 ### 14.5 fingerprint可用性
