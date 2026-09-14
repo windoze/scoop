@@ -29,6 +29,7 @@ impl GeneratedBridgeProducerUnitV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongProducerUnitPartitionV1 {
+    producer: scoop_identity::ConeIdentity,
     scoop_lir_definition_plans: Vec<ObjectDefinitionPlanId>,
     generated_bridge_units: Vec<GeneratedBridgeProducerUnitV1>,
 }
@@ -107,9 +108,14 @@ impl StrongProducerUnitPartitionV1 {
         }
 
         Ok(Self {
+            producer: foundation.producer(),
             scoop_lir_definition_plans,
             generated_bridge_units,
         })
+    }
+
+    pub const fn producer(&self) -> scoop_identity::ConeIdentity {
+        self.producer
     }
 
     pub fn scoop_lir_definition_plans(&self) -> &[ObjectDefinitionPlanId] {

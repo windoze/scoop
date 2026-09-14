@@ -1,7 +1,6 @@
 mod macho;
 mod semantic;
 
-use scoop_identity::ConeIdentity;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, GeneratedBridgePlanSetV1,
@@ -51,7 +50,6 @@ impl Fixture {
         let partition =
             StrongProducerUnitPartitionV1::from_odr_free_foundation(&inputs.foundation).unwrap();
         let member_plan = PlannedLinkObjectMemberSetV1::new(
-            ConeIdentity::SINGLE_FILE,
             &partition,
             vec![CanonicalScoopLirObjectUnitSetV1::new(inputs.definitions).unwrap()],
             Vec::new(),

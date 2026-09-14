@@ -145,7 +145,6 @@ fn fixture(name: &str) -> Fixture {
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
-        ConeIdentity::CORE,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         Vec::new(),

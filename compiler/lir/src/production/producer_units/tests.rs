@@ -15,6 +15,7 @@ fn partitions_every_definition_by_its_actual_producer() {
 
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
 
+    assert_eq!(partition.producer(), ConeIdentity::CORE);
     assert_eq!(partition.scoop_lir_definition_plans(), &[lir_plan]);
     assert_eq!(partition.generated_bridge_units().len(), 1);
     assert_eq!(partition.generated_bridge_units()[0].unit(), bridge_unit);

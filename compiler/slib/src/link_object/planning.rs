@@ -55,18 +55,18 @@ pub struct PlannedLinkObjectMemberSetV1 {
 
 impl PlannedLinkObjectMemberSetV1 {
     pub fn new(
-        cone: ConeIdentity,
         partition: &StrongProducerUnitPartitionV1,
         scoop_lir_unit_sets: Vec<CanonicalScoopLirObjectUnitSetV1>,
         generated_bridge_unit_sets: Vec<CanonicalGeneratedBridgeObjectUnitSetV1>,
     ) -> Result<Self, LinkObjectMemberSetPlanError> {
+        let producer = partition.producer();
         if partition.scoop_lir_definition_plans().is_empty() {
             return Err(LinkObjectMemberSetPlanError::NoScoopLirDefinitions);
         }
 
         let mut scoop_lir_members = scoop_lir_unit_sets
             .into_iter()
-            .map(|units| PlannedScoopLirObjectMemberV1::new(cone, units))
+            .map(|units| PlannedScoopLirObjectMemberV1::new(producer, units))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LinkObjectMemberSetPlanError::Member)?;
         scoop_lir_members.sort_unstable_by_key(PlannedScoopLirObjectMemberV1::member_id);
@@ -105,7 +105,7 @@ impl PlannedLinkObjectMemberSetV1 {
 
         let mut generated_bridge_members = generated_bridge_unit_sets
             .into_iter()
-            .map(|units| PlannedGeneratedBridgeObjectMemberV1::new(cone, units))
+            .map(|units| PlannedGeneratedBridgeObjectMemberV1::new(producer, units))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LinkObjectMemberSetPlanError::Member)?;
         generated_bridge_members
@@ -177,7 +177,7 @@ impl PlannedLinkObjectMemberSetV1 {
         }
 
         Ok(Self {
-            producer: cone,
+            producer,
             scoop_lir_members,
             generated_bridge_members,
             definition_assignments: definition_assignments

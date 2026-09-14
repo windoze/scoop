@@ -1200,6 +1200,11 @@ generated bridge absent时没有generated object member，但manifest的`CBridge
 4. 才运行object verifier与digest patch；
 5. 最后以final bytes计算member hash/record。
 
+`StrongProducerUnitPartitionV1`必须保留其`OdrFreeLirFoundation`已经验证的producer，
+`PlannedLinkObjectMemberSetV1`只能从该partition取得Cone identity并派生全部member id；构造入口不再
+接受第二个caller-supplied Cone identity。这样跨producer分片从类型结构上不可表达，而不是等后续
+symbol/object validator再比较失败。
+
 这样typed patch site可带member id，同时不形成member hash自引用。改变object分片会改变member id和Code/Artifact fingerprint，但只要canonical LIR语义不变就不改变LIR semantic fingerprint。
 
 ### 11.3 共同Mach-O门禁

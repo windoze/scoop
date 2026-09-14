@@ -264,7 +264,6 @@ fn fixture_for_exact_type_definition(
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
-        producer,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         Vec::new(),
@@ -343,7 +342,6 @@ fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bo
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
-        producer,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         Vec::new(),

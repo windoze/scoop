@@ -16,7 +16,6 @@ fn assigns_every_plan_and_bridge_unit_to_exactly_one_member() {
     let partition =
         StrongProducerUnitPartitionV1::from_odr_free_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
-        ConeIdentity::CORE,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(vec![fixture.lir_plans[1]]).unwrap(),
@@ -26,6 +25,7 @@ fn assigns_every_plan_and_bridge_unit_to_exactly_one_member() {
     )
     .unwrap();
 
+    assert_eq!(plan.producer(), fixture.foundation.producer());
     assert_eq!(plan.scoop_lir_members().len(), 2);
     assert_eq!(plan.generated_bridge_members().len(), 1);
     assert_eq!(plan.definition_assignments().len(), 3);
@@ -53,7 +53,6 @@ fn rejects_overlapping_and_incomplete_shards() {
         StrongProducerUnitPartitionV1::from_odr_free_foundation(&fixture.foundation).unwrap();
 
     let duplicate = PlannedLinkObjectMemberSetV1::new(
-        ConeIdentity::CORE,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap(),
@@ -67,7 +66,6 @@ fn rejects_overlapping_and_incomplete_shards() {
     ));
 
     let missing_bridge = PlannedLinkObjectMemberSetV1::new(
-        ConeIdentity::CORE,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
         Vec::new(),
@@ -84,7 +82,6 @@ fn generated_members_are_absent_when_the_partition_has_no_bridge_units() {
     let partition =
         StrongProducerUnitPartitionV1::from_odr_free_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
-        ConeIdentity::CORE,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
         Vec::new(),

@@ -293,7 +293,6 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     let bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
-        producer,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(
