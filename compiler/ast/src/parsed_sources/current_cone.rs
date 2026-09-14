@@ -157,6 +157,43 @@ impl CurrentConeParsedSources {
     pub const fn diagnostic_context(&self) -> &CurrentDiagnosticContext {
         &self.diagnostic_context
     }
+
+    /// Iterates the three checked tables as one structurally complete source
+    /// view. Later stages never need to recover sidecar coverage through an
+    /// optional identity lookup.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = CurrentConeParsedSource<'_>> {
+        self.sources
+            .sources()
+            .iter()
+            .zip(self.source_texts.entries().iter())
+            .zip(self.diagnostic_context.entries().iter())
+            .map(|((source, text), diagnostic)| CurrentConeParsedSource {
+                source,
+                text,
+                diagnostic,
+            })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct CurrentConeParsedSource<'a> {
+    source: &'a IdentifiedParsedSource,
+    text: &'a CurrentSourceText,
+    diagnostic: &'a CurrentSourceDiagnosticContext,
+}
+
+impl<'a> CurrentConeParsedSource<'a> {
+    pub const fn source(self) -> &'a IdentifiedParsedSource {
+        self.source
+    }
+
+    pub const fn text(self) -> &'a CurrentSourceText {
+        self.text
+    }
+
+    pub const fn diagnostic(self) -> &'a CurrentSourceDiagnosticContext {
+        self.diagnostic
+    }
 }
 
 fn validate_current_source_order(

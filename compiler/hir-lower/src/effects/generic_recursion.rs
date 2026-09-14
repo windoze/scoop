@@ -135,7 +135,7 @@ impl Lowerer {
                 .function_files
                 .get(&caller)
                 .copied()
-                .unwrap_or_else(|| self.primary_user_file());
+                .unwrap_or_else(|| self.primary_output_file());
             self.error(
                 span,
                 format!(

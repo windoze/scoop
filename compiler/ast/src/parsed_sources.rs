@@ -207,6 +207,14 @@ mod tests {
             parsed.diagnostic_context().display_locator(&first),
             Some(Path::new("/tmp/first.scoop"))
         );
+        let aligned = parsed.iter().collect::<Vec<_>>();
+        assert_eq!(aligned.len(), 2);
+        assert_eq!(aligned[0].source().identity(), &first);
+        assert_eq!(aligned[0].text().identity(), &first);
+        assert_eq!(aligned[0].diagnostic().identity(), &first);
+        assert_eq!(aligned[1].source().identity(), &second);
+        assert_eq!(aligned[1].text().identity(), &second);
+        assert_eq!(aligned[1].diagnostic().identity(), &second);
     }
 
     #[test]

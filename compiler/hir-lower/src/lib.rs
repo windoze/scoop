@@ -191,6 +191,44 @@ pub struct CurrentSourceDetails<'a> {
     pub source_text: &'a str,
 }
 
+/// Parsed source input authorized for the trusted core bootstrap branch.
+///
+/// Construction proves that the parser output belongs to the reserved core
+/// Cone. The ordinary consumer path uses a different input type carrying an
+/// imported prelude capability.
+pub struct CoreBootstrapSources<'a> {
+    sources: &'a ast::CurrentConeParsedSources,
+}
+
+impl<'a> CoreBootstrapSources<'a> {
+    pub fn try_new(
+        sources: &'a ast::CurrentConeParsedSources,
+    ) -> Result<Self, CoreBootstrapSourceError> {
+        if sources.cone() != scoop_identity::ConeIdentity::CORE {
+            return Err(CoreBootstrapSourceError::NotCore(sources.cone()));
+        }
+        Ok(Self { sources })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoreBootstrapSourceError {
+    NotCore(scoop_identity::ConeIdentity),
+}
+
+impl std::fmt::Display for CoreBootstrapSourceError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotCore(cone) => write!(
+                formatter,
+                "trusted core bootstrap sources belong to Cone {cone}, expected the reserved core Cone"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapSourceError {}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LegacyCombinedSourcesError {
     DuplicateSourceIdentity {
@@ -328,6 +366,27 @@ pub fn lower_legacy_combined_sources(
     })
 }
 
+/// Lowers the trusted core directly from the atomic current-Cone parser
+/// product. This path does not construct or pass through a combined legacy
+/// source set.
+pub fn lower_core_bootstrap(
+    input: &CoreBootstrapSources<'_>,
+) -> Result<hir::Output, Vec<Diagnostic>> {
+    let (files, sources) = materialize_core_bootstrap_sources(input.sources);
+    let (export, warnings) = Lowerer::new()
+        .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
+        .run(&files)?;
+    let local = concretize::lower(&export);
+    let native_boundary_types = crate::persistent_native_boundary::build(&export, &local)
+        .map_err(native_boundary_diagnostic)?;
+    Ok(hir::Output {
+        export,
+        local,
+        native_boundary_types,
+        warnings,
+    })
+}
+
 /// Lower the combined source set for the temporary M22 executable pipeline.
 /// Unlike the base frontend entry point, this adapter requires exactly one
 /// strict legacy `main` and retains its typed identity in both HIR products.
@@ -367,7 +426,7 @@ fn materialize_combined_sources(
         files.push(source.source.clone());
         sources.push(SourceProvider {
             provider: source.provider,
-            kind: SourceKind::ExistingM22Core,
+            kind: SourceKind::Core,
             identity: source.identity.clone(),
             name: source.name.to_string(),
             source: source.source_text.to_string(),
@@ -391,9 +450,27 @@ fn materialize_combined_sources(
     (files, sources)
 }
 
+fn materialize_core_bootstrap_sources(
+    input: &ast::CurrentConeParsedSources,
+) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
+    let mut files = Vec::with_capacity(input.sources().sources().len());
+    let mut sources = Vec::with_capacity(input.sources().sources().len());
+    for source in input.iter() {
+        files.push(source.source().ast().clone());
+        sources.push(SourceProvider {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            kind: SourceKind::Core,
+            identity: source.source().identity().clone(),
+            name: source.diagnostic().display_locator().display().to_string(),
+            source: source.text().text().to_owned(),
+        });
+    }
+    (files, sources)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SourceKind {
-    ExistingM22Core,
+    Core,
     CurrentUnit,
 }
 

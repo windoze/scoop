@@ -378,7 +378,7 @@ impl Lowerer {
     }
 
     pub(crate) fn source_is_core(&self, file: usize) -> bool {
-        self.source_kind(file) == SourceKind::ExistingM22Core
+        self.source_kind(file) == SourceKind::Core
     }
 
     pub(crate) fn current_source_is_core(&self) -> bool {
@@ -411,26 +411,44 @@ impl Lowerer {
             .any(|layer| !layer.is_empty())
     }
 
-    pub(crate) fn primary_user_file(&self) -> usize {
-        self.intrinsic_sources
+    pub(crate) fn primary_output_file(&self) -> usize {
+        let current = self
+            .intrinsic_sources
             .iter()
             .enumerate()
             .filter(|(_, source)| source.kind == SourceKind::CurrentUnit)
             .map(|(file, source)| (&source.identity, file))
             .min_by_key(|(identity, _)| *identity)
-            .map(|(_, file)| file)
-            .expect("a lowering input always contains a current-unit source")
+            .map(|(_, file)| file);
+        current.unwrap_or_else(|| {
+            self.intrinsic_sources
+                .iter()
+                .enumerate()
+                .filter(|(_, source)| source.kind == SourceKind::Core)
+                .map(|(file, source)| (&source.identity, file))
+                .min_by_key(|(identity, _)| *identity)
+                .map(|(_, file)| file)
+                .expect("a lowering input always contains a current or core source")
+        })
     }
 
     pub(crate) fn current_cone(&self) -> scoop_identity::ConeIdentity {
-        let primary = self.primary_user_file();
+        let primary = self.primary_output_file();
         let cone = self.intrinsic_sources[primary].identity.cone();
+        let has_current_unit = self
+            .intrinsic_sources
+            .iter()
+            .any(|source| source.kind == SourceKind::CurrentUnit);
         assert!(
             self.intrinsic_sources
                 .iter()
-                .filter(|source| source.kind == SourceKind::CurrentUnit)
+                .filter(|source| if has_current_unit {
+                    source.kind == SourceKind::CurrentUnit
+                } else {
+                    source.kind == SourceKind::Core
+                })
                 .all(|source| source.identity.cone() == cone),
-            "all current-unit sources must belong to one Cone"
+            "all output-Cone sources must belong to one Cone"
         );
         cone
     }
@@ -438,12 +456,12 @@ impl Lowerer {
     pub(crate) fn primary_core_file(&self) -> Option<usize> {
         self.intrinsic_sources
             .iter()
-            .position(|source| source.kind == SourceKind::ExistingM22Core)
+            .position(|source| source.kind == SourceKind::Core)
     }
 
     pub(crate) fn core_diagnostic_file(&self) -> usize {
         self.primary_core_file()
-            .unwrap_or_else(|| self.primary_user_file())
+            .unwrap_or_else(|| self.primary_output_file())
     }
 
     pub(crate) fn current_provider_may_declare_intrinsics(&self) -> bool {

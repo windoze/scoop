@@ -284,7 +284,7 @@ impl<T> NonEmptyVec<T> {
         false
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.values.iter()
     }
 

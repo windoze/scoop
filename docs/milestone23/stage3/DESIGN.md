@@ -311,6 +311,11 @@ reserved source input；不再把运行时“已检查非空”的`Vec`交给dri
 与另一请求重新拼接；该类型及`CurrentConeParsedSources`均不提供拆出裸AST所有权的降级接口。discovery、
 single-file读取和parser错误是三个封闭分支，任一失败均无partial parsed output。
 
+`CurrentConeParsedSources::iter`把已经验证为同序、同identity全集的AST、source text与diagnostic context投影为
+逐source的非可选borrowed view；HIR入口只能沿该迭代器消费三张表，不再用identity执行返回`Option`的sidecar
+回查，也不把任一张表复制、拆出后重新按位置配对。`NonEmptyVec`直接暴露其slice iterator，因此这条投影保留
+精确长度证明，后续materialization可一次性按完整source数分配输出。
+
 ## 5. single-Cone请求与dependency输入
 
 ### 5.1 typed request
@@ -544,6 +549,13 @@ core bootstrap执行普通manifest discovery和同一parser→HIR→MIR→LIR→
 - 输出仍使用同一个`SingleConeStrongProfile`和同一双视图publish gate。
 
 bootstrap失败时不保留或覆盖旧slot artifact。普通`scoopc`请求不会因slot缺失/stale而自行bootstrap；M23-4的trusted orchestration负责先显式发起bootstrap，再把成功artifact交给dependent。
+
+HIR侧正式bootstrap输入为借用`CurrentConeParsedSources`的`CoreBootstrapSources`，其构造首先拒绝非reserved-core
+Cone；driver只能从同时持有bootstrap request/core authority的`ParsedSingleConeBuildRequest`投影该值。随后
+`lower_core_bootstrap`直接沿原子source view建立当前core的source/provider表，并以固定`CoreOnly` intrinsic策略
+运行lowerer；它不构造`LegacyCombinedSources`，不注入伪current-unit source，也不把core AST/text复制到另一个
+可重新配对的公开输入。lowerer在没有ordinary current-unit时以canonical首个core source作为output/诊断主source，
+输出Cone仍由全部core source共同证明为reserved core。
 
 ### 7.3 core Compile capability
 

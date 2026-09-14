@@ -159,7 +159,7 @@ impl TopLevelNamespaces {
         assert_eq!(kinds.len(), files.len());
         for (kind, file) in kinds.into_iter().zip(files) {
             let namespace = match kind {
-                SourceKind::ExistingM22Core => TopLevelLookupLayer::CorePrelude,
+                SourceKind::Core => TopLevelLookupLayer::CorePrelude,
                 SourceKind::CurrentUnit => {
                     let package = self.intern_package(&file.package);
                     self.current.entry(package).or_default();

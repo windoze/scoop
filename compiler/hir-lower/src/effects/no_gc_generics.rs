@@ -106,7 +106,7 @@ impl Lowerer {
                 .function_files
                 .get(&function)
                 .copied()
-                .unwrap_or_else(|| self.primary_user_file());
+                .unwrap_or_else(|| self.primary_output_file());
             self.error(
                 span,
                 format!(
@@ -127,7 +127,7 @@ impl Lowerer {
                 .function_files
                 .get(&call_site.caller)
                 .copied()
-                .unwrap_or_else(|| self.primary_user_file());
+                .unwrap_or_else(|| self.primary_output_file());
 
             for parameter in requirements {
                 let argument = call_site.argument(parameter);

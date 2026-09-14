@@ -40,7 +40,7 @@ impl Lowerer {
             self.intrinsic_sources.len(),
             "every parsed source has exactly one lowering source descriptor"
         );
-        let primary_user_file = self.primary_user_file();
+        let primary_output_file = self.primary_output_file();
         let current_cone = self.current_cone();
         let core_diagnostic_file = self.core_diagnostic_file();
         self.top_level_namespaces.initialize_sources(
@@ -250,14 +250,14 @@ impl Lowerer {
         let intrinsic_type_core = self.validate_intrinsic_type_core(files);
         if let Some(core) = intrinsic_type_core {
             if self.ffi_ptr != Some(core.ptr) {
-                self.current_file = primary_user_file;
+                self.current_file = primary_output_file;
                 self.error(
                     files[core_diagnostic_file].span,
                     "the `Ptr` FFI core owner must be the `core_ptr` intrinsic type".to_string(),
                 );
             }
             if self.ffi_fun_ptr != Some(core.fun_ptr) {
-                self.current_file = primary_user_file;
+                self.current_file = primary_output_file;
                 self.error(
                     files[core_diagnostic_file].span,
                     "the `FunPtr` FFI core owner must be the `core_fun_ptr` intrinsic type"
@@ -468,7 +468,7 @@ impl Lowerer {
         self.check_no_gc_types();
         self.check_no_gc_functions();
 
-        let extra = finish(&mut self, files, primary_user_file);
+        let extra = finish(&mut self, files, primary_output_file);
 
         self.warnings.sort_by_key(|diagnostic| {
             let span = diagnostic.span.unwrap_or(Span {
