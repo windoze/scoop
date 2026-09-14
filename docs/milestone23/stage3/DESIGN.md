@@ -1649,6 +1649,22 @@ initialization的`id`与`nr`是两份不同的强定义，不是历史alias：`i
 symbol和ObjectDefinition leaf，Link verifier再以typed unit/storage/callable关系证明内容一致，不能让两个symbol指向
 同一range或保留旧的`scoop.init.descriptor.<arena-index>`/`scoop_image_initialization_units`旁路。
 
+codegen只能消费`StrongInitializationUnitRegistrationPlanSetV1::new(foundation, identities, semantics,
+digests)`形成的完整初始化登记计划。入口要求semantic unit全集与registration identity surface逐项相等，且每个
+unit的value/failure-root必须各命中一条static-storage registration，initializer/ensure及Eager gateway必须各命中
+一条callable registration；计划保存这些typed registration identity与实际ConeStrong record/entry symbol，不允许
+只保存裸地址。每个unit自身必须恰有`InitializationCell`、`InitializationDescriptor`、
+`InitializationRegistration`三份不同的strong definition、唯一Primary atom与各自的`ic`/`id`/`nr` symbol。
+
+三份Primary的ObjectDefinition node均固定为无input、无patch的leaf。InitializationRegistration的
+StrongRegistration direct input精确为registration、cell、coordinator descriptor三个ObjectDefinition；Eager再加入
+其startup gateway body Primary的ObjectDefinition，Lazy不得加入gateway或保留写槽。StrongRegistration自身只允许
+向registration Primary写`RegistrationDefinition`；Eager gateway body node还必须恰以一项
+`GatewayDefinition` intent写入同一Primary，Lazy针对该Primary的此类intent集合必须为空。initializer/ensure通过
+typed callable id与entry relocation进入canonical record，并不因为被引用就伪造额外digest边；storage/failure-root
+同理由typed static-registration identity进入。完整计划按unit id排序并保留全部definition/atom/node/patch id，后端
+不得按owner、符号前缀或arena ordinal二次推断。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

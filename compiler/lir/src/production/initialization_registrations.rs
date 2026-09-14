@@ -638,5 +638,8 @@ impl std::error::Error for StrongInitializationUnitSemanticPlanBuildError {
     }
 }
 
+mod registrations;
+pub use registrations::*;
+
 #[cfg(test)]
 mod tests;
