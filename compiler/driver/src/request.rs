@@ -2,8 +2,10 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 mod output;
+mod preflight;
 use output::validate_output_isolation;
 pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestination};
+pub use preflight::*;
 
 use scoop_codegen::{CodegenError, ResolvedTargetProfile};
 use scoop_manifest::{
@@ -150,34 +152,6 @@ impl SingleConeBuildRequest {
             diagnostics,
             emit,
         })
-    }
-
-    pub const fn current(&self) -> &CurrentConeInput {
-        &self.current
-    }
-
-    pub const fn dependencies(&self) -> &ExplicitDependencyInputs {
-        &self.dependencies
-    }
-
-    pub const fn trusted_core(&self) -> &TrustedCoreInput {
-        &self.trusted_core
-    }
-
-    pub const fn target(&self) -> &ResolvedTargetProfile {
-        &self.target
-    }
-
-    pub const fn output(&self) -> &SlibOutputDestination {
-        &self.output
-    }
-
-    pub const fn diagnostics(&self) -> DiagnosticOutputPolicy {
-        self.diagnostics
-    }
-
-    pub const fn emit(&self) -> StageDumpPolicy {
-        self.emit
     }
 }
 
