@@ -975,12 +975,19 @@ CoreBootstrapBridgeSectionV1 {
 wire固定为closed product：`1=core_bridge, 2=entry_bridge,
 3=strong_callable_bridges`。`core_bridge`的sum tag为`NotCore=1`、
 `Core(CoreMirBridgeV1)=2`；`entry_bridge`的sum tag为`Library=1`、
-`Executable(EntryMirBridgeV1)=2`。`CoreMirBridgeV1`只含field
-`1=callable_targets`，其元素固定为`1=binding, 2=definition,
+`Executable(EntryMirBridgeV1)=2`。`CoreMirBridgeV1`固定为
+`1=callable_targets, 2=shape_support_roots`。callable元素固定为`1=binding, 2=definition,
 3=implementation`；前两项分别引用HIR core interface中的
 `PersistentExportBindingId`与`PersistentFunctionId`，`implementation`必须逐值等于
 `CallableOwner::Function(definition)`。array按binding bytes严格递增，binding和
 implementation均不得重复。
+
+`shape_support_roots`元素固定为`1=source: PersistentTypeId,
+2=exact: PersistentExactTypeId`，并按source id bytes严格递增。每项exact必须逐值等于
+`ExactTypeKey::Nominal(source)`的派生identity；集合必须完整等于同一HIR core interface中
+`definition=Type && capability=ParamFreeStrong`的source nominal集合。typealias不产生第二项，generic/structural
+target不得混入。该数组是第7.2节in-memory materialization plan跨到LIR所需的typed root通道，不授权把任意exact
+type改写成source-owned strong实体。
 
 `EntryMirBridgeV1`固定为`1=source: ExecutableSourceEntryIdentity, 2=implementation`，
 implementation必须逐值等于`CallableOwner::Function(source.declaration)`。MIR reader从HIR

@@ -2,12 +2,12 @@ use std::fmt;
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreCallableDefinitionV1, CoreHirCallableCapabilityV1,
-    CoreHirInterfaceBranchV1,
+    CoreHirInterfaceBranchV1, CoreHirTypeCapabilityV1, CoreTypeDefinitionV1,
 };
 use scoop_mir::{
     CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
-    CoreMirBridgeV1, CoreMirCallableBridgeV1, MirProductionBuildError, OdrFreeMirFoundation,
-    StrongCallableBridgeSurfaceV1,
+    CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreMirShapeSupportRootV1, MirProductionBuildError,
+    OdrFreeMirFoundation, StrongCallableBridgeSurfaceV1,
 };
 
 /// Projects one checked HIR production section and the complete strong MIR
@@ -73,7 +73,24 @@ fn lower_core_bridge(
         );
     }
 
-    CoreMirBridgeV1::try_new(callable_targets)
+    let shape_support_roots = interface
+        .type_targets()
+        .targets()
+        .iter()
+        .filter_map(|target| {
+            let (
+                CoreTypeDefinitionV1::Type(source),
+                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
+            ) = (target.definition(), target.capability())
+            else {
+                return None;
+            };
+            Some(CoreMirShapeSupportRootV1::new(source, exact))
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(MirProductionLoweringError::Production)?;
+
+    CoreMirBridgeV1::try_new(callable_targets, shape_support_roots)
         .map(CoreMirBridgeBranchV1::Core)
         .map_err(MirProductionLoweringError::Production)
 }

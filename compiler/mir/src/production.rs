@@ -8,7 +8,8 @@ use scoop_identity::{
     ExactCallableSignature, ExactCallableSignatureResolutionError, ExactOrdinaryNoArgUnitSignature,
     ExactTypeKey, ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError,
     IdentityReferenceError, PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
-    PersistentIdResolver, PersistentKeyResolver, SourceDeclarationKey, ValidatedIdentityGraph,
+    PersistentIdResolver, PersistentKeyResolver, PersistentTypeId, SourceDeclarationKey,
+    ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -304,14 +305,116 @@ impl WireDecode for DecodedCoreMirCallableBridgeV1 {
     }
 }
 
+/// One source-nominal root whose finite strong shape-support closure must be
+/// materialized by the trusted core producer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CoreMirShapeSupportRootV1 {
+    source: PersistentTypeId,
+    exact: PersistentExactTypeId,
+}
+
+impl CoreMirShapeSupportRootV1 {
+    pub fn new(
+        source: PersistentTypeId,
+        exact: PersistentExactTypeId,
+    ) -> Result<Self, MirProductionBuildError> {
+        validate_core_shape_exact(source, exact).map_err(|error| match error {
+            CoreShapeExactError::Identity(source) => {
+                MirProductionBuildError::CoreShapeExactIdentity(source)
+            }
+            CoreShapeExactError::Mismatch {
+                source,
+                expected,
+                actual,
+            } => MirProductionBuildError::CoreShapeExactMismatch {
+                source,
+                expected,
+                actual,
+            },
+        })?;
+        Ok(Self { source, exact })
+    }
+
+    pub const fn source(self) -> PersistentTypeId {
+        self.source
+    }
+
+    pub const fn exact(self) -> PersistentExactTypeId {
+        self.exact
+    }
+}
+
+enum CoreShapeExactError {
+    Identity(scoop_wire::HashError),
+    Mismatch {
+        source: PersistentTypeId,
+        expected: PersistentExactTypeId,
+        actual: PersistentExactTypeId,
+    },
+}
+
+fn validate_core_shape_exact(
+    source: PersistentTypeId,
+    exact: PersistentExactTypeId,
+) -> Result<(), CoreShapeExactError> {
+    let expected = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source))
+        .map_err(CoreShapeExactError::Identity)?;
+    if exact != expected {
+        return Err(CoreShapeExactError::Mismatch {
+            source,
+            expected,
+            actual: exact,
+        });
+    }
+    Ok(())
+}
+
+impl WireEncode for CoreMirShapeSupportRootV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.source.encode(encoder)?;
+        encoder.field(2)?;
+        self.exact.encode(encoder)
+    }
+}
+
+#[derive(Debug)]
+struct DecodedCoreMirShapeSupportRootV1 {
+    source: DecodedPersistentId<PersistentTypeId>,
+    exact: DecodedPersistentId<PersistentExactTypeId>,
+}
+
+impl WireEncode for DecodedCoreMirShapeSupportRootV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.source.encode(encoder)?;
+        encoder.field(2)?;
+        self.exact.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedCoreMirShapeSupportRootV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            source: decoder.field(1, DecodedPersistentId::decode)?,
+            exact: decoder.field(2, DecodedPersistentId::decode)?,
+        })
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreMirBridgeV1 {
     callable_targets: Vec<CoreMirCallableBridgeV1>,
+    shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
 }
 
 impl CoreMirBridgeV1 {
     pub fn try_new(
         mut callable_targets: Vec<CoreMirCallableBridgeV1>,
+        mut shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
     ) -> Result<Self, MirProductionBuildError> {
         callable_targets.sort_unstable_by_key(|bridge| bridge.binding);
         if let Some(pair) = callable_targets
@@ -334,21 +437,42 @@ impl CoreMirBridgeV1 {
                 implementation: bridge.implementation,
             });
         }
-        Ok(Self { callable_targets })
+        shape_support_roots.sort_unstable_by_key(|root| root.source);
+        if let Some(pair) = shape_support_roots
+            .windows(2)
+            .find(|pair| pair[0].source == pair[1].source)
+        {
+            return Err(MirProductionBuildError::DuplicateCoreShapeSource(
+                pair[0].source,
+            ));
+        }
+        Ok(Self {
+            callable_targets,
+            shape_support_roots,
+        })
     }
 
     pub fn callable_targets(&self) -> &[CoreMirCallableBridgeV1] {
         &self.callable_targets
     }
+
+    pub fn shape_support_roots(&self) -> &[CoreMirShapeSupportRootV1] {
+        &self.shape_support_roots
+    }
 }
 
 impl WireEncode for CoreMirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(1)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         encoder.array(self.callable_targets.len() as u64)?;
         for bridge in &self.callable_targets {
             bridge.encode(encoder)?;
+        }
+        encoder.field(2)?;
+        encoder.array(self.shape_support_roots.len() as u64)?;
+        for root in &self.shape_support_roots {
+            root.encode(encoder)?;
         }
         Ok(())
     }
@@ -357,6 +481,7 @@ impl WireEncode for CoreMirBridgeV1 {
 #[derive(Debug)]
 struct DecodedCoreMirBridgeV1 {
     callable_targets: Vec<DecodedCoreMirCallableBridgeV1>,
+    shape_support_roots: Vec<DecodedCoreMirShapeSupportRootV1>,
 }
 
 impl DecodedCoreMirBridgeV1 {
@@ -405,17 +530,58 @@ impl DecodedCoreMirBridgeV1 {
                 implementation,
             });
         }
-        Ok(CoreMirBridgeV1 { callable_targets })
+        let mut shape_support_roots: Vec<CoreMirShapeSupportRootV1> =
+            Vec::with_capacity(self.shape_support_roots.len());
+        for (index, decoded) in self.shape_support_roots.into_iter().enumerate() {
+            let source = identities
+                .resolve(decoded.source)
+                .map_err(MirProductionValidationError::Identity)?;
+            let exact = identities
+                .resolve(decoded.exact)
+                .map_err(MirProductionValidationError::Identity)?;
+            validate_core_shape_exact(source, exact).map_err(|error| match error {
+                CoreShapeExactError::Identity(source) => {
+                    MirProductionValidationError::CoreShapeExactIdentity(source)
+                }
+                CoreShapeExactError::Mismatch {
+                    source,
+                    expected,
+                    actual,
+                } => MirProductionValidationError::CoreShapeExactMismatch {
+                    source,
+                    expected,
+                    actual,
+                },
+            })?;
+            let root = CoreMirShapeSupportRootV1 { source, exact };
+            if index > 0 && shape_support_roots[index - 1].source >= root.source {
+                return Err(if shape_support_roots[index - 1].source == root.source {
+                    MirProductionValidationError::DuplicateCoreShapeSource(root.source)
+                } else {
+                    MirProductionValidationError::NonCanonicalCoreShapeSourceOrder { index }
+                });
+            }
+            shape_support_roots.push(root);
+        }
+        Ok(CoreMirBridgeV1 {
+            callable_targets,
+            shape_support_roots,
+        })
     }
 }
 
 impl WireEncode for DecodedCoreMirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(1)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         encoder.array(self.callable_targets.len() as u64)?;
         for bridge in &self.callable_targets {
             bridge.encode(encoder)?;
+        }
+        encoder.field(2)?;
+        encoder.array(self.shape_support_roots.len() as u64)?;
+        for root in &self.shape_support_roots {
+            root.encode(encoder)?;
         }
         Ok(())
     }
@@ -423,10 +589,13 @@ impl WireEncode for DecodedCoreMirBridgeV1 {
 
 impl WireDecode for DecodedCoreMirBridgeV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(1)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             callable_targets: decoder.field(1, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedCoreMirCallableBridgeV1::decode(decoder))
+            })?,
+            shape_support_roots: decoder.field(2, |decoder| {
+                decoder.decode_array(|decoder, _| DecodedCoreMirShapeSupportRootV1::decode(decoder))
             })?,
         })
     }
@@ -822,6 +991,7 @@ fn validate_section_relations(
 pub enum MirProductionBuildError {
     DuplicateStrongCallable(CallableOwner),
     DuplicateCoreBinding(PersistentExportBindingId),
+    DuplicateCoreShapeSource(PersistentTypeId),
     DuplicateCoreImplementation {
         index: usize,
         implementation: CallableOwner,
@@ -829,6 +999,12 @@ pub enum MirProductionBuildError {
     CoreImplementationMismatch {
         definition: PersistentFunctionId,
         implementation: CallableOwner,
+    },
+    CoreShapeExactIdentity(scoop_wire::HashError),
+    CoreShapeExactMismatch {
+        source: PersistentTypeId,
+        expected: PersistentExactTypeId,
+        actual: PersistentExactTypeId,
     },
     EntryImplementationMismatch {
         source_entry: PersistentFunctionId,
@@ -881,6 +1057,16 @@ pub enum MirProductionValidationError {
     DuplicateCoreBinding(PersistentExportBindingId),
     NonCanonicalCoreBindingOrder {
         index: usize,
+    },
+    DuplicateCoreShapeSource(PersistentTypeId),
+    NonCanonicalCoreShapeSourceOrder {
+        index: usize,
+    },
+    CoreShapeExactIdentity(scoop_wire::HashError),
+    CoreShapeExactMismatch {
+        source: PersistentTypeId,
+        expected: PersistentExactTypeId,
+        actual: PersistentExactTypeId,
     },
     DuplicateCoreImplementation {
         index: usize,

@@ -1098,6 +1098,20 @@ mod tests {
                 )
             })
             .count();
+        let expected_shape_roots = interface
+            .type_targets()
+            .targets()
+            .iter()
+            .filter(|target| {
+                matches!(
+                    (target.definition(), target.capability()),
+                    (
+                        scoop_hir::CoreTypeDefinitionV1::Type(_),
+                        scoop_hir::CoreHirTypeCapabilityV1::ParamFreeStrong(_)
+                    )
+                )
+            })
+            .count();
         let real_mir = output.lower_mir().unwrap();
         assert_eq!(real_mir.mir().cone, scoop_identity::ConeIdentity::CORE);
         let scoop_mir::CoreMirBridgeBranchV1::Core(real_core_bridge) =
@@ -1107,6 +1121,11 @@ mod tests {
         };
         assert!(candidate_count > 0);
         assert!(real_core_bridge.callable_targets().is_empty());
+        assert!(expected_shape_roots > 0);
+        assert_eq!(
+            real_core_bridge.shape_support_roots().len(),
+            expected_shape_roots
+        );
         assert_eq!(
             real_mir
                 .production_section()

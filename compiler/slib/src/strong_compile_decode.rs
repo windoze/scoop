@@ -6,9 +6,9 @@ use std::fmt;
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
     CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
-    CoreShapeSupportSourceProjectionError, DecodedCoreBootstrapInterfaceSectionV1,
-    DecodedHirFoundation, HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation,
-    OdrFreeHirFoundation, OdrFreeHirFoundationError,
+    CoreHirTypeCapabilityV1, CoreShapeSupportSourceProjectionError, CoreTypeDefinitionV1,
+    DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, HirFoundationValidationError,
+    HirOutputContractV1, ImportedHirFoundation, OdrFreeHirFoundation, OdrFreeHirFoundationError,
 };
 use scoop_identity::{
     ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
@@ -902,7 +902,7 @@ fn validate_strong_profile_relations(
     mir: &CoreBootstrapBridgeSectionV1,
 ) -> Result<(), StrongProfileRelationError> {
     validate_output_relation(kind, hir.output_contract(), mir.entry_bridge())?;
-    validate_core_callable_relation(
+    validate_core_relation(
         hir.core_interface(),
         mir.core_bridge(),
         mir.strong_callable_bridges(),
@@ -960,7 +960,7 @@ fn validate_output_relation(
     }
 }
 
-fn validate_core_callable_relation(
+fn validate_core_relation(
     hir: &CoreHirInterfaceBranchV1,
     mir: &CoreMirBridgeBranchV1,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
@@ -1015,6 +1015,38 @@ fn validate_core_callable_relation(
             || mir.implementation() != *implementation
         {
             return Err(StrongProfileRelationError::CoreCallableMismatch { index });
+        }
+    }
+
+    let mut expected_shape_roots = hir
+        .type_targets()
+        .targets()
+        .iter()
+        .filter_map(|target| {
+            let (
+                CoreTypeDefinitionV1::Type(source),
+                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
+            ) = (target.definition(), target.capability())
+            else {
+                return None;
+            };
+            Some((source, exact))
+        })
+        .collect::<Vec<_>>();
+    expected_shape_roots.sort_unstable_by_key(|(source, _)| *source);
+    if expected_shape_roots.len() != mir.shape_support_roots().len() {
+        return Err(StrongProfileRelationError::CoreShapeRootCoverage {
+            expected: expected_shape_roots.len(),
+            actual: mir.shape_support_roots().len(),
+        });
+    }
+    for (index, ((expected_source, expected_exact), actual)) in expected_shape_roots
+        .iter()
+        .zip(mir.shape_support_roots())
+        .enumerate()
+    {
+        if actual.source() != *expected_source || actual.exact() != *expected_exact {
+            return Err(StrongProfileRelationError::CoreShapeRootMismatch { index });
         }
     }
     Ok(())
@@ -1155,6 +1187,8 @@ pub enum StrongProfileRelationError {
     InvalidCoreCallableCandidateDefinition { index: usize },
     CoreCallableMismatch { index: usize },
     CoreCallableSignatureMismatch { index: usize },
+    CoreShapeRootCoverage { expected: usize, actual: usize },
+    CoreShapeRootMismatch { index: usize },
 }
 
 impl fmt::Display for StrongProfileRelationError {

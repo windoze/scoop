@@ -280,9 +280,12 @@ mod tests {
         let production = CoreBootstrapBridgeSectionV1::try_new(
             ConeIdentity::CORE,
             CoreMirBridgeBranchV1::Core(
-                CoreMirBridgeV1::try_new(vec![
-                    CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap(),
-                ])
+                CoreMirBridgeV1::try_new(
+                    vec![
+                        CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap(),
+                    ],
+                    Vec::new(),
+                )
                 .unwrap(),
             ),
             EntryMirBridgeBranchV1::Library,
