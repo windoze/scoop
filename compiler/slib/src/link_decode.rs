@@ -33,14 +33,22 @@ use crate::{
     LinkObjectMaterializationValidationError, LinkObjectProjectionValidationError, ManifestSection,
     MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
     ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
-    ScoopLirObjectCandidateV1, SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId,
-    SlibMemberRecord, SlibMemberRole, StrongObjectSymbolPlanningError, ValidatedGraphArtifact,
+    ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError, SemanticFingerprintError,
+    SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord, SlibMemberRole,
+    StrongCallableRegistrationValidationError, StrongImmortalObjectRegistrationValidationError,
+    StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
+    StrongSafepointRegistrationValidationError, StrongStaticStorageRegistrationValidationError,
+    StrongTypeRegistrationValidationError, ValidatedGraphArtifact,
     ValidatedSingleConeStrongProduction, VerifiedBuiltinObjectStrongRelocationSetV1,
     VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
-    lir_identity_foundation_capability, lir_link_identity_closure_capability,
-    lir_strong_production_capability, manifest_single_cone_production_capability,
-    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
+    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableRegistrationSetV1,
+    VerifiedStrongImmortalObjectRegistrationSetV1, VerifiedStrongInitializationRegistrationSetV1,
+    VerifiedStrongSafepointRegistrationSetV1, VerifiedStrongStaticStorageRegistrationSetV1,
+    VerifiedStrongTypeRegistrationSetV1, hir_core_bootstrap_interface_capability,
+    hir_identity_foundation_capability, lir_identity_foundation_capability,
+    lir_link_identity_closure_capability, lir_strong_production_capability,
+    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
+    mir_identity_foundation_capability,
 };
 
 const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
@@ -156,6 +164,27 @@ pub struct DigestPatchCheckedSingleConeLinkSections<'input> {
     scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
     generated_bridge_objects: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
     digest_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
+    production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
+}
+
+/// Link sections whose normalized stackmaps and all six strong registration
+/// object tables were proven against the complete LIR registration-production
+/// surface and the exact Scoop object bytes. Image, entry, and final
+/// fingerprint proofs remain pending.
+pub struct RegistrationObjectCheckedSingleConeLinkSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    production: ValidatedSingleConeStrongProduction,
+    link_identity_closure: ObjectProjectionCheckedLinkIdentityClosureSectionV1,
+    scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
+    generated_bridge_objects: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
+    safepoint_registrations: VerifiedStrongSafepointRegistrationSetV1,
+    callable_registrations: VerifiedStrongCallableRegistrationSetV1,
+    type_registrations: VerifiedStrongTypeRegistrationSetV1,
+    immortal_object_registrations: VerifiedStrongImmortalObjectRegistrationSetV1,
+    static_storage_registrations: VerifiedStrongStaticStorageRegistrationSetV1,
+    initialization_registrations: VerifiedStrongInitializationRegistrationSetV1,
     production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 
@@ -896,7 +925,7 @@ impl<'input> BuiltinObjectCheckedSingleConeLinkSections<'input> {
     }
 }
 
-impl DigestPatchCheckedSingleConeLinkSections<'_> {
+impl<'input> DigestPatchCheckedSingleConeLinkSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -947,6 +976,182 @@ impl DigestPatchCheckedSingleConeLinkSections<'_> {
 
     pub const fn digest_patch_sites(&self) -> &VerifiedScoopLirDigestPatchSiteSetV1 {
         &self.digest_patch_sites
+    }
+
+    pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+
+    pub fn validate_registration_objects(
+        self,
+    ) -> Result<
+        RegistrationObjectCheckedSingleConeLinkSections<'input>,
+        StrongLinkRegistrationObjectError,
+    > {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects,
+            digest_patch_sites,
+            production_manifest,
+        } = self;
+        let registration_production = production.lir().registration_production();
+        let safepoint_semantics = registration_production.safepoint_semantics();
+        let safepoint_plan = registration_production.safepoints().clone();
+        let callable_plan = registration_production.callables().clone();
+        let type_plan = registration_production.types().clone();
+        let immortal_object_plan = registration_production.immortal_objects().clone();
+        let static_storage_plan = registration_production.static_storages().clone();
+        let initialization_plan = registration_production.initialization_units().clone();
+
+        let stackmaps = crate::verify_scoop_lir_stackmaps_v1(
+            digest_patch_sites.builtins().clone(),
+            safepoint_semantics,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationObjectError::Stackmaps)?;
+        let safepoint_registrations = crate::verify_strong_safepoint_registrations_v1(
+            stackmaps,
+            digest_patch_sites.clone(),
+            safepoint_plan,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationObjectError::Safepoints)?;
+        let callable_registrations = crate::verify_strong_callable_registrations_v1(
+            digest_patch_sites.clone(),
+            callable_plan,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationObjectError::Callables)?;
+        let type_registrations = crate::verify_strong_type_registrations_v1(
+            digest_patch_sites.clone(),
+            type_plan,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationObjectError::Types)?;
+        let immortal_object_registrations = crate::verify_strong_immortal_object_registrations_v1(
+            digest_patch_sites.clone(),
+            immortal_object_plan,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationObjectError::ImmortalObjects)?;
+        let static_storage_registrations = crate::verify_strong_static_storage_registrations_v1(
+            digest_patch_sites.clone(),
+            static_storage_plan,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationObjectError::StaticStorages)?;
+        let initialization_registrations = crate::verify_strong_initialization_registrations_v1(
+            digest_patch_sites,
+            initialization_plan,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationObjectError::InitializationUnits)?;
+
+        Ok(RegistrationObjectCheckedSingleConeLinkSections {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects,
+            safepoint_registrations,
+            callable_registrations,
+            type_registrations,
+            immortal_object_registrations,
+            static_storage_registrations,
+            initialization_registrations,
+            production_manifest,
+        })
+    }
+}
+
+impl RegistrationObjectCheckedSingleConeLinkSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub const fn production(&self) -> &ValidatedSingleConeStrongProduction {
+        &self.production
+    }
+
+    pub const fn object_projections(&self) -> &ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub fn scoop_objects(&self) -> &[ScoopLirObjectCandidateV1<'_>] {
+        &self.scoop_objects
+    }
+
+    pub fn generated_bridge_objects(&self) -> &[GeneratedCBridgeObjectCandidateV1<'_>] {
+        &self.generated_bridge_objects
+    }
+
+    pub const fn stackmaps(&self) -> &VerifiedScoopLirStackmapSetV1 {
+        self.safepoint_registrations.stackmaps()
+    }
+
+    pub const fn safepoint_registrations(&self) -> &VerifiedStrongSafepointRegistrationSetV1 {
+        &self.safepoint_registrations
+    }
+
+    pub const fn callable_registrations(&self) -> &VerifiedStrongCallableRegistrationSetV1 {
+        &self.callable_registrations
+    }
+
+    pub const fn type_registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1 {
+        &self.type_registrations
+    }
+
+    pub const fn immortal_object_registrations(
+        &self,
+    ) -> &VerifiedStrongImmortalObjectRegistrationSetV1 {
+        &self.immortal_object_registrations
+    }
+
+    pub const fn static_storage_registrations(
+        &self,
+    ) -> &VerifiedStrongStaticStorageRegistrationSetV1 {
+        &self.static_storage_registrations
+    }
+
+    pub const fn initialization_registrations(
+        &self,
+    ) -> &VerifiedStrongInitializationRegistrationSetV1 {
+        &self.initialization_registrations
     }
 
     pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
@@ -1306,6 +1511,40 @@ pub enum StrongLinkDigestPatchError {
     ClosureInput(LinkDigestPatchInputValidationError),
     ObjectSites(DigestPatchSiteValidationError),
     ClosureProjection(LinkObjectProjectionValidationError),
+}
+
+#[derive(Debug)]
+pub enum StrongLinkRegistrationObjectError {
+    Stackmaps(ScoopLirStackmapValidationError),
+    Safepoints(StrongSafepointRegistrationValidationError),
+    Callables(StrongCallableRegistrationValidationError),
+    Types(StrongTypeRegistrationValidationError),
+    ImmortalObjects(StrongImmortalObjectRegistrationValidationError),
+    StaticStorages(StrongStaticStorageRegistrationValidationError),
+    InitializationUnits(StrongInitializationRegistrationValidationError),
+}
+
+impl fmt::Display for StrongLinkRegistrationObjectError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid strong Link registration object set: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongLinkRegistrationObjectError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Stackmaps(error) => error,
+            Self::Safepoints(error) => error,
+            Self::Callables(error) => error,
+            Self::Types(error) => error,
+            Self::ImmortalObjects(error) => error,
+            Self::StaticStorages(error) => error,
+            Self::InitializationUnits(error) => error,
+        })
+    }
 }
 
 impl fmt::Display for StrongLinkDigestPatchError {

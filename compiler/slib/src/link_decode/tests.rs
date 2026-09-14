@@ -110,6 +110,45 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         patches.digest_patch_sites().sites()[0].intent(),
         digest_patch_intent()
     );
+    let registrations = patches.validate_registration_objects().unwrap();
+    assert_eq!(registrations.identity(), cone().identity());
+    assert!(registrations.stackmaps().records().is_empty());
+    assert!(
+        registrations
+            .safepoint_registrations()
+            .registrations()
+            .is_empty()
+    );
+    assert!(
+        registrations
+            .callable_registrations()
+            .registrations()
+            .is_empty()
+    );
+    assert!(
+        registrations
+            .type_registrations()
+            .registrations()
+            .is_empty()
+    );
+    assert!(
+        registrations
+            .immortal_object_registrations()
+            .registrations()
+            .is_empty()
+    );
+    assert!(
+        registrations
+            .static_storage_registrations()
+            .registrations()
+            .is_empty()
+    );
+    assert!(
+        registrations
+            .initialization_registrations()
+            .registrations()
+            .is_empty()
+    );
 }
 
 #[test]

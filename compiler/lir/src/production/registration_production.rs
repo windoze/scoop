@@ -18,11 +18,11 @@ use crate::{
     StrongRegistrationIdentityBuildError, StrongRegistrationIdentitySurfaceV1,
     StrongSafepointRegistrationPlanBuildError, StrongSafepointRegistrationPlanSetV1,
     StrongSafepointRegistrationPlanV1, StrongSafepointSemanticPlanError,
-    StrongSafepointSemanticPlanSetV1, StrongStaticStorageInitialArtifactPlanV1,
-    StrongStaticStorageInitialStatePlanV1, StrongStaticStorageRegistrationPlanBuildError,
-    StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanV1,
-    StrongTypeRegistrationPlanBuildError, StrongTypeRegistrationPlanSetV1,
-    StrongTypeRegistrationPlanV1,
+    StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1,
+    StrongStaticStorageInitialArtifactPlanV1, StrongStaticStorageInitialStatePlanV1,
+    StrongStaticStorageRegistrationPlanBuildError, StrongStaticStorageRegistrationPlanSetV1,
+    StrongStaticStorageRegistrationPlanV1, StrongTypeRegistrationPlanBuildError,
+    StrongTypeRegistrationPlanSetV1, StrongTypeRegistrationPlanV1,
 };
 
 mod wire;
@@ -183,6 +183,25 @@ impl StrongRegistrationProductionSurfaceV1 {
 
     pub const fn initialization_units(&self) -> &StrongInitializationUnitRegistrationPlanSetV1 {
         &self.initialization_units
+    }
+
+    pub fn safepoint_semantics(&self) -> StrongSafepointSemanticPlanSetV1 {
+        StrongSafepointSemanticPlanSetV1::from_artifact(
+            self.safepoints.producer(),
+            self.safepoints
+                .registrations()
+                .iter()
+                .map(|plan| {
+                    StrongSafepointSemanticPlanV1::from_artifact(
+                        plan.site(),
+                        plan.safepoint(),
+                        plan.owner(),
+                        plan.role(),
+                        plan.root_pair_count(),
+                    )
+                })
+                .collect(),
+        )
     }
 }
 
