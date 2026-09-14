@@ -8893,7 +8893,7 @@ Module
   str @str11 "arithmetic error"
   str @str12 "array index out of bounds"
   str @str13 "illegal state"
-  entry @fn79
+  output executable @fn79
 
 == lir ==
 Module
@@ -13486,7 +13486,7 @@ Module
   layout ThrowingCompletion size=16 align=8 refs=[]
   layout CoroutineFrame<WaitingTask.run> size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter<WaitingTask.run>$1 size=56 align=8 refs=[16, 48]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 immediate-success

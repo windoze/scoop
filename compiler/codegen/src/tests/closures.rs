@@ -148,7 +148,9 @@ fn closure_abi_module() -> Module {
             blocks,
             entry,
         }],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -328,7 +330,9 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![callee, caller],
-        entry: no_gc_function_ref(1),
+        output: scoop_lir::LirOutput::Executable {
+            entry: no_gc_function_ref(1),
+        },
         meta: string_metadata(),
     };
 

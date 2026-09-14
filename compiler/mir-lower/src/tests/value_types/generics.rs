@@ -205,7 +205,10 @@ fn monomorphizes_generic_functions() {
     assert_ne!(int_application, string_application);
 
     // The calls in main resolve to the two instances.
-    let main_fn = &module.functions[module.entry];
+    let main_fn = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")];
     for (statement, instance) in entry_statements(&main_fn.body)
         .iter()
         .zip([module.top_level[1], module.top_level[2]])
@@ -241,7 +244,10 @@ fn duplicate_requests_produce_one_instance() {
 
     assert_eq!(module.top_level.len(), 2);
     let instance = module.top_level[1];
-    let main_fn = &module.functions[module.entry];
+    let main_fn = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")];
     for statement in entry_statements(&main_fn.body) {
         let (call, _) = statement_call(statement);
         assert_eq!(

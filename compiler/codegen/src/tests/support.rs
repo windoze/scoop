@@ -221,7 +221,9 @@ pub(super) fn append_executable_entry(module: &mut Module, identity_seed: &str) 
         blocks,
         entry,
     });
-    module.entry = managed_function_ref(index);
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: managed_function_ref(index),
+    };
 }
 
 pub(super) fn llvm_function_symbol(function: &Function) -> String {
@@ -1004,7 +1006,9 @@ pub(super) fn values_module() -> Module {
             blocks,
             entry,
         }],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     }
 }

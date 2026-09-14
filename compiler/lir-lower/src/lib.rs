@@ -303,7 +303,12 @@ pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir
         callback_bridges,
         foreign_callback_families,
         foreign_callback_bridges,
-        entry: local_function_map[&module.entry],
+        output: match module.output {
+            mir::MirOutput::Library => lir::LirOutput::Library,
+            mir::MirOutput::Executable { entry } => lir::LirOutput::Executable {
+                entry: local_function_map[&entry],
+            },
+        },
         meta: lir::LirMeta {
             target_profile: context.target_profile(),
             canonical_c_abi: native_abi.canonical_c_abi,

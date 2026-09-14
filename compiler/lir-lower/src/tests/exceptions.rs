@@ -117,7 +117,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
-  entry @scoop$1$cb$bf6cfaf71a9a7fbc42690a582257c2f479b94a120f839f3af0395e5a8990d370
+  output executable @scoop$1$cb$bf6cfaf71a9a7fbc42690a582257c2f479b94a120f839f3af0395e5a8990d370
 "###);
 }
 
@@ -184,7 +184,11 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
         body,
     );
     let module = lower(&b.finish(main));
-    let main = &module.functions[module.entry.declaration().into_u32() as usize];
+    let main = &module.functions[module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize];
     let roots = main
         .blocks
         .iter()

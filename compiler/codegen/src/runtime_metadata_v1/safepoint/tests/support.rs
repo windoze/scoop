@@ -173,7 +173,7 @@ fn semantic_module() -> (Module, CallableBodyIdentity, SafepointIdentity) {
         callback_bridges: Arena::new(),
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
-        entry,
+        output: scoop_lir::LirOutput::Executable { entry },
         meta: metadata(),
     };
     (module, body, safepoint)

@@ -130,7 +130,14 @@ fn lowers_hello_world() {
             .collect::<Vec<_>>(),
         expected_callable_bodies.iter().collect::<Vec<_>>()
     );
-    assert_eq!(module.entry.declaration().into_u32(), 1);
+    assert_eq!(
+        module
+            .executable_entry()
+            .expect("test module is executable")
+            .declaration()
+            .into_u32(),
+        1
+    );
 
     // The source declaration's typed intrinsic identity survives through
     // MIR and LIR. String metadata is a required singleton, not a layout
@@ -202,8 +209,19 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
+}
+
+#[test]
+fn preserves_library_output_without_an_entry() {
+    let mut source = hello_world();
+    source.output = mir::MirOutput::Library;
+
+    let module = lower(&source);
+
+    assert_eq!(module.output, lir::LirOutput::Library);
+    assert_eq!(module.executable_entry(), None);
 }
 
 #[test]

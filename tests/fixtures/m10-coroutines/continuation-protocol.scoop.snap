@@ -11499,7 +11499,7 @@ Module
   str @str12 "arithmetic error"
   str @str13 "array index out of bounds"
   str @str14 "illegal state"
-  entry @fn84
+  output executable @fn84
 
 == lir ==
 Module
@@ -17482,7 +17482,7 @@ Module
   layout CoroutineAdapter<SaveThenThrowTask.run>$1 size=56 align=8 refs=[16, 48]
   layout CoroutineFrame<SynchronousFailureTask.run> size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter<SynchronousFailureTask.run>$1 size=56 align=8 refs=[16, 48]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 41

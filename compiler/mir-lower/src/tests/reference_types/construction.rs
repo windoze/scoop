@@ -179,7 +179,7 @@ Module
       return
   str @str0 \"root\"
   str @str1 \"point\"
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
 }
@@ -235,7 +235,11 @@ fn field_assignment_lowers_to_field_set() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mir::StatementKind::FieldSet {
         object,
         index: 1,

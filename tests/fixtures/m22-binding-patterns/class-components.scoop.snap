@@ -7668,7 +7668,7 @@ Module
   str @str18 "arithmetic error"
   str @str19 "array index out of bounds"
   str @str20 "illegal state"
-  entry @fn79
+  output executable @fn79
 
 == lir ==
 Module
@@ -11568,7 +11568,7 @@ Module
   layout Inner size=16 align=8 refs=[]
   layout Outer size=16 align=8 refs=[]
   layout Explosive size=16 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 subject

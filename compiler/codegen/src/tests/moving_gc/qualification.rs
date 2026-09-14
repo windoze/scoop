@@ -97,7 +97,9 @@ fn stackmap_qualification_module() -> Module {
                 Some(Value::Param(0)),
             ),
         ],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     }
 }

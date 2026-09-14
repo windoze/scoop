@@ -606,7 +606,7 @@ fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
         classes: Arena::new(),
         interfaces: Arena::new(),
         option_core: Vec::new(),
-        entry,
+        output: MirOutput::Executable { entry },
         meta: MirMeta::default(),
     };
     register_test_exact_type(&mut module, &Type::Unit);
@@ -703,8 +703,13 @@ fn guarded_body(
 }
 
 fn return_value_mut(module: &mut Module, block: BlockId) -> &mut Expr {
-    let Terminator::Return { value: Some(value) } =
-        &mut module.functions[module.entry].body.blocks[block].terminator
+    let Terminator::Return { value: Some(value) } = &mut module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .blocks[block]
+        .terminator
     else {
         panic!("fixture block returns a value")
     };
@@ -748,7 +753,11 @@ fn set_return_expression(module: &mut Module, expression: Expr) {
         },
         unwind: None,
     });
-    module.functions[module.entry].body = Body {
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = Body {
         locals: Arena::new(),
         blocks,
         entry,
@@ -760,8 +769,12 @@ fn set_return_expression(module: &mut Module, expression: Expr) {
 fn loop_header_poll_target_must_belong_to_its_body() {
     let (mut module, _) = module_with_variants(Vec::new());
     let invalid = la_arena::Idx::from_raw(1.into());
-    module.functions[module.entry].body.loop_header_polls =
-        vec![LoopHeaderPollTarget::new(invalid)];
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .loop_header_polls = vec![LoopHeaderPollTarget::new(invalid)];
 
     assert!(matches!(
         module.validate(),
@@ -775,8 +788,18 @@ fn loop_header_poll_target_must_belong_to_its_body() {
 #[test]
 fn loop_header_poll_target_must_be_unique_within_its_body() {
     let (mut module, _) = module_with_variants(Vec::new());
-    let entry = module.functions[module.entry].body.entry;
-    module.functions[module.entry].body.loop_header_polls = vec![
+    let entry = module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .entry;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .loop_header_polls = vec![
         LoopHeaderPollTarget::new(entry),
         LoopHeaderPollTarget::new(entry),
     ];
@@ -793,17 +816,24 @@ fn loop_header_poll_target_must_be_unique_within_its_body() {
 #[test]
 fn loop_header_poll_target_may_be_detached_and_noncyclic() {
     let (mut module, _) = module_with_variants(Vec::new());
-    let detached = module.functions[module.entry]
-        .body
-        .blocks
-        .alloc(BasicBlock {
-            name: "detached".to_string(),
-            statements: Vec::new(),
-            terminator: Terminator::Unreachable,
-            unwind: None,
-        });
-    module.functions[module.entry].body.loop_header_polls =
-        vec![LoopHeaderPollTarget::new(detached)];
+    let detached = module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .blocks
+    .alloc(BasicBlock {
+        name: "detached".to_string(),
+        statements: Vec::new(),
+        terminator: Terminator::Unreachable,
+        unwind: None,
+    });
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .loop_header_polls = vec![LoopHeaderPollTarget::new(detached)];
 
     assert_eq!(module.validate(), Ok(()));
 }
@@ -911,7 +941,12 @@ fn raw_struct_construction_validation_checks_identity_arity_and_field_types() {
     );
     assert_eq!(module.validate(), Ok(()));
 
-    let entry = module.functions[module.entry].body.entry;
+    let entry = module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .entry;
     return_value_mut(&mut module, entry).ty = Type::Boolean;
     assert!(matches!(
         module.validate(),
@@ -1235,7 +1270,12 @@ fn variant_construction_validation_checks_ref_result_arity_and_field_types() {
         ),
     );
     assert_eq!(module.validate(), Ok(()));
-    let entry = module.functions[module.entry].body.entry;
+    let entry = module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .entry;
 
     return_value_mut(&mut module, entry).ty = Type::Boolean;
     assert!(matches!(
@@ -1376,8 +1416,16 @@ fn dump_and_visitors_cover_representation_independent_variant_nodes() {
     let mut locals = Arena::new();
     let value = enum_local(&mut locals, "value", enum_id);
     let (body, _) = guarded_body(&module, value, value, locals, variant, field, true);
-    module.functions[module.entry].return_ty = Type::Integer(IntegerKind::SIGNED_32);
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .return_ty = Type::Integer(IntegerKind::SIGNED_32);
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
 
     let text = dump(&module);
     assert!(text.contains("VariantTest Choice v0"), "{text}");
@@ -1386,8 +1434,17 @@ fn dump_and_visitors_cover_representation_independent_variant_nodes() {
         "{text}"
     );
 
-    let test = match &module.functions[module.entry].body.blocks
-        [module.functions[module.entry].body.entry]
+    let test = match &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .blocks[module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .entry]
         .terminator
     {
         Terminator::Branch { cond, .. } => cond,
@@ -1413,14 +1470,26 @@ fn validation_accepts_only_the_matching_true_edge_for_the_same_stable_value() {
     let mut locals = Arena::new();
     let value = enum_local(&mut locals, "value", enum_id);
     let (body, _) = guarded_body(&module, value, value, locals, variant, field, true);
-    module.functions[module.entry].return_ty = Type::Integer(IntegerKind::SIGNED_32);
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .return_ty = Type::Integer(IntegerKind::SIGNED_32);
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
     assert_eq!(module.validate(), Ok(()));
 
     let mut locals = Arena::new();
     let value = enum_local(&mut locals, "value", enum_id);
     let (body, _) = guarded_body(&module, value, value, locals, variant, field, false);
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
     assert!(matches!(
         module.validate(),
         Err(MirValidationError {
@@ -1433,7 +1502,11 @@ fn validation_accepts_only_the_matching_true_edge_for_the_same_stable_value() {
     let tested = enum_local(&mut locals, "tested", enum_id);
     let projected = enum_local(&mut locals, "projected", enum_id);
     let (body, _) = guarded_body(&module, tested, projected, locals, variant, field, true);
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
     assert!(matches!(
         module.validate(),
         Err(MirValidationError {
@@ -1455,8 +1528,16 @@ fn validation_rejects_projection_without_a_matching_test_edge() {
     let value = enum_local(&mut locals, "value", enum_id);
     let (mut body, projected) = guarded_body(&module, value, value, locals, variant, field, true);
     body.blocks[body.entry].terminator = Terminator::Goto(projected);
-    module.functions[module.entry].return_ty = Type::Integer(IntegerKind::SIGNED_32);
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .return_ty = Type::Integer(IntegerKind::SIGNED_32);
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
 
     assert!(matches!(
         module.validate(),
@@ -1480,8 +1561,16 @@ fn mutable_or_assigned_locals_do_not_supply_stable_variant_identity() {
     let value = enum_local(&mut locals, "value", enum_id);
     locals[value].mutable = true;
     let (body, _) = guarded_body(&module, value, value, locals, variant, field, true);
-    module.functions[module.entry].return_ty = Type::Integer(IntegerKind::SIGNED_32);
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .return_ty = Type::Integer(IntegerKind::SIGNED_32);
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
     assert!(matches!(
         module.validate(),
         Err(MirValidationError {
@@ -1500,7 +1589,11 @@ fn mutable_or_assigned_locals_do_not_supply_stable_variant_identity() {
         },
         span: SourceSpan::new(0, 0).unwrap(),
     });
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
     assert!(matches!(
         module.validate(),
         Err(MirValidationError {
@@ -1521,8 +1614,16 @@ fn validation_rejects_wrong_variant_field_and_result_contracts() {
     let mut locals = Arena::new();
     let value = enum_local(&mut locals, "value", enum_id);
     let (body, projected) = guarded_body(&module, value, value, locals, variant, field, true);
-    module.functions[module.entry].return_ty = Type::Integer(IntegerKind::SIGNED_32);
-    module.functions[module.entry].body = body;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .return_ty = Type::Integer(IntegerKind::SIGNED_32);
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = body;
 
     return_value_mut(&mut module, projected).ty = Type::Boolean;
     assert!(matches!(
@@ -1578,9 +1679,19 @@ fn validation_rejects_wrong_variant_field_and_result_contracts() {
             .push(variant_def("Second", Vec::new()));
         MirVariantRef::new(&foreign, foreign_enum, 1).unwrap()
     };
-    let entry = module.functions[module.entry].body.entry;
-    let Terminator::Branch { cond, .. } =
-        &mut module.functions[module.entry].body.blocks[entry].terminator
+    let entry = module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .entry;
+    let Terminator::Branch { cond, .. } = &mut module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .blocks[entry]
+        .terminator
     else {
         unreachable!()
     };
@@ -1628,8 +1739,16 @@ fn validation_rejects_wrong_enum_and_test_result_type() {
         },
         unwind: None,
     });
-    module.functions[module.entry].return_ty = Type::Boolean;
-    module.functions[module.entry].body = Body {
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .return_ty = Type::Boolean;
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = Body {
         locals,
         blocks,
         entry,
@@ -1647,8 +1766,13 @@ fn validation_rejects_wrong_enum_and_test_result_type() {
         }) if expected == enum_id && actual == other
     ));
 
-    let Terminator::Return { value: Some(test) } =
-        &mut module.functions[module.entry].body.blocks[entry].terminator
+    let Terminator::Return { value: Some(test) } = &mut module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body
+    .blocks[entry]
+        .terminator
     else {
         unreachable!()
     };

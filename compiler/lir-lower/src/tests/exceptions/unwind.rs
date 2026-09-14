@@ -77,7 +77,7 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
-  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }
 
@@ -112,7 +112,11 @@ fn throw_inside_try_invokes_to_the_own_landingpad() {
     let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
     let module = lower(&b.finish(main));
 
-    let function = &module.functions[module.entry.declaration().into_u32() as usize];
+    let function = &module.functions[module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize];
     // The explicit MIR entry jumps into the try body. That block
     // ends with the invoke; its unwind target starts with the
     // landingpad.
@@ -289,7 +293,11 @@ fn nested_trys_unwind_to_their_own_pads() {
     let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
     let module = lower(&b.finish(main));
 
-    let function = &module.functions[module.entry.declaration().into_u32() as usize];
+    let function = &module.functions[module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize];
     // The outer primary pad has no incoming exceptional edge after the
     // nested lowering is complete, so final LIR removes it. The inner
     // primary pad remains, as do both handler cleanup pads.

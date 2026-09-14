@@ -35,8 +35,10 @@ pub(super) fn validate_callable_functions(module: &Module) -> Result<(), MirVali
         }
     }
 
-    if !emitted.contains(&module.entry) {
-        return invalid(module.entry, "the entry function is not emitted");
+    if let MirOutput::Executable { entry } = module.output
+        && !emitted.contains(&entry)
+    {
+        return invalid(entry, "the entry function is not emitted");
     }
 
     Ok(())

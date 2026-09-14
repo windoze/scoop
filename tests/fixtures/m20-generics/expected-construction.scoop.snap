@@ -8584,7 +8584,7 @@ Module
   str @str12 "illegal state"
   str @str13 "cat"
   str @str14 "dog"
-  entry @fn74
+  output executable @fn74
 
 == lir ==
 Module
@@ -12827,7 +12827,7 @@ Module
   layout RefBox size=24 align=8 refs=[16]
   layout box<ValueBox<Cat>> size=24 align=8 refs=[16]
   layout box<ValueBox<Dog>> size=24 align=8 refs=[16]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 cat

@@ -10927,7 +10927,7 @@ Module
   str @str12 "arithmetic error"
   str @str13 "array index out of bounds"
   str @str14 "illegal state"
-  entry @fn79
+  output executable @fn79
 
 == lir ==
 Module
@@ -16442,7 +16442,7 @@ Module
   layout CoroutineAdapter<waitForInt>$1 size=56 align=8 refs=[16, 48]
   layout CoroutineFrame<waitForBoolean> size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter<waitForBoolean>$1 size=56 align=8 refs=[16, 48]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 started

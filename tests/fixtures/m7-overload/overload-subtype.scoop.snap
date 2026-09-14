@@ -7449,7 +7449,7 @@ Module
   str @str12 "array index out of bounds"
   str @str13 "illegal state"
   str @str14 "c"
-  entry @fn74
+  output executable @fn74
 
 == lir ==
 Module
@@ -11156,7 +11156,7 @@ Module
   layout IllegalStateException size=24 align=8 refs=[16]
   layout Shape size=24 align=8 refs=[16]
   layout Circle size=32 align=8 refs=[16]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 shape

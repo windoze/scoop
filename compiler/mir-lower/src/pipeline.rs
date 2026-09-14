@@ -323,7 +323,7 @@ impl Lowerer {
             classes: self.classes,
             interfaces: self.interfaces.defs,
             option_core,
-            entry,
+            output: mir::MirOutput::Executable { entry },
             meta: mir::MirMeta {
                 source_exact_types: self.source_exact_types.finish(),
                 generated_exact_types,

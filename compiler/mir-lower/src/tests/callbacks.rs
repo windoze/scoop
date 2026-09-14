@@ -120,7 +120,13 @@ fn nonzero_ulong_pointer_conversion_keeps_its_proof_in_mir() {
         },
     );
     let module = lower(&h.finish(main));
-    let statements = entry_statements(&module.functions[module.entry].body);
+    let statements = entry_statements(
+        &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body,
+    );
     let mir::StatementKind::ValDecl {
         init:
             mir::Expr {

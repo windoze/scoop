@@ -146,7 +146,7 @@ Module
         StructInit S
           Type Int
           Local x
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
 }

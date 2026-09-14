@@ -543,7 +543,7 @@ impl Builder {
             enums: self.enums,
             classes: self.classes,
             interfaces: self.interfaces,
-            entry,
+            output: mir::MirOutput::Executable { entry },
             meta: mir::MirMeta {
                 source_exact_types,
                 source_callable_materializations,

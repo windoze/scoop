@@ -108,7 +108,10 @@ fn static_callback_module() -> (Module, CallbackBridgeId) {
     let materialization = source_materialization("staticCallbackSource");
     module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
         SourceCallableMaterialization::new(
-            module.entry,
+            module
+                .output
+                .executable_entry()
+                .expect("test module is executable"),
             materialization,
             exact_callback_signature(),
             None,
@@ -118,7 +121,10 @@ fn static_callback_module() -> (Module, CallbackBridgeId) {
     .unwrap();
     let bridge = module.callback_bridges.alloc(
         CallbackBridge::new(
-            module.entry,
+            module
+                .output
+                .executable_entry()
+                .expect("test module is executable"),
             signature,
             bridge_function,
             materialization,
@@ -366,7 +372,12 @@ fn generated_callable_function_must_retain_its_signature_subject() {
     let source_subject = module
         .meta
         .source_callable_materializations
-        .get(module.entry)
+        .get(
+            module
+                .output
+                .executable_entry()
+                .expect("test module is executable"),
+        )
         .unwrap()
         .signature_record()
         .subject();
@@ -375,7 +386,12 @@ fn generated_callable_function_must_retain_its_signature_subject() {
         Some(generated_subject)
     );
     assert_eq!(
-        module.meta.callable_signature_subject(module.entry),
+        module.meta.callable_signature_subject(
+            module
+                .output
+                .executable_entry()
+                .expect("test module is executable")
+        ),
         Some(source_subject)
     );
     module.meta.generated_callables =
@@ -402,7 +418,10 @@ fn one_function_cannot_carry_source_and_generated_callable_identities() {
     let (mut module, bridge) = static_callback_module();
     module.meta.generated_callables =
         MirGeneratedCallableIdentities::checked(vec![MirGeneratedCallableIdentity::new(
-            module.entry,
+            module
+                .output
+                .executable_entry()
+                .expect("test module is executable"),
             module.callback_bridges[bridge].identity().callable_record(),
             module.callback_bridges[bridge]
                 .identity()

@@ -10092,7 +10092,7 @@ Module
   str @str19 "arithmetic error"
   str @str20 "array index out of bounds"
   str @str21 "illegal state"
-  entry @fn94
+  output executable @fn94
 
 == lir ==
 Module
@@ -15049,7 +15049,7 @@ Module
   layout Bag size=24 align=8 refs=[]
   layout Cell size=24 align=8 refs=[]
   layout Coordinates size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 2

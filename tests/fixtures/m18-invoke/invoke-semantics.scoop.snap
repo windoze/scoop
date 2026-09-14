@@ -8725,7 +8725,7 @@ Module
   str @str23 "arithmetic error"
   str @str24 "array index out of bounds"
   str @str25 "illegal state"
-  entry @fn77
+  output executable @fn77
 
 == lir ==
 Module
@@ -13078,7 +13078,7 @@ Module
   layout $Closure$lambda0 size=32 align=8 refs=[24]
   layout $Closure$lambda1 size=24 align=8 refs=[]
   layout $Closure$lambda2 size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 local-1!

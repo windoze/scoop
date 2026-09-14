@@ -207,7 +207,9 @@ pub(super) fn exceptions_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![thrower, may_throw, eh_test],
-        entry: managed_function_ref(2),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(2),
+        },
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);

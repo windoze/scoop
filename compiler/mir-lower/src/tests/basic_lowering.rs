@@ -36,7 +36,13 @@ fn lowers_hello_world() {
     assert_eq!(helper.name, "helper");
     assert_eq!(main.name, "main");
 
-    assert_eq!(module.entry, module.top_level[3]);
+    assert_eq!(
+        module
+            .output
+            .executable_entry()
+            .expect("test module is executable"),
+        module.top_level[3]
+    );
     assert!(
         module
             .meta
@@ -48,7 +54,12 @@ fn lowers_hello_world() {
         module
             .meta
             .source_callable_materializations
-            .get(module.entry)
+            .get(
+                module
+                    .output
+                    .executable_entry()
+                    .expect("test module is executable")
+            )
             .is_some()
     );
 
@@ -108,7 +119,7 @@ Module
   str @str0 \"\\n\"
   str @str1 \"!\"
   str @str2 \"hello, world\"
-  entry @fn3
+  output executable @fn3
 ";
     assert_eq!(dump(&module), expected);
 }
@@ -183,7 +194,11 @@ fn formatting_helpers_are_ordinary_extern_calls() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let symbols: Vec<&str> = entry_statements(body)
         .iter()
         .map(|statement| {
@@ -227,7 +242,13 @@ fn raw_struct_construction_reaches_mir_without_a_constructor_call() {
 
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let statements = entry_statements(&module.functions[module.entry].body);
+    let statements = entry_statements(
+        &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body,
+    );
     assert!(matches!(
         statements,
         [mir::Statement {
@@ -338,7 +359,11 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
 fn gc_wrappers_use_explicit_raw_word_marshalling() {
     let (h, main) = gc_shapes();
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     // `_pin(s)` produces the raw word used by `PinnedPtr(raw)`.
     let (call, pin_result) = statement_call(&entry_statements(body)[0]);

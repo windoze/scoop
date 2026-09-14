@@ -8855,7 +8855,7 @@ Module
   str @str21 "arithmetic error"
   str @str22 "array index out of bounds"
   str @str23 "illegal state"
-  entry @fn79
+  output executable @fn79
 
 == lir ==
 Module
@@ -13200,7 +13200,7 @@ Module
   layout Probe size=24 align=8 refs=[16]
   layout Service size=24 align=8 refs=[16]
   layout $Closure$lambda0 size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == warnings ==
 m18-safe-call/safe-call-semantics.scoop:68:14: warning: `inner` is a catch-all binding because `Option<String>` has no variant named `inner`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all

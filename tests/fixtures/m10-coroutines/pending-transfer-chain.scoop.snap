@@ -13384,7 +13384,7 @@ Module
   str @str26 "arithmetic error"
   str @str27 "array index out of bounds"
   str @str28 "illegal state"
-  entry @fn82
+  output executable @fn82
 
 == lir ==
 Module
@@ -20241,7 +20241,7 @@ Module
   layout CoroutineFrame<throwThroughNestedCleanup> size=72 align=8 refs=[24, 32, 40, 48, 56, 64]
   layout CoroutineAdapter<throwThroughNestedCleanup>$2 size=32 align=8 refs=[16]
   layout CoroutineAdapter<throwThroughNestedCleanup>$1 size=32 align=8 refs=[16]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 return-inner-suspended

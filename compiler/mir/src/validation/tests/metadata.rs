@@ -90,7 +90,10 @@ fn module_validation_rejects_unknown_exact_types_in_source_callable_signatures()
     let (mut module, _) = module_with_variants(Vec::new());
     module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
         SourceCallableMaterialization::new(
-            module.entry,
+            module
+                .output
+                .executable_entry()
+                .expect("test module is executable"),
             source_callable_materialization(),
             scoop_identity::ExactCallableSignature::new(
                 scoop_identity::Effect::Ordinary,
@@ -108,7 +111,10 @@ fn module_validation_rejects_unknown_exact_types_in_source_callable_signatures()
         module.validate(),
         Err(MirValidationError {
             location: MirValidationLocation::SourceCallableMaterialization {
-                function: module.entry,
+                function: module
+                    .output
+                    .executable_entry()
+                    .expect("test module is executable"),
             },
             kind: MirValidationErrorKind::InvalidSourceCallableMaterialization {
                 reason: "the logical signature references an unknown source exact type",
@@ -126,7 +132,10 @@ fn emitted_callable_requires_exactly_one_materialization() {
         module.validate(),
         Err(MirValidationError {
             location: MirValidationLocation::CallableFunction {
-                function: module.entry,
+                function: module
+                    .output
+                    .executable_entry()
+                    .expect("test module is executable"),
             },
             kind: MirValidationErrorKind::InvalidCallableFunction {
                 reason: "the function is not claimed by exactly one callable materialization",
@@ -138,13 +147,21 @@ fn emitted_callable_requires_exactly_one_materialization() {
 #[test]
 fn emitted_callable_cannot_be_listed_twice() {
     let (mut module, _) = module_with_variants(Vec::new());
-    module.top_level.push(module.entry);
+    module.top_level.push(
+        module
+            .output
+            .executable_entry()
+            .expect("test module is executable"),
+    );
 
     assert_eq!(
         module.validate(),
         Err(MirValidationError {
             location: MirValidationLocation::CallableFunction {
-                function: module.entry,
+                function: module
+                    .output
+                    .executable_entry()
+                    .expect("test module is executable"),
             },
             kind: MirValidationErrorKind::InvalidCallableFunction {
                 reason: "the function is emitted more than once",
@@ -181,13 +198,25 @@ fn entry_callable_must_be_emitted() {
         module.validate(),
         Err(MirValidationError {
             location: MirValidationLocation::CallableFunction {
-                function: module.entry,
+                function: module
+                    .output
+                    .executable_entry()
+                    .expect("test module is executable"),
             },
             kind: MirValidationErrorKind::InvalidCallableFunction {
                 reason: "the entry function is not emitted",
             },
         })
     );
+}
+
+#[test]
+fn library_output_has_no_entry_contract() {
+    let (mut module, _) = module_with_variants(Vec::new());
+    module.output = MirOutput::Library;
+
+    assert_eq!(module.output.executable_entry(), None);
+    assert_eq!(module.validate(), Ok(()));
 }
 
 fn local_value_record() -> LocalValueIdentityRecord {
@@ -243,7 +272,10 @@ fn module_validation_rejects_value_locations_outside_the_function_graph() {
         })
     );
 
-    let function = module.entry;
+    let function = module
+        .output
+        .executable_entry()
+        .expect("test module is executable");
     module.meta.local_values = LocalValueIdentities::checked(vec![LocalValueIdentity::from_hir(
         function,
         local,

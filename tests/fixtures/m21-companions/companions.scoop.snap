@@ -9608,7 +9608,7 @@ Module
   str @str13 "illegal state"
   str @str14 "box-companion"
   str @str15 "independent-companion"
-  entry @fn83
+  output executable @fn83
 
 == lir ==
 Module
@@ -14803,7 +14803,7 @@ Module
   layout InterfaceHost.Provider size=16 align=8 refs=[]
   layout ObjectHost.NestedCompanion size=16 align=8 refs=[]
   layout Box size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 42

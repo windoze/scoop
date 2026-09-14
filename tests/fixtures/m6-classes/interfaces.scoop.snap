@@ -7628,7 +7628,7 @@ Module
   str @str10 "arithmetic error"
   str @str11 "array index out of bounds"
   str @str12 "illegal state"
-  entry @fn72
+  output executable @fn72
 
 == lir ==
 Module
@@ -11433,7 +11433,7 @@ Module
   layout IllegalStateException size=24 align=8 refs=[16]
   layout Doc size=24 align=8 refs=[16]
   layout box<Tag> size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 report

@@ -108,7 +108,9 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             blocks,
             entry,
         }],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta,
     };
     refresh_module_safepoints(&mut module);

@@ -10278,7 +10278,7 @@ Module
   str @str23 "arithmetic error"
   str @str24 "array index out of bounds"
   str @str25 "illegal state"
-  entry @fn79
+  output executable @fn79
 
 == lir ==
 Module
@@ -15439,7 +15439,7 @@ Module
   layout CoroutineFrame<awaitSafe> size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter<awaitSafe>$1 size=56 align=8 refs=[16, 48]
   layout $Closure$lambda0 size=32 align=8 refs=[24]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 safe-transform-created

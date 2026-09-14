@@ -434,7 +434,9 @@ fn semantic_module(lazy: bool) -> Module {
         callback_bridges: Arena::new(),
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
-        entry: LocalFunctionRef::Managed(initializer_ref),
+        output: scoop_lir::LirOutput::Executable {
+            entry: LocalFunctionRef::Managed(initializer_ref),
+        },
         meta,
     }
 }

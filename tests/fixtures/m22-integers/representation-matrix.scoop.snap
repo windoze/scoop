@@ -14425,7 +14425,7 @@ Module
   str @str16 "arithmetic error"
   str @str17 "array index out of bounds"
   str @str18 "illegal state"
-  entry @fn71
+  output executable @fn71
 
 == lir ==
 Module
@@ -21521,7 +21521,7 @@ Module
   layout box<UInt> size=24 align=8 refs=[]
   layout box<ULong> size=24 align=8 refs=[]
   layout (Int8, Int16, Int, Long, UInt8, UInt16, UInt, ULong) size=32 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 1

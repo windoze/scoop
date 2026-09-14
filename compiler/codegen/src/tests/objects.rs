@@ -175,7 +175,9 @@ pub(super) fn classes_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
-        entry: managed_function_ref(2),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(2),
+        },
         meta,
     };
     refresh_module_safepoints(&mut module);
@@ -433,7 +435,9 @@ pub(super) fn heap_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe, main],
-        entry: managed_function_ref(1),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(1),
+        },
         meta,
     };
     refresh_module_safepoints(&mut module);

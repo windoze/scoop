@@ -231,7 +231,7 @@ Module
       goto bb2
     bb2 if.merge.2
       return
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
@@ -323,7 +323,7 @@ Module
   fun init.UnwrapException.$c0 @fn1(this: UnwrapException) -> Unit
     bb0 entry
       return
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
@@ -386,7 +386,11 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
     let module = lower(&executable);
     assert_eq!(module.validate(), Ok(()));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mut kinds = Vec::new();
     for (_, block) in body.blocks.iter() {
         let mir::Terminator::Branch {
@@ -506,7 +510,11 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mut source_sites = Vec::new();
     let mut fallback_sites = Vec::new();
     for (block_id, block) in body.blocks.iter() {

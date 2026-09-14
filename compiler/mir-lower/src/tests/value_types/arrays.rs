@@ -200,7 +200,7 @@ Module
   fun init.IndexOutOfBoundsException.$c0 @fn1(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       return
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
 }

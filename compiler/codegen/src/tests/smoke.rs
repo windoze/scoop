@@ -34,7 +34,11 @@ fn callable_identity_controls_function_symbol_and_linkage() {
 #[test]
 fn executable_entry_shim_calls_the_typed_persistent_body() {
     let module = values_module();
-    let entry = &module.functions[module.entry.declaration().into_u32() as usize];
+    let entry = &module.functions[module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize];
 
     let ir = render_llvm_ir(&module, host_profile()).expect("render executable module");
 
@@ -43,6 +47,16 @@ fn executable_entry_shim_calls_the_typed_persistent_body() {
         ir.contains(&format!("musttail call void @\"{}\"()", entry.symbol())),
         "{ir}"
     );
+}
+
+#[test]
+fn library_does_not_emit_the_executable_entry_shim() {
+    let mut module = values_module();
+    module.output = scoop_lir::LirOutput::Library;
+
+    let ir = render_llvm_ir(&module, host_profile()).expect("render library module");
+
+    assert!(!ir.contains("@scoop_main"), "{ir}");
 }
 
 #[test]

@@ -9075,7 +9075,7 @@ Module
   str @str14 "array index out of bounds"
   str @str15 "illegal state"
   str @str16 "resume failed"
-  entry @fn74
+  output executable @fn74
 
 == lir ==
 Module
@@ -13712,7 +13712,7 @@ Module
   layout CoroutineFrame<FailureTask.run> size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter<FailureTask.run>$1 size=56 align=8 refs=[16, 48]
   layout $Closure$lambda0 size=32 align=8 refs=[24]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 suspended

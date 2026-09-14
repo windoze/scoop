@@ -1724,7 +1724,9 @@ mod tests {
             callback_bridges: Arena::new(),
             foreign_callback_families: Arena::new(),
             foreign_callback_bridges: Arena::new(),
-            entry: scoop_lir::LocalFunctionRef::Managed(local_functions.alloc_managed()),
+            output: scoop_lir::LirOutput::Executable {
+                entry: scoop_lir::LocalFunctionRef::Managed(local_functions.alloc_managed()),
+            },
             meta: scoop_lir::LirMeta {
                 target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
                 canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),

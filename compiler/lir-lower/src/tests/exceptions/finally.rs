@@ -226,6 +226,6 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  entry @scoop$1$cb$e45a777f304bed09d4fbc294f091313dd5a64c3b2660b61a78f1f3cac5e407c4
+  output executable @scoop$1$cb$e45a777f304bed09d4fbc294f091313dd5a64c3b2660b61a78f1f3cac5e407c4
 "###);
 }

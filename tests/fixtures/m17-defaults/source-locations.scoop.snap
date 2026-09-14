@@ -8247,7 +8247,7 @@ Module
   str @str39 "arithmetic error"
   str @str40 "array index out of bounds"
   str @str41 "illegal state"
-  entry @fn79
+  output executable @fn79
 
 == lir ==
 Module
@@ -12334,7 +12334,7 @@ Module
   layout Reporter size=16 align=8 refs=[]
   layout LocationTask size=16 align=8 refs=[]
   layout LocationCompletion size=24 align=8 refs=[16]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 direct

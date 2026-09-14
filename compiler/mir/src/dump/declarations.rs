@@ -523,7 +523,12 @@ pub fn dump(module: &Module) -> String {
     for (id, string) in module.strings.iter() {
         out.push_str(&format!("  str {} {:?}\n", string_ref(id), string.value));
     }
-    out.push_str(&format!("  entry {}\n", function_ref(module.entry)));
+    match module.output {
+        MirOutput::Library => out.push_str("  output library\n"),
+        MirOutput::Executable { entry } => {
+            out.push_str(&format!("  output executable {}\n", function_ref(entry)));
+        }
+    }
     out
 }
 

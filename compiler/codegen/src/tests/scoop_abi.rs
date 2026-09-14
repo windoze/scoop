@@ -272,7 +272,9 @@ fn aggregate_abi_module() -> Module {
             invoke_caller(),
             aggregate_dispatch_caller(),
         ],
-        entry: managed_function_ref(4),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(4),
+        },
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -413,7 +415,9 @@ fn native_aggregate_module() -> Module {
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         functions: vec![caller],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);

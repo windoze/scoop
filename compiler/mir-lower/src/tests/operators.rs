@@ -22,7 +22,11 @@ fn typed_string_concat_lowers_to_its_runtime_target() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let (call, destination) = statement_call(&entry_statements(body)[0]);
     assert_eq!(
         call.target.callee,
@@ -81,7 +85,11 @@ fn typed_primitive_intrinsics_map_to_primitive_mir_ops() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let lowered: Vec<_> = entry_statements(body)
         .iter()
         .map(|statement| {
@@ -153,7 +161,11 @@ fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let statements = entry_statements(body);
     let unary_ops = statements[..2].iter().map(|statement| {
         let mir::StatementKind::Expr(mir::Expr {
@@ -215,7 +227,13 @@ fn all_integer_constants_and_conversions_preserve_exact_kinds() {
         },
     );
     let module = lower(&h.finish(main));
-    let statements = entry_statements(&module.functions[module.entry].body);
+    let statements = entry_statements(
+        &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body,
+    );
 
     for (index, statement) in statements.iter().enumerate() {
         let source = kinds[index];
@@ -268,7 +286,13 @@ fn shifts_mask_long_counts_then_convert_to_the_operand_kind() {
         },
     );
     let module = lower(&h.finish(main));
-    let statements = entry_statements(&module.functions[module.entry].body);
+    let statements = entry_statements(
+        &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body,
+    );
 
     for (statement, source_kind) in statements.iter().zip(kinds) {
         let kind = crate::types::lower_integer_kind(source_kind);
@@ -340,7 +364,11 @@ fn signed_div_rem_poison_boundaries_are_separated_before_safe_nodes() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mut safe = HashMap::new();
     let mut special = HashMap::new();
     let mut zero_guards = 0;
@@ -440,7 +468,11 @@ fn short_circuit_rhs_calls_stay_on_rhs_edges() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     let rhs_blocks: Vec<_> = body
         .blocks
@@ -539,7 +571,11 @@ fn nested_calls_are_normalized_left_to_right() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let statements = entry_statements(body);
     assert_eq!(statements.len(), 3);
 
@@ -671,7 +707,7 @@ Module
   fun init.ArithmeticException.$c0 @fn1(this: ArithmeticException) -> Unit
     bb0 entry
       return
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
 }
@@ -697,7 +733,11 @@ fn remainder_uses_the_same_zero_guard_as_division() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     assert!(body.blocks.iter().any(|(_, block)| {
         block.statements.iter().any(|statement| {
             matches!(
@@ -747,7 +787,11 @@ fn uint_division_keeps_unsigned_operation_after_the_zero_guard() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     assert!(body.blocks.iter().any(|(_, block)| {
         block.statements.iter().any(|statement| {
             matches!(

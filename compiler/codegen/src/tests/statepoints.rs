@@ -313,7 +313,9 @@ fn native_calls_publish_roots_transition_and_reload() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![safe, borrowed_function],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -415,7 +417,9 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
             blocks,
             entry,
         }],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
 

@@ -168,7 +168,7 @@ Module
       goto bb3
   str @str0 \"\\n\"
   str @str1 \"none\"
-  entry @fn2
+  output executable @fn2
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
@@ -243,7 +243,11 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let producer = module
         .functions
         .iter()
@@ -401,7 +405,11 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
     for explicit_else in [false, true] {
         let module = lower_case(explicit_else);
         assert_eq!(module.validate(), Ok(()));
-        let body = &module.functions[module.entry].body;
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
         let branches = body
             .blocks
             .iter()
@@ -547,7 +555,11 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     let function_named = |name: &str| {
         module
@@ -823,7 +835,7 @@ Module
   str @str0 \"\\n\"
   str @str1 \"neg\"
   str @str2 \"neg\"
-  entry @fn2
+  output executable @fn2
 ";
     assert_eq!(dump(&module), expected);
     assert_eq!(module.validate(), Ok(()));
@@ -925,7 +937,11 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     let mut current = body.entry;
     let mut calls = Vec::new();
@@ -1054,7 +1070,11 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
 
     for string in [false, true] {
         let (module, expected_name) = lower_case(string);
-        let body = &module.functions[module.entry].body;
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
         let (call, result) = entry_statements(body)
             .iter()
             .find_map(|statement| {
@@ -1122,7 +1142,11 @@ fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
             },
         );
         let module = lower(&h.finish(main));
-        let body = &module.functions[module.entry].body;
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
         assert!(
             body.locals
                 .iter()
@@ -1250,7 +1274,7 @@ Module
           Type Int
           Local y
   str @str0 \"x\"
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
 }

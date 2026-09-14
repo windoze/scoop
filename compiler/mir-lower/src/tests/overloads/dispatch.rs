@@ -105,7 +105,11 @@ fn virtual_calls_annotate_the_overloads_own_slot() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let call_kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
         &call.target.kind
@@ -222,7 +226,11 @@ fn interface_calls_annotate_the_overloads_own_slot() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let call_kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
         &call.target.kind

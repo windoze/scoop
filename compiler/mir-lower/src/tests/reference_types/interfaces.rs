@@ -81,7 +81,11 @@ fn ref_equality_maps_to_a_primitive_pointer_comparison() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let op_of = |index: usize| {
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[index].kind else {
             panic!("expected a val declaration")

@@ -71,10 +71,11 @@ pub(crate) fn emit_executable_entry_shim<'ctx>(
     llvm: &LlvmModule<'ctx>,
     builder: &inkwell::builder::Builder<'ctx>,
     module: &Module,
+    entry: scoop_lir::LocalFunctionRef,
 ) -> Result<(), CodegenError> {
     const EXECUTABLE_ENTRY_SYMBOL: &str = "scoop_main";
 
-    let entry_index = module.entry.declaration().into_u32() as usize;
+    let entry_index = entry.declaration().into_u32() as usize;
     let entry = module.functions.get(entry_index).ok_or_else(|| {
         CodegenError(format!(
             "module has invalid executable entry function id {entry_index}"

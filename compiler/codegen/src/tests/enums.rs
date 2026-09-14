@@ -471,7 +471,9 @@ fn enum_module_with(
             consume,
             consume_indirect,
         ],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -641,7 +643,9 @@ fn tagged_enum_metadata_rejects_recursive_machine_scalar_payload() {
     let executable_entry = module.functions.pop().expect("test executable entry");
     module.functions.clear();
     module.functions.push(executable_entry);
-    module.entry = managed_function_ref(0);
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: managed_function_ref(0),
+    };
 
     let error = enum_codegen_error(&module);
     assert!(

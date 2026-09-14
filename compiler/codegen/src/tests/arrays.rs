@@ -213,7 +213,9 @@ fn arrays_module() -> Module {
             blocks,
             entry,
         }],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta,
     }
 }

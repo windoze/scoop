@@ -28,10 +28,28 @@ pub struct Module {
     /// NoGC static callback bridges at the type level.
     pub foreign_callback_families: Arena<ForeignCallbackFamily>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
-    /// Effect-refined identity of the Scoop entry body. The fixed native
-    /// executable entry shim is emitted separately and is not a Scoop body.
-    pub entry: LocalFunctionRef,
+    pub output: LirOutput,
     pub meta: LirMeta,
+}
+
+/// The physical output contract retained by LIR.
+///
+/// The executable branch carries an effect-refined body reference. Libraries
+/// have no sentinel entry and therefore cannot accidentally emit the fixed
+/// native executable shim.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LirOutput {
+    Library,
+    Executable { entry: LocalFunctionRef },
+}
+
+impl Module {
+    pub const fn executable_entry(&self) -> Option<LocalFunctionRef> {
+        match self.output {
+            LirOutput::Library => None,
+            LirOutput::Executable { entry } => Some(entry),
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -365,7 +365,7 @@ fn semantic_module(
         callback_bridges: Arena::new(),
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
-        entry,
+        output: crate::LirOutput::Executable { entry },
         meta: metadata(),
     };
     (module, body, safepoints)

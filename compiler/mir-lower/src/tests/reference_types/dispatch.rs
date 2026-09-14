@@ -49,7 +49,11 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let call_kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
         // The receiver becomes argument 0 (`this`).
@@ -177,7 +181,11 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
     assert_eq!(derived_vtable.len(), 1);
     assert_eq!(slot_fn(&module, &derived_vtable[0]), "Derived.openMethod");
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
         &call.target.kind

@@ -241,7 +241,9 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
         callback_bridges: Arena::new(),
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
-        entry: LocalFunctionRef::Managed(functions.alloc_managed()),
+        output: scoop_lir::LirOutput::Executable {
+            entry: LocalFunctionRef::Managed(functions.alloc_managed()),
+        },
         meta: LirMeta {
             target_profile: LirTargetProfile::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),

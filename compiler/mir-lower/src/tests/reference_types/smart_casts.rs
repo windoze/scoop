@@ -50,7 +50,11 @@ fn smart_cast_unboxes_bind_typed_hidden_locals() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mir::Terminator::Branch { then_block, .. } = body.blocks[body.entry].terminator else {
         panic!("expected a conditional branch")
     };

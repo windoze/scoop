@@ -8307,7 +8307,7 @@ Module
   str @str18 "base-initializer"
   str @str19 "object-initializer"
   str @str20 "nested-initializer"
-  entry @fn85
+  output executable @fn85
 
 == lir ==
 Module
@@ -12545,7 +12545,7 @@ Module
   layout Registry size=48 align=8 refs=[24, 40]
   layout Registry.Nested size=24 align=8 refs=[]
   layout Registry.Token size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 42

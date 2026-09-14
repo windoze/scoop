@@ -27457,7 +27457,7 @@ Module
   str @str19 "arithmetic error"
   str @str20 "array index out of bounds"
   str @str21 "illegal state"
-  entry @fn91
+  output executable @fn91
 
 == lir ==
 Module
@@ -41982,7 +41982,7 @@ Module
   layout $Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any size=32 align=8 refs=[24]
   layout $Closure$dynamic_adapter$suspend (Int) -> Any size=32 align=8 refs=[24]
   layout $Closure$dynamic_adapter$suspend () -> Int size=32 align=8 refs=[24]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 42

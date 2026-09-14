@@ -35,8 +35,28 @@ pub struct Module {
     /// inseparable Some payload-field and None variant identities. Consumers
     /// must use this registry instead of recognizing nullable layouts by shape.
     pub option_core: Vec<OptionCore>,
-    pub entry: FunctionId,
+    pub output: MirOutput,
     pub meta: MirMeta,
+}
+
+/// The source-level output contract retained by MIR.
+///
+/// A library has no executable entry by construction. An executable always
+/// carries its entry function, so later stages never infer output kind from a
+/// nullable or sentinel function id.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MirOutput {
+    Library,
+    Executable { entry: FunctionId },
+}
+
+impl MirOutput {
+    pub const fn executable_entry(self) -> Option<FunctionId> {
+        match self {
+            Self::Library => None,
+            Self::Executable { entry } => Some(entry),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -89,6 +109,10 @@ impl OptionCore {
 }
 
 impl Module {
+    pub const fn executable_entry(&self) -> Option<FunctionId> {
+        self.output.executable_entry()
+    }
+
     pub fn option_core(&self, enum_id: EnumId) -> Option<&OptionCore> {
         self.option_core
             .iter()

@@ -10537,7 +10537,7 @@ Module
   str @str15 "arithmetic error"
   str @str16 "array index out of bounds"
   str @str17 "illegal state"
-  entry @fn79
+  output executable @fn79
 
 == lir ==
 Module
@@ -15876,7 +15876,7 @@ Module
   layout CoroutineAdapter<ExplicitTask.run>$1 size=32 align=8 refs=[16]
   layout CoroutineFrame<awaitDefault> size=64 align=8 refs=[24, 48, 56]
   layout CoroutineAdapter<awaitDefault>$1 size=56 align=8 refs=[16, 48]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 registered

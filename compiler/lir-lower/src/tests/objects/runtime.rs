@@ -113,7 +113,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout S size=4 align=4 refs=[]
   layout box<S> size=24 align=8 refs=[]
-  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }
 
@@ -254,6 +254,6 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout PinnedPtr<String> size=8 align=8 refs=[]
   layout GcHandle<String> size=8 align=8 refs=[]
-  entry @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
+  output executable @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e
 "###);
 }

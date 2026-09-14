@@ -13399,7 +13399,7 @@ Module
   str @str11 "arithmetic error"
   str @str12 "array index out of bounds"
   str @str13 "illegal state"
-  entry @fn81
+  output executable @fn81
 
 == lir ==
 Module
@@ -20199,7 +20199,7 @@ Module
   layout CoroutineAdapter<Awaiter.awaitMember>$1 size=56 align=8 refs=[16, 48]
   layout CoroutineFrame<Awaiter.awaitMember> size=88 align=8 refs=[24, 32, 64, 72, 80]
   layout CoroutineAdapter<Awaiter.awaitMember>$1 size=72 align=8 refs=[16, 56, 64]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 started

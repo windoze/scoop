@@ -7638,7 +7638,7 @@ Module
   str @str11 "arithmetic error"
   str @str12 "array index out of bounds"
   str @str13 "illegal state"
-  entry @fn72
+  output executable @fn72
 
 == lir ==
 Module
@@ -11445,7 +11445,7 @@ Module
   layout Tool size=16 align=8 refs=[]
   layout Overloads size=16 align=8 refs=[]
   layout box<Box<Int>> size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 struct

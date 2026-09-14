@@ -7731,7 +7731,7 @@ Module
   str @str11 "arithmetic error"
   str @str12 "array index out of bounds"
   str @str13 "illegal state"
-  entry @fn71
+  output executable @fn71
 
 == lir ==
 Module
@@ -11584,7 +11584,7 @@ Module
   layout Outer.Deep size=16 align=8 refs=[]
   layout Outer.Deep.Leaf size=24 align=8 refs=[]
   layout Outer.Nested size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 42

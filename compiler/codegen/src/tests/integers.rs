@@ -8,7 +8,9 @@ fn module_with_functions(functions: Vec<Function>) -> Module {
         .gc_effect;
     let mut module = values_module();
     module.functions = functions;
-    module.entry = local_function_ref(0, entry_effect);
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: local_function_ref(0, entry_effect),
+    };
     module
 }
 

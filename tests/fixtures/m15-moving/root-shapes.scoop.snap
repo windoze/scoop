@@ -8567,7 +8567,7 @@ Module
   str @str20 "arithmetic error"
   str @str21 "array index out of bounds"
   str @str22 "illegal state"
-  entry @fn74
+  output executable @fn74
 
 == lir ==
 Module
@@ -12755,7 +12755,7 @@ Module
   layout ArrayIterator size=32 align=8 refs=[16]
   layout MutableArrayIterator size=32 align=8 refs=[16]
   layout (String, MovingTextNode) size=16 align=8 refs=[0, 8]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 head-alive

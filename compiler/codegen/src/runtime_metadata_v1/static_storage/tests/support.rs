@@ -441,7 +441,7 @@ fn semantic_module() -> Module {
         callback_bridges: Arena::new(),
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
-        entry,
+        output: scoop_lir::LirOutput::Executable { entry },
         meta: LirMeta {
             target_profile: LirTargetProfile::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),

@@ -495,7 +495,12 @@ pub fn dump(module: &Module) -> String {
             ));
         }
     }
-    let entry = &module.functions[module.entry.declaration().into_u32() as usize];
-    out.push_str(&format!("  entry @{}\n", entry.symbol()));
+    match module.output {
+        LirOutput::Library => out.push_str("  output library\n"),
+        LirOutput::Executable { entry } => {
+            let entry = &module.functions[entry.declaration().into_u32() as usize];
+            out.push_str(&format!("  output executable @{}\n", entry.symbol()));
+        }
+    }
     out
 }

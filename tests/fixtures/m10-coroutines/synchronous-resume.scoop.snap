@@ -8285,7 +8285,7 @@ Module
   str @str10 "arithmetic error"
   str @str11 "array index out of bounds"
   str @str12 "illegal state"
-  entry @fn75
+  output executable @fn75
 
 == lir ==
 Module
@@ -12465,7 +12465,7 @@ Module
   layout RecordingCompletion size=16 align=8 refs=[]
   layout CoroutineFrame<SynchronousTask.run> size=64 align=8 refs=[24, 48, 56]
   layout CoroutineAdapter<SynchronousTask.run>$1 size=56 align=8 refs=[16, 48]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 42

@@ -19,7 +19,7 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_type_descriptor_symbols(module)?;
     scoop_lir::CanonicalLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("invalid LIR identity foundation: {error}")))?;
-    executable_entry(module)?;
+    validate_output(module)?;
     validate_niche_representations(module)?;
     validate_scoop_abi(module)?;
     validate_constant_images(module)?;
@@ -143,8 +143,11 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
     Ok(())
 }
 
-fn executable_entry(module: &Module) -> Result<&Function, CodegenError> {
-    let (declaration, expected_effect) = match module.entry {
+fn executable_entry(
+    module: &Module,
+    entry: scoop_lir::LocalFunctionRef,
+) -> Result<&Function, CodegenError> {
+    let (declaration, expected_effect) = match entry {
         scoop_lir::LocalFunctionRef::Managed(reference) => {
             (reference.declaration(), GcEffect::Managed)
         }
@@ -167,8 +170,18 @@ fn executable_entry(module: &Module) -> Result<&Function, CodegenError> {
     Ok(function)
 }
 
-pub(crate) fn validate_executable_entry(module: &Module) -> Result<(), CodegenError> {
-    let function = executable_entry(module)?;
+fn validate_output(module: &Module) -> Result<(), CodegenError> {
+    let scoop_lir::LirOutput::Executable { entry } = module.output else {
+        return Ok(());
+    };
+    executable_entry(module, entry).map(|_| ())
+}
+
+pub(crate) fn validate_executable_entry(
+    module: &Module,
+    entry: scoop_lir::LocalFunctionRef,
+) -> Result<(), CodegenError> {
+    let function = executable_entry(module, entry)?;
     if !function.signature.arguments().is_empty()
         || !matches!(function.signature.result(), scoop_lir::AbiReturn::UnitVoid)
     {

@@ -307,7 +307,7 @@ fn semantic_module(
         callback_bridges: Arena::new(),
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
-        entry,
+        output: scoop_lir::LirOutput::Executable { entry },
         meta: metadata(corruption),
     };
     (module, body, safepoints)

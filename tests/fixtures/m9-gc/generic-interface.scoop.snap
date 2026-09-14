@@ -7771,7 +7771,7 @@ Module
   str @str10 "array index out of bounds"
   str @str11 "illegal state"
   str @str12 "dog"
-  entry @fn75
+  output executable @fn75
 
 == lir ==
 Module
@@ -11679,7 +11679,7 @@ Module
   layout AnimalConsumer size=16 align=8 refs=[]
   layout AnyConsumer size=16 align=8 refs=[]
   layout box<Int> size=24 align=8 refs=[]
-  entry @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 
 == run ==
 dog

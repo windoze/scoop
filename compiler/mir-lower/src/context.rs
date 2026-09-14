@@ -125,7 +125,7 @@ pub(super) fn type_context(
         classes: shell_classes,
         interfaces: shell_interfaces,
         option_core: Vec::new(),
-        entry,
+        output: mir::MirOutput::Executable { entry },
         meta: mir::MirMeta::default(),
     }
 }

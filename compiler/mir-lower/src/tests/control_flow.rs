@@ -132,7 +132,7 @@ Module
   fun init.MyError.$c0 @fn1(this: MyError) -> Unit
     bb0 entry
       return
-  entry @fn0
+  output executable @fn0
 ";
     assert_eq!(dump(&module), expected);
 }
@@ -165,7 +165,11 @@ fn typed_and_builtin_unary_operators_map_to_mir_unops() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let [integer, boolean] = entry_statements(body) else {
         panic!("expected the two unary expression statements")
     };
@@ -232,7 +236,11 @@ fn field_access_uses_zero_based_indices() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     for statement in entry_statements(body) {
         let mir::StatementKind::ValDecl { init, .. } = &statement.kind else {
             panic!("expected a val declaration")
@@ -269,7 +277,11 @@ fn control_flow_becomes_cfg_and_marks_the_loop_header_poll() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     assert!(matches!(
         body.blocks[body.entry].terminator,
         mir::Terminator::Branch { .. }
@@ -325,7 +337,11 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = body
         .blocks
         .iter()
@@ -416,7 +432,11 @@ fn terminating_while_still_marks_its_loop_header_poll() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     assert_eq!(
         body.blocks.len(),
@@ -471,7 +491,11 @@ fn direct_setup_break_preserves_the_loop_header_poll_and_exit_target() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = block_id_named(body, "while.cond");
     let exit = block_id_named(body, "while.exit");
 
@@ -524,7 +548,11 @@ fn loop_body_transfers_keep_one_loop_header_poll_target_without_merge_fallthroug
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = block_id_named(body, "while.cond");
     let exit = block_id_named(body, "while.exit");
     let then_block = block_named(body, "if.then");
@@ -579,7 +607,11 @@ fn outer_break_runs_finally_before_reaching_the_loop_exit() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
     let try_body = block_named(body, "try.body");
 
@@ -804,7 +836,11 @@ fn catch_break_ends_the_catch_once_then_runs_finally_before_loop_exit() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
     let catch = block_named(body, "try.catch");
     let mir::Terminator::Goto(catch_body) = &catch.terminator else {
@@ -905,7 +941,11 @@ fn transfer_from_cleanup_free_try_nested_in_catch_reaches_outer_cleanup() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
     let normal_outer_catch_exit = body
         .blocks
@@ -959,7 +999,11 @@ fn finally_return_overrides_a_pending_setup_break_without_opening_the_exit() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
 
     assert!(matches!(
@@ -1017,7 +1061,11 @@ fn nested_finally_loops_mark_every_loop_header_poll_target() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let outer_exit = block_id_named(body, "while.exit");
     let inner_body = block_id_named(body, "while.body");
     let concrete_headers = body
@@ -1099,7 +1147,11 @@ fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = block_id_named(body, "while.cond");
     let exit = block_id_named(body, "while.exit");
     let pass = block_named(body, "pattern.pass");
@@ -1161,7 +1213,11 @@ fn while_condition_prelude_is_owned_by_the_header_and_reentered_by_the_backedge(
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = body
         .blocks
         .iter()

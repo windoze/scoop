@@ -518,7 +518,9 @@ fn root_plan_test_module(
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         functions,
-        entry: managed_function_ref(entry_index),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(entry_index),
+        },
         meta: string_metadata(),
     };
     refresh_module_safepoints(&mut module);
@@ -1191,7 +1193,9 @@ fn scoop_abi_validation_rejects_noncanonical_managed_poll_signature() {
 fn scoop_abi_validation_rejects_managed_poll_in_no_gc_function() {
     let mut module = managed_poll_test_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
-    module.entry = no_gc_function_ref(0);
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: no_gc_function_ref(0),
+    };
 
     assert_module_validation_error(
         &module,

@@ -175,6 +175,6 @@ Module
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option<Int> size=16 align=8 enum-scan=none
-  entry @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
+  output executable @scoop$1$cb$92f24139c6f5bb3d64abf748dba9ff6099323c3e8df704588a886e027f85e4ee
 "###);
 }

@@ -62,7 +62,9 @@ fn managed_live_plan_produces_as1_relocation() {
             blocks,
             entry,
         }],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
     let ir = rewritten_ir_of(&module);
@@ -198,7 +200,9 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![callee, caller],
-        entry: managed_function_ref(1),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(1),
+        },
         meta: string_metadata(),
     };
 

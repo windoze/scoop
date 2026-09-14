@@ -53,7 +53,10 @@ pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, Cl
     let callable = lambda_materialization();
     module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
         SourceCallableMaterialization::new(
-            module.entry,
+            module
+                .output
+                .executable_entry()
+                .expect("test module is executable"),
             callable,
             scoop_identity::ExactCallableSignature::new(
                 scoop_identity::Effect::Ordinary,
@@ -75,7 +78,10 @@ pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, Cl
     let invoke = module
         .closure_invoke_functions
         .alloc(ClosureInvokeFunction {
-            function: module.entry,
+            function: module
+                .output
+                .executable_entry()
+                .expect("test module is executable"),
         });
     let inputs = (0..field_count)
         .map(|declaration_index| {
@@ -139,7 +145,11 @@ fn install_closure_allocation(
         terminator: Terminator::Return { value: None },
         unwind: None,
     });
-    module.functions[module.entry].body = Body {
+    module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body = Body {
         locals: Arena::new(),
         blocks,
         entry,
@@ -190,7 +200,10 @@ fn closure_allocation_rejects_a_duplicate_physical_field() {
         module.validate().unwrap_err(),
         MirValidationError {
             location: MirValidationLocation::FunctionBlock {
-                function: module.entry,
+                function: module
+                    .output
+                    .executable_entry()
+                    .expect("test module is executable"),
                 block,
             },
             kind: MirValidationErrorKind::InvalidClosureExpression {

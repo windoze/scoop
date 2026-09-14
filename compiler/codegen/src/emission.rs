@@ -55,10 +55,14 @@ fn prepare_llvm_module<'ctx>(
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
-    validation::validate_executable_entry(module)?;
+    if let scoop_lir::LirOutput::Executable { entry } = module.output {
+        validation::validate_executable_entry(module, entry)?;
+    }
     let llvm = emit_llvm_module(context, module, machine, profile)?;
-    let builder = context.create_builder();
-    emit_executable_entry_shim(context, &llvm, &builder, module)?;
+    if let scoop_lir::LirOutput::Executable { entry } = module.output {
+        let builder = context.create_builder();
+        emit_executable_entry_shim(context, &llvm, &builder, module, entry)?;
+    }
 
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;

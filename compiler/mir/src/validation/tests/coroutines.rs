@@ -89,7 +89,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         return_ty: Type::Enum(step_enum, Vec::new()),
         body: Body::unreachable(wrapper_locals),
     });
-    module.entry = wrapper;
+    module.output = MirOutput::Executable { entry: wrapper };
     let source = test_source_materialization();
     let source_signature = scoop_identity::ExactCallableSignature::new(
         scoop_identity::Effect::Suspend,
@@ -627,7 +627,11 @@ fn continuation_adapter_identity_must_retain_its_protocol_signatures() {
 #[test]
 fn final_validation_rejects_a_transient_pending_call_context() {
     let mut fixture = coroutine_fixture(false);
-    let function = fixture.module.entry;
+    let function = fixture
+        .module
+        .output
+        .executable_entry()
+        .expect("test module is executable");
     let block = fixture.module.functions[function].body.entry;
     fixture.module.functions[function].body.blocks[block]
         .statements

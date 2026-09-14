@@ -7,7 +7,11 @@ fn no_gc_effect_is_preserved_in_mir() {
     h.functions[main].attributes.gc_effect = hir::GcEffect::NoGc;
     let module = lower(&h.finish(main));
     assert_eq!(
-        module.functions[module.entry].gc_effect,
+        module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .gc_effect,
         mir::GcEffect::NoGc
     );
     assert!(mir::dump(&module).contains("-> Unit <no-gc>"));
@@ -72,7 +76,11 @@ fn class_fields_are_base_prefix_then_own() {
 
     // The field access keeps its 0-based index into the flattened
     // layout.
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[0].kind else {
         panic!("expected a val declaration")
     };

@@ -465,7 +465,9 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             blocks,
             entry,
         }],
-        entry: managed_function_ref(0),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta,
     };
     refresh_module_safepoints(&mut module);

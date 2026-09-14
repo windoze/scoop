@@ -215,7 +215,11 @@ fn generic_structs_instantiate_per_argument_list() {
     assert!(!box2[0].gc_free);
 
     // Locals and StructInits resolve to the instances.
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let instance_of = |local: mir::LocalId| {
         let mir::Type::Struct(id) = &body.locals[local].ty else {
             panic!("a struct local")
@@ -465,7 +469,11 @@ fn print_overloads_are_ordinary_calls() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let callees: Vec<mir::FunctionId> = entry_statements(body)
         .iter()
         .map(|statement| {
