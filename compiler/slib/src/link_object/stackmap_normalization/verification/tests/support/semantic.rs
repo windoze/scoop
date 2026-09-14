@@ -43,6 +43,7 @@ pub(crate) struct SemanticInputs {
     pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
     pub(crate) static_storage_registration_plan: StrongStaticStorageRegistrationPlanSetV1,
     pub(crate) initialization_registration_plan: StrongInitializationUnitRegistrationPlanSetV1,
+    pub(crate) registration_production: StrongRegistrationProductionSurfaceV1,
     pub(crate) safepoint_ids: Vec<u64>,
 }
 
@@ -112,8 +113,15 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         immortal_registration_plan,
         static_storage_registration_plan,
         initialization_registration_plan,
+        registration_production,
         safepoint_ids,
     }
+}
+
+#[test]
+fn complete_registration_production_uses_the_closed_seven_field_shape() {
+    let encoded = scoop_wire::encode(&inputs(Corruption::None).registration_production).unwrap();
+    assert_eq!(encoded[0], 0xa7);
 }
 
 fn semantic_module(

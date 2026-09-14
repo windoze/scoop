@@ -2,19 +2,27 @@
 
 use std::fmt;
 
+use scoop_wire::{Encoder, WireEncode};
+
 use crate::{
-    Module, OdrFreeLirFoundation, StrongCallableRegistrationPlanBuildError,
-    StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
-    StrongImmortalObjectRegistrationPlanBuildError, StrongImmortalObjectRegistrationPlanSetV1,
+    ImmortalObjectTypeRegistrationRefV1, Module, OdrFreeLirFoundation, RefScan,
+    StaticStorageRelocationTableArtifactV1, StrongCallableRegistrationPlanBuildError,
+    StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
+    StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanBuildError,
+    StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectRegistrationPlanV1,
     StrongImmortalObjectSemanticPlanBuildError, StrongImmortalObjectSemanticPlanSetV1,
-    StrongInitializationUnitRegistrationPlanBuildError,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanBuildError,
-    StrongInitializationUnitSemanticPlanSetV1, StrongRegistrationIdentityBuildError,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanBuildError,
-    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanError,
-    StrongSafepointSemanticPlanSetV1, StrongStaticStorageRegistrationPlanBuildError,
-    StrongStaticStorageRegistrationPlanSetV1, StrongTypeRegistrationPlanBuildError,
-    StrongTypeRegistrationPlanSetV1,
+    StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
+    StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlanBuildError,
+    StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanV1,
+    StrongInitializationUnitSemanticPlanBuildError, StrongInitializationUnitSemanticPlanSetV1,
+    StrongRegistrationIdentityBuildError, StrongRegistrationIdentitySurfaceV1,
+    StrongSafepointRegistrationPlanBuildError, StrongSafepointRegistrationPlanSetV1,
+    StrongSafepointRegistrationPlanV1, StrongSafepointSemanticPlanError,
+    StrongSafepointSemanticPlanSetV1, StrongStaticStorageInitialArtifactPlanV1,
+    StrongStaticStorageInitialStatePlanV1, StrongStaticStorageRegistrationPlanBuildError,
+    StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanV1,
+    StrongTypeRegistrationPlanBuildError, StrongTypeRegistrationPlanSetV1,
+    StrongTypeRegistrationPlanV1,
 };
 
 /// Complete member-independent registration authority produced from one final
@@ -130,6 +138,385 @@ impl StrongRegistrationProductionSurfaceV1 {
     pub const fn initialization_units(&self) -> &StrongInitializationUnitRegistrationPlanSetV1 {
         &self.initialization_units
     }
+}
+
+impl WireEncode for StrongRegistrationProductionSurfaceV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(7)?;
+        encode_field(encoder, 1, &self.identities)?;
+        encode_array_field(encoder, 2, self.safepoints.registrations())?;
+        encode_array_field(encoder, 3, self.callables.registrations())?;
+        encode_array_field(encoder, 4, self.types.registrations())?;
+        encode_array_field(encoder, 5, self.immortal_objects.registrations())?;
+        encode_array_field(encoder, 6, self.static_storages.registrations())?;
+        encode_array_field(encoder, 7, self.initialization_units.registrations())
+    }
+}
+
+impl WireEncode for StrongSafepointRegistrationPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(12)?;
+        encode_field(encoder, 1, &self.site())?;
+        encode_field(encoder, 2, &self.safepoint())?;
+        encode_field(encoder, 3, &self.owner())?;
+        encode_field(encoder, 4, &self.role())?;
+        encode_unsigned_field(encoder, 5, u64::from(self.root_pair_count()))?;
+        encode_field(encoder, 6, &self.symbol())?;
+        encode_field(encoder, 7, &self.definition_plan())?;
+        encode_field(encoder, 8, &self.primary_atom())?;
+        encode_field(encoder, 9, &self.registration_fingerprint_node())?;
+        encode_field(encoder, 10, &self.normalized_stackmap_fingerprint_node())?;
+        encode_field(encoder, 11, &self.registration_definition_patch())?;
+        encode_field(encoder, 12, &self.normalized_stackmap_patch())
+    }
+}
+
+impl WireEncode for StrongCallableRegistrationPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(12)?;
+        encode_field(encoder, 1, &self.body())?;
+        encode_field(encoder, 2, &self.symbol())?;
+        encode_field(encoder, 3, &self.definition_plan())?;
+        encode_field(encoder, 4, &self.primary_atom())?;
+        encode_field(encoder, 5, &self.entry_symbol())?;
+        encode_field(encoder, 6, &self.body_definition_plan())?;
+        encode_field(encoder, 7, &self.body_primary_atom())?;
+        encode_field(encoder, 8, &self.registration_object_node())?;
+        encode_field(encoder, 9, &self.body_definition_node())?;
+        encode_field(encoder, 10, &self.registration_fingerprint_node())?;
+        encode_field(encoder, 11, &self.registration_definition_patch())?;
+        encode_field(encoder, 12, &self.body_definition_patch())
+    }
+}
+
+impl WireEncode for StrongTypeRegistrationPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(19)?;
+        encode_field(encoder, 1, &self.exact_type())?;
+        encode_field(encoder, 2, &self.runtime_type())?;
+        encode_field(encoder, 3, &self.symbol())?;
+        encode_field(encoder, 4, &self.definition_plan())?;
+        encode_field(encoder, 5, &self.primary_atom())?;
+        encode_field(encoder, 6, &self.descriptor_symbol())?;
+        encode_field(encoder, 7, &self.descriptor_definition_plan())?;
+        encode_field(encoder, 8, &self.descriptor_primary_atom())?;
+        encode_field(encoder, 9, &self.layout())?;
+        encode_field(encoder, 10, &self.layout_symbol())?;
+        encode_field(encoder, 11, &self.layout_definition_plan())?;
+        encode_field(encoder, 12, &self.layout_primary_atom())?;
+        encode_field(encoder, 13, &self.registration_object_node())?;
+        encode_field(encoder, 14, &self.descriptor_definition_node())?;
+        encode_field(encoder, 15, &self.layout_fingerprint_node())?;
+        encode_field(encoder, 16, &self.registration_fingerprint_node())?;
+        encode_field(encoder, 17, &self.registration_definition_patch())?;
+        encode_field(encoder, 18, &self.descriptor_definition_patch())?;
+        encode_field(encoder, 19, &self.layout_fingerprint_patch())
+    }
+}
+
+impl WireEncode for StrongImmortalObjectRegistrationPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(15)?;
+        encode_field(encoder, 1, &self.object())?;
+        encode_field(encoder, 2, &self.object_symbol())?;
+        encode_unsigned_field(encoder, 3, self.object_size())?;
+        encode_unsigned_field(encoder, 4, self.required_alignment())?;
+        encoder.field(5)?;
+        encode_type_registration_ref(encoder, self.semantic().type_registration_ref())?;
+        encode_field(encoder, 6, &self.registration_symbol())?;
+        encode_field(encoder, 7, &self.registration_definition_plan())?;
+        encode_field(encoder, 8, &self.registration_primary_atom())?;
+        encode_field(encoder, 9, &self.object_definition_plan())?;
+        encode_field(encoder, 10, &self.object_primary_atom())?;
+        encode_field(encoder, 11, &self.type_registration_symbol())?;
+        encode_field(encoder, 12, &self.registration_object_node())?;
+        encode_field(encoder, 13, &self.object_definition_node())?;
+        encode_field(encoder, 14, &self.registration_fingerprint_node())?;
+        encode_field(encoder, 15, &self.registration_definition_patch())
+    }
+}
+
+impl WireEncode for StrongStaticStorageRegistrationPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        let semantic = self.semantic();
+        encoder.map(31)?;
+        encode_field(encoder, 1, &semantic.storage())?;
+        encode_field(encoder, 2, &semantic.symbol())?;
+        encode_field(encoder, 3, &semantic.layout())?;
+        encode_field(encoder, 4, &semantic.scan())?;
+        encoder.field(5)?;
+        encode_ref_scan(encoder, semantic.scan_program())?;
+        encode_unsigned_field(encoder, 6, u64::from(semantic.scan_kind().tag()))?;
+        encode_unsigned_field(encoder, 7, semantic.byte_size())?;
+        encode_unsigned_field(encoder, 8, semantic.allocation_extent())?;
+        encode_unsigned_field(encoder, 9, semantic.required_alignment())?;
+        encoder.field(10)?;
+        encode_static_initial_state(encoder, semantic.initial_state())?;
+        encode_field(encoder, 11, &self.registration_symbol())?;
+        encode_field(encoder, 12, &self.registration_definition_plan())?;
+        encode_field(encoder, 13, &self.registration_primary_atom())?;
+        encode_field(encoder, 14, &self.storage_definition_plan())?;
+        encode_field(encoder, 15, &self.storage_primary_atom())?;
+        encoder.field(16)?;
+        encode_static_initial_artifacts(encoder, self.initial_artifacts())?;
+        encode_array_field(encoder, 17, self.immortal_registration_symbols())?;
+        encode_field(encoder, 18, &self.layout_symbol())?;
+        encode_field(encoder, 19, &self.layout_definition_plan())?;
+        encode_field(encoder, 20, &self.layout_primary_atom())?;
+        encode_field(encoder, 21, &self.scan_symbol())?;
+        encode_field(encoder, 22, &self.scan_definition_plan())?;
+        encode_field(encoder, 23, &self.scan_primary_atom())?;
+        encode_field(encoder, 24, &self.registration_object_node())?;
+        encode_field(encoder, 25, &self.storage_definition_node())?;
+        encode_field(encoder, 26, &self.layout_fingerprint_node())?;
+        encode_field(encoder, 27, &self.scan_fingerprint_node())?;
+        encode_field(encoder, 28, &self.registration_fingerprint_node())?;
+        encode_field(encoder, 29, &self.registration_definition_patch())?;
+        encode_field(encoder, 30, &self.layout_fingerprint_patch())?;
+        encode_field(encoder, 31, &self.scan_fingerprint_patch())
+    }
+}
+
+impl WireEncode for StrongInitializationUnitRegistrationPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        let semantic = self.semantic();
+        encoder.map(28)?;
+        encode_field(encoder, 1, &semantic.unit())?;
+        encoder.field(2)?;
+        encoder.text(semantic.diagnostic_path())?;
+        encoder.field(3)?;
+        encode_initialization_semantic_schedule(encoder, semantic.schedule())?;
+        encode_field(encoder, 4, &semantic.storage())?;
+        encode_field(encoder, 5, &semantic.failure_root())?;
+        encode_field(encoder, 6, &semantic.initializer())?;
+        encode_field(encoder, 7, &semantic.ensure())?;
+        encode_array_field(encoder, 8, semantic.dependencies())?;
+        encode_field(encoder, 9, &self.registration_symbol())?;
+        encode_field(encoder, 10, &self.registration_definition_plan())?;
+        encode_field(encoder, 11, &self.registration_primary_atom())?;
+        encode_field(encoder, 12, &self.cell_symbol())?;
+        encode_field(encoder, 13, &self.cell_definition_plan())?;
+        encode_field(encoder, 14, &self.cell_primary_atom())?;
+        encode_field(encoder, 15, &self.descriptor_symbol())?;
+        encode_field(encoder, 16, &self.descriptor_definition_plan())?;
+        encode_field(encoder, 17, &self.descriptor_primary_atom())?;
+        encode_field(encoder, 18, &self.diagnostic_atom())?;
+        encoder.field(19)?;
+        encode_initialization_storage_ref(encoder, self.storage())?;
+        encoder.field(20)?;
+        encode_initialization_storage_ref(encoder, self.failure_root())?;
+        encoder.field(21)?;
+        encode_initialization_callable_ref(encoder, self.initializer())?;
+        encoder.field(22)?;
+        encode_initialization_callable_ref(encoder, self.ensure())?;
+        encoder.field(23)?;
+        encode_initialization_registration_schedule(encoder, self.schedule())?;
+        encode_field(encoder, 24, &self.registration_object_node())?;
+        encode_field(encoder, 25, &self.cell_definition_node())?;
+        encode_field(encoder, 26, &self.descriptor_definition_node())?;
+        encode_field(encoder, 27, &self.registration_fingerprint_node())?;
+        encode_field(encoder, 28, &self.registration_definition_patch())
+    }
+}
+
+fn encode_type_registration_ref(
+    encoder: &mut Encoder,
+    registration: ImmortalObjectTypeRegistrationRefV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    let (tag, exact_type) = match registration {
+        ImmortalObjectTypeRegistrationRefV1::Local(exact_type) => (1, exact_type),
+        ImmortalObjectTypeRegistrationRefV1::CoreExternal(exact_type) => (2, exact_type),
+    };
+    encode_value_sum(encoder, tag, &exact_type)
+}
+
+fn encode_ref_scan(
+    encoder: &mut Encoder,
+    scan: &RefScan,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match scan {
+        RefScan::None => encode_empty_sum(encoder, 1),
+        RefScan::References(offsets) => {
+            encoder.map(2)?;
+            encode_unsigned_field(encoder, 0, 2)?;
+            encoder.field(1)?;
+            encoder.array(offsets.len() as u64)?;
+            for offset in offsets {
+                encoder.unsigned(*offset)?;
+            }
+            Ok(())
+        }
+        RefScan::Sequence(parts) => {
+            encoder.map(2)?;
+            encode_unsigned_field(encoder, 0, 3)?;
+            encoder.field(1)?;
+            encoder.array(parts.len() as u64)?;
+            for part in parts {
+                encode_ref_scan(encoder, part)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn encode_static_initial_state(
+    encoder: &mut Encoder,
+    state: &StrongStaticStorageInitialStatePlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match state {
+        StrongStaticStorageInitialStatePlanV1::ZeroedForRuntimeUnit => encode_empty_sum(encoder, 1),
+        StrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
+            initial_template,
+            immortal_relocations,
+        } => {
+            encoder.map(3)?;
+            encode_unsigned_field(encoder, 0, 2)?;
+            encoder.field(1)?;
+            encoder.bytes(initial_template)?;
+            encoder.field(2)?;
+            encoder.array(immortal_relocations.len() as u64)?;
+            for relocation in immortal_relocations {
+                encoder.map(2)?;
+                encode_unsigned_field(encoder, 1, relocation.pointer_offset())?;
+                encode_field(encoder, 2, &relocation.target())?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn encode_static_initial_artifacts(
+    encoder: &mut Encoder,
+    artifacts: StrongStaticStorageInitialArtifactPlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match artifacts {
+        StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit => {
+            encode_empty_sum(encoder, 1)
+        }
+        StrongStaticStorageInitialArtifactPlanV1::EncodedStaticValue {
+            template_atom,
+            relocation_table,
+        } => {
+            encoder.map(3)?;
+            encode_unsigned_field(encoder, 0, 2)?;
+            encode_field(encoder, 1, &template_atom)?;
+            encoder.field(2)?;
+            match relocation_table {
+                StaticStorageRelocationTableArtifactV1::SharedEmptySentinel => {
+                    encode_empty_sum(encoder, 1)
+                }
+                StaticStorageRelocationTableArtifactV1::Defined { atom } => {
+                    encode_value_sum(encoder, 2, &atom)
+                }
+            }
+        }
+    }
+}
+
+fn encode_initialization_semantic_schedule(
+    encoder: &mut Encoder,
+    schedule: crate::StrongInitializationSchedulePlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match schedule {
+        crate::StrongInitializationSchedulePlanV1::EagerStartup { gateway } => {
+            encode_value_sum(encoder, 1, &gateway)
+        }
+        crate::StrongInitializationSchedulePlanV1::LazyAccess => encode_empty_sum(encoder, 2),
+    }
+}
+
+fn encode_initialization_storage_ref(
+    encoder: &mut Encoder,
+    reference: StrongInitializationStaticStorageRefPlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(6)?;
+    encode_field(encoder, 1, &reference.storage())?;
+    encode_field(encoder, 2, &reference.storage_symbol())?;
+    encode_field(encoder, 3, &reference.registration_symbol())?;
+    encode_field(encoder, 4, &reference.registration_definition_plan())?;
+    encode_field(encoder, 5, &reference.registration_primary_atom())?;
+    encode_field(encoder, 6, &reference.registration_fingerprint_node())
+}
+
+fn encode_initialization_callable_ref(
+    encoder: &mut Encoder,
+    reference: StrongInitializationCallableRefPlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(9)?;
+    encode_field(encoder, 1, &reference.body())?;
+    encode_field(encoder, 2, &reference.entry_symbol())?;
+    encode_field(encoder, 3, &reference.registration_symbol())?;
+    encode_field(encoder, 4, &reference.body_definition_plan())?;
+    encode_field(encoder, 5, &reference.body_primary_atom())?;
+    encode_field(encoder, 6, &reference.body_definition_node())?;
+    encode_field(encoder, 7, &reference.registration_definition_plan())?;
+    encode_field(encoder, 8, &reference.registration_primary_atom())?;
+    encode_field(encoder, 9, &reference.registration_fingerprint_node())
+}
+
+fn encode_initialization_registration_schedule(
+    encoder: &mut Encoder,
+    schedule: &StrongInitializationRegistrationSchedulePlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match schedule {
+        StrongInitializationRegistrationSchedulePlanV1::EagerStartup {
+            gateway,
+            gateway_definition_patch,
+        } => {
+            encoder.map(3)?;
+            encode_unsigned_field(encoder, 0, 1)?;
+            encoder.field(1)?;
+            encode_initialization_callable_ref(encoder, **gateway)?;
+            encode_field(encoder, 2, gateway_definition_patch)
+        }
+        StrongInitializationRegistrationSchedulePlanV1::LazyAccess => encode_empty_sum(encoder, 2),
+    }
+}
+
+fn encode_field(
+    encoder: &mut Encoder,
+    field: u32,
+    value: &impl WireEncode,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.field(field)?;
+    value.encode(encoder)
+}
+
+fn encode_unsigned_field(
+    encoder: &mut Encoder,
+    field: u32,
+    value: u64,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.field(field)?;
+    encoder.unsigned(value)
+}
+
+fn encode_array_field<T: WireEncode>(
+    encoder: &mut Encoder,
+    field: u32,
+    values: &[T],
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.field(field)?;
+    encoder.array(values.len() as u64)?;
+    for value in values {
+        value.encode(encoder)?;
+    }
+    Ok(())
+}
+
+fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(1)?;
+    encode_unsigned_field(encoder, 0, tag)
+}
+
+fn encode_value_sum(
+    encoder: &mut Encoder,
+    tag: u64,
+    value: &impl WireEncode,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encode_unsigned_field(encoder, 0, tag)?;
+    encode_field(encoder, 1, value)
 }
 
 #[derive(Debug)]
