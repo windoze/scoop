@@ -7,8 +7,9 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanV1,
+    StrongCallableRegistrationPlanSetV1, StrongInitializationCallableRefPlanV1,
+    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlanSetV1,
+    StrongInitializationUnitRegistrationPlanV1,
 };
 
 use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1};
@@ -33,6 +34,7 @@ struct AtomLocation {
 pub(super) fn object_bytes(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     plans: &StrongInitializationUnitRegistrationPlanSetV1,
+    callable_plans: &StrongCallableRegistrationPlanSetV1,
     corruption: Corruption,
 ) -> ObjectFixture {
     let plan = &plans.registrations()[0];
@@ -42,7 +44,8 @@ pub(super) fn object_bytes(
     let root_registration_base = 0;
     let callable_registration_base = 16;
     let descriptor_relative = align_to(
-        callable_registration_base + u64::try_from(callables.len()).unwrap() * 8,
+        callable_registration_base
+            + u64::try_from(callable_plans.registrations().len()).unwrap() * 192,
         8,
     );
     let registration_relative = descriptor_relative + 88;
@@ -73,8 +76,8 @@ pub(super) fn object_bytes(
             &mut locations,
             callable.registration_primary_atom(),
             2,
-            readonly_base + callable_registration_base + u64::try_from(index).unwrap() * 8,
-            8,
+            readonly_base + callable_registration_relative(callable_plans, callable.body()),
+            192,
         );
     }
     for (index, storage) in [plan.storage(), plan.failure_root()].iter().enumerate() {
@@ -130,6 +133,13 @@ pub(super) fn object_bytes(
         text[offset + 4..offset + 8].copy_from_slice(&0xd65f_03c0_u32.to_le_bytes());
     }
     let mut readonly = vec![0; usize::try_from(readonly_size).unwrap()];
+    for callable in callable_plans.registrations() {
+        let start = callable_registration_relative(callable_plans, callable.body());
+        readonly[usize::try_from(start).unwrap()..usize::try_from(start + 192).unwrap()]
+            .copy_from_slice(
+                &crate::link_object::callable_registrations::record::expected_record(*callable),
+            );
+    }
     readonly[usize::try_from(descriptor_relative).unwrap()
         ..usize::try_from(descriptor_relative + 88).unwrap()]
         .copy_from_slice(&super::super::super::record::expected_coordinator(plan));
@@ -160,6 +170,7 @@ pub(super) fn object_bytes(
     let relocations = relocations(
         symbols,
         plans,
+        callable_plans,
         plan,
         descriptor_relative,
         registration_relative,
@@ -278,6 +289,15 @@ pub(super) fn object_bytes(
     if let Some(intent) = plan.schedule().gateway_definition_patch() {
         patch_offsets.push((intent, registration_file + 312));
     }
+    for callable in callable_plans.registrations() {
+        let callable_file =
+            readonly_file_offset + callable_registration_relative(callable_plans, callable.body());
+        patch_offsets.push((
+            callable.registration_definition_patch(),
+            callable_file + 120,
+        ));
+        patch_offsets.push((callable.body_definition_patch(), callable_file + 152));
+    }
     patch_offsets.sort_unstable_by_key(|(intent, _)| *intent);
     ObjectFixture {
         bytes,
@@ -288,6 +308,7 @@ pub(super) fn object_bytes(
 fn relocations(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     plans: &StrongInitializationUnitRegistrationPlanSetV1,
+    callable_plans: &StrongCallableRegistrationPlanSetV1,
     plan: &StrongInitializationUnitRegistrationPlanV1,
     descriptor: u64,
     registration: u64,
@@ -341,10 +362,28 @@ fn relocations(
             },
         ));
     }
+    for callable in callable_plans.registrations() {
+        items.push((
+            callable_registration_relative(callable_plans, callable.body()) + 184,
+            primary_symbol_index(symbols, callable.body_definition_plan()),
+        ));
+    }
     items
         .into_iter()
         .map(|(offset, symbol)| (u32::try_from(offset).unwrap(), symbol))
         .collect()
+}
+
+fn callable_registration_relative(
+    plans: &StrongCallableRegistrationPlanSetV1,
+    body: scoop_identity::PersistentCallableBodyId,
+) -> u64 {
+    let index = plans
+        .registrations()
+        .iter()
+        .position(|plan| plan.body() == body)
+        .expect("initialization callable has a callable registration");
+    16 + u64::try_from(index).unwrap() * 192
 }
 
 fn callable_refs(

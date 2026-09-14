@@ -1693,6 +1693,17 @@ Primary中的diagnostic/cell/storage/failure-root/initializer/ensure relocation�
 leaf的专用、不可省略后缀；不能把path bytes并入Primary byte span、只靠StrongRegistration间接承诺、另算
 无graph node的辅助digest或继续接受只hash Primary的旧格式。
 
+initialization的StrongRegistration只能经`compute_strong_initialization_fingerprints_v1`消费上述成对definition
+proof，并借用同一完整object/patch/stackmap/undefined-requirement闭包产生的callable-body ObjectDefinition proof。
+canonical record依次编码record-kind `InitializationUnit=3`、Strong linkage、unit id、三个零own/ODR digest、
+schedule、无NUL的diagnostic path byte span、`OwnInitializationCell=3`及unit id、storage/failure storage id、
+`CallableEntry=4`及initializer body id、`CallableEntry=4`及ensure body id，最后编码
+`None=0 | Unit=1 { UnitGateway=5, startup gateway body id, gateway ObjectDefinition fingerprint }`。三项
+registration/cell/descriptor ObjectDefinition direct input始终存在；Eager再加入gateway body ObjectDefinition，
+Lazy固定只有三项，全部按`(kind, node id)`排序。Eager gateway digest必须从typed callable-body proof中按精确
+body/node取得，且同时进入record字段与direct input；不能接受裸digest、仅按body id自报映射、缺少完整callable
+proof的临时body hash或保留不承诺gateway实现的旧Eager key。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

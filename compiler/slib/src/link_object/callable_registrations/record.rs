@@ -41,7 +41,9 @@ pub(super) fn validate_record_bytes(
     Ok(())
 }
 
-pub(super) fn expected_record(plan: StrongCallableRegistrationPlanV1) -> [u8; DESCRIPTOR_SIZE] {
+pub(in crate::link_object) fn expected_record(
+    plan: StrongCallableRegistrationPlanV1,
+) -> [u8; DESCRIPTOR_SIZE] {
     let mut bytes = [0; DESCRIPTOR_SIZE];
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);

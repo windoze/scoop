@@ -17,10 +17,10 @@ use scoop_lir::{
     LayoutKind, LirMeta, LirStaticInitialState, LirTargetProfile, LirType, LocalFunctionIdentities,
     LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges,
     OdrFreeLirFoundation, PointerKind, RefScan, SafepointIdentities, ScoopAbiSignature,
-    StaticStorageIdentity, StrongDigestFinalizationPlanV1,
+    StaticStorageIdentity, StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
     StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanSetV1,
-    StrongRegistrationIdentitySurfaceV1, StructDefs, Terminator, TypeDescriptorRef,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    StrongRegistrationIdentitySurfaceV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
+    TypeDescriptorRef, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 pub(super) struct SemanticInputs {
@@ -28,6 +28,8 @@ pub(super) struct SemanticInputs {
     pub(super) definitions: Vec<ObjectDefinitionPlanId>,
     pub(super) digest_plan: StrongDigestFinalizationPlanV1,
     pub(super) plan: StrongInitializationUnitRegistrationPlanSetV1,
+    pub(super) callable_plan: StrongCallableRegistrationPlanSetV1,
+    pub(super) safepoints: StrongSafepointSemanticPlanSetV1,
 }
 
 pub(super) fn inputs(lazy: bool) -> SemanticInputs {
@@ -188,6 +190,8 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
     );
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let callable_plan =
+        StrongCallableRegistrationPlanSetV1::new(&foundation, &identities, &digest_plan).unwrap();
     let plan = StrongInitializationUnitRegistrationPlanSetV1::new(
         &foundation,
         &identities,
@@ -195,6 +199,7 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
         &digest_plan,
     )
     .unwrap();
+    let safepoints = StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
     let definitions = [
         cell.definition.id(),
         descriptor.definition.id(),
@@ -219,6 +224,8 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
         definitions,
         digest_plan,
         plan,
+        callable_plan,
+        safepoints,
     }
 }
 
@@ -278,18 +285,26 @@ fn digest_plan(
         .map(|callable| {
             let key = DigestNodeKey::object_definition(callable.body_definition.primary.id());
             let id = DigestNodeId::from_key(&key).unwrap();
-            let patches = if Some(callable.body) == gateway {
-                vec![DigestPatchIntentKey::new(
+            let mut patches = vec![DigestPatchIntentKey::new(
+                id,
+                callable.registration.definition.id(),
+                DefinitionAtomRole::Primary,
+                DigestSemanticFieldRole::CallableBodyDefinition,
+            )];
+            if Some(callable.body) == gateway {
+                patches.push(DigestPatchIntentKey::new(
                     id,
                     registration.definition.id(),
                     DefinitionAtomRole::Primary,
                     DigestSemanticFieldRole::GatewayDefinition,
-                )]
-            } else {
-                Vec::new()
-            };
+                ));
+            }
             DigestNodeV1::new(key, Vec::new(), patches).unwrap()
         })
+        .collect::<Vec<_>>();
+    let callable_registration_objects = callables
+        .iter()
+        .map(|callable| object_leaf(&callable.registration))
         .collect::<Vec<_>>();
     let mut nodes = vec![
         cell_object.clone(),
@@ -297,6 +312,7 @@ fn digest_plan(
         registration_object.clone(),
     ];
     nodes.extend(callable_objects.iter().cloned());
+    nodes.extend(callable_registration_objects.iter().cloned());
     let mut image_inputs = Vec::new();
     for storage in storages {
         let strong = DigestNodeV1::new(
@@ -308,11 +324,25 @@ fn digest_plan(
         image_inputs.push(DigestInputRefV1::from_node(&strong));
         nodes.push(strong);
     }
-    for callable in callables {
+    for ((callable, body_object), registration_object) in callables
+        .iter()
+        .zip(&callable_objects)
+        .zip(&callable_registration_objects)
+    {
+        let key = DigestNodeKey::strong_registration(callable.registration.definition.id());
+        let id = DigestNodeId::from_key(&key).unwrap();
         let strong = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(callable.registration.definition.id()),
-            Vec::new(),
-            Vec::new(),
+            key,
+            vec![
+                DigestInputRefV1::from_node(registration_object),
+                DigestInputRefV1::from_node(body_object),
+            ],
+            vec![DigestPatchIntentKey::new(
+                id,
+                callable.registration.definition.id(),
+                DefinitionAtomRole::Primary,
+                DigestSemanticFieldRole::RegistrationDefinition,
+            )],
         )
         .unwrap();
         image_inputs.push(DigestInputRefV1::from_node(&strong));
