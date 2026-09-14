@@ -304,6 +304,13 @@ CurrentConeParsedSources {
 
 private checked constructor证明所有source identity的Cone相同、logical path唯一、顺序canonical、source table与text/diagnostic sidecar全覆盖。不存在error node、missing source或跨Cone source混入的成功值。
 
+driver只在持有`ValidatedCoreOnlyBuildRequest`后调用`parse_current_sources`。manifest与trusted-core bootstrap
+分支从结构非空的`DiscoveredManifestSources { first, rest }`机械构造parser输入，single-file分支只构造一个
+reserved source input；不再把运行时“已检查非空”的`Vec`交给driver后用`expect`恢复证明。成功返回
+`ParsedSingleConeBuildRequest`，同时拥有`CurrentConeParsedSources`并借用产生它的request/core proof，不能把AST
+与另一请求重新拼接；该类型及`CurrentConeParsedSources`均不提供拆出裸AST所有权的降级接口。discovery、
+single-file读取和parser错误是三个封闭分支，任一失败均无partial parsed output。
+
 ## 5. single-Cone请求与dependency输入
 
 ### 5.1 typed request

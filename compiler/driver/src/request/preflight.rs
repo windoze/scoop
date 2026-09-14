@@ -1,10 +1,14 @@
 use std::fmt;
 use std::path::PathBuf;
 
+use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
 use scoop_identity::ConeCoordinate;
 use scoop_manifest::{
-    LoadedConeManifest, ManifestRootError, ManifestSpan, SingleFileLocator, load_cone_manifest,
+    DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
+    ManifestSpan, SingleFileInputError, SingleFileLocator, SourceDiscoveryError,
+    discover_manifest_sources, load_cone_manifest, load_single_file_source,
 };
+use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
 use scoop_wire::DecodeLimits;
 
 use super::{
@@ -217,6 +221,104 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
     pub const fn emit(&self) -> StageDumpPolicy {
         self.request.emit
     }
+
+    pub fn parse_current_sources<'request>(
+        &'request self,
+    ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
+        let sources = parse_loaded_current(&self.request.current)?;
+        Ok(ParsedSingleConeBuildRequest {
+            request: self,
+            sources,
+        })
+    }
+}
+
+pub struct ParsedSingleConeBuildRequest<'request, 'artifact> {
+    request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
+    sources: CurrentConeParsedSources,
+}
+
+impl<'request, 'artifact> ParsedSingleConeBuildRequest<'request, 'artifact> {
+    pub const fn request(&self) -> &'request ValidatedCoreOnlyBuildRequest<'artifact> {
+        self.request
+    }
+
+    pub const fn sources(&self) -> &CurrentConeParsedSources {
+        &self.sources
+    }
+}
+
+fn parse_loaded_current(
+    current: &LoadedCurrentConeInput,
+) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
+    match current {
+        LoadedCurrentConeInput::Manifest { manifest } => {
+            let sources = discover_manifest_sources(manifest)
+                .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
+            parse_discovered_sources(&sources)
+        }
+        LoadedCurrentConeInput::SingleFile { source } => {
+            let source = load_single_file_source(source)
+                .map_err(|source| CurrentConeSourceStageError::SingleFile(Box::new(source)))?;
+            parse_single_discovered_source(&source)
+        }
+        LoadedCurrentConeInput::TrustedCoreBootstrap { input } => {
+            let sources = discover_manifest_sources(input.source_slot().manifest())
+                .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
+            parse_discovered_sources(&sources)
+        }
+    }
+}
+
+fn parse_discovered_sources(
+    sources: &DiscoveredManifestSources,
+) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
+    let first = parser_source_input(sources.first());
+    let rest = sources.iter().skip(1).map(parser_source_input).collect();
+    parse_current_cone(NonEmptyVec::new(first, rest))
+        .map_err(|source| CurrentConeSourceStageError::Parser(Box::new(source)))
+}
+
+fn parse_single_discovered_source(
+    source: &DiscoveredSource,
+) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
+    parse_current_cone(NonEmptyVec::new(parser_source_input(source), Vec::new()))
+        .map_err(|source| CurrentConeSourceStageError::Parser(Box::new(source)))
+}
+
+fn parser_source_input(source: &DiscoveredSource) -> CurrentConeSourceInput<'_> {
+    CurrentConeSourceInput::new(
+        source.identity(),
+        source.source_text(),
+        source.display_locator().as_path(),
+    )
+}
+
+#[derive(Debug)]
+pub enum CurrentConeSourceStageError {
+    Discovery(Box<SourceDiscoveryError>),
+    SingleFile(Box<SingleFileInputError>),
+    Parser(Box<ParseCurrentConeError>),
+}
+
+impl fmt::Display for CurrentConeSourceStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Discovery(source) => source.fmt(formatter),
+            Self::SingleFile(source) => source.fmt(formatter),
+            Self::Parser(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CurrentConeSourceStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Discovery(source) => source.as_ref(),
+            Self::SingleFile(source) => source.as_ref(),
+            Self::Parser(source) => source.as_ref(),
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -295,6 +397,7 @@ impl std::error::Error for SingleConePreflightError {
 
 #[cfg(test)]
 mod tests {
+    use scoop_identity::SourceIdentity;
     use scoop_manifest::ManifestRootLocator;
 
     use super::*;
@@ -368,5 +471,86 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn manifest_sources_parse_in_canonical_identity_order() {
+        let directory = manifest_cone();
+        std::fs::write(directory.path().join("src/z.scoop"), "package z\n").unwrap();
+        std::fs::write(directory.path().join("src/a.scoop"), "package a\n").unwrap();
+        let current = load_current_input(CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(directory.path()),
+        })
+        .unwrap();
+
+        let parsed = parse_loaded_current(&current).unwrap();
+
+        let paths = parsed
+            .sources()
+            .sources()
+            .iter()
+            .map(|source| source.identity().logical_path().as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(paths, ["src/a.scoop", "src/z.scoop"]);
+        assert_eq!(parsed.source_texts().entries().len(), 2);
+        assert_eq!(parsed.diagnostic_context().entries().len(), 2);
+    }
+
+    #[test]
+    fn single_file_parse_uses_the_reserved_source_identity() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("arbitrary-name.scoop");
+        std::fs::write(&path, "fun main() {}\n").unwrap();
+        let current = load_current_input(CurrentConeInput::SingleFile {
+            source: SingleFileLocator::from_path(&path).unwrap(),
+        })
+        .unwrap();
+
+        let parsed = parse_loaded_current(&current).unwrap();
+
+        assert_eq!(parsed.cone(), scoop_identity::ConeIdentity::SINGLE_FILE);
+        assert_eq!(
+            parsed.sources().sources().first().identity(),
+            &SourceIdentity::single_file()
+        );
+        assert_eq!(
+            parsed
+                .diagnostic_context()
+                .entries()
+                .first()
+                .display_locator(),
+            path
+        );
+    }
+
+    #[test]
+    fn parser_failure_keeps_semantic_source_identity() {
+        let directory = manifest_cone();
+        std::fs::write(directory.path().join("src/bad.scoop"), "package .bad\n").unwrap();
+        let current = load_current_input(CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(directory.path()),
+        })
+        .unwrap();
+
+        let error = parse_loaded_current(&current).unwrap_err();
+
+        assert!(matches!(
+            error,
+            CurrentConeSourceStageError::Parser(source)
+                if matches!(source.as_ref(), ParseCurrentConeError::Diagnostics(diagnostics)
+                    if diagnostics.len() == 1
+                        && diagnostics[0].identity().logical_path().as_str() == "src/bad.scoop")
+        ));
+    }
+
+    fn manifest_cone() -> tempfile::TempDir {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::create_dir(directory.path().join("src")).unwrap();
+        std::fs::write(
+            directory.path().join("Cone.toml"),
+            "schema = 1\n[cone]\ngroup = \"test\"\nname = \"current\"\nversion = \"0.0.0\"\nkind = \"library\"\n",
+        )
+        .unwrap();
+        directory
     }
 }

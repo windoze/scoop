@@ -157,10 +157,6 @@ impl CurrentConeParsedSources {
     pub const fn diagnostic_context(&self) -> &CurrentDiagnosticContext {
         &self.diagnostic_context
     }
-
-    pub fn into_sources(self) -> AllParsedSources {
-        self.sources
-    }
 }
 
 fn validate_current_source_order(
