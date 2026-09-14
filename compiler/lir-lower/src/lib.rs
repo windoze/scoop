@@ -372,7 +372,14 @@ pub fn lower(
             core_external_callables: Arena::new(),
         },
     };
-    lir::SingleConeStrongLirOutput::try_new(module).map_err(StrongLirLoweringError::Foundation)
+    lir::SingleConeStrongLirOutput::try_new(
+        module,
+        input
+            .materialization()
+            .core_shape_support_sources()
+            .to_vec(),
+    )
+    .map_err(StrongLirLoweringError::Output)
 }
 
 fn materialized_exact_types(
@@ -433,14 +440,14 @@ fn callable_body_identity(owner: mir::CallableOwner) -> lir::CallableBodyIdentit
 #[derive(Debug)]
 pub enum StrongLirLoweringError {
     Capability(StrongLirCapabilityError),
-    Foundation(lir::OdrFreeLirFoundationProjectionError),
+    Output(lir::SingleConeStrongLirOutputError),
 }
 
 impl fmt::Display for StrongLirLoweringError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Capability(source) => source.fmt(formatter),
-            Self::Foundation(source) => source.fmt(formatter),
+            Self::Output(source) => source.fmt(formatter),
         }
     }
 }
@@ -449,7 +456,7 @@ impl std::error::Error for StrongLirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Capability(source) => Some(source),
-            Self::Foundation(source) => Some(source),
+            Self::Output(source) => Some(source),
         }
     }
 }

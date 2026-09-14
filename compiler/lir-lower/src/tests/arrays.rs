@@ -42,9 +42,12 @@ fn reachable_generic_array_reports_stable_strong_capability_error() {
                 &StrongLirMaterializationRequirement::ArrayType(array_class)
             );
         }
-        StrongLirLoweringError::Foundation(_) => {
+        StrongLirLoweringError::Output(lir::SingleConeStrongLirOutputError::Foundation(_)) => {
             panic!("capability validation must run before LIR foundation projection")
         }
+        StrongLirLoweringError::Output(lir::SingleConeStrongLirOutputError::CoreShapeSupport(
+            _,
+        )) => panic!("a non-core capability fixture cannot enter core shape sealing"),
     }
 }
 

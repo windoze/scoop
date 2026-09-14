@@ -496,6 +496,18 @@ impl TrustedCoreBootstrapHirOutput {
     /// section, the MIR graph, and the derived ODR-free foundation in one
     /// inseparable stage product.
     pub fn lower_mir(self) -> Result<TrustedCoreBootstrapMirOutput, CoreBootstrapMirStageError> {
+        let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(shape_support) =
+            self.hir.local.materialization()
+        else {
+            return Err(CoreBootstrapMirStageError::MissingCoreShapeSupportPlan);
+        };
+        let shape_sources = scoop_mir::CoreShapeSupportSourceInput::Core(
+            shape_support
+                .roots()
+                .iter()
+                .map(|root| root.declaration().clone())
+                .collect(),
+        );
         let mir = scoop_mir_lower::lower(&self.hir.local);
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
             .map_err(CoreBootstrapMirStageError::Foundation)?;
@@ -505,9 +517,13 @@ impl TrustedCoreBootstrapHirOutput {
             &foundation,
         )
         .map_err(CoreBootstrapMirStageError::ProductionSection)?;
-        let strong =
-            scoop_mir::SingleConeStrongMirInput::try_new(mir, foundation, production_section)
-                .map_err(CoreBootstrapMirStageError::Sealing)?;
+        let strong = scoop_mir::SingleConeStrongMirInput::try_new(
+            mir,
+            foundation,
+            production_section,
+            shape_sources,
+        )
+        .map_err(CoreBootstrapMirStageError::Sealing)?;
         Ok(TrustedCoreBootstrapMirOutput { hir: self, strong })
     }
 }
@@ -578,6 +594,10 @@ impl TrustedCoreBootstrapLirOutput {
     pub const fn foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
         self.lir.foundation()
     }
+
+    pub const fn core_shape_support(&self) -> &scoop_lir::StrongLirCoreShapeSupportPlan {
+        self.lir.core_shape_support()
+    }
 }
 
 #[derive(Debug)]
@@ -603,6 +623,7 @@ impl std::error::Error for CoreBootstrapLirStageError {
 
 #[derive(Debug)]
 pub enum CoreBootstrapMirStageError {
+    MissingCoreShapeSupportPlan,
     Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
     ProductionSection(scoop_mir_lower::MirProductionLoweringError),
     Sealing(scoop_mir::SingleConeStrongMirInputError),
@@ -611,6 +632,9 @@ pub enum CoreBootstrapMirStageError {
 impl fmt::Display for CoreBootstrapMirStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingCoreShapeSupportPlan => {
+                formatter.write_str("trusted core HIR output has no core shape-support plan")
+            }
             Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
             Self::Sealing(source) => source.fmt(formatter),
@@ -621,6 +645,7 @@ impl fmt::Display for CoreBootstrapMirStageError {
 impl std::error::Error for CoreBootstrapMirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::MissingCoreShapeSupportPlan => return None,
             Self::Foundation(source) => source,
             Self::ProductionSection(source) => source,
             Self::Sealing(source) => source,
@@ -1173,6 +1198,24 @@ mod tests {
                 )
             })
             .count();
+        let missing_source_module = scoop_mir_lower::lower(&output.hir().local);
+        let missing_source_foundation =
+            scoop_mir::OdrFreeMirFoundation::from_module(&missing_source_module).unwrap();
+        let missing_source_production = scoop_mir_lower::lower_production_section(
+            missing_source_module.cone,
+            output.production_section(),
+            &missing_source_foundation,
+        )
+        .unwrap();
+        assert!(matches!(
+            scoop_mir::SingleConeStrongMirInput::try_new(
+                missing_source_module,
+                missing_source_foundation,
+                missing_source_production,
+                scoop_mir::CoreShapeSupportSourceInput::NotCore,
+            ),
+            Err(scoop_mir::SingleConeStrongMirInputError::CoreShapeSupportSourceBranchMismatch)
+        ));
         let real_mir = output.lower_mir().unwrap();
         assert_eq!(real_mir.mir().cone, scoop_identity::ConeIdentity::CORE);
         let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(shape_plan) =
@@ -1228,6 +1271,14 @@ mod tests {
             real_mir.materialization_plan().core_shape_support_roots(),
             real_core_bridge.shape_support_roots()
         );
+        assert_eq!(
+            real_mir.materialization_plan().core_shape_support_sources(),
+            shape_plan
+                .roots()
+                .iter()
+                .map(|root| root.declaration().clone())
+                .collect::<Vec<_>>()
+        );
         assert!(
             !real_mir
                 .materialization_plan()
@@ -1249,9 +1300,39 @@ mod tests {
                 .len(),
             real_mir.mir().meta.callable_signatures.len()
         );
+        let expected_lir_shape_roots = real_core_bridge.shape_support_roots().to_vec();
         let real_lir = real_mir
             .lower_lir(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
             .unwrap();
+        let scoop_lir::StrongLirCoreShapeSupportPlan::Core(lir_shape_roots) =
+            real_lir.core_shape_support()
+        else {
+            panic!("trusted core LIR retains its validated core shape plan")
+        };
+        assert_eq!(lir_shape_roots.len(), expected_shape_roots);
+        for (root, authority) in lir_shape_roots.iter().zip(&expected_lir_shape_roots) {
+            assert_eq!(
+                root.source().nominal(),
+                scoop_identity::PersistentTypeId::from_source_declaration(root.declaration())
+                    .unwrap()
+            );
+            assert_eq!(root.source().nominal(), authority.source());
+            assert_eq!(root.source().exact(), authority.exact());
+            assert_eq!(root.source().type_descriptor(), root.source().exact());
+            assert_eq!(
+                root.coroutine_step().type_descriptor(),
+                root.coroutine_step().exact()
+            );
+            assert_eq!(
+                root.coroutine_slot().type_descriptor(),
+                root.coroutine_slot().exact()
+            );
+            if let scoop_lir::StrongLirBoxedValueMaterialization::Available(boxed) =
+                root.boxed_value()
+            {
+                assert_eq!(boxed.type_descriptor(), boxed.exact());
+            }
+        }
         let lir_counts = real_lir.foundation().as_canonical().counts();
         assert_eq!(lir_counts.odr_groups, 0);
         assert_eq!(lir_counts.odr_members, 0);

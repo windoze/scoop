@@ -217,15 +217,18 @@ pub fn compile_file_with_options(
                     format!("MIR production projection failed: {error}"),
                 )]
             })?;
-    let strong_mir =
-        scoop_mir::SingleConeStrongMirInput::try_new(mir, mir_foundation, mir_production).map_err(
-            |error| {
-                vec![no_span(
-                    user_index,
-                    format!("MIR strong-profile sealing failed: {error}"),
-                )]
-            },
-        )?;
+    let strong_mir = scoop_mir::SingleConeStrongMirInput::try_new(
+        mir,
+        mir_foundation,
+        mir_production,
+        scoop_mir::CoreShapeSupportSourceInput::NotCore,
+    )
+    .map_err(|error| {
+        vec![no_span(
+            user_index,
+            format!("MIR strong-profile sealing failed: {error}"),
+        )]
+    })?;
 
     let lir = scoop_lir_lower::lower(&strong_mir, target_profile.lir_target())
         .map_err(|error| vec![no_span(user_index, format!("LIR lowering failed: {error}"))])?;

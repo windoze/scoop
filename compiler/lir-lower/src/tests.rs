@@ -194,7 +194,13 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
         strong_callable_bridges,
     )
     .unwrap();
-    mir::SingleConeStrongMirInput::try_new(module, foundation, production).unwrap()
+    mir::SingleConeStrongMirInput::try_new(
+        module,
+        foundation,
+        production,
+        mir::CoreShapeSupportSourceInput::NotCore,
+    )
+    .unwrap()
 }
 
 fn try_lower(
@@ -216,7 +222,6 @@ fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_single_file(),
             entry_source,
-            &[],
         )
         .unwrap()
 }

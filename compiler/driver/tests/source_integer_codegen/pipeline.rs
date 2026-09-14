@@ -104,8 +104,13 @@ pub(super) fn lower_program(
     let production =
         scoop_mir_lower::lower_production_section(mir.cone, &hir_production, &foundation)
             .expect("integer test MIR has a complete production section");
-    let mir = scoop_mir::SingleConeStrongMirInput::try_new(mir, foundation, production)
-        .expect("integer test MIR seals as one strong input");
+    let mir = scoop_mir::SingleConeStrongMirInput::try_new(
+        mir,
+        foundation,
+        production,
+        scoop_mir::CoreShapeSupportSourceInput::NotCore,
+    )
+    .expect("integer test MIR seals as one strong input");
     let profile =
         scoop_codegen::ResolvedTargetProfile::resolve_host().expect("supported host profile");
     let lir = scoop_lir_lower::lower(&mir, profile.lir_target())

@@ -43,9 +43,12 @@ fn reachable_structural_function_descriptor_reports_strong_capability_error() {
                 ))
             );
         }
-        StrongLirLoweringError::Foundation(_) => {
+        StrongLirLoweringError::Output(lir::SingleConeStrongLirOutputError::Foundation(_)) => {
             panic!("capability validation must run before LIR foundation projection")
         }
+        StrongLirLoweringError::Output(lir::SingleConeStrongLirOutputError::CoreShapeSupport(
+            _,
+        )) => panic!("a non-core capability fixture cannot enter core shape sealing"),
     }
 }
 

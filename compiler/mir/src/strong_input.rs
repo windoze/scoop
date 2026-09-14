@@ -2,7 +2,11 @@
 
 use std::fmt;
 
-use scoop_identity::{CallableOwner, ExactTypeKey, PersistentExactTypeId, PersistentTypeId};
+use scoop_identity::{
+    CallableOwner, ExactTypeKey, PersistentExactTypeId, PersistentTypeId,
+    SourceDeclarationIdentityError, SourceDeclarationKey,
+};
+use scoop_wire::HashError;
 
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
@@ -84,6 +88,7 @@ pub struct SingleConeStrongMaterializationPlan {
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
     core_shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
+    core_shape_support_sources: Vec<SourceDeclarationKey>,
     extern_functions: Vec<ExternFunctionId>,
     globals: Vec<GlobalId>,
     initialization_units: Vec<InitializationUnitId>,
@@ -124,6 +129,10 @@ impl SingleConeStrongMaterializationPlan {
         &self.core_shape_support_roots
     }
 
+    pub fn core_shape_support_sources(&self) -> &[SourceDeclarationKey] {
+        &self.core_shape_support_sources
+    }
+
     pub fn extern_functions(&self) -> &[ExternFunctionId] {
         &self.extern_functions
     }
@@ -153,11 +162,23 @@ pub struct SingleConeStrongMirInput {
     materialization: SingleConeStrongMaterializationPlan,
 }
 
+/// HIR-owned source declarations supplied to the MIR strong sealer.
+///
+/// This is an untrusted boundary input. The sealer re-derives every source
+/// and exact identity and requires exact equality with the canonical MIR core
+/// bridge before retaining the declarations in its materialization plan.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CoreShapeSupportSourceInput {
+    NotCore,
+    Core(Vec<SourceDeclarationKey>),
+}
+
 impl SingleConeStrongMirInput {
     pub fn try_new(
         module: Module,
         foundation: OdrFreeMirFoundation,
         production: CoreBootstrapBridgeSectionV1,
+        core_shape_support_sources: CoreShapeSupportSourceInput,
     ) -> Result<Self, SingleConeStrongMirInputError> {
         let expected_foundation = CanonicalMirFoundation::from_module(&module)
             .map_err(SingleConeStrongMirInputError::Foundation)?;
@@ -215,6 +236,11 @@ impl SingleConeStrongMirInput {
             CoreMirBridgeBranchV1::NotCore => Vec::new(),
             CoreMirBridgeBranchV1::Core(core) => core.shape_support_roots().to_vec(),
         };
+        let core_shape_support_sources = validate_core_shape_support_sources(
+            core_shape_support_sources,
+            production.core_bridge(),
+            &core_shape_support_roots,
+        )?;
         for root in &core_shape_support_roots {
             let source_shape = source_nominal_shapes
                 .iter()
@@ -267,6 +293,7 @@ impl SingleConeStrongMirInput {
             source_nominal_shapes,
             generated_nominal_shapes,
             core_shape_support_roots,
+            core_shape_support_sources,
             extern_functions: module.extern_functions.iter().map(|(id, _)| id).collect(),
             globals: module.globals.iter().map(|(id, _)| id).collect(),
             initialization_units: module
@@ -300,6 +327,60 @@ impl SingleConeStrongMirInput {
     pub const fn materialization(&self) -> &SingleConeStrongMaterializationPlan {
         &self.materialization
     }
+}
+
+fn validate_core_shape_support_sources(
+    input: CoreShapeSupportSourceInput,
+    branch: &CoreMirBridgeBranchV1,
+    roots: &[CoreMirShapeSupportRootV1],
+) -> Result<Vec<SourceDeclarationKey>, SingleConeStrongMirInputError> {
+    let sources = match (input, branch) {
+        (CoreShapeSupportSourceInput::NotCore, CoreMirBridgeBranchV1::NotCore) => {
+            return Ok(Vec::new());
+        }
+        (CoreShapeSupportSourceInput::Core(sources), CoreMirBridgeBranchV1::Core(_)) => sources,
+        (CoreShapeSupportSourceInput::NotCore, CoreMirBridgeBranchV1::Core(_))
+        | (CoreShapeSupportSourceInput::Core(_), CoreMirBridgeBranchV1::NotCore) => {
+            return Err(SingleConeStrongMirInputError::CoreShapeSupportSourceBranchMismatch);
+        }
+    };
+    if sources.len() != roots.len() {
+        return Err(
+            SingleConeStrongMirInputError::CoreShapeSupportSourceCountMismatch {
+                expected: roots.len(),
+                actual: sources.len(),
+            },
+        );
+    }
+    for (index, (declaration, root)) in sources.iter().zip(roots).enumerate() {
+        if declaration.origin() != scoop_identity::ConeIdentity::CORE
+            || !declaration.declaration_kind().is_nominal()
+            || declaration.duplicate_signature().type_parameter_count() != 0
+        {
+            return Err(SingleConeStrongMirInputError::InvalidCoreShapeSupportSource { index });
+        }
+        let source = PersistentTypeId::from_source_declaration(declaration).map_err(|error| {
+            SingleConeStrongMirInputError::CoreShapeSupportSourceIdentity { index, error }
+        })?;
+        let exact =
+            PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source)).map_err(|error| {
+                SingleConeStrongMirInputError::CoreShapeSupportExactIdentity { index, error }
+            })?;
+        if source != root.source() || exact != root.exact() {
+            return Err(
+                SingleConeStrongMirInputError::CoreShapeSupportSourceMismatch(Box::new(
+                    CoreShapeSupportSourceMismatch {
+                        index,
+                        expected_source: root.source(),
+                        expected_exact: root.exact(),
+                        actual_source: source,
+                        actual_exact: exact,
+                    },
+                )),
+            );
+        }
+    }
+    Ok(sources)
 }
 
 fn validate_core_branch(
@@ -387,6 +468,23 @@ pub enum SingleConeStrongMirInputError {
     FoundationMismatch,
     StrongCallableSurfaceMismatch,
     CoreBranchMismatch,
+    CoreShapeSupportSourceBranchMismatch,
+    CoreShapeSupportSourceCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    InvalidCoreShapeSupportSource {
+        index: usize,
+    },
+    CoreShapeSupportSourceIdentity {
+        index: usize,
+        error: SourceDeclarationIdentityError,
+    },
+    CoreShapeSupportExactIdentity {
+        index: usize,
+        error: HashError,
+    },
+    CoreShapeSupportSourceMismatch(Box<CoreShapeSupportSourceMismatch>),
     MissingCallableSubject(FunctionId),
     OdrCallableSubject(FunctionId),
     OdrGeneratedNominalShape(GeneratedExactTypeLocation),
@@ -411,10 +509,21 @@ pub enum SingleConeStrongMirInputError {
 
 impl fmt::Display for SingleConeStrongMirInputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot seal single-Cone strong MIR input: {self:?}"
-        )
+        match self {
+            Self::CoreShapeSupportSourceMismatch(mismatch) => write!(
+                formatter,
+                "cannot seal single-Cone strong MIR input: core shape source {} expected source {:?} exact {:?}, found source {:?} exact {:?}",
+                mismatch.index,
+                mismatch.expected_source,
+                mismatch.expected_exact,
+                mismatch.actual_source,
+                mismatch.actual_exact,
+            ),
+            _ => write!(
+                formatter,
+                "cannot seal single-Cone strong MIR input: {self:?}"
+            ),
+        }
     }
 }
 
@@ -422,9 +531,15 @@ impl std::error::Error for SingleConeStrongMirInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Foundation(source) => Some(source),
+            Self::CoreShapeSupportSourceIdentity { error, .. } => Some(error),
+            Self::CoreShapeSupportExactIdentity { error, .. } => Some(error),
             Self::FoundationMismatch
             | Self::StrongCallableSurfaceMismatch
             | Self::CoreBranchMismatch
+            | Self::CoreShapeSupportSourceBranchMismatch
+            | Self::CoreShapeSupportSourceCountMismatch { .. }
+            | Self::InvalidCoreShapeSupportSource { .. }
+            | Self::CoreShapeSupportSourceMismatch(_)
             | Self::MissingCallableSubject(_)
             | Self::OdrCallableSubject(_)
             | Self::OdrGeneratedNominalShape(_)
@@ -438,4 +553,13 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::EntryImplementationMismatch { .. } => None,
         }
     }
+}
+
+#[derive(Debug)]
+pub struct CoreShapeSupportSourceMismatch {
+    index: usize,
+    expected_source: PersistentTypeId,
+    expected_exact: PersistentExactTypeId,
+    actual_source: PersistentTypeId,
+    actual_exact: PersistentExactTypeId,
 }

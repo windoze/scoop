@@ -6,6 +6,7 @@ use std::ops::Deref;
 use scoop_identity::{
     CallableMaterializationContext, CallableTemplateOwner, CoreBuiltinNominal, ExactTypeKey,
     ExecutableSourceEntryIdentity, PersistentExactTypeId, PersistentFunctionId, PersistentTypeId,
+    SourceDeclarationKey, SourceDeclarationKind,
 };
 
 use crate::{
@@ -143,8 +144,9 @@ pub enum LocalConeOutputKind {
 
 /// One core shape-support requirement translated into the LocalConcrete HIR
 /// type-id domain without discarding its persistent HIR authority.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocalCoreShapeSupportRoot {
+    declaration: SourceDeclarationKey,
     source: PersistentTypeId,
     exact: PersistentExactTypeId,
     ty: concrete::TypeId,
@@ -152,19 +154,23 @@ pub struct LocalCoreShapeSupportRoot {
 }
 
 impl LocalCoreShapeSupportRoot {
-    pub const fn source(self) -> PersistentTypeId {
+    pub const fn declaration(&self) -> &SourceDeclarationKey {
+        &self.declaration
+    }
+
+    pub const fn source(&self) -> PersistentTypeId {
         self.source
     }
 
-    pub const fn exact(self) -> PersistentExactTypeId {
+    pub const fn exact(&self) -> PersistentExactTypeId {
         self.exact
     }
 
-    pub const fn ty(self) -> concrete::TypeId {
+    pub const fn ty(&self) -> concrete::TypeId {
         self.ty
     }
 
-    pub const fn boxed_value(self) -> LocalCoreBoxedValueRequirement {
+    pub const fn boxed_value(&self) -> LocalCoreBoxedValueRequirement {
         self.boxed_value
     }
 }
@@ -202,38 +208,71 @@ impl LocalCoreShapeSupportPlan {
                 });
             }
             let source = requirement.source();
-            let value_nominal =
-                source == CoreBuiltinNominal::Unit.identity_record().id()
-                    || module.structs.iter().any(|(_, declaration)| {
-                        declaration.origin.concrete_type_id() == Some(source)
-                    })
-                    || module.enums.iter().any(|(_, declaration)| {
-                        declaration.origin.concrete_type_id() == Some(source)
+            let declaration = if source == CoreBuiltinNominal::Unit.identity_record().id() {
+                CoreBuiltinNominal::Unit.identity_record().key().clone()
+            } else if source == CoreBuiltinNominal::Any.identity_record().id() {
+                CoreBuiltinNominal::Any.identity_record().key().clone()
+            } else {
+                let mut declarations = module
+                    .structs
+                    .iter()
+                    .map(|(_, declaration)| &declaration.origin)
+                    .chain(
+                        module
+                            .enums
+                            .iter()
+                            .map(|(_, declaration)| &declaration.origin),
+                    )
+                    .chain(
+                        module
+                            .classes
+                            .iter()
+                            .map(|(_, declaration)| &declaration.origin),
+                    )
+                    .chain(
+                        module
+                            .interfaces
+                            .iter()
+                            .map(|(_, declaration)| &declaration.origin),
+                    )
+                    .chain(
+                        module
+                            .objects
+                            .iter()
+                            .map(|(_, declaration)| &declaration.origin),
+                    )
+                    .filter_map(|origin| {
+                        (origin.concrete_type_id() == Some(source))
+                            .then(|| origin.source())
+                            .flatten()
+                            .map(|identity| identity.declaration())
                     });
-            let reference_nominal =
-                source == CoreBuiltinNominal::Any.identity_record().id()
-                    || module.classes.iter().any(|(_, declaration)| {
-                        declaration.origin.concrete_type_id() == Some(source)
-                    })
-                    || module.interfaces.iter().any(|(_, declaration)| {
-                        declaration.origin.concrete_type_id() == Some(source)
-                    })
-                    || module.objects.iter().any(|(_, declaration)| {
-                        declaration.origin.concrete_type_id() == Some(source)
-                    });
-            let boxed_value = match (value_nominal, reference_nominal) {
-                (true, false) => LocalCoreBoxedValueRequirement::Required,
-                (false, true) => LocalCoreBoxedValueRequirement::NotApplicable,
-                (false, false) => {
-                    return Err(LocalCoreShapeSupportPlanError::MissingSourceNominal(source));
-                }
-                (true, true) => {
+                let declaration = declarations
+                    .next()
+                    .ok_or(LocalCoreShapeSupportPlanError::MissingSourceNominal(source))?;
+                if declarations.next().is_some() {
                     return Err(LocalCoreShapeSupportPlanError::AmbiguousSourceNominal(
                         source,
                     ));
                 }
+                declaration.clone()
+            };
+            let boxed_value = match declaration.declaration_kind() {
+                SourceDeclarationKind::Struct | SourceDeclarationKind::Enum => {
+                    LocalCoreBoxedValueRequirement::Required
+                }
+                SourceDeclarationKind::Class
+                | SourceDeclarationKind::Interface
+                | SourceDeclarationKind::Object
+                | SourceDeclarationKind::AnnotationClass => {
+                    LocalCoreBoxedValueRequirement::NotApplicable
+                }
+                _ => {
+                    return Err(LocalCoreShapeSupportPlanError::InvalidSourceNominal(source));
+                }
             };
             roots.push(LocalCoreShapeSupportRoot {
+                declaration,
                 source,
                 exact: requirement.exact(),
                 ty,
@@ -452,6 +491,7 @@ pub enum LocalCoreShapeSupportPlanError {
     MissingExactType(PersistentExactTypeId),
     MissingSourceNominal(PersistentTypeId),
     AmbiguousSourceNominal(PersistentTypeId),
+    InvalidSourceNominal(PersistentTypeId),
     IdentityMismatch {
         source: PersistentTypeId,
         exact: PersistentExactTypeId,
