@@ -627,6 +627,11 @@ foundation与`ValidatedCoreInterface`逐binding及well-known identity绑定成�
 artifact自身的Compile proof与私有core interface成对投影，不暴露拆开后二次拼接的getter；来自另一
 artifact/foundation的接口即使同属reserved core也不能拼接。
 
+普通parsed请求同样不暴露裸`ValidatedTrustedCoreArtifact` getter；其`hir_input`一次性构造由hir-lower定义的
+`OrdinaryCoreOnlySources { CurrentConeParsedSources, ImportedHirSet<CorePreludeOnly> }`。该product私有持有两项
+borrow，并把生命周期绑定到产生它的同一个parsed request与semantic identity session；构造器拒绝把reserved core
+当作ordinary current Cone，hir-lower也不提供接收裸current AST后由编排层另取一个core prelude重配的入口。
+
 它只暴露prelude候选层和well-known relation，没有ordinary package/exact/star/re-export枚举API：
 
 - 省略import时的prelude lookup可选中core typed target；

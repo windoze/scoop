@@ -229,6 +229,53 @@ impl std::fmt::Display for CoreBootstrapSourceError {
 
 impl std::error::Error for CoreBootstrapSourceError {}
 
+/// Parsed current-Cone sources paired with the only imported HIR capability
+/// authorized by the M23-3 ordinary path.
+///
+/// The fields remain private so the lowerer always receives the source graph
+/// and trusted core prelude as one lifetime-bound input.
+pub struct OrdinaryCoreOnlySources<'a> {
+    sources: &'a ast::CurrentConeParsedSources,
+    core_prelude: hir::ImportedHirSet<'a, hir::CorePreludeOnly>,
+}
+
+impl<'a> OrdinaryCoreOnlySources<'a> {
+    pub fn try_new(
+        sources: &'a ast::CurrentConeParsedSources,
+        core_prelude: hir::ImportedHirSet<'a, hir::CorePreludeOnly>,
+    ) -> Result<Self, OrdinaryCoreOnlySourceError> {
+        if sources.cone() == scoop_identity::ConeIdentity::CORE {
+            return Err(OrdinaryCoreOnlySourceError::CurrentConeIsCore);
+        }
+        Ok(Self {
+            sources,
+            core_prelude,
+        })
+    }
+
+    pub const fn current_cone(&self) -> scoop_identity::ConeIdentity {
+        self.sources.cone()
+    }
+
+    pub fn core_binding_count(&self) -> usize {
+        self.core_prelude.bindings().len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OrdinaryCoreOnlySourceError {
+    CurrentConeIsCore,
+}
+
+impl std::fmt::Display for OrdinaryCoreOnlySourceError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .write_str("ordinary HIR input cannot contain the reserved core Cone as current source")
+    }
+}
+
+impl std::error::Error for OrdinaryCoreOnlySourceError {}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LegacyCombinedSourcesError {
     DuplicateSourceIdentity {

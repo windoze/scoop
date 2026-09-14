@@ -2,6 +2,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
+use scoop_hir::CorePreludeImportError;
 use scoop_identity::ConeCoordinate;
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
@@ -347,8 +348,41 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
         &self.sources
     }
 
-    pub const fn trusted_core(&self) -> &'request ValidatedTrustedCoreArtifact<'artifact> {
-        self.trusted_core
+    /// Binds the parsed current sources to the only HIR import capability
+    /// granted by this request's exact trusted-core artifact.
+    pub fn hir_input(
+        &self,
+    ) -> Result<scoop_hir_lower::OrdinaryCoreOnlySources<'_>, OrdinaryCoreOnlyHirInputError> {
+        let core_prelude = self
+            .trusted_core
+            .import_core_prelude()
+            .map_err(OrdinaryCoreOnlyHirInputError::CorePrelude)?;
+        scoop_hir_lower::OrdinaryCoreOnlySources::try_new(&self.sources, core_prelude)
+            .map_err(OrdinaryCoreOnlyHirInputError::Sources)
+    }
+}
+
+#[derive(Debug)]
+pub enum OrdinaryCoreOnlyHirInputError {
+    CorePrelude(CorePreludeImportError),
+    Sources(scoop_hir_lower::OrdinaryCoreOnlySourceError),
+}
+
+impl fmt::Display for OrdinaryCoreOnlyHirInputError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CorePrelude(source) => source.fmt(formatter),
+            Self::Sources(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for OrdinaryCoreOnlyHirInputError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::CorePrelude(source) => Some(source),
+            Self::Sources(source) => Some(source),
+        }
     }
 }
 
