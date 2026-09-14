@@ -666,5 +666,8 @@ impl fmt::Display for StrongStaticStorageSemanticPlanBuildError {
 
 impl std::error::Error for StrongStaticStorageSemanticPlanBuildError {}
 
+mod registrations;
+pub use registrations::*;
+
 #[cfg(test)]
 mod tests;

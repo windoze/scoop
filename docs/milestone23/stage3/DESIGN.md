@@ -1549,6 +1549,16 @@ ManagedObject representation与InlineValue scan role。`EncodedStaticValue`递�
 `PersistentStaticStorageId`排序，错type、悬空/非immortal target、size溢出、重复identity或非canonical空scan
 均在codegen前失败，不从LLVM initializer反推semantic relation。
 
+codegen只接受`StrongStaticStorageRegistrationPlanSetV1::new(foundation, identities, semantics,
+digests)`闭合后的static-storage生产计划。该入口要求semantic producer与foundation一致，并使semantic
+storage全集和registration identity surface逐项相等；每项同时证明storage、RootRegistration、layout、
+scan program四个strong definition及其唯一Primary atom和ConeStrong symbol存在。registration与storage的
+ObjectDefinition node都必须是无input、无patch的leaf；StrongRegistration的direct input精确为这两个
+ObjectDefinition以及对应Layout、Scan四项，且只允许自身RegistrationDefinition patch。Layout与Scan node
+还必须分别以`Layout`、`Scan`字段写入同一registration Primary；共享shape node可同时拥有其他storage或
+type registration的typed patch。完整计划保留全部definition/atom/node/patch id，codegen不得重新查询零散
+foundation表、从符号名推断shape，或绕过该proof发射record。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction
