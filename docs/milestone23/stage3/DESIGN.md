@@ -571,8 +571,24 @@ production section构造错误都不会产生partial HIR stage成功值，后续
 进入MIR时，driver只暴露消费上述sealed HIR product的`lower_mir(self)`；它在同一原子操作中运行正式
 `mir-lower`、从结果构造`OdrFreeMirFoundation`并投影mandatory `CoreBootstrapBridgeSectionV1`，成功后返回
 `TrustedCoreBootstrapMirOutput`。该product拥有而不是借用前一阶段的`TrustedCoreBootstrapHirOutput`，同时私有持有
-MIR graph、ODR-free foundation与MIR production section；任一foundation/ODR/production错误都不产生partial
+MIR graph、ODR-free foundation、MIR production section与从HIR/MIR联合派生的
+`SingleConeStrongMaterializationPlan`；任一foundation/ODR/production/materialization-plan错误都不产生partial
 MIR stage成功值，也不存在接收裸HIR、裸MIR或单独section的driver兼容入口。
+
+`SingleConeStrongMaterializationPlan`不是“把完整LocalConcrete/MIR图全部发射”的开关，而是LIR production入口的
+唯一root集合。它包含同一MIR foundation中的全部strong callable implementation、current Cone的source-owned
+global/object/initialization root、entry root（若有），以及core HIR interface派生的全部param-free source nominal
+shape-support root。构造器执行规范排序、去重、producer与output-branch一致性检查；普通调用方不能传入裸id列表，
+也不能遗漏root后取得一个较小的合法plan。该plan只存在于已封闭的stage product中，其可持久化语义分别由HIR/MIR
+section与LIR strong-production section完整重建，因此不另增一个可被wire伪造的可选section。
+
+LIR production lowering消费该sealed plan并做从root出发的确定性闭包，而不是先调用完整图lowering再事后删除ODR
+record。闭包边若要求独立的generic/structural materialization，整个stage以
+`SCOOPC_CAPABILITY_ODR_UNAVAILABLE`失败且不返回partial LIR。仅用于计算source-owned strong layout/scan的嵌套
+generic value shape属于transient shape calculation：它可以贡献字段offset、size、align与ref offsets，但不得产生
+自己的persistent layout/scan/TD、ODR group/member、symbol、definition、registration或digest node。只有第7.6节
+从source nominal owner唯一派生的closed shape-support role可以成为额外strong实体。旧的
+`lir_lower::lower(&Module)`完整图production入口在接入本路径时直接删除，不保留wrapper、profile默认值或后过滤旁路。
 
 ### 7.3 core Compile capability
 
@@ -987,6 +1003,12 @@ bridge并在consumer侧保持implementation unavailable；subject存在但signat
 
 本section不保存machine body、link symbol或object member；这些由LIR决定。
 
+MIR内存中的`SingleConeStrongMaterializationPlan`由本section、同一HIR core/output section和同一MIR foundation
+唯一重建，但不是本section的第四个wire字段。对core，shape root必须逐项等于HIR
+`type_targets`中`definition=Type && capability=ParamFreeStrong`的规范集合；typealias不产生第二个root。对普通Cone，
+core shape root集合必须为空。strong callable、entry与source-owned non-callable root也分别从已有typed graph/section
+重算，调用方不能另传一个“本次想发射哪些实体”的白名单。
+
 ### 9.3 LIR strong production section
 
 `StrongProductionSectionV1`精确包含：
@@ -1290,7 +1312,10 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 
 ODR不能等到native linker前才发现。检查至少在四层重复：
 
-1. HIR/MIR concrete output：出现`PersistentCallableApplicationId`、Nominal/DelegatedProperty/Structural specialization materialization或ODR subject时停止；
+1. HIR/MIR production plan：从全部mandatory strong root计算闭包；出现可达的
+   `PersistentCallableApplicationId`、Nominal/DelegatedProperty/Structural specialization materialization或ODR
+   subject时停止。完整Export/LocalConcrete/MIR检查图可以保留未选中的generic模板与仅供transient shape calculation
+   的exact type，存在于检查图本身不等于获准发射；
 2. LIR：出现`OdrGroupId`/`OdrMemberId`实际生产记录、`CallableBodyKey::Odr`、`ConeEmissionSubject::OdrOwned`、`OdrWeak` symbol request或OdrDefinition digest node时停止；
 3. object verifier：出现weak/coalesced/linkonce definition、ODR section attribute或未由strong plan解释的同名definition时停止；
 4. Link reader：foundation/section/manifest/object任一层出现ODR record/body/symbol即profile失败。
@@ -1309,6 +1334,11 @@ identity foundation允许描述ODR key不等于production profile允许携带它
 - 任意本应coalesce的shape helper，即使当前请求中只有一个producer。
 
 不得为了让core-only smoke通过而把它们临时标成ConeStrong。诊断锚定触发materialization的source use，并显示template/origin与缺失能力；纯artifact输入中的非法ODR则使用artifact/section/typed key路径。
+
+这里的“需要materialized TD/layout”不包含为source-owned strong aggregate递归计算其物理shape。后者必须使用无persistent
+identity的transient shape value，并把最终offset/size/scan结果吸收到最外层source-owned layout/scan definition；一旦
+嵌套类型需要独立TD、dispatch table、boxed representation、callable body或其他可寻址实体，就不再是shape calculation，
+必须按上列规则拒绝。不得通过把generic exact owner改写成source owner来绕过该边界。
 
 ### 10.3 允许的strong subject
 
