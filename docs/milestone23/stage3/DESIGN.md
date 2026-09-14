@@ -2399,7 +2399,7 @@ ABI normalization；不得因为本阶段当前fixture没有native extern而跳�
 
 最终Compile proof不能把production证明丢回一个无类型的marker。profile为关联数据选择器：
 `IdentityFoundationProfile`只携带`()`，`SingleConeStrongProfile`必须携带
-`SingleConeStrongCompileProduction { hir, mir, lir }`，三项分别是已经重建并验证的HIR core/output
+`ValidatedSingleConeStrongProduction { hir, mir, lir }`，三项分别是已经重建并验证的HIR core/output
 interface、MIR core/entry bridge与LIR strong production。ODR-free foundation则在同一次identity session
 transaction后变成三层`Imported*Set`；不能先导入普通foundation，再通过cast或二次包装声称它满足strong
 profile。
@@ -2408,9 +2408,12 @@ profile。
 
 Link view虽不借用Compile proof，仍必须独立打开HIR/MIR/LIR三个metadata envelope，以所有known
 Compile sink section重新计算并核对三层semantic fingerprint；随后解码三层identity foundation，供
-identity闭包与`RejectAll`重放使用。HIR/MIR production payload对Link保持hash-covered opaque，Link
-reader不得因自身不解释它们而跳过envelope、inventory或semantic fingerprint验证；同理，LIR
-foundation虽不是Link-purpose section，也不能因Link inventory不枚举它而缺失。
+identity闭包与`RejectAll`重放使用。Link必须独立解码HIR core/output interface与MIR core/entry bridge，
+分别对ODR-free foundation重建local proof，重放与Compile相同的output/core-callable跨层关系，再由这些
+已验证surface唯一投影entry source与core shape-support source并验证LIR strong production；不得借用
+Compile state，也不得由调用者另行提供这些派生集合。同理，三层Compile-purpose foundation与HIR/MIR
+production虽然不由Link inventory列为mandatory Link section，Link reader仍必须将其作为本profile的
+证明支撑显式要求，不能因purpose不同而允许缺失。
 三层foundation identity的authority注册、canonical key解析、结构验证与`RejectAll`转换由Compile/Link
 两条reader调用同一实现；两条路径各自持有独立graph与budget状态，但不得复制或弱化规则。共享转换
 产出`OdrFreeHirFoundation`、`OdrFreeMirFoundation`、`OdrFreeLirFoundation`，Link后续object proof只能
@@ -2420,8 +2423,9 @@ foundation虽不是Link-purpose section，也不能因Link inventory不枚举它
 
 1. 接收已通过的`DecodedSlibEnvelope`和Graph proof；
 2. 验证profile descriptor、Available fingerprint、mandatory Link/Compile|Link section inventory；
-3. 解码LIR strong-production/link-closure与manifest production payload；
-4. 重放`RejectAll`并拒绝全部ODR identity/linkage/symbol；
+3. 解码三层foundation、HIR/MIR production、LIR strong-production/link-closure与manifest production
+   payload；
+4. 重放`RejectAll`，独立验证三层production关系，并拒绝全部ODR identity/linkage/symbol；
 5. 为每个`LinkObject`按capability调用known verifier；unknown capability fail closed；
 6. 重建unit/member assignment、definition range、relocation、patch和stackmap leaf；
 7. 验证defined owner、undefined requirement及intra-Cone/generated bridge闭合；

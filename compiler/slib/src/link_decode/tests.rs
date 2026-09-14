@@ -18,6 +18,7 @@ use crate::{
     ConeRecord, ConeSourceForm, FingerprintAvailability, HirFingerprint, ManifestSection,
     MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection, ProducerRecord,
     RuntimeImageFingerprint, SemanticFingerprintRecord, SlibMember, SlibMemberRole,
+    StrongProfileLirProductionError,
 };
 
 #[test]
@@ -29,19 +30,21 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     let sections = open_graph(&bytes)
         .decode_single_cone_link_sections()
         .unwrap();
-    assert_eq!(sections.identity(), ConeIdentity::CORE);
-    assert_eq!(sections.coordinate(), &ConeCoordinate::reserved_core());
+    assert_eq!(sections.identity(), cone().identity());
+    assert_eq!(sections.coordinate(), cone().coordinate());
     let _ = sections.hir_foundation_wire();
+    let _ = sections.hir_production_wire();
     let _ = sections.mir_foundation_wire();
+    let _ = sections.mir_production_wire();
     let _ = sections.lir_foundation_wire();
     let _ = sections.strong_production_wire();
     let _ = sections.link_identity_closure_wire();
     let _ = sections.production_manifest_wire();
     let checked = sections.validate_identities().unwrap();
-    assert_eq!(checked.identity_count(), 16);
+    assert_eq!(checked.identity_count(), 17);
     assert_eq!(checked.declared_identity_count(), 15);
     let odr_free = checked.validate_foundation_structure().unwrap();
-    assert_eq!(odr_free.identity(), ConeIdentity::CORE);
+    assert_eq!(odr_free.identity(), cone().identity());
     assert_eq!(odr_free.declared_identity_count(), 15);
     assert_eq!(
         odr_free.hir_foundation().as_canonical().counts().odr_groups,
@@ -55,6 +58,48 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         odr_free.lir_foundation().as_canonical().counts().odr_groups,
         0
     );
+    let external =
+        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+    let validated = odr_free.validate_production(&external).unwrap();
+    assert_eq!(validated.identity(), cone().identity());
+    assert!(matches!(
+        validated.production().hir().core_interface(),
+        scoop_hir::CoreHirInterfaceBranchV1::NotCore
+    ));
+    assert!(matches!(
+        validated.production().mir().core_bridge(),
+        scoop_mir::CoreMirBridgeBranchV1::NotCore
+    ));
+    assert_eq!(validated.production().lir().external_bridges(), &external);
+    let _ = validated.link_identity_closure_wire();
+    let _ = validated.production_manifest_wire();
+}
+
+#[test]
+fn link_production_rejects_an_external_surface_for_another_producer() {
+    let bytes = artifact(
+        vec![production_manifest_section()],
+        vec![strong_section(), closure_section()],
+    );
+    let wrong_external =
+        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::CORE, Vec::new()).unwrap();
+    assert!(matches!(
+        open_graph(&bytes)
+            .decode_single_cone_link_sections()
+            .unwrap()
+            .validate_identities()
+            .unwrap()
+            .validate_foundation_structure()
+            .unwrap()
+            .validate_production(&wrong_external),
+        Err(StrongProfileProductionError::Lir(
+            StrongProfileLirProductionError::Production(
+                scoop_lir::StrongProductionSectionValidationError::Expected(
+                    scoop_lir::StrongProductionSectionBuildError::ExternalBridgeProducer
+                )
+            )
+        ))
+    ));
 }
 
 #[test]
@@ -62,6 +107,7 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
     let missing = build_artifact(
         vec![production_manifest_section()],
         vec![strong_section(), closure_section()],
+        true,
         false,
         false,
     );
@@ -73,9 +119,25 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
         })
     ));
 
+    let missing_hir_production = build_artifact(
+        vec![production_manifest_section()],
+        vec![strong_section(), closure_section()],
+        false,
+        true,
+        false,
+    );
+    assert!(matches!(
+        open_graph(&missing_hir_production).decode_single_cone_link_sections(),
+        Err(SingleConeLinkSectionDecodeError::MissingSection {
+            location: Some(MetadataLocation::Hir),
+            ..
+        })
+    ));
+
     let stale = build_artifact(
         vec![production_manifest_section()],
         vec![strong_section(), closure_section()],
+        true,
         true,
         true,
     );
@@ -199,12 +261,13 @@ fn artifact(
     manifest_sections: Vec<ManifestSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(manifest_sections, lir_sections, true, false)
+    build_artifact(manifest_sections, lir_sections, true, true, false)
 }
 
 fn build_artifact(
     manifest_sections: Vec<ManifestSection>,
     lir_sections: Vec<MetadataSection>,
+    include_hir_production: bool,
     include_lir_foundation: bool,
     stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
@@ -226,7 +289,7 @@ fn build_artifact(
             .unwrap(),
         ])
         .unwrap();
-    let hir_sections = vec![
+    let mut hir_sections = vec![
         MetadataSection::new(
             MetadataLocation::Hir,
             hir_identity_foundation_capability(),
@@ -235,6 +298,17 @@ fn build_artifact(
         )
         .unwrap(),
     ];
+    if include_hir_production {
+        hir_sections.push(
+            MetadataSection::new(
+                MetadataLocation::Hir,
+                hir_core_bootstrap_interface_capability(),
+                MemberPurposeSet::COMPILE,
+                empty_not_core_library_section(),
+            )
+            .unwrap(),
+        );
+    }
     let mir_sections = vec![
         MetadataSection::new(
             MetadataLocation::Mir,
@@ -243,10 +317,17 @@ fn build_artifact(
             encode(&mir_foundation).unwrap(),
         )
         .unwrap(),
+        MetadataSection::new(
+            MetadataLocation::Mir,
+            mir_core_bootstrap_bridge_capability(),
+            MemberPurposeSet::COMPILE,
+            empty_not_core_library_section(),
+        )
+        .unwrap(),
     ];
     let mut complete_lir_sections = Vec::new();
     if include_lir_foundation {
-        let (foundation, _) = strong_production_fixture(ConeCoordinate::reserved_core());
+        let (foundation, _) = strong_production_fixture(cone().coordinate().clone());
         complete_lir_sections.push(
             MetadataSection::new(
                 MetadataLocation::Lir,
@@ -287,21 +368,21 @@ fn build_artifact(
     let lir_envelope = MetadataEnvelope::new(MetadataLocation::Lir, complete_lir_sections).unwrap();
     let members = vec![
         SlibMember::new(
-            ConeIdentity::CORE,
+            cone().identity(),
             MemberStableKey::HirMetadata,
             SlibMemberRole::HirMetadata,
             encode(&hir_envelope).unwrap(),
         )
         .unwrap(),
         SlibMember::new(
-            ConeIdentity::CORE,
+            cone().identity(),
             MemberStableKey::MirMetadata,
             SlibMemberRole::MirMetadata,
             encode(&mir_envelope).unwrap(),
         )
         .unwrap(),
         SlibMember::new(
-            ConeIdentity::CORE,
+            cone().identity(),
             MemberStableKey::LirMetadata,
             SlibMemberRole::LirMetadata,
             encode(&lir_envelope).unwrap(),
@@ -371,7 +452,7 @@ fn closure_section() -> MetadataSection {
 }
 
 pub(crate) fn strong_production() -> StrongProductionSectionV1 {
-    strong_production_fixture(ConeCoordinate::reserved_core()).1
+    strong_production_fixture(cone().coordinate().clone()).1
 }
 
 pub(crate) fn strong_production_fixture(
@@ -489,11 +570,17 @@ fn image_atoms(
 
 fn cone() -> ConeRecord {
     ConeRecord::new(
-        ConeCoordinate::reserved_core(),
+        ConeCoordinate::new("test", "strong-link", "0.0.0").unwrap(),
         ConeKind::Library,
         ConeSourceForm::Manifest,
     )
     .unwrap()
+}
+
+fn empty_not_core_library_section() -> Vec<u8> {
+    vec![
+        0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
+    ]
 }
 
 fn selection() -> ValidatedLirTargetSelection {

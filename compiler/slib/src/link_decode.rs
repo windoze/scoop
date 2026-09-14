@@ -2,28 +2,36 @@
 
 use std::fmt;
 
-use scoop_hir::{DecodedHirFoundation, OdrFreeHirFoundation};
+use scoop_hir::{
+    DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, OdrFreeHirFoundation,
+};
 use scoop_identity::{
     ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
     IdentityValidationError, ValidatedIdentityGraph,
 };
-use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
-use scoop_mir::{DecodedMirFoundation, OdrFreeMirFoundation};
+use scoop_lir::{
+    DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation,
+    StrongExternalLirBridgeSurfaceV1,
+};
+use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
 
 use crate::compile_decode::validate_foundation_identity_graph;
 use crate::strong_compile_decode::{
-    StrongProfileFoundationError, validate_strong_profile_foundations,
+    DecodedStrongProfileProductionSet, OdrFreeStrongFoundationSet, StrongProfileFoundationError,
+    StrongProfileProductionError, validate_strong_profile_foundations,
+    validate_strong_profile_production,
 };
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
     DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
     DecodedSingleConeProductionManifestV1, ManifestSection, MetadataLocation, MetadataReadError,
     SemanticFingerprintError, SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord,
-    SlibMemberRole, ValidatedGraphArtifact, hir_identity_foundation_capability,
+    SlibMemberRole, ValidatedGraphArtifact, ValidatedSingleConeStrongProduction,
+    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
     lir_identity_foundation_capability, lir_link_identity_closure_capability,
     lir_strong_production_capability, manifest_single_cone_production_capability,
-    mir_identity_foundation_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 
 const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
@@ -35,7 +43,9 @@ const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
 pub struct DecodedSingleConeLinkSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     hir_foundation: DecodedHirFoundation,
+    hir_production: DecodedCoreBootstrapInterfaceSectionV1,
     mir_foundation: DecodedMirFoundation,
+    mir_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
     strong_production: DecodedStrongProductionSectionV1,
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
@@ -49,7 +59,9 @@ pub struct IdentityCheckedSingleConeLinkSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
     hir_foundation: DecodedHirFoundation,
+    hir_production: DecodedCoreBootstrapInterfaceSectionV1,
     mir_foundation: DecodedMirFoundation,
+    mir_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
     strong_production: DecodedStrongProductionSectionV1,
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
@@ -61,10 +73,20 @@ pub struct IdentityCheckedSingleConeLinkSections<'input> {
 pub struct OdrCheckedSingleConeLinkFoundations<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    hir_foundation: OdrFreeHirFoundation,
-    mir_foundation: OdrFreeMirFoundation,
-    lir_foundation: OdrFreeLirFoundation,
-    strong_production: DecodedStrongProductionSectionV1,
+    foundations: OdrFreeStrongFoundationSet,
+    production: DecodedStrongProfileProductionSet,
+    link_identity_closure: DecodedLinkIdentityClosureSectionV1,
+    production_manifest: DecodedSingleConeProductionManifestV1,
+}
+
+/// Link sections whose HIR, MIR, and LIR production surfaces were rebuilt
+/// from the same ODR-free foundations. Object, closure, and manifest proofs
+/// remain separate Link obligations.
+pub struct ProductionValidatedSingleConeLinkSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    production: ValidatedSingleConeStrongProduction,
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     production_manifest: DecodedSingleConeProductionManifestV1,
 }
@@ -97,14 +119,20 @@ impl<'input> ValidatedGraphArtifact<'input> {
             .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
 
         let hir_foundation_capability = hir_identity_foundation_capability();
+        let hir_production_capability = hir_core_bootstrap_interface_capability();
         let mir_foundation_capability = mir_identity_foundation_capability();
+        let mir_production_capability = mir_core_bootstrap_bridge_capability();
         let lir_foundation_capability = lir_identity_foundation_capability();
         let strong_production_capability = lir_strong_production_capability();
         let link_identity_closure_capability = lir_link_identity_closure_capability();
         let hir_foundation_payload =
             required_metadata_section(&hir_envelope, &hir_foundation_capability)?;
+        let hir_production_payload =
+            required_metadata_section(&hir_envelope, &hir_production_capability)?;
         let mir_foundation_payload =
             required_metadata_section(&mir_envelope, &mir_foundation_capability)?;
+        let mir_production_payload =
+            required_metadata_section(&mir_envelope, &mir_production_capability)?;
         let lir_foundation_payload =
             required_metadata_section(&lir_envelope, &lir_foundation_capability)?;
         let strong_payload =
@@ -118,11 +146,23 @@ impl<'input> ValidatedGraphArtifact<'input> {
             hir_foundation_capability,
             hir_foundation_payload,
         )?;
+        let hir_production = decode_inner(
+            &mut self,
+            MetadataLocation::Hir,
+            hir_production_capability,
+            hir_production_payload,
+        )?;
         let mir_foundation = decode_inner(
             &mut self,
             MetadataLocation::Mir,
             mir_foundation_capability,
             mir_foundation_payload,
+        )?;
+        let mir_production = decode_inner(
+            &mut self,
+            MetadataLocation::Mir,
+            mir_production_capability,
+            mir_production_payload,
         )?;
         let lir_foundation = decode_inner(
             &mut self,
@@ -147,7 +187,9 @@ impl<'input> ValidatedGraphArtifact<'input> {
         Ok(DecodedSingleConeLinkSections {
             graph: self,
             hir_foundation,
+            hir_production,
             mir_foundation,
+            mir_production,
             lir_foundation,
             strong_production,
             link_identity_closure,
@@ -181,6 +223,14 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
         &self.mir_foundation
     }
 
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
     pub const fn lir_foundation_wire(&self) -> &DecodedLirFoundation {
         &self.lir_foundation
     }
@@ -205,7 +255,9 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
         let Self {
             mut graph,
             hir_foundation,
+            hir_production,
             mir_foundation,
+            mir_production,
             lir_foundation,
             strong_production,
             link_identity_closure,
@@ -221,7 +273,9 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
             graph,
             identities,
             hir_foundation,
+            hir_production,
             mir_foundation,
+            mir_production,
             lir_foundation,
             strong_production,
             link_identity_closure,
@@ -259,6 +313,14 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
         &self.strong_production
     }
 
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
     pub const fn link_identity_closure_wire(&self) -> &DecodedLinkIdentityClosureSectionV1 {
         &self.link_identity_closure
     }
@@ -274,7 +336,9 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
             mut graph,
             mut identities,
             hir_foundation,
+            hir_production,
             mir_foundation,
+            mir_production,
             lir_foundation,
             strong_production,
             link_identity_closure,
@@ -290,17 +354,19 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
         Ok(OdrCheckedSingleConeLinkFoundations {
             graph,
             identities,
-            hir_foundation: foundations.hir,
-            mir_foundation: foundations.mir,
-            lir_foundation: foundations.lir,
-            strong_production,
+            foundations,
+            production: DecodedStrongProfileProductionSet {
+                hir: hir_production,
+                mir: mir_production,
+                lir: strong_production,
+            },
             link_identity_closure,
             production_manifest,
         })
     }
 }
 
-impl OdrCheckedSingleConeLinkFoundations<'_> {
+impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -326,19 +392,107 @@ impl OdrCheckedSingleConeLinkFoundations<'_> {
     }
 
     pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
-        &self.hir_foundation
+        &self.foundations.hir
     }
 
     pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
-        &self.mir_foundation
+        &self.foundations.mir
     }
 
     pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
-        &self.lir_foundation
+        &self.foundations.lir
     }
 
     pub const fn strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
-        &self.strong_production
+        &self.production.lir
+    }
+
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.production.hir
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.production.mir
+    }
+
+    pub const fn link_identity_closure_wire(&self) -> &DecodedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+
+    pub fn validate_production(
+        self,
+        expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    ) -> Result<ProductionValidatedSingleConeLinkSections<'input>, StrongProfileProductionError>
+    {
+        let Self {
+            graph,
+            mut identities,
+            foundations,
+            production,
+            link_identity_closure,
+            production_manifest,
+        } = self;
+        let production = validate_strong_profile_production(
+            &graph,
+            &mut identities,
+            &foundations,
+            production,
+            expected_external_bridges,
+        )?;
+        Ok(ProductionValidatedSingleConeLinkSections {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            production_manifest,
+        })
+    }
+}
+
+impl ProductionValidatedSingleConeLinkSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub const fn production(&self) -> &ValidatedSingleConeStrongProduction {
+        &self.production
     }
 
     pub const fn link_identity_closure_wire(&self) -> &DecodedLinkIdentityClosureSectionV1 {

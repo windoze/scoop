@@ -135,15 +135,21 @@ pub(crate) struct OdrFreeStrongFoundationSet {
     pub(crate) lir: OdrFreeLirFoundation,
 }
 
+pub(crate) struct DecodedStrongProfileProductionSet {
+    pub(crate) hir: DecodedCoreBootstrapInterfaceSectionV1,
+    pub(crate) mir: DecodedCoreBootstrapBridgeSectionV1,
+    pub(crate) lir: DecodedStrongProductionSectionV1,
+}
+
 /// The validated HIR, MIR, and LIR production surfaces retained by a
-/// committed `SingleConeStrongProfile` Compile proof.
-pub struct SingleConeStrongCompileProduction {
+/// structurally valid `SingleConeStrongProfile` proof.
+pub struct ValidatedSingleConeStrongProduction {
     hir: CoreBootstrapInterfaceSectionV1,
     mir: CoreBootstrapBridgeSectionV1,
     lir: StrongProductionSectionV1,
 }
 
-impl SingleConeStrongCompileProduction {
+impl ValidatedSingleConeStrongProduction {
     pub const fn hir(&self) -> &CoreBootstrapInterfaceSectionV1 {
         &self.hir
     }
@@ -492,8 +498,10 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
 
     pub fn validate_local_production(
         self,
-    ) -> Result<LocallyValidatedSingleConeCompileProduction<'input>, StrongCompileProductionError>
-    {
+    ) -> Result<
+        LocallyValidatedSingleConeCompileProduction<'input>,
+        StrongProfileLocalProductionError,
+    > {
         let Self {
             graph,
             mut identities,
@@ -505,19 +513,21 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
             lir_production,
         } = self;
         let artifact = graph.identity();
-        let hir_production = hir_production
-            .validate_against_strong_foundation(artifact, &hir_foundation)
-            .map_err(StrongCompileProductionError::Hir)?;
-        let mir_production = mir_production
-            .validate_against_strong_foundation(artifact, &mut identities, &mir_foundation)
-            .map_err(StrongCompileProductionError::Mir)?;
+        let production = validate_strong_profile_local_production(
+            artifact,
+            &mut identities,
+            &hir_foundation,
+            hir_production,
+            &mir_foundation,
+            mir_production,
+        )?;
         Ok(LocallyValidatedSingleConeCompileProduction {
             graph,
             identities,
             hir_foundation,
-            hir_production,
+            hir_production: production.hir,
             mir_foundation,
-            mir_production,
+            mir_production: production.mir,
             lir_foundation,
             lir_production,
         })
@@ -571,16 +581,11 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
 
     pub fn validate_cross_layer(
         self,
-    ) -> Result<ValidatedSingleConeCompileSemanticFront<'input>, StrongCompileRelationError> {
-        validate_output_relation(
+    ) -> Result<ValidatedSingleConeCompileSemanticFront<'input>, StrongProfileRelationError> {
+        validate_strong_profile_relations(
             self.graph.kind(),
-            self.hir_production.output_contract(),
-            self.mir_production.entry_bridge(),
-        )?;
-        validate_core_callable_relation(
-            self.hir_production.core_interface(),
-            self.mir_production.core_bridge(),
-            self.mir_production.strong_callable_bridges(),
+            &self.hir_production,
+            &self.mir_production,
         )?;
         Ok(ValidatedSingleConeCompileSemanticFront { local: self })
     }
@@ -638,7 +643,7 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
         expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     ) -> Result<
         StructurallyValidatedSingleConeCompileProduction<'input>,
-        StrongCompileLirProductionError,
+        StrongProfileLirProductionError,
     > {
         let LocallyValidatedSingleConeCompileProduction {
             graph,
@@ -650,28 +655,18 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
             lir_foundation,
             lir_production,
         } = self.local;
-        let entry_source = match mir_production.entry_bridge() {
-            EntryMirBridgeBranchV1::Library => EntryProductionSourceV1::Library,
-            EntryMirBridgeBranchV1::Executable(bridge) => {
-                EntryProductionSourceV1::executable(bridge.source().clone())
-            }
-        };
-        let core_shape_sources = match hir_production.core_interface() {
-            CoreHirInterfaceBranchV1::NotCore => Vec::new(),
-            CoreHirInterfaceBranchV1::Core(interface) => interface
-                .param_free_shape_support_sources(&hir_foundation)
-                .map_err(StrongCompileLirProductionError::ShapeSources)?,
-        };
-        let lir_production = lir_production
-            .validate(
-                graph.coordinate().clone(),
-                &lir_foundation,
-                expected_external_bridges,
-                entry_source,
-                &core_shape_sources,
-                &mut identities,
-            )
-            .map_err(StrongCompileLirProductionError::Production)?;
+        let lir_production = validate_strong_profile_lir_production(
+            &graph,
+            &mut identities,
+            StrongProfileSemanticFront {
+                hir_foundation: &hir_foundation,
+                hir_production: &hir_production,
+                mir_production: &mir_production,
+                lir_foundation: &lir_foundation,
+            },
+            lir_production,
+            expected_external_bridges,
+        )?;
         Ok(StructurallyValidatedSingleConeCompileProduction {
             graph,
             identities,
@@ -785,7 +780,7 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
         } = self.structural;
         let imported = commit_identity_graph(&mut graph, &identities, session)?;
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
-        let production = SingleConeStrongCompileProduction {
+        let production = ValidatedSingleConeStrongProduction {
             hir: hir_production,
             mir: mir_production,
             lir: lir_production,
@@ -800,11 +795,121 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
     }
 }
 
+struct StrongProfileLocalProductionSet {
+    hir: CoreBootstrapInterfaceSectionV1,
+    mir: CoreBootstrapBridgeSectionV1,
+}
+
+struct StrongProfileSemanticFront<'a> {
+    hir_foundation: &'a OdrFreeHirFoundation,
+    hir_production: &'a CoreBootstrapInterfaceSectionV1,
+    mir_production: &'a CoreBootstrapBridgeSectionV1,
+    lir_foundation: &'a OdrFreeLirFoundation,
+}
+
+pub(crate) fn validate_strong_profile_production(
+    graph: &ValidatedGraphArtifact<'_>,
+    identities: &mut ValidatedIdentityGraph,
+    foundations: &OdrFreeStrongFoundationSet,
+    production: DecodedStrongProfileProductionSet,
+    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+) -> Result<ValidatedSingleConeStrongProduction, StrongProfileProductionError> {
+    let local = validate_strong_profile_local_production(
+        graph.identity(),
+        identities,
+        &foundations.hir,
+        production.hir,
+        &foundations.mir,
+        production.mir,
+    )
+    .map_err(StrongProfileProductionError::Local)?;
+    validate_strong_profile_relations(graph.kind(), &local.hir, &local.mir)
+        .map_err(StrongProfileProductionError::Relation)?;
+    let lir = validate_strong_profile_lir_production(
+        graph,
+        identities,
+        StrongProfileSemanticFront {
+            hir_foundation: &foundations.hir,
+            hir_production: &local.hir,
+            mir_production: &local.mir,
+            lir_foundation: &foundations.lir,
+        },
+        production.lir,
+        expected_external_bridges,
+    )
+    .map_err(StrongProfileProductionError::Lir)?;
+    Ok(ValidatedSingleConeStrongProduction {
+        hir: local.hir,
+        mir: local.mir,
+        lir,
+    })
+}
+
+fn validate_strong_profile_local_production(
+    artifact: ConeIdentity,
+    identities: &mut ValidatedIdentityGraph,
+    hir_foundation: &OdrFreeHirFoundation,
+    hir: DecodedCoreBootstrapInterfaceSectionV1,
+    mir_foundation: &OdrFreeMirFoundation,
+    mir: DecodedCoreBootstrapBridgeSectionV1,
+) -> Result<StrongProfileLocalProductionSet, StrongProfileLocalProductionError> {
+    let hir = hir
+        .validate_against_strong_foundation(artifact, hir_foundation)
+        .map_err(StrongProfileLocalProductionError::Hir)?;
+    let mir = mir
+        .validate_against_strong_foundation(artifact, identities, mir_foundation)
+        .map_err(StrongProfileLocalProductionError::Mir)?;
+    Ok(StrongProfileLocalProductionSet { hir, mir })
+}
+
+fn validate_strong_profile_relations(
+    kind: ConeKind,
+    hir: &CoreBootstrapInterfaceSectionV1,
+    mir: &CoreBootstrapBridgeSectionV1,
+) -> Result<(), StrongProfileRelationError> {
+    validate_output_relation(kind, hir.output_contract(), mir.entry_bridge())?;
+    validate_core_callable_relation(
+        hir.core_interface(),
+        mir.core_bridge(),
+        mir.strong_callable_bridges(),
+    )
+}
+
+fn validate_strong_profile_lir_production(
+    graph: &ValidatedGraphArtifact<'_>,
+    identities: &mut ValidatedIdentityGraph,
+    front: StrongProfileSemanticFront<'_>,
+    lir: DecodedStrongProductionSectionV1,
+    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
+    let entry_source = match front.mir_production.entry_bridge() {
+        EntryMirBridgeBranchV1::Library => EntryProductionSourceV1::Library,
+        EntryMirBridgeBranchV1::Executable(bridge) => {
+            EntryProductionSourceV1::executable(bridge.source().clone())
+        }
+    };
+    let core_shape_sources = match front.hir_production.core_interface() {
+        CoreHirInterfaceBranchV1::NotCore => Vec::new(),
+        CoreHirInterfaceBranchV1::Core(interface) => interface
+            .param_free_shape_support_sources(front.hir_foundation)
+            .map_err(StrongProfileLirProductionError::ShapeSources)?,
+    };
+    lir.validate(
+        graph.coordinate().clone(),
+        front.lir_foundation,
+        expected_external_bridges,
+        entry_source,
+        &core_shape_sources,
+        identities,
+    )
+    .map_err(StrongProfileLirProductionError::Production)
+}
+
 fn validate_output_relation(
     kind: ConeKind,
     hir: &HirOutputContractV1,
     mir: &EntryMirBridgeBranchV1,
-) -> Result<(), StrongCompileRelationError> {
+) -> Result<(), StrongProfileRelationError> {
     match (kind, hir, mir) {
         (ConeKind::Library, HirOutputContractV1::Library, EntryMirBridgeBranchV1::Library) => {
             Ok(())
@@ -815,7 +920,7 @@ fn validate_output_relation(
             EntryMirBridgeBranchV1::Executable(mir),
         ) if hir.as_ref() == mir.source() => Ok(()),
         (ConeKind::Library, _, _) | (ConeKind::Executable, _, _) => {
-            Err(StrongCompileRelationError::OutputMismatch)
+            Err(StrongProfileRelationError::OutputMismatch)
         }
     }
 }
@@ -824,11 +929,11 @@ fn validate_core_callable_relation(
     hir: &CoreHirInterfaceBranchV1,
     mir: &CoreMirBridgeBranchV1,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
-) -> Result<(), StrongCompileRelationError> {
+) -> Result<(), StrongProfileRelationError> {
     let (CoreHirInterfaceBranchV1::Core(hir), CoreMirBridgeBranchV1::Core(mir)) = (hir, mir) else {
         return match (hir, mir) {
             (CoreHirInterfaceBranchV1::NotCore, CoreMirBridgeBranchV1::NotCore) => Ok(()),
-            _ => Err(StrongCompileRelationError::CoreBranchMismatch),
+            _ => Err(StrongProfileRelationError::CoreBranchMismatch),
         };
     };
 
@@ -844,7 +949,7 @@ fn validate_core_callable_relation(
         })
         .count();
     if expected != mir.callable_targets().len() {
-        return Err(StrongCompileRelationError::CoreCallableCoverage {
+        return Err(StrongProfileRelationError::CoreCallableCoverage {
             expected,
             actual: mir.callable_targets().len(),
         });
@@ -863,7 +968,7 @@ fn validate_core_callable_relation(
         .enumerate()
     {
         let CoreCallableDefinitionV1::Function(definition) = hir.definition() else {
-            return Err(StrongCompileRelationError::GenericStrongCoreCallable { index });
+            return Err(StrongProfileRelationError::GenericStrongCoreCallable { index });
         };
         let CoreHirCallableCapabilityV1::ParamFreeStrong(signature) = hir.capability() else {
             unreachable!("filtered to param-free strong core callables")
@@ -872,17 +977,17 @@ fn validate_core_callable_relation(
             || definition != mir.definition()
             || mir.implementation() != scoop_identity::CallableOwner::Function(definition)
         {
-            return Err(StrongCompileRelationError::CoreCallableMismatch { index });
+            return Err(StrongProfileRelationError::CoreCallableMismatch { index });
         }
         let Some(strong) = strong
             .bridges()
             .iter()
             .find(|strong| strong.implementation() == mir.implementation())
         else {
-            return Err(StrongCompileRelationError::MissingStrongCallable { index });
+            return Err(StrongProfileRelationError::MissingStrongCallable { index });
         };
         if strong.signature() != signature {
-            return Err(StrongCompileRelationError::CoreCallableSignatureMismatch { index });
+            return Err(StrongProfileRelationError::CoreCallableSignatureMismatch { index });
         }
     }
     Ok(())
@@ -948,18 +1053,44 @@ impl std::error::Error for StrongProfileFoundationError {
 }
 
 #[derive(Debug)]
-pub enum StrongCompileProductionError {
+pub enum StrongProfileLocalProductionError {
     Hir(CoreBootstrapInterfaceValidationError),
     Mir(MirProductionValidationError),
 }
 
-impl fmt::Display for StrongCompileProductionError {
+#[derive(Debug)]
+pub enum StrongProfileProductionError {
+    Local(StrongProfileLocalProductionError),
+    Relation(StrongProfileRelationError),
+    Lir(StrongProfileLirProductionError),
+}
+
+impl fmt::Display for StrongProfileProductionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid strong Compile production: {self:?}")
+        write!(formatter, "invalid strong-profile production: {self:?}")
     }
 }
 
-impl std::error::Error for StrongCompileProductionError {
+impl std::error::Error for StrongProfileProductionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Local(error) => error,
+            Self::Relation(error) => error,
+            Self::Lir(error) => error,
+        })
+    }
+}
+
+impl fmt::Display for StrongProfileLocalProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid strong-profile local production: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongProfileLocalProductionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::Hir(error) => error,
@@ -969,18 +1100,18 @@ impl std::error::Error for StrongCompileProductionError {
 }
 
 #[derive(Debug)]
-pub enum StrongCompileLirProductionError {
+pub enum StrongProfileLirProductionError {
     ShapeSources(CoreShapeSupportSourceProjectionError),
     Production(StrongProductionSectionValidationError),
 }
 
-impl fmt::Display for StrongCompileLirProductionError {
+impl fmt::Display for StrongProfileLirProductionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid strong Compile LIR production: {self:?}")
+        write!(formatter, "invalid strong-profile LIR production: {self:?}")
     }
 }
 
-impl std::error::Error for StrongCompileLirProductionError {
+impl std::error::Error for StrongProfileLirProductionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::ShapeSources(error) => error,
@@ -990,7 +1121,7 @@ impl std::error::Error for StrongCompileLirProductionError {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongCompileRelationError {
+pub enum StrongProfileRelationError {
     OutputMismatch,
     CoreBranchMismatch,
     CoreCallableCoverage { expected: usize, actual: usize },
@@ -1000,16 +1131,16 @@ pub enum StrongCompileRelationError {
     CoreCallableSignatureMismatch { index: usize },
 }
 
-impl fmt::Display for StrongCompileRelationError {
+impl fmt::Display for StrongProfileRelationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "invalid strong Compile cross-layer relation: {self:?}"
+            "invalid strong-profile cross-layer relation: {self:?}"
         )
     }
 }
 
-impl std::error::Error for StrongCompileRelationError {}
+impl std::error::Error for StrongProfileRelationError {}
 
 fn require_strong_profile(
     graph: &ValidatedGraphArtifact<'_>,

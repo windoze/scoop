@@ -457,7 +457,7 @@ pub struct SingleConeStrongProfile;
 
 impl profile_seal::Sealed for SingleConeStrongProfile {}
 impl CompileCapabilityProfile for SingleConeStrongProfile {
-    type Production = crate::SingleConeStrongCompileProduction;
+    type Production = crate::ValidatedSingleConeStrongProduction;
 }
 
 /// A graph artifact whose complete Compile profile was structurally

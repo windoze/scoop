@@ -159,7 +159,7 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
             .validate_local_production()
             .unwrap()
             .validate_cross_layer(),
-        Err(StrongCompileRelationError::OutputMismatch)
+        Err(StrongProfileRelationError::OutputMismatch)
     ));
 
     let hir = scoop_hir::CoreHirInterfaceBranchV1::NotCore;
@@ -169,7 +169,7 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
     let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap();
     assert_eq!(
         validate_core_callable_relation(&hir, &mir, &strong),
-        Err(StrongCompileRelationError::CoreBranchMismatch)
+        Err(StrongProfileRelationError::CoreBranchMismatch)
     );
 }
 
@@ -239,7 +239,7 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
             .validate_cross_layer()
             .unwrap()
             .validate_lir_production(&wrong_external),
-        Err(StrongCompileLirProductionError::Production(
+        Err(StrongProfileLirProductionError::Production(
             scoop_lir::StrongProductionSectionValidationError::Expected(
                 scoop_lir::StrongProductionSectionBuildError::ExternalBridgeProducer
             )
