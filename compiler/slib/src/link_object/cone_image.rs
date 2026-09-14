@@ -7,6 +7,8 @@ mod fingerprint;
 mod physical;
 mod record;
 pub use fingerprint::*;
+mod finalization;
+pub use finalization::*;
 mod verification;
 pub use verification::*;
 

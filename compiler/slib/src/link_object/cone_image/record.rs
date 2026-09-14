@@ -47,6 +47,15 @@ pub(super) fn expected_image_record(plan: &ConeImagePlanV1) -> [u8; IMAGE_DESCRI
     bytes
 }
 
+pub(super) fn expected_final_image_record(
+    plan: &ConeImagePlanV1,
+    fingerprint: &[u8; 32],
+) -> [u8; IMAGE_DESCRIPTOR_SIZE] {
+    let mut bytes = expected_image_record(plan);
+    bytes[96..128].copy_from_slice(fingerprint);
+    bytes
+}
+
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }

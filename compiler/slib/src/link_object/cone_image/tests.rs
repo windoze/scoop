@@ -16,7 +16,8 @@ use scoop_lir::{
     StrongRegistrationIdentitySurfaceV1,
 };
 
-use super::record::expected_image_record;
+use super::finalization::patch_image_bytes_for_test;
+use super::record::{expected_final_image_record, expected_image_record};
 use super::*;
 use crate::link_object::c_bridge_production::tests::profile;
 use crate::link_object::{
@@ -140,6 +141,44 @@ fn verifies_a_nonempty_registration_table_and_strong_target() {
         verified.registration_relocations()[0].containing_atom(),
         verified.support().type_registrations().atom()
     );
+}
+
+#[test]
+fn patches_only_the_verified_runtime_image_slot_and_rechecks_the_record() {
+    let mut fixture = fixture(Corruption::None, false);
+    let verified = verify_cone_image_v1(
+        fixture.patch_sites,
+        fixture.plan.clone(),
+        &[ScoopLirObjectCandidateV1::new(
+            fixture.member,
+            &fixture.bytes,
+        )],
+    )
+    .unwrap();
+    let fingerprint = [0xa5; 32];
+    let expected = expected_final_image_record(&fixture.plan, &fingerprint);
+
+    patch_image_bytes_for_test(
+        &mut fixture.bytes,
+        verified.primary().checked_offset(),
+        verified.image_patch(),
+        &fingerprint,
+        &expected,
+    )
+    .unwrap();
+
+    let start = usize::try_from(verified.image_patch().checked_offset()).unwrap();
+    assert_eq!(&fixture.bytes[start..start + 32], &fingerprint);
+    assert!(matches!(
+        patch_image_bytes_for_test(
+            &mut fixture.bytes,
+            verified.primary().checked_offset(),
+            verified.image_patch(),
+            &fingerprint,
+            &expected,
+        ),
+        Err(RuntimeImagePatchError::NonZeroPatchSlot { offset: 0 })
+    ));
 }
 
 struct Fixture {

@@ -923,7 +923,7 @@ fn zero_digest_slot(
     zero_digest_slots(bytes, member, [patch])
 }
 
-fn same_macho_shape(
+pub(in crate::link_object) fn same_macho_shape(
     original: &ValidatedBuiltinObjectSectionInventoryV1,
     final_inventory: &ValidatedBuiltinObjectSectionInventoryV1,
 ) -> bool {
