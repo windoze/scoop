@@ -562,7 +562,11 @@ toolchain compatibility仍与authority一致。普通parsed variant没有该投�
 `lower_core_bootstrap`，直接沿原子source view建立当前core的source/provider表，并以固定`CoreOnly` intrinsic策略
 运行lowerer；它不构造`LegacyCombinedSources`，不注入伪current-unit source，也不把core AST/text复制到另一个
 可重新配对的公开输入。lowerer在没有ordinary current-unit时以canonical首个core source作为output/诊断主source，
-输出Cone仍由全部core source共同证明为reserved core。
+输出Cone仍由全部core source共同证明为reserved core。driver的authority-bearing入口不返回可被重新配对的裸
+`hir::Output`，而是原子构造`TrustedCoreBootstrapHirOutput`；其私有字段同时持有HIR、固定的`Library`
+`ConeOutputKind`以及从同一Export HIR派生并验证成功的`CoreBootstrapInterfaceSectionV1`。任一lowering诊断或
+production section构造错误都不会产生partial HIR stage成功值，后续stage也不能把core graph改配为executable或
+遗漏mandatory HIR section。
 
 ### 7.3 core Compile capability
 

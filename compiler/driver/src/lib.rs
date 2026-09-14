@@ -16,17 +16,18 @@ mod trusted_core;
 pub use inputs::{load_inputs, render_diagnostics};
 use linking::{LinkRequest, build_runtime, compile_c_bridge, link};
 pub use request::{
-    BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreOnlyRequestValidationError,
-    CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
-    CurrentConeSourceStageError, DiagnosticOutputPolicy, ExplicitDependencyInputs,
-    HostArtifactLocator, LoadedCurrentConeInput, LoadedSingleConeBuildRequest,
-    LoadedTrustedCoreInput, NonCoreDependencyInput, OutputAliasRole, OutputIsolationErrorKind,
-    ParsedCoreBootstrapBuildRequest, ParsedOrdinaryConeBuildRequest, ParsedSingleConeBuildRequest,
-    SingleConeBuildRequest, SingleConeBuildRequestError, SingleConePreflightError,
-    SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreBootstrapHirInput,
-    TrustedCoreInput, ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput,
-    ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
-    normalize_direct_build_request, normalize_protocol_build_request,
+    BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,
+    CoreOnlyRequestValidationError, CurrentConeInput, CurrentConeOperandError,
+    CurrentConeOperandErrorKind, CurrentConeSourceStageError, DiagnosticOutputPolicy,
+    ExplicitDependencyInputs, HostArtifactLocator, LoadedCurrentConeInput,
+    LoadedSingleConeBuildRequest, LoadedTrustedCoreInput, NonCoreDependencyInput, OutputAliasRole,
+    OutputIsolationErrorKind, ParsedCoreBootstrapBuildRequest, ParsedOrdinaryConeBuildRequest,
+    ParsedSingleConeBuildRequest, SingleConeBuildRequest, SingleConeBuildRequestError,
+    SingleConePreflightError, SlibOutputDestination, StageDumpKind, StageDumpPolicy,
+    TrustedCoreBootstrapHirInput, TrustedCoreBootstrapHirOutput, TrustedCoreInput,
+    ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput, ValidatedExplicitDependencyInputSet,
+    classify_current_cone_operand, normalize_direct_build_request,
+    normalize_protocol_build_request,
 };
 pub use trusted_core::{
     CoreBootstrapAuthority, LoadedTrustedCoreArtifact, TrustedCoreArtifactAuthority,

@@ -412,8 +412,18 @@ impl<'a> TrustedCoreBootstrapHirInput<'a> {
         })
     }
 
-    pub fn lower(&self) -> Result<scoop_hir::Output, Vec<scoop_ast::Diagnostic>> {
-        scoop_hir_lower::lower_core_bootstrap(&self.sources)
+    pub fn lower(&self) -> Result<TrustedCoreBootstrapHirOutput, CoreBootstrapHirStageError> {
+        let hir = scoop_hir_lower::lower_core_bootstrap(&self.sources)
+            .map_err(CoreBootstrapHirStageError::Lowering)?;
+        let output_kind = scoop_hir::ConeOutputKind::Library;
+        let production_section =
+            scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export, &output_kind)
+                .map_err(CoreBootstrapHirStageError::ProductionSection)?;
+        Ok(TrustedCoreBootstrapHirOutput {
+            hir,
+            output_kind,
+            production_section,
+        })
     }
 
     pub const fn authority(&self) -> &'a CoreBootstrapAuthority {
@@ -422,6 +432,59 @@ impl<'a> TrustedCoreBootstrapHirInput<'a> {
 
     pub const fn artifact_slot(&self) -> &'a TrustedCoreArtifactSlot {
         self.artifact_slot
+    }
+}
+
+/// Atomic trusted-core HIR product for the single-Cone production pipeline.
+///
+/// The private fields prevent downstream orchestration from pairing the core
+/// graph with an executable contract or omitting its mandatory production
+/// section. All three views are derived during the same successful stage.
+pub struct TrustedCoreBootstrapHirOutput {
+    hir: scoop_hir::Output,
+    output_kind: scoop_hir::ConeOutputKind,
+    production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
+}
+
+impl TrustedCoreBootstrapHirOutput {
+    pub const fn hir(&self) -> &scoop_hir::Output {
+        &self.hir
+    }
+
+    pub const fn output_kind(&self) -> &scoop_hir::ConeOutputKind {
+        &self.output_kind
+    }
+
+    pub const fn production_section(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
+        &self.production_section
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapHirStageError {
+    Lowering(Vec<scoop_ast::Diagnostic>),
+    ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
+}
+
+impl fmt::Display for CoreBootstrapHirStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lowering(diagnostics) => write!(
+                formatter,
+                "trusted core HIR lowering failed with {} diagnostic(s)",
+                diagnostics.len()
+            ),
+            Self::ProductionSection(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapHirStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Lowering(_) => None,
+            Self::ProductionSection(source) => Some(source),
+        }
     }
 }
 
@@ -771,7 +834,19 @@ mod tests {
         assert!(std::ptr::eq(input.authority(), bootstrap.authority()));
         assert_eq!(input.artifact_slot(), &artifact_slot);
         let output = input.lower().unwrap();
-        scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+        assert!(matches!(
+            output.output_kind(),
+            scoop_hir::ConeOutputKind::Library
+        ));
+        assert_eq!(
+            output.production_section().output_contract(),
+            &scoop_hir::HirOutputContractV1::Library
+        );
+        assert!(matches!(
+            output.production_section().core_interface(),
+            scoop_hir::CoreHirInterfaceBranchV1::Core(_)
+        ));
+        scoop_hir::CoreHirInterfaceV1::from_core_export(&output.hir().export).unwrap();
     }
 
     #[test]
