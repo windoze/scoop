@@ -137,9 +137,11 @@ impl DecodedBootstrapManifest {
             .map_err(BootstrapManifestValidationError::Budget)?;
         require_strictly_increasing_members(&members)?;
 
+        let profile = crate::ArtifactCapabilityProfile::from_id(compatibility.artifact_profile())
+            .expect("every validated artifact profile is registered");
         let semantic_fingerprints = self
             .semantic_fingerprints
-            .validate_foundation()
+            .validate(profile)
             .map_err(BootstrapManifestValidationError::SemanticFingerprints)?;
 
         let mut sections = Vec::new();

@@ -389,8 +389,10 @@ impl SlibDiagnostic for BootstrapManifestValidationError {
             Self::SemanticFingerprints(error) => SlibDiagnosticRecord::new(
                 SlibErrorCode::FingerprintMismatch,
                 WirePath::root().field(9).field(match error {
-                    SemanticFingerprintValidationError::CodeMustBeUnavailable => 4,
-                    SemanticFingerprintValidationError::RuntimeImageMustBeUnavailable => 5,
+                    SemanticFingerprintValidationError::CodeMustBeAvailable
+                    | SemanticFingerprintValidationError::CodeMustBeUnavailable => 4,
+                    SemanticFingerprintValidationError::RuntimeImageMustBeAvailable
+                    | SemanticFingerprintValidationError::RuntimeImageMustBeUnavailable => 5,
                 }),
             )
             .with_origin(manifest),

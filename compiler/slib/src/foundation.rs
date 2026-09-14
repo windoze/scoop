@@ -280,8 +280,11 @@ impl IdentityFoundationArtifact {
         validate_manifest_sections(&manifest_sections)?;
         validate_auxiliary_members(cone.identity(), &auxiliary_members)?;
 
-        let compatibility = CompatibilityRecord::identity_foundation(selection)
-            .map_err(IdentityFoundationArtifactError::Compatibility)?;
+        let compatibility = CompatibilityRecord::new(
+            selection,
+            crate::ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+        )
+        .map_err(IdentityFoundationArtifactError::Compatibility)?;
         let metadata = IdentityFoundationMetadata::new(hir, mir, lir)
             .map_err(IdentityFoundationArtifactError::Metadata)?;
         let semantic_fingerprints = SemanticFingerprintRecord::from_metadata_sections(

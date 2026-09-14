@@ -39,7 +39,11 @@ fn members() -> Vec<SlibMember> {
 fn manifest(sections: Vec<ManifestSection>) -> BootstrapManifest {
     BootstrapManifest::new(
         ProducerRecord::new("dev").unwrap(),
-        CompatibilityRecord::identity_foundation(selection()).unwrap(),
+        CompatibilityRecord::new(
+            selection(),
+            crate::ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+        )
+        .unwrap(),
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
             ConeKind::Library,

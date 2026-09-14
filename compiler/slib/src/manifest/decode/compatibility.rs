@@ -11,7 +11,7 @@ use scoop_wire::{
     WirePath,
 };
 
-use crate::CompatibilityRecord;
+use crate::{ArtifactCapabilityProfile, CompatibilityRecord};
 
 const INITIAL_SCHEMA: u32 = 1;
 
@@ -45,15 +45,22 @@ impl DecodedCompatibilityRecord {
         require_schema(CompatibilitySchemaKind::Mir, self.mir_schema)?;
         require_schema(CompatibilitySchemaKind::Lir, self.lir_schema)?;
 
-        let hash_stream_lengths =
-            CompatibilityRecord::identity_foundation_hash_stream_lengths(selection)
-                .map_err(CompatibilityValidationError::Hash)?;
+        let artifact_profile = ArtifactCapabilityProfileId::refine(
+            self.artifact_profile
+                .validate()
+                .map_err(CompatibilityValidationError::Capability)?,
+        )
+        .map_err(CompatibilityValidationError::ArtifactProfile)?;
+        let profile = ArtifactCapabilityProfile::from_id(&artifact_profile)
+            .expect("every refined artifact profile is registered");
+        let hash_stream_lengths = CompatibilityRecord::hash_stream_lengths(selection, profile)
+            .map_err(CompatibilityValidationError::Hash)?;
         for stream_length in hash_stream_lengths {
             meter
                 .charge_sha256(stream_length, path)
                 .map_err(CompatibilityValidationError::Resource)?;
         }
-        let expected = CompatibilityRecord::identity_foundation(selection)
+        let expected = CompatibilityRecord::new(selection, profile)
             .map_err(CompatibilityValidationError::Hash)?;
         if self.mangling_schema != ManglingSchemaIdentity.canonical_name() {
             return Err(CompatibilityValidationError::ManglingSchema {
@@ -72,13 +79,6 @@ impl DecodedCompatibilityRecord {
                 .map_err(CompatibilityValidationError::Capability)?,
         )
         .map_err(CompatibilityValidationError::BackendProfile)?;
-        ArtifactCapabilityProfileId::refine(
-            self.artifact_profile
-                .validate()
-                .map_err(CompatibilityValidationError::Capability)?,
-        )
-        .map_err(CompatibilityValidationError::ArtifactProfile)?;
-
         require_fingerprint(
             CompatibilityFingerprintKind::LanguageAbi,
             expected.language_abi().as_array(),
@@ -316,4 +316,36 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
         write!(formatter, "{byte:02x}")?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+
+    use super::*;
+
+    #[test]
+    fn compatibility_reader_selects_the_exact_registered_artifact_profile() {
+        let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+        for profile in [
+            ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        ] {
+            let expected = CompatibilityRecord::new(selection, profile).unwrap();
+            let decoded = decode_canonical::<DecodedCompatibilityRecord>(
+                &encode(&expected).unwrap(),
+                DecodeLimits::default(),
+            )
+            .unwrap();
+            let actual = decoded
+                .validate(
+                    selection,
+                    &mut BudgetMeter::new(DecodeLimits::default()),
+                    &WirePath::root(),
+                )
+                .unwrap();
+            assert_eq!(actual, expected);
+            assert_eq!(actual.artifact_profile(), &profile.id());
+        }
+    }
 }

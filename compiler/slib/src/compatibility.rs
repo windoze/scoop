@@ -135,11 +135,13 @@ pub struct CompatibilityRecord {
 }
 
 impl CompatibilityRecord {
-    pub fn identity_foundation(selection: ValidatedLirTargetSelection) -> Result<Self, HashError> {
+    pub fn new(
+        selection: ValidatedLirTargetSelection,
+        artifact_profile: ArtifactCapabilityProfile,
+    ) -> Result<Self, HashError> {
         let descriptor = IdentityAbiDescriptor::current()?;
         let target = selection.target();
         let backend = selection.backend();
-        let artifact_profile = ArtifactCapabilityProfile::IDENTITY_FOUNDATION;
         Ok(Self {
             language_abi: descriptor.language_abi(),
             runtime_abi: descriptor.runtime_abi(),
@@ -154,11 +156,11 @@ impl CompatibilityRecord {
         })
     }
 
-    pub(crate) fn identity_foundation_hash_stream_lengths(
+    pub(crate) fn hash_stream_lengths(
         selection: ValidatedLirTargetSelection,
+        artifact_profile: ArtifactCapabilityProfile,
     ) -> Result<[u64; 6], HashError> {
         let descriptor_shape = IdentityAbiDescriptor::current()?;
-        let artifact_profile = ArtifactCapabilityProfile::IDENTITY_FOUNDATION;
         Ok([
             domain_separated_cbor_hash_stream_length(LANGUAGE_ABI_DOMAIN, &LanguageAbiContract)?,
             RuntimeAbiContract.hash_stream_length()?,
@@ -286,8 +288,9 @@ mod tests {
 
     #[test]
     fn compatibility_record_is_derived_from_the_only_registered_contracts() {
-        let record = CompatibilityRecord::identity_foundation(
+        let record = CompatibilityRecord::new(
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
         )
         .unwrap();
         let encoded = encode(&record).unwrap();

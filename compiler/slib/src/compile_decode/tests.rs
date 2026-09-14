@@ -1024,7 +1024,11 @@ fn unknown_compile_required_manifest_capability_stops_foundation_decode() {
     .unwrap();
     let capability = CapabilityId::new("org.scoop-lang.test", "compile", 1).unwrap();
     let metadata = crate::IdentityFoundationMetadata::new(&hir, &mir, &lir).unwrap();
-    let compatibility = crate::CompatibilityRecord::identity_foundation(selection).unwrap();
+    let compatibility = crate::CompatibilityRecord::new(
+        selection,
+        crate::ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+    )
+    .unwrap();
     let fingerprints = SemanticFingerprintRecord::from_metadata_sections(
         &compatibility,
         &[],

@@ -4,8 +4,9 @@ use scoop_wire::encode;
 
 use super::*;
 use crate::{
-    BootstrapManifestError, CompatibilityRecord, ExtensionRequirement, LogicalMemberKey,
-    ManifestSectionError, MemberPurposeSet, MemberStableKey, SlibMember, SlibMemberRole,
+    ArtifactCapabilityProfile, BootstrapManifestError, CompatibilityRecord, ExtensionRequirement,
+    LogicalMemberKey, ManifestSectionError, MemberPurposeSet, MemberStableKey, SlibMember,
+    SlibMemberRole,
 };
 
 fn fingerprints(seed: u8) -> SemanticFingerprintRecord {
@@ -17,8 +18,11 @@ fn fingerprints(seed: u8) -> SemanticFingerprintRecord {
 }
 
 fn compatibility() -> CompatibilityRecord {
-    CompatibilityRecord::identity_foundation(ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1)
-        .unwrap()
+    CompatibilityRecord::new(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+    )
+    .unwrap()
 }
 
 fn cone() -> ConeRecord {

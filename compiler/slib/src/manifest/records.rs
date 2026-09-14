@@ -295,6 +295,22 @@ impl SemanticFingerprintRecord {
         }
     }
 
+    pub(crate) const fn from_validated_digests(
+        hir: HirFingerprint,
+        mir: MirFingerprint,
+        lir: LirFingerprint,
+        code: FingerprintAvailability<CodeFingerprint>,
+        runtime_image: FingerprintAvailability<RuntimeImageFingerprint>,
+    ) -> Self {
+        Self {
+            hir,
+            mir,
+            lir,
+            code,
+            runtime_image,
+        }
+    }
+
     pub fn from_production_manifest(
         hir: HirFingerprint,
         mir: MirFingerprint,
