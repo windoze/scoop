@@ -13,6 +13,12 @@ pub(crate) struct DecodedFixedBytesV1<I> {
     marker: PhantomData<fn() -> I>,
 }
 
+impl<I> DecodedFixedBytesV1<I> {
+    pub(crate) fn matches(&self, expected: &[u8; 32]) -> bool {
+        self.bytes == *expected
+    }
+}
+
 impl<I> WireEncode for DecodedFixedBytesV1<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.bytes)

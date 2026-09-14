@@ -103,6 +103,13 @@ fn strong_graph_decodes_all_link_sections_atomically() {
             .len(),
         1
     );
+    let patches = builtins.validate_digest_patch_sites().unwrap();
+    assert_eq!(patches.identity(), cone().identity());
+    assert_eq!(patches.digest_patch_sites().sites().len(), 1);
+    assert_eq!(
+        patches.digest_patch_sites().sites()[0].intent(),
+        digest_patch_intent()
+    );
 }
 
 #[test]
@@ -516,11 +523,18 @@ fn strong_section() -> MetadataSection {
 }
 
 fn closure_section() -> MetadataSection {
+    let plan = link_object_plan();
+    let (_, checked_offset) = link_object_fixture();
     MetadataSection::new(
         MetadataLocation::Lir,
         lir_link_identity_closure_capability(),
         MemberPurposeSet::LINK,
-        crate::link_object::encoded_link_identity_closure_for_member_plan_test(&link_object_plan()),
+        crate::link_object::encoded_link_identity_closure_for_patch_test(
+            &plan,
+            digest_patch_intent(),
+            plan.scoop_lir_members()[0].member_id(),
+            checked_offset,
+        ),
     )
     .unwrap()
 }
@@ -668,14 +682,22 @@ fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
     PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap()
 }
 
-fn link_object_bytes() -> Vec<u8> {
+fn link_object_fixture() -> (Vec<u8>, u64) {
     let (canonical, _) = strong_production_fixture(cone().coordinate().clone());
     let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let plan = link_object_plan();
     let symbols =
         PlannedStrongObjectSymbolSetV1::new(selection().target(), &surface, &plan).unwrap();
-    crate::link_object::scoop_object_bytes_for_symbol_plan_test(&symbols.members()[0])
+    crate::link_object::scoop_object_with_digest_slot_for_symbol_plan_test(&symbols.members()[0])
+}
+
+fn link_object_bytes() -> Vec<u8> {
+    link_object_fixture().0
+}
+
+fn digest_patch_intent() -> scoop_identity::DigestPatchIntentId {
+    strong_production().digest_finalization_plan().nodes()[0].patch_intents()[0].id()
 }
 
 fn selection() -> ValidatedLirTargetSelection {

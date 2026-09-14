@@ -1,13 +1,13 @@
 //! Strict untrusted wire projection for the Link identity closure.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{
     DecodedPersistentId, DefinitionAtomRole, DigestPatchIntentId, GeneratedBridgeUnitId,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentId,
 };
-use scoop_lir::StrongProducerUnitPartitionV1;
+use scoop_lir::{StrongDigestFinalizationPlanV1, StrongProducerUnitPartitionV1};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
@@ -15,7 +15,7 @@ use crate::link_object::{
     CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
     DecodedCanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalUndefinedSymbolRequirementSetV1,
     DecodedFixedBytesV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
-    PlannedLinkObjectMemberSetV1, VerifiedCodeFingerprintV1,
+    PlannedLinkObjectMemberSetV1, ProvisionalDigestPatchSiteV1, VerifiedCodeFingerprintV1,
 };
 use crate::{LinkMemberFingerprint, SlibMemberId};
 
@@ -343,9 +343,120 @@ pub struct MaterializationCheckedLinkIdentityClosureSectionV1 {
     member_plan: PlannedLinkObjectMemberSetV1,
 }
 
+/// A decoded closure whose digest patch inputs were matched to the validated
+/// digest plan and checked materialization plan. Physical object validation is
+/// still required before these inputs become verified patch sites.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
+    decoded: DecodedLinkIdentityClosureSectionV1,
+    member_plan: PlannedLinkObjectMemberSetV1,
+    provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
+}
+
 impl MaterializationCheckedLinkIdentityClosureSectionV1 {
     pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
         &self.member_plan
+    }
+
+    pub fn validate_digest_patch_inputs(
+        self,
+        digest_plan: &StrongDigestFinalizationPlanV1,
+    ) -> Result<
+        DigestPatchInputCheckedLinkIdentityClosureSectionV1,
+        LinkDigestPatchInputValidationError,
+    > {
+        let scoop_members = self
+            .member_plan
+            .scoop_lir_members()
+            .iter()
+            .map(|member| member.member_id())
+            .collect::<BTreeSet<_>>();
+        let mut expected = BTreeMap::new();
+        for node in digest_plan.nodes() {
+            for patch in node.patch_intents() {
+                let intent = patch.id();
+                let definition = patch.key().target_definition();
+                let member = self.member_plan.member_for_definition(definition).ok_or(
+                    LinkDigestPatchInputValidationError::MissingTargetMember { intent, definition },
+                )?;
+                if !scoop_members.contains(&member) {
+                    return Err(LinkDigestPatchInputValidationError::NonScoopTargetMember {
+                        intent,
+                        member,
+                    });
+                }
+                if expected
+                    .insert(*intent.as_array(), (intent, member))
+                    .is_some()
+                {
+                    return Err(
+                        LinkDigestPatchInputValidationError::DuplicateExpectedPatchIntent(intent),
+                    );
+                }
+            }
+        }
+
+        let mut sites = Vec::with_capacity(self.decoded.patch_sites.len());
+        let mut seen = BTreeSet::new();
+        let mut previous = None;
+        for (index, decoded) in self.decoded.patch_sites.iter().enumerate() {
+            let (intent, member) = expected.get(decoded.intent.as_array()).copied().ok_or(
+                LinkDigestPatchInputValidationError::UnknownPatchIntent(*decoded.intent.as_array()),
+            )?;
+            if let Some(previous) = previous {
+                if previous >= intent {
+                    return Err(if previous == intent {
+                        LinkDigestPatchInputValidationError::DuplicatePatchIntent(intent)
+                    } else {
+                        LinkDigestPatchInputValidationError::NonCanonicalPatchSiteOrder { index }
+                    });
+                }
+            }
+            if !decoded.member.matches(member.as_array()) {
+                return Err(LinkDigestPatchInputValidationError::PatchMemberMismatch {
+                    intent,
+                    expected: member,
+                });
+            }
+            previous = Some(intent);
+            seen.insert(intent);
+            sites.push(ProvisionalDigestPatchSiteV1::new(
+                intent,
+                member,
+                decoded.checked_offset,
+                32,
+            ));
+        }
+        if let Some((intent, _)) = expected.values().find(|(intent, _)| !seen.contains(intent)) {
+            return Err(LinkDigestPatchInputValidationError::MissingPatchIntent(
+                *intent,
+            ));
+        }
+
+        Ok(DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
+            decoded: self.decoded,
+            member_plan: self.member_plan,
+            provisional_patch_sites: sites,
+        })
+    }
+
+    pub fn validate(
+        self,
+        code: &VerifiedCodeFingerprintV1,
+    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
+        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
+            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
+        validate_against(self.decoded, &expected)
+    }
+}
+
+impl DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
+    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
+        &self.member_plan
+    }
+
+    pub fn provisional_patch_sites(&self) -> &[ProvisionalDigestPatchSiteV1] {
+        &self.provisional_patch_sites
     }
 
     pub fn validate(
@@ -453,6 +564,37 @@ pub enum LinkObjectMaterializationValidationError {
     ProjectionMismatch,
     Encode(scoop_wire::cbor::EncodeError),
 }
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum LinkDigestPatchInputValidationError {
+    DuplicateExpectedPatchIntent(DigestPatchIntentId),
+    MissingTargetMember {
+        intent: DigestPatchIntentId,
+        definition: ObjectDefinitionPlanId,
+    },
+    NonScoopTargetMember {
+        intent: DigestPatchIntentId,
+        member: SlibMemberId,
+    },
+    UnknownPatchIntent([u8; 32]),
+    DuplicatePatchIntent(DigestPatchIntentId),
+    NonCanonicalPatchSiteOrder {
+        index: usize,
+    },
+    MissingPatchIntent(DigestPatchIntentId),
+    PatchMemberMismatch {
+        intent: DigestPatchIntentId,
+        expected: SlibMemberId,
+    },
+}
+
+impl fmt::Display for LinkDigestPatchInputValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid Link digest patch input: {self:?}")
+    }
+}
+
+impl std::error::Error for LinkDigestPatchInputValidationError {}
 
 impl fmt::Display for LinkObjectMaterializationValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

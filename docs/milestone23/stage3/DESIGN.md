@@ -1043,6 +1043,16 @@ member id，并对完整materialization array做canonical byte等值。它必须
 不能把field 1中的裸id/member bytes直接提升，也不能用该中间状态冒充完整closure proof。最终仍以
 `VerifiedCodeFingerprintV1`重建并核对全部八个字段。
 
+物理digest slot验证前，reader再把decoded field 3收窄为
+`DigestPatchInputCheckedLinkIdentityClosureSectionV1`。该转换只能从已经验证的
+`StrongDigestFinalizationPlanV1`枚举完整intent集合，并沿每个intent的target definition在上述
+`PlannedLinkObjectMemberSetV1`中取得唯一Scoop LIR member；decoded intent与member都必须逐byte匹配这些
+typed expected值，数组必须按intent严格递增、无重复且完整覆盖plan。wire只贡献`checked_offset`；slot宽度
+固定由v1协议派生为32，source、semantic role、definition、atom及atom role继续由digest plan与foundation
+派生，不能由decoded字段或调用者补入。该中间状态只授权把这些受限输入交给actual-object digest patch
+verifier，并继续拥有其余未验证closure字段；只有物理range、零值与relocation检查完成后，才产生
+`VerifiedScoopLirDigestPatchSiteSetV1`。最终仍从同一Code proof重建并核对完整八字段closure。
+
 它不贡献新的LIR semantic bytes。reader从`StrongProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
 
 ### 9.5 manifest production section

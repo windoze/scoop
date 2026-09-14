@@ -13,7 +13,8 @@ use crate::SlibMemberId;
 
 mod wire;
 pub use wire::{
-    DecodedLinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError,
+    DecodedLinkIdentityClosureSectionV1, DigestPatchInputCheckedLinkIdentityClosureSectionV1,
+    LinkDigestPatchInputValidationError, LinkIdentityClosureSectionValidationError,
     LinkObjectMaterializationValidationError, MaterializationCheckedLinkIdentityClosureSectionV1,
 };
 
@@ -23,10 +24,13 @@ pub(crate) fn encoded_link_identity_closure_for_test() -> Vec<u8> {
 }
 
 #[cfg(test)]
-pub(crate) fn encoded_link_identity_closure_for_member_plan_test(
+pub(crate) fn encoded_link_identity_closure_for_patch_test(
     plan: &PlannedLinkObjectMemberSetV1,
+    intent: scoop_identity::DigestPatchIntentId,
+    member: SlibMemberId,
+    checked_offset: u64,
 ) -> Vec<u8> {
-    wire::tests::encoded_link_identity_closure_for_member_plan_test(plan)
+    wire::tests::encoded_link_identity_closure_for_patch_test(plan, intent, member, checked_offset)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

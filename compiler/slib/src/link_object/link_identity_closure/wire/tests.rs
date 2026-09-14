@@ -1,3 +1,4 @@
+use scoop_identity::{DigestPatchIntentKey, DigestSemanticFieldRole};
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
@@ -98,6 +99,83 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     ));
 }
 
+#[test]
+fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
+    let (canonical, production) = crate::link_decode::strong_production_fixture_for_test(
+        scoop_identity::ConeCoordinate::reserved_core(),
+    );
+    let foundation =
+        scoop_lir::OdrFreeLirFoundation::try_new(scoop_identity::ConeIdentity::CORE, canonical)
+            .unwrap();
+    let partition =
+        scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let units =
+        CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
+            .unwrap();
+    let plan = PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap();
+    let digest_plan = production.digest_finalization_plan();
+    let intent = digest_plan.nodes()[0].patch_intents()[0].id();
+    let member = plan
+        .member_for_definition(
+            digest_plan.nodes()[0].patch_intents()[0]
+                .key()
+                .target_definition(),
+        )
+        .unwrap();
+    let bytes = encoded_link_identity_closure_for_patch_test(&plan, intent, member, 144);
+    let decoded =
+        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
+            .unwrap();
+    let checked = decoded
+        .validate_materializations(&partition)
+        .unwrap()
+        .validate_digest_patch_inputs(digest_plan)
+        .unwrap();
+    assert_eq!(checked.member_plan(), &plan);
+    assert_eq!(checked.provisional_patch_sites().len(), 1);
+    assert_eq!(checked.provisional_patch_sites()[0].intent(), intent);
+    assert_eq!(checked.provisional_patch_sites()[0].member(), member);
+    assert_eq!(checked.provisional_patch_sites()[0].checked_offset(), 144);
+    assert_eq!(checked.provisional_patch_sites()[0].width_bytes(), 32);
+
+    let missing = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
+        &encoded_link_identity_closure_for_member_plan_test(&plan),
+        DecodeLimits::default(),
+    )
+    .unwrap()
+    .validate_materializations(&partition)
+    .unwrap();
+    assert_eq!(
+        missing.validate_digest_patch_inputs(digest_plan),
+        Err(LinkDigestPatchInputValidationError::MissingPatchIntent(
+            intent
+        ))
+    );
+
+    let expected_patch = &digest_plan.nodes()[0].patch_intents()[0];
+    let unknown_intent = DigestPatchIntentId::from_key(&DigestPatchIntentKey::new(
+        expected_patch.key().source(),
+        expected_patch.key().target_definition(),
+        expected_patch.key().atom_role(),
+        DigestSemanticFieldRole::DescriptorDefinition,
+    ))
+    .unwrap();
+    assert_ne!(unknown_intent, intent);
+    let unknown = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
+        &encoded_link_identity_closure_for_patch_test(&plan, unknown_intent, member, 144),
+        DecodeLimits::default(),
+    )
+    .unwrap()
+    .validate_materializations(&partition)
+    .unwrap();
+    assert_eq!(
+        unknown.validate_digest_patch_inputs(digest_plan),
+        Err(LinkDigestPatchInputValidationError::UnknownPatchIntent(
+            *unknown_intent.as_array()
+        ))
+    );
+}
+
 fn closure() -> LinkIdentityClosureSectionV1 {
     let fixture = fixture_named("closureWireProjection");
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![
@@ -159,6 +237,25 @@ pub(crate) fn encoded_link_identity_closure_for_member_plan_test(
 ) -> Vec<u8> {
     let mut projection = closure();
     projection.materializations = super::super::materializations(plan);
+    encode(&projection).unwrap()
+}
+
+pub(crate) fn encoded_link_identity_closure_for_patch_test(
+    plan: &PlannedLinkObjectMemberSetV1,
+    intent: DigestPatchIntentId,
+    member: SlibMemberId,
+    checked_offset: u64,
+) -> Vec<u8> {
+    let mut projection = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
+        &encoded_link_identity_closure_for_member_plan_test(plan),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    projection.patch_sites = vec![DecodedMaterializedPatchSiteV1 {
+        intent: decode_canonical(&encode(&intent).unwrap(), DecodeLimits::default()).unwrap(),
+        member: decode_canonical(&encode(&member).unwrap(), DecodeLimits::default()).unwrap(),
+        checked_offset,
+    }];
     encode(&projection).unwrap()
 }
 
