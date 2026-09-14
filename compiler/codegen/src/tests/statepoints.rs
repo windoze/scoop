@@ -54,6 +54,10 @@ fn emits_complete_image_root_and_immortal_tables() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             identity: storage_identity,
+            layout: layout_identity(
+                "managedGlobal",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),
@@ -125,6 +129,10 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             identity,
+            layout: layout_identity(
+                "managedTls",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),

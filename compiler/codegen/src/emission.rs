@@ -231,6 +231,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
             }
             GlobalInit::Storage {
                 identity,
+                layout: _,
                 ty: lir_ty,
                 initial_state,
                 thread_local,

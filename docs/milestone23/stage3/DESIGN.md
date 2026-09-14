@@ -1532,6 +1532,13 @@ fingerprint node必须是同一digest plan中owner恰为该plan id的`StrongRegi
 foundation中的每个registration-role plan恰好进入一张表，其他definition role不得混入；reader
 从foundation与digest plan独立重建全部六表并逐项比较，不把decoded id直接提升为trusted id。
 
+每个`GlobalInit::Storage`必须直接携带与该source exact value type、target profile及representation role闭合的
+`LayoutIdentity`；同一identity同时给出唯一`PersistentLayoutId`与其top-level inline
+`PersistentScanId`。LIR foundation把storage携带的layout/scan record与普通metadata layout、array layout按
+typed id去重后共同投影，并保留各自materialization关系。后续static-storage registration只消费这些字段私有的
+typed identity，不从`LirType`、global序号、scan bytes或恰好相等的size/alignment反推；旧的无layout storage
+variant直接删除，不保留默认identity或兼容构造路径。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

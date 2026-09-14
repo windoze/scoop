@@ -50,6 +50,12 @@ pub(super) fn lower_globals(
                             enums,
                             global,
                         ),
+                        layout: static_storage_layout_identity(
+                            context,
+                            identity_roots,
+                            module,
+                            global,
+                        ),
                         ty: lir_type(&global.ty),
                         initial_state: lower_static_initial_state(
                             initial_state,
@@ -74,6 +80,12 @@ pub(super) fn lower_globals(
                             identity_roots,
                             module,
                             enums,
+                            global,
+                        ),
+                        layout: static_storage_layout_identity(
+                            context,
+                            identity_roots,
+                            module,
                             global,
                         ),
                         ty: lir_type(&global.ty),
@@ -171,6 +183,37 @@ fn static_storage_identity(
         }
     };
     identity.expect("validated static storage owner must derive a persistent identity")
+}
+
+fn static_storage_layout_identity(
+    context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
+    module: &mir::Module,
+    global: &mir::Global,
+) -> lir::LayoutIdentity {
+    let exact_type = exact_type_record(module, &global.ty).id();
+    let target = context.target_profile();
+    let root = identity_roots.for_type(&global.ty);
+    let identity = match &global.ty {
+        mir::Type::Struct(id) => {
+            let mir::StructRepresentation::Declared { c_layout, .. } =
+                &module.structs[*id].representation
+            else {
+                return lir::LayoutIdentity::managed_value(exact_type, target, root)
+                    .expect("validated storage type must derive a layout identity");
+            };
+            if c_layout.is_some() {
+                lir::LayoutIdentity::c_value(exact_type, target, root)
+            } else {
+                lir::LayoutIdentity::managed_value(exact_type, target, root)
+            }
+        }
+        mir::Type::FunPtr(_) => {
+            lir::LayoutIdentity::native_function_pointer(exact_type, target, root)
+        }
+        _ => lir::LayoutIdentity::managed_value(exact_type, target, root),
+    };
+    identity.expect("validated storage type must derive a layout identity")
 }
 
 pub(super) fn lower_static_initial_state(

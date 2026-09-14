@@ -10,43 +10,41 @@ impl CanonicalLirFoundation {
     /// safepoint semantics from local arena ids.
     pub fn from_module(module: &Module) -> Result<Self, LirFoundationBuildError> {
         let mut foundation = Self::from_functions(&module.functions)?;
-        foundation.set_layouts(
-            module
-                .meta
-                .layouts
-                .iter()
-                .map(|(_, layout)| layout.identity.layout_record().clone())
-                .chain(
-                    module
-                        .meta
-                        .arrays
-                        .iter()
-                        .map(|(_, array)| array.identity.layout_record().clone()),
-                )
-                .collect(),
-        )?;
-        foundation.set_scans(
-            module
-                .meta
-                .layouts
-                .iter()
-                .map(|(_, layout)| layout.identity.scan_record().clone())
-                .chain(
-                    module
-                        .meta
-                        .arrays
-                        .iter()
-                        .map(|(_, array)| array.identity.scan_record().clone()),
-                )
-                .collect(),
-        )?;
+        let layout_identities = module
+            .meta
+            .layouts
+            .iter()
+            .map(|(_, layout)| &layout.identity)
+            .chain(module.meta.arrays.iter().map(|(_, array)| &array.identity))
+            .chain(
+                module
+                    .globals
+                    .iter()
+                    .filter_map(|(_, global)| match &global.init {
+                        crate::GlobalInit::Storage { layout, .. } => Some(layout),
+                        crate::GlobalInit::StringConst { .. }
+                        | crate::GlobalInit::CString { .. } => None,
+                    }),
+            )
+            .collect::<Vec<_>>();
+        let mut layouts = BTreeMap::new();
+        let mut scans = BTreeMap::new();
+        for identity in &layout_identities {
+            insert_projected_identity(
+                &mut layouts,
+                Some(identity.layout_record()),
+                LirFoundationTable::Layout,
+            )?;
+            insert_projected_identity(
+                &mut scans,
+                Some(identity.scan_record()),
+                LirFoundationTable::Scan,
+            )?;
+        }
+        foundation.set_layouts(layouts.into_values().collect())?;
+        foundation.set_scans(scans.into_values().collect())?;
         foundation.project_materializations(
-            module
-                .meta
-                .layouts
-                .iter()
-                .map(|(_, layout)| &layout.identity)
-                .chain(module.meta.arrays.iter().map(|(_, array)| &array.identity)),
+            layout_identities,
             module
                 .meta
                 .type_descriptors
@@ -654,6 +652,12 @@ mod tests {
             scan: RefScan::References(vec![0]),
             init: GlobalInit::Storage {
                 identity: storage,
+                layout: LayoutIdentity::managed_value(
+                    exact_tuple(0),
+                    LirTargetProfile::DARWIN_AARCH64,
+                    MaterializationRoot::cone_owned(),
+                )
+                .unwrap(),
                 ty: MANAGED_PTR,
                 initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
                 thread_local: false,

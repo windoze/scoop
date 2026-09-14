@@ -14,6 +14,10 @@ fn storage_global_linkage_follows_its_materialization_root() {
             scan: RefScan::None,
             init: GlobalInit::Storage {
                 identity,
+                layout: layout_identity(
+                    "storageGlobal",
+                    scoop_identity::RepresentationRole::ManagedValue,
+                ),
                 ty: LirType::I64,
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
@@ -42,6 +46,10 @@ fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
         scan: RefScan::None,
         init: GlobalInit::Storage {
             identity: static_storage_identity("initStorage"),
+            layout: layout_identity(
+                "initStorage",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -52,6 +60,10 @@ fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             identity: static_storage_identity("initFailure"),
+            layout: layout_identity(
+                "initFailure",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -62,6 +74,10 @@ fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
         scan: RefScan::None,
         init: GlobalInit::Storage {
             identity: static_storage_identity("secondInitStorage"),
+            layout: layout_identity(
+                "secondInitStorage",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -72,6 +88,10 @@ fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
             identity: static_storage_identity("secondInitFailure"),
+            layout: layout_identity(
+                "secondInitFailure",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -150,6 +170,10 @@ fn storage_global_rejects_machine_scalar_type() {
         scan: RefScan::None,
         init: GlobalInit::Storage {
             identity,
+            layout: layout_identity(
+                "machineGlobal",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
             ty: LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,

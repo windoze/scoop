@@ -706,6 +706,10 @@ fn static_storage_validation_rejects_two_globals_for_one_identity() {
             scan: RefScan::None,
             init: GlobalInit::Storage {
                 identity: static_storage_identity("duplicateStorage"),
+                layout: layout_identity(
+                    "duplicateStorage",
+                    scoop_identity::RepresentationRole::ManagedValue,
+                ),
                 ty: LirType::I64,
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),

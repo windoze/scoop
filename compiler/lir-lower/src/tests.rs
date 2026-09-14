@@ -449,6 +449,7 @@ fn initialization_display_name_survives_lir_lowering() {
     );
     let lir::GlobalInit::Storage {
         identity: storage_identity,
+        layout: storage_layout,
         ..
     } = &module.globals[lowered_unit.kind.storage()].init
     else {
@@ -462,8 +463,17 @@ fn initialization_display_name_survives_lir_lowering() {
         )
         .unwrap()
     );
+    assert_eq!(
+        storage_layout.layout_record().key().representation(),
+        scoop_identity::RepresentationRole::ManagedValue
+    );
+    assert_eq!(
+        storage_layout.scan_record().key().layout(),
+        storage_layout.layout_record().id()
+    );
     let lir::GlobalInit::Storage {
         identity: failure_identity,
+        layout: failure_layout,
         ..
     } = &module.globals[lowered_unit.failure_root].init
     else {
@@ -476,6 +486,14 @@ fn initialization_display_name_survives_lir_lowering() {
             lir::MaterializationRoot::cone_owned(),
         )
         .unwrap()
+    );
+    assert_eq!(
+        failure_layout.layout_record().key().representation(),
+        scoop_identity::RepresentationRole::ManagedValue
+    );
+    assert_eq!(
+        failure_layout.scan_record().key().layout(),
+        failure_layout.layout_record().id()
     );
 }
 

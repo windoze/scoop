@@ -1285,6 +1285,10 @@ pub enum GlobalInit {
         /// storage. Native extern globals are represented separately and do
         /// not fabricate one.
         identity: StaticStorageIdentity,
+        /// Canonical value layout and scan identities for this storage.
+        /// Registration production consumes these identities directly and
+        /// never reconstructs them from the lowered type or arena position.
+        layout: LayoutIdentity,
         ty: LirType,
         initial_state: LirStaticInitialState,
         thread_local: bool,
