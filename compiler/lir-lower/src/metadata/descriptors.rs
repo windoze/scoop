@@ -181,6 +181,47 @@ pub(crate) fn type_descriptors(
         refs.closures
             .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
     }
+    for root in identity_roots.source_nominal_shapes() {
+        if descriptors
+            .iter()
+            .any(|(_, descriptor)| descriptor.identity.exact_type() == root.exact())
+        {
+            continue;
+        }
+        descriptors.alloc(value_or_abstract_type_descriptor(
+            context,
+            module,
+            enums,
+            root.ty(),
+            root.exact(),
+            identity_roots.for_type(root.ty()),
+        ));
+    }
+    for root in identity_roots.generated_nominal_shapes() {
+        if descriptors
+            .iter()
+            .any(|(_, descriptor)| descriptor.identity.exact_type() == root.exact())
+        {
+            continue;
+        }
+        let ty = match root.location() {
+            mir::GeneratedExactTypeLocation::Class(id) => mir::Type::Class(id),
+            mir::GeneratedExactTypeLocation::Enum(id) => {
+                mir::Type::Enum(id, module.enums[id].type_arguments.clone())
+            }
+            mir::GeneratedExactTypeLocation::Closure(_) => {
+                unreachable!("closure generated exact types have dedicated descriptors")
+            }
+        };
+        descriptors.alloc(value_or_abstract_type_descriptor(
+            context,
+            module,
+            enums,
+            &ty,
+            root.exact(),
+            identity_roots.for_generated(root.location()),
+        ));
+    }
     refs.boxed = module
         .meta
         .boxed_types
@@ -194,6 +235,61 @@ pub(crate) fn type_descriptors(
         .collect();
     let string = string.expect("LocalConcreteHir supplies the typed intrinsic String descriptor");
     (descriptors, refs, lir::WellKnownTypeDescriptors { string })
+}
+
+fn value_or_abstract_type_descriptor(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enums: &lir::EnumDefs,
+    ty: &mir::Type,
+    exact: scoop_identity::PersistentExactTypeId,
+    root: lir::MaterializationRoot,
+) -> lir::TypeDescriptor {
+    let identity = lir::TypeDescriptorIdentity::new(
+        lir::RuntimeTypeMappingRecord::new(exact)
+            .expect("validated exact type must derive a nonzero runtime id"),
+        root.clone(),
+    )
+    .expect("validated exact type must derive descriptor identities");
+    let instance_layout =
+        lir::LayoutIdentity::managed_object(exact, context.target_profile(), root)
+            .expect("validated exact type and target must derive its instance layout identity");
+    let instance_shape = if matches!(ty, mir::Type::Any) {
+        lir::TypeInstanceShapeV1::abstract_ref()
+    } else {
+        assert!(
+            !matches!(
+                ty,
+                mir::Type::String
+                    | mir::Type::Class(_)
+                    | mir::Type::Interface(_)
+                    | mir::Type::Function(_)
+            ),
+            "reference source nominals have dedicated descriptors"
+        );
+        let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+        let (size, align) = size_align(context, module, &enum_shape, ty);
+        let scan = ref_scan(context, module, enums, ty, 0);
+        let value = if size == 0 {
+            lir::ValueStorageLayoutV1::zero_sized(align)
+        } else {
+            lir::ValueStorageLayoutV1::inline(size, align, scan)
+        }
+        .expect("validated value type must form boxed inline storage");
+        lir::TypeInstanceShapeV1::boxed_value(context.target_profile(), value)
+            .expect("validated value type must form a managed box instance shape")
+    };
+    let vtable = lir::VtableRecord::new(&identity, Vec::new())
+        .expect("validated exact type must derive a vtable identity");
+    lir::TypeDescriptor {
+        diagnostic_name: mir::type_name(module, ty),
+        identity,
+        instance_layout,
+        instance_shape,
+        parent: None,
+        vtable,
+        itables: Vec::new(),
+    }
 }
 
 pub(crate) fn class_type_descriptor(

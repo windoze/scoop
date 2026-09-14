@@ -32,6 +32,14 @@ impl<'input> IdentityRoots<'input> {
         })
     }
 
+    pub(crate) fn source_nominal_shapes(&self) -> &[mir::StrongSourceNominalShapeRoot] {
+        self.input.materialization().source_nominal_shapes()
+    }
+
+    pub(crate) fn generated_nominal_shapes(&self) -> &[mir::StrongGeneratedNominalShapeRoot] {
+        self.input.materialization().generated_nominal_shapes()
+    }
+
     pub(crate) fn for_type(&self, ty: &mir::Type) -> lir::MaterializationRoot {
         assert!(
             self.materializes_type(ty),

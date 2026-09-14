@@ -1115,6 +1115,7 @@ fn metadata(corruption: Corruption) -> LirMeta {
             TypeDescriptorRef::Local(string_descriptor)
         };
     LirMeta {
+        exact_types: Vec::new(),
         target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),

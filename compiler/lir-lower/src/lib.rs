@@ -359,6 +359,7 @@ pub fn lower(
             },
         },
         meta: lir::LirMeta {
+            exact_types: materialized_exact_types(input),
             target_profile: context.target_profile(),
             canonical_c_abi: native_abi.canonical_c_abi,
             native_externals: native_abi.native_externals,
@@ -372,6 +373,48 @@ pub fn lower(
         },
     };
     lir::SingleConeStrongLirOutput::try_new(module).map_err(StrongLirLoweringError::Foundation)
+}
+
+fn materialized_exact_types(
+    input: &mir::SingleConeStrongMirInput,
+) -> Vec<
+    scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentExactTypeId,
+        scoop_identity::ExactTypeKey,
+    >,
+> {
+    let module = input.module();
+    let mut records = input
+        .materialization()
+        .source_nominal_shapes()
+        .iter()
+        .map(|root| {
+            let record = exact_type_record(module, root.ty());
+            assert_eq!(record.id(), root.exact());
+            assert_eq!(
+                record.key(),
+                &scoop_identity::ExactTypeKey::Nominal(root.source())
+            );
+            record.clone()
+        })
+        .chain(
+            input
+                .materialization()
+                .generated_nominal_shapes()
+                .iter()
+                .map(|root| {
+                    let record = generated_exact_type_record(module, root.location());
+                    assert_eq!(record.id(), root.exact());
+                    assert_eq!(
+                        record.key(),
+                        &scoop_identity::ExactTypeKey::Nominal(root.nominal())
+                    );
+                    record.clone()
+                }),
+        )
+        .collect::<Vec<_>>();
+    records.sort_unstable_by_key(|record| record.id());
+    records
 }
 
 fn callable_body_identity(owner: mir::CallableOwner) -> lir::CallableBodyIdentity {

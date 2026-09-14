@@ -215,6 +215,19 @@ impl SingleConeStrongMirInput {
             CoreMirBridgeBranchV1::NotCore => Vec::new(),
             CoreMirBridgeBranchV1::Core(core) => core.shape_support_roots().to_vec(),
         };
+        for root in &core_shape_support_roots {
+            if !source_nominal_shapes
+                .iter()
+                .any(|shape| shape.source() == root.source() && shape.exact() == root.exact())
+            {
+                return Err(
+                    SingleConeStrongMirInputError::MissingCoreShapeSupportSource {
+                        source: root.source(),
+                        exact: root.exact(),
+                    },
+                );
+            }
+        }
         let materialization = SingleConeStrongMaterializationPlan {
             callable_roots,
             source_nominal_shapes,
@@ -343,6 +356,10 @@ pub enum SingleConeStrongMirInputError {
     MissingCallableSubject(FunctionId),
     OdrCallableSubject(FunctionId),
     OdrGeneratedNominalShape(GeneratedExactTypeLocation),
+    MissingCoreShapeSupportSource {
+        source: PersistentTypeId,
+        exact: PersistentExactTypeId,
+    },
     MissingStrongCallableBridge {
         index: usize,
         implementation: CallableOwner,
@@ -374,6 +391,7 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::MissingCallableSubject(_)
             | Self::OdrCallableSubject(_)
             | Self::OdrGeneratedNominalShape(_)
+            | Self::MissingCoreShapeSupportSource { .. }
             | Self::MissingStrongCallableBridge { .. }
             | Self::OutputMismatch
             | Self::MissingEntryRoot(_)

@@ -501,6 +501,145 @@ fn selected_target_profile_is_embedded_in_lir_meta() {
 }
 
 #[test]
+fn strong_lowering_retains_complete_materialized_exact_type_records() {
+    let mut builder = Builder::new();
+    let class = builder.class("Retained", None, &[], Vec::new(), Vec::new());
+    let interface = builder.interface("RetainedView", &[]);
+    let c_struct = builder.c_strukt(
+        "RetainedCValue",
+        mir::MirCLayoutValue::Natural,
+        mir::MirCLayoutValue::Natural,
+        false,
+        &[],
+    );
+    let main = builder.main(Arena::new(), Vec::new());
+    let source = builder.finish(main);
+    let mut expected = source
+        .meta
+        .source_exact_types
+        .iter()
+        .filter(|identity| {
+            identity.owner() == mir::SourceExactTypeOwner::ConeOwned
+                && matches!(identity.identity_record().key(), ExactTypeKey::Nominal(_))
+        })
+        .map(|identity| identity.identity_record().clone())
+        .chain(
+            source
+                .meta
+                .generated_exact_types
+                .iter()
+                .filter(|identity| identity.owner() == &mir::GeneratedExactTypeOwner::ConeOwned)
+                .map(|identity| identity.exact_record().clone()),
+        )
+        .collect::<Vec<_>>();
+    expected.sort_unstable_by_key(|record| record.id());
+
+    let input = seal_strong_input(source);
+    let exact = |ty: &mir::Type| {
+        input
+            .module()
+            .meta
+            .source_exact_types
+            .get(ty)
+            .unwrap()
+            .identity_record()
+            .id()
+    };
+    let class_exact = exact(&mir::Type::Class(class));
+    let interface_exact = exact(&mir::Type::Interface(interface));
+    let c_struct_exact = exact(&mir::Type::Struct(c_struct));
+    let output = super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64).unwrap();
+
+    assert_eq!(output.module().meta.exact_types, expected);
+    assert_eq!(
+        output.foundation().as_canonical().counts().exact_types,
+        expected.len()
+    );
+    let expected_ids = expected
+        .iter()
+        .map(CborIdentityRecord::id)
+        .collect::<std::collections::BTreeSet<_>>();
+    let descriptor_ids = output
+        .module()
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|(_, descriptor)| descriptor.identity.exact_type())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(descriptor_ids, expected_ids);
+    let managed_value_layout_ids = output
+        .module()
+        .meta
+        .layouts
+        .iter()
+        .filter(|(_, layout)| {
+            layout.identity.layout_record().key().representation()
+                == scoop_identity::RepresentationRole::ManagedValue
+        })
+        .map(|(_, layout)| layout.identity.layout_record().key().exact_type())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(managed_value_layout_ids, expected_ids);
+    let representations = |exact| {
+        output
+            .module()
+            .meta
+            .layouts
+            .iter()
+            .filter(|(_, layout)| layout.identity.layout_record().key().exact_type() == exact)
+            .map(|(_, layout)| layout.identity.layout_record().key().representation())
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    assert_eq!(
+        representations(class_exact),
+        [
+            scoop_identity::RepresentationRole::ManagedValue,
+            scoop_identity::RepresentationRole::ManagedObject,
+        ]
+        .into_iter()
+        .collect()
+    );
+    assert_eq!(
+        representations(interface_exact),
+        [scoop_identity::RepresentationRole::ManagedValue]
+            .into_iter()
+            .collect()
+    );
+    assert_eq!(
+        representations(c_struct_exact),
+        [
+            scoop_identity::RepresentationRole::ManagedValue,
+            scoop_identity::RepresentationRole::CValue,
+        ]
+        .into_iter()
+        .collect()
+    );
+    for exact in [class_exact, interface_exact] {
+        let layout = output
+            .module()
+            .meta
+            .layouts
+            .iter()
+            .find_map(|(_, layout)| {
+                (layout.identity.layout_record().key().exact_type() == exact
+                    && layout.identity.layout_record().key().representation()
+                        == scoop_identity::RepresentationRole::ManagedValue)
+                    .then_some(layout)
+            })
+            .unwrap();
+        assert_eq!(
+            layout.kind,
+            lir::LayoutKind::Plain {
+                scan: lir::RefScan::References(vec![0]),
+            }
+        );
+        assert_eq!(
+            layout.identity.scan_record().key().role(),
+            scoop_identity::ScanRole::InlineValue
+        );
+    }
+}
+
+#[test]
 fn initialization_display_name_survives_lir_lowering() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());

@@ -130,8 +130,17 @@ fn unit_is_the_empty_aggregate() {
     assert!(elements.is_empty());
     assert_eq!(function.temps[*out].ty, lir::LirType::Aggregate(Vec::new()));
 
-    // Unit itself gets no layout entry (it is just `{}`).
-    assert!(!layout_values(&module).any(|l| l.name == "Unit"));
+    // Unit keeps its empty value representation while still owning the
+    // persistent ManagedValue layout required by strong production.
+    let unit = layout_values(&module)
+        .find(|layout| layout.name == "Unit")
+        .expect("Unit has a persistent value layout");
+    assert_eq!((unit.size, unit.align), (0, 1));
+    assert_eq!(plain_refs(unit), []);
+    assert_eq!(
+        unit.identity.layout_record().key().representation(),
+        scoop_identity::RepresentationRole::ManagedValue
+    );
 }
 
 #[test]
@@ -281,8 +290,20 @@ fn layouts_mark_reference_fields_for_the_gc() {
     assert_eq!(
         names,
         [
-            "S", "Outer", "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong",
-            "Boolean", "String"
+            "S",
+            "Outer",
+            "Int8",
+            "Int16",
+            "Int",
+            "Long",
+            "UInt8",
+            "UInt16",
+            "UInt",
+            "ULong",
+            "Boolean",
+            "String value",
+            "String",
+            "Unit"
         ]
     );
 

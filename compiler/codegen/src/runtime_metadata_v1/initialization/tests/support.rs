@@ -524,6 +524,7 @@ fn metadata() -> LirMeta {
     let string_descriptor =
         core_external_type_descriptors.alloc(CoreExternalTypeDescriptor::new(string_type).unwrap());
     LirMeta {
+        exact_types: Vec::new(),
         target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),

@@ -245,6 +245,15 @@ pub struct LirCLayoutContract {
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
 #[derive(Debug)]
 pub struct LirMeta {
+    /// Complete persistent exact-type identities for every locally
+    /// materialized source or generated nominal. Physical metadata keeps the
+    /// semantic key instead of exposing only its derived id.
+    pub exact_types: Vec<
+        scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentExactTypeId,
+            scoop_identity::ExactTypeKey,
+        >,
+    >,
     /// Complete target capabilities used to compute every physical layout in
     /// this metadata. Codegen must consume the matching full target profile.
     pub target_profile: LirTargetProfile,

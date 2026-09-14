@@ -70,6 +70,16 @@ Module
     end_catch
     ret integer<UInt>(0x00000001)
   td td0 C @scoop$1$td$eb205ad260a812589e9f030260657692c3e8a971a60e730337a3c28f28bc6cc9 type-id=1930812111026443540 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0] itables=[]
+  td td2 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td3 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td7 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td8 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td9 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td10 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td11 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -80,7 +90,10 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout C value size=8 align=8 refs=[0]
   layout C size=16 align=8 refs=[]
+  layout String value size=8 align=8 refs=[0]
+  layout Unit size=0 align=1 refs=[]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
@@ -150,6 +163,16 @@ Module
     end_catch
     ret integer<UInt>(0x00000001)
   td td0 Describable @scoop$1$td$2297a60bc362ce3d8b2494a877d19cf862c59a12c3f68dc36b859a026e02eecc type-id=2551552645907048390 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td2 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td3 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td7 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td8 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td9 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td10 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td11 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -160,6 +183,9 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout Describable value size=8 align=8 refs=[0]
+  layout String value size=8 align=8 refs=[0]
+  layout Unit size=0 align=1 refs=[]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
@@ -239,10 +265,13 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let derived_exact = exact_type(&mir::Type::Class(derived));
     let module = lower(source);
 
-    // Interfaces first (itable keys), then classes
-    // base-before-derived — references always name
-    // already-emitted entries.
-    assert_eq!(module.meta.type_descriptors.len(), 4);
+    // Every materialized nominal has one descriptor. Interface and class
+    // references remain typed even though value descriptors are also
+    // materialized for strong production.
+    assert_eq!(
+        module.meta.type_descriptors.len(),
+        module.meta.exact_types.len()
+    );
     let descriptor_by_name = |name: &str| {
         module
             .meta
