@@ -71,11 +71,11 @@ impl WireDecode for DecodedStrongRegistrationProductionSurfaceV1 {
 
 #[derive(Debug)]
 pub struct DecodedStrongSafepointRegistrationPlanV1 {
-    site: DecodedPersistentId<PersistentSafepointSiteId>,
-    safepoint: u64,
-    owner: DecodedPersistentId<PersistentCallableBodyId>,
-    role: u32,
-    root_pair_count: u32,
+    pub(super) site: DecodedPersistentId<PersistentSafepointSiteId>,
+    pub(super) safepoint: u64,
+    pub(super) owner: DecodedPersistentId<PersistentCallableBodyId>,
+    pub(super) role: u32,
+    pub(super) root_pair_count: u32,
     symbol: DecodedPersistentSymbolRequest,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
@@ -253,7 +253,7 @@ impl WireDecode for DecodedStrongTypeRegistrationPlanV1 {
 }
 
 #[derive(Debug)]
-enum DecodedImmortalObjectTypeRegistrationRefV1 {
+pub(super) enum DecodedImmortalObjectTypeRegistrationRefV1 {
     Local(DecodedPersistentId<PersistentExactTypeId>),
     CoreExternal(DecodedPersistentId<PersistentExactTypeId>),
 }
@@ -282,11 +282,11 @@ impl WireDecode for DecodedImmortalObjectTypeRegistrationRefV1 {
 
 #[derive(Debug)]
 pub struct DecodedStrongImmortalObjectRegistrationPlanV1 {
-    object: DecodedPersistentId<PersistentImmortalObjectId>,
+    pub(super) object: DecodedPersistentId<PersistentImmortalObjectId>,
     object_symbol: DecodedPersistentSymbolRequest,
-    object_size: u64,
-    required_alignment: u64,
-    type_registration: DecodedImmortalObjectTypeRegistrationRefV1,
+    pub(super) object_size: u64,
+    pub(super) required_alignment: u64,
+    pub(super) type_registration: DecodedImmortalObjectTypeRegistrationRefV1,
     registration_symbol: DecodedPersistentSymbolRequest,
     registration_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     registration_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
@@ -345,7 +345,7 @@ impl WireDecode for DecodedStrongImmortalObjectRegistrationPlanV1 {
 }
 
 #[derive(Debug)]
-enum DecodedRefScan {
+pub(super) enum DecodedRefScan {
     None,
     References(Vec<u64>),
     Sequence(Vec<Self>),
@@ -403,9 +403,9 @@ impl WireDecode for DecodedRefScan {
 }
 
 #[derive(Debug)]
-struct DecodedStaticImmortalRelocationPlanV1 {
-    pointer_offset: u64,
-    target: DecodedPersistentId<PersistentImmortalObjectId>,
+pub(super) struct DecodedStaticImmortalRelocationPlanV1 {
+    pub(super) pointer_offset: u64,
+    pub(super) target: DecodedPersistentId<PersistentImmortalObjectId>,
 }
 
 impl WireEncode for DecodedStaticImmortalRelocationPlanV1 {
@@ -427,7 +427,7 @@ impl WireDecode for DecodedStaticImmortalRelocationPlanV1 {
 }
 
 #[derive(Debug)]
-enum DecodedStrongStaticStorageInitialStatePlanV1 {
+pub(super) enum DecodedStrongStaticStorageInitialStatePlanV1 {
     ZeroedForRuntimeUnit,
     EncodedStaticValue {
         initial_template: Vec<u8>,
@@ -565,16 +565,16 @@ impl WireDecode for DecodedStrongStaticStorageInitialArtifactPlanV1 {
 
 #[derive(Debug)]
 pub struct DecodedStrongStaticStorageRegistrationPlanV1 {
-    storage: DecodedPersistentId<PersistentStaticStorageId>,
+    pub(super) storage: DecodedPersistentId<PersistentStaticStorageId>,
     storage_symbol: DecodedPersistentSymbolRequest,
-    layout: DecodedPersistentId<PersistentLayoutId>,
-    scan: DecodedPersistentId<PersistentScanId>,
-    scan_program: DecodedRefScan,
-    scan_kind: u32,
-    byte_size: u64,
-    allocation_extent: u64,
-    required_alignment: u64,
-    initial_state: DecodedStrongStaticStorageInitialStatePlanV1,
+    pub(super) layout: DecodedPersistentId<PersistentLayoutId>,
+    pub(super) scan: DecodedPersistentId<PersistentScanId>,
+    pub(super) scan_program: DecodedRefScan,
+    pub(super) scan_kind: u32,
+    pub(super) byte_size: u64,
+    pub(super) allocation_extent: u64,
+    pub(super) required_alignment: u64,
+    pub(super) initial_state: DecodedStrongStaticStorageInitialStatePlanV1,
     registration_symbol: DecodedPersistentSymbolRequest,
     registration_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     registration_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
@@ -679,7 +679,7 @@ impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
 }
 
 #[derive(Debug)]
-enum DecodedStrongInitializationSchedulePlanV1 {
+pub(super) enum DecodedStrongInitializationSchedulePlanV1 {
     EagerStartup(DecodedPersistentId<PersistentCallableBodyId>),
     LazyAccess,
 }
@@ -845,14 +845,14 @@ impl WireDecode for DecodedStrongInitializationRegistrationSchedulePlanV1 {
 
 #[derive(Debug)]
 pub struct DecodedStrongInitializationUnitRegistrationPlanV1 {
-    unit: DecodedPersistentId<PersistentInitializationUnitId>,
-    diagnostic_path: String,
-    semantic_schedule: DecodedStrongInitializationSchedulePlanV1,
-    storage_id: DecodedPersistentId<PersistentStaticStorageId>,
-    failure_root_id: DecodedPersistentId<PersistentStaticStorageId>,
-    initializer_id: DecodedPersistentId<PersistentCallableBodyId>,
-    ensure_id: DecodedPersistentId<PersistentCallableBodyId>,
-    dependencies: Vec<DecodedPersistentId<PersistentInitializationUnitId>>,
+    pub(super) unit: DecodedPersistentId<PersistentInitializationUnitId>,
+    pub(super) diagnostic_path: String,
+    pub(super) semantic_schedule: DecodedStrongInitializationSchedulePlanV1,
+    pub(super) storage_id: DecodedPersistentId<PersistentStaticStorageId>,
+    pub(super) failure_root_id: DecodedPersistentId<PersistentStaticStorageId>,
+    pub(super) initializer_id: DecodedPersistentId<PersistentCallableBodyId>,
+    pub(super) ensure_id: DecodedPersistentId<PersistentCallableBodyId>,
+    pub(super) dependencies: Vec<DecodedPersistentId<PersistentInitializationUnitId>>,
     registration_symbol: DecodedPersistentSymbolRequest,
     registration_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     registration_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,

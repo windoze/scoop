@@ -44,6 +44,22 @@ pub struct StrongImmortalObjectSemanticPlanV1 {
 }
 
 impl StrongImmortalObjectSemanticPlanV1 {
+    pub(crate) const fn from_artifact(
+        object: PersistentImmortalObjectId,
+        symbol: PersistentSymbolRequest,
+        object_size: u64,
+        required_alignment: u64,
+        type_registration: ImmortalObjectTypeRegistrationRefV1,
+    ) -> Self {
+        Self {
+            object,
+            symbol,
+            object_size,
+            required_alignment,
+            type_registration,
+        }
+    }
+
     pub const fn object(self) -> PersistentImmortalObjectId {
         self.object
     }
@@ -87,6 +103,13 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
             &module.globals,
             string_type,
         )
+    }
+
+    pub(crate) const fn from_artifact(
+        producer: ConeIdentity,
+        objects: Vec<StrongImmortalObjectSemanticPlanV1>,
+    ) -> Self {
+        Self { producer, objects }
     }
 
     fn from_globals(

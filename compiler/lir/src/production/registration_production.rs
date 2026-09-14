@@ -28,6 +28,9 @@ use crate::{
 mod wire;
 pub use wire::*;
 
+mod validation;
+pub use validation::*;
+
 /// Complete member-independent registration authority produced from one final
 /// LIR module. Every table has already been checked against the same foundation
 /// and digest graph.
@@ -65,6 +68,27 @@ impl StrongRegistrationProductionSurfaceV1 {
             StrongInitializationUnitSemanticPlanSetV1::from_module(module)
                 .map_err(StrongRegistrationProductionBuildError::InitializationSemantics)?;
 
+        Self::from_semantics(
+            module.meta.target_profile,
+            foundation,
+            digests,
+            identities,
+            safepoint_semantics,
+            immortal_semantics,
+            initialization_semantics,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_semantics(
+        target: crate::LirTargetProfile,
+        foundation: &OdrFreeLirFoundation,
+        digests: &StrongDigestFinalizationPlanV1,
+        identities: StrongRegistrationIdentitySurfaceV1,
+        safepoint_semantics: StrongSafepointSemanticPlanSetV1,
+        immortal_semantics: StrongImmortalObjectSemanticPlanSetV1,
+        initialization_semantics: StrongInitializationUnitSemanticPlanSetV1,
+    ) -> Result<Self, StrongRegistrationProductionBuildError> {
         let safepoints = StrongSafepointRegistrationPlanSetV1::new(
             foundation,
             &identities,
@@ -74,13 +98,8 @@ impl StrongRegistrationProductionSurfaceV1 {
         .map_err(StrongRegistrationProductionBuildError::Safepoints)?;
         let callables = StrongCallableRegistrationPlanSetV1::new(foundation, &identities, digests)
             .map_err(StrongRegistrationProductionBuildError::Callables)?;
-        let types = StrongTypeRegistrationPlanSetV1::new(
-            module.meta.target_profile,
-            foundation,
-            &identities,
-            digests,
-        )
-        .map_err(StrongRegistrationProductionBuildError::Types)?;
+        let types = StrongTypeRegistrationPlanSetV1::new(target, foundation, &identities, digests)
+            .map_err(StrongRegistrationProductionBuildError::Types)?;
         let immortal_objects = StrongImmortalObjectRegistrationPlanSetV1::new(
             foundation,
             &identities,

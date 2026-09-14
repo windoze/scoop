@@ -55,6 +55,29 @@ pub struct StrongInitializationUnitSemanticPlanV1 {
 }
 
 impl StrongInitializationUnitSemanticPlanV1 {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_artifact(
+        unit: PersistentInitializationUnitId,
+        diagnostic_path: String,
+        schedule: StrongInitializationSchedulePlanV1,
+        storage: PersistentStaticStorageId,
+        failure_root: PersistentStaticStorageId,
+        initializer: PersistentCallableBodyId,
+        ensure: PersistentCallableBodyId,
+        dependencies: Vec<PersistentInitializationUnitId>,
+    ) -> Self {
+        Self {
+            unit,
+            diagnostic_path,
+            schedule,
+            storage,
+            failure_root,
+            initializer,
+            ensure,
+            dependencies,
+        }
+    }
+
     pub const fn unit(&self) -> PersistentInitializationUnitId {
         self.unit
     }
@@ -110,6 +133,16 @@ impl StrongInitializationUnitSemanticPlanSetV1 {
             &module.functions,
             static_storages,
         )
+    }
+
+    pub(crate) const fn from_artifact(
+        static_storages: StrongStaticStorageSemanticPlanSetV1,
+        units: Vec<StrongInitializationUnitSemanticPlanV1>,
+    ) -> Self {
+        Self {
+            static_storages,
+            units,
+        }
     }
 
     fn from_parts(
@@ -521,7 +554,7 @@ fn validate_function_reference(
     Ok(())
 }
 
-fn generated_unit_body(
+pub(crate) fn generated_unit_body(
     unit: PersistentInitializationUnitId,
     role: InitializationCallableRole,
 ) -> Result<PersistentCallableBodyId, StrongInitializationUnitSemanticPlanBuildError> {
@@ -537,7 +570,7 @@ fn generated_unit_body(
     .map_err(StrongInitializationUnitSemanticPlanBuildError::Hash)
 }
 
-fn startup_gateway_body(
+pub(crate) fn startup_gateway_body(
     unit: PersistentInitializationUnitId,
 ) -> Result<PersistentCallableBodyId, StrongInitializationUnitSemanticPlanBuildError> {
     PersistentCallableBodyId::from_key(&CallableBodyKey::initialization_startup_gateway(unit))

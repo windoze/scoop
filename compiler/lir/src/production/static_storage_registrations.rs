@@ -36,6 +36,16 @@ pub struct StaticImmortalRelocationPlanV1 {
 }
 
 impl StaticImmortalRelocationPlanV1 {
+    pub(crate) const fn from_artifact(
+        pointer_offset: u64,
+        target: PersistentImmortalObjectId,
+    ) -> Self {
+        Self {
+            pointer_offset,
+            target,
+        }
+    }
+
     pub const fn pointer_offset(self) -> u64 {
         self.pointer_offset
     }
@@ -97,6 +107,33 @@ pub struct StrongStaticStorageSemanticPlanV1 {
 }
 
 impl StrongStaticStorageSemanticPlanV1 {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_artifact(
+        storage: PersistentStaticStorageId,
+        symbol: PersistentSymbolRequest,
+        layout: PersistentLayoutId,
+        scan: PersistentScanId,
+        scan_program: RefScan,
+        scan_kind: StaticStorageScanKindV1,
+        byte_size: u64,
+        allocation_extent: u64,
+        required_alignment: u64,
+        initial_state: StrongStaticStorageInitialStatePlanV1,
+    ) -> Self {
+        Self {
+            storage,
+            symbol,
+            layout,
+            scan,
+            scan_program,
+            scan_kind,
+            byte_size,
+            allocation_extent,
+            required_alignment,
+            initial_state,
+        }
+    }
+
     pub const fn storage(&self) -> PersistentStaticStorageId {
         self.storage
     }
@@ -155,6 +192,13 @@ impl StrongStaticStorageSemanticPlanSetV1 {
             &module.structs,
             &module.enums,
         )
+    }
+
+    pub(crate) const fn from_artifact(
+        producer: ConeIdentity,
+        storages: Vec<StrongStaticStorageSemanticPlanV1>,
+    ) -> Self {
+        Self { producer, storages }
     }
 
     pub(crate) fn from_parts(

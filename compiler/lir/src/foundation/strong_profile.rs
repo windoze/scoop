@@ -174,6 +174,18 @@ impl OdrFreeLirFoundation {
         &self.canonical.scans
     }
 
+    pub(crate) fn static_storages(&self) -> &[super::StaticStorageRecord] {
+        &self.canonical.static_storages
+    }
+
+    pub(crate) fn safepoint_sites(&self) -> &[super::SafepointSiteRecord] {
+        &self.canonical.safepoint_sites
+    }
+
+    pub(crate) fn safepoint_mappings(&self) -> &[crate::SafepointMappingRecord] {
+        &self.canonical.safepoints
+    }
+
     pub(crate) fn runtime_types(&self) -> &[crate::RuntimeTypeMappingRecord] {
         &self.canonical.runtime_types
     }

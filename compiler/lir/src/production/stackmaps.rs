@@ -21,6 +21,22 @@ pub struct StrongSafepointSemanticPlanV1 {
 }
 
 impl StrongSafepointSemanticPlanV1 {
+    pub(crate) const fn from_artifact(
+        site: PersistentSafepointSiteId,
+        safepoint: SafepointId,
+        owner: PersistentCallableBodyId,
+        role: SafepointSiteRole,
+        root_pair_count: u32,
+    ) -> Self {
+        Self {
+            site,
+            safepoint,
+            owner,
+            role,
+            root_pair_count,
+        }
+    }
+
     pub const fn site(self) -> PersistentSafepointSiteId {
         self.site
     }
@@ -52,6 +68,13 @@ pub struct StrongSafepointSemanticPlanSetV1 {
 impl StrongSafepointSemanticPlanSetV1 {
     pub fn from_module(module: &Module) -> Result<Self, StrongSafepointSemanticPlanError> {
         Self::from_functions(module.cone, &module.functions)
+    }
+
+    pub(crate) const fn from_artifact(
+        producer: ConeIdentity,
+        sites: Vec<StrongSafepointSemanticPlanV1>,
+    ) -> Self {
+        Self { producer, sites }
     }
 
     fn from_functions(
