@@ -276,7 +276,7 @@ impl WireEncode for StrongCallableRegistrationPlanV1 {
 impl WireEncode for StrongTypeRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(25)?;
+        encoder.map(26)?;
         encode_field(encoder, 1, &self.exact_type())?;
         encode_field(encoder, 2, &self.runtime_type())?;
         encode_field(encoder, 3, &self.symbol())?;
@@ -310,7 +310,7 @@ impl WireEncode for StrongTypeRegistrationPlanV1 {
         for itable in semantic.itables() {
             encode_type_itable(encoder, itable)?;
         }
-        Ok(())
+        encode_field(encoder, 26, &self.diagnostic_atom())
     }
 }
 

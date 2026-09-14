@@ -4,12 +4,13 @@ use std::fmt;
 
 pub use scoop_identity::PersistentExactTypeId;
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentLayoutId, PersistentSymbolError,
-    PersistentSymbolKey, PersistentSymbolRequest, RepresentationRole, RuntimeTypeId,
-    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole, TargetProfileWireId,
+    ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey,
+    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
+    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
+    ObjectDefinitionPlanRole, PersistentLayoutId, PersistentSymbolError, PersistentSymbolKey,
+    PersistentSymbolRequest, RepresentationRole, RuntimeTypeId, StrongDefinitionEntity,
+    StrongDefinitionEntityKind, StrongDefinitionRole, TargetProfileWireId,
 };
 
 use crate::{
@@ -32,6 +33,7 @@ pub struct StrongTypeRegistrationPlanV1 {
     descriptor_symbol: PersistentSymbolRequest,
     descriptor_definition_plan: ObjectDefinitionPlanId,
     descriptor_primary_atom: ObjectDefinitionAtomId,
+    diagnostic_atom: ObjectDefinitionAtomId,
     layout_symbol: PersistentSymbolRequest,
     layout_definition_plan: ObjectDefinitionPlanId,
     layout_primary_atom: ObjectDefinitionAtomId,
@@ -79,6 +81,10 @@ impl StrongTypeRegistrationPlanV1 {
 
     pub const fn descriptor_primary_atom(&self) -> ObjectDefinitionAtomId {
         self.descriptor_primary_atom
+    }
+
+    pub const fn diagnostic_atom(&self) -> ObjectDefinitionAtomId {
+        self.diagnostic_atom
     }
 
     pub const fn layout(&self) -> PersistentLayoutId {
@@ -264,6 +270,8 @@ fn build_registration(
         StrongDefinitionRole::TypeDescriptor,
     )?;
     let descriptor_primary_atom = require_primary_atom(foundation, descriptor_definition.id())?;
+    let diagnostic_atom =
+        require_descriptor_diagnostic_atom(foundation, descriptor_definition.id(), exact_type)?;
     let descriptor_symbol =
         require_symbol(foundation, PersistentSymbolKey::TypeDescriptor(exact_type))?;
 
@@ -437,6 +445,7 @@ fn build_registration(
         descriptor_symbol,
         descriptor_definition_plan: descriptor_definition.id(),
         descriptor_primary_atom,
+        diagnostic_atom,
         layout_symbol,
         layout_definition_plan: layout_definition.id(),
         layout_primary_atom,
@@ -448,6 +457,35 @@ fn build_registration(
         descriptor_definition_patch,
         layout_fingerprint_patch,
     })
+}
+
+fn require_descriptor_diagnostic_atom(
+    foundation: &OdrFreeLirFoundation,
+    plan: ObjectDefinitionPlanId,
+    exact_type: PersistentExactTypeId,
+) -> Result<ObjectDefinitionAtomId, StrongTypeRegistrationPlanBuildError> {
+    let expected = ObjectDefinitionAtomKey::new(
+        plan,
+        DefinitionAtomRole::AddressTakenConstant,
+        DefinitionAtomSubkey::ExactType(exact_type),
+    );
+    let associated = foundation
+        .definition_atoms()
+        .iter()
+        .filter(|atom| {
+            atom.key().plan() == plan && atom.key().role() != DefinitionAtomRole::Primary
+        })
+        .collect::<Vec<_>>();
+    match associated.as_slice() {
+        [atom] if atom.key() == &expected => Ok(atom.id()),
+        _ => Err(
+            StrongTypeRegistrationPlanBuildError::DescriptorAssociatedAtomSet {
+                exact_type,
+                expected: Box::new(expected),
+                actual: associated.iter().map(|atom| atom.id()).collect(),
+            },
+        ),
+    }
 }
 
 fn require_definition(
@@ -567,6 +605,11 @@ pub enum StrongTypeRegistrationPlanBuildError {
     },
     PrimaryAtomSet {
         plan: ObjectDefinitionPlanId,
+        actual: Vec<ObjectDefinitionAtomId>,
+    },
+    DescriptorAssociatedAtomSet {
+        exact_type: PersistentExactTypeId,
+        expected: Box<ObjectDefinitionAtomKey>,
         actual: Vec<ObjectDefinitionAtomId>,
     },
     MissingSymbol(PersistentSymbolRequest),

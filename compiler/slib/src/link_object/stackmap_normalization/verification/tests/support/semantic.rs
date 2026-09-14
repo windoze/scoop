@@ -454,6 +454,7 @@ fn foundation(
                 .chain(std::iter::once(callable_registration.primary.clone()))
                 .chain([
                     type_registration.descriptor_primary.clone(),
+                    type_registration.descriptor_diagnostic.clone(),
                     type_registration.layout_primary.clone(),
                     type_registration.registration_primary.clone(),
                 ])
@@ -533,6 +534,7 @@ struct TypeRegistrationArtifacts {
     layout: CborIdentityRecord<PersistentLayoutId, LayoutKey>,
     descriptor_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     descriptor_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    descriptor_diagnostic: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     descriptor_symbol: PersistentSymbolRequest,
     layout_plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     layout_primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
@@ -697,6 +699,12 @@ fn type_registration_artifacts(exact_type: PersistentExactTypeId) -> TypeRegistr
         exact_type,
         layout,
         descriptor_primary: primary_atom(&descriptor_plan),
+        descriptor_diagnostic: CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            descriptor_plan.id(),
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::ExactType(exact_type),
+        ))
+        .unwrap(),
         descriptor_symbol: strong_symbol(PersistentSymbolKey::TypeDescriptor(exact_type)),
         layout_primary: primary_atom(&layout_plan),
         layout_symbol,

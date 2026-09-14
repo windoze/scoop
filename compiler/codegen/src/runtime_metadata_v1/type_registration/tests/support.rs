@@ -64,6 +64,7 @@ pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
                 .flat_map(|item| {
                     [
                         item.descriptor_primary.clone(),
+                        item.descriptor_diagnostic.clone(),
                         item.layout_primary.clone(),
                         item.registration_primary.clone(),
                     ]
@@ -106,6 +107,8 @@ struct TypeArtifacts {
     descriptor_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     descriptor_primary:
+        CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    descriptor_diagnostic:
         CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     layout_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
@@ -158,6 +161,12 @@ fn type_artifacts(name: &str) -> TypeArtifacts {
         scan,
         vtable,
         descriptor_primary: primary(&descriptor_definition),
+        descriptor_diagnostic: CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            descriptor_definition.id(),
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::ExactType(exact_type),
+        ))
+        .unwrap(),
         layout_primary: primary(&layout_definition),
         registration_primary: primary(&registration_definition),
         descriptor_definition,

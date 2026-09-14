@@ -1903,11 +1903,14 @@ target由精确`ObjectDefinitionPlanId`定位，因此同一callable owner下的
 digest node及两个patch intent；codegen不得从零散foundation表重新拼装这些字段。
 
 type registration在codegen前只能经唯一、非wire入口
-`StrongTypeRegistrationPlanSetV1::new(target, foundation, identities, digests)`形成完整生产计划。它以当前
+`StrongTypeRegistrationPlanSetV1::new(target, foundation, identities, semantics, digests)`形成完整生产计划。它以当前
 producer全部`TypeDescriptor` strong definition的exact type集合为完备性基准，并要求该集合与
 `StrongRegistrationIdentitySurfaceV1.type_registrations`逐项相等；每个exact type必须恰有一个非零
 runtime type mapping、一个当前target的`ManagedObject` layout，以及registration、descriptor、layout三套
-definition plan、唯一`Primary` atom和`ConeStrong`符号。registration Primary的ObjectDefinition固定为
+definition plan、各自唯一`Primary` atom和`ConeStrong`符号。descriptor definition还必须精确拥有一个
+`AddressTakenConstant + ExactType(exact_type)` diagnostic associated atom，缺失、错subkey或任何额外associated
+atom都直接失败；完整plan显式保留该atom id，Link侧不得按字符串符号或物理相邻关系猜测。registration
+Primary的ObjectDefinition固定为
 无input、无patch的leaf；StrongRegistration direct input精确为该leaf、descriptor Primary的
 ObjectDefinition和对应Layout node，且自身patch集合精确写入`RegistrationDefinition`。descriptor与layout
 node必须分别持有写入同一registration Primary的`DescriptorDefinition`和`Layout` patch。完整plan按

@@ -150,6 +150,7 @@ fn macho_object(
             + type_registrations.registrations().len()
                 * usize::try_from(TYPE_DESCRIPTOR_SIZE + LAYOUT_SIZE + TYPE_REGISTRATION_SIZE)
                     .unwrap()
+            + usize::try_from(type_diagnostic_region_size(type_registrations)).unwrap()
             + immortal_registrations
                 .registrations()
                 .iter()
@@ -398,8 +399,15 @@ fn macho_object(
     }
     bytes.extend(std::iter::repeat_n(
         0,
-        type_registrations.registrations().len()
-            * usize::try_from(TYPE_DESCRIPTOR_SIZE + LAYOUT_SIZE).unwrap(),
+        type_registrations.registrations().len() * usize::try_from(TYPE_DESCRIPTOR_SIZE).unwrap(),
+    ));
+    for registration in type_registrations.registrations() {
+        bytes.extend_from_slice(registration.semantic().diagnostic_name().as_bytes());
+    }
+    align_zero(&mut bytes, 8);
+    bytes.extend(std::iter::repeat_n(
+        0,
+        type_registrations.registrations().len() * usize::try_from(LAYOUT_SIZE).unwrap(),
     ));
     for registration in type_registrations.registrations() {
         push_type_registration(&mut bytes, registration);
@@ -1349,6 +1357,34 @@ fn symbol_location(
                 type_registrations,
             ) + TYPE_DESCRIPTOR_SIZE,
         ),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart {
+            definition,
+            atom_role: DefinitionAtomRole::AddressTakenConstant,
+            ..
+        } if is_type_descriptor_definition(definition, type_registrations) => (
+            3,
+            type_diagnostic_start(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ),
+        ),
+        PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd {
+            definition,
+            atom_role: DefinitionAtomRole::AddressTakenConstant,
+            ..
+        } if is_type_descriptor_definition(definition, type_registrations) => (
+            3,
+            type_diagnostic_end(
+                definition,
+                stackmap_size,
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ),
+        ),
         PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
             definition_role: StrongDefinitionRole::Layout,
             definition,
@@ -1912,8 +1948,69 @@ fn layout_base(
     callables: &StrongCallableRegistrationPlanSetV1,
     registrations: &StrongTypeRegistrationPlanSetV1,
 ) -> u64 {
+    type_diagnostic_base(stackmap_size, safepoints, callables, registrations)
+        + type_diagnostic_region_size(registrations)
+}
+
+fn type_diagnostic_region_size(registrations: &StrongTypeRegistrationPlanSetV1) -> u64 {
+    let size = registrations
+        .registrations()
+        .iter()
+        .map(|registration| u64::try_from(registration.semantic().diagnostic_name().len()).unwrap())
+        .sum::<u64>();
+    (size + 7) & !7
+}
+
+fn type_diagnostic_base(
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
     type_descriptor_base(stackmap_size, safepoints, callables)
         + u64::try_from(registrations.registrations().len()).unwrap() * TYPE_DESCRIPTOR_SIZE
+}
+
+fn type_diagnostic_start(
+    definition: ObjectDefinitionPlanId,
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
+    let index = registrations
+        .registrations()
+        .iter()
+        .position(|registration| registration.descriptor_definition_plan() == definition)
+        .unwrap();
+    type_diagnostic_base(stackmap_size, safepoints, callables, registrations)
+        + registrations.registrations()[..index]
+            .iter()
+            .map(|registration| {
+                u64::try_from(registration.semantic().diagnostic_name().len()).unwrap()
+            })
+            .sum::<u64>()
+}
+
+fn type_diagnostic_end(
+    definition: ObjectDefinitionPlanId,
+    stackmap_size: usize,
+    safepoints: &StrongSafepointRegistrationPlanSetV1,
+    callables: &StrongCallableRegistrationPlanSetV1,
+    registrations: &StrongTypeRegistrationPlanSetV1,
+) -> u64 {
+    let registration = registrations
+        .registrations()
+        .iter()
+        .find(|registration| registration.descriptor_definition_plan() == definition)
+        .unwrap();
+    type_diagnostic_start(
+        definition,
+        stackmap_size,
+        safepoints,
+        callables,
+        registrations,
+    ) + u64::try_from(registration.semantic().diagnostic_name().len()).unwrap()
 }
 
 fn layout_start(

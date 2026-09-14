@@ -164,6 +164,32 @@ fn requires_registration_descriptor_and_layout_symbols() {
 }
 
 #[test]
+fn requires_the_exact_descriptor_diagnostic_atom() {
+    assert!(matches!(
+        Fixture::new(Options {
+            omit_descriptor_diagnostic: true,
+            ..Options::default()
+        })
+        .build(),
+        Err(StrongTypeRegistrationPlanBuildError::DescriptorAssociatedAtomSet {
+            actual,
+            ..
+        }) if actual.is_empty()
+    ));
+    assert!(matches!(
+        Fixture::new(Options {
+            extra_descriptor_atom: true,
+            ..Options::default()
+        })
+        .build(),
+        Err(StrongTypeRegistrationPlanBuildError::DescriptorAssociatedAtomSet {
+            actual,
+            ..
+        }) if actual.len() == 2
+    ));
+}
+
+#[test]
 fn requires_a_leaf_registration_object_definition() {
     assert!(matches!(
         Fixture::new(Options {
@@ -233,6 +259,8 @@ struct Options {
     omit_registration_patch: bool,
     omit_descriptor_patch: bool,
     omit_layout_patch: bool,
+    omit_descriptor_diagnostic: bool,
+    extra_descriptor_atom: bool,
 }
 
 struct TypeArtifacts {
@@ -243,6 +271,8 @@ struct TypeArtifacts {
     descriptor_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     descriptor_primary:
+        CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+    descriptor_diagnostic:
         CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     layout_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
@@ -321,24 +351,34 @@ impl Fixture {
                     .collect(),
             )
             .unwrap();
-        canonical
-            .set_definition_atoms(
-                types
-                    .iter()
-                    .flat_map(|artifacts| {
-                        [
-                            artifacts.descriptor_primary.clone(),
-                            artifacts.layout_primary.clone(),
-                            artifacts.registration_primary.clone(),
-                        ]
-                    })
-                    .filter(|atom| {
-                        !(options.omit_last_registration
-                            && atom.key().plan() == types[1].registration_definition.id())
-                    })
-                    .collect(),
-            )
-            .unwrap();
+        let mut atoms = types
+            .iter()
+            .flat_map(|artifacts| {
+                [
+                    artifacts.descriptor_primary.clone(),
+                    artifacts.descriptor_diagnostic.clone(),
+                    artifacts.layout_primary.clone(),
+                    artifacts.registration_primary.clone(),
+                ]
+            })
+            .filter(|atom| {
+                !(options.omit_last_registration
+                    && atom.key().plan() == types[1].registration_definition.id())
+                    && !(options.omit_descriptor_diagnostic
+                        && atom.id() == types[0].descriptor_diagnostic.id())
+            })
+            .collect::<Vec<_>>();
+        if options.extra_descriptor_atom {
+            atoms.push(
+                CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+                    types[0].descriptor_definition.id(),
+                    DefinitionAtomRole::RuntimeRecord,
+                    DefinitionAtomSubkey::ExactType(types[0].exact_type),
+                ))
+                .unwrap(),
+            );
+        }
+        canonical.set_definition_atoms(atoms).unwrap();
         let symbols = types
             .iter()
             .flat_map(|artifacts| {
@@ -442,6 +482,7 @@ fn type_artifacts(seed: u8) -> TypeArtifacts {
         StrongDefinitionRole::TypeDescriptor,
     );
     let descriptor_primary = primary(&descriptor_definition);
+    let descriptor_diagnostic = descriptor_diagnostic(&descriptor_definition, exact_type);
     let layout_definition = definition(
         StrongDefinitionEntity::layout(layout.id()),
         StrongDefinitionRole::Layout,
@@ -459,11 +500,27 @@ fn type_artifacts(seed: u8) -> TypeArtifacts {
         vtable,
         descriptor_definition,
         descriptor_primary,
+        descriptor_diagnostic,
         layout_definition,
         layout_primary,
         registration_definition,
         registration_primary,
     }
+}
+
+fn descriptor_diagnostic(
+    definition: &CborIdentityRecord<
+        scoop_identity::ObjectDefinitionPlanId,
+        ObjectDefinitionPlanKey,
+    >,
+    exact_type: PersistentExactTypeId,
+) -> CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey> {
+    CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+        definition.id(),
+        DefinitionAtomRole::AddressTakenConstant,
+        DefinitionAtomSubkey::ExactType(exact_type),
+    ))
+    .unwrap()
 }
 
 fn exact_type(name: &str) -> PersistentExactTypeId {
