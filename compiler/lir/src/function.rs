@@ -44,6 +44,15 @@ impl CallableBodyIdentity {
         )
     }
 
+    pub fn for_initialization_startup_gateway(
+        unit: scoop_identity::PersistentInitializationUnitId,
+    ) -> Result<Self, CallableBodyIdentityBuildError> {
+        Self::from_key(
+            scoop_identity::CallableBodyKey::initialization_startup_gateway(unit),
+            LinkageClass::ConeStrong,
+        )
+    }
+
     pub const fn id(&self) -> scoop_identity::PersistentCallableBodyId {
         self.record.id()
     }

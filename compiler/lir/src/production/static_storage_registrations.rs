@@ -162,7 +162,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
         )
     }
 
-    fn from_parts(
+    pub(crate) fn from_parts(
         producer: ConeIdentity,
         target: LirTargetProfile,
         globals: &la_arena::Arena<crate::Global>,

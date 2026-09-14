@@ -1628,6 +1628,27 @@ fingerprint，以及`ZeroedForRuntimeUnit=1 | EncodedStaticValue=2 { template by
 registration/storage ObjectDefinition、Layout、Scan并按`(kind,node id)`排序。initial-state物理support地址、
 member和symbol不进入hash，任一输入proof owner/node不一致都在hash前失败。
 
+initialization unit先由唯一、非wire入口`StrongInitializationUnitSemanticPlanSetV1::from_module(module)`
+从最终LIR闭合。入口按`PersistentInitializationUnitId`排序且拒绝重复，逐项重算`Initializer`/`Ensure`
+generated callable及Eager专用`InitializationStartupGateway(unit)` body identity；initializer、ensure必须由unit中
+对应的managed local function reference唯一指向，Eager gateway必须在当前function全集中恰有一条，Lazy则结构上
+没有gateway且不得残留该body。`TopLevelProperty | ExtensionProperty`只能形成Eager unit，`Object | Companion`
+只能形成Lazy unit；本阶段遇到`GenericDelegatedExtensionApplication`直接按ODR production失败，不能降级成strong。
+diagnostic path必须是非空UTF-8 byte span，只进入descriptor/hash与诊断，不反向参与unit identity。
+
+该semantic proof同时消费并拥有完整`StrongStaticStorageSemanticPlanSetV1`。普通storage和failure root必须是两个
+不同的compiler-owned、non-TLS、ConeStrong、`ZeroedForRuntimeUnit` storage；failure root的key必须精确为
+`InitializationFailureRoot(unit)`，并固定为8-byte/align 8、`Recursive`、单offset 0 scan。普通storage的key必须
+与unit key和kind闭合：property/extension unit只接受同owner的backing/delegate storage，object/companion只接受
+对应nominal的singleton published root。dependency arena reference必须全部有效、去重且不能自指；semantic proof
+保存其persistent unit id而不把arena ordinal带入后续record。
+
+initialization的`id`与`nr`是两份不同的强定义，不是历史alias：`id`是generated managed code传给coordinator的
+`InitializationDescriptor`，`nr`是image table指向的352-byte `ScoopInitializationUnitDescriptorV1` registration。
+`Value::InitializationUnit`只能解析到前者；image与runtime只登记后者。两者分别拥有独立Primary atom、boundary、
+symbol和ObjectDefinition leaf，Link verifier再以typed unit/storage/callable关系证明内容一致，不能让两个symbol指向
+同一range或保留旧的`scoop.init.descriptor.<arena-index>`/`scoop_image_initialization_units`旁路。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction
