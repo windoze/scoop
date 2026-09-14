@@ -115,7 +115,7 @@ pub fn emit_strong_type_registrations_v1<'ctx>(
     let prepared = plan
         .registrations()
         .iter()
-        .map(|registration| prepare_registration(llvm, &types, *registration))
+        .map(|registration| prepare_registration(llvm, &types, registration))
         .collect::<Result<Vec<_>, _>>()?;
     let registrations = prepared
         .into_iter()
@@ -128,17 +128,17 @@ pub fn emit_strong_type_registrations_v1<'ctx>(
 }
 
 #[derive(Clone, Copy)]
-struct PreparedTypeRegistrationV1<'ctx> {
-    plan: StrongTypeRegistrationPlanV1,
+struct PreparedTypeRegistrationV1<'plan, 'ctx> {
+    plan: &'plan StrongTypeRegistrationPlanV1,
     type_descriptor: GlobalValue<'ctx>,
     prior_registration: Option<GlobalValue<'ctx>>,
 }
 
-fn prepare_registration<'ctx>(
+fn prepare_registration<'plan, 'ctx>(
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
-    plan: StrongTypeRegistrationPlanV1,
-) -> Result<PreparedTypeRegistrationV1<'ctx>, CodegenError> {
+    plan: &'plan StrongTypeRegistrationPlanV1,
+) -> Result<PreparedTypeRegistrationV1<'plan, 'ctx>, CodegenError> {
     let registration_request = plan.symbol();
     let registration_symbol = registration_request.symbol();
     if registration_request.linkage() != LinkageClass::ConeStrong {
@@ -207,7 +207,7 @@ fn emit_registration<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
-    prepared: PreparedTypeRegistrationV1<'ctx>,
+    prepared: PreparedTypeRegistrationV1<'_, 'ctx>,
 ) -> EmittedStrongTypeRegistrationV1<'ctx> {
     let plan = prepared.plan;
     let descriptor = prepared.prior_registration.unwrap_or_else(|| {

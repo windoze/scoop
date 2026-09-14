@@ -23,7 +23,7 @@ fn computes_the_relocation_aware_registration_object_leaf() {
 
     assert_eq!(fingerprints.fingerprints().len(), 1);
     let actual = fingerprints.fingerprints()[0];
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     assert_eq!(actual.exact_type(), plan.exact_type());
     assert_eq!(actual.node(), plan.registration_object_node());
     assert_eq!(

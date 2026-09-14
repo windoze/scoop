@@ -402,7 +402,7 @@ fn macho_object(
             * usize::try_from(TYPE_DESCRIPTOR_SIZE + LAYOUT_SIZE).unwrap(),
     ));
     for registration in type_registrations.registrations() {
-        push_type_registration(&mut bytes, *registration);
+        push_type_registration(&mut bytes, registration);
     }
     let first_immortal_object_offset = bytes.len();
     for registration in immortal_registrations.registrations() {
@@ -2412,7 +2412,7 @@ fn push_callable_registration(bytes: &mut Vec<u8>, registration: StrongCallableR
     push_u64(bytes, 0);
 }
 
-fn push_type_registration(bytes: &mut Vec<u8>, registration: StrongTypeRegistrationPlanV1) {
+fn push_type_registration(bytes: &mut Vec<u8>, registration: &StrongTypeRegistrationPlanV1) {
     push_u64(bytes, 0x5343_4f4f_5054_5950);
     push_u32(bytes, 1);
     push_u32(bytes, u32::try_from(TYPE_REGISTRATION_SIZE).unwrap());

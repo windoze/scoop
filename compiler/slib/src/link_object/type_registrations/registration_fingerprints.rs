@@ -182,7 +182,7 @@ pub fn compute_strong_type_fingerprints_v1(
             return Err(StrongTypeFingerprintError::LayoutMismatch { exact_type });
         }
         let registration = strong_type_registration_fingerprint(
-            *plan,
+            plan,
             registration_object.node(),
             registration_object.fingerprint(),
             dependency,
@@ -208,7 +208,7 @@ pub fn compute_strong_type_fingerprints_v1(
 }
 
 fn strong_type_registration_fingerprint(
-    plan: scoop_lir::StrongTypeRegistrationPlanV1,
+    plan: &scoop_lir::StrongTypeRegistrationPlanV1,
     registration_object_node: DigestNodeId,
     registration_object: ObjectDefinitionFingerprintV1,
     dependency: &VerifiedStrongTypeDependencyFingerprintV1,

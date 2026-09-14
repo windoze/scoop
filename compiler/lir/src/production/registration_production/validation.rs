@@ -1,6 +1,8 @@
 //! Validation of untrusted complete registration-production carriers.
 
+use std::collections::BTreeSet;
 use std::fmt;
+use std::num::NonZeroU64;
 
 use scoop_identity::{
     DecodedPersistentId, LinkageClass, PersistentId, PersistentStaticStorageId,
@@ -9,9 +11,12 @@ use scoop_identity::{
 use scoop_wire::{WireEncode, encode};
 
 use super::wire::{
-    DecodedImmortalObjectTypeRegistrationRefV1, DecodedRefScan,
-    DecodedStaticImmortalRelocationPlanV1, DecodedStrongInitializationSchedulePlanV1,
-    DecodedStrongStaticStorageInitialStatePlanV1,
+    DecodedImmortalObjectTypeRegistrationRefV1, DecodedOptionalStrongTypeDescriptorRefV1,
+    DecodedRefScan, DecodedStaticImmortalRelocationPlanV1,
+    DecodedStrongInitializationSchedulePlanV1, DecodedStrongStaticStorageInitialStatePlanV1,
+    DecodedStrongTypeDescriptorRefV1, DecodedStrongTypeDispatchCallableRefV1,
+    DecodedStrongTypeItableSemanticPlanV1, DecodedStrongTypeRegistrationPlanV1,
+    DecodedStrongTypeVtableSemanticPlanV1, DecodedTypeInstanceShapeV1,
 };
 use super::{
     DecodedStrongImmortalObjectRegistrationPlanV1,
@@ -21,16 +26,20 @@ use super::{
     StrongRegistrationProductionSurfaceV1,
 };
 use crate::{
-    BackendScalarKind, ImmortalObjectTypeRegistrationRefV1, LirTargetProfile, OdrFreeLirFoundation,
-    PointerKind, RefScan, StaticImmortalRelocationPlanV1, StaticStorageScanKindV1,
-    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
+    ArrayElementStorageV1, BackendScalarKind, ImmortalObjectTypeRegistrationRefV1,
+    LirTargetProfile, NonEmptyRefScan, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeFunction,
+    StaticImmortalRelocationPlanV1, StaticStorageScanKindV1, StrongDigestFinalizationPlanV1,
+    StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongImmortalObjectSemanticPlanSetV1, StrongImmortalObjectSemanticPlanV1,
     StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSetV1,
     StrongInitializationUnitSemanticPlanV1, StrongRegistrationIdentitySurfaceV1,
     StrongRegistrationIdentityValidationError, StrongSafepointSemanticPlanSetV1,
     StrongSafepointSemanticPlanV1, StrongStaticStorageInitialStatePlanV1,
-    StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1, generated_unit_body,
-    startup_gateway_body,
+    StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1,
+    StrongTypeDescriptorRefV1, StrongTypeDescriptorSemanticPlanSetV1,
+    StrongTypeDescriptorSemanticPlanV1, StrongTypeDispatchCallableRefV1,
+    StrongTypeItableSemanticPlanV1, StrongTypeVtableSemanticPlanV1, TypeInstanceShapeV1,
+    ValueStorageLayoutV1, generated_unit_body, startup_gateway_body,
 };
 
 impl DecodedStrongRegistrationProductionSurfaceV1 {
@@ -59,16 +68,13 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
                 })?
                 .registrations(),
         )?;
-        validate_derived_table(
-            RegistrationProductionTableV1::Type,
-            &self.types,
-            crate::StrongTypeRegistrationPlanSetV1::new(target, foundation, &identities, digests)
-                .map_err(|error| {
-                    StrongRegistrationProductionValidationError::Expected(Box::new(
-                        StrongRegistrationProductionBuildError::Types(error),
-                    ))
-                })?
-                .registrations(),
+        let type_semantics = validate_types(
+            self.types,
+            target,
+            foundation,
+            &identities,
+            external_bridges,
+            digests,
         )?;
         let immortal_semantics = validate_immortal_objects(
             self.immortal_objects,
@@ -91,6 +97,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             foundation,
             digests,
             identities,
+            type_semantics,
             safepoint_semantics,
             immortal_semantics,
             initialization_semantics,
@@ -173,6 +180,466 @@ fn validate_safepoints(
         foundation.producer(),
         sites,
     ))
+}
+
+pub(crate) fn validate_types(
+    decoded: Vec<DecodedStrongTypeRegistrationPlanV1>,
+    target: LirTargetProfile,
+    foundation: &OdrFreeLirFoundation,
+    identities: &StrongRegistrationIdentitySurfaceV1,
+    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    digests: &StrongDigestFinalizationPlanV1,
+) -> Result<StrongTypeDescriptorSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
+    require_length(
+        RegistrationProductionTableV1::Type,
+        decoded.len(),
+        identities.type_registrations().len(),
+    )?;
+    let actual = decoded
+        .iter()
+        .map(encode)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(StrongRegistrationProductionValidationError::Encode)?;
+    let mut descriptors = Vec::with_capacity(decoded.len());
+    for (index, (decoded, identity)) in decoded
+        .into_iter()
+        .zip(identities.type_registrations())
+        .enumerate()
+    {
+        let exact_type = verify_expected(
+            decoded.exact_type,
+            identity.semantic_id(),
+            RegistrationProductionTableV1::Type,
+            index,
+            "exact_type",
+        )?;
+        if decoded.diagnostic_name.is_empty() {
+            return Err(semantic_error(
+                RegistrationProductionTableV1::Type,
+                index,
+                "diagnostic_name",
+            ));
+        }
+        let layout = resolve_known(
+            decoded.layout,
+            foundation.layouts().iter().map(|record| record.id()),
+            RegistrationProductionTableV1::Type,
+            index,
+            "instance_layout",
+        )?;
+        let layout_record = foundation
+            .layouts()
+            .iter()
+            .find(|record| record.id() == layout)
+            .expect("the layout was resolved from this table");
+        if layout_record.key().exact_type() != exact_type
+            || layout_record.key().target_profile() != &target.wire_id()
+            || layout_record.key().representation() != RepresentationRole::ManagedObject
+        {
+            return Err(semantic_error(
+                RegistrationProductionTableV1::Type,
+                index,
+                "instance_layout_relation",
+            ));
+        }
+        let scan = resolve_known(
+            decoded.instance_scan,
+            foundation.scans().iter().map(|record| record.id()),
+            RegistrationProductionTableV1::Type,
+            index,
+            "instance_scan",
+        )?;
+        let scan_record = foundation
+            .scans()
+            .iter()
+            .find(|record| record.id() == scan)
+            .expect("the scan was resolved from this table");
+        if scan_record.key().layout() != layout
+            || scan_record.key().role() != ScanRole::ManagedObject
+        {
+            return Err(semantic_error(
+                RegistrationProductionTableV1::Type,
+                index,
+                "instance_scan_relation",
+            ));
+        }
+        let instance_shape = validate_type_instance_shape(decoded.instance_shape, target, index)?;
+        let parent = validate_optional_type_descriptor_ref(
+            decoded.parent,
+            identities,
+            external_bridges,
+            index,
+            "parent",
+        )?;
+        let vtable = validate_type_vtable(
+            decoded.vtable,
+            exact_type,
+            foundation,
+            external_bridges,
+            index,
+        )?;
+        let mut table_ids = BTreeSet::from([vtable.table()]);
+        let mut interfaces = BTreeSet::new();
+        let mut itables = Vec::with_capacity(decoded.itables.len());
+        for decoded_itable in decoded.itables {
+            let itable = validate_type_itable(
+                decoded_itable,
+                exact_type,
+                identities,
+                foundation,
+                external_bridges,
+                index,
+            )?;
+            if !table_ids.insert(itable.table()) {
+                return Err(semantic_error(
+                    RegistrationProductionTableV1::Type,
+                    index,
+                    "duplicate_dispatch_table",
+                ));
+            }
+            if !interfaces.insert(itable.interface().exact_type()) {
+                return Err(semantic_error(
+                    RegistrationProductionTableV1::Type,
+                    index,
+                    "duplicate_interface",
+                ));
+            }
+            itables.push(itable);
+        }
+        descriptors.push(StrongTypeDescriptorSemanticPlanV1::from_artifact(
+            exact_type,
+            decoded.diagnostic_name,
+            layout,
+            scan,
+            instance_shape,
+            parent,
+            vtable,
+            itables,
+        ));
+    }
+    let semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
+        foundation.producer(),
+        target.wire_id(),
+        descriptors,
+    );
+    let expected = crate::StrongTypeRegistrationPlanSetV1::new(
+        target, foundation, identities, &semantics, digests,
+    )
+    .map_err(|error| {
+        StrongRegistrationProductionValidationError::Expected(Box::new(
+            StrongRegistrationProductionBuildError::Types(error),
+        ))
+    })?;
+    for (index, (actual, expected)) in actual.iter().zip(expected.registrations()).enumerate() {
+        let expected =
+            encode(expected).map_err(StrongRegistrationProductionValidationError::Encode)?;
+        if actual != &expected {
+            return Err(StrongRegistrationProductionValidationError::EntryMismatch {
+                table: RegistrationProductionTableV1::Type,
+                index,
+            });
+        }
+    }
+    Ok(semantics)
+}
+
+fn validate_type_instance_shape(
+    decoded: DecodedTypeInstanceShapeV1,
+    target: LirTargetProfile,
+    index: usize,
+) -> Result<TypeInstanceShapeV1, StrongRegistrationProductionValidationError> {
+    let object_scan = validate_type_ref_scan(decoded.object_scan, index, "object_scan")?;
+    let inline_scan = validate_type_ref_scan(decoded.inline_scan, index, "inline_scan")?;
+    let shape = match decoded.instance_kind {
+        1 => TypeInstanceShapeV1::fixed_object(
+            target,
+            decoded.minimum_size,
+            decoded.instance_alignment,
+            object_scan.clone(),
+        ),
+        2 => {
+            let storage = match decoded.inline_storage_kind {
+                1 => ValueStorageLayoutV1::inline(
+                    decoded.inline_size,
+                    decoded.inline_alignment,
+                    inline_scan.clone(),
+                ),
+                2 => ValueStorageLayoutV1::zero_sized(decoded.inline_alignment),
+                _ => {
+                    return Err(semantic_error(
+                        RegistrationProductionTableV1::Type,
+                        index,
+                        "inline_storage_kind",
+                    ));
+                }
+            };
+            storage.and_then(|storage| TypeInstanceShapeV1::boxed_value(target, storage))
+        }
+        3 => TypeInstanceShapeV1::inline_bytes(target),
+        4 => {
+            let storage = match decoded.inline_storage_kind {
+                1 => ArrayElementStorageV1::inline(
+                    decoded.inline_size,
+                    decoded.inline_alignment,
+                    inline_scan.clone(),
+                ),
+                2 => ArrayElementStorageV1::zero_sized(decoded.inline_alignment),
+                _ => {
+                    return Err(semantic_error(
+                        RegistrationProductionTableV1::Type,
+                        index,
+                        "inline_storage_kind",
+                    ));
+                }
+            };
+            storage.and_then(|storage| TypeInstanceShapeV1::inline_array(target, storage))
+        }
+        5 => Ok(TypeInstanceShapeV1::abstract_ref()),
+        _ => {
+            return Err(semantic_error(
+                RegistrationProductionTableV1::Type,
+                index,
+                "instance_kind",
+            ));
+        }
+    }
+    .map_err(|_| semantic_error(RegistrationProductionTableV1::Type, index, "instance_shape"))?;
+    if shape.instance_kind().tag() != decoded.instance_kind
+        || shape.inline_storage_kind().tag() != decoded.inline_storage_kind
+        || shape.minimum_size() != decoded.minimum_size
+        || shape.instance_alignment() != decoded.instance_alignment
+        || shape.inline_offset() != decoded.inline_offset
+        || shape.inline_size() != decoded.inline_size
+        || shape.inline_stride() != decoded.inline_stride
+        || shape.inline_alignment() != decoded.inline_alignment
+        || shape.object_scan() != &object_scan
+        || shape.inline_scan() != &inline_scan
+    {
+        return Err(semantic_error(
+            RegistrationProductionTableV1::Type,
+            index,
+            "instance_shape",
+        ));
+    }
+    Ok(shape)
+}
+
+fn validate_type_ref_scan(
+    decoded: DecodedRefScan,
+    index: usize,
+    field: &'static str,
+) -> Result<RefScan, StrongRegistrationProductionValidationError> {
+    match decoded {
+        DecodedRefScan::None => Ok(RefScan::None),
+        DecodedRefScan::References(offsets) => Ok(RefScan::References(offsets)),
+        DecodedRefScan::Sequence(parts) => parts
+            .into_iter()
+            .map(|part| validate_type_ref_scan(part, index, field))
+            .collect::<Result<Vec<_>, _>>()
+            .map(RefScan::Sequence),
+        DecodedRefScan::Array {
+            length_offset,
+            first_element_offset,
+            stride,
+            element,
+        } => {
+            let stride = NonZeroU64::new(stride)
+                .ok_or_else(|| semantic_error(RegistrationProductionTableV1::Type, index, field))?;
+            let element = validate_type_ref_scan(*element, index, field)?;
+            let element = NonEmptyRefScan::new(element)
+                .ok_or_else(|| semantic_error(RegistrationProductionTableV1::Type, index, field))?;
+            Ok(RefScan::Array {
+                length_offset,
+                first_element_offset,
+                stride,
+                element: Box::new(element),
+            })
+        }
+    }
+}
+
+fn validate_optional_type_descriptor_ref(
+    decoded: DecodedOptionalStrongTypeDescriptorRefV1,
+    identities: &StrongRegistrationIdentitySurfaceV1,
+    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    index: usize,
+    field: &'static str,
+) -> Result<Option<StrongTypeDescriptorRefV1>, StrongRegistrationProductionValidationError> {
+    match decoded {
+        DecodedOptionalStrongTypeDescriptorRefV1::Absent => Ok(None),
+        DecodedOptionalStrongTypeDescriptorRefV1::Local(exact_type) => resolve_type_descriptor_ref(
+            DecodedStrongTypeDescriptorRefV1::Local(exact_type),
+            identities,
+            external_bridges,
+            index,
+            field,
+        )
+        .map(Some),
+        DecodedOptionalStrongTypeDescriptorRefV1::CoreExternal(exact_type) => {
+            resolve_type_descriptor_ref(
+                DecodedStrongTypeDescriptorRefV1::CoreExternal(exact_type),
+                identities,
+                external_bridges,
+                index,
+                field,
+            )
+            .map(Some)
+        }
+    }
+}
+
+fn resolve_type_descriptor_ref(
+    decoded: DecodedStrongTypeDescriptorRefV1,
+    identities: &StrongRegistrationIdentitySurfaceV1,
+    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    index: usize,
+    field: &'static str,
+) -> Result<StrongTypeDescriptorRefV1, StrongRegistrationProductionValidationError> {
+    match decoded {
+        DecodedStrongTypeDescriptorRefV1::Local(exact_type) => resolve_known(
+            exact_type,
+            identities
+                .type_registrations()
+                .iter()
+                .map(|identity| identity.semantic_id()),
+            RegistrationProductionTableV1::Type,
+            index,
+            field,
+        )
+        .map(StrongTypeDescriptorRefV1::Local),
+        DecodedStrongTypeDescriptorRefV1::CoreExternal(exact_type) => resolve_known(
+            exact_type,
+            external_bridges
+                .bridges()
+                .iter()
+                .filter_map(|bridge| match bridge {
+                    StrongExternalLirBridgeV1::TypeDescriptor(bridge) => Some(bridge.target()),
+                    StrongExternalLirBridgeV1::Callable(_) => None,
+                }),
+            RegistrationProductionTableV1::Type,
+            index,
+            field,
+        )
+        .map(StrongTypeDescriptorRefV1::CoreExternal),
+    }
+}
+
+fn validate_type_vtable(
+    decoded: DecodedStrongTypeVtableSemanticPlanV1,
+    exact_type: scoop_identity::PersistentExactTypeId,
+    foundation: &OdrFreeLirFoundation,
+    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    index: usize,
+) -> Result<StrongTypeVtableSemanticPlanV1, StrongRegistrationProductionValidationError> {
+    let table = resolve_dispatch_table(
+        decoded.table,
+        scoop_identity::DispatchTableKey::vtable(exact_type),
+        foundation,
+        index,
+        "vtable",
+    )?;
+    let slots = validate_type_dispatch_slots(decoded.slots, foundation, external_bridges, index)?;
+    Ok(StrongTypeVtableSemanticPlanV1::from_artifact(table, slots))
+}
+
+fn validate_type_itable(
+    decoded: DecodedStrongTypeItableSemanticPlanV1,
+    exact_type: scoop_identity::PersistentExactTypeId,
+    identities: &StrongRegistrationIdentitySurfaceV1,
+    foundation: &OdrFreeLirFoundation,
+    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    index: usize,
+) -> Result<StrongTypeItableSemanticPlanV1, StrongRegistrationProductionValidationError> {
+    let interface = resolve_type_descriptor_ref(
+        decoded.interface,
+        identities,
+        external_bridges,
+        index,
+        "itable_interface",
+    )?;
+    let table = resolve_dispatch_table(
+        decoded.table,
+        scoop_identity::DispatchTableKey::itable(exact_type, interface.exact_type()),
+        foundation,
+        index,
+        "itable",
+    )?;
+    let slots = validate_type_dispatch_slots(decoded.slots, foundation, external_bridges, index)?;
+    Ok(StrongTypeItableSemanticPlanV1::from_artifact(
+        table, interface, slots,
+    ))
+}
+
+fn resolve_dispatch_table(
+    decoded: DecodedPersistentId<scoop_identity::PersistentDispatchTableId>,
+    expected_key: scoop_identity::DispatchTableKey,
+    foundation: &OdrFreeLirFoundation,
+    index: usize,
+    field: &'static str,
+) -> Result<scoop_identity::PersistentDispatchTableId, StrongRegistrationProductionValidationError>
+{
+    foundation
+        .dispatch_tables()
+        .iter()
+        .find(|record| {
+            record.id().as_array() == decoded.as_array() && record.key() == &expected_key
+        })
+        .map(|record| record.id())
+        .ok_or_else(|| semantic_error(RegistrationProductionTableV1::Type, index, field))
+}
+
+fn validate_type_dispatch_slots(
+    decoded: Vec<DecodedStrongTypeDispatchCallableRefV1>,
+    foundation: &OdrFreeLirFoundation,
+    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    index: usize,
+) -> Result<Vec<StrongTypeDispatchCallableRefV1>, StrongRegistrationProductionValidationError> {
+    decoded
+        .into_iter()
+        .map(|decoded| match decoded {
+            DecodedStrongTypeDispatchCallableRefV1::Local(body) => resolve_known(
+                body,
+                foundation
+                    .callable_bodies()
+                    .iter()
+                    .map(|record| record.id()),
+                RegistrationProductionTableV1::Type,
+                index,
+                "local_dispatch_callable",
+            )
+            .map(StrongTypeDispatchCallableRefV1::Local),
+            DecodedStrongTypeDispatchCallableRefV1::CoreExternal(body) => resolve_known(
+                body,
+                external_bridges
+                    .bridges()
+                    .iter()
+                    .filter_map(|bridge| match bridge {
+                        StrongExternalLirBridgeV1::Callable(bridge) => {
+                            match bridge.expected_symbol().key() {
+                                PersistentSymbolKey::CallableBody(body) => Some(body),
+                                _ => None,
+                            }
+                        }
+                        StrongExternalLirBridgeV1::TypeDescriptor(_) => None,
+                    }),
+                RegistrationProductionTableV1::Type,
+                index,
+                "core_dispatch_callable",
+            )
+            .map(StrongTypeDispatchCallableRefV1::CoreExternal),
+            DecodedStrongTypeDispatchCallableRefV1::Runtime(function) => {
+                RuntimeFunction::from_wire_tags(function.family, function.function)
+                    .map(StrongTypeDispatchCallableRefV1::Runtime)
+                    .ok_or_else(|| {
+                        semantic_error(
+                            RegistrationProductionTableV1::Type,
+                            index,
+                            "runtime_dispatch_callable",
+                        )
+                    })
+            }
+        })
+        .collect()
 }
 
 fn validate_immortal_objects(

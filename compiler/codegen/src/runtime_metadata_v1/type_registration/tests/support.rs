@@ -1,16 +1,23 @@
+use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
     DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LayoutKey, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentLayoutId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
-    RepresentationRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    DigestSemanticFieldRole, DispatchTableKey, ExactTypeKey, LayoutKey, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentDispatchTableId,
+    PersistentExactTypeId, PersistentLayoutId, PersistentScanId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, RepresentationRole,
+    ScanKey, ScanRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, LirTargetProfile, OdrFreeLirFoundation,
-    RuntimeTypeMappingRecord, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
-    StrongTypeRegistrationPlanSetV1,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
+    ExternFunctions, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
+    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
+    NativeGlobalBridges, OdrFreeLirFoundation, RefScan, RuntimeTypeMappingRecord,
+    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    StrongTypeDescriptorSemanticPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs,
+    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord,
+    WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
@@ -21,6 +28,12 @@ pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
     let mut canonical = CanonicalLirFoundation::empty();
     canonical
         .set_layouts(types.iter().map(|item| item.layout.clone()).collect())
+        .unwrap();
+    canonical
+        .set_scans(types.iter().map(|item| item.scan.clone()).collect())
+        .unwrap();
+    canonical
+        .set_dispatch_tables(types.iter().map(|item| item.vtable.clone()).collect())
         .unwrap();
     canonical
         .set_runtime_types(
@@ -74,10 +87,12 @@ pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
     let digests = digest_plan(&foundation, &types);
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let semantics = type_semantics(&types);
     StrongTypeRegistrationPlanSetV1::new(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
         &identities,
+        &semantics,
         &digests,
     )
     .unwrap()
@@ -86,6 +101,8 @@ pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
 struct TypeArtifacts {
     exact_type: PersistentExactTypeId,
     layout: CborIdentityRecord<PersistentLayoutId, LayoutKey>,
+    scan: CborIdentityRecord<PersistentScanId, ScanKey>,
+    vtable: CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
     descriptor_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     descriptor_primary:
@@ -120,6 +137,9 @@ fn type_artifacts(name: &str) -> TypeArtifacts {
         RepresentationRole::ManagedObject,
     ))
     .unwrap();
+    let scan =
+        CborIdentityRecord::from_key(ScanKey::new(layout.id(), ScanRole::ManagedObject)).unwrap();
+    let vtable = CborIdentityRecord::from_key(DispatchTableKey::vtable(exact_type)).unwrap();
     let descriptor_definition = definition(
         StrongDefinitionEntity::exact_type(exact_type),
         StrongDefinitionRole::TypeDescriptor,
@@ -135,6 +155,8 @@ fn type_artifacts(name: &str) -> TypeArtifacts {
     TypeArtifacts {
         exact_type,
         layout,
+        scan,
+        vtable,
         descriptor_primary: primary(&descriptor_definition),
         layout_primary: primary(&layout_definition),
         registration_primary: primary(&registration_definition),
@@ -142,6 +164,93 @@ fn type_artifacts(name: &str) -> TypeArtifacts {
         layout_definition,
         registration_definition,
     }
+}
+
+fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSetV1 {
+    let mut type_descriptors = Arena::new();
+    let mut first_descriptor = None;
+    for item in types {
+        let identity = TypeDescriptorIdentity::new(
+            RuntimeTypeMappingRecord::new(item.exact_type).unwrap(),
+            MaterializationRoot::cone_owned(),
+        )
+        .unwrap();
+        let instance_layout = LayoutIdentity::managed_object(
+            item.exact_type,
+            LirTargetProfile::DARWIN_AARCH64,
+            MaterializationRoot::cone_owned(),
+        )
+        .unwrap();
+        let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
+        let descriptor = type_descriptors.alloc(TypeDescriptor {
+            diagnostic_name: format!("type-{}", item.exact_type),
+            identity,
+            instance_layout,
+            instance_shape: TypeInstanceShapeV1::fixed_object(
+                LirTargetProfile::DARWIN_AARCH64,
+                16,
+                8,
+                RefScan::None,
+            )
+            .unwrap(),
+            parent: None,
+            vtable,
+            itables: Vec::new(),
+        });
+        first_descriptor.get_or_insert(descriptor);
+    }
+    let first_descriptor = first_descriptor.expect("the fixture requires at least one type");
+    let mut layouts = Arena::new();
+    let first_layout = layouts.alloc(Layout {
+        identity: LayoutIdentity::managed_object(
+            types[0].exact_type,
+            LirTargetProfile::DARWIN_AARCH64,
+            MaterializationRoot::cone_owned(),
+        )
+        .unwrap(),
+        name: "fixture".to_string(),
+        size: 16,
+        align: 8,
+        fields: Vec::new(),
+        c_layout: None,
+        interior_mutable: false,
+        kind: LayoutKind::Plain {
+            scan: RefScan::None,
+        },
+    });
+    let mut functions = LocalFunctionIdentities::default();
+    let module = Module {
+        cone: ConeIdentity::SINGLE_FILE,
+        globals: Arena::new(),
+        initialization_units: Arena::new(),
+        structs: StructDefs::default(),
+        enums: EnumDefs::default(),
+        functions: Vec::new(),
+        extern_functions: ExternFunctions::default(),
+        native_globals: Arena::new(),
+        native_global_bridges: NativeGlobalBridges::default(),
+        callback_bridges: Arena::new(),
+        foreign_callback_families: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
+        entry: LocalFunctionRef::Managed(functions.alloc_managed()),
+        meta: LirMeta {
+            target_profile: LirTargetProfile::DARWIN_AARCH64,
+            canonical_c_abi: CanonicalCAbiMetadata::default(),
+            native_externals: NativeExternalMetadata::default(),
+            well_known_layouts: WellKnownLayouts {
+                string: first_layout,
+            },
+            well_known_type_descriptors: WellKnownTypeDescriptors {
+                string: TypeDescriptorRef::Local(first_descriptor),
+            },
+            arrays: Arena::new(),
+            layouts,
+            type_descriptors,
+            core_external_type_descriptors: Arena::new(),
+            core_external_callables: Arena::new(),
+        },
+    };
+    StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap()
 }
 
 fn digest_plan(

@@ -288,14 +288,14 @@ impl WireEncode for RuntimeAbiSymbolV1 {
                 encoder.field(0)?;
                 encoder.unsigned(self.tag())?;
                 encoder.field(1)?;
-                encoder.unsigned(managed_runtime_function_tag(*function))
+                encoder.unsigned(RuntimeFunction::Managed(*function).wire_function_tag())
             }
             Self::LirCall(RuntimeFunction::NoGc(function)) => {
                 encoder.map(2)?;
                 encoder.field(0)?;
                 encoder.unsigned(self.tag())?;
                 encoder.field(1)?;
-                encoder.unsigned(no_gc_runtime_function_tag(*function))
+                encoder.unsigned(RuntimeFunction::NoGc(*function).wire_function_tag())
             }
             _ => {
                 encoder.map(1)?;
@@ -669,38 +669,6 @@ impl fmt::Display for RuntimeRequirementRegistryError {
 }
 
 impl std::error::Error for RuntimeRequirementRegistryError {}
-
-const fn managed_runtime_function_tag(function: ManagedRuntimeFunction) -> u64 {
-    match function {
-        ManagedRuntimeFunction::Safepoint => 1,
-        ManagedRuntimeFunction::Alloc => 2,
-        ManagedRuntimeFunction::Box => 3,
-        ManagedRuntimeFunction::GcCollect => 4,
-        ManagedRuntimeFunction::MaterializeException => 5,
-        ManagedRuntimeFunction::StringConcat => 6,
-        ManagedRuntimeFunction::InitializationEnter => 7,
-        ManagedRuntimeFunction::InitializationSucceed => 8,
-        ManagedRuntimeFunction::InitializationFail => 9,
-        ManagedRuntimeFunction::InitializationFailure => 10,
-        ManagedRuntimeFunction::InitializationCycleMessage => 11,
-    }
-}
-
-const fn no_gc_runtime_function_tag(function: NoGcRuntimeFunction) -> u64 {
-    match function {
-        NoGcRuntimeFunction::IsInstance => 1,
-        NoGcRuntimeFunction::ITableLookup => 2,
-        NoGcRuntimeFunction::Pin => 3,
-        NoGcRuntimeFunction::Unpin => 4,
-        NoGcRuntimeFunction::GetHandle => 5,
-        NoGcRuntimeFunction::ReleaseHandle => 6,
-        NoGcRuntimeFunction::GcStats => 7,
-        NoGcRuntimeFunction::StringCompare => 8,
-        NoGcRuntimeFunction::Trap => 9,
-        NoGcRuntimeFunction::Throw => 10,
-        NoGcRuntimeFunction::Rethrow => 11,
-    }
-}
 
 #[cfg(test)]
 mod tests {

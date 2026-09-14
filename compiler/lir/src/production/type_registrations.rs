@@ -22,9 +22,9 @@ pub use semantics::*;
 
 /// All semantic identities and graph writers required to emit one strong
 /// type-registration record.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongTypeRegistrationPlanV1 {
-    exact_type: PersistentExactTypeId,
+    semantic: StrongTypeDescriptorSemanticPlanV1,
     runtime_type: RuntimeTypeId,
     symbol: PersistentSymbolRequest,
     definition_plan: ObjectDefinitionPlanId,
@@ -32,7 +32,6 @@ pub struct StrongTypeRegistrationPlanV1 {
     descriptor_symbol: PersistentSymbolRequest,
     descriptor_definition_plan: ObjectDefinitionPlanId,
     descriptor_primary_atom: ObjectDefinitionAtomId,
-    layout: PersistentLayoutId,
     layout_symbol: PersistentSymbolRequest,
     layout_definition_plan: ObjectDefinitionPlanId,
     layout_primary_atom: ObjectDefinitionAtomId,
@@ -46,79 +45,83 @@ pub struct StrongTypeRegistrationPlanV1 {
 }
 
 impl StrongTypeRegistrationPlanV1 {
-    pub const fn exact_type(self) -> PersistentExactTypeId {
-        self.exact_type
+    pub const fn semantic(&self) -> &StrongTypeDescriptorSemanticPlanV1 {
+        &self.semantic
     }
 
-    pub const fn runtime_type(self) -> RuntimeTypeId {
+    pub const fn exact_type(&self) -> PersistentExactTypeId {
+        self.semantic.exact_type()
+    }
+
+    pub const fn runtime_type(&self) -> RuntimeTypeId {
         self.runtime_type
     }
 
-    pub const fn symbol(self) -> PersistentSymbolRequest {
+    pub const fn symbol(&self) -> PersistentSymbolRequest {
         self.symbol
     }
 
-    pub const fn definition_plan(self) -> ObjectDefinitionPlanId {
+    pub const fn definition_plan(&self) -> ObjectDefinitionPlanId {
         self.definition_plan
     }
 
-    pub const fn primary_atom(self) -> ObjectDefinitionAtomId {
+    pub const fn primary_atom(&self) -> ObjectDefinitionAtomId {
         self.primary_atom
     }
 
-    pub const fn descriptor_symbol(self) -> PersistentSymbolRequest {
+    pub const fn descriptor_symbol(&self) -> PersistentSymbolRequest {
         self.descriptor_symbol
     }
 
-    pub const fn descriptor_definition_plan(self) -> ObjectDefinitionPlanId {
+    pub const fn descriptor_definition_plan(&self) -> ObjectDefinitionPlanId {
         self.descriptor_definition_plan
     }
 
-    pub const fn descriptor_primary_atom(self) -> ObjectDefinitionAtomId {
+    pub const fn descriptor_primary_atom(&self) -> ObjectDefinitionAtomId {
         self.descriptor_primary_atom
     }
 
-    pub const fn layout(self) -> PersistentLayoutId {
-        self.layout
+    pub const fn layout(&self) -> PersistentLayoutId {
+        self.semantic.instance_layout()
     }
 
-    pub const fn layout_symbol(self) -> PersistentSymbolRequest {
+    pub const fn layout_symbol(&self) -> PersistentSymbolRequest {
         self.layout_symbol
     }
 
-    pub const fn layout_definition_plan(self) -> ObjectDefinitionPlanId {
+    pub const fn layout_definition_plan(&self) -> ObjectDefinitionPlanId {
         self.layout_definition_plan
     }
 
-    pub const fn layout_primary_atom(self) -> ObjectDefinitionAtomId {
+    pub const fn layout_primary_atom(&self) -> ObjectDefinitionAtomId {
         self.layout_primary_atom
     }
 
-    pub const fn registration_object_node(self) -> DigestNodeId {
+    pub const fn registration_object_node(&self) -> DigestNodeId {
         self.registration_object_node
     }
 
-    pub const fn descriptor_definition_node(self) -> DigestNodeId {
+    pub const fn descriptor_definition_node(&self) -> DigestNodeId {
         self.descriptor_definition_node
     }
 
-    pub const fn layout_fingerprint_node(self) -> DigestNodeId {
+    pub const fn layout_fingerprint_node(&self) -> DigestNodeId {
         self.layout_fingerprint_node
     }
 
-    pub const fn registration_fingerprint_node(self) -> DigestNodeId {
+    pub const fn registration_fingerprint_node(&self) -> DigestNodeId {
         self.registration_fingerprint_node
     }
 
-    pub const fn registration_definition_patch(self) -> DigestPatchIntentId {
+    pub const fn registration_definition_patch(&self) -> DigestPatchIntentId {
         self.registration_definition_patch
     }
 
-    pub const fn descriptor_definition_patch(self) -> DigestPatchIntentId {
+    pub const fn descriptor_definition_patch(&self) -> DigestPatchIntentId {
         self.descriptor_definition_patch
     }
 
-    pub const fn layout_fingerprint_patch(self) -> DigestPatchIntentId {
+    pub const fn layout_fingerprint_patch(&self) -> DigestPatchIntentId {
         self.layout_fingerprint_patch
     }
 }
@@ -137,8 +140,21 @@ impl StrongTypeRegistrationPlanSetV1 {
         target: crate::LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
+        semantics: &StrongTypeDescriptorSemanticPlanSetV1,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, StrongTypeRegistrationPlanBuildError> {
+        if semantics.producer() != foundation.producer() {
+            return Err(StrongTypeRegistrationPlanBuildError::ProducerMismatch {
+                foundation: foundation.producer(),
+                semantics: semantics.producer(),
+            });
+        }
+        if semantics.target() != &target.wire_id() {
+            return Err(StrongTypeRegistrationPlanBuildError::TargetMismatch {
+                expected: target.wire_id(),
+                actual: semantics.target().clone(),
+            });
+        }
         let mut expected = foundation
             .definition_plans()
             .iter()
@@ -161,19 +177,38 @@ impl StrongTypeRegistrationPlanSetV1 {
                 pair[0],
             ));
         }
+        let semantic_types = semantics
+            .descriptors()
+            .iter()
+            .map(StrongTypeDescriptorSemanticPlanV1::exact_type)
+            .collect::<Vec<_>>();
+        if expected != semantic_types {
+            return Err(
+                StrongTypeRegistrationPlanBuildError::DescriptorSemanticSet {
+                    expected,
+                    actual: semantic_types,
+                },
+            );
+        }
         let actual = identities
             .type_registrations()
             .iter()
             .map(|registration| registration.semantic_id())
             .collect::<Vec<_>>();
-        if expected != actual {
-            return Err(StrongTypeRegistrationPlanBuildError::TypeSet { expected, actual });
+        if semantic_types != actual {
+            return Err(StrongTypeRegistrationPlanBuildError::TypeSet {
+                expected: semantic_types,
+                actual,
+            });
         }
 
-        let registrations = identities
-            .type_registrations()
+        let registrations = semantics
+            .descriptors()
             .iter()
-            .map(|identity| build_registration(target, foundation, identity, digests))
+            .zip(identities.type_registrations())
+            .map(|(semantic, identity)| {
+                build_registration(target, foundation, semantic, identity, digests)
+            })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             producer: foundation.producer(),
@@ -198,10 +233,11 @@ impl StrongTypeRegistrationPlanSetV1 {
 fn build_registration(
     target: crate::LirTargetProfile,
     foundation: &OdrFreeLirFoundation,
+    semantic: &StrongTypeDescriptorSemanticPlanV1,
     identity: &crate::StrongRegistrationIdentityV1<PersistentExactTypeId>,
     digests: &StrongDigestFinalizationPlanV1,
 ) -> Result<StrongTypeRegistrationPlanV1, StrongTypeRegistrationPlanBuildError> {
-    let exact_type = identity.semantic_id();
+    let exact_type = semantic.exact_type();
     let registration_definition = require_definition(
         foundation,
         StrongDefinitionEntity::exact_type(exact_type),
@@ -247,27 +283,60 @@ fn build_registration(
         }
     };
 
-    let layouts = foundation
+    let layout = semantic.instance_layout();
+    let layout_record = foundation
         .layouts()
         .iter()
-        .filter(|record| {
-            record.key().exact_type() == exact_type
-                && record.key().target_profile() == &target.wire_id()
-                && record.key().representation() == RepresentationRole::ManagedObject
-        })
-        .map(|record| record.id())
-        .collect::<Vec<_>>();
-    let layout = match layouts.as_slice() {
-        [layout] => *layout,
-        _ => {
-            return Err(
-                StrongTypeRegistrationPlanBuildError::ManagedObjectLayoutSet {
-                    exact_type,
-                    actual: layouts,
-                },
-            );
+        .find(|record| record.id() == layout)
+        .ok_or(StrongTypeRegistrationPlanBuildError::MissingLayout(layout))?;
+    if layout_record.key().exact_type() != exact_type
+        || layout_record.key().target_profile() != &target.wire_id()
+        || layout_record.key().representation() != RepresentationRole::ManagedObject
+    {
+        return Err(
+            StrongTypeRegistrationPlanBuildError::InstanceLayoutMismatch { exact_type, layout },
+        );
+    }
+    let scan = semantic.instance_scan();
+    let scan_record = foundation
+        .scans()
+        .iter()
+        .find(|record| record.id() == scan)
+        .ok_or(StrongTypeRegistrationPlanBuildError::MissingScan(scan))?;
+    if scan_record.key().layout() != layout
+        || scan_record.key().role() != scoop_identity::ScanRole::ManagedObject
+    {
+        return Err(StrongTypeRegistrationPlanBuildError::InstanceScanMismatch {
+            exact_type,
+            scan,
+        });
+    }
+    let vtable = semantic.vtable().table();
+    let expected_vtable = scoop_identity::DispatchTableKey::vtable(exact_type);
+    if !foundation
+        .dispatch_tables()
+        .iter()
+        .any(|record| record.id() == vtable && record.key() == &expected_vtable)
+    {
+        return Err(StrongTypeRegistrationPlanBuildError::VtableMismatch {
+            exact_type,
+            table: vtable,
+        });
+    }
+    for itable in semantic.itables() {
+        let expected_itable =
+            scoop_identity::DispatchTableKey::itable(exact_type, itable.interface().exact_type());
+        if !foundation
+            .dispatch_tables()
+            .iter()
+            .any(|record| record.id() == itable.table() && record.key() == &expected_itable)
+        {
+            return Err(StrongTypeRegistrationPlanBuildError::ItableMismatch {
+                exact_type,
+                table: itable.table(),
+            });
         }
-    };
+    }
     let layout_definition = require_definition(
         foundation,
         StrongDefinitionEntity::layout(layout),
@@ -360,7 +429,7 @@ fn build_registration(
     )?;
 
     Ok(StrongTypeRegistrationPlanV1 {
-        exact_type,
+        semantic: semantic.clone(),
         runtime_type,
         symbol,
         definition_plan: registration_definition.id(),
@@ -368,7 +437,6 @@ fn build_registration(
         descriptor_symbol,
         descriptor_definition_plan: descriptor_definition.id(),
         descriptor_primary_atom,
-        layout,
         layout_symbol,
         layout_definition_plan: layout_definition.id(),
         layout_primary_atom,
@@ -475,6 +543,18 @@ pub enum StrongTypeRegistrationPlanBuildError {
     DefinitionIdentity(ObjectDefinitionIdentityError),
     Symbol(PersistentSymbolError),
     DuplicateDescriptor(PersistentExactTypeId),
+    ProducerMismatch {
+        foundation: ConeIdentity,
+        semantics: ConeIdentity,
+    },
+    TargetMismatch {
+        expected: TargetProfileWireId,
+        actual: TargetProfileWireId,
+    },
+    DescriptorSemanticSet {
+        expected: Vec<PersistentExactTypeId>,
+        actual: Vec<PersistentExactTypeId>,
+    },
     TypeSet {
         expected: Vec<PersistentExactTypeId>,
         actual: Vec<PersistentExactTypeId>,
@@ -494,9 +574,23 @@ pub enum StrongTypeRegistrationPlanBuildError {
         exact_type: PersistentExactTypeId,
         actual: Vec<RuntimeTypeId>,
     },
-    ManagedObjectLayoutSet {
+    MissingLayout(PersistentLayoutId),
+    MissingScan(scoop_identity::PersistentScanId),
+    InstanceLayoutMismatch {
         exact_type: PersistentExactTypeId,
-        actual: Vec<PersistentLayoutId>,
+        layout: PersistentLayoutId,
+    },
+    InstanceScanMismatch {
+        exact_type: PersistentExactTypeId,
+        scan: scoop_identity::PersistentScanId,
+    },
+    VtableMismatch {
+        exact_type: PersistentExactTypeId,
+        table: scoop_identity::PersistentDispatchTableId,
+    },
+    ItableMismatch {
+        exact_type: PersistentExactTypeId,
+        table: scoop_identity::PersistentDispatchTableId,
     },
     MissingDigestNode(DigestNodeKey),
     RegistrationObjectInputs {

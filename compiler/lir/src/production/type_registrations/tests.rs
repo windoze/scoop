@@ -1,15 +1,20 @@
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
     DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LayoutKey, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentLayoutId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
-    RepresentationRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    DigestSemanticFieldRole, DispatchTableKey, ExactTypeKey, LayoutKey, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentDispatchTableId,
+    PersistentExactTypeId, PersistentLayoutId, PersistentScanId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, RepresentationRole,
+    ScanKey, ScanRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::*;
-use crate::{CanonicalLirFoundation, DigestNodeV1, RuntimeTypeMappingRecord};
+use crate::{
+    CanonicalLirFoundation, DecodedStrongTypeRegistrationPlanV1, DigestNodeV1, RefScan,
+    RuntimeTypeMappingRecord, StrongExternalLirBridgeSurfaceV1, TypeInstanceShapeV1,
+};
+use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 #[test]
 fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
@@ -70,6 +75,37 @@ fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
 }
 
 #[test]
+fn wire_reader_reconstructs_the_complete_type_descriptor_semantics() {
+    let fixture = Fixture::new(Options::default());
+    let plans = fixture.build().unwrap();
+    let decoded = plans
+        .registrations()
+        .iter()
+        .map(|plan| {
+            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(
+                &encode(plan).unwrap(),
+                DecodeLimits::default(),
+            )
+            .unwrap()
+        })
+        .collect();
+    let external_bridges =
+        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap();
+
+    let validated = crate::validate_types(
+        decoded,
+        crate::LirTargetProfile::DARWIN_AARCH64,
+        &fixture.foundation,
+        &fixture.identities,
+        &external_bridges,
+        &fixture.digests,
+    )
+    .unwrap();
+
+    assert_eq!(validated, fixture.semantics);
+}
+
+#[test]
 fn requires_complete_type_registration_coverage() {
     let fixture = Fixture::new(Options {
         omit_last_registration: true,
@@ -100,8 +136,7 @@ fn requires_runtime_type_and_managed_object_layout_relations() {
             ..Options::default()
         })
         .build(),
-        Err(StrongTypeRegistrationPlanBuildError::ManagedObjectLayoutSet { actual, .. })
-            if actual.is_empty()
+        Err(StrongTypeRegistrationPlanBuildError::MissingLayout(_))
     ));
 }
 
@@ -203,6 +238,8 @@ struct Options {
 struct TypeArtifacts {
     exact_type: PersistentExactTypeId,
     layout: CborIdentityRecord<PersistentLayoutId, LayoutKey>,
+    scan: CborIdentityRecord<PersistentScanId, ScanKey>,
+    vtable: CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
     descriptor_definition:
         CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     descriptor_primary:
@@ -220,6 +257,7 @@ struct TypeArtifacts {
 struct Fixture {
     foundation: OdrFreeLirFoundation,
     identities: StrongRegistrationIdentitySurfaceV1,
+    semantics: StrongTypeDescriptorSemanticPlanSetV1,
     digests: StrongDigestFinalizationPlanV1,
 }
 
@@ -234,6 +272,22 @@ impl Fixture {
                     .enumerate()
                     .filter(|(index, _)| !(options.omit_first_layout && *index == 0))
                     .map(|(_, artifacts)| artifacts.layout.clone())
+                    .collect(),
+            )
+            .unwrap();
+        canonical
+            .set_scans(
+                types
+                    .iter()
+                    .map(|artifacts| artifacts.scan.clone())
+                    .collect(),
+            )
+            .unwrap();
+        canonical
+            .set_dispatch_tables(
+                types
+                    .iter()
+                    .map(|artifacts| artifacts.vtable.clone())
                     .collect(),
             )
             .unwrap();
@@ -324,9 +378,38 @@ impl Fixture {
         let digests = digest_plan(&foundation, &types, options);
         let identities =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
+            ConeIdentity::SINGLE_FILE,
+            crate::LirTargetProfile::DARWIN_AARCH64.wire_id(),
+            types
+                .iter()
+                .map(|artifacts| {
+                    StrongTypeDescriptorSemanticPlanV1::from_artifact(
+                        artifacts.exact_type,
+                        format!("type-{}", artifacts.exact_type),
+                        artifacts.layout.id(),
+                        artifacts.scan.id(),
+                        TypeInstanceShapeV1::fixed_object(
+                            crate::LirTargetProfile::DARWIN_AARCH64,
+                            16,
+                            8,
+                            RefScan::None,
+                        )
+                        .unwrap(),
+                        None,
+                        StrongTypeVtableSemanticPlanV1::from_artifact(
+                            artifacts.vtable.id(),
+                            Vec::new(),
+                        ),
+                        Vec::new(),
+                    )
+                })
+                .collect(),
+        );
         Self {
             foundation,
             identities,
+            semantics,
             digests,
         }
     }
@@ -338,6 +421,7 @@ impl Fixture {
             crate::LirTargetProfile::DARWIN_AARCH64,
             &self.foundation,
             &self.identities,
+            &self.semantics,
             &self.digests,
         )
     }
@@ -350,6 +434,9 @@ fn type_artifacts(seed: u8) -> TypeArtifacts {
         RepresentationRole::ManagedObject,
     ))
     .unwrap();
+    let scan =
+        CborIdentityRecord::from_key(ScanKey::new(layout.id(), ScanRole::ManagedObject)).unwrap();
+    let vtable = CborIdentityRecord::from_key(DispatchTableKey::vtable(exact_type)).unwrap();
     let descriptor_definition = definition(
         StrongDefinitionEntity::exact_type(exact_type),
         StrongDefinitionRole::TypeDescriptor,
@@ -368,6 +455,8 @@ fn type_artifacts(seed: u8) -> TypeArtifacts {
     TypeArtifacts {
         exact_type,
         layout,
+        scan,
+        vtable,
         descriptor_definition,
         descriptor_primary,
         layout_definition,

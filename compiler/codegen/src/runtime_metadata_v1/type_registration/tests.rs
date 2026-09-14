@@ -17,7 +17,7 @@ use support::type_plan;
 #[test]
 fn emits_closed_strong_record_descriptor_and_three_zero_patch_sites() {
     let plan = type_plan(1);
-    let expected = plan.registrations()[0];
+    let expected = &plan.registrations()[0];
     let context = Context::create();
     let llvm = context.create_module("type-registration");
     let type_descriptor = declare_type_descriptor(&context, &llvm, expected.descriptor_symbol());
@@ -112,7 +112,7 @@ fn emits_closed_strong_record_descriptor_and_three_zero_patch_sites() {
 #[test]
 fn completes_a_matching_image_declaration_then_rejects_redefinition() {
     let plan = type_plan(1);
-    let expected = plan.registrations()[0];
+    let expected = &plan.registrations()[0];
     let context = Context::create();
     let llvm = context.create_module("type-registration-declaration");
     declare_type_descriptor(&context, &llvm, expected.descriptor_symbol());
@@ -138,7 +138,7 @@ fn completes_a_matching_image_declaration_then_rejects_redefinition() {
 #[test]
 fn rejects_missing_legacy_or_non_address_significant_type_descriptors() {
     let plan = type_plan(1);
-    let expected = plan.registrations()[0];
+    let expected = &plan.registrations()[0];
     let context = Context::create();
 
     let llvm = context.create_module("missing-type-descriptor");
@@ -184,7 +184,7 @@ fn rejects_missing_legacy_or_non_address_significant_type_descriptors() {
 #[test]
 fn rejects_mutable_descriptor_definitions_and_registration_collisions() {
     let plan = type_plan(1);
-    let expected = plan.registrations()[0];
+    let expected = &plan.registrations()[0];
     let context = Context::create();
 
     let llvm = context.create_module("mutable-type-descriptor");

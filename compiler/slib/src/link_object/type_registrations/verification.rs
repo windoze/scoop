@@ -112,8 +112,8 @@ pub fn verify_strong_type_registrations_v1(
     let objects = validate_objects(patch_sites.builtins(), scoop_objects)?;
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for registration in plan.registrations() {
-        validate_digest_graph(patch_sites.digest_plan(), *registration)?;
-        registrations.push(verify_registration(&patch_sites, &objects, *registration)?);
+        validate_digest_graph(patch_sites.digest_plan(), registration)?;
+        registrations.push(verify_registration(&patch_sites, &objects, registration)?);
     }
 
     Ok(VerifiedStrongTypeRegistrationSetV1 {
@@ -126,7 +126,7 @@ pub fn verify_strong_type_registrations_v1(
 fn verify_registration(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     objects: &BTreeMap<SlibMemberId, &[u8]>,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
 ) -> Result<VerifiedStrongTypeRegistrationV1, StrongTypeRegistrationValidationError> {
     let builtins = patch_sites.builtins();
     let member = required_scoop_member(builtins, plan, plan.definition_plan())?;
@@ -232,7 +232,7 @@ fn verify_registration(
 
 fn required_scoop_member(
     builtins: &crate::link_object::VerifiedBuiltinObjectStrongRelocationSetV1,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
     definition: scoop_identity::ObjectDefinitionPlanId,
 ) -> Result<SlibMemberId, StrongTypeRegistrationValidationError> {
     let member = builtins
@@ -262,7 +262,7 @@ fn required_scoop_member(
 
 fn verify_layout_definition(
     builtins: &crate::link_object::VerifiedBuiltinObjectStrongRelocationSetV1,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
 ) -> Result<(), StrongTypeRegistrationValidationError> {
     let member = required_scoop_member(builtins, plan, plan.layout_definition_plan())?;
     let verified = verified_member(builtins, member)?;
@@ -298,7 +298,7 @@ fn verify_layout_definition(
 fn verify_descriptor_relocation(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     registration_member: &crate::link_object::VerifiedMemberObjectRelocationIndexV1,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
 ) -> Result<StrongRelocationBindingV1, StrongTypeRegistrationValidationError> {
     use TypeRegistrationRelocationFailureV1 as Failure;
 
@@ -428,7 +428,7 @@ fn relocation_error<T>(
 #[allow(clippy::too_many_arguments)]
 fn require_patch(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
     intent: DigestPatchIntentId,
     source: DigestNodeId,
     field_role: DigestSemanticFieldRole,
@@ -483,7 +483,7 @@ fn require_patch(
 
 fn validate_exact_atom_patch_set(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
     member: SlibMemberId,
 ) -> Result<(), StrongTypeRegistrationValidationError> {
     let expected = [

@@ -20,7 +20,7 @@ fn computes_the_canonical_type_strong_registration_fingerprint() {
 
     assert_eq!(fingerprints.fingerprints().len(), 1);
     let actual = fingerprints.fingerprints()[0];
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     assert_eq!(actual.exact_type(), plan.exact_type());
     assert_eq!(
         actual.registration_node(),
@@ -68,7 +68,7 @@ fn rejects_dependency_proofs_bound_to_other_digest_nodes() {
         fixture.member,
         &fixture.object_bytes,
     )];
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     let exact_type = plan.exact_type();
     let mut descriptor = dependencies(&fixture, &objects, [7; 32], [11; 32]);
     descriptor.fingerprints[0].descriptor_definition_node = plan.registration_fingerprint_node();
@@ -99,7 +99,7 @@ fn dependencies(
     .unwrap();
     let registration_objects =
         compute_strong_type_registration_object_fingerprints_v1(registrations, objects).unwrap();
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     VerifiedStrongTypeDependencyFingerprintSetV1 {
         registration_objects,
         fingerprints: vec![VerifiedStrongTypeDependencyFingerprintV1 {

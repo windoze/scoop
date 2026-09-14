@@ -174,6 +174,10 @@ impl OdrFreeLirFoundation {
         &self.canonical.scans
     }
 
+    pub(crate) fn dispatch_tables(&self) -> &[super::DispatchTableRecord] {
+        &self.canonical.dispatch_tables
+    }
+
     pub(crate) fn static_storages(&self) -> &[super::StaticStorageRecord] {
         &self.canonical.static_storages
     }

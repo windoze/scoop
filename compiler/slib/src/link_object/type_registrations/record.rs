@@ -10,7 +10,7 @@ pub(super) const DESCRIPTOR_SIZE: usize = 240;
 pub(super) fn validate_record_bytes(
     object: &[u8],
     file_start: u64,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
 ) -> Result<(), StrongTypeRegistrationValidationError> {
     let start = usize::try_from(file_start).map_err(|_| {
         StrongTypeRegistrationValidationError::RecordRangeOverflow(plan.exact_type())
@@ -37,7 +37,7 @@ pub(super) fn validate_record_bytes(
     Ok(())
 }
 
-pub(super) fn expected_record(plan: StrongTypeRegistrationPlanV1) -> [u8; DESCRIPTOR_SIZE] {
+pub(super) fn expected_record(plan: &StrongTypeRegistrationPlanV1) -> [u8; DESCRIPTOR_SIZE] {
     let mut bytes = [0; DESCRIPTOR_SIZE];
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
@@ -49,7 +49,7 @@ pub(super) fn expected_record(plan: StrongTypeRegistrationPlanV1) -> [u8; DESCRI
 }
 
 pub(in crate::link_object) fn expected_final_record(
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
     registration_definition: &[u8; 32],
     descriptor_definition: &[u8; 32],
     layout: &[u8; 32],

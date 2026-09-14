@@ -509,4 +509,72 @@ impl RuntimeFunction {
     pub const fn symbol(self) -> &'static str {
         crate::RuntimeAbiSymbolV1::LirCall(self).logical_symbol()
     }
+
+    pub const fn wire_family_tag(self) -> u64 {
+        match self {
+            Self::Managed(_) => 1,
+            Self::NoGc(_) => 2,
+        }
+    }
+
+    pub const fn wire_function_tag(self) -> u64 {
+        match self {
+            Self::Managed(function) => match function {
+                ManagedRuntimeFunction::Safepoint => 1,
+                ManagedRuntimeFunction::Alloc => 2,
+                ManagedRuntimeFunction::Box => 3,
+                ManagedRuntimeFunction::GcCollect => 4,
+                ManagedRuntimeFunction::MaterializeException => 5,
+                ManagedRuntimeFunction::StringConcat => 6,
+                ManagedRuntimeFunction::InitializationEnter => 7,
+                ManagedRuntimeFunction::InitializationSucceed => 8,
+                ManagedRuntimeFunction::InitializationFail => 9,
+                ManagedRuntimeFunction::InitializationFailure => 10,
+                ManagedRuntimeFunction::InitializationCycleMessage => 11,
+            },
+            Self::NoGc(function) => match function {
+                NoGcRuntimeFunction::IsInstance => 1,
+                NoGcRuntimeFunction::ITableLookup => 2,
+                NoGcRuntimeFunction::Pin => 3,
+                NoGcRuntimeFunction::Unpin => 4,
+                NoGcRuntimeFunction::GetHandle => 5,
+                NoGcRuntimeFunction::ReleaseHandle => 6,
+                NoGcRuntimeFunction::GcStats => 7,
+                NoGcRuntimeFunction::StringCompare => 8,
+                NoGcRuntimeFunction::Trap => 9,
+                NoGcRuntimeFunction::Throw => 10,
+                NoGcRuntimeFunction::Rethrow => 11,
+            },
+        }
+    }
+
+    pub const fn from_wire_tags(family: u64, function: u64) -> Option<Self> {
+        match (family, function) {
+            (1, 1) => Some(Self::Managed(ManagedRuntimeFunction::Safepoint)),
+            (1, 2) => Some(Self::Managed(ManagedRuntimeFunction::Alloc)),
+            (1, 3) => Some(Self::Managed(ManagedRuntimeFunction::Box)),
+            (1, 4) => Some(Self::Managed(ManagedRuntimeFunction::GcCollect)),
+            (1, 5) => Some(Self::Managed(ManagedRuntimeFunction::MaterializeException)),
+            (1, 6) => Some(Self::Managed(ManagedRuntimeFunction::StringConcat)),
+            (1, 7) => Some(Self::Managed(ManagedRuntimeFunction::InitializationEnter)),
+            (1, 8) => Some(Self::Managed(ManagedRuntimeFunction::InitializationSucceed)),
+            (1, 9) => Some(Self::Managed(ManagedRuntimeFunction::InitializationFail)),
+            (1, 10) => Some(Self::Managed(ManagedRuntimeFunction::InitializationFailure)),
+            (1, 11) => Some(Self::Managed(
+                ManagedRuntimeFunction::InitializationCycleMessage,
+            )),
+            (2, 1) => Some(Self::NoGc(NoGcRuntimeFunction::IsInstance)),
+            (2, 2) => Some(Self::NoGc(NoGcRuntimeFunction::ITableLookup)),
+            (2, 3) => Some(Self::NoGc(NoGcRuntimeFunction::Pin)),
+            (2, 4) => Some(Self::NoGc(NoGcRuntimeFunction::Unpin)),
+            (2, 5) => Some(Self::NoGc(NoGcRuntimeFunction::GetHandle)),
+            (2, 6) => Some(Self::NoGc(NoGcRuntimeFunction::ReleaseHandle)),
+            (2, 7) => Some(Self::NoGc(NoGcRuntimeFunction::GcStats)),
+            (2, 8) => Some(Self::NoGc(NoGcRuntimeFunction::StringCompare)),
+            (2, 9) => Some(Self::NoGc(NoGcRuntimeFunction::Trap)),
+            (2, 10) => Some(Self::NoGc(NoGcRuntimeFunction::Throw)),
+            (2, 11) => Some(Self::NoGc(NoGcRuntimeFunction::Rethrow)),
+            _ => None,
+        }
+    }
 }

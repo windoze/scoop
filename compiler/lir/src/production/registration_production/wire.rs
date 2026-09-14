@@ -3,8 +3,9 @@
 use scoop_identity::{
     DecodedPersistentId, DecodedPersistentSymbolRequest, DigestNodeId, DigestPatchIntentId,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentImmortalObjectId, PersistentInitializationUnitId,
-    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
+    PersistentDispatchTableId, PersistentExactTypeId, PersistentImmortalObjectId,
+    PersistentInitializationUnitId, PersistentLayoutId, PersistentSafepointSiteId,
+    PersistentScanId, PersistentStaticStorageId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -178,8 +179,236 @@ impl WireDecode for DecodedStrongCallableRegistrationPlanV1 {
 }
 
 #[derive(Debug)]
+pub(super) struct DecodedTypeInstanceShapeV1 {
+    pub(super) instance_kind: u32,
+    pub(super) inline_storage_kind: u32,
+    pub(super) minimum_size: u64,
+    pub(super) instance_alignment: u64,
+    pub(super) inline_offset: u64,
+    pub(super) inline_size: u64,
+    pub(super) inline_stride: u64,
+    pub(super) inline_alignment: u64,
+    pub(super) object_scan: DecodedRefScan,
+    pub(super) inline_scan: DecodedRefScan,
+}
+
+impl WireEncode for DecodedTypeInstanceShapeV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(10)?;
+        encode_unsigned_field(encoder, 1, u64::from(self.instance_kind))?;
+        encode_unsigned_field(encoder, 2, u64::from(self.inline_storage_kind))?;
+        encode_unsigned_field(encoder, 3, self.minimum_size)?;
+        encode_unsigned_field(encoder, 4, self.instance_alignment)?;
+        encode_unsigned_field(encoder, 5, self.inline_offset)?;
+        encode_unsigned_field(encoder, 6, self.inline_size)?;
+        encode_unsigned_field(encoder, 7, self.inline_stride)?;
+        encode_unsigned_field(encoder, 8, self.inline_alignment)?;
+        encode_field(encoder, 9, &self.object_scan)?;
+        encode_field(encoder, 10, &self.inline_scan)
+    }
+}
+
+impl WireDecode for DecodedTypeInstanceShapeV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(10)?;
+        Ok(Self {
+            instance_kind: decoder.field(1, Decoder::u32)?,
+            inline_storage_kind: decoder.field(2, Decoder::u32)?,
+            minimum_size: decoder.field(3, Decoder::unsigned)?,
+            instance_alignment: decoder.field(4, Decoder::unsigned)?,
+            inline_offset: decoder.field(5, Decoder::unsigned)?,
+            inline_size: decoder.field(6, Decoder::unsigned)?,
+            inline_stride: decoder.field(7, Decoder::unsigned)?,
+            inline_alignment: decoder.field(8, Decoder::unsigned)?,
+            object_scan: decoder.field(9, DecodedRefScan::decode)?,
+            inline_scan: decoder.field(10, DecodedRefScan::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub(super) enum DecodedStrongTypeDescriptorRefV1 {
+    Local(DecodedPersistentId<PersistentExactTypeId>),
+    CoreExternal(DecodedPersistentId<PersistentExactTypeId>),
+}
+
+impl WireEncode for DecodedStrongTypeDescriptorRefV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Local(exact_type) => encode_value_sum(encoder, 1, exact_type),
+            Self::CoreExternal(exact_type) => encode_value_sum(encoder, 2, exact_type),
+        }
+    }
+}
+
+impl WireDecode for DecodedStrongTypeDescriptorRefV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        let exact_type = decoder.field(1, DecodedPersistentId::decode)?;
+        match tag {
+            1 => Ok(Self::Local(exact_type)),
+            2 => Ok(Self::CoreExternal(exact_type)),
+            _ => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(super) enum DecodedOptionalStrongTypeDescriptorRefV1 {
+    Absent,
+    Local(DecodedPersistentId<PersistentExactTypeId>),
+    CoreExternal(DecodedPersistentId<PersistentExactTypeId>),
+}
+
+impl WireEncode for DecodedOptionalStrongTypeDescriptorRefV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Absent => {
+                encoder.map(2)?;
+                encode_unsigned_field(encoder, 0, 1)?;
+                encode_unsigned_field(encoder, 1, 0)
+            }
+            Self::Local(exact_type) => encode_value_sum(encoder, 2, exact_type),
+            Self::CoreExternal(exact_type) => encode_value_sum(encoder, 3, exact_type),
+        }
+    }
+}
+
+impl WireDecode for DecodedOptionalStrongTypeDescriptorRefV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        match tag {
+            1 => {
+                let marker = decoder.field(1, Decoder::unsigned)?;
+                if marker == 0 {
+                    Ok(Self::Absent)
+                } else {
+                    Err(unknown_tag(decoder, marker))
+                }
+            }
+            2 => Ok(Self::Local(decoder.field(1, DecodedPersistentId::decode)?)),
+            3 => Ok(Self::CoreExternal(
+                decoder.field(1, DecodedPersistentId::decode)?,
+            )),
+            _ => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct DecodedRuntimeFunctionV1 {
+    pub(super) family: u64,
+    pub(super) function: u64,
+}
+
+impl WireEncode for DecodedRuntimeFunctionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encode_unsigned_field(encoder, 1, self.family)?;
+        encode_unsigned_field(encoder, 2, self.function)
+    }
+}
+
+impl WireDecode for DecodedRuntimeFunctionV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            family: decoder.field(1, Decoder::unsigned)?,
+            function: decoder.field(2, Decoder::unsigned)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub(super) enum DecodedStrongTypeDispatchCallableRefV1 {
+    Local(DecodedPersistentId<PersistentCallableBodyId>),
+    CoreExternal(DecodedPersistentId<PersistentCallableBodyId>),
+    Runtime(DecodedRuntimeFunctionV1),
+}
+
+impl WireEncode for DecodedStrongTypeDispatchCallableRefV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Local(body) => encode_value_sum(encoder, 1, body),
+            Self::CoreExternal(body) => encode_value_sum(encoder, 2, body),
+            Self::Runtime(function) => encode_value_sum(encoder, 3, function),
+        }
+    }
+}
+
+impl WireDecode for DecodedStrongTypeDispatchCallableRefV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        match tag {
+            1 => Ok(Self::Local(decoder.field(1, DecodedPersistentId::decode)?)),
+            2 => Ok(Self::CoreExternal(
+                decoder.field(1, DecodedPersistentId::decode)?,
+            )),
+            3 => Ok(Self::Runtime(
+                decoder.field(1, DecodedRuntimeFunctionV1::decode)?,
+            )),
+            _ => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct DecodedStrongTypeVtableSemanticPlanV1 {
+    pub(super) table: DecodedPersistentId<PersistentDispatchTableId>,
+    pub(super) slots: Vec<DecodedStrongTypeDispatchCallableRefV1>,
+}
+
+impl WireEncode for DecodedStrongTypeVtableSemanticPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encode_field(encoder, 1, &self.table)?;
+        encode_array_field(encoder, 2, &self.slots)
+    }
+}
+
+impl WireDecode for DecodedStrongTypeVtableSemanticPlanV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            table: decoder.field(1, DecodedPersistentId::decode)?,
+            slots: decode_array_field(decoder, 2, DecodedStrongTypeDispatchCallableRefV1::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct DecodedStrongTypeItableSemanticPlanV1 {
+    pub(super) table: DecodedPersistentId<PersistentDispatchTableId>,
+    pub(super) interface: DecodedStrongTypeDescriptorRefV1,
+    pub(super) slots: Vec<DecodedStrongTypeDispatchCallableRefV1>,
+}
+
+impl WireEncode for DecodedStrongTypeItableSemanticPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encode_field(encoder, 1, &self.table)?;
+        encode_field(encoder, 2, &self.interface)?;
+        encode_array_field(encoder, 3, &self.slots)
+    }
+}
+
+impl WireDecode for DecodedStrongTypeItableSemanticPlanV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        Ok(Self {
+            table: decoder.field(1, DecodedPersistentId::decode)?,
+            interface: decoder.field(2, DecodedStrongTypeDescriptorRefV1::decode)?,
+            slots: decode_array_field(decoder, 3, DecodedStrongTypeDispatchCallableRefV1::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
 pub struct DecodedStrongTypeRegistrationPlanV1 {
-    exact_type: DecodedPersistentId<PersistentExactTypeId>,
+    pub(super) exact_type: DecodedPersistentId<PersistentExactTypeId>,
     runtime_type: u64,
     symbol: DecodedPersistentSymbolRequest,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
@@ -187,7 +416,7 @@ pub struct DecodedStrongTypeRegistrationPlanV1 {
     descriptor_symbol: DecodedPersistentSymbolRequest,
     descriptor_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     descriptor_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
-    layout: DecodedPersistentId<PersistentLayoutId>,
+    pub(super) layout: DecodedPersistentId<PersistentLayoutId>,
     layout_symbol: DecodedPersistentSymbolRequest,
     layout_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     layout_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
@@ -198,11 +427,17 @@ pub struct DecodedStrongTypeRegistrationPlanV1 {
     registration_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
     descriptor_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
     layout_fingerprint_patch: DecodedPersistentId<DigestPatchIntentId>,
+    pub(super) diagnostic_name: String,
+    pub(super) instance_scan: DecodedPersistentId<PersistentScanId>,
+    pub(super) instance_shape: DecodedTypeInstanceShapeV1,
+    pub(super) parent: DecodedOptionalStrongTypeDescriptorRefV1,
+    pub(super) vtable: DecodedStrongTypeVtableSemanticPlanV1,
+    pub(super) itables: Vec<DecodedStrongTypeItableSemanticPlanV1>,
 }
 
 impl WireEncode for DecodedStrongTypeRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(19)?;
+        encoder.map(25)?;
         encode_field(encoder, 1, &self.exact_type)?;
         encode_unsigned_field(encoder, 2, self.runtime_type)?;
         encode_field(encoder, 3, &self.symbol)?;
@@ -221,13 +456,20 @@ impl WireEncode for DecodedStrongTypeRegistrationPlanV1 {
         encode_field(encoder, 16, &self.registration_fingerprint_node)?;
         encode_field(encoder, 17, &self.registration_definition_patch)?;
         encode_field(encoder, 18, &self.descriptor_definition_patch)?;
-        encode_field(encoder, 19, &self.layout_fingerprint_patch)
+        encode_field(encoder, 19, &self.layout_fingerprint_patch)?;
+        encoder.field(20)?;
+        encoder.text(&self.diagnostic_name)?;
+        encode_field(encoder, 21, &self.instance_scan)?;
+        encode_field(encoder, 22, &self.instance_shape)?;
+        encode_field(encoder, 23, &self.parent)?;
+        encode_field(encoder, 24, &self.vtable)?;
+        encode_array_field(encoder, 25, &self.itables)
     }
 }
 
 impl WireDecode for DecodedStrongTypeRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(19)?;
+        decoder.expect_map(25)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
             runtime_type: decoder.field(2, Decoder::unsigned)?,
@@ -248,6 +490,16 @@ impl WireDecode for DecodedStrongTypeRegistrationPlanV1 {
             registration_definition_patch: decoder.field(17, DecodedPersistentId::decode)?,
             descriptor_definition_patch: decoder.field(18, DecodedPersistentId::decode)?,
             layout_fingerprint_patch: decoder.field(19, DecodedPersistentId::decode)?,
+            diagnostic_name: decoder.field(20, |decoder| Ok(decoder.text()?.to_owned()))?,
+            instance_scan: decoder.field(21, DecodedPersistentId::decode)?,
+            instance_shape: decoder.field(22, DecodedTypeInstanceShapeV1::decode)?,
+            parent: decoder.field(23, DecodedOptionalStrongTypeDescriptorRefV1::decode)?,
+            vtable: decoder.field(24, DecodedStrongTypeVtableSemanticPlanV1::decode)?,
+            itables: decode_array_field(
+                decoder,
+                25,
+                DecodedStrongTypeItableSemanticPlanV1::decode,
+            )?,
         })
     }
 }

@@ -367,6 +367,13 @@ fn foundation(
         .unwrap();
     let immortal_registration = immortal_registration_artifacts(immortal);
     let static_storage = static_storage_artifacts(module);
+    let local_type_descriptor = module
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|(_, descriptor)| descriptor)
+        .find(|descriptor| descriptor.identity.exact_type() == type_registration.exact_type)
+        .expect("the semantic fixture defines its local String descriptor");
     let mut canonical = CanonicalLirFoundation::empty();
     canonical
         .set_callable_bodies(vec![body.identity_record().clone()])
@@ -394,7 +401,13 @@ fn foundation(
         ])
         .unwrap();
     canonical
-        .set_scans(vec![static_storage.scan.clone()])
+        .set_scans(vec![
+            local_type_descriptor.instance_layout.scan_record().clone(),
+            static_storage.scan.clone(),
+        ])
+        .unwrap();
+    canonical
+        .set_dispatch_tables(vec![local_type_descriptor.vtable.identity_record().clone()])
         .unwrap();
     canonical
         .set_static_storages(vec![static_storage.storage.clone()])

@@ -4,7 +4,7 @@ use scoop_lir::{DigestInputRefV1, StrongDigestFinalizationPlanV1, StrongTypeRegi
 
 pub(super) fn validate_digest_graph(
     digest_plan: &StrongDigestFinalizationPlanV1,
-    plan: StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlanV1,
 ) -> Result<(), StrongTypeRegistrationValidationError> {
     use TypeRegistrationDigestPlanFailureV1 as Failure;
 

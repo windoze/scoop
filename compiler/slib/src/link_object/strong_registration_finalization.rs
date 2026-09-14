@@ -440,7 +440,7 @@ fn patch_types(
             owner,
             StrongRegistrationPatchFieldV1::RegistrationDefinition,
         )?;
-        validate_final_type(bytes, verified.checked_offset(), *plan, computed)?;
+        validate_final_type(bytes, verified.checked_offset(), plan, computed)?;
     }
     Ok(())
 }
@@ -665,7 +665,7 @@ fn validate_final_callable(
 fn validate_final_type(
     object: &[u8],
     checked_offset: u64,
-    plan: scoop_lir::StrongTypeRegistrationPlanV1,
+    plan: &scoop_lir::StrongTypeRegistrationPlanV1,
     computed: &crate::link_object::VerifiedStrongTypeFingerprintV1,
 ) -> Result<(), StrongRegistrationPatchError> {
     let expected = expected_final_type_record(

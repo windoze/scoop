@@ -43,6 +43,13 @@ pub struct StrongTypeVtableSemanticPlanV1 {
 }
 
 impl StrongTypeVtableSemanticPlanV1 {
+    pub(crate) const fn from_artifact(
+        table: PersistentDispatchTableId,
+        slots: Vec<StrongTypeDispatchCallableRefV1>,
+    ) -> Self {
+        Self { table, slots }
+    }
+
     pub const fn table(&self) -> PersistentDispatchTableId {
         self.table
     }
@@ -61,6 +68,18 @@ pub struct StrongTypeItableSemanticPlanV1 {
 }
 
 impl StrongTypeItableSemanticPlanV1 {
+    pub(crate) const fn from_artifact(
+        table: PersistentDispatchTableId,
+        interface: StrongTypeDescriptorRefV1,
+        slots: Vec<StrongTypeDispatchCallableRefV1>,
+    ) -> Self {
+        Self {
+            table,
+            interface,
+            slots,
+        }
+    }
+
     pub const fn table(&self) -> PersistentDispatchTableId {
         self.table
     }
@@ -88,6 +107,29 @@ pub struct StrongTypeDescriptorSemanticPlanV1 {
 }
 
 impl StrongTypeDescriptorSemanticPlanV1 {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_artifact(
+        exact_type: PersistentExactTypeId,
+        diagnostic_name: String,
+        instance_layout: PersistentLayoutId,
+        instance_scan: PersistentScanId,
+        instance_shape: TypeInstanceShapeV1,
+        parent: Option<StrongTypeDescriptorRefV1>,
+        vtable: StrongTypeVtableSemanticPlanV1,
+        itables: Vec<StrongTypeItableSemanticPlanV1>,
+    ) -> Self {
+        Self {
+            exact_type,
+            diagnostic_name,
+            instance_layout,
+            instance_scan,
+            instance_shape,
+            parent,
+            vtable,
+            itables,
+        }
+    }
+
     pub const fn exact_type(&self) -> PersistentExactTypeId {
         self.exact_type
     }
@@ -174,6 +216,18 @@ impl StrongTypeDescriptorSemanticPlanSetV1 {
             target: target.wire_id(),
             descriptors: canonical.into_values().collect(),
         })
+    }
+
+    pub(crate) const fn from_artifact(
+        producer: ConeIdentity,
+        target: scoop_identity::TargetProfileWireId,
+        descriptors: Vec<StrongTypeDescriptorSemanticPlanV1>,
+    ) -> Self {
+        Self {
+            producer,
+            target,
+            descriptors,
+        }
     }
 
     pub const fn producer(&self) -> ConeIdentity {

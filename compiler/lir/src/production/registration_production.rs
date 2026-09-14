@@ -21,8 +21,11 @@ use crate::{
     StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1,
     StrongStaticStorageInitialArtifactPlanV1, StrongStaticStorageInitialStatePlanV1,
     StrongStaticStorageRegistrationPlanBuildError, StrongStaticStorageRegistrationPlanSetV1,
-    StrongStaticStorageRegistrationPlanV1, StrongTypeRegistrationPlanBuildError,
-    StrongTypeRegistrationPlanSetV1, StrongTypeRegistrationPlanV1,
+    StrongStaticStorageRegistrationPlanV1, StrongTypeDescriptorRefV1,
+    StrongTypeDescriptorSemanticPlanBuildError, StrongTypeDescriptorSemanticPlanSetV1,
+    StrongTypeDispatchCallableRefV1, StrongTypeItableSemanticPlanV1,
+    StrongTypeRegistrationPlanBuildError, StrongTypeRegistrationPlanSetV1,
+    StrongTypeRegistrationPlanV1, StrongTypeVtableSemanticPlanV1,
 };
 
 mod wire;
@@ -53,11 +56,17 @@ impl StrongRegistrationProductionSurfaceV1 {
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
         let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
+        let type_semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
+            foundation.producer(),
+            target.wire_id(),
+            Vec::new(),
+        );
         Self::from_semantics(
             target,
             foundation,
             digests,
             identities,
+            type_semantics,
             StrongSafepointSemanticPlanSetV1::from_artifact(foundation.producer(), Vec::new()),
             StrongImmortalObjectSemanticPlanSetV1::from_artifact(foundation.producer(), Vec::new()),
             StrongInitializationUnitSemanticPlanSetV1::from_artifact(
@@ -86,6 +95,8 @@ impl StrongRegistrationProductionSurfaceV1 {
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let safepoint_semantics = StrongSafepointSemanticPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::SafepointSemantics)?;
+        let type_semantics = StrongTypeDescriptorSemanticPlanSetV1::from_module(module)
+            .map_err(StrongRegistrationProductionBuildError::TypeSemantics)?;
         let immortal_semantics = StrongImmortalObjectSemanticPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::ImmortalSemantics)?;
         let initialization_semantics =
@@ -97,6 +108,7 @@ impl StrongRegistrationProductionSurfaceV1 {
             foundation,
             digests,
             identities,
+            type_semantics,
             safepoint_semantics,
             immortal_semantics,
             initialization_semantics,
@@ -109,6 +121,7 @@ impl StrongRegistrationProductionSurfaceV1 {
         foundation: &OdrFreeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
         identities: StrongRegistrationIdentitySurfaceV1,
+        type_semantics: StrongTypeDescriptorSemanticPlanSetV1,
         safepoint_semantics: StrongSafepointSemanticPlanSetV1,
         immortal_semantics: StrongImmortalObjectSemanticPlanSetV1,
         initialization_semantics: StrongInitializationUnitSemanticPlanSetV1,
@@ -122,8 +135,14 @@ impl StrongRegistrationProductionSurfaceV1 {
         .map_err(StrongRegistrationProductionBuildError::Safepoints)?;
         let callables = StrongCallableRegistrationPlanSetV1::new(foundation, &identities, digests)
             .map_err(StrongRegistrationProductionBuildError::Callables)?;
-        let types = StrongTypeRegistrationPlanSetV1::new(target, foundation, &identities, digests)
-            .map_err(StrongRegistrationProductionBuildError::Types)?;
+        let types = StrongTypeRegistrationPlanSetV1::new(
+            target,
+            foundation,
+            &identities,
+            &type_semantics,
+            digests,
+        )
+        .map_err(StrongRegistrationProductionBuildError::Types)?;
         let immortal_objects = StrongImmortalObjectRegistrationPlanSetV1::new(
             foundation,
             &identities,
@@ -256,7 +275,8 @@ impl WireEncode for StrongCallableRegistrationPlanV1 {
 
 impl WireEncode for StrongTypeRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(19)?;
+        let semantic = self.semantic();
+        encoder.map(25)?;
         encode_field(encoder, 1, &self.exact_type())?;
         encode_field(encoder, 2, &self.runtime_type())?;
         encode_field(encoder, 3, &self.symbol())?;
@@ -275,7 +295,22 @@ impl WireEncode for StrongTypeRegistrationPlanV1 {
         encode_field(encoder, 16, &self.registration_fingerprint_node())?;
         encode_field(encoder, 17, &self.registration_definition_patch())?;
         encode_field(encoder, 18, &self.descriptor_definition_patch())?;
-        encode_field(encoder, 19, &self.layout_fingerprint_patch())
+        encode_field(encoder, 19, &self.layout_fingerprint_patch())?;
+        encoder.field(20)?;
+        encoder.text(semantic.diagnostic_name())?;
+        encode_field(encoder, 21, &semantic.instance_scan())?;
+        encoder.field(22)?;
+        encode_type_instance_shape(encoder, semantic.instance_shape())?;
+        encoder.field(23)?;
+        encode_optional_type_descriptor_ref(encoder, semantic.parent())?;
+        encoder.field(24)?;
+        encode_type_vtable(encoder, semantic.vtable())?;
+        encoder.field(25)?;
+        encoder.array(semantic.itables().len() as u64)?;
+        for itable in semantic.itables() {
+            encode_type_itable(encoder, itable)?;
+        }
+        Ok(())
     }
 }
 
@@ -393,6 +428,104 @@ fn encode_type_registration_ref(
         ImmortalObjectTypeRegistrationRefV1::CoreExternal(exact_type) => (2, exact_type),
     };
     encode_value_sum(encoder, tag, &exact_type)
+}
+
+fn encode_type_instance_shape(
+    encoder: &mut Encoder,
+    shape: &crate::TypeInstanceShapeV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(10)?;
+    encode_unsigned_field(encoder, 1, u64::from(shape.instance_kind().tag()))?;
+    encode_unsigned_field(encoder, 2, u64::from(shape.inline_storage_kind().tag()))?;
+    encode_unsigned_field(encoder, 3, shape.minimum_size())?;
+    encode_unsigned_field(encoder, 4, shape.instance_alignment())?;
+    encode_unsigned_field(encoder, 5, shape.inline_offset())?;
+    encode_unsigned_field(encoder, 6, shape.inline_size())?;
+    encode_unsigned_field(encoder, 7, shape.inline_stride())?;
+    encode_unsigned_field(encoder, 8, shape.inline_alignment())?;
+    encoder.field(9)?;
+    encode_ref_scan(encoder, shape.object_scan())?;
+    encoder.field(10)?;
+    encode_ref_scan(encoder, shape.inline_scan())
+}
+
+fn encode_type_descriptor_ref(
+    encoder: &mut Encoder,
+    reference: StrongTypeDescriptorRefV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match reference {
+        StrongTypeDescriptorRefV1::Local(exact_type) => encode_value_sum(encoder, 1, &exact_type),
+        StrongTypeDescriptorRefV1::CoreExternal(exact_type) => {
+            encode_value_sum(encoder, 2, &exact_type)
+        }
+    }
+}
+
+fn encode_optional_type_descriptor_ref(
+    encoder: &mut Encoder,
+    reference: Option<StrongTypeDescriptorRefV1>,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match reference {
+        None => {
+            encoder.map(2)?;
+            encode_unsigned_field(encoder, 0, 1)?;
+            encode_unsigned_field(encoder, 1, 0)
+        }
+        Some(StrongTypeDescriptorRefV1::Local(exact_type)) => {
+            encode_value_sum(encoder, 2, &exact_type)
+        }
+        Some(StrongTypeDescriptorRefV1::CoreExternal(exact_type)) => {
+            encode_value_sum(encoder, 3, &exact_type)
+        }
+    }
+}
+
+fn encode_type_dispatch_callable_ref(
+    encoder: &mut Encoder,
+    reference: StrongTypeDispatchCallableRefV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match reference {
+        StrongTypeDispatchCallableRefV1::Local(body) => encode_value_sum(encoder, 1, &body),
+        StrongTypeDispatchCallableRefV1::CoreExternal(body) => encode_value_sum(encoder, 2, &body),
+        StrongTypeDispatchCallableRefV1::Runtime(function) => {
+            encoder.map(2)?;
+            encode_unsigned_field(encoder, 0, 3)?;
+            encoder.field(1)?;
+            encoder.map(2)?;
+            encode_unsigned_field(encoder, 1, function.wire_family_tag())?;
+            encode_unsigned_field(encoder, 2, function.wire_function_tag())
+        }
+    }
+}
+
+fn encode_type_vtable(
+    encoder: &mut Encoder,
+    vtable: &StrongTypeVtableSemanticPlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encode_field(encoder, 1, &vtable.table())?;
+    encoder.field(2)?;
+    encoder.array(vtable.slots().len() as u64)?;
+    for slot in vtable.slots() {
+        encode_type_dispatch_callable_ref(encoder, *slot)?;
+    }
+    Ok(())
+}
+
+fn encode_type_itable(
+    encoder: &mut Encoder,
+    itable: &StrongTypeItableSemanticPlanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(3)?;
+    encode_field(encoder, 1, &itable.table())?;
+    encoder.field(2)?;
+    encode_type_descriptor_ref(encoder, itable.interface())?;
+    encoder.field(3)?;
+    encoder.array(itable.slots().len() as u64)?;
+    for slot in itable.slots() {
+        encode_type_dispatch_callable_ref(encoder, *slot)?;
+    }
+    Ok(())
 }
 
 fn encode_ref_scan(
@@ -606,6 +739,7 @@ pub enum StrongRegistrationProductionBuildError {
     },
     Identities(StrongRegistrationIdentityBuildError),
     SafepointSemantics(StrongSafepointSemanticPlanError),
+    TypeSemantics(StrongTypeDescriptorSemanticPlanBuildError),
     ImmortalSemantics(StrongImmortalObjectSemanticPlanBuildError),
     InitializationSemantics(StrongInitializationUnitSemanticPlanBuildError),
     Safepoints(StrongSafepointRegistrationPlanBuildError),

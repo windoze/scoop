@@ -28,7 +28,7 @@ fn verifies_exact_type_record_descriptor_relocation_and_three_patch_sites() {
     );
     assert_eq!(verified.registrations().len(), 1);
     let registration = &verified.registrations()[0];
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     assert_eq!(registration.exact_type(), plan.exact_type());
     assert_eq!(registration.member(), fixture.member);
     assert_eq!(
@@ -102,7 +102,7 @@ fn rejects_descriptor_relocation_to_the_registration_itself() {
 #[test]
 fn rejects_a_registration_node_with_the_wrong_direct_inputs() {
     let fixture = Fixture::new(Corruption::None);
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     let nodes = fixture
         .digest_plan
         .nodes()
@@ -153,7 +153,7 @@ fn rejects_a_registration_node_with_the_wrong_direct_inputs() {
 #[test]
 fn rejects_a_digest_slot_materialized_at_the_wrong_field() {
     let fixture = Fixture::new(Corruption::None);
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     let provisional = fixture
         .provisional_patch_sites
         .iter()

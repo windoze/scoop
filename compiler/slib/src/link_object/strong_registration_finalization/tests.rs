@@ -534,7 +534,7 @@ fn verified_type_fingerprints(
     .unwrap();
     let registration_objects =
         compute_strong_type_registration_object_fingerprints_v1(registrations, objects).unwrap();
-    let plan = fixture.type_registration_plan.registrations()[0];
+    let plan = &fixture.type_registration_plan.registrations()[0];
     compute_strong_type_fingerprints_v1(VerifiedStrongTypeDependencyFingerprintSetV1 {
         registration_objects,
         fingerprints: vec![VerifiedStrongTypeDependencyFingerprintV1 {
