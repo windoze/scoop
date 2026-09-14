@@ -1378,6 +1378,16 @@ LinkDefinitionOwner =
 
 全部definition set按`(normalized symbol bytes, member id, owner canonical key)`排序。strong primary symbol全artifact唯一；同名不同owner、同owner多primary或manifest owner与object不一致均失败。
 
+`DefinedLinkSymbolOwner`是closed product：`1=member: SlibMemberId`、
+`2=symbol: NormalizedNativeLinkSymbol bytes`、`3=owner: LinkDefinitionOwner`。
+`LinkDefinitionOwner`按上述声明顺序固定tag：`StrongDefinition=1`、
+`GeneratedBridge=2`、`ConeImage=3`、`VerifierBoundary=4`；前三个variant的唯一payload
+位于field `1`，`VerifierBoundary`使用`1=atom`、`2=boundary`，boundary tag为
+`Start=1`、`End=2`。顶层defined owner set直接编码为array，按
+`(symbol bytes, member id, owner canonical key)`严格递增；producer只由已验证的外层
+Link proof保留，不重复写入array。reader必须从真实object联合重建该set并与解码
+payload逐字节比较；不提供从解码的裸member/id/symbol直接构造已验证owner set的入口。
+
 ### 12.2 undefined use
 
 ```text

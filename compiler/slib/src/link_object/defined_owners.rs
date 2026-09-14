@@ -4,10 +4,11 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, GeneratedBridgeAtomId, ObjectDefinitionAtomId, ObjectDefinitionPlanKey,
-    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
+    ConeIdentity, DecodedPersistentId, DecodedStrongDefinitionEntity, GeneratedBridgeAtomId,
+    ObjectDefinitionAtomId, ObjectDefinitionPlanKey, StrongDefinitionEntity,
+    StrongDefinitionEntityKind, StrongDefinitionRole,
 };
-use scoop_wire::{Encoder, WireEncode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use super::{
     PlannedStrongObjectSymbolRoleV1, VerifiedBoundaryRoleV1,
@@ -89,6 +90,24 @@ pub enum LinkDefinitionOwnerV1 {
     },
 }
 
+impl WireEncode for LinkDefinitionOwnerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::StrongDefinition(owner) => encode_one_field_sum(encoder, 1, owner),
+            Self::GeneratedBridge(atom) => encode_one_field_sum(encoder, 2, atom),
+            Self::ConeImage(cone) => encode_one_field_sum(encoder, 3, cone),
+            Self::VerifierBoundary { atom, boundary } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 4)?;
+                encoder.field(1)?;
+                atom.encode(encoder)?;
+                encoder.field(2)?;
+                encode_boundary(encoder, *boundary)
+            }
+        }
+    }
+}
+
 impl LinkDefinitionOwnerV1 {
     pub fn from_strong_primary(
         entity: StrongDefinitionEntity,
@@ -113,6 +132,18 @@ pub struct DefinedLinkSymbolOwnerV1 {
     member: SlibMemberId,
     symbol: Vec<u8>,
     owner: LinkDefinitionOwnerV1,
+}
+
+impl WireEncode for DefinedLinkSymbolOwnerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.member.encode(encoder)?;
+        encoder.field(2)?;
+        encoder.bytes(&self.symbol)?;
+        encoder.field(3)?;
+        self.owner.encode(encoder)
+    }
 }
 
 impl DefinedLinkSymbolOwnerV1 {
@@ -203,6 +234,191 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
     }
 }
 
+impl WireEncode for CanonicalDefinedLinkSymbolOwnerSetV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.owners.len() as u64)?;
+        for owner in &self.owners {
+            owner.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DecodedMemberId([u8; 32]);
+
+impl WireEncode for DecodedMemberId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.bytes(&self.0)
+    }
+}
+
+impl WireDecode for DecodedMemberId {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decode_fixed_32(decoder).map(Self)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DecodedStrongDefinitionOwnerV1 {
+    entity: DecodedStrongDefinitionEntity,
+    role: StrongDefinitionRole,
+}
+
+impl WireEncode for DecodedStrongDefinitionOwnerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.entity.encode(encoder)?;
+        encoder.field(2)?;
+        self.role.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedStrongDefinitionOwnerV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            entity: decoder.field(1, DecodedStrongDefinitionEntity::decode)?,
+            role: decoder.field(2, StrongDefinitionRole::decode)?,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DecodedLinkDefinitionOwnerV1 {
+    StrongDefinition(DecodedStrongDefinitionOwnerV1),
+    GeneratedBridge(DecodedPersistentId<GeneratedBridgeAtomId>),
+    ConeImage(DecodedPersistentId<ConeIdentity>),
+    VerifierBoundary {
+        atom: DecodedPersistentId<ObjectDefinitionAtomId>,
+        boundary: VerifiedBoundaryRoleV1,
+    },
+}
+
+impl WireEncode for DecodedLinkDefinitionOwnerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::StrongDefinition(owner) => encode_one_field_sum(encoder, 1, owner),
+            Self::GeneratedBridge(atom) => encode_one_field_sum(encoder, 2, atom),
+            Self::ConeImage(cone) => encode_one_field_sum(encoder, 3, cone),
+            Self::VerifierBoundary { atom, boundary } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 4)?;
+                encoder.field(1)?;
+                atom.encode(encoder)?;
+                encoder.field(2)?;
+                encode_boundary(encoder, *boundary)
+            }
+        }
+    }
+}
+
+impl WireDecode for DecodedLinkDefinitionOwnerV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        let fields = decoder.map()?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        match tag {
+            1 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, DecodedStrongDefinitionOwnerV1::decode)
+                    .map(Self::StrongDefinition)
+            }
+            2 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, DecodedPersistentId::decode)
+                    .map(Self::GeneratedBridge)
+            }
+            3 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, DecodedPersistentId::decode)
+                    .map(Self::ConeImage)
+            }
+            4 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::VerifierBoundary {
+                    atom: decoder.field(1, DecodedPersistentId::decode)?,
+                    boundary: decoder.field(2, decode_boundary)?,
+                })
+            }
+            tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DecodedDefinedLinkSymbolOwnerV1 {
+    member: DecodedMemberId,
+    symbol: Vec<u8>,
+    owner: DecodedLinkDefinitionOwnerV1,
+}
+
+impl WireEncode for DecodedDefinedLinkSymbolOwnerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.member.encode(encoder)?;
+        encoder.field(2)?;
+        encoder.bytes(&self.symbol)?;
+        encoder.field(3)?;
+        self.owner.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedDefinedLinkSymbolOwnerV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        Ok(Self {
+            member: decoder.field(1, DecodedMemberId::decode)?,
+            symbol: decoder.field(2, Decoder::owned_bytes)?,
+            owner: decoder.field(3, DecodedLinkDefinitionOwnerV1::decode)?,
+        })
+    }
+}
+
+/// Untrusted wire projection. It can only be promoted by comparing it with
+/// the set rebuilt from verified object definitions.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
+    owners: Vec<DecodedDefinedLinkSymbolOwnerV1>,
+}
+
+impl DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
+    pub fn validate_against(
+        self,
+        expected: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    ) -> Result<CanonicalDefinedLinkSymbolOwnerSetV1, DefinedLinkSymbolOwnerValidationError> {
+        let actual = encode(&self).map_err(DefinedLinkSymbolOwnerValidationError::Encode)?;
+        let expected_bytes =
+            encode(expected).map_err(DefinedLinkSymbolOwnerValidationError::Encode)?;
+        if actual != expected_bytes {
+            return Err(DefinedLinkSymbolOwnerValidationError::ProjectionMismatch);
+        }
+        Ok(expected.clone())
+    }
+}
+
+impl WireEncode for DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.owners.len() as u64)?;
+        for owner in &self.owners {
+            owner.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+impl WireDecode for DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder
+            .decode_array(|decoder, _| DecodedDefinedLinkSymbolOwnerV1::decode(decoder))
+            .map(|owners| Self { owners })
+    }
+}
+
 fn primary_owner(
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
@@ -228,6 +444,96 @@ impl fmt::Display for DefinedLinkSymbolOwnerBuildError {
 }
 
 impl std::error::Error for DefinedLinkSymbolOwnerBuildError {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DefinedLinkSymbolOwnerValidationError {
+    ProjectionMismatch,
+    Encode(scoop_wire::cbor::EncodeError),
+}
+
+impl fmt::Display for DefinedLinkSymbolOwnerValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid defined link-symbol owner section: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for DefinedLinkSymbolOwnerValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Encode(error) => Some(error),
+            Self::ProjectionMismatch => None,
+        }
+    }
+}
+
+fn encode_boundary(
+    encoder: &mut Encoder,
+    boundary: VerifiedBoundaryRoleV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.unsigned(match boundary {
+        VerifiedBoundaryRoleV1::Start => 1,
+        VerifiedBoundaryRoleV1::End => 2,
+    })
+}
+
+fn decode_boundary(decoder: &mut Decoder<'_, '_>) -> Result<VerifiedBoundaryRoleV1, WireError> {
+    match decoder.unsigned()? {
+        1 => Ok(VerifiedBoundaryRoleV1::Start),
+        2 => Ok(VerifiedBoundaryRoleV1::End),
+        tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
+    }
+}
+
+fn encode_one_field_sum(
+    encoder: &mut Encoder,
+    tag: u64,
+    value: &impl WireEncode,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encode_tag(encoder, tag)?;
+    encoder.field(1)?;
+    value.encode(encoder)
+}
+
+fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.field(0)?;
+    encoder.unsigned(tag)
+}
+
+fn decode_fixed_32(decoder: &mut Decoder<'_, '_>) -> Result<[u8; 32], WireError> {
+    let bytes = decoder.bytes()?;
+    <&[u8; 32]>::try_from(bytes).copied().map_err(|_| {
+        wire_error(
+            decoder,
+            WireErrorKind::InvalidLength {
+                expected: 32,
+                actual: bytes.len() as u64,
+            },
+        )
+    })
+}
+
+fn expect_sum_length(
+    decoder: &Decoder<'_, '_>,
+    actual: u64,
+    expected: u64,
+) -> Result<(), WireError> {
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(wire_error(
+            decoder,
+            WireErrorKind::InvalidLength { expected, actual },
+        ))
+    }
+}
+
+fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+    WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
+}
 
 #[cfg(test)]
 mod tests;
