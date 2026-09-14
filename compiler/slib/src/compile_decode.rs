@@ -1,7 +1,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use scoop_hir::{DecodedHirFoundation, ImportedHirSet, ValidatedHirFoundation};
+use scoop_hir::{DecodedHirFoundation, ImportedHirFoundation, ValidatedHirFoundation};
 use scoop_identity::{
     CapabilityId, ConeCoordinate, ConeIdentity, IdentityValidationError, ImportedIdentityLayers,
     PendingIdentityValidation, SemanticIdentityImportError, SemanticIdentitySession,
@@ -469,7 +469,7 @@ impl CompileCapabilityProfile for SingleConeStrongProfile {
 /// conversion.
 pub struct ValidatedCompileArtifact<'input, P: CompileCapabilityProfile> {
     graph: ValidatedGraphArtifact<'input>,
-    hir: ImportedHirSet,
+    hir: ImportedHirFoundation,
     mir: ImportedMirSet,
     lir: ImportedLirSet,
     production: P::Production,
@@ -496,7 +496,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
         Ok(ValidatedCompileArtifact {
             graph,
-            hir: ImportedHirSet::from_validated(hir, hir_identities),
+            hir: ImportedHirFoundation::from_validated(hir, hir_identities),
             mir: ImportedMirSet::from_validated(mir, mir_identities),
             lir: ImportedLirSet::from_validated(lir, lir_identities),
             production: (),
@@ -508,7 +508,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
 impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
     pub(crate) fn from_parts(
         graph: ValidatedGraphArtifact<'input>,
-        hir: ImportedHirSet,
+        hir: ImportedHirFoundation,
         mir: ImportedMirSet,
         lir: ImportedLirSet,
         production: P::Production,
@@ -563,7 +563,7 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
         self.graph.decode_usage()
     }
 
-    pub const fn hir(&self) -> &ImportedHirSet {
+    pub const fn hir(&self) -> &ImportedHirFoundation {
         &self.hir
     }
 

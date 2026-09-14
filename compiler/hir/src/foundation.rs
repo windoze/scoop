@@ -32,7 +32,10 @@ mod imported;
 mod projection;
 mod strong_profile;
 pub use counts::HirFoundationCounts;
-pub use imported::{ImportedHirId, ImportedHirSet};
+pub use imported::{
+    CorePreludeImportError, CorePreludeOnly, ImportedCorePreludeBinding, ImportedCorePreludeTarget,
+    ImportedHirFoundation, ImportedHirId, ImportedHirSet,
+};
 pub use strong_profile::{
     OdrFreeHirFoundation, OdrFreeHirFoundationError, OdrFreeHirFoundationProjectionError,
 };

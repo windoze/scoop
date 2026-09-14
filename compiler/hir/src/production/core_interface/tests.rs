@@ -1,18 +1,22 @@
 use scoop_identity::{
-    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
-    DeclarationName, DeclarationScope, DefinitionOrigin, DefinitionOriginRecord,
-    DefinitionOriginSubject, DefinitionOwnerChain, EnumVariantFieldKey, EnumVariantFieldSelector,
-    EnumVariantIdentityKey, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
-    ExecutableSourceEntryIdentity, ExportBindingKey, NormalizedSourcePath, PackagePath,
-    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
-    PersistentExportBindingId, PersistentFunctionId, PersistentGenericTypeId, PersistentTypeId,
+    BindingNamespace, BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
+    CoreBuiltinNominal, DeclarationName, DeclarationScope, DefinitionOrigin,
+    DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerChain, EnumVariantFieldKey,
+    EnumVariantFieldSelector, EnumVariantIdentityKey, ExactOrdinaryNoArgUnitSignature,
+    ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey, NormalizedSourcePath,
+    PackagePath, PendingIdentityValidation, PersistentEnumVariantFieldId, PersistentEnumVariantId,
+    PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
+    PersistentGenericTypeId, PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint,
     SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
     SourceNominalKind, SourceSpan,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::CoreTypeTargetV1;
+use crate::{
+    CorePreludeImportError, CoreTypeTargetV1, DecodedHirFoundation, ImportedCorePreludeTarget,
+    ImportedHirFoundation,
+};
 
 #[test]
 fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
@@ -199,6 +203,64 @@ fn core_shape_support_sources_are_derived_from_param_free_source_nominals() {
     );
 }
 
+#[test]
+fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
+    let fixture = fixture();
+    let imported = imported_foundation(&fixture.foundation);
+
+    let prelude = imported.import_core_prelude(&fixture.interface).unwrap();
+
+    assert_eq!(prelude.origin(), ConeIdentity::CORE);
+    let string = prelude
+        .candidates(BindingNamespace::Type, "String")
+        .collect::<Vec<_>>();
+    assert_eq!(string.len(), 1);
+    let string_binding = fixture
+        .interface
+        .type_targets()
+        .targets()
+        .iter()
+        .find(|target| {
+            target.capability() == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
+        })
+        .unwrap()
+        .binding();
+    assert_eq!(string[0].identity().persistent(), string_binding);
+    assert!(matches!(
+        string[0].target(),
+        ImportedCorePreludeTarget::Type(target)
+            if target.capability()
+                == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
+    ));
+    assert_eq!(prelude.string_exact().persistent(), fixture.string_exact);
+    assert_eq!(
+        prelude.option_some().persistent(),
+        fixture.interface.prelude_snapshot().option_some()
+    );
+    assert_eq!(
+        prelude.option_some_payload().persistent(),
+        fixture.interface.prelude_snapshot().option_some_payload()
+    );
+    assert_eq!(
+        prelude.option_none().persistent(),
+        fixture.interface.prelude_snapshot().option_none()
+    );
+}
+
+#[test]
+fn imported_core_prelude_rejects_an_interface_from_another_foundation() {
+    let fixture = fixture();
+    let first_binding = fixture.direct.bindings()[0];
+    let mut missing_binding = fixture.foundation.clone();
+    missing_binding.set_export_bindings(Vec::new()).unwrap();
+    let imported = imported_foundation(&missing_binding);
+
+    assert!(matches!(
+        imported.import_core_prelude(&fixture.interface),
+        Err(CorePreludeImportError::MissingBindingKey(binding)) if binding == first_binding
+    ));
+}
+
 fn decode_interface(interface: &CoreHirInterfaceV1) -> DecodedCoreHirInterfaceV1 {
     decode_canonical(&encode(interface).unwrap(), DecodeLimits::default()).unwrap()
 }
@@ -292,7 +354,9 @@ fn fixture() -> Fixture {
     };
 
     let mut foundation = CanonicalHirFoundation::empty();
-    foundation.set_types(vec![string]).unwrap();
+    foundation
+        .set_types(vec![CoreBuiltinNominal::Unit.identity_record(), string])
+        .unwrap();
     foundation.set_generic_types(vec![option]).unwrap();
     foundation.set_enum_variants(vec![some, none]).unwrap();
     foundation
@@ -318,6 +382,29 @@ fn fixture() -> Fixture {
         section,
         string_exact: string_exact_record.id(),
     }
+}
+
+fn imported_foundation(foundation: &CanonicalHirFoundation) -> ImportedHirFoundation {
+    let decoded: DecodedHirFoundation =
+        decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    decoded.register_identities(&mut pending).unwrap();
+    decoded.resolve_identities(&mut pending).unwrap();
+    let identities = pending.finish().unwrap();
+    let mut session = SemanticIdentitySession::new();
+    let imported = session
+        .import(
+            ConeIdentity::CORE,
+            SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
+            &identities,
+        )
+        .unwrap();
+    let (hir, _, _) = imported.into_parts();
+    ImportedHirFoundation::from_odr_free(
+        OdrFreeHirFoundation::try_new(foundation.clone()).unwrap(),
+        hir,
+    )
 }
 
 fn nominal(name: &str, kind: SourceNominalKind, type_parameter_count: u32) -> SourceDeclarationKey {

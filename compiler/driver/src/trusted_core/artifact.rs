@@ -4,7 +4,10 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use scoop_codegen::ResolvedTargetProfile;
-use scoop_hir::{CoreHirInterfaceBranchV1, CoreHirInterfaceV1};
+use scoop_hir::{
+    CoreHirInterfaceBranchV1, CoreHirInterfaceV1, CorePreludeImportError, CorePreludeOnly,
+    ImportedHirSet,
+};
 use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
 use scoop_lir::{StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection};
 use scoop_slib::{
@@ -342,12 +345,6 @@ pub struct ValidatedCoreInterface {
     interface: CoreHirInterfaceV1,
 }
 
-impl ValidatedCoreInterface {
-    pub const fn interface(&self) -> &CoreHirInterfaceV1 {
-        &self.interface
-    }
-}
-
 pub struct ValidatedTrustedCoreArtifact<'input> {
     compile: ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
     link: ValidatedSingleConeStrongLinkArtifact<'input>,
@@ -372,6 +369,16 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
 
     pub const fn core_interface(&self) -> &ValidatedCoreInterface {
         &self.core_interface
+    }
+
+    /// Projects the only HIR lookup capability authorized for an M23-3
+    /// consumer from this artifact's own Compile proof and core interface.
+    pub fn import_core_prelude(
+        &self,
+    ) -> Result<ImportedHirSet<'_, CorePreludeOnly>, CorePreludeImportError> {
+        self.compile
+            .hir()
+            .import_core_prelude(&self.core_interface.interface)
     }
 
     pub const fn publication(&self) -> &PublishableSingleConeArtifact {

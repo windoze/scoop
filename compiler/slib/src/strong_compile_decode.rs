@@ -7,7 +7,7 @@ use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
     CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
     CoreShapeSupportSourceProjectionError, DecodedCoreBootstrapInterfaceSectionV1,
-    DecodedHirFoundation, HirFoundationValidationError, HirOutputContractV1, ImportedHirSet,
+    DecodedHirFoundation, HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation,
     OdrFreeHirFoundation, OdrFreeHirFoundationError,
 };
 use scoop_identity::{
@@ -820,7 +820,7 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
         };
         Ok(ValidatedCompileArtifact::from_parts(
             graph,
-            ImportedHirSet::from_odr_free(hir_foundation, hir_identities),
+            ImportedHirFoundation::from_odr_free(hir_foundation, hir_identities),
             ImportedMirSet::from_odr_free(mir_foundation, mir_identities),
             ImportedLirSet::from_odr_free(lir_foundation, lir_identities),
             production,

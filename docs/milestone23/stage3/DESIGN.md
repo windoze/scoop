@@ -597,6 +597,13 @@ HIR只从`ValidatedCoreInterface`构造：
 ImportedHirSet<CorePreludeOnly>
 ```
 
+artifact Compile proof持有的完整身份图类型为`ImportedHirFoundation`，它不再沿用`ImportedHirSet`这个会把
+“已导入完整foundation”与“可供语义查找的受限集合”混淆的旧名称，也不保留类型别名。只有把同一
+foundation与`ValidatedCoreInterface`逐binding及well-known identity绑定成功后，才能投影上述
+`ImportedHirSet<CorePreludeOnly>`。正式调用只通过`ValidatedTrustedCoreArtifact::import_core_prelude`把该
+artifact自身的Compile proof与私有core interface成对投影，不暴露拆开后二次拼接的getter；来自另一
+artifact/foundation的接口即使同属reserved core也不能拼接。
+
 它只暴露prelude候选层和well-known relation，没有ordinary package/exact/star/re-export枚举API：
 
 - 省略import时的prelude lookup可选中core typed target；
