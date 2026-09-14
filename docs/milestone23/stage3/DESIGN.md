@@ -898,13 +898,37 @@ StrongProductionSectionV1 {
     canonical_definitions: StrongObjectSymbolSurfaceV1,
     object_definition_plans: StrongObjectDefinitionPlanSurfaceV1,
     digest_finalization_plan: StrongDigestFinalizationPlanV1,
-    registration_plans: StrongRegistrationIdentitySurfaceV1,
+    registration_production: StrongRegistrationProductionSurfaceV1,
     image_plan: ConeImagePlanV1,
     entry_plan: Library | Executable(ExecutableEntryPlan),
     core_shape_support: NotCore | Core(ParamFreeShapeSupportPlanSet),
     generated_bridge_plan: GeneratedBridgePlanSetV1,
 }
 ```
+
+field 5 `StrongRegistrationProductionSurfaceV1`不是仅含identity的摘要，而是artifact-only Link重建
+registration与stackmap proof所需的完整、member-independent authority。其closed product固定为：
+`1=identities: StrongRegistrationIdentitySurfaceV1`、
+`2=safepoints: CanonicalVec<StrongSafepointRegistrationPlanV1>`、
+`3=callables: CanonicalVec<StrongCallableRegistrationPlanV1>`、
+`4=types: CanonicalVec<StrongTypeRegistrationPlanV1>`、
+`5=immortal_objects: CanonicalVec<StrongImmortalObjectRegistrationPlanV1>`、
+`6=static_storages: CanonicalVec<StrongStaticStorageRegistrationPlanV1>`、
+`7=initialization_units: CanonicalVec<StrongInitializationUnitRegistrationPlanV1>`。六张plan表分别按其
+kind-specific semantic id严格递增并与identities逐项、全量相等；其中safepoint plan非可选地保存
+`SafepointId`、owner、role与`root_pair_count`，后三类plan非可选地保存后续object verifier所需的稳定
+semantic record、initial template、typed relocation、diagnostic path、schedule与dependency。所有可从
+foundation、digest graph、target或persistent key派生的definition/atom/symbol/node/intent仍逐项重建并做
+canonical byte等值，不能因field 5携带了同值就直接提升；只有无法从其他artifact字段重建的LIR semantic
+scalar/byte sequence在完成closed-shape、canonical order、typed identity relation及自身不变量验证后成为
+authority。旧的identity-only field 5 shape直接拒绝，不设版本分支、fallback或兼容reader。
+
+writer构造该surface时同时持有最终`Module`并验证完整semantic plan；但`GlobalId`、function-local ref及其他
+arena handle不进入field 5。codegen需要的arena定位另由不序列化的
+`StrongRegistrationEmissionBindingSetV1`按persistent semantic id一一映射并在同一writer session验证，
+它不进入LIR semantic fingerprint以外的新identity，也不能被artifact reader伪造。Link侧只消费上述稳定
+production surface；不得要求compiler residual `Module`、调用者补送semantic plan，或从stackmap location
+count、object大小/内容反推出LIR语义。
 
 `external_bridges`在普通Cone中只允许origin为validated core；core bootstrap中为空。每项包含typed target、expected persistent symbol、calling convention、effect/root-plan和required upstream definition identity。没有“symbol string only”分支。
 LIR内存模型也不保留通用`ExternalCallable`/`ExternalTypeDescriptor`或裸symbol字段：本阶段只暴露
@@ -1082,7 +1106,7 @@ SingleConeProductionManifestV1 {
 ```
 
 field 4不引入另一种registration identity结构；其精确类型就是与
-`StrongProductionSectionV1.registration_plans`逐byte相等的
+`StrongProductionSectionV1.registration_production.identities`逐byte相等的
 `StrongRegistrationIdentitySurfaceV1`。field 5为
 `CanonicalStrongRegistrationFingerprintSetV1`：fields `1..6`依次对应static storage、immortal
 object、initialization unit、type、safepoint、callable六张表；每项固定为
@@ -1146,7 +1170,7 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 | --- | --- |
 | `CoreBootstrapInterfaceSectionV1` | `1=core_interface`, `2=output_contract`, `3=direct_public_surface` |
 | `CoreBootstrapBridgeSectionV1` | `1=core_bridge`, `2=entry_bridge`, `3=strong_callable_bridges` |
-| `StrongProductionSectionV1` | `1=external_bridges`, `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_plans`, `6=image_plan`, `7=entry_plan`, `8=core_shape_support`, `9=generated_bridge_plan` |
+| `StrongProductionSectionV1` | `1=external_bridges`, `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=core_shape_support`, `9=generated_bridge_plan` |
 | `LinkIdentityClosureSectionV1` | `1=materializations`, `2=definition_indexes`, `3=patch_sites`, `4=defined_symbols`, `5=undefined_symbols`, `6=verified_link_objects`, `7=image_owner`, `8=entry_owner` |
 | `SingleConeProductionManifestV1` | `1=distribution`, `2=output`, `3=image_owner_member`, `4=runtime_registration_projection`, `5=strong_registration_set`, `6=runtime_image_fingerprint`, `7=code_fingerprint`, `8=native_contracts`, `9=native_library_requirements`, `10=c_bridge_production` |
 
