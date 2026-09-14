@@ -8,6 +8,9 @@ mod physical;
 pub(in crate::link_object) mod record;
 mod relocations;
 
+mod fingerprints;
+pub use fingerprints::*;
+
 mod verification;
 pub use verification::*;
 

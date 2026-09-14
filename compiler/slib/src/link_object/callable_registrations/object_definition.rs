@@ -69,15 +69,10 @@ impl CanonicalObjectRelocationV1 {
             StrongDefinitionRole::CallableBody,
         )
         .expect("callable bodies are valid strong definition owners");
-        Self {
-            offset_within_atom: 184,
-            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
-            encoded_value: 0,
-            targets: vec![CanonicalRelocationTargetV1 {
-                slot: RelocationTargetSlotV1::Single,
-                requirement: FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
-            }],
-        }
+        Self::unsigned64(
+            184,
+            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
+        )
     }
 
     pub(in crate::link_object) fn type_descriptor(exact_type: PersistentExactTypeId) -> Self {
@@ -86,13 +81,23 @@ impl CanonicalObjectRelocationV1 {
             StrongDefinitionRole::TypeDescriptor,
         )
         .expect("type descriptors are valid strong definition owners");
+        Self::unsigned64(
+            168,
+            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
+        )
+    }
+
+    pub(in crate::link_object) fn unsigned64(
+        offset_within_atom: u64,
+        requirement: FinalUndefinedSymbolRequirementV1,
+    ) -> Self {
         Self {
-            offset_within_atom: 168,
+            offset_within_atom,
             form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
             encoded_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
-                requirement: FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
+                requirement,
             }],
         }
     }

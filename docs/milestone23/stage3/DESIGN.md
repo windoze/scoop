@@ -1672,6 +1672,15 @@ candidate，不能用任意本地strong定义冒充。offset 120只允许同一r
 registration object leaf、实际immortal object ObjectDefinition与StrongRegistration节点，重验leaf闭包、
 两项direct input和唯一writer；不接受调用方自报target、node、digest或兼容record格式。
 
+immortal registration自身的ObjectDefinition leaf只能经
+`compute_strong_immortal_object_registration_object_fingerprints_v1`消费上述完整registration proof和再次
+匹配content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确
+184-byte provisional record、relocation count 2、offset 152的immortal-object relocation、offset 176的
+type-registration relocation及direct-input count 0。前者规范化为同一object id的`IntraConeStrong
+ImmortalObject` owner；后者由plan中的typed来源唯一编码为同一exact type的`IntraConeStrong`或`CoreStrong
+TypeRegistration` owner。member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；
+不接受调用方传入裸target、core标记或自组relocation数组。
+
 type registration自身的ObjectDefinition leaf只能经
 `compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content
 digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确240-byte
