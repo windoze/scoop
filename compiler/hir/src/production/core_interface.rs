@@ -18,7 +18,9 @@ use super::{
     DirectPublicSurfaceValidationError, HirOutputContractV1, HirOutputContractValidationError,
     RuntimeCoreCapabilityBuildError, RuntimeCoreCapabilityV1, RuntimeCoreCapabilityValidationError,
 };
-use crate::{CanonicalHirFoundation, ConeOutputKind, ExportHir, ValidatedHirFoundation};
+use crate::{
+    CanonicalHirFoundation, ConeOutputKind, ExportHir, OdrFreeHirFoundation, ValidatedHirFoundation,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreHirInterfaceV1 {
@@ -297,6 +299,14 @@ impl DecodedCoreBootstrapInterfaceSectionV1 {
         foundation: &ValidatedHirFoundation,
     ) -> Result<CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError> {
         self.validate_against(foundation.artifact(), foundation.canonical())
+    }
+
+    pub fn validate_against_strong_foundation(
+        self,
+        artifact: ConeIdentity,
+        foundation: &OdrFreeHirFoundation,
+    ) -> Result<CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError> {
+        self.validate_against(artifact, foundation.as_canonical())
     }
 
     fn validate_against(

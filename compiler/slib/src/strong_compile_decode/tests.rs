@@ -1,8 +1,8 @@
 use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{
-    CapabilityId, CborIdentityRecord, ConeCoordinate, ConeIdentity, CoreBuiltinNominal,
-    ExactTypeKey, LayoutKey, LinkageClass, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, RepresentationRole,
+    CapabilityId, CborIdentityRecord, ConeCoordinate, CoreBuiltinNominal, ExactTypeKey, LayoutKey,
+    LinkageClass, PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
+    RepresentationRole,
 };
 use scoop_lir::CanonicalLirFoundation;
 use scoop_mir::CanonicalMirFoundation;
@@ -28,8 +28,8 @@ fn strong_graph_decodes_all_compile_sections_atomically() {
     let sections = open_graph(&bytes)
         .decode_single_cone_compile_sections()
         .unwrap();
-    assert_eq!(sections.identity(), ConeIdentity::CORE);
-    assert_eq!(sections.coordinate(), &ConeCoordinate::reserved_core());
+    assert_eq!(sections.identity(), cone().identity());
+    assert_eq!(sections.coordinate(), cone().coordinate());
     let _ = sections.hir_foundation_wire();
     let _ = sections.hir_production_wire();
     let _ = sections.mir_foundation_wire();
@@ -47,8 +47,8 @@ fn strong_compile_sections_validate_foundation_identities_as_one_transaction() {
         .unwrap()
         .validate_identities()
         .unwrap();
-    assert_eq!(checked.identity(), ConeIdentity::CORE);
-    assert_eq!(checked.identity_count(), 4);
+    assert_eq!(checked.identity(), cone().identity());
+    assert_eq!(checked.identity_count(), 5);
     assert_eq!(checked.declared_identity_count(), 3);
     let _ = checked.hir_production_wire();
     let _ = checked.mir_production_wire();
@@ -66,8 +66,8 @@ fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
         .unwrap()
         .validate_foundation_structure()
         .unwrap();
-    assert_eq!(checked.identity(), ConeIdentity::CORE);
-    assert_eq!(checked.identity_count(), 4);
+    assert_eq!(checked.identity(), cone().identity());
+    assert_eq!(checked.identity_count(), 5);
     assert_eq!(
         checked.hir_foundation().as_canonical().counts().odr_groups,
         0
@@ -96,6 +96,30 @@ fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
                 ..
             }
         ))
+    ));
+}
+
+#[test]
+fn strong_compile_validates_hir_and_mir_production_sections() {
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact(hir, mir, lir);
+    let validated = open_graph(&bytes)
+        .decode_single_cone_compile_sections()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .validate_local_production()
+        .unwrap();
+    assert_eq!(validated.identity(), cone().identity());
+    assert!(matches!(
+        validated.hir_production().core_interface(),
+        scoop_hir::CoreHirInterfaceBranchV1::NotCore
+    ));
+    assert!(matches!(
+        validated.mir_production().core_bridge(),
+        scoop_mir::CoreMirBridgeBranchV1::NotCore
     ));
 }
 
@@ -417,7 +441,7 @@ fn metadata_member(
 ) -> SlibMember {
     let envelope = MetadataEnvelope::new(location, sections).unwrap();
     SlibMember::new(
-        ConeIdentity::CORE,
+        cone().identity(),
         stable_key,
         role,
         encode(&envelope).unwrap(),
@@ -440,7 +464,7 @@ fn empty_not_core_library_section() -> Vec<u8> {
 
 fn cone() -> ConeRecord {
     ConeRecord::new(
-        ConeCoordinate::reserved_core(),
+        ConeCoordinate::new("test", "strong-compile", "0.0.0").unwrap(),
         ConeKind::Library,
         ConeSourceForm::Manifest,
     )

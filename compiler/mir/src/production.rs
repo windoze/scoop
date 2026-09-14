@@ -649,9 +649,27 @@ impl DecodedCoreBootstrapBridgeSectionV1 {
         identities: &mut ValidatedIdentityGraph,
         foundation: &ValidatedMirFoundation,
     ) -> Result<CoreBootstrapBridgeSectionV1, MirProductionValidationError> {
+        self.validate_against(artifact, identities, foundation.canonical())
+    }
+
+    pub fn validate_against_strong_foundation(
+        self,
+        artifact: scoop_identity::ConeIdentity,
+        identities: &mut ValidatedIdentityGraph,
+        foundation: &OdrFreeMirFoundation,
+    ) -> Result<CoreBootstrapBridgeSectionV1, MirProductionValidationError> {
+        self.validate_against(artifact, identities, foundation.as_canonical())
+    }
+
+    fn validate_against(
+        self,
+        artifact: scoop_identity::ConeIdentity,
+        identities: &mut ValidatedIdentityGraph,
+        foundation: &CanonicalMirFoundation,
+    ) -> Result<CoreBootstrapBridgeSectionV1, MirProductionValidationError> {
         let strong_callable_bridges = self
             .strong_callable_bridges
-            .validate(identities, foundation.canonical())?;
+            .validate(identities, foundation)?;
         let core_bridge = match self.core_bridge {
             DecodedCoreMirBridgeBranchV1::NotCore => CoreMirBridgeBranchV1::NotCore,
             DecodedCoreMirBridgeBranchV1::Core(bridge) => {
