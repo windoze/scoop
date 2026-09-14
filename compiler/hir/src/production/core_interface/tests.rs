@@ -14,8 +14,8 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
 use crate::{
-    CorePreludeImportError, CoreTypeTargetV1, DecodedHirFoundation, ImportedCorePreludeTarget,
-    ImportedHirFoundation,
+    CorePreludeImportError, CorePreludeUnavailableCapability, CoreTypeTargetV1,
+    DecodedHirFoundation, ImportedCorePreludeTarget, ImportedHirFoundation,
 };
 
 #[test]
@@ -232,6 +232,26 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
             if target.capability()
                 == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
     ));
+    let selected = string[0].select_param_free_strong().unwrap();
+    assert_eq!(selected.binding(), string[0].identity());
+    assert!(matches!(
+        selected.target(),
+        ImportedCorePreludeTarget::Type(target)
+            if target.capability()
+                == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
+    ));
+
+    let option = prelude
+        .candidates(BindingNamespace::Type, "Option")
+        .next()
+        .unwrap();
+    let error = option.select_param_free_strong().unwrap_err();
+    assert_eq!(error.required(), CorePreludeUnavailableCapability::Generic);
+    assert_eq!(error.binding(), option.identity());
+    assert_eq!(
+        crate::CorePreludeCapabilityError::CODE,
+        "SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE"
+    );
     assert_eq!(prelude.string_exact().persistent(), fixture.string_exact);
     assert_eq!(
         prelude.option_some().persistent(),

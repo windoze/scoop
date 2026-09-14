@@ -232,14 +232,123 @@ impl<'a> ImportedCorePreludeBinding<'a> {
     pub const fn target(&self) -> ImportedCorePreludeTarget<'a> {
         self.target
     }
+
+    /// Selects this lookup candidate for M23-3 lowering.
+    ///
+    /// Lookup deliberately exposes every checked prelude declaration so an
+    /// unavailable declaration can participate in diagnostics. Only this
+    /// method can turn a candidate into a selected external target, and it
+    /// rejects every capability that would require generic or structural
+    /// materialization.
+    pub fn select_param_free_strong<'selected>(
+        &'selected self,
+    ) -> Result<SelectedImportedCoreTarget<'selected>, CorePreludeCapabilityError> {
+        let unavailable = match self.target {
+            ImportedCorePreludeTarget::Callable(target) => match target.capability() {
+                crate::CoreHirCallableCapabilityV1::ParamFreeStrong(_) => None,
+                crate::CoreHirCallableCapabilityV1::StructuralUnavailable(_) => {
+                    Some(CorePreludeUnavailableCapability::Structural)
+                }
+                crate::CoreHirCallableCapabilityV1::GenericUnavailable { .. } => {
+                    Some(CorePreludeUnavailableCapability::Generic)
+                }
+            },
+            ImportedCorePreludeTarget::Type(target) => match target.capability() {
+                crate::CoreHirTypeCapabilityV1::ParamFreeStrong(_) => None,
+                crate::CoreHirTypeCapabilityV1::StructuralUnavailable(_) => {
+                    Some(CorePreludeUnavailableCapability::Structural)
+                }
+                crate::CoreHirTypeCapabilityV1::GenericUnavailable { .. } => {
+                    Some(CorePreludeUnavailableCapability::Generic)
+                }
+            },
+            ImportedCorePreludeTarget::Value(target) => match target.capability() {
+                crate::CoreHirValueCapabilityV1::ParamFreeStrong(_) => None,
+                crate::CoreHirValueCapabilityV1::StructuralUnavailable(_) => {
+                    Some(CorePreludeUnavailableCapability::Structural)
+                }
+                crate::CoreHirValueCapabilityV1::GenericUnavailable { .. } => {
+                    Some(CorePreludeUnavailableCapability::Generic)
+                }
+            },
+        };
+        match unavailable {
+            Some(required) => Err(CorePreludeCapabilityError {
+                binding: self.identity,
+                required,
+            }),
+            None => Ok(SelectedImportedCoreTarget {
+                binding: self.identity,
+                target: self.target,
+            }),
+        }
+    }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ImportedCorePreludeTarget<'a> {
     Callable(&'a CoreCallableTargetV1),
     Type(&'a CoreTypeTargetV1),
     Value(&'a CoreValueTargetV1),
 }
+
+/// A core prelude target proven usable by the M23-3 param-free strong path.
+///
+/// Its fields are private so a raw lookup candidate or persistent id cannot
+/// be promoted without checking the capability attached by the trusted core
+/// artifact.
+#[derive(Clone, Copy, Debug)]
+pub struct SelectedImportedCoreTarget<'a> {
+    binding: ImportedHirId<PersistentExportBindingId>,
+    target: ImportedCorePreludeTarget<'a>,
+}
+
+impl<'a> SelectedImportedCoreTarget<'a> {
+    pub const fn binding(self) -> ImportedHirId<PersistentExportBindingId> {
+        self.binding
+    }
+
+    pub const fn target(self) -> ImportedCorePreludeTarget<'a> {
+        self.target
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CorePreludeUnavailableCapability {
+    Structural,
+    Generic,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CorePreludeCapabilityError {
+    binding: ImportedHirId<PersistentExportBindingId>,
+    required: CorePreludeUnavailableCapability,
+}
+
+impl CorePreludeCapabilityError {
+    pub const CODE: &'static str = "SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE";
+
+    pub const fn binding(self) -> ImportedHirId<PersistentExportBindingId> {
+        self.binding
+    }
+
+    pub const fn required(self) -> CorePreludeUnavailableCapability {
+        self.required
+    }
+}
+
+impl fmt::Display for CorePreludeCapabilityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}: imported core binding requires unavailable {:?} materialization",
+            Self::CODE,
+            self.required
+        )
+    }
+}
+
+impl std::error::Error for CorePreludeCapabilityError {}
 
 fn core_prelude_target(
     interface: &CoreHirInterfaceV1,

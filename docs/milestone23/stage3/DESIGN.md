@@ -632,6 +632,10 @@ artifact/foundation的接口即使同属reserved core也不能拼接。
 - 省略import时的prelude lookup可选中core typed target；
 - 源码显式`import scoop.core.X`、`import scoop.core.*`与任何`public import`仍以阶段能力诊断结束；
 - 选中target若不是`ParamFreeStrong`，或替换/materialization需要generic/structural/ODR能力，报告`SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE`；
+- raw prelude candidate只用于overload/type/value适用性检查；只有其私有构造的
+  `SelectedImportedCoreTarget`可进入selected set。该proof只能由candidate的
+  `select_param_free_strong`产生，`StructuralUnavailable`与`GenericUnavailable`都返回上述稳定诊断，不能把raw
+  target或persistent id直接提升；
 - selected target只能通过同一core proof投影成`SelectedImportedMir`/`SelectedImportedLir`；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
