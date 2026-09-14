@@ -628,6 +628,22 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
         }
         Ok(())
     }
+
+    pub(crate) const fn byte_span(&self) -> StructType<'ctx> {
+        self.byte_span
+    }
+
+    pub(crate) const fn type_instance_shape(&self) -> StructType<'ctx> {
+        self.type_instance_shape
+    }
+
+    pub(crate) const fn itable_entry(&self) -> StructType<'ctx> {
+        self.itable_entry
+    }
+
+    pub(crate) const fn type_descriptor(&self) -> StructType<'ctx> {
+        self.type_descriptor
+    }
 }
 
 fn validate_struct_layout(

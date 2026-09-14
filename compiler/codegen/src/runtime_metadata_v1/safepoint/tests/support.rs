@@ -15,13 +15,12 @@ use scoop_lir::{
     LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination,
     ManagedLeafPath, ManagedLeafPaths, ManagedPollSite, ManagedRuntimeFunction,
     MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges, OdrFreeLirFoundation,
-    RefScan, RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity,
-    SafepointMappingRecord, SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature,
-    StatepointLiveSet, StatepointLiveValue, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanSetV1,
-    StrongSafepointSemanticPlanSetV1, StructDefs, Terminator, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VtableRecord,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity, SafepointMappingRecord,
+    SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StatepointLiveValue,
+    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
+    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1,
+    VoidCallSignature, VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
@@ -216,11 +215,10 @@ fn metadata() -> LirMeta {
     let identity = TypeDescriptorIdentity::runtime_core_string(runtime_type);
     let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
-        name: "String".to_string(),
+        diagnostic_name: "String".to_string(),
         identity,
-        size: 24,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::None),
+        instance_shape: TypeInstanceShapeV1::inline_bytes(LirTargetProfile::DARWIN_AARCH64)
+            .unwrap(),
         parent: None,
         vtable,
         itables: Vec::new(),

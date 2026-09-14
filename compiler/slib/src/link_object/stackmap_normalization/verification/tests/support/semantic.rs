@@ -28,8 +28,8 @@ use scoop_lir::{
     StrongInitializationUnitRegistrationPlanSetV1, StrongRegistrationProductionSurfaceV1,
     StrongSafepointRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
     StrongTypeRegistrationPlanSetV1, StructDefs, Terminator, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VtableRecord,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
+    VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
@@ -1073,11 +1073,10 @@ fn metadata(corruption: Corruption) -> LirMeta {
     let identity = TypeDescriptorIdentity::runtime_core_string(runtime_type);
     let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
-        name: "String".to_string(),
+        diagnostic_name: "String".to_string(),
         identity,
-        size: 24,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::None),
+        instance_shape: TypeInstanceShapeV1::inline_bytes(LirTargetProfile::DARWIN_AARCH64)
+            .unwrap(),
         parent: None,
         vtable,
         itables: Vec::new(),

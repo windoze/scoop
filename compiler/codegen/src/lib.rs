@@ -45,7 +45,7 @@ use scoop_lir::{
     IntegerShiftOperation, IntegerSignedness, IntegerUnaryOperation, IntegerWidth,
     LirConstantImage, LirStaticInitialState, LirType, MachineScalarKind, Module, NativeGlobal,
     PointerKind, RefScan, StructDef, StructDefs, StructRepresentation, TempId, Terminator,
-    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
+    TypeDescriptor, TypeDescriptorRef, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;

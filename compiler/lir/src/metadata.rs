@@ -1,3 +1,5 @@
+use std::num::NonZeroU64;
+
 use super::*;
 
 #[derive(Debug)]
@@ -321,19 +323,17 @@ pub struct DispatchEntry {
 }
 
 /// Everything codegen needs to emit one `ScoopTypeDescriptor`
-/// global (see runtime/include/scoop_rt.h for the field order).
+/// global (see runtime/include/scoop_runtime_metadata_v1.h for the field order).
 #[derive(Debug)]
 pub struct TypeDescriptor {
-    /// Human-readable type name used in metadata dumps.
-    pub name: String,
+    /// Canonical exact-type UTF-8 used only for diagnostics.
+    pub diagnostic_name: String,
     /// Complete persistent-to-runtime identity selected by lir-lower.
     /// Codegen consumes the typed runtime id and foundation projection keeps
     /// the full exact-type relation; neither infers it from arena position or
     /// descriptor category.
     pub identity: TypeDescriptorIdentity,
-    pub size: u64,
-    pub align: u64,
-    pub scan: TypeDescriptorScan,
+    pub instance_shape: TypeInstanceShapeV1,
     /// Classes reference their base descriptor; root/reference-key entities
     /// have no parent. The absence is emitted as a metadata-provenance null.
     pub parent: Option<TypeDescriptorRef>,
@@ -449,14 +449,6 @@ impl TypeDescriptorIdentity {
     ) -> Result<MaterializationIdentity, scoop_wire::HashError> {
         self.materialization.dispatch_table(table)
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeDescriptorScan {
-    /// Recursive GC scan program for a fixed-size object payload.
-    Fixed(RefScan),
-    /// Recursive scan for one inline array element, repeated at `stride`.
-    ArrayElement { stride: u64, scan: RefScan },
 }
 
 /// One exact type's virtual dispatch table and its persistent identity.
@@ -864,6 +856,12 @@ pub enum RefScan {
     None,
     References(Vec<u64>),
     Sequence(Vec<RefScan>),
+    Array {
+        length_offset: u64,
+        first_element_offset: u64,
+        stride: NonZeroU64,
+        element: Box<NonEmptyRefScan>,
+    },
 }
 
 impl RefScan {
@@ -875,6 +873,16 @@ impl RefScan {
                 "seq({})",
                 parts.iter().map(Self::dump).collect::<Vec<_>>().join(", ")
             ),
+            Self::Array {
+                length_offset,
+                first_element_offset,
+                stride,
+                element,
+            } => format!(
+                "array(length@{length_offset}, first@{first_element_offset}, stride={}, {})",
+                stride.get(),
+                element.dump()
+            ),
         }
     }
 
@@ -883,6 +891,7 @@ impl RefScan {
             Self::None => false,
             Self::References(offsets) => !offsets.is_empty(),
             Self::Sequence(parts) => parts.iter().any(Self::contains_reference),
+            Self::Array { .. } => true,
         }
     }
 }

@@ -106,7 +106,7 @@ void scoop_gc_register_image_roots(
             &immortal_objects[index];
         if (entry->object_start == NULL || entry->td == NULL ||
             entry->object_size < sizeof(ScoopObjectHeader) ||
-            entry->object_size < entry->td->size) {
+            entry->object_size < entry->td->instance_shape.minimum_size) {
             scoop_gc_roots_unlock();
             scoop_gc_roots_fatal("immortal object descriptor is incomplete");
         }
@@ -115,7 +115,7 @@ void scoop_gc_register_image_roots(
             scoop_gc_roots_unlock();
             scoop_gc_roots_fatal("immortal object TypeDescriptor does not match header");
         }
-        if (entry->td->ref_offsets != NULL) {
+        if (entry->td->object_scan != NULL) {
             scoop_gc_roots_unlock();
             scoop_gc_roots_fatal("read-only immortal object contains managed references");
         }

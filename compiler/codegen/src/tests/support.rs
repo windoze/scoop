@@ -249,7 +249,7 @@ pub(super) fn type_descriptor<'a>(module: &'a Module, name: &str) -> &'a TypeDes
         .meta
         .type_descriptors
         .iter()
-        .find_map(|(_, descriptor)| (descriptor.name == name).then_some(descriptor))
+        .find_map(|(_, descriptor)| (descriptor.diagnostic_name == name).then_some(descriptor))
         .unwrap_or_else(|| panic!("missing test TypeDescriptor {name}"))
 }
 
@@ -544,6 +544,9 @@ fn abi_sequence(parts: impl IntoIterator<Item = RefScan>) -> RefScan {
                     collect(part, references);
                 }
             }
+            RefScan::Array { .. } => {
+                unreachable!("Scoop ABI value scans cannot contain variable object scans")
+            }
         }
     }
 
@@ -565,6 +568,9 @@ fn shifted_scan(scan: &RefScan, base: u64) -> RefScan {
             RefScan::References(offsets.iter().map(|offset| base + offset).collect())
         }
         RefScan::Sequence(parts) => abi_sequence(parts.iter().map(|part| shifted_scan(part, base))),
+        RefScan::Array { .. } => {
+            unreachable!("Scoop ABI value scans cannot contain variable object scans")
+        }
     }
 }
 
@@ -748,11 +754,12 @@ pub(super) fn string_metadata() -> LirMeta {
     });
     let mut type_descriptors = Arena::new();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
-        name: "String".to_string(),
+        diagnostic_name: "String".to_string(),
         identity: scoop_lir::TypeDescriptorIdentity::runtime_core_string(runtime_type("String")),
-        size: 24,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::None),
+        instance_shape: TypeInstanceShapeV1::inline_bytes(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        )
+        .unwrap(),
         parent: None,
         vtable: vtable("String", Vec::new()),
         itables: Vec::new(),
@@ -785,14 +792,18 @@ pub(super) fn array_type(
     scan: RefScan,
 ) -> ArrayTypeId {
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
-        name: name.to_string(),
+        diagnostic_name: name.to_string(),
         identity: type_descriptor_identity(name),
-        size: element_size,
-        align: element_align,
-        scan: TypeDescriptorScan::ArrayElement {
-            stride: element_size,
-            scan,
-        },
+        instance_shape: TypeInstanceShapeV1::inline_array(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            if element_size == 0 {
+                ArrayElementStorageV1::zero_sized(element_align)
+            } else {
+                ArrayElementStorageV1::inline(element_size, element_align, scan)
+            }
+            .unwrap(),
+        )
+        .unwrap(),
         parent: None,
         vtable: vtable(name, Vec::new()),
         itables: Vec::new(),

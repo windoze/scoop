@@ -43,9 +43,35 @@ void run_core_runtime_tests(void) {
      * receives the complete target nominal descriptor. The source is a stack object
      * laid out like a codegen array (16-byte header). */
     const ScoopTypeDescriptor array_td = {
-        100, 8, 8, NULL, NULL, NULL, NULL, 0, "Array<Long>"};
+        .type_id = 100,
+        .instance_shape = {
+            .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+            .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+            .minimum_size = 24,
+            .instance_alignment = 8,
+            .inline_offset = 24,
+            .inline_size = 8,
+            .inline_stride = 8,
+            .inline_alignment = 8,
+        },
+        .diagnostic_name = {
+            (const uint8_t *)"Array<Long>", sizeof("Array<Long>") - 1},
+    };
     const ScoopTypeDescriptor mutable_array_td = {
-        101, 8, 8, NULL, NULL, NULL, NULL, 0, "MutableArray<Long>"};
+        .type_id = 101,
+        .instance_shape = {
+            .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+            .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+            .minimum_size = 24,
+            .instance_alignment = 8,
+            .inline_offset = 24,
+            .inline_size = 8,
+            .inline_stride = 8,
+            .inline_alignment = 8,
+        },
+        .diagnostic_name = {(const uint8_t *)"MutableArray<Long>",
+                            sizeof("MutableArray<Long>") - 1},
+    };
     struct {
         const ScoopTypeDescriptor *td;
         uint64_t gc_word;

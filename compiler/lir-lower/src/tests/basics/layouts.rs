@@ -296,9 +296,9 @@ fn uint_and_int_are_exact_32_bit_scalars() {
     assert_eq!((c_layout.size, c_layout.align), (24, 8));
     assert!(plain_refs(c_layout).is_empty());
     let c_td = descriptor_values(&module)
-        .find(|td| td.name == "C")
+        .find(|td| td.diagnostic_name == "C")
         .expect("a TypeDescriptor per class");
-    assert_eq!(c_td.size, 24);
+    assert_eq!(c_td.instance_shape.minimum_size(), 24);
     assert_eq!(*fixed_scan(c_td), lir::RefScan::None);
 }
 

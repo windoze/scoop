@@ -611,17 +611,34 @@ fn runtime_abi_type_descriptor_symbol_is_reserved_for_core_string() {
         .identity
         .clone();
     module.meta.type_descriptors.alloc(TypeDescriptor {
-        name: "DuplicateString".to_string(),
+        diagnostic_name: "DuplicateString".to_string(),
         identity,
-        size: 24,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::None),
+        instance_shape: TypeInstanceShapeV1::inline_bytes(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        )
+        .unwrap(),
         parent: None,
         vtable: vtable("DuplicateString", Vec::new()),
         itables: Vec::new(),
     });
 
     assert_module_validation_error(&module, "reserved for core String");
+}
+
+#[test]
+fn type_descriptor_validation_rejects_an_empty_diagnostic_name() {
+    let mut module = values_module();
+    module
+        .meta
+        .type_descriptors
+        .iter_mut()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1
+        .diagnostic_name
+        .clear();
+
+    assert_module_validation_error(&module, "has an empty canonical diagnostic name");
 }
 
 #[test]
@@ -650,7 +667,7 @@ fn dispatch_table_validation_rejects_an_itable_for_another_interface() {
             .meta
             .type_descriptors
             .iter()
-            .find_map(|(id, descriptor)| (descriptor.name == name).then_some(id))
+            .find_map(|(id, descriptor)| (descriptor.diagnostic_name == name).then_some(id))
             .unwrap_or_else(|| panic!("missing test descriptor {name}"))
     };
     let describable = descriptor_id("Describable");

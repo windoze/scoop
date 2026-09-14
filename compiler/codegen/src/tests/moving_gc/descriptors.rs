@@ -9,14 +9,14 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     let ir = ir_of(&heap);
     assert!(
         ir.contains(&format!(
-            "@\"{point_symbol}.refs\" = private constant [2 x i64] [i64 1, i64 24]"
+            "@\"{point_symbol}.object_scan\" = private constant [2 x i64] [i64 1, i64 24]"
         )),
         "plain scan table must be count-prefixed:\n{ir}"
     );
 
-    // A reference-element array's TD carries the SCOOP_REFS_ARRAY
-    // sentinel (u64::MAX, printed -1), its stride, and a pointer
-    // to the recursive scan for one inline element.
+    // A reference-element array's object scan carries the SCOOP_REFS_ARRAY
+    // sentinel (u64::MAX, printed -1), the dynamic count/data offsets, its
+    // stride, and a pointer to the recursive scan for one inline element.
     let nested_element_scan = RefScan::Sequence(vec![
         RefScan::References(vec![16]),
         RefScan::References(vec![8]),
@@ -65,14 +65,18 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         terminator: Terminator::Return { value: None },
     });
     meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Holder".to_string(),
+        diagnostic_name: "Holder".to_string(),
         identity: type_descriptor_identity("Holder"),
-        size: 56,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::Sequence(vec![
-            RefScan::References(vec![16]),
-            RefScan::References(vec![40, 48]),
-        ])),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            56,
+            8,
+            RefScan::Sequence(vec![
+                RefScan::References(vec![16]),
+                RefScan::References(vec![40, 48]),
+            ]),
+        )
+        .unwrap(),
         parent: None,
         vtable: vtable("Holder", vec![]),
         itables: vec![],
@@ -110,31 +114,31 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     let ir = ir_of(&module);
     assert!(
         ir.contains(&format!(
-            "@\"{array_ref_symbol}.element\" = private constant [2 x i64] [i64 1, i64 0]"
+            "@\"{array_ref_symbol}.object_scan.element\" = private constant [2 x i64] [i64 1, i64 0]"
         )) && ir.contains(&format!(
-            "@\"{array_ref_symbol}.refs\" = private constant [3 x i64] [i64 -1, i64 8, i64 ptrtoint (ptr @\"{array_ref_symbol}.element\" to i64)]"
+            "@\"{array_ref_symbol}.object_scan\" = private constant [5 x i64] [i64 -1, i64 16, i64 24, i64 8, i64 ptrtoint (ptr @\"{array_ref_symbol}.object_scan.element\" to i64)]"
         )),
         "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
     );
     assert!(
         ir.contains(&format!(
-            "@\"{array_nested_symbol}.element.part.1\" = private constant [2 x i64] [i64 1, i64 8]"
+            "@\"{array_nested_symbol}.object_scan.element.part.1\" = private constant [2 x i64] [i64 1, i64 8]"
         )) && ir.contains(&format!(
-            "@\"{array_nested_symbol}.element\" = private constant [4 x i64] [i64 -2, i64 2"
+            "@\"{array_nested_symbol}.object_scan.element\" = private constant [4 x i64] [i64 -2, i64 2"
         )) && ir.contains(&format!(
-            "@\"{array_nested_symbol}.refs\" = private constant [3 x i64] [i64 -1, i64 24, i64 ptrtoint (ptr @\"{array_nested_symbol}.element\" to i64)]"
+            "@\"{array_nested_symbol}.object_scan\" = private constant [5 x i64] [i64 -1, i64 16, i64 24, i64 24, i64 ptrtoint (ptr @\"{array_nested_symbol}.object_scan.element\" to i64)]"
         )),
         "aggregate array TD must wrap the recursive element scan:\n{ir}"
     );
     assert!(
         ir.contains(&format!(
-            "@\"{holder_symbol}.refs.part.1\" = private constant [3 x i64] [i64 2, i64 40, i64 48]"
+            "@\"{holder_symbol}.object_scan.part.1\" = private constant [3 x i64] [i64 2, i64 40, i64 48]"
         )),
         "nested tagged enum scan must use fixed ref offsets:\n{ir}"
     );
     assert!(
         ir.contains(&format!(
-            "@\"{holder_symbol}.refs\" = private constant [4 x i64] [i64 -2, i64 2"
+            "@\"{holder_symbol}.object_scan\" = private constant [4 x i64] [i64 -2, i64 2"
         )),
         "aggregate scan must compose fixed scans:\n{ir}"
     );

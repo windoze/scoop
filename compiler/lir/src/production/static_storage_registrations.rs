@@ -545,6 +545,9 @@ fn flatten_scans(scans: impl IntoIterator<Item = RefScan>) -> RefScan {
                     collect(part, references);
                 }
             }
+            RefScan::Array { .. } => {
+                unreachable!("inline value storage cannot contain a variable object scan")
+            }
         }
     }
 
@@ -576,6 +579,7 @@ fn shift_scan(scan: &RefScan, base_offset: u64) -> Result<RefScan, StaticStorage
             .map(|part| shift_scan(part, base_offset))
             .collect::<Result<Vec<_>, _>>()
             .map(RefScan::Sequence),
+        RefScan::Array { .. } => Err(StaticStorageShapeFailureV1::VariableObjectScan),
     }
 }
 
@@ -749,6 +753,7 @@ pub enum StaticStorageShapeFailureV1 {
     UnknownEnum,
     InvalidAlignment(u64),
     Overflow,
+    VariableObjectScan,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

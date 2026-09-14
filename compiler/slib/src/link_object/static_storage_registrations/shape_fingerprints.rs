@@ -192,7 +192,9 @@ impl RuntimeEncode for StaticScanFingerprintInputV1<'_> {
                 }
                 Ok(())
             }
-            RefScan::Sequence(_) => unreachable!("static registration plans reject sequences"),
+            RefScan::Sequence(_) | RefScan::Array { .. } => {
+                unreachable!("static registration plans reject non-value scans")
+            }
         }
     }
 }

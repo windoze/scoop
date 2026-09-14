@@ -326,9 +326,15 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     );
 
     let holder_td = descriptor_values(&module)
-        .find(|td| td.name == "Holder")
+        .find(|td| td.diagnostic_name == "Holder")
         .expect("Holder TypeDescriptor");
-    assert_eq!((holder_td.size, holder_td.align), (64, 8));
+    assert_eq!(
+        (
+            holder_td.instance_shape.minimum_size(),
+            holder_td.instance_shape.instance_alignment()
+        ),
+        (64, 8)
+    );
     assert_eq!(
         *fixed_scan(holder_td),
         lir::RefScan::References(vec![16, 40, 56])

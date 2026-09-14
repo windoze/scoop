@@ -7,7 +7,19 @@
 #include "../src/initialization.c"
 
 const ScoopTypeDescriptor scoop_td_String = {
-    1, 24, 8, NULL, NULL, NULL, NULL, 0, "String"};
+    .type_id = 1,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = sizeof(ScoopString),
+        .instance_alignment = _Alignof(ScoopString),
+        .inline_offset = sizeof(ScoopString),
+        .inline_size = 1,
+        .inline_stride = 1,
+        .inline_alignment = 1,
+    },
+    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1},
+};
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     (void)td;

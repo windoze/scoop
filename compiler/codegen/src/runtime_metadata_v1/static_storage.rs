@@ -328,7 +328,7 @@ fn scan_type<'ctx>(
     let length = match scan {
         RefScan::None => 1,
         RefScan::References(offsets) if !offsets.is_empty() => offsets.len() + 1,
-        RefScan::References(_) | RefScan::Sequence(_) => {
+        RefScan::References(_) | RefScan::Sequence(_) | RefScan::Array { .. } => {
             return Err(CodegenError(
                 "static scan plan is not in canonical None/References form".to_string(),
             ));
@@ -355,7 +355,9 @@ fn scan_words<'ctx>(
                 )
                 .collect()
         }
-        RefScan::Sequence(_) => unreachable!("scan_type rejects non-canonical sequences"),
+        RefScan::Sequence(_) | RefScan::Array { .. } => {
+            unreachable!("scan_type rejects non-canonical scans")
+        }
     })
 }
 

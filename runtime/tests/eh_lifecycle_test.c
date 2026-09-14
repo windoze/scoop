@@ -24,14 +24,19 @@ typedef struct TestException {
 
 static const ScoopTypeDescriptor test_exception_td = {
     .type_id = UINT64_C(0x2501),
-    .size = sizeof(TestException),
-    .align = 32,
-    .ref_offsets = NULL,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = sizeof(TestException),
+        .instance_alignment = 32,
+    },
+    .object_scan = NULL,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "test.M25Exception",
+    .diagnostic_name = {(const uint8_t *)"test.M25Exception",
+                        sizeof("test.M25Exception") - 1},
 };
 
 enum {
@@ -215,7 +220,9 @@ static void test_throw_begin_end_copies_and_releases(void) {
 
     TestException *payload = scoop_rt_begin_catch(unwind);
     CHECK(payload != &source);
-    CHECK((uintptr_t)payload % test_exception_td.align == 0);
+    CHECK((uintptr_t)payload %
+              test_exception_td.instance_shape.instance_alignment ==
+          0);
     CHECK(payload->header.td == &test_exception_td);
     CHECK(payload->header.gc_word == source.header.gc_word);
     CHECK(payload->code == source.code);
@@ -671,7 +678,7 @@ void scoop_rt_gc_remove_root_object(const void *object) {
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     CHECK(td != NULL);
-    CHECK(size == td->size);
+    CHECK(size == td->instance_shape.minimum_size);
     observers_lock_acquire();
     if (rewrite_external_root_on_allocation) {
         CHECK(external_root_count == 1);

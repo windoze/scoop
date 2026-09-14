@@ -1,10 +1,21 @@
 #include "support.h"
 
 /* Matches the layout of the @scoop_td_String global emitted by codegen.
- * Non-static: rt.c references it from scoop_rt_string_concat. size is
- * the fixed part (16-byte header + len); Strings have no references,
- * so the scan descriptor is NULL. */
-const ScoopTypeDescriptor scoop_td_String = {1, 24, 8, NULL, NULL, NULL, NULL, 0, "String"};
+ * Non-static: rt.c references it from scoop_rt_string_concat. */
+const ScoopTypeDescriptor scoop_td_String = {
+    .type_id = 1,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = sizeof(ScoopString),
+        .instance_alignment = _Alignof(ScoopString),
+        .inline_offset = sizeof(ScoopString),
+        .inline_size = 1,
+        .inline_stride = 1,
+        .inline_alignment = 1,
+    },
+    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1},
+};
 
 /* Same layout codegen uses for StringConst globals:
  * { td, gc_word, len, data } (16-byte header, runtime spec 2.4). */
@@ -22,13 +33,42 @@ static int64_t point_describe(const void *self) {
 }
 
 const ScoopTypeDescriptor describable_td = {
-    1002, 0, 8, NULL, NULL, NULL, NULL, 0, "Describable"};
+    .type_id = 1002,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+    },
+    .diagnostic_name = {
+        (const uint8_t *)"Describable", sizeof("Describable") - 1},
+};
 const void *const point_describable_slots[] = {(const void *)&point_describe};
-static const ScoopItableEntry point_itables[] = {{&describable_td, point_describable_slots}};
+static const ScoopItableEntryV1 point_itables[] = {
+    {&describable_td, point_describable_slots}};
 static const void *const point_vtable[] = {(const void *)&point_describe};
-const ScoopTypeDescriptor shape_td = {1000, 24, 8, NULL, NULL, NULL, NULL, 0, "Shape"};
+const ScoopTypeDescriptor shape_td = {
+    .type_id = 1000,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = 24,
+        .instance_alignment = 8,
+    },
+    .diagnostic_name = {(const uint8_t *)"Shape", sizeof("Shape") - 1},
+};
 const ScoopTypeDescriptor point_td = {
-    1001, 32, 8, NULL, &shape_td, point_vtable, point_itables, 1, "Point"};
+    .type_id = 1001,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = 32,
+        .instance_alignment = 8,
+    },
+    .parent = &shape_td,
+    .vtable = point_vtable,
+    .itables = point_itables,
+    .itable_count = 1,
+    .diagnostic_name = {(const uint8_t *)"Point", sizeof("Point") - 1},
+};
 
 /* M9 GC fixtures. */
 
@@ -37,7 +77,16 @@ const ScoopTypeDescriptor point_td = {
 
 static const uint64_t node_refs[] = {1, 24};
 const ScoopTypeDescriptor node_td = {
-    2000, 32, 8, node_refs, NULL, NULL, NULL, 0, "Node"};
+    .type_id = 2000,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = 32,
+        .instance_alignment = 8,
+    },
+    .object_scan = node_refs,
+    .diagnostic_name = {(const uint8_t *)"Node", sizeof("Node") - 1},
+};
 
 /* Exact image metadata normally emitted by codegen. The managed global uses
  * an inline-value scan rooted at its writable pointer slot; String literals
@@ -59,22 +108,61 @@ const uint64_t scoop_image_initialization_unit_count = 0;
 /* 64-byte plain object without references: exactly two per line, for
  * the free-line reuse test. */
 
-const ScoopTypeDescriptor big64_td = {2001, 64, 8, NULL, NULL, NULL, NULL, 0, "Big64"};
+const ScoopTypeDescriptor big64_td = {
+    .type_id = 2001,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = 64,
+        .instance_alignment = 8,
+    },
+    .diagnostic_name = {(const uint8_t *)"Big64", sizeof("Big64") - 1},
+};
 
 /* Array with reference elements (recursive SCOOP_REFS_ARRAY scan);
  * `size` in the TD is the element stride (pointer). */
 static const uint64_t ref_element_scan[] = {1, 0};
 static const uint64_t ref_array_scan[] = {
-    SCOOP_REFS_ARRAY, 8, (uint64_t)(uintptr_t)ref_element_scan};
+    SCOOP_REFS_ARRAY, 16, 24, 8,
+    (uint64_t)(uintptr_t)ref_element_scan};
 static const ScoopTypeDescriptor ref_array_td = {
-    2100, 8, 8, ref_array_scan, NULL, NULL, NULL, 0, "Array<String>"};
+    .type_id = 2100,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = 24,
+        .instance_alignment = 8,
+        .inline_offset = 24,
+        .inline_size = 8,
+        .inline_stride = 8,
+        .inline_alignment = 8,
+        .inline_scan = ref_element_scan,
+    },
+    .object_scan = ref_array_scan,
+    .diagnostic_name = {
+        (const uint8_t *)"Array<String>", sizeof("Array<String>") - 1},
+};
 
 /* Boxed tagged enum E { A(String), B(i64) }: B uses the shared pure
  * slot; A has its own ref-bearing slot. */
 
 static const uint64_t enum_scan[] = {1, 32};
+static const uint64_t enum_inline_scan[] = {1, 16};
 static const ScoopTypeDescriptor enum_td = {
-    2002, 40, 8, enum_scan, NULL, NULL, NULL, 0, "E"};
+    .type_id = 2002,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = 40,
+        .instance_alignment = 8,
+        .inline_offset = 16,
+        .inline_size = 24,
+        .inline_alignment = 8,
+        .inline_scan = enum_inline_scan,
+    },
+    .object_scan = enum_scan,
+    .diagnostic_name = {(const uint8_t *)"E", sizeof("E") - 1},
+};
 
 /* Array<Nested>, where each inline element is
  * { tagged enum E, tail: String }. The sequence combines the
@@ -83,11 +171,25 @@ static const ScoopTypeDescriptor enum_td = {
 
 static const uint64_t nested_element_scan[] = {2, 16, 24};
 static const uint64_t nested_array_scan[] = {
-    SCOOP_REFS_ARRAY, sizeof(ScoopNestedElement),
+    SCOOP_REFS_ARRAY, 16, 24, sizeof(ScoopNestedElement),
     (uint64_t)(uintptr_t)nested_element_scan};
 static const ScoopTypeDescriptor nested_array_td = {
-    2101, sizeof(ScoopNestedElement), 8, nested_array_scan,
-    NULL, NULL, NULL, 0, "Array<Nested>"};
+    .type_id = 2101,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = 24,
+        .instance_alignment = _Alignof(ScoopNestedElement),
+        .inline_offset = 24,
+        .inline_size = sizeof(ScoopNestedElement),
+        .inline_stride = sizeof(ScoopNestedElement),
+        .inline_alignment = _Alignof(ScoopNestedElement),
+        .inline_scan = nested_element_scan,
+    },
+    .object_scan = nested_array_scan,
+    .diagnostic_name = {
+        (const uint8_t *)"Array<Nested>", sizeof("Array<Nested>") - 1},
+};
 
 ScoopNode *new_node(int64_t value, ScoopNode *next) {
     ScoopNode *node = scoop_rt_alloc(&node_td, sizeof(ScoopNode));

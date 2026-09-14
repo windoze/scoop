@@ -20,14 +20,19 @@ static const uint64_t one_root_scan[] = {1, 0};
 
 static const ScoopTypeDescriptor leaf_td = {
     .type_id = 101,
-    .size = sizeof(TestLeaf),
-    .align = _Alignof(TestLeaf),
-    .ref_offsets = NULL,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = sizeof(TestLeaf),
+        .instance_alignment = _Alignof(TestLeaf),
+    },
+    .object_scan = NULL,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "ThreadProtocolLeaf",
+    .diagnostic_name = {(const uint8_t *)"ThreadProtocolLeaf",
+                        sizeof("ThreadProtocolLeaf") - 1},
 };
 
 static const ScoopManagedGlobalDescriptor no_managed_globals[1];

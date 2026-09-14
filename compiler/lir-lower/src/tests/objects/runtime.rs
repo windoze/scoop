@@ -100,7 +100,7 @@ Module
     call no-gc-direct-target0 t4 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td0)
     store t4 -> local2
     ret
-  td td0 box<S> @scoop$1$td$9d50e433dbe8bb745ff3db8d7f7f2b38e16509d73219567a1896134c800ac607 type-id=3448932397359138960 size=24 parent=none vtable=[] itables=[]
+  td td0 box<S> @scoop$1$td$9d50e433dbe8bb745ff3db8d7f7f2b38e16509d73219567a1896134c800ac607 type-id=3448932397359138960 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]

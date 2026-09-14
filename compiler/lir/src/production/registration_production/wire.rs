@@ -349,6 +349,12 @@ pub(super) enum DecodedRefScan {
     None,
     References(Vec<u64>),
     Sequence(Vec<Self>),
+    Array {
+        length_offset: u64,
+        first_element_offset: u64,
+        stride: u64,
+        element: Box<Self>,
+    },
 }
 
 impl WireEncode for DecodedRefScan {
@@ -369,6 +375,19 @@ impl WireEncode for DecodedRefScan {
                 encoder.map(2)?;
                 encode_unsigned_field(encoder, 0, 3)?;
                 encode_array_field(encoder, 1, parts)
+            }
+            Self::Array {
+                length_offset,
+                first_element_offset,
+                stride,
+                element,
+            } => {
+                encoder.map(5)?;
+                encode_unsigned_field(encoder, 0, 4)?;
+                encode_unsigned_field(encoder, 1, *length_offset)?;
+                encode_unsigned_field(encoder, 2, *first_element_offset)?;
+                encode_unsigned_field(encoder, 3, *stride)?;
+                encode_field(encoder, 4, element.as_ref())
             }
         }
     }
@@ -396,6 +415,15 @@ impl WireDecode for DecodedRefScan {
                     decoder.decode_array(|decoder, _| Self::decode(decoder))
                 })?;
                 Ok(Self::Sequence(parts))
+            }
+            4 => {
+                require_sum_length(decoder, length, 5)?;
+                Ok(Self::Array {
+                    length_offset: decoder.field(1, Decoder::unsigned)?,
+                    first_element_offset: decoder.field(2, Decoder::unsigned)?,
+                    stride: decoder.field(3, Decoder::unsigned)?,
+                    element: decoder.field(4, |decoder| Self::decode(decoder).map(Box::new))?,
+                })
             }
             _ => Err(unknown_tag(decoder, tag)),
         }

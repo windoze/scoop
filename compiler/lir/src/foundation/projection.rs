@@ -436,7 +436,7 @@ mod tests {
         LirStaticInitialState, LirTargetProfile, MANAGED_PTR, MaterializationRoot, PointerKind,
         RefScan, RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity,
         SafepointSiteRef, ScoopAbiSignature, StaticStorageIdentity, Terminator, TypeDescriptor,
-        TypeDescriptorIdentity, TypeDescriptorRef, TypeDescriptorScan, VtableRecord,
+        TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord,
     };
 
     #[test]
@@ -529,11 +529,9 @@ mod tests {
         .unwrap();
         let interface_vtable = VtableRecord::new(&interface_identity, Vec::new()).unwrap();
         let interface = descriptors.alloc(TypeDescriptor {
-            name: "Interface".to_string(),
+            diagnostic_name: "Interface".to_string(),
             identity: interface_identity,
-            size: 0,
-            align: 0,
-            scan: TypeDescriptorScan::Fixed(RefScan::None),
+            instance_shape: TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable: interface_vtable,
             itables: Vec::new(),
@@ -554,11 +552,9 @@ mod tests {
             .unwrap(),
         ];
         descriptors.alloc(TypeDescriptor {
-            name: "Owner".to_string(),
+            diagnostic_name: "Owner".to_string(),
             identity: owner_identity,
-            size: 0,
-            align: 0,
-            scan: TypeDescriptorScan::Fixed(RefScan::None),
+            instance_shape: TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable: owner_vtable,
             itables: owner_itables,

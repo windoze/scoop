@@ -108,6 +108,12 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
     }
 
     for (id, descriptor) in module.meta.type_descriptors.iter() {
+        if descriptor.diagnostic_name.is_empty() {
+            return Err(CodegenError(format!(
+                "type descriptor {} has an empty canonical diagnostic name",
+                descriptor.identity.exact_type()
+            )));
+        }
         if id == string {
             if descriptor.identity.runtime_abi_symbol()
                 != Some(scoop_lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)
@@ -120,7 +126,7 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
         } else if let Some(symbol) = descriptor.identity.runtime_abi_symbol() {
             return Err(CodegenError(format!(
                 "type descriptor `{}` illegally uses runtime ABI symbol `{}` reserved for core String",
-                descriptor.name,
+                descriptor.diagnostic_name,
                 symbol.logical_symbol()
             )));
         }
@@ -171,7 +177,7 @@ fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenErro
         if !descriptor.vtable.belongs_to_exact_type(owner) {
             return Err(CodegenError(format!(
                 "type descriptor `{}` carries a vtable identity for another exact type or table role",
-                descriptor.name
+                descriptor.diagnostic_name
             )));
         }
 
@@ -179,7 +185,7 @@ fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenErro
             if !itable.belongs_to_exact_type(owner) {
                 return Err(CodegenError(format!(
                     "type descriptor `{}` carries an itable identity for another exact type or table role",
-                    descriptor.name
+                    descriptor.diagnostic_name
                 )));
             }
             let TypeDescriptorRef::Local(interface_id) = itable.interface() else {
@@ -189,14 +195,14 @@ fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenErro
             if interface_index >= module.meta.type_descriptors.len() {
                 return Err(CodegenError(format!(
                     "type descriptor `{}` has invalid local itable interface id {interface_index}",
-                    descriptor.name
+                    descriptor.diagnostic_name
                 )));
             }
             let interface = &module.meta.type_descriptors[interface_id];
             if !itable.belongs_to_interface_exact_type(interface.identity.exact_type()) {
                 return Err(CodegenError(format!(
                     "type descriptor `{}` itable identity and interface descriptor identify different exact types",
-                    descriptor.name
+                    descriptor.diagnostic_name
                 )));
             }
         }
@@ -362,7 +368,7 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
             ) {
                 return Err(CodegenError(format!(
                     "type descriptor `{}` dispatches to a runtime function whose closed ABI contains an internal machine scalar",
-                    descriptor.name
+                    descriptor.diagnostic_name
                 )));
             }
             return Ok(());
@@ -373,7 +379,7 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
             .ok_or_else(|| {
                 CodegenError(format!(
                     "type descriptor `{}` has invalid local dispatch callable id {}",
-                    descriptor.name,
+                    descriptor.diagnostic_name,
                     id.into_u32()
                 ))
             })?;
@@ -391,7 +397,7 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
         {
             return Err(CodegenError(format!(
                 "type descriptor `{}` dispatches to local function @{} whose signature exposes an internal machine scalar",
-                descriptor.name,
+                descriptor.diagnostic_name,
                 function.symbol()
             )));
         }

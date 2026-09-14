@@ -717,7 +717,9 @@ fn canonical_scan_bytes(plan: &StrongStaticStorageRegistrationPlanV1) -> Vec<u8>
                 bytes.extend_from_slice(&offset.to_le_bytes());
             }
         }
-        RefScan::Sequence(_) => unreachable!("semantic plan rejects sequence scans"),
+        RefScan::Sequence(_) | RefScan::Array { .. } => {
+            unreachable!("semantic plan rejects non-value scans")
+        }
     }
     bytes
 }

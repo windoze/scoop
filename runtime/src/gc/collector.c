@@ -101,11 +101,17 @@ static void visit_descriptor(void *base, const uint64_t *table,
         return;
     }
     if (table[0] == SCOOP_REFS_ARRAY) {
-        uint64_t stride = table[1];
+        uint64_t length_offset = table[1];
+        uint64_t first_element_offset = table[2];
+        uint64_t stride = table[3];
         const uint64_t *element_scan =
-            (const uint64_t *)(uintptr_t)table[2];
-        uint64_t count = *(const uint64_t *)((char *)base + 16);
-        char *elements = (char *)base + 24;
+            (const uint64_t *)(uintptr_t)table[4];
+        if (stride == 0 || element_scan == NULL) {
+            collector_fatal("array scan has an invalid element program");
+        }
+        uint64_t count =
+            *(const uint64_t *)((char *)base + length_offset);
+        char *elements = (char *)base + first_element_offset;
         for (uint64_t index = 0; index < count; index++) {
             visit_descriptor(elements + index * stride, element_scan,
                              context);
@@ -134,7 +140,7 @@ static void visit_object(void *object, ScoopGcVisitContext *context) {
     if (td == NULL) {
         collector_fatal("managed object has no TypeDescriptor");
     }
-    visit_descriptor(object, td->ref_offsets, context);
+    visit_descriptor(object, td->object_scan, context);
 }
 
 static void visit_external_root(const void *object, void *raw_context) {

@@ -104,23 +104,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     let i8_ty = context.i8_type();
     let i64_ty = context.i64_type();
 
-    // ScoopTypeDescriptor (runtime spec 2.2, full M6 form):
-    // { i64 type_id, i64 size, i64 align, ptr ref_offsets, ptr parent,
-    //   ptr vtable, ptr itables, i64 itable_count, ptr name }.
-    let td_ty = context.struct_type(
-        &[
-            i64_ty.into(),
-            i64_ty.into(),
-            i64_ty.into(),
-            ptr_ty.into(),
-            ptr_ty.into(),
-            ptr_ty.into(),
-            ptr_ty.into(),
-            i64_ty.into(),
-            ptr_ty.into(),
-        ],
-        false,
-    );
+    let td_ty = runtime_metadata_v1::RuntimeMetadataV1Types::new(context).type_descriptor();
     // Declare every local and external descriptor before building any
     // initializer. Semantic edges resolve through typed ids; symbols are read
     // only from the selected entity at final emission.

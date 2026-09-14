@@ -103,17 +103,17 @@ pub(super) fn descriptor(
 }
 
 pub(super) fn fixed_scan(descriptor: &lir::TypeDescriptor) -> &lir::RefScan {
-    let lir::TypeDescriptorScan::Fixed(scan) = &descriptor.scan else {
+    if descriptor.instance_shape.instance_kind() == lir::TypeInstanceKindV1::InlineArray {
         panic!("expected a fixed descriptor scan")
-    };
-    scan
+    }
+    descriptor.instance_shape.object_scan()
 }
 
 pub(super) fn array_scan(descriptor: &lir::TypeDescriptor) -> &lir::RefScan {
-    let lir::TypeDescriptorScan::ArrayElement { scan, .. } = &descriptor.scan else {
+    if descriptor.instance_shape.instance_kind() != lir::TypeInstanceKindV1::InlineArray {
         panic!("expected an array descriptor scan")
-    };
-    scan
+    }
+    descriptor.instance_shape.inline_scan()
 }
 
 pub(super) fn array_metadata<'a>(module: &'a lir::Module, name: &str) -> &'a lir::ArrayType {
@@ -122,7 +122,7 @@ pub(super) fn array_metadata<'a>(module: &'a lir::Module, name: &str) -> &'a lir
         .arrays
         .iter()
         .find_map(|(_, array)| {
-            (descriptor(module, array.type_descriptor).name == name).then_some(array)
+            (descriptor(module, array.type_descriptor).diagnostic_name == name).then_some(array)
         })
         .unwrap_or_else(|| panic!("missing array metadata for {name}"))
 }

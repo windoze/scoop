@@ -46,74 +46,133 @@ static const uint64_t pair_scan[] = {
 
 static const ScoopTypeDescriptor leaf_td = {
     .type_id = 1,
-    .size = sizeof(TestLeaf),
-    .align = _Alignof(TestLeaf),
-    .ref_offsets = NULL,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = sizeof(TestLeaf),
+        .instance_alignment = _Alignof(TestLeaf),
+    },
+    .object_scan = NULL,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "TestLeaf",
+    .diagnostic_name = {(const uint8_t *)"TestLeaf", sizeof("TestLeaf") - 1},
 };
 
 static const ScoopTypeDescriptor node_td = {
     .type_id = 2,
-    .size = sizeof(TestNode),
-    .align = _Alignof(TestNode),
-    .ref_offsets = node_scan,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = sizeof(TestNode),
+        .instance_alignment = _Alignof(TestNode),
+    },
+    .object_scan = node_scan,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "TestNode",
+    .diagnostic_name = {(const uint8_t *)"TestNode", sizeof("TestNode") - 1},
 };
 
 static const ScoopTypeDescriptor pair_td = {
     .type_id = 3,
-    .size = sizeof(TestPair),
-    .align = _Alignof(TestPair),
-    .ref_offsets = pair_scan,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = sizeof(TestPair),
+        .instance_alignment = _Alignof(TestPair),
+    },
+    .object_scan = pair_scan,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "TestPair",
+    .diagnostic_name = {(const uint8_t *)"TestPair", sizeof("TestPair") - 1},
 };
 
 static const ScoopTypeDescriptor large_td = {
     .type_id = 4,
-    .size = sizeof(TestLarge),
-    .align = _Alignof(TestLarge),
-    .ref_offsets = NULL,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+        .minimum_size = sizeof(TestLarge),
+        .instance_alignment = _Alignof(TestLarge),
+    },
+    .object_scan = NULL,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "TestLarge",
+    .diagnostic_name = {(const uint8_t *)"TestLarge", sizeof("TestLarge") - 1},
 };
 
 static const ScoopTypeDescriptor string_td = {
     .type_id = 5,
-    .size = sizeof(ScoopString),
-    .align = _Alignof(ScoopString),
-    .ref_offsets = NULL,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = sizeof(ScoopString),
+        .instance_alignment = _Alignof(ScoopString),
+        .inline_offset = sizeof(ScoopString),
+        .inline_size = 1,
+        .inline_stride = 1,
+        .inline_alignment = 1,
+    },
+    .object_scan = NULL,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "String",
+    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1},
 };
 
 static const ScoopTypeDescriptor array_i64_td = {
     .type_id = 6,
-    .size = sizeof(uint64_t),
-    .align = _Alignof(uint64_t),
-    .ref_offsets = NULL,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = sizeof(ScoopArray),
+        .instance_alignment = _Alignof(uint64_t),
+        .inline_offset = sizeof(ScoopArray),
+        .inline_size = sizeof(uint64_t),
+        .inline_stride = sizeof(uint64_t),
+        .inline_alignment = _Alignof(uint64_t),
+    },
+    .object_scan = NULL,
     .parent = NULL,
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .name = "Array<ULong>",
+    .diagnostic_name = {
+        (const uint8_t *)"Array<ULong>", sizeof("Array<ULong>") - 1},
+};
+
+static const uint64_t pointer_element_scan[] = {1, 0};
+static const uint64_t pointer_array_scan[] = {
+    SCOOP_REFS_ARRAY,
+    offsetof(ScoopArray, size),
+    offsetof(ScoopArray, elements),
+    sizeof(void *),
+    (uint64_t)(uintptr_t)pointer_element_scan,
+};
+static const ScoopTypeDescriptor array_ref_td = {
+    .type_id = 7,
+    .instance_shape = {
+        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+        .minimum_size = sizeof(ScoopArray),
+        .instance_alignment = _Alignof(void *),
+        .inline_offset = sizeof(ScoopArray),
+        .inline_size = sizeof(void *),
+        .inline_stride = sizeof(void *),
+        .inline_alignment = _Alignof(void *),
+        .inline_scan = pointer_element_scan,
+    },
+    .object_scan = pointer_array_scan,
+    .diagnostic_name = {
+        (const uint8_t *)"Array<TestLeaf>", sizeof("Array<TestLeaf>") - 1},
 };
 
 static const TestLeaf immortal_leaf = {
@@ -191,6 +250,16 @@ static ScoopArray *new_i64_array(uint64_t length) {
     for (uint64_t index = 0; index < length; index++) {
         elements[index] = index * 3;
     }
+    return array;
+}
+
+static ScoopArray *new_ref_array(TestLeaf *left, TestLeaf *right) {
+    ScoopArray *array = scoop_gc_alloc_internal(
+        &array_ref_td, sizeof(ScoopArray) + 2 * sizeof(void *));
+    array->size = 2;
+    TestLeaf **elements = (TestLeaf **)array->elements;
+    elements[0] = left;
+    elements[1] = right;
     return array;
 }
 
@@ -450,6 +519,19 @@ static void test_variable_object_exact_sizes(void) {
     assert(((uint64_t *)moved_long_array->elements)[0] == 0);
     assert(((uint64_t *)moved_long_array->elements)[39] == 117);
     assert(scoop_rt_gc_debug_allocation_size(moved_long_array) == 344);
+
+    TestLeaf *left = new_leaf(91);
+    TestLeaf *right = new_leaf(92);
+    uintptr_t old_left = (uintptr_t)left;
+    uintptr_t old_right = (uintptr_t)right;
+    ScoopArray *references = new_ref_array(left, right);
+    ScoopArray *moved_references = collect_with_stack_root(references);
+    TestLeaf **moved_elements = (TestLeaf **)moved_references->elements;
+    assert(moved_references != references);
+    assert((uintptr_t)moved_elements[0] != old_left);
+    assert((uintptr_t)moved_elements[1] != old_right);
+    assert(moved_elements[0]->value == 91);
+    assert(moved_elements[1]->value == 92);
 }
 
 int main(void) {

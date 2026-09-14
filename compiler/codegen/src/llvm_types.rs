@@ -484,6 +484,9 @@ pub(crate) fn flatten_ref_scan(scan: &RefScan, offsets: &mut Vec<u64>) {
                 flatten_ref_scan(part, offsets);
             }
         }
+        RefScan::Array { .. } => {
+            unreachable!("inline value scans cannot contain variable object scans")
+        }
     }
 }
 

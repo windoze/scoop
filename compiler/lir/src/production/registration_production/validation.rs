@@ -434,7 +434,7 @@ fn validate_scan_program(
     let scan = match decoded {
         DecodedRefScan::None => RefScan::None,
         DecodedRefScan::References(offsets) => RefScan::References(offsets),
-        DecodedRefScan::Sequence(_) => {
+        DecodedRefScan::Sequence(_) | DecodedRefScan::Array { .. } => {
             return Err(semantic_error(
                 RegistrationProductionTableV1::StaticStorage,
                 index,

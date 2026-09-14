@@ -13,12 +13,12 @@ use scoop_identity::{
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
-    BasicBlock, CODE_PTR, CallSite, CallTargets, CoroutineAdapterState, DirectCallSignature,
-    DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect,
-    Global, GlobalInit, IndirectResultCallSignature, Layout, LayoutKind, LirMeta, Local,
-    MANAGED_PTR, METADATA_PTR, MachineScalarValue, NativeBorrowedResultRoot, PointerKind, RAW_PTR,
-    Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall, VoidCallSignature,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    ArrayElementStorageV1, BasicBlock, CODE_PTR, CallSite, CallTargets, CoroutineAdapterState,
+    DirectCallSignature, DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr,
+    EnumVariantRepr, GcEffect, Global, GlobalInit, IndirectResultCallSignature, Layout, LayoutKind,
+    LirMeta, Local, MANAGED_PTR, METADATA_PTR, MachineScalarValue, NativeBorrowedResultRoot,
+    PointerKind, RAW_PTR, Temp, TypeDescriptor, TypeDescriptorRef, TypeInstanceShapeV1, TypedCall,
+    VoidCallSignature, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::*;

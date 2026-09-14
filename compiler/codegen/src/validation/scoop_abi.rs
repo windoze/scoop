@@ -709,6 +709,11 @@ fn shift_scan(scan: &RefScan, base: u64, owner: &str) -> Result<RefScan, Codegen
                 .map(|part| shift_scan(part, base, owner))
                 .collect::<Result<Vec<_>, _>>()?,
         ),
+        RefScan::Array { .. } => {
+            return Err(CodegenError(format!(
+                "{owner} value scan cannot contain a variable object scan"
+            )));
+        }
     })
 }
 
@@ -721,6 +726,9 @@ fn sequence_scans(scans: impl IntoIterator<Item = RefScan>) -> RefScan {
                 for part in parts {
                     collect(part, references);
                 }
+            }
+            RefScan::Array { .. } => {
+                unreachable!("Scoop ABI values cannot contain variable object scans")
             }
         }
     }

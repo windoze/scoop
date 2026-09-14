@@ -9,6 +9,9 @@ pub(super) fn shift_scan(scan: &lir::RefScan, base: u64) -> lir::RefScan {
         lir::RefScan::Sequence(parts) => {
             lir::RefScan::Sequence(parts.iter().map(|part| shift_scan(part, base)).collect())
         }
+        lir::RefScan::Array { .. } => {
+            unreachable!("safepoint value scans cannot contain variable object scans")
+        }
     }
 }
 
@@ -271,6 +274,9 @@ pub(super) fn flatten_scan(scan: &lir::RefScan, offsets: &mut Vec<u64>) {
             for part in parts {
                 flatten_scan(part, offsets);
             }
+        }
+        lir::RefScan::Array { .. } => {
+            unreachable!("safepoint value scans cannot contain variable object scans")
         }
     }
 }

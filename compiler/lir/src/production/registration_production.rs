@@ -421,6 +421,20 @@ fn encode_ref_scan(
             }
             Ok(())
         }
+        RefScan::Array {
+            length_offset,
+            first_element_offset,
+            stride,
+            element,
+        } => {
+            encoder.map(5)?;
+            encode_unsigned_field(encoder, 0, 4)?;
+            encode_unsigned_field(encoder, 1, *length_offset)?;
+            encode_unsigned_field(encoder, 2, *first_element_offset)?;
+            encode_unsigned_field(encoder, 3, stride.get())?;
+            encoder.field(4)?;
+            encode_ref_scan(encoder, element.as_ref_scan())
+        }
     }
 }
 

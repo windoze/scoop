@@ -94,11 +94,9 @@ pub(crate) fn type_descriptors(
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated interface exact type must derive a vtable identity");
         let id = descriptors.alloc(lir::TypeDescriptor {
-            name: def.name.clone(),
+            diagnostic_name: def.name.clone(),
             identity,
-            size: 0,
-            align: 0,
-            scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
+            instance_shape: lir::TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable,
             itables: Vec::new(),
@@ -127,11 +125,9 @@ pub(crate) fn type_descriptors(
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated function exact type must derive a vtable identity");
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
-            name,
+            diagnostic_name: name,
             identity,
-            size: 0,
-            align: 0,
-            scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
+            instance_shape: lir::TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable,
             itables: Vec::new(),
@@ -191,11 +187,15 @@ pub(crate) fn type_descriptors(
             })
             .collect();
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
-            name: def.name.clone(),
+            diagnostic_name: def.name.clone(),
             identity,
-            size,
-            align,
-            scan: lir::TypeDescriptorScan::Fixed(scan),
+            instance_shape: lir::TypeInstanceShapeV1::fixed_object(
+                context.target_profile(),
+                size,
+                align,
+                scan,
+            )
+            .expect("validated closure layout must form a managed instance shape"),
             parent: Some(refs.function_types[&def.function_type]),
             vtable,
             itables,
@@ -242,13 +242,53 @@ pub(crate) fn class_type_descriptor(
         lir::TypeDescriptorIdentity::new(runtime_type, root)
             .expect("validated class exact type must derive descriptor identities")
     };
-    let (size, align, scan) = class_layout(context, module, enums, def);
-    let scan = match &def.representation {
+    let instance_shape = match &def.representation {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
+            lir::TypeInstanceShapeV1::inline_bytes(context.target_profile())
+                .expect("the target profile must form the String instance shape")
+        }
         mir::ClassRepresentation::Intrinsic(
             mir::IntrinsicTypeRepresentation::Array { .. }
             | mir::IntrinsicTypeRepresentation::MutableArray { .. },
-        ) => lir::TypeDescriptorScan::ArrayElement { stride: size, scan },
-        _ => lir::TypeDescriptorScan::Fixed(scan),
+        ) => {
+            let (size, align, scan) = class_layout(context, module, enums, def);
+            let element = if size == 0 {
+                lir::ArrayElementStorageV1::zero_sized(align)
+            } else {
+                lir::ArrayElementStorageV1::inline(size, align, scan)
+            }
+            .expect("validated array element layout must form inline storage");
+            lir::TypeInstanceShapeV1::inline_array(context.target_profile(), element)
+                .expect("validated array layout must form a managed instance shape")
+        }
+        mir::ClassRepresentation::Declared { .. } => {
+            if let Some(boxed) = module
+                .meta
+                .boxed_types
+                .iter()
+                .find(|boxed| boxed.class() == id)
+            {
+                let enum_shape =
+                    |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+                let (size, align) = size_align(context, module, &enum_shape, boxed.payload());
+                let scan = ref_scan(context, module, enums, boxed.payload(), 0);
+                let value = if size == 0 {
+                    lir::ValueStorageLayoutV1::zero_sized(align)
+                } else {
+                    lir::ValueStorageLayoutV1::inline(size, align, scan)
+                }
+                .expect("validated boxed payload must form inline storage");
+                lir::TypeInstanceShapeV1::boxed_value(context.target_profile(), value)
+                    .expect("validated box layout must form a managed instance shape")
+            } else {
+                let (size, align, scan) = class_layout(context, module, enums, def);
+                lir::TypeInstanceShapeV1::fixed_object(context.target_profile(), size, align, scan)
+                    .expect("validated class layout must form a managed instance shape")
+            }
+        }
+        mir::ClassRepresentation::Intrinsic(_) => {
+            unreachable!("the registry fixes intrinsic declaration targets")
+        }
     };
     let vtable = lir::VtableRecord::new(
         &identity,
@@ -276,11 +316,9 @@ pub(crate) fn class_type_descriptor(
         })
         .collect();
     lir::TypeDescriptor {
-        name: def.name.clone(),
+        diagnostic_name: def.name.clone(),
         identity,
-        size,
-        align,
-        scan,
+        instance_shape,
         parent: def.base_class().map(|base| refs.classes[&base]),
         vtable,
         itables,

@@ -598,7 +598,10 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
         .type_descriptors
         .iter()
         .filter(|(_, descriptor)| {
-            matches!(descriptor.name.as_str(), "Same" | "View" | "SameClosure")
+            matches!(
+                descriptor.diagnostic_name.as_str(),
+                "Same" | "View" | "SameClosure"
+            )
         })
         .map(|(_, descriptor)| descriptor)
         .collect::<Vec<_>>();
@@ -852,7 +855,8 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         ]
     );
     assert!(
-        descriptor_values(&module).all(|descriptor| descriptor.name != forbidden_descriptor_name),
+        descriptor_values(&module)
+            .all(|descriptor| descriptor.diagnostic_name != forbidden_descriptor_name),
         "a native FunPtr signature must not fabricate a managed TypeDescriptor"
     );
 

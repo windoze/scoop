@@ -2047,7 +2047,9 @@ fn static_scan_size(registration: &StrongStaticStorageRegistrationPlanV1) -> u64
     match registration.semantic().scan_program() {
         scoop_lir::RefScan::None => 8,
         scoop_lir::RefScan::References(offsets) => (u64::try_from(offsets.len()).unwrap() + 1) * 8,
-        scoop_lir::RefScan::Sequence(_) => panic!("fixture cannot contain sequence scans"),
+        scoop_lir::RefScan::Sequence(_) | scoop_lir::RefScan::Array { .. } => {
+            panic!("fixture cannot contain non-value scans")
+        }
     }
 }
 
@@ -2493,7 +2495,9 @@ fn push_scan_program(bytes: &mut Vec<u8>, registration: &StrongStaticStorageRegi
                 push_u64(bytes, *offset);
             }
         }
-        scoop_lir::RefScan::Sequence(_) => panic!("fixture cannot contain sequence scans"),
+        scoop_lir::RefScan::Sequence(_) | scoop_lir::RefScan::Array { .. } => {
+            panic!("fixture cannot contain non-value scans")
+        }
     }
 }
 

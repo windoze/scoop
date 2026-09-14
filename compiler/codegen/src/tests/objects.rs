@@ -97,21 +97,23 @@ pub(super) fn classes_module() -> Module {
 
     let mut meta = string_metadata();
     let describable = meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Describable".to_string(),
+        diagnostic_name: "Describable".to_string(),
         identity: type_descriptor_identity("Describable"),
-        size: 0,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::None),
+        instance_shape: TypeInstanceShapeV1::abstract_ref(),
         parent: None,
         vtable: vtable("Describable", vec![]),
         itables: vec![],
     });
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Shape".to_string(),
+        diagnostic_name: "Shape".to_string(),
         identity: type_descriptor_identity("Shape"),
-        size: 24,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            24,
+            8,
+            RefScan::References(vec![16]),
+        )
+        .unwrap(),
         parent: None,
         vtable: vtable(
             "Shape",
@@ -122,11 +124,15 @@ pub(super) fn classes_module() -> Module {
         itables: vec![],
     });
     meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Point".to_string(),
+        diagnostic_name: "Point".to_string(),
         identity: type_descriptor_identity("Point"),
-        size: 32,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            32,
+            8,
+            RefScan::References(vec![16]),
+        )
+        .unwrap(),
         parent: Some(TypeDescriptorRef::Local(shape)),
         vtable: vtable(
             "Point",
@@ -188,11 +194,15 @@ pub(super) fn heap_module() -> Module {
     let globals = Arena::default();
     let mut meta = string_metadata();
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Point".to_string(),
+        diagnostic_name: "Point".to_string(),
         identity: type_descriptor_identity("Point"),
-        size: 32,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::References(vec![24])),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            32,
+            8,
+            RefScan::References(vec![24]),
+        )
+        .unwrap(),
         parent: None,
         vtable: vtable(
             "Point",

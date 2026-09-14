@@ -44,6 +44,9 @@ pub use module::*;
 mod metadata;
 pub use metadata::*;
 
+mod type_descriptor;
+pub use type_descriptor::*;
+
 mod identity_metadata;
 pub use identity_metadata::*;
 

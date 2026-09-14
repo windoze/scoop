@@ -12,6 +12,9 @@ pub(crate) fn sequence(parts: impl IntoIterator<Item = lir::RefScan>) -> lir::Re
                     collect(part, refs);
                 }
             }
+            lir::RefScan::Array { .. } => {
+                unreachable!("inline value scans cannot contain variable object scans")
+            }
         }
     }
 

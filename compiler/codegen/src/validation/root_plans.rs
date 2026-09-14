@@ -498,6 +498,9 @@ fn flattened_offsets(scan: &RefScan) -> Vec<u64> {
                     collect(part, offsets);
                 }
             }
+            RefScan::Array { .. } => {
+                unreachable!("root value scans cannot contain variable object scans")
+            }
         }
     }
 

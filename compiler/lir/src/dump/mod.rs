@@ -352,12 +352,14 @@ pub fn dump(module: &Module) -> String {
             .collect::<Vec<_>>()
             .join(", ");
         out.push_str(&format!(
-            "  td td{} {} @{} type-id={} size={} parent={} vtable=[{}] itables=[{}]\n",
+            "  td td{} {} @{} type-id={} shape={:?} minimum-size={} align={} parent={} vtable=[{}] itables=[{}]\n",
             id.into_raw(),
-            td.name,
+            td.diagnostic_name,
             td.identity.symbol(),
             td.identity.runtime_type().runtime_type().get(),
-            td.size,
+            td.instance_shape.instance_kind(),
+            td.instance_shape.minimum_size(),
+            td.instance_shape.instance_alignment(),
             parent,
             vtable,
             itables,
@@ -368,13 +370,10 @@ pub fn dump(module: &Module) -> String {
             unreachable!("a local array application owns a local descriptor")
         };
         let descriptor = &module.meta.type_descriptors[descriptor_id];
-        let TypeDescriptorScan::ArrayElement { scan, .. } = &descriptor.scan else {
-            unreachable!("an array descriptor owns an element scan")
-        };
         out.push_str(&format!(
             "  array-type array{} {} kind={} element={} size={} align={} scan={} td={}\n",
             id.into_raw(),
-            descriptor.name,
+            descriptor.diagnostic_name,
             match array.kind {
                 ArrayKind::Immutable => "immutable",
                 ArrayKind::Mutable => "mutable",
@@ -382,7 +381,7 @@ pub fn dump(module: &Module) -> String {
             array.element.dump(),
             array.element_size,
             array.element_align,
-            scan.dump(),
+            descriptor.instance_shape.inline_scan().dump(),
             type_descriptor_ref_name(array.type_descriptor),
         ));
     }

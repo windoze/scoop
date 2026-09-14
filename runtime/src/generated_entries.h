@@ -28,11 +28,6 @@ extern const uint64_t scoop_image_managed_global_count;
 extern const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[];
 extern const uint64_t scoop_image_immortal_object_count;
 
-typedef struct ScoopInitializationCell {
-    uint64_t state;
-    void *owner_thread;
-} ScoopInitializationCell;
-
 typedef struct ScoopInitializationUnitDescriptor {
     uint64_t schedule;
     uint8_t semantic_id[32];

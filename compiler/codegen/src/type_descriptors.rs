@@ -43,6 +43,27 @@ pub(super) fn emit_ref_scan<'ctx>(
             words.extend(children.into_iter().map(|child| pointer_word(Some(child))));
             words
         }
+        RefScan::Array {
+            length_offset,
+            first_element_offset,
+            stride,
+            element,
+        } => {
+            let element = emit_ref_scan(
+                context,
+                llvm,
+                &format!("{name}.element"),
+                element.as_ref_scan(),
+            )
+            .expect("a NonEmptyRefScan always emits a physical scan program");
+            vec![
+                i64_ty.const_int(SCAN_ARRAY, false),
+                i64_ty.const_int(*length_offset, false),
+                i64_ty.const_int(*first_element_offset, false),
+                i64_ty.const_int(stride.get(), false),
+                element.const_to_int(i64_ty),
+            ]
+        }
     };
     let array = i64_ty.const_array(&words);
     Some(private_const_global(llvm, name, array.into()))
@@ -75,13 +96,14 @@ pub(super) fn emit_type_descriptors<'ctx>(
     external_type_globals: &[GlobalValue<'ctx>],
     module: &Module,
 ) -> Result<(), CodegenError> {
-    let ptr = ptr_ty(context);
-    // ScoopItableEntry: { ptr interface, ptr slots }.
-    let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
+    let types = runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
+    // ScoopItableEntryV1: { ptr interface, ptr slots }.
     let emission = TypeDescriptorEmission {
         context,
         llvm,
-        entry_ty,
+        entry_ty: types.itable_entry(),
+        type_instance_shape_ty: types.type_instance_shape(),
+        byte_span_ty: types.byte_span(),
         type_globals,
         external_type_globals,
         module,
@@ -96,6 +118,8 @@ struct TypeDescriptorEmission<'a, 'ctx> {
     context: &'ctx Context,
     llvm: &'a LlvmModule<'ctx>,
     entry_ty: StructType<'ctx>,
+    type_instance_shape_ty: StructType<'ctx>,
+    byte_span_ty: StructType<'ctx>,
     type_globals: &'a [GlobalValue<'ctx>],
     external_type_globals: &'a [GlobalValue<'ctx>],
     module: &'a Module,
@@ -112,39 +136,23 @@ fn emit_type_descriptor<'ctx>(
     let type_globals = emission.type_globals;
     let external_type_globals = emission.external_type_globals;
     let module = emission.module;
+    let i32_ty = context.i32_type();
     let i64_ty = context.i64_type();
     let ptr = ptr_ty(context);
-    let ref_offsets: BasicValueEnum = match &descriptor.scan {
-        TypeDescriptorScan::Fixed(scan) => emit_ref_scan(
-            context,
-            llvm,
-            &format!("{}.refs", descriptor.identity.symbol()),
-            scan,
-        )
-        .map_or_else(|| ptr.const_null().into(), Into::into),
-        TypeDescriptorScan::ArrayElement { stride, scan } => emit_ref_scan(
-            context,
-            llvm,
-            &format!("{}.element", descriptor.identity.symbol()),
-            scan,
-        )
-        .map_or_else(
-            || ptr.const_null().into(),
-            |element_scan| {
-                let words = i64_ty.const_array(&[
-                    i64_ty.const_int(SCAN_ARRAY, false),
-                    i64_ty.const_int(*stride, false),
-                    element_scan.const_to_int(i64_ty),
-                ]);
-                private_const_global(
-                    llvm,
-                    &format!("{}.refs", descriptor.identity.symbol()),
-                    words.into(),
-                )
-                .into()
-            },
-        ),
-    };
+    let object_scan: BasicValueEnum = emit_ref_scan(
+        context,
+        llvm,
+        &format!("{}.object_scan", descriptor.identity.symbol()),
+        descriptor.instance_shape.object_scan(),
+    )
+    .map_or_else(|| ptr.const_null().into(), Into::into);
+    let inline_scan: BasicValueEnum = emit_ref_scan(
+        context,
+        llvm,
+        &format!("{}.inline_scan", descriptor.identity.symbol()),
+        descriptor.instance_shape.inline_scan(),
+    )
+    .map_or_else(|| ptr.const_null().into(), Into::into);
     let parent: BasicValueEnum = match descriptor.parent {
         Some(reference) => type_descriptor_global(reference, type_globals, external_type_globals)?
             .as_pointer_value()
@@ -185,12 +193,34 @@ fn emit_type_descriptor<'ctx>(
         );
         (itable_global.into(), descriptor.itables.len() as u64)
     };
-    let name = private_c_string(
+    let name = private_bytes(
         context,
         llvm,
         &format!("{}.name", descriptor.identity.symbol()),
-        &descriptor.name,
+        descriptor.diagnostic_name.as_bytes(),
     );
+    let shape = &descriptor.instance_shape;
+    let instance_shape = emission.type_instance_shape_ty.const_named_struct(&[
+        i32_ty
+            .const_int(u64::from(shape.instance_kind().tag()), false)
+            .into(),
+        i32_ty
+            .const_int(u64::from(shape.inline_storage_kind().tag()), false)
+            .into(),
+        i64_ty.const_int(shape.minimum_size(), false).into(),
+        i64_ty.const_int(shape.instance_alignment(), false).into(),
+        i64_ty.const_int(shape.inline_offset(), false).into(),
+        i64_ty.const_int(shape.inline_size(), false).into(),
+        i64_ty.const_int(shape.inline_stride(), false).into(),
+        i64_ty.const_int(shape.inline_alignment(), false).into(),
+        inline_scan,
+    ]);
+    let diagnostic_name = emission.byte_span_ty.const_named_struct(&[
+        name.into(),
+        i64_ty
+            .const_int(descriptor.diagnostic_name.len() as u64, false)
+            .into(),
+    ]);
     global.set_constant(true);
     global.set_initializer(
         &context.const_struct(
@@ -201,14 +231,13 @@ fn emit_type_descriptor<'ctx>(
                         false,
                     )
                     .into(),
-                i64_ty.const_int(descriptor.size, false).into(),
-                i64_ty.const_int(descriptor.align, false).into(),
-                ref_offsets,
+                instance_shape.into(),
+                object_scan,
                 parent,
                 vtable,
                 itables,
                 i64_ty.const_int(itable_count, false).into(),
-                name.into(),
+                diagnostic_name.into(),
             ],
             false,
         ),
@@ -229,19 +258,15 @@ pub(super) fn private_const_global<'ctx>(
     global.as_pointer_value()
 }
 
-/// A private NUL-terminated UTF-8 string whose address is stable for
-/// the lifetime of the generated module.
-fn private_c_string<'ctx>(
+/// A private exact byte sequence whose address is stable for the lifetime of
+/// the generated module.
+fn private_bytes<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     name: &str,
-    value: &str,
+    value: &[u8],
 ) -> PointerValue<'ctx> {
-    private_const_global(
-        llvm,
-        name,
-        context.const_string(value.as_bytes(), true).into(),
-    )
+    private_const_global(llvm, name, context.const_string(value, false).into())
 }
 
 /// A global `[N x ptr]` of function addresses (a vtable or one itable's
