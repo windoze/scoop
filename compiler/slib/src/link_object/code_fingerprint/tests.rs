@@ -16,6 +16,17 @@ use super::*;
 use crate::{ExtensionRequirement, LogicalMemberKey, MemberStableKey, SlibMemberRecord};
 
 #[test]
+fn empty_link_object_projection_is_the_canonical_empty_array() {
+    assert_eq!(
+        scoop_wire::encode(&CodeLinkObjectMemberSetV1 {
+            members: Vec::new()
+        })
+        .unwrap(),
+        vec![0x80]
+    );
+}
+
+#[test]
 fn link_object_projection_is_canonical_and_ignores_non_code_members() {
     let first = object_record("first", b"first");
     let second = object_record("second", b"second");
@@ -32,9 +43,10 @@ fn link_object_projection_is_canonical_and_ignores_non_code_members() {
     let actual =
         verify_directory_records(&expected, &[second.clone(), metadata, first.clone()]).unwrap();
 
-    assert_eq!(actual.len(), 2);
-    assert_eq!(actual[0].member(), first.id().min(second.id()));
-    assert_eq!(actual[1].member(), first.id().max(second.id()));
+    assert_eq!(actual.members().len(), 2);
+    assert_eq!(actual.members()[0].member(), first.id().min(second.id()));
+    assert_eq!(actual.members()[1].member(), first.id().max(second.id()));
+    assert_eq!(scoop_wire::encode(&actual).unwrap()[0], 0x82);
 }
 
 #[test]

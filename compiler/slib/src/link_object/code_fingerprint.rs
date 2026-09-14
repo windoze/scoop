@@ -7,13 +7,23 @@ use scoop_identity::{
     CapabilityId, ConeIdentity, NativeExternalContract, NativeExternalContractFingerprint,
     NativeExternalSymbolKey, PersistentNativeExternalSymbolId,
 };
-use scoop_lir::CanonicalNativeExternalRequirementSurfaceV1;
-use scoop_wire::{Digest256, Encoder, HashError, WireEncode};
-
-use super::VerifiedEntryPatchSetV1;
-use crate::{
-    LinkMemberFingerprint, MemberStableKey, SlibMemberId, SlibMemberRecord, SlibMemberRole,
+use scoop_lir::{
+    CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1,
+    CanonicalNativeLibraryRequirementV1, LirTargetProfile, StrongProductionSectionV1,
+    ValidatedLirTargetSelection,
 };
+use scoop_wire::{Digest256, Encoder, HashError, WireEncode, domain_separated_cbor_hash};
+
+use super::{
+    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalUndefinedSymbolRequirementSetV1,
+    DefinedLinkSymbolOwnerBuildError, VerifiedEntryPatchSetV1,
+};
+use crate::{
+    CodeFingerprint, LinkMemberFingerprint, MemberStableKey, SingleConeProductionCodeProjectionV1,
+    SlibMemberId, SlibMemberRecord, SlibMemberRole, VerifiedSingleConeProductionCodeProjectionV1,
+};
+
+const CODE_FINGERPRINT_DOMAIN: &str = "scoop-code-v1";
 
 /// One final LinkObject directory identity and its content-bound fingerprint.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,9 +44,31 @@ impl VerifiedCodeLinkObjectMemberV1 {
 
 /// Finalized built-in object bytes bound one-to-one to their directory records.
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CodeLinkObjectMemberSetV1 {
+    members: Vec<VerifiedCodeLinkObjectMemberV1>,
+}
+
+impl CodeLinkObjectMemberSetV1 {
+    pub fn members(&self) -> &[VerifiedCodeLinkObjectMemberV1] {
+        &self.members
+    }
+}
+
+impl WireEncode for CodeLinkObjectMemberSetV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.members.len() as u64)?;
+        for member in &self.members {
+            member.fingerprint.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+/// Finalized built-in object bytes bound one-to-one to their directory records.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedCodeLinkObjectMemberSetV1 {
     final_objects: VerifiedEntryPatchSetV1,
-    members: Vec<VerifiedCodeLinkObjectMemberV1>,
+    projection: CodeLinkObjectMemberSetV1,
 }
 
 impl VerifiedCodeLinkObjectMemberSetV1 {
@@ -49,17 +81,11 @@ impl VerifiedCodeLinkObjectMemberSetV1 {
     }
 
     pub fn members(&self) -> &[VerifiedCodeLinkObjectMemberV1] {
-        &self.members
+        self.projection.members()
     }
-}
 
-impl WireEncode for VerifiedCodeLinkObjectMemberSetV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(self.members.len() as u64)?;
-        for member in &self.members {
-            member.fingerprint.encode(encoder)?;
-        }
-        Ok(())
+    pub const fn projection(&self) -> &CodeLinkObjectMemberSetV1 {
+        &self.projection
     }
 }
 
@@ -69,10 +95,10 @@ pub fn verify_code_link_object_members_v1(
     directory: &[SlibMemberRecord],
 ) -> Result<VerifiedCodeLinkObjectMemberSetV1, CodeLinkObjectMemberValidationError> {
     let expected = expected_final_members(&final_objects)?;
-    let members = verify_directory_records(&expected, directory)?;
+    let projection = verify_directory_records(&expected, directory)?;
     Ok(VerifiedCodeLinkObjectMemberSetV1 {
         final_objects,
-        members,
+        projection,
     })
 }
 
@@ -143,7 +169,7 @@ fn expected_final_members(
 fn verify_directory_records(
     expected: &[ExpectedFinalLinkObjectMemberV1],
     directory: &[SlibMemberRecord],
-) -> Result<Vec<VerifiedCodeLinkObjectMemberV1>, CodeLinkObjectMemberValidationError> {
+) -> Result<CodeLinkObjectMemberSetV1, CodeLinkObjectMemberValidationError> {
     let mut seen = BTreeSet::new();
     let mut actual = BTreeMap::new();
     for record in directory {
@@ -214,7 +240,7 @@ fn verify_directory_records(
             fingerprint,
         });
     }
-    Ok(verified)
+    Ok(CodeLinkObjectMemberSetV1 { members: verified })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -353,6 +379,221 @@ impl fmt::Display for NativeExternalContractCodeSetBuildError {
 }
 
 impl std::error::Error for NativeExternalContractCodeSetBuildError {}
+
+/// A code digest together with every proof and canonical projection from
+/// which its nine-field input was encoded.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerifiedCodeFingerprintV1 {
+    production: VerifiedSingleConeProductionCodeProjectionV1,
+    native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
+    native_contracts: CanonicalNativeExternalContractCodeSetV1,
+    defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
+    undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
+    fingerprint: CodeFingerprint,
+}
+
+impl VerifiedCodeFingerprintV1 {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.production.link_objects().producer()
+    }
+
+    pub const fn production(&self) -> &VerifiedSingleConeProductionCodeProjectionV1 {
+        &self.production
+    }
+
+    pub const fn native_requirements(&self) -> &CanonicalNativeExternalRequirementSurfaceV1 {
+        &self.native_requirements
+    }
+
+    pub const fn native_contracts(&self) -> &CanonicalNativeExternalContractCodeSetV1 {
+        &self.native_contracts
+    }
+
+    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        &self.defined_symbols
+    }
+
+    pub const fn undefined_symbols(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        &self.undefined_symbols
+    }
+
+    pub const fn fingerprint(&self) -> CodeFingerprint {
+        self.fingerprint
+    }
+
+    pub const fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
+        self.production
+            .link_objects()
+            .final_objects()
+            .entry()
+            .patch_sites()
+            .builtins()
+            .c_bridge_production()
+            .production()
+    }
+}
+
+pub fn compute_code_fingerprint_v1(
+    production: VerifiedSingleConeProductionCodeProjectionV1,
+    native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
+    defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
+    undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
+) -> Result<VerifiedCodeFingerprintV1, CodeFingerprintError> {
+    let producer = production.link_objects().producer();
+    let builtins = production
+        .link_objects()
+        .final_objects()
+        .entry()
+        .patch_sites()
+        .builtins();
+    if native_requirements.producer() != producer {
+        return Err(CodeFingerprintError::NativeProducerMismatch {
+            expected: producer,
+            actual: native_requirements.producer(),
+        });
+    }
+    if native_requirements.target() != LirTargetProfile::DARWIN_AARCH64
+        || undefined_symbols.selection() != ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    {
+        return Err(CodeFingerprintError::TargetMismatch);
+    }
+    let expected_defined = CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
+        builtins.strong_relocations(),
+    )
+    .map_err(CodeFingerprintError::DefinedSymbols)?;
+    if defined_symbols != expected_defined {
+        return Err(CodeFingerprintError::DefinedSymbolSetMismatch);
+    }
+    if undefined_symbols.producer() != producer
+        || !undefined_symbols.matches_strong_closure(builtins)
+    {
+        return Err(CodeFingerprintError::UndefinedSymbolSetMismatch);
+    }
+    let native_contracts =
+        CanonicalNativeExternalContractCodeSetV1::from_requirement_surface(&native_requirements)
+            .map_err(CodeFingerprintError::NativeContracts)?;
+    let fingerprint = domain_separated_cbor_hash(
+        CODE_FINGERPRINT_DOMAIN,
+        &CodeFingerprintInputV1 {
+            production: &production,
+            native_requirements: &native_requirements,
+            native_contracts: &native_contracts,
+            defined_symbols: &defined_symbols,
+            undefined_symbols: &undefined_symbols,
+        },
+    )
+    .map(|digest| CodeFingerprint::from_array(*digest.as_array()))
+    .map_err(CodeFingerprintError::Hash)?;
+    Ok(VerifiedCodeFingerprintV1 {
+        production,
+        native_requirements,
+        native_contracts,
+        defined_symbols,
+        undefined_symbols,
+        fingerprint,
+    })
+}
+
+struct CodeFingerprintInputV1<'proof> {
+    production: &'proof VerifiedSingleConeProductionCodeProjectionV1,
+    native_requirements: &'proof CanonicalNativeExternalRequirementSurfaceV1,
+    native_contracts: &'proof CanonicalNativeExternalContractCodeSetV1,
+    defined_symbols: &'proof CanonicalDefinedLinkSymbolOwnerSetV1,
+    undefined_symbols: &'proof CanonicalUndefinedSymbolRequirementSetV1,
+}
+
+impl WireEncode for CodeFingerprintInputV1<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(9)?;
+        encoder.field(1)?;
+        self.production
+            .link_objects()
+            .projection()
+            .encode(encoder)?;
+        encoder.field(2)?;
+        encoder.array(0)?;
+        encoder.field(3)?;
+        self.c_bridge_production().encode(encoder)?;
+        encoder.field(4)?;
+        encode_native_library_requirements(
+            encoder,
+            self.native_requirements.library_requirements(),
+        )?;
+        encoder.field(5)?;
+        self.defined_symbols.encode(encoder)?;
+        encoder.field(6)?;
+        self.undefined_symbols.encode(encoder)?;
+        encoder.field(7)?;
+        self.native_contracts.encode(encoder)?;
+        encoder.field(8)?;
+        self.strong_production().encode(encoder)?;
+        encoder.field(9)?;
+        self.manifest_projection().encode(encoder)
+    }
+}
+
+impl CodeFingerprintInputV1<'_> {
+    fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
+        self.production
+            .link_objects()
+            .final_objects()
+            .entry()
+            .patch_sites()
+            .builtins()
+            .c_bridge_production()
+            .production()
+    }
+
+    fn strong_production(&self) -> &StrongProductionSectionV1 {
+        self.production.strong_production()
+    }
+
+    fn manifest_projection(&self) -> &SingleConeProductionCodeProjectionV1 {
+        self.production.projection()
+    }
+}
+
+fn encode_native_library_requirements(
+    encoder: &mut Encoder,
+    requirements: &[CanonicalNativeLibraryRequirementV1],
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.array(requirements.len() as u64)?;
+    for requirement in requirements {
+        requirement.encode(encoder)?;
+    }
+    Ok(())
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CodeFingerprintError {
+    NativeProducerMismatch {
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+    },
+    TargetMismatch,
+    DefinedSymbols(DefinedLinkSymbolOwnerBuildError),
+    DefinedSymbolSetMismatch,
+    UndefinedSymbolSetMismatch,
+    NativeContracts(NativeExternalContractCodeSetBuildError),
+    Hash(HashError),
+}
+
+impl fmt::Display for CodeFingerprintError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "failed to compute code fingerprint: {self:?}")
+    }
+}
+
+impl std::error::Error for CodeFingerprintError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::DefinedSymbols(source) => Some(source),
+            Self::NativeContracts(source) => Some(source),
+            Self::Hash(source) => Some(source),
+            _ => None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests;
