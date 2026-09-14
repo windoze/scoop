@@ -4,9 +4,10 @@ use scoop_lir::{
     DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, GeneratedBridgePlanSetV1,
     LirTargetProfile, OdrFreeLirFoundation, StrongCallableRegistrationPlanSetV1,
     StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
-    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
-    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
-    StrongStaticStorageRegistrationPlanSetV1, StrongTypeRegistrationPlanSetV1,
+    StrongInitializationUnitRegistrationPlanSetV1, StrongObjectSymbolSurfaceV1,
+    StrongProducerUnitPartitionV1, StrongSafepointRegistrationPlanSetV1,
+    StrongSafepointSemanticPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
+    StrongTypeRegistrationPlanSetV1,
 };
 
 use crate::SlibMemberId;
@@ -62,6 +63,7 @@ pub(crate) struct Fixture {
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
     pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
     pub(crate) static_storage_registration_plan: StrongStaticStorageRegistrationPlanSetV1,
+    pub(crate) initialization_registration_plan: StrongInitializationUnitRegistrationPlanSetV1,
     pub(crate) provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
     pub(crate) member: SlibMemberId,
     pub(crate) object_bytes: Vec<u8>,
@@ -136,6 +138,7 @@ impl Fixture {
             type_registration_plan: inputs.type_registration_plan,
             immortal_registration_plan: inputs.immortal_registration_plan,
             static_storage_registration_plan: inputs.static_storage_registration_plan,
+            initialization_registration_plan: inputs.initialization_registration_plan,
             provisional_patch_sites,
             member,
             object_bytes: object.bytes,

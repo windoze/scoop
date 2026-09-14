@@ -376,19 +376,75 @@ fn computes_canonical_initialization_strong_fingerprints() {
         eager_actual.registration().to_string(),
         "b484b45d8794d990f9af271fefe9ecf1134c96b1489776a52e15135b081e03a0"
     );
+    let eager_patched =
+        crate::link_object::strong_registration_finalization::patch_initializations_for_test(
+            &eager_fingerprints,
+            &eager_objects,
+        )
+        .unwrap();
+    let eager_verified = &eager_fingerprints
+        .definitions()
+        .registration_objects()
+        .registrations()
+        .registrations()[0];
+    assert_eq!(
+        digest_at(
+            &eager_patched[0].1,
+            eager_verified
+                .registration_definition_patch()
+                .checked_offset()
+        ),
+        eager_actual.registration().as_array()
+    );
+    assert_eq!(
+        digest_at(
+            &eager_patched[0].1,
+            eager_verified
+                .gateway_definition_patch()
+                .unwrap()
+                .checked_offset()
+        ),
+        eager_actual.gateway_definition().unwrap().as_array()
+    );
 
     let lazy = Fixture::new(true, Corruption::None);
     let lazy_objects = lazy.objects();
     let lazy_callable_bodies = callable_body_fingerprints(&lazy, &lazy_objects);
     let lazy_definitions = initialization_definition_fingerprints(&lazy, &lazy_objects);
-    let lazy_actual =
+    let lazy_fingerprints =
         compute_strong_initialization_fingerprints_v1(lazy_definitions, &lazy_callable_bodies)
-            .unwrap()
-            .fingerprints()[0];
+            .unwrap();
+    let lazy_actual = lazy_fingerprints.fingerprints()[0];
     assert_eq!(lazy_actual.gateway_body(), None);
     assert_eq!(lazy_actual.gateway_definition_node(), None);
     assert_eq!(lazy_actual.gateway_definition(), None);
     assert_ne!(eager_actual.registration(), lazy_actual.registration());
+    let lazy_patched =
+        crate::link_object::strong_registration_finalization::patch_initializations_for_test(
+            &lazy_fingerprints,
+            &lazy_objects,
+        )
+        .unwrap();
+    let lazy_verified = &lazy_fingerprints
+        .definitions()
+        .registration_objects()
+        .registrations()
+        .registrations()[0];
+    assert_eq!(
+        digest_at(
+            &lazy_patched[0].1,
+            lazy_verified
+                .registration_definition_patch()
+                .checked_offset()
+        ),
+        lazy_actual.registration().as_array()
+    );
+    assert!(lazy_verified.gateway_definition_patch().is_none());
+}
+
+fn digest_at(bytes: &[u8], offset: u64) -> &[u8] {
+    let start = usize::try_from(offset).unwrap();
+    &bytes[start..start + 32]
 }
 
 fn initialization_definition_fingerprints(

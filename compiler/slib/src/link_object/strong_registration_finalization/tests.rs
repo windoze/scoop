@@ -5,13 +5,17 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 use crate::link_object::{
     LayoutFingerprintV1, ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1,
     VerifiedStrongCallableFingerprintSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
-    VerifiedStrongStaticStorageFingerprintSetV1, VerifiedStrongTypeDependencyFingerprintSetV1,
-    VerifiedStrongTypeDependencyFingerprintV1, VerifiedStrongTypeFingerprintSetV1,
-    compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
+    VerifiedStrongInitializationFingerprintSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
+    VerifiedStrongTypeDependencyFingerprintSetV1, VerifiedStrongTypeDependencyFingerprintV1,
+    VerifiedStrongTypeFingerprintSetV1, compute_strong_callable_body_object_fingerprints_v1,
+    compute_strong_callable_fingerprints_v1,
     compute_strong_callable_registration_object_fingerprints_v1,
     compute_strong_immortal_object_definition_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1,
     compute_strong_immortal_object_registration_object_fingerprints_v1,
+    compute_strong_initialization_definition_fingerprints_v1,
+    compute_strong_initialization_fingerprints_v1,
+    compute_strong_initialization_registration_object_fingerprints_v1,
     compute_strong_safepoint_fingerprints_v1,
     compute_strong_static_storage_definition_fingerprints_v1,
     compute_strong_static_storage_fingerprints_v1,
@@ -19,8 +23,9 @@ use crate::link_object::{
     compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
     compute_strong_type_registration_object_fingerprints_v1,
     verify_scoop_lir_digest_patch_sites_v1, verify_strong_callable_registrations_v1,
-    verify_strong_immortal_object_registrations_v1, verify_strong_safepoint_registrations_v1,
-    verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
+    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
+    verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
+    verify_strong_type_registrations_v1,
 };
 use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
 
@@ -31,7 +36,7 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         fixture.member,
         &fixture.object_bytes,
     )];
-    let (safepoints, callables, types, immortal_objects, static_storages) =
+    let (safepoints, callables, types, immortal_objects, static_storages, initializations) =
         verified_fingerprints(&fixture, &objects);
 
     let patched = patch_strong_registration_fingerprints_v1(
@@ -40,6 +45,7 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         types,
         immortal_objects,
         static_storages,
+        initializations,
         &objects,
     )
     .unwrap();
@@ -277,7 +283,7 @@ fn rejects_provisional_bytes_changed_after_fingerprint_computation() {
         fixture.member,
         &fixture.object_bytes,
     )];
-    let (safepoints, callables, types, immortal_objects, static_storages) =
+    let (safepoints, callables, types, immortal_objects, static_storages, initializations) =
         verified_fingerprints(&fixture, &objects);
     let last = fixture.object_bytes.len() - 1;
     fixture.object_bytes[last] ^= 1;
@@ -293,6 +299,7 @@ fn rejects_provisional_bytes_changed_after_fingerprint_computation() {
             types,
             immortal_objects,
             static_storages,
+            initializations,
             &changed,
         ),
         Err(StrongRegistrationPatchError::ObjectValidation(
@@ -351,7 +358,7 @@ fn rejects_fingerprint_proofs_from_different_digest_graphs() {
     )
     .unwrap();
     let callable_registrations = verify_strong_callable_registrations_v1(
-        changed_patch_sites,
+        changed_patch_sites.clone(),
         fixture.callable_registration_plan.clone(),
         &objects,
     )
@@ -368,6 +375,12 @@ fn rejects_fingerprint_proofs_from_different_digest_graphs() {
         &objects,
     )
     .unwrap();
+    let initializations = verified_initialization_fingerprints(
+        &fixture,
+        &objects,
+        changed_patch_sites,
+        &body_objects,
+    );
     let callables = compute_strong_callable_fingerprints_v1(body_objects).unwrap();
     let immortal_objects = verified_immortal_object_fingerprints(&fixture, &objects);
     let static_storages = verified_static_storage_fingerprints(&fixture, &objects);
@@ -379,6 +392,7 @@ fn rejects_fingerprint_proofs_from_different_digest_graphs() {
             types,
             immortal_objects,
             static_storages,
+            initializations,
             &objects,
         ),
         Err(StrongRegistrationPatchError::ProofMismatch)
@@ -394,6 +408,7 @@ fn verified_fingerprints(
     VerifiedStrongTypeFingerprintSetV1,
     VerifiedStrongImmortalObjectFingerprintSetV1,
     VerifiedStrongStaticStorageFingerprintSetV1,
+    VerifiedStrongInitializationFingerprintSetV1,
 ) {
     let stackmaps = fixture.verified_stackmaps();
     let patch_sites = fixture.verified_patch_sites();
@@ -424,6 +439,12 @@ fn verified_fingerprints(
         objects,
     )
     .unwrap();
+    let initializations = verified_initialization_fingerprints(
+        fixture,
+        objects,
+        fixture.verified_patch_sites(),
+        &body_objects,
+    );
     let callables = compute_strong_callable_fingerprints_v1(body_objects).unwrap();
     let types = verified_type_fingerprints(fixture, objects);
     let immortal_objects = verified_immortal_object_fingerprints(fixture, objects);
@@ -434,7 +455,29 @@ fn verified_fingerprints(
         types,
         immortal_objects,
         static_storages,
+        initializations,
     )
+}
+
+fn verified_initialization_fingerprints(
+    fixture: &Fixture,
+    objects: &[ScoopLirObjectCandidateV1<'_>],
+    patch_sites: crate::link_object::VerifiedScoopLirDigestPatchSiteSetV1,
+    callable_bodies: &crate::link_object::VerifiedStrongCallableBodyObjectFingerprintSetV1,
+) -> VerifiedStrongInitializationFingerprintSetV1 {
+    let registrations = verify_strong_initialization_registrations_v1(
+        patch_sites,
+        fixture.initialization_registration_plan.clone(),
+        objects,
+    )
+    .unwrap();
+    let registration_objects =
+        compute_strong_initialization_registration_object_fingerprints_v1(registrations, objects)
+            .unwrap();
+    let definitions =
+        compute_strong_initialization_definition_fingerprints_v1(registration_objects, objects)
+            .unwrap();
+    compute_strong_initialization_fingerprints_v1(definitions, callable_bodies).unwrap()
 }
 
 fn verified_static_storage_fingerprints(

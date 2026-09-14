@@ -24,6 +24,7 @@ use scoop_lir::{
     SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet,
     StaticStorageIdentity, StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
     StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectSemanticPlanSetV1,
+    StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanSetV1,
     StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanSetV1,
     StrongSafepointSemanticPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
     StrongStaticStorageSemanticPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs, Terminator,
@@ -43,6 +44,7 @@ pub(crate) struct SemanticInputs {
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
     pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
     pub(crate) static_storage_registration_plan: StrongStaticStorageRegistrationPlanSetV1,
+    pub(crate) initialization_registration_plan: StrongInitializationUnitRegistrationPlanSetV1,
     pub(crate) safepoint_ids: Vec<u64>,
 }
 
@@ -52,6 +54,8 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
     let immortal_semantics = StrongImmortalObjectSemanticPlanSetV1::from_module(&module).unwrap();
     let static_storage_semantics =
         StrongStaticStorageSemanticPlanSetV1::from_module(&module).unwrap();
+    let initialization_semantics =
+        StrongInitializationUnitSemanticPlanSetV1::from_module(&module).unwrap();
     let (
         foundation,
         registrations,
@@ -89,6 +93,13 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         &foundation,
         &identities,
         &static_storage_semantics,
+        &digest_plan,
+    )
+    .unwrap();
+    let initialization_registration_plan = StrongInitializationUnitRegistrationPlanSetV1::new(
+        &foundation,
+        &identities,
+        &initialization_semantics,
         &digest_plan,
     )
     .unwrap();
@@ -138,6 +149,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         type_registration_plan,
         immortal_registration_plan,
         static_storage_registration_plan,
+        initialization_registration_plan,
         safepoint_ids,
     }
 }
