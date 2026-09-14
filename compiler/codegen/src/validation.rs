@@ -114,6 +114,15 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
                 descriptor.identity.exact_type()
             )));
         }
+        if !descriptor
+            .instance_layout
+            .is_managed_instance_of(descriptor.identity.exact_type(), module.meta.target_profile)
+        {
+            return Err(CodegenError(format!(
+                "type descriptor `{}` carries an instance layout for another exact type, target, representation, or scan role",
+                descriptor.diagnostic_name
+            )));
+        }
         if id == string {
             if descriptor.identity.runtime_abi_symbol()
                 != Some(scoop_lir::RuntimeAbiSymbolV1::CoreStringTypeDescriptor)

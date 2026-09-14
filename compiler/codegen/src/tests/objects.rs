@@ -99,6 +99,10 @@ pub(super) fn classes_module() -> Module {
     let describable = meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "Describable".to_string(),
         identity: type_descriptor_identity("Describable"),
+        instance_layout: layout_identity(
+            "Describable",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
         instance_shape: TypeInstanceShapeV1::abstract_ref(),
         parent: None,
         vtable: vtable("Describable", vec![]),
@@ -107,6 +111,10 @@ pub(super) fn classes_module() -> Module {
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "Shape".to_string(),
         identity: type_descriptor_identity("Shape"),
+        instance_layout: layout_identity(
+            "Shape",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
         instance_shape: TypeInstanceShapeV1::fixed_object(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             24,
@@ -126,6 +134,10 @@ pub(super) fn classes_module() -> Module {
     meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "Point".to_string(),
         identity: type_descriptor_identity("Point"),
+        instance_layout: layout_identity(
+            "Point",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
         instance_shape: TypeInstanceShapeV1::fixed_object(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             32,
@@ -196,6 +208,10 @@ pub(super) fn heap_module() -> Module {
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "Point".to_string(),
         identity: type_descriptor_identity("Point"),
+        instance_layout: layout_identity(
+            "Point",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
         instance_shape: TypeInstanceShapeV1::fixed_object(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             32,

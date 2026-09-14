@@ -230,6 +230,18 @@ fn type_descriptors_carry_tables_parents_and_itables() {
     let (base_ref, base_td) = descriptor_by_name("Base");
     let (_, derived_td) = descriptor_by_name("Derived");
     let (_, string_td) = descriptor_by_name("String");
+    for (descriptor, exact_type) in [
+        (i_td, interface_exact),
+        (base_td, base_exact),
+        (derived_td, derived_exact),
+        (string_td, string_td.identity.exact_type()),
+    ] {
+        assert!(
+            descriptor
+                .instance_layout
+                .is_managed_instance_of(exact_type, lir::LirTargetProfile::DARWIN_AARCH64,)
+        );
+    }
     assert_eq!(
         i_td.identity.symbol_request().unwrap().key(),
         scoop_identity::PersistentSymbolKey::TypeDescriptor(interface_exact)

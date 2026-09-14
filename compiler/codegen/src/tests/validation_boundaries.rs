@@ -613,6 +613,10 @@ fn runtime_abi_type_descriptor_symbol_is_reserved_for_core_string() {
     module.meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "DuplicateString".to_string(),
         identity,
+        instance_layout: layout_identity(
+            "String",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
         instance_shape: TypeInstanceShapeV1::inline_bytes(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         )
@@ -639,6 +643,27 @@ fn type_descriptor_validation_rejects_an_empty_diagnostic_name() {
         .clear();
 
     assert_module_validation_error(&module, "has an empty canonical diagnostic name");
+}
+
+#[test]
+fn type_descriptor_validation_rejects_a_foreign_instance_layout() {
+    let mut module = values_module();
+    let descriptor = module
+        .meta
+        .type_descriptors
+        .iter_mut()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1;
+    descriptor.instance_layout = layout_identity(
+        "NotString",
+        scoop_identity::RepresentationRole::ManagedObject,
+    );
+
+    assert_module_validation_error(
+        &module,
+        "carries an instance layout for another exact type, target, representation, or scan role",
+    );
 }
 
 #[test]

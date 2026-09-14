@@ -67,6 +67,10 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "Holder".to_string(),
         identity: type_descriptor_identity("Holder"),
+        instance_layout: layout_identity(
+            "Holder",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
         instance_shape: TypeInstanceShapeV1::fixed_object(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             56,

@@ -333,6 +333,11 @@ pub struct TypeDescriptor {
     /// the full exact-type relation; neither infers it from arena position or
     /// descriptor category.
     pub identity: TypeDescriptorIdentity,
+    /// Persistent identity of the managed-instance layout promised by this
+    /// descriptor. This remains explicit even for `AbstractRef`, whose shape
+    /// has no allocatable byte extent, so registration production never has
+    /// to recover the relation from an unrelated layout arena.
+    pub instance_layout: LayoutIdentity,
     pub instance_shape: TypeInstanceShapeV1,
     /// Classes reference their base descriptor; root/reference-key entities
     /// have no parent. The absence is emitted as a metadata-provenance null.
@@ -742,6 +747,19 @@ impl LayoutIdentity {
             scoop_identity::ScanRole::ArrayElement,
             root,
         )
+    }
+
+    pub fn is_managed_instance_of(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> bool {
+        self.layout.key().exact_type() == exact_type
+            && self.layout.key().target_profile() == &target_profile.wire_id()
+            && self.layout.key().representation()
+                == scoop_identity::RepresentationRole::ManagedObject
+            && self.scan.key().layout() == self.layout.id()
+            && self.scan.key().role() == scoop_identity::ScanRole::ManagedObject
     }
 
     pub const fn layout_record(

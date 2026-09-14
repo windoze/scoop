@@ -18,6 +18,13 @@ impl CanonicalLirFoundation {
             .chain(module.meta.arrays.iter().map(|(_, array)| &array.identity))
             .chain(
                 module
+                    .meta
+                    .type_descriptors
+                    .iter()
+                    .map(|(_, descriptor)| &descriptor.instance_layout),
+            )
+            .chain(
+                module
                     .globals
                     .iter()
                     .filter_map(|(_, global)| match &global.init {
@@ -531,6 +538,12 @@ mod tests {
         let interface = descriptors.alloc(TypeDescriptor {
             diagnostic_name: "Interface".to_string(),
             identity: interface_identity,
+            instance_layout: LayoutIdentity::managed_object(
+                interface_exact,
+                LirTargetProfile::DARWIN_AARCH64,
+                MaterializationRoot::cone_owned(),
+            )
+            .unwrap(),
             instance_shape: TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable: interface_vtable,
@@ -538,7 +551,7 @@ mod tests {
         });
         let owner_identity = TypeDescriptorIdentity::new(
             RuntimeTypeMappingRecord::new(owner_exact).unwrap(),
-            owner_root,
+            owner_root.clone(),
         )
         .unwrap();
         let owner_vtable = VtableRecord::new(&owner_identity, Vec::new()).unwrap();
@@ -554,6 +567,12 @@ mod tests {
         descriptors.alloc(TypeDescriptor {
             diagnostic_name: "Owner".to_string(),
             identity: owner_identity,
+            instance_layout: LayoutIdentity::managed_object(
+                owner_exact,
+                LirTargetProfile::DARWIN_AARCH64,
+                owner_root,
+            )
+            .unwrap(),
             instance_shape: TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable: owner_vtable,

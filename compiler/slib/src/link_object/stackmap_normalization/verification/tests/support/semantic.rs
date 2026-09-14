@@ -1075,6 +1075,7 @@ fn metadata(corruption: Corruption) -> LirMeta {
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "String".to_string(),
         identity,
+        instance_layout: layouts[string_layout].identity.clone(),
         instance_shape: TypeInstanceShapeV1::inline_bytes(LirTargetProfile::DARWIN_AARCH64)
             .unwrap(),
         parent: None,

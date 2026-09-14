@@ -89,13 +89,20 @@ pub(crate) fn type_descriptors(
         let ty = mir::Type::Interface(interface);
         let runtime_type = runtime_type(module, &ty);
         let root = identity_roots.for_type(&ty);
-        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
+        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
             .expect("validated interface exact type must derive descriptor identities");
+        let instance_layout = lir::LayoutIdentity::managed_object(
+            runtime_type.exact_type(),
+            context.target_profile(),
+            root,
+        )
+        .expect("validated interface exact type must derive its instance layout identity");
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated interface exact type must derive a vtable identity");
         let id = descriptors.alloc(lir::TypeDescriptor {
             diagnostic_name: def.name.clone(),
             identity,
+            instance_layout,
             instance_shape: lir::TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable,
@@ -120,13 +127,20 @@ pub(crate) fn type_descriptors(
         let runtime_type = lir::RuntimeTypeMappingRecord::new(exact_type)
             .expect("validated function exact type must derive a nonzero runtime id");
         let root = identity_roots.for_type(&ty);
-        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
+        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
             .expect("validated function exact type must derive descriptor identities");
+        let instance_layout = lir::LayoutIdentity::managed_object(
+            runtime_type.exact_type(),
+            context.target_profile(),
+            root,
+        )
+        .expect("validated function exact type must derive its instance layout identity");
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated function exact type must derive a vtable identity");
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             diagnostic_name: name,
             identity,
+            instance_layout,
             instance_shape: lir::TypeInstanceShapeV1::abstract_ref(),
             parent: None,
             vtable,
@@ -166,8 +180,14 @@ pub(crate) fn type_descriptors(
         let runtime_type =
             generated_runtime_type(module, mir::GeneratedExactTypeLocation::Closure(closure));
         let root = identity_roots.for_generated(mir::GeneratedExactTypeLocation::Closure(closure));
-        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root)
+        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
             .expect("validated closure exact type must derive descriptor identities");
+        let instance_layout = lir::LayoutIdentity::managed_object(
+            runtime_type.exact_type(),
+            context.target_profile(),
+            root,
+        )
+        .expect("validated closure exact type must derive its instance layout identity");
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated closure exact type must derive a vtable identity");
         let itables = def
@@ -189,6 +209,7 @@ pub(crate) fn type_descriptors(
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
             diagnostic_name: def.name.clone(),
             identity,
+            instance_layout,
             instance_shape: lir::TypeInstanceShapeV1::fixed_object(
                 context.target_profile(),
                 size,
@@ -239,9 +260,15 @@ pub(crate) fn class_type_descriptor(
     ) {
         lir::TypeDescriptorIdentity::runtime_core_string(runtime_type)
     } else {
-        lir::TypeDescriptorIdentity::new(runtime_type, root)
+        lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
             .expect("validated class exact type must derive descriptor identities")
     };
+    let instance_layout = lir::LayoutIdentity::managed_object(
+        runtime_type.exact_type(),
+        context.target_profile(),
+        root,
+    )
+    .expect("validated class exact type must derive its instance layout identity");
     let instance_shape = match &def.representation {
         mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
             lir::TypeInstanceShapeV1::inline_bytes(context.target_profile())
@@ -318,6 +345,7 @@ pub(crate) fn class_type_descriptor(
     lir::TypeDescriptor {
         diagnostic_name: def.name.clone(),
         identity,
+        instance_layout,
         instance_shape,
         parent: def.base_class().map(|base| refs.classes[&base]),
         vtable,

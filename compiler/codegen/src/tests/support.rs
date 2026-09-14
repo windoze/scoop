@@ -756,6 +756,7 @@ pub(super) fn string_metadata() -> LirMeta {
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: "String".to_string(),
         identity: scoop_lir::TypeDescriptorIdentity::runtime_core_string(runtime_type("String")),
+        instance_layout: layouts[string_layout].identity.clone(),
         instance_shape: TypeInstanceShapeV1::inline_bytes(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         )
@@ -794,6 +795,7 @@ pub(super) fn array_type(
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: name.to_string(),
         identity: type_descriptor_identity(name),
+        instance_layout: layout_identity(name, scoop_identity::RepresentationRole::ManagedObject),
         instance_shape: TypeInstanceShapeV1::inline_array(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             if element_size == 0 {
