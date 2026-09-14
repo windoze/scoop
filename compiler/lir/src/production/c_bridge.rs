@@ -6,6 +6,9 @@ use crate::{
     GeneratedBridgePlanSetV1, GeneratedCSourceTemplateFingerprint,
 };
 
+mod wire;
+pub use wire::{CBridgeProductionValidationError, DecodedCBridgeProductionSetV1};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CBridgeProductionSetV1 {
     NotUsed,
@@ -109,7 +112,7 @@ mod tests {
         NativeExternalSymbolKey, NativeLibraryBinding, PersistentNativeExternalSymbolId,
         SourceNativeSymbol,
     };
-    use scoop_wire::encode;
+    use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
     use super::*;
     use crate::{
@@ -142,6 +145,51 @@ mod tests {
             hex(&encode(&production).unwrap()),
             "a6000201a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e6703010258200bd65078dfefea47cdc2cd6d477065dfc2d51ff7bbecf5edfcec09bc6aa32a53035820b75415d9bd34b79931f79031154e81403aa5e0606904b8cd786a3428bf0e91d604582003f639bc4c8be95a9e47cdc620948ee8ca8c7bc62d472ae54d190c68803a93ee0581582065a6a97003171db803e4000a76035475b756279dcc38e3ea75a0bff21c2652ac"
         );
+    }
+
+    #[test]
+    fn decoded_production_requires_the_rebuilt_projection() {
+        for production in [
+            CBridgeProductionSetV1::NotUsed,
+            CBridgeProductionSetV1::Used(CBridgeProductionV1 {
+                profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
+                profile_fingerprint: profile().fingerprint(),
+                source_template_fingerprint: profile().contract().source_template_fingerprint(),
+                canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),
+                units: vec![unit_id()],
+            }),
+        ] {
+            let bytes = encode(&production).unwrap();
+            let decoded =
+                decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes, DecodeLimits::default())
+                    .unwrap();
+            assert_eq!(decoded.validate(&production).unwrap(), production);
+        }
+
+        let bytes = encode(&CBridgeProductionSetV1::NotUsed).unwrap();
+        let decoded =
+            decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes, DecodeLimits::default())
+                .unwrap();
+        assert!(matches!(
+            decoded.validate(&CBridgeProductionSetV1::Used(CBridgeProductionV1 {
+                profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
+                profile_fingerprint: profile().fingerprint(),
+                source_template_fingerprint: profile().contract().source_template_fingerprint(),
+                canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),
+                units: vec![unit_id()],
+            })),
+            Err(CBridgeProductionValidationError::ProjectionMismatch)
+        ));
+    }
+
+    #[test]
+    fn decoded_production_rejects_unknown_and_extended_sum_shapes() {
+        for bytes in [vec![0xa1, 0x00, 0x03], vec![0xa2, 0x00, 0x01, 0x01, 0x00]] {
+            assert!(
+                decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes, DecodeLimits::default())
+                    .is_err()
+            );
+        }
     }
 
     fn profile() -> CBridgeToolchainProfileV1 {
