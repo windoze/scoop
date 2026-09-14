@@ -36,6 +36,18 @@ fn verifies_exact_type_record_descriptor_relocation_and_three_patch_sites() {
         168
     );
     assert_eq!(registration.descriptor_relocation().width_bytes(), 8);
+    assert_eq!(registration.descriptor().member(), fixture.member);
+    assert_eq!(
+        registration.descriptor().diagnostic_size(),
+        u64::try_from(plan.semantic().diagnostic_name().len()).unwrap()
+    );
+    assert_eq!(
+        registration
+            .descriptor()
+            .diagnostic_relocation()
+            .offset_within_atom(),
+        112
+    );
     assert_eq!(
         registration
             .registration_definition_patch()
@@ -49,6 +61,53 @@ fn verifies_exact_type_record_descriptor_relocation_and_three_patch_sites() {
     assert_eq!(
         registration.layout_fingerprint_patch().checked_offset(),
         registration.checked_offset() + 208
+    );
+}
+
+#[test]
+fn rejects_descriptor_diagnostic_bytes_that_disagree_with_lir() {
+    let fixture = Fixture::new(Corruption::TypeDescriptorDiagnosticBytes);
+    let exact_type = fixture.type_registration_plan.registrations()[0].exact_type();
+    let objects = [ScoopLirObjectCandidateV1::new(
+        fixture.member,
+        &fixture.object_bytes,
+    )];
+
+    assert!(matches!(
+        verify_strong_type_registrations_v1(
+            fixture.verified_patch_sites(),
+            fixture.type_registration_plan.clone(),
+            &objects,
+        ),
+        Err(StrongTypeRegistrationValidationError::DescriptorDiagnosticByteMismatch {
+            exact_type: actual,
+            offset_within_atom: 0,
+            ..
+        }) if actual == exact_type
+    ));
+}
+
+#[test]
+fn rejects_descriptor_diagnostic_relocation_to_a_strong_definition() {
+    let fixture = Fixture::new(Corruption::TypeDescriptorDiagnosticRelocationTarget);
+    let exact_type = fixture.type_registration_plan.registrations()[0].exact_type();
+    let objects = [ScoopLirObjectCandidateV1::new(
+        fixture.member,
+        &fixture.object_bytes,
+    )];
+
+    assert_eq!(
+        verify_strong_type_registrations_v1(
+            fixture.verified_patch_sites(),
+            fixture.type_registration_plan.clone(),
+            &objects,
+        ),
+        Err(
+            StrongTypeRegistrationValidationError::DescriptorDiagnosticRelocationMismatch {
+                exact_type,
+                kind: TypeDescriptorDiagnosticRelocationFailureV1::TargetKind,
+            }
+        )
     );
 }
 

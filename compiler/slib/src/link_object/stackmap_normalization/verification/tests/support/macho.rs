@@ -61,6 +61,8 @@ pub(crate) fn object_bytes(
         | Corruption::CallableEntryRelocationTarget
         | Corruption::TypeRegistrationMagic
         | Corruption::TypeDescriptorRelocationTarget
+        | Corruption::TypeDescriptorDiagnosticBytes
+        | Corruption::TypeDescriptorDiagnosticRelocationTarget
         | Corruption::ImmortalRegistrationMagic
         | Corruption::ImmortalObjectLength
         | Corruption::ImmortalObjectDescriptorRelocationTarget
@@ -184,7 +186,7 @@ fn macho_object(
     let relocation_offset = writable_offset + writable_size;
     let registration_relocation_count = u32::try_from(callable_registrations.registrations().len())
         .unwrap()
-        + u32::try_from(type_registrations.registrations().len()).unwrap()
+        + 2 * u32::try_from(type_registrations.registrations().len()).unwrap()
         + 3 * u32::try_from(immortal_registrations.registrations().len()).unwrap()
         + static_storage_registrations
             .registrations()
@@ -253,7 +255,7 @@ fn macho_object(
     let undefined_symbol_count = external_type_symbols
         .as_ref()
         .map_or(0, |symbols| symbols.len());
-    let local_symbol_names = static_storage_registrations
+    let static_local_symbol_names = static_storage_registrations
         .registrations()
         .iter()
         .enumerate()
@@ -263,6 +265,17 @@ fn macho_object(
                 format!("static-relocations-{index}").into_bytes(),
             ]
         })
+        .collect::<Vec<_>>();
+    let static_local_symbol_count = static_local_symbol_names.len();
+    let local_symbol_names = static_local_symbol_names
+        .into_iter()
+        .chain(
+            type_registrations
+                .registrations()
+                .iter()
+                .enumerate()
+                .map(|(index, _)| format!("type-diagnostic-{index}").into_bytes()),
+        )
         .collect::<Vec<_>>();
     let local_symbol_count = local_symbol_names.len();
     let symbol_bytes =
@@ -397,12 +410,25 @@ fn macho_object(
     for registration in callable_registrations.registrations() {
         push_callable_registration(&mut bytes, *registration);
     }
-    bytes.extend(std::iter::repeat_n(
-        0,
-        type_registrations.registrations().len() * usize::try_from(TYPE_DESCRIPTOR_SIZE).unwrap(),
-    ));
+    for registration in type_registrations.registrations() {
+        push_type_descriptor(&mut bytes, registration);
+    }
     for registration in type_registrations.registrations() {
         bytes.extend_from_slice(registration.semantic().diagnostic_name().as_bytes());
+    }
+    if matches!(corruption, Corruption::TypeDescriptorDiagnosticBytes) {
+        let diagnostic_offset = usize::try_from(
+            type_diagnostic_base(
+                stackmap.len(),
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ) - TEXT_SIZE
+                - u64::try_from(stackmap.len()).unwrap(),
+        )
+        .unwrap()
+            + usize::try_from(registration_offset).unwrap();
+        bytes[diagnostic_offset] ^= 1;
     }
     align_zero(&mut bytes, 8);
     bytes.extend(std::iter::repeat_n(
@@ -586,6 +612,46 @@ fn macho_object(
                 &mut bytes,
                 planned_index(relocation_target) | 3 << 25 | 1 << 27,
             );
+        }
+        for (index, registration) in type_registrations.registrations().iter().enumerate() {
+            let descriptor_start = type_descriptor_start(
+                registration.descriptor_definition_plan(),
+                stackmap.len(),
+                registrations,
+                callable_registrations,
+                type_registrations,
+            );
+            push_u32(
+                &mut bytes,
+                u32::try_from(
+                    descriptor_start - TEXT_SIZE - u64::try_from(stackmap.len()).unwrap() + 112,
+                )
+                .unwrap(),
+            );
+            let diagnostic_target = if matches!(
+                corruption,
+                Corruption::TypeDescriptorDiagnosticRelocationTarget
+            ) && index == 0
+            {
+                symbols
+                    .symbols()
+                    .iter()
+                    .position(|symbol| {
+                        matches!(
+                            symbol.role(),
+                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                definition_role: StrongDefinitionRole::TypeDescriptor,
+                                definition,
+                                ..
+                            } if definition == registration.descriptor_definition_plan()
+                        )
+                    })
+                    .map(planned_index)
+                    .unwrap()
+            } else {
+                u32::try_from(static_local_symbol_count + index).unwrap()
+            };
+            push_u32(&mut bytes, diagnostic_target | 3 << 25 | 1 << 27);
         }
         for (index, registration) in type_registrations.registrations().iter().enumerate() {
             let type_start = type_registration_start(
@@ -968,7 +1034,9 @@ fn macho_object(
         }
         storage_base += registration.semantic().allocation_extent();
     }
-    for ((string_index, registration), local_kind) in local_string_indexes
+    let (static_local_string_indexes, diagnostic_local_string_indexes) =
+        local_string_indexes.split_at(static_local_symbol_count);
+    for ((string_index, registration), local_kind) in static_local_string_indexes
         .iter()
         .zip(
             static_storage_registrations
@@ -1004,6 +1072,25 @@ fn macho_object(
         bytes.push(3);
         push_u16(&mut bytes, 0);
         push_u64(&mut bytes, value);
+    }
+    for (string_index, registration) in diagnostic_local_string_indexes
+        .iter()
+        .zip(type_registrations.registrations())
+    {
+        push_u32(&mut bytes, *string_index);
+        bytes.push(macho::N_SECT);
+        bytes.push(3);
+        push_u16(&mut bytes, 0);
+        push_u64(
+            &mut bytes,
+            type_diagnostic_start(
+                registration.descriptor_definition_plan(),
+                stackmap.len(),
+                registrations,
+                callable_registrations,
+                type_registrations,
+            ),
+        );
     }
     for (symbol, string_index) in symbols.symbols().iter().zip(string_indexes) {
         let (section, value) = symbol_location(
@@ -2524,6 +2611,33 @@ fn push_type_registration(bytes: &mut Vec<u8>, registration: &StrongTypeRegistra
     push_u64(bytes, 0);
     bytes.extend_from_slice(&[0; 32]);
     bytes.extend_from_slice(&[0; 32]);
+}
+
+fn push_type_descriptor(bytes: &mut Vec<u8>, registration: &StrongTypeRegistrationPlanV1) {
+    let shape = registration.semantic().instance_shape();
+    push_u64(bytes, registration.runtime_type().get());
+    push_u32(bytes, shape.instance_kind().tag());
+    push_u32(bytes, shape.inline_storage_kind().tag());
+    push_u64(bytes, shape.minimum_size());
+    push_u64(bytes, shape.instance_alignment());
+    push_u64(bytes, shape.inline_offset());
+    push_u64(bytes, shape.inline_size());
+    push_u64(bytes, shape.inline_stride());
+    push_u64(bytes, shape.inline_alignment());
+    push_u64(bytes, 0);
+    push_u64(bytes, 0);
+    push_u64(bytes, 0);
+    push_u64(bytes, 0);
+    push_u64(bytes, 0);
+    push_u64(
+        bytes,
+        u64::try_from(registration.semantic().itables().len()).unwrap(),
+    );
+    push_u64(bytes, 0);
+    push_u64(
+        bytes,
+        u64::try_from(registration.semantic().diagnostic_name().len()).unwrap(),
+    );
 }
 
 fn push_immortal_registration(

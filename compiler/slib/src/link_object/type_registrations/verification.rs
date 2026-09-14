@@ -4,14 +4,15 @@ use super::digest::validate_digest_graph;
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::record::{DESCRIPTOR_SIZE, validate_record_bytes};
 use super::{
-    StrongTypeRegistrationValidationError, TypeRegistrationPatchFailureV1,
-    TypeRegistrationRelocationFailureV1,
+    StrongTypeRegistrationValidationError, TypeDescriptorDiagnosticRelocationFailureV1,
+    TypeRegistrationPatchFailureV1, TypeRegistrationRelocationFailureV1,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     ScoopLirObjectCandidateV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
-    VerifiedDarwinArm64RelocationFormV1, VerifiedMaterializedPatchSiteV1,
+    VerifiedDarwinArm64RelocationFormV1, VerifiedDarwinArm64RelocationShapeV1,
+    VerifiedMaterializedPatchSiteV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
     VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use scoop_identity::{
@@ -25,6 +26,44 @@ const DESCRIPTOR_POINTER_OFFSET: u64 = 168;
 const DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET: u64 = 176;
 const LAYOUT_FINGERPRINT_OFFSET: u64 = 208;
 const DIGEST_WIDTH: u8 = 32;
+const TYPE_DESCRIPTOR_SIZE: u64 = 128;
+const TYPE_DESCRIPTOR_DIAGNOSTIC_POINTER_OFFSET: u64 = 112;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerifiedStrongTypeDescriptorV1 {
+    member: SlibMemberId,
+    primary_symbol_table_index: u32,
+    checked_offset: u64,
+    diagnostic_checked_offset: u64,
+    diagnostic_size: u64,
+    diagnostic_relocation: VerifiedRelocationUseV1,
+}
+
+impl VerifiedStrongTypeDescriptorV1 {
+    pub const fn member(&self) -> SlibMemberId {
+        self.member
+    }
+
+    pub const fn primary_symbol_table_index(&self) -> u32 {
+        self.primary_symbol_table_index
+    }
+
+    pub const fn checked_offset(&self) -> u64 {
+        self.checked_offset
+    }
+
+    pub const fn diagnostic_checked_offset(&self) -> u64 {
+        self.diagnostic_checked_offset
+    }
+
+    pub const fn diagnostic_size(&self) -> u64 {
+        self.diagnostic_size
+    }
+
+    pub const fn diagnostic_relocation(&self) -> &VerifiedRelocationUseV1 {
+        &self.diagnostic_relocation
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongTypeRegistrationV1 {
@@ -33,6 +72,7 @@ pub struct VerifiedStrongTypeRegistrationV1 {
     primary_symbol_table_index: u32,
     checked_offset: u64,
     descriptor_relocation: StrongRelocationBindingV1,
+    descriptor: VerifiedStrongTypeDescriptorV1,
     registration_definition_patch: VerifiedMaterializedPatchSiteV1,
     descriptor_definition_patch: VerifiedMaterializedPatchSiteV1,
     layout_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
@@ -57,6 +97,10 @@ impl VerifiedStrongTypeRegistrationV1 {
 
     pub const fn descriptor_relocation(&self) -> &StrongRelocationBindingV1 {
         &self.descriptor_relocation
+    }
+
+    pub const fn descriptor(&self) -> &VerifiedStrongTypeDescriptorV1 {
+        &self.descriptor
     }
 
     pub const fn registration_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
@@ -184,6 +228,7 @@ fn verify_registration(
     }
 
     verify_layout_definition(builtins, plan)?;
+    let descriptor = verify_descriptor(patch_sites, objects, plan)?;
     let descriptor_relocation = verify_descriptor_relocation(patch_sites, verified_member, plan)?;
     let registration_definition_patch = require_patch(
         patch_sites,
@@ -224,10 +269,229 @@ fn verify_registration(
         primary_symbol_table_index: definition.primary_symbol_table_index(),
         checked_offset: file_start,
         descriptor_relocation,
+        descriptor,
         registration_definition_patch,
         descriptor_definition_patch,
         layout_fingerprint_patch,
     })
+}
+
+fn verify_descriptor(
+    patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
+    objects: &BTreeMap<SlibMemberId, &[u8]>,
+    plan: &StrongTypeRegistrationPlanV1,
+) -> Result<VerifiedStrongTypeDescriptorV1, StrongTypeRegistrationValidationError> {
+    let member = required_scoop_member(
+        patch_sites.builtins(),
+        plan,
+        plan.descriptor_definition_plan(),
+    )?;
+    let verified = verified_member(patch_sites.builtins(), member)?;
+    let definition = verified
+        .definitions()
+        .definition(plan.descriptor_definition_plan())
+        .ok_or(
+            StrongTypeRegistrationValidationError::MissingVerifiedDefinition {
+                exact_type: plan.exact_type(),
+                definition: plan.descriptor_definition_plan(),
+            },
+        )?;
+    if definition.primary_atom() != plan.descriptor_primary_atom() {
+        return Err(
+            StrongTypeRegistrationValidationError::DescriptorPrimaryAtomMismatch {
+                exact_type: plan.exact_type(),
+                expected: plan.descriptor_primary_atom(),
+                actual: definition.primary_atom(),
+            },
+        );
+    }
+    let primary = definition
+        .atoms()
+        .iter()
+        .find(|atom| {
+            atom.atom() == plan.descriptor_primary_atom()
+                && atom.atom_role() == DefinitionAtomRole::Primary
+        })
+        .copied()
+        .ok_or(
+            StrongTypeRegistrationValidationError::MissingDescriptorPrimaryAtom {
+                exact_type: plan.exact_type(),
+                atom: plan.descriptor_primary_atom(),
+            },
+        )?;
+    let (primary_section, primary_start, primary_end) = atom_file_range(verified, primary)
+        .map_err(|kind| {
+            StrongTypeRegistrationValidationError::InvalidDescriptorPrimaryAtomFileRange {
+                exact_type: plan.exact_type(),
+                atom: plan.descriptor_primary_atom(),
+                kind,
+            }
+        })?;
+    if primary_section != BuiltinObjectSectionRoleV1::ReadOnlyData {
+        return Err(
+            StrongTypeRegistrationValidationError::DescriptorPrimaryAtomSectionMismatch {
+                exact_type: plan.exact_type(),
+            },
+        );
+    }
+    let primary_size = primary_end - primary_start;
+    if primary_size != TYPE_DESCRIPTOR_SIZE {
+        return Err(
+            StrongTypeRegistrationValidationError::DescriptorPrimaryAtomSizeMismatch {
+                exact_type: plan.exact_type(),
+                actual: primary_size,
+            },
+        );
+    }
+
+    let diagnostic = definition
+        .atoms()
+        .iter()
+        .find(|atom| {
+            atom.atom() == plan.diagnostic_atom()
+                && atom.atom_role() == DefinitionAtomRole::AddressTakenConstant
+        })
+        .copied()
+        .ok_or(
+            StrongTypeRegistrationValidationError::MissingDescriptorDiagnosticAtom {
+                exact_type: plan.exact_type(),
+                atom: plan.diagnostic_atom(),
+            },
+        )?;
+    let (diagnostic_section, diagnostic_start, diagnostic_end) =
+        atom_file_range(verified, diagnostic).map_err(|kind| {
+            StrongTypeRegistrationValidationError::InvalidDescriptorDiagnosticAtomFileRange {
+                exact_type: plan.exact_type(),
+                atom: plan.diagnostic_atom(),
+                kind,
+            }
+        })?;
+    if diagnostic_section != BuiltinObjectSectionRoleV1::ReadOnlyData {
+        return Err(
+            StrongTypeRegistrationValidationError::DescriptorDiagnosticAtomSectionMismatch {
+                exact_type: plan.exact_type(),
+            },
+        );
+    }
+    let expected_diagnostic = plan.semantic().diagnostic_name().as_bytes();
+    let diagnostic_size = diagnostic_end - diagnostic_start;
+    let expected_size =
+        u64::try_from(expected_diagnostic.len()).expect("diagnostic length fits u64");
+    if diagnostic_size != expected_size {
+        return Err(
+            StrongTypeRegistrationValidationError::DescriptorDiagnosticAtomSizeMismatch {
+                exact_type: plan.exact_type(),
+                expected: expected_size,
+                actual: diagnostic_size,
+            },
+        );
+    }
+    let diagnostic_start_index =
+        usize::try_from(diagnostic_start).expect("object offset fits usize");
+    let diagnostic_end_index = usize::try_from(diagnostic_end).expect("object offset fits usize");
+    let actual_diagnostic = &objects[&member][diagnostic_start_index..diagnostic_end_index];
+    if let Some(offset) = actual_diagnostic
+        .iter()
+        .zip(expected_diagnostic)
+        .position(|(actual, expected)| actual != expected)
+    {
+        return Err(
+            StrongTypeRegistrationValidationError::DescriptorDiagnosticByteMismatch {
+                exact_type: plan.exact_type(),
+                offset_within_atom: u64::try_from(offset).expect("diagnostic offset fits u64"),
+                expected: expected_diagnostic[offset],
+                actual: actual_diagnostic[offset],
+            },
+        );
+    }
+
+    let diagnostic_relocation = verify_descriptor_diagnostic_relocation(
+        verified,
+        plan,
+        diagnostic.section_ordinal(),
+        diagnostic.start(),
+    )?;
+    Ok(VerifiedStrongTypeDescriptorV1 {
+        member,
+        primary_symbol_table_index: definition.primary_symbol_table_index(),
+        checked_offset: primary_start,
+        diagnostic_checked_offset: diagnostic_start,
+        diagnostic_size,
+        diagnostic_relocation,
+    })
+}
+
+fn verify_descriptor_diagnostic_relocation(
+    member: &crate::link_object::VerifiedMemberObjectRelocationIndexV1,
+    plan: &StrongTypeRegistrationPlanV1,
+    diagnostic_section: std::num::NonZeroU8,
+    diagnostic_value: u64,
+) -> Result<VerifiedRelocationUseV1, StrongTypeRegistrationValidationError> {
+    use TypeDescriptorDiagnosticRelocationFailureV1 as Failure;
+
+    let relocations = member
+        .relocations()
+        .iter()
+        .filter(|relocation| {
+            relocation.containing_atom() == plan.descriptor_primary_atom()
+                && relocation.offset_within_atom() == TYPE_DESCRIPTOR_DIAGNOSTIC_POINTER_OFFSET
+        })
+        .collect::<Vec<_>>();
+    if relocations.len() != 1 {
+        return descriptor_diagnostic_relocation_error(plan.exact_type(), Failure::Count);
+    }
+    let relocation = relocations[0];
+    let kind = if relocation.containing_atom_role() != DefinitionAtomRole::Primary {
+        Some(Failure::ContainingAtomRole)
+    } else if relocation.section_role() != BuiltinObjectSectionRoleV1::ReadOnlyData {
+        Some(Failure::SectionRole)
+    } else if relocation.width_bytes() != 8 {
+        Some(Failure::Width)
+    } else if relocation.encoded_value() != 0 {
+        Some(Failure::EncodedValue)
+    } else {
+        match relocation.shape() {
+            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+                target:
+                    VerifiedRelocationTargetV1::LocalDefinition {
+                        owner_atom,
+                        section_ordinal,
+                        value,
+                        ..
+                    },
+            } if *owner_atom != Some(plan.diagnostic_atom()) => Some(Failure::TargetAtom),
+            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+                target:
+                    VerifiedRelocationTargetV1::LocalDefinition {
+                        section_ordinal, ..
+                    },
+            } if *section_ordinal != diagnostic_section => Some(Failure::TargetSection),
+            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+                target: VerifiedRelocationTargetV1::LocalDefinition { value, .. },
+            } if *value != diagnostic_value => Some(Failure::TargetValue),
+            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+                target: VerifiedRelocationTargetV1::LocalDefinition { .. },
+            } => None,
+            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { .. } => Some(Failure::TargetKind),
+            _ => Some(Failure::Form),
+        }
+    };
+    if let Some(kind) = kind {
+        return descriptor_diagnostic_relocation_error(plan.exact_type(), kind);
+    }
+    Ok(relocation.clone())
+}
+
+fn descriptor_diagnostic_relocation_error<T>(
+    exact_type: PersistentExactTypeId,
+    kind: TypeDescriptorDiagnosticRelocationFailureV1,
+) -> Result<T, StrongTypeRegistrationValidationError> {
+    Err(
+        StrongTypeRegistrationValidationError::DescriptorDiagnosticRelocationMismatch {
+            exact_type,
+            kind,
+        },
+    )
 }
 
 fn required_scoop_member(

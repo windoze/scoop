@@ -2013,8 +2013,13 @@ object pointer、size/alignment、type-registration pointer或patch offset的旧
 Link侧唯一经`verify_strong_type_registrations_v1`消费完整type plan、全量digest patch proof与同一批精确object
 bytes；它重验240-byte provisional record、只读Primary atom、offset 168处唯一8-byte unsigned
 TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation必须解析到同一exact type的
-`TypeDescriptor` strong definition/Primary symbol，layout definition也必须由既定Scoop member物化；record
-指向其他合法strong定义、错owner/member/symbol、额外relocation、错patch或验后换bytes均失败。验证器再从
+`TypeDescriptor` strong definition/Primary symbol；该descriptor必须是精确128-byte只读Primary，并精确拥有plan
+指定的只读diagnostic associated atom，其bytes必须等于LIR中的UTF-8 diagnostic name。descriptor offset 112必须
+恰有一条8-byte、zero-addend、`Unsigned64` relocation，解析到该diagnostic atom起点的object-local symbol；用其他
+local atom、section base、boundary symbol或任意合法strong定义代替都失败。验证结果直接携带descriptor Primary与
+diagnostic atom的member、checked file range及已验证relocation，后续专用fingerprint计算器不得重新按物理邻接或
+symbol拼写反查。layout definition也必须由既定Scoop member物化；record指向其他合法strong定义、错owner/member/
+symbol、额外relocation、错patch或验后换bytes均失败。验证器再从
 digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
 edge/writer集合，不接受record bytes或调用方自报digest关系。
 

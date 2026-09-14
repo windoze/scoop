@@ -63,6 +63,21 @@ pub enum TypeRegistrationRelocationFailureV1 {
     TargetSymbol,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TypeDescriptorDiagnosticRelocationFailureV1 {
+    Count,
+    ContainingAtomRole,
+    SectionRole,
+    OffsetWithinAtom,
+    Width,
+    Form,
+    EncodedValue,
+    TargetKind,
+    TargetAtom,
+    TargetSection,
+    TargetValue,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongTypeRegistrationValidationError {
     DigestPatchProducerMismatch,
@@ -126,6 +141,49 @@ pub enum StrongTypeRegistrationValidationError {
     PrimaryAtomSizeMismatch {
         exact_type: PersistentExactTypeId,
         actual: u64,
+    },
+    MissingDescriptorPrimaryAtom {
+        exact_type: PersistentExactTypeId,
+        atom: ObjectDefinitionAtomId,
+    },
+    InvalidDescriptorPrimaryAtomFileRange {
+        exact_type: PersistentExactTypeId,
+        atom: ObjectDefinitionAtomId,
+        kind: TypeRegistrationAtomFileRangeFailureV1,
+    },
+    DescriptorPrimaryAtomSectionMismatch {
+        exact_type: PersistentExactTypeId,
+    },
+    DescriptorPrimaryAtomSizeMismatch {
+        exact_type: PersistentExactTypeId,
+        actual: u64,
+    },
+    MissingDescriptorDiagnosticAtom {
+        exact_type: PersistentExactTypeId,
+        atom: ObjectDefinitionAtomId,
+    },
+    InvalidDescriptorDiagnosticAtomFileRange {
+        exact_type: PersistentExactTypeId,
+        atom: ObjectDefinitionAtomId,
+        kind: TypeRegistrationAtomFileRangeFailureV1,
+    },
+    DescriptorDiagnosticAtomSectionMismatch {
+        exact_type: PersistentExactTypeId,
+    },
+    DescriptorDiagnosticAtomSizeMismatch {
+        exact_type: PersistentExactTypeId,
+        expected: u64,
+        actual: u64,
+    },
+    DescriptorDiagnosticByteMismatch {
+        exact_type: PersistentExactTypeId,
+        offset_within_atom: u64,
+        expected: u8,
+        actual: u8,
+    },
+    DescriptorDiagnosticRelocationMismatch {
+        exact_type: PersistentExactTypeId,
+        kind: TypeDescriptorDiagnosticRelocationFailureV1,
     },
     DescriptorRelocationMismatch {
         exact_type: PersistentExactTypeId,

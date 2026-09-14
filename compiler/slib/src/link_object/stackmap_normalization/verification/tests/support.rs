@@ -34,6 +34,8 @@ pub(crate) enum Corruption {
     CallableEntryRelocationTarget,
     TypeRegistrationMagic,
     TypeDescriptorRelocationTarget,
+    TypeDescriptorDiagnosticBytes,
+    TypeDescriptorDiagnosticRelocationTarget,
     ImmortalRegistrationMagic,
     ImmortalObjectLength,
     ImmortalObjectDescriptorRelocationTarget,
