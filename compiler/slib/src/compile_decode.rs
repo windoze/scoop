@@ -7,15 +7,17 @@ use scoop_identity::{
     PendingIdentityValidation, SemanticIdentityImportError, SemanticIdentitySession,
     SemanticOriginFingerprint, ValidatedIdentityGraph,
 };
-use scoop_lir::{DecodedLirFoundation, ImportedLirSet, ValidatedLirFoundation};
+use scoop_lir::{
+    DecodedLirFoundation, ImportedLirSet, ValidatedLirFoundation, ValidatedLirTargetSelection,
+};
 use scoop_mir::{DecodedMirFoundation, ImportedMirSet, ValidatedMirFoundation};
 use scoop_wire::{DecodeUsage, WireError, WireErrorKind, WirePath, decode_canonical_with_meter};
 
 use crate::{
-    ArtifactFingerprint, DecodedMetadataEnvelope, DependencyRecord, MemberPurposeSet,
-    MetadataLocation, SemanticFingerprintRecord, SlibMemberRecord, SlibMemberRole,
-    ValidatedGraphArtifact, hir_identity_foundation_capability, lir_identity_foundation_capability,
-    mir_identity_foundation_capability,
+    ArtifactFingerprint, ConeKind, ConeSourceForm, DecodedMetadataEnvelope, DependencyRecord,
+    MemberPurposeSet, MetadataLocation, SemanticFingerprintRecord, SlibMemberRecord,
+    SlibMemberRole, ValidatedGraphArtifact, hir_identity_foundation_capability,
+    lir_identity_foundation_capability, mir_identity_foundation_capability,
 };
 
 const IDENTITY_FOUNDATION_HANDLER_BASE_WORK: u64 = 64;
@@ -529,12 +531,28 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
         self.graph.identity()
     }
 
+    pub const fn kind(&self) -> ConeKind {
+        self.graph.kind()
+    }
+
+    pub const fn source_form(&self) -> ConeSourceForm {
+        self.graph.source_form()
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.graph.target_selection()
+    }
+
     pub fn direct_dependencies(&self) -> &[DependencyRecord] {
         self.graph.direct_dependencies()
     }
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
+    }
+
+    pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
+        self.graph.envelope.manifest().semantic_fingerprints()
     }
 
     pub const fn decode_usage(&self) -> DecodeUsage {

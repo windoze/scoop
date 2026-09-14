@@ -2597,6 +2597,11 @@ PublishableSingleConeArtifact {
 
 构造器要求两份proof来自同一ArtifactFingerprint/Cone/profile，output kind、三层/Code/RuntimeImage fingerprint一致。只有成功后才以同目录atomic rename发布`--out-slib`。任一步失败删除temporary，不覆盖现有成功artifact。
 
+`validate_publishable_single_cone_artifact`是上述round-trip的唯一整体入口：它对调用者提供的final byte
+slice分别创建独立budget/envelope/Graph状态，调用唯一strong Compile与Link入口，再消费两份最终proof
+构造`PublishableSingleConeArtifact`。该proof只保留不可变identity、target与两条view summary；不存在从
+Graph、Compile或未闭合Link状态直接构造publication authority的兼容入口。
+
 output destination不能与current manifest/source、trusted core input或任一dependency artifact解析为同一文件；检查失败早于写入。host I/O error不伪造成source diagnostic。
 
 ### 15.4 core input门

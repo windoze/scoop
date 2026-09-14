@@ -605,7 +605,7 @@ fn artifact(
     build_artifact(manifest_sections, lir_sections, true, true, false, true)
 }
 
-fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
+pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -1142,7 +1142,7 @@ fn image_atoms(
         .collect()
 }
 
-fn cone() -> ConeRecord {
+pub(super) fn cone() -> ConeRecord {
     ConeRecord::new(
         ConeCoordinate::new("test", "strong-link", "0.0.0").unwrap(),
         ConeKind::Library,
@@ -1450,7 +1450,7 @@ fn selection() -> ValidatedLirTargetSelection {
     ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
 }
 
-fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
+pub(super) fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
     CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(0x000d_0100).unwrap(),

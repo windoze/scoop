@@ -32,7 +32,7 @@ use crate::{
     CBridgeCheckedSingleConeProductionManifestV1, CBridgeProductionEnvelopeValidationError,
     CBridgeTargetSupportRequirementValidationError, CanonicalDefinedLinkSymbolOwnerSetV1,
     CanonicalUndefinedSymbolRequirementSetV1, CodeFingerprintError,
-    CodeLinkObjectMemberValidationError, ConeImageValidationError,
+    CodeLinkObjectMemberValidationError, ConeImageValidationError, ConeKind, ConeSourceForm,
     CoreStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
     DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
     DecodedSingleConeProductionManifestV1, DefinedLinkSymbolOwnerBuildError,
@@ -2040,8 +2040,24 @@ impl ValidatedSingleConeStrongLinkArtifact<'_> {
         self.graph.identity()
     }
 
+    pub const fn kind(&self) -> ConeKind {
+        self.graph.kind()
+    }
+
+    pub const fn source_form(&self) -> ConeSourceForm {
+        self.graph.source_form()
+    }
+
+    pub const fn target_selection(&self) -> scoop_lir::ValidatedLirTargetSelection {
+        self.graph.target_selection()
+    }
+
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
+    }
+
+    pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
+        self.graph.envelope.manifest().semantic_fingerprints()
     }
 
     pub const fn decode_usage(&self) -> DecodeUsage {
@@ -2830,4 +2846,19 @@ pub(crate) fn strong_production_fixture_for_test(
     scoop_lir::StrongProductionSectionV1,
 ) {
     tests::strong_production_fixture(coordinate)
+}
+
+#[cfg(test)]
+pub(crate) fn complete_strong_artifact_for_test(corrupt_final_image_digest: bool) -> Vec<u8> {
+    tests::complete_artifact(corrupt_final_image_digest)
+}
+
+#[cfg(test)]
+pub(crate) fn complete_strong_artifact_identity_for_test() -> ConeIdentity {
+    tests::cone().identity()
+}
+
+#[cfg(test)]
+pub(crate) fn c_bridge_profile_for_test() -> CBridgeToolchainProfileV1 {
+    tests::c_bridge_profile()
 }

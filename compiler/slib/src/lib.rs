@@ -33,6 +33,9 @@ pub use link_decode::*;
 mod strong_compile_decode;
 pub use strong_compile_decode::*;
 
+mod publish;
+pub use publish::*;
+
 mod metadata;
 pub use metadata::*;
 
