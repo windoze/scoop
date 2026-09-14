@@ -4,7 +4,10 @@
 use std::fmt;
 
 use scoop_hir::{DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation};
-use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity};
+use scoop_identity::{
+    ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
+    IdentityValidationError, PendingIdentityValidation, ValidatedIdentityGraph,
+};
 use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1};
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation};
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
@@ -27,6 +30,20 @@ const COMPILE_SECTION_HANDLER_BASE_WORK: u64 = 64;
 #[derive(Debug)]
 pub struct DecodedSingleConeCompileSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
+    hir_foundation: DecodedHirFoundation,
+    hir_production: DecodedCoreBootstrapInterfaceSectionV1,
+    mir_foundation: DecodedMirFoundation,
+    mir_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_foundation: DecodedLirFoundation,
+    lir_production: DecodedStrongProductionSectionV1,
+}
+
+/// Strong-profile Compile sections whose complete HIR-to-LIR identity graph
+/// passed one transaction. Foundation structure, ODR policy, and production
+/// relations remain unproven.
+pub struct IdentityCheckedSingleConeCompileSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
     hir_foundation: DecodedHirFoundation,
     hir_production: DecodedCoreBootstrapInterfaceSectionV1,
     mir_foundation: DecodedMirFoundation,
@@ -159,7 +176,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
     }
 }
 
-impl DecodedSingleConeCompileSections<'_> {
+impl<'input> DecodedSingleConeCompileSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -174,6 +191,104 @@ impl DecodedSingleConeCompileSections<'_> {
 
     pub const fn decode_usage(&self) -> DecodeUsage {
         self.graph.decode_usage()
+    }
+
+    pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub const fn mir_foundation_wire(&self) -> &DecodedMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation_wire(&self) -> &DecodedLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_production
+    }
+
+    /// Registers and resolves every foundation identity before exposing any
+    /// trusted persistent id to production-section validation.
+    pub fn validate_identities(
+        self,
+    ) -> Result<IdentityCheckedSingleConeCompileSections<'input>, IdentityValidationError> {
+        let Self {
+            mut graph,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self;
+        let producer = graph.identity();
+        let (manifest, meter) = graph.envelope.manifest_and_meter();
+        let mut validation = PendingIdentityValidation::with_meter(meter);
+        validation.register_authority(ConeIdentity::CORE)?;
+        if producer != ConeIdentity::CORE {
+            validation.register_authority(producer)?;
+        }
+        for dependency in manifest.direct_dependencies() {
+            let authority = dependency.identity();
+            if authority != ConeIdentity::CORE && authority != producer {
+                validation.register_authority(authority)?;
+            }
+        }
+
+        hir_foundation.register_identities(&mut validation)?;
+        mir_foundation.register_identities(&mut validation)?;
+        lir_foundation.register_identities(&mut validation)?;
+        hir_foundation.resolve_identities(&mut validation)?;
+        mir_foundation.resolve_identities(&mut validation)?;
+        lir_foundation.resolve_identities(&mut validation)?;
+        let identities = validation.finish()?;
+
+        Ok(IdentityCheckedSingleConeCompileSections {
+            graph,
+            identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        })
+    }
+}
+
+impl IdentityCheckedSingleConeCompileSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
     }
 
     pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {

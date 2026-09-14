@@ -35,6 +35,23 @@ fn strong_graph_decodes_all_compile_sections_atomically() {
 }
 
 #[test]
+fn strong_compile_sections_validate_foundation_identities_as_one_transaction() {
+    let (hir, mir, lir) = required_sections();
+    let bytes = artifact(hir, mir, lir);
+    let checked = open_graph(&bytes)
+        .decode_single_cone_compile_sections()
+        .unwrap()
+        .validate_identities()
+        .unwrap();
+    assert_eq!(checked.identity(), ConeIdentity::CORE);
+    assert_eq!(checked.identity_count(), 1);
+    assert_eq!(checked.declared_identity_count(), 0);
+    let _ = checked.hir_production_wire();
+    let _ = checked.mir_production_wire();
+    let _ = checked.lir_production_wire();
+}
+
+#[test]
 fn compile_section_decode_rejects_wrong_profile_before_payloads() {
     let artifact =
         crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(
