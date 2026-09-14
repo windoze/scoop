@@ -7,8 +7,9 @@ use scoop_identity::{CallableOwner, ExactTypeKey, PersistentExactTypeId, Persist
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
     CoreMirBridgeBranchV1, CoreMirShapeSupportRootV1, EntryMirBridgeBranchV1, ExternFunctionId,
-    FunctionId, GlobalId, InitializationUnitId, MirFoundationBuildError, MirOutput, Module,
-    ObjectId, OdrFreeMirFoundation, SourceExactTypeOwner, StringConstId, Type,
+    FunctionId, GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId,
+    InitializationUnitId, MirFoundationBuildError, MirOutput, Module, ObjectId,
+    OdrFreeMirFoundation, SourceExactTypeOwner, StringConstId, Type,
 };
 
 /// One local function selected as a mandatory strong materialization root.
@@ -51,6 +52,29 @@ impl StrongSourceNominalShapeRoot {
     }
 }
 
+/// One MIR-generated nominal whose exact owner closes back to the current
+/// Cone. ODR-owned generated nominals are rejected before a plan exists.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StrongGeneratedNominalShapeRoot {
+    location: GeneratedExactTypeLocation,
+    nominal: PersistentTypeId,
+    exact: PersistentExactTypeId,
+}
+
+impl StrongGeneratedNominalShapeRoot {
+    pub const fn location(self) -> GeneratedExactTypeLocation {
+        self.location
+    }
+
+    pub const fn nominal(self) -> PersistentTypeId {
+        self.nominal
+    }
+
+    pub const fn exact(self) -> PersistentExactTypeId {
+        self.exact
+    }
+}
+
 /// Complete root projection consumed by strong-profile LIR lowering.
 ///
 /// The vectors contain local typed ids only after their persistent subjects
@@ -58,6 +82,7 @@ impl StrongSourceNominalShapeRoot {
 pub struct SingleConeStrongMaterializationPlan {
     callable_roots: Vec<StrongCallableMaterializationRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
+    generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
     core_shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
     extern_functions: Vec<ExternFunctionId>,
     globals: Vec<GlobalId>,
@@ -73,6 +98,26 @@ impl SingleConeStrongMaterializationPlan {
 
     pub fn source_nominal_shapes(&self) -> &[StrongSourceNominalShapeRoot] {
         &self.source_nominal_shapes
+    }
+
+    pub fn source_nominal_shape(&self, ty: &Type) -> Option<&StrongSourceNominalShapeRoot> {
+        self.source_nominal_shapes
+            .iter()
+            .find(|root| root.ty() == ty)
+    }
+
+    pub fn generated_nominal_shapes(&self) -> &[StrongGeneratedNominalShapeRoot] {
+        &self.generated_nominal_shapes
+    }
+
+    pub fn generated_nominal_shape(
+        &self,
+        location: GeneratedExactTypeLocation,
+    ) -> Option<StrongGeneratedNominalShapeRoot> {
+        self.generated_nominal_shapes
+            .iter()
+            .copied()
+            .find(|root| root.location() == location)
     }
 
     pub fn core_shape_support_roots(&self) -> &[CoreMirShapeSupportRootV1] {
@@ -150,6 +195,22 @@ impl SingleConeStrongMirInput {
             .collect::<Vec<_>>();
         source_nominal_shapes.sort_unstable_by_key(StrongSourceNominalShapeRoot::exact);
 
+        let mut generated_nominal_shapes =
+            Vec::with_capacity(module.meta.generated_exact_types.len());
+        for identity in module.meta.generated_exact_types.iter() {
+            if identity.owner() != &GeneratedExactTypeOwner::ConeOwned {
+                return Err(SingleConeStrongMirInputError::OdrGeneratedNominalShape(
+                    identity.location(),
+                ));
+            }
+            generated_nominal_shapes.push(StrongGeneratedNominalShapeRoot {
+                location: identity.location(),
+                nominal: identity.nominal_record().id(),
+                exact: identity.exact_record().id(),
+            });
+        }
+        generated_nominal_shapes.sort_unstable_by_key(|root| root.exact());
+
         let core_shape_support_roots = match production.core_bridge() {
             CoreMirBridgeBranchV1::NotCore => Vec::new(),
             CoreMirBridgeBranchV1::Core(core) => core.shape_support_roots().to_vec(),
@@ -157,6 +218,7 @@ impl SingleConeStrongMirInput {
         let materialization = SingleConeStrongMaterializationPlan {
             callable_roots,
             source_nominal_shapes,
+            generated_nominal_shapes,
             core_shape_support_roots,
             extern_functions: module.extern_functions.iter().map(|(id, _)| id).collect(),
             globals: module.globals.iter().map(|(id, _)| id).collect(),
@@ -280,6 +342,7 @@ pub enum SingleConeStrongMirInputError {
     CoreBranchMismatch,
     MissingCallableSubject(FunctionId),
     OdrCallableSubject(FunctionId),
+    OdrGeneratedNominalShape(GeneratedExactTypeLocation),
     MissingStrongCallableBridge {
         index: usize,
         implementation: CallableOwner,
@@ -310,6 +373,7 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::CoreBranchMismatch
             | Self::MissingCallableSubject(_)
             | Self::OdrCallableSubject(_)
+            | Self::OdrGeneratedNominalShape(_)
             | Self::MissingStrongCallableBridge { .. }
             | Self::OutputMismatch
             | Self::MissingEntryRoot(_)

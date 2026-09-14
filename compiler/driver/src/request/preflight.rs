@@ -1145,6 +1145,13 @@ mod tests {
         );
         assert_eq!(
             real_mir
+                .materialization_plan()
+                .generated_nominal_shapes()
+                .len(),
+            real_mir.mir().meta.generated_exact_types.len()
+        );
+        assert_eq!(
+            real_mir
                 .production_section()
                 .strong_callable_bridges()
                 .bridges()

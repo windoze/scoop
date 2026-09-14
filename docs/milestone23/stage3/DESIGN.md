@@ -577,8 +577,8 @@ MIR stage成功值，也不存在接收裸HIR、裸MIR或单独section的driver�
 
 `SingleConeStrongMaterializationPlan`不是“把完整LocalConcrete/MIR图全部发射”的开关，而是LIR production入口的
 唯一root集合。它包含同一MIR foundation中的全部strong callable implementation、current Cone的source-owned
-global/object/initialization root、entry root（若有），以及core HIR interface派生的全部param-free source nominal
-shape-support root。构造器执行规范排序、去重、producer与output-branch一致性检查；普通调用方不能传入裸id列表，
+global/object/initialization root、entry root（若有）、全部Cone-owned MIR generated nominal，以及core HIR interface派生的
+全部param-free source nominal shape-support root。构造器执行规范排序、去重、producer与output-branch一致性检查；普通调用方不能传入裸id列表，
 也不能遗漏root后取得一个较小的合法plan。该plan只存在于已封闭的stage product中，其可持久化语义分别由HIR/MIR
 section与LIR strong-production section完整重建，因此不另增一个可被wire伪造的可选section。
 
