@@ -1654,9 +1654,14 @@ digests)`形成的完整初始化登记计划。入口要求semantic unit全集�
 unit的value/failure-root必须各命中一条static-storage registration，initializer/ensure及Eager gateway必须各命中
 一条callable registration；计划保存这些typed registration identity与实际ConeStrong record/entry symbol，不允许
 只保存裸地址。每个unit自身必须恰有`InitializationCell`、`InitializationDescriptor`、
-`InitializationRegistration`三份不同的strong definition、唯一Primary atom与各自的`ic`/`id`/`nr` symbol。
+`InitializationRegistration`三份不同的strong definition、唯一Primary atom与各自的`ic`/`id`/`nr` symbol；其中
+`InitializationDescriptor` definition还必须恰好覆盖一个
+`AddressTakenConstant/InitializationUnit(unit)` associated atom，内容固定为`diagnostic_path` UTF-8 bytes加一个NUL，
+`id`与`nr`中的path pointer必须重定位到同一atom起点。cell与registration definition不得带associated atom，
+诊断bytes不得落入无owner的private section、借用其他definition padding或保留第二份consumer-local副本。
 
-三份Primary的ObjectDefinition node均固定为无input、无patch的leaf。InitializationRegistration的
+三份Primary所标识definition的ObjectDefinition node均固定为无input、无patch的leaf；descriptor leaf因此完整承诺
+其Primary与diagnostic associated atom的规范字节及relocation。InitializationRegistration的
 StrongRegistration direct input精确为registration、cell、coordinator descriptor三个ObjectDefinition；Eager再加入
 其startup gateway body Primary的ObjectDefinition，Lazy不得加入gateway或保留写槽。StrongRegistration自身只允许
 向registration Primary写`RegistrationDefinition`；Eager gateway body node还必须恰以一项
@@ -1773,11 +1778,22 @@ registration，三者都是独立ConeStrong全局，绝不按arena ordinal命名
 `id`机械保存Eager/Lazy coordinator tag、unit id、非空diagnostic bytes、cell、实际value/failure storage和
 initializer/ensure入口；`nr`使用共享registration header，保存schedule、diagnostic span、cell、两条typed
 static-storage registration地址、initializer/ensure id与入口。Eager还保存gateway id与入口，Lazy三项gateway
-字段固定为零。`nr`内offset 120的`RegistrationDefinition`槽始终为32-byte零值，Eager在offset 312另保留
+字段固定为零。emitter同时把diagnostic global与plan中的associated atom id纳入返回proof，供boundary发射与
+object verifier建立唯一owner；不得生成无typed atom的private string。`nr`内offset 120的
+`RegistrationDefinition`槽始终为32-byte零值，Eager在offset 312另保留
 `GatewayDefinition`零槽，Lazy没有该patch site。返回的patch proof逐项绑定plan中的intent、registration
 definition、Primary atom、LLVM owner、offset和width；已有同type external声明只能被对应owner补全，已有定义
 直接失败。不保留`scoop.init.cell.<arena-index>`、`scoop.init.descriptor.<arena-index>`、连续
 `scoop_image_initialization_units`或接受裸unit/address/offset的旧发射路径。
+
+Link侧唯一经`verify_strong_initialization_registrations_v1`消费完整初始化计划、全量digest patch proof与同一批
+content-digest绑定的Scoop LIR object bytes。验证器逐unit重建16-byte可写全零cell、88-byte只读coordinator、
+352-byte provisional registration及`diagnostic_path + NUL` CString associated atom；两条diagnostic relocation
+必须指向该atom起点，coordinator其余五条与registration的五条或Eager六条pointer relocation必须逐项命中计划中的
+cell、实际storage、static-storage registration、callable entry与gateway entry，且target definition、owner、
+member、symbol、`Unsigned64`形状和零encoded value全部一致。offset 120及Eager offset 312只接受对应typed patch，
+三项ObjectDefinition leaf、StrongRegistration direct input和schedule-specific gateway writer集合必须保持精确；
+调用方不能用裸地址、私有diagnostic副本、额外relocation或自报digest关系绕过验证。
 
 type registration唯一经`emit_strong_type_registrations_v1`消费完整type plan set。入口先对全集做无副作用
 预检，再发射任一record；每条record使用`ConeStrong`外部linkage、magic、ABI version 1、size 240、Strong
@@ -2417,6 +2433,8 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - 六张table分别为空/非空并保留独立count/sentinel；
 - 每种record的semantic id/linkage/zero ODR field/definition/body digest；
 - initialization Eager/Lazy、独立`ic/id/nr`、专用storage/failure root/gateway及两种patch-site矩阵；
+- initialization diagnostic associated atom缺失/错section/错bytes、两处path relocation分叉，以及cell/id/nr
+  record byte、relocation target、digest edge与patch offset逐项破坏均稳定拒绝；
 - 初始化发射任一storage/callable缺失或错shape时保持原子失败，拒绝owned symbol重定义，且LLVM IR中不出现
   arena-index descriptor或旧连续image table；
 - callable无safepoint仍登记、native extern不误登记；

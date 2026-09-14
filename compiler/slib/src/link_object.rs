@@ -52,6 +52,9 @@ pub use immortal_registrations::*;
 mod static_storage_registrations;
 pub use static_storage_registrations::*;
 
+mod initialization_registrations;
+pub use initialization_registrations::*;
+
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 

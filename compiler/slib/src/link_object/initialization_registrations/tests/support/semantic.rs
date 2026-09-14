@@ -3,11 +3,11 @@ use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, DeclarationScope, DefinitionAtomRole,
     DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
     DigestSemanticFieldRole, ExactTypeKey, GeneratedCallableKey, InitializationCallableRole,
-    InitializationUnitKey, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath,
-    PersistentExactTypeId, PersistentGeneratedCallableId, PersistentPropertyId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
-    PropertyOwner, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    InitializationUnitKey, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentGeneratedCallableId,
+    PersistentPropertyId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, SourceDeclarationKey,
+    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention,
@@ -23,7 +23,14 @@ use scoop_lir::{
     WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
-pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistrationPlanSetV1 {
+pub(super) struct SemanticInputs {
+    pub(super) foundation: OdrFreeLirFoundation,
+    pub(super) definitions: Vec<ObjectDefinitionPlanId>,
+    pub(super) digest_plan: StrongDigestFinalizationPlanV1,
+    pub(super) plan: StrongInitializationUnitRegistrationPlanSetV1,
+}
+
+pub(super) fn inputs(lazy: bool) -> SemanticInputs {
     let module = semantic_module(lazy);
     let semantics = StrongInitializationUnitSemanticPlanSetV1::from_module(&module).unwrap();
     let semantic = &semantics.units()[0];
@@ -47,11 +54,16 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
         StrongDefinitionEntity::initialization_unit(unit),
         StrongDefinitionRole::InitializationRegistration,
     );
-    let storage_registrations = [semantic.storage(), semantic.failure_root()].map(|storage| {
-        definition_artifacts(
+    let storages = [semantic.storage(), semantic.failure_root()].map(|storage| StorageArtifacts {
+        storage,
+        storage_definition: definition_artifacts(
+            StrongDefinitionEntity::static_storage(storage),
+            StrongDefinitionRole::StaticStorage,
+        ),
+        registration: definition_artifacts(
             StrongDefinitionEntity::static_storage(storage),
             StrongDefinitionRole::RootRegistration,
-        )
+        ),
     });
     let callables = module
         .functions
@@ -99,11 +111,12 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
                 registration.definition.clone(),
             ]
             .into_iter()
-            .chain(
-                storage_registrations
-                    .iter()
-                    .map(|artifacts| artifacts.definition.clone()),
-            )
+            .chain(storages.iter().flat_map(|storage| {
+                [
+                    storage.storage_definition.definition.clone(),
+                    storage.registration.definition.clone(),
+                ]
+            }))
             .chain(callables.iter().flat_map(|callable| {
                 [
                     callable.body_definition.definition.clone(),
@@ -122,11 +135,12 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
                 registration.primary.clone(),
             ]
             .into_iter()
-            .chain(
-                storage_registrations
-                    .iter()
-                    .map(|artifacts| artifacts.primary.clone()),
-            )
+            .chain(storages.iter().flat_map(|storage| {
+                [
+                    storage.storage_definition.primary.clone(),
+                    storage.registration.primary.clone(),
+                ]
+            }))
             .chain(callables.iter().flat_map(|callable| {
                 [
                     callable.body_definition.primary.clone(),
@@ -144,16 +158,12 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
                 symbol(PersistentSymbolKey::InitializationRegistration(unit)),
             ]
             .into_iter()
-            .chain(
-                [semantic.storage(), semantic.failure_root()]
-                    .into_iter()
-                    .flat_map(|storage| {
-                        [
-                            symbol(PersistentSymbolKey::StaticStorage(storage)),
-                            symbol(PersistentSymbolKey::RootRegistration(storage)),
-                        ]
-                    }),
-            )
+            .chain(storages.iter().flat_map(|storage| {
+                [
+                    symbol(PersistentSymbolKey::StaticStorage(storage.storage)),
+                    symbol(PersistentSymbolKey::RootRegistration(storage.storage)),
+                ]
+            }))
             .chain(callables.iter().flat_map(|callable| {
                 [
                     symbol(PersistentSymbolKey::CallableBody(callable.body)),
@@ -167,29 +177,60 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
 
     let foundation =
         OdrFreeLirFoundation::try_new(scoop_lir::ConeIdentity::SINGLE_FILE, canonical).unwrap();
-    let digests = digest_plan(
+    let digest_plan = digest_plan(
         &foundation,
         semantic.schedule().gateway(),
         &cell,
         &descriptor,
         &registration,
-        &storage_registrations,
+        &storages,
         &callables,
     );
     let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-    StrongInitializationUnitRegistrationPlanSetV1::new(
+        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let plan = StrongInitializationUnitRegistrationPlanSetV1::new(
         &foundation,
         &identities,
         &semantics,
-        &digests,
+        &digest_plan,
     )
-    .unwrap()
+    .unwrap();
+    let definitions = [
+        cell.definition.id(),
+        descriptor.definition.id(),
+        registration.definition.id(),
+    ]
+    .into_iter()
+    .chain(storages.iter().flat_map(|storage| {
+        [
+            storage.storage_definition.definition.id(),
+            storage.registration.definition.id(),
+        ]
+    }))
+    .chain(callables.iter().flat_map(|callable| {
+        [
+            callable.body_definition.definition.id(),
+            callable.registration.definition.id(),
+        ]
+    }))
+    .collect();
+    SemanticInputs {
+        foundation,
+        definitions,
+        digest_plan,
+        plan,
+    }
 }
 
 struct DefinitionArtifacts {
     definition: CborIdentityRecord<scoop_lir::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     primary: CborIdentityRecord<scoop_lir::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
+}
+
+struct StorageArtifacts {
+    storage: scoop_lir::PersistentStaticStorageId,
+    storage_definition: DefinitionArtifacts,
+    registration: DefinitionArtifacts,
 }
 
 struct CallableArtifacts {
@@ -226,7 +267,7 @@ fn digest_plan(
     cell: &DefinitionArtifacts,
     descriptor: &DefinitionArtifacts,
     registration: &DefinitionArtifacts,
-    storages: &[DefinitionArtifacts; 2],
+    storages: &[StorageArtifacts; 2],
     callables: &[CallableArtifacts],
 ) -> StrongDigestFinalizationPlanV1 {
     let cell_object = object_leaf(cell);
@@ -250,7 +291,6 @@ fn digest_plan(
             DigestNodeV1::new(key, Vec::new(), patches).unwrap()
         })
         .collect::<Vec<_>>();
-
     let mut nodes = vec![
         cell_object.clone(),
         descriptor_object.clone(),
@@ -260,7 +300,7 @@ fn digest_plan(
     let mut image_inputs = Vec::new();
     for storage in storages {
         let strong = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(storage.definition.id()),
+            DigestNodeKey::strong_registration(storage.registration.definition.id()),
             Vec::new(),
             Vec::new(),
         )
@@ -419,8 +459,6 @@ fn semantic_module(lazy: bool) -> Module {
         ensure: ensure_ref,
         dependencies: Vec::new(),
     });
-
-    let meta = metadata();
     Module {
         cone: scoop_lir::ConeIdentity::SINGLE_FILE,
         globals,
@@ -435,7 +473,7 @@ fn semantic_module(lazy: bool) -> Module {
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         entry: LocalFunctionRef::Managed(initializer_ref),
-        meta,
+        meta: metadata(),
     }
 }
 

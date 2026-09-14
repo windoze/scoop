@@ -3,12 +3,12 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentCallableBodyId, PersistentInitializationUnitId, PersistentStaticStorageId,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey,
+    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
+    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId,
+    PersistentInitializationUnitId, PersistentStaticStorageId, PersistentSymbolError,
+    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::{
@@ -149,6 +149,7 @@ pub struct StrongInitializationUnitRegistrationPlanV1 {
     descriptor_symbol: PersistentSymbolRequest,
     descriptor_definition_plan: ObjectDefinitionPlanId,
     descriptor_primary_atom: ObjectDefinitionAtomId,
+    diagnostic_atom: ObjectDefinitionAtomId,
     storage: StrongInitializationStaticStorageRefPlanV1,
     failure_root: StrongInitializationStaticStorageRefPlanV1,
     initializer: StrongInitializationCallableRefPlanV1,
@@ -200,6 +201,10 @@ impl StrongInitializationUnitRegistrationPlanV1 {
 
     pub const fn descriptor_primary_atom(&self) -> ObjectDefinitionAtomId {
         self.descriptor_primary_atom
+    }
+
+    pub const fn diagnostic_atom(&self) -> ObjectDefinitionAtomId {
+        self.diagnostic_atom
     }
 
     pub const fn storage(&self) -> StrongInitializationStaticStorageRefPlanV1 {
@@ -332,6 +337,7 @@ fn build_registration(
         );
     }
     let registration_primary_atom = require_primary_atom(foundation, registration_definition.id())?;
+    require_associated_atoms(foundation, unit, registration_definition.id(), Vec::new())?;
     let registration_symbol = require_symbol(
         foundation,
         PersistentSymbolKey::InitializationRegistration(unit),
@@ -340,6 +346,7 @@ fn build_registration(
     let cell_definition =
         require_definition(foundation, entity, StrongDefinitionRole::InitializationCell)?;
     let cell_primary_atom = require_primary_atom(foundation, cell_definition.id())?;
+    require_associated_atoms(foundation, unit, cell_definition.id(), Vec::new())?;
     let cell_symbol = require_symbol(foundation, PersistentSymbolKey::InitializationCell(unit))?;
 
     let descriptor_definition = require_definition(
@@ -348,6 +355,16 @@ fn build_registration(
         StrongDefinitionRole::InitializationDescriptor,
     )?;
     let descriptor_primary_atom = require_primary_atom(foundation, descriptor_definition.id())?;
+    let diagnostic_atom = require_associated_atoms(
+        foundation,
+        unit,
+        descriptor_definition.id(),
+        vec![ObjectDefinitionAtomKey::new(
+            descriptor_definition.id(),
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::InitializationUnit(unit),
+        )],
+    )?[0];
     let descriptor_symbol = require_symbol(
         foundation,
         PersistentSymbolKey::InitializationDescriptor(unit),
@@ -451,6 +468,7 @@ fn build_registration(
         descriptor_symbol,
         descriptor_definition_plan: descriptor_definition.id(),
         descriptor_primary_atom,
+        diagnostic_atom,
         storage,
         failure_root,
         initializer,
@@ -633,6 +651,45 @@ fn require_primary_atom(
     }
 }
 
+fn require_associated_atoms(
+    foundation: &OdrFreeLirFoundation,
+    unit: PersistentInitializationUnitId,
+    definition: ObjectDefinitionPlanId,
+    mut expected: Vec<ObjectDefinitionAtomKey>,
+) -> Result<Vec<ObjectDefinitionAtomId>, StrongInitializationUnitRegistrationPlanBuildError> {
+    expected.sort_unstable();
+    let mut actual = foundation
+        .definition_atoms()
+        .iter()
+        .filter(|record| {
+            record.key().plan() == definition && record.key().role() != DefinitionAtomRole::Primary
+        })
+        .map(|record| record.key().clone())
+        .collect::<Vec<_>>();
+    actual.sort_unstable();
+    if actual != expected {
+        return Err(
+            StrongInitializationUnitRegistrationPlanBuildError::AssociatedAtomSet {
+                unit,
+                definition,
+                expected,
+                actual,
+            },
+        );
+    }
+    Ok(actual
+        .iter()
+        .map(|key| {
+            foundation
+                .definition_atoms()
+                .iter()
+                .find(|record| record.key() == key)
+                .expect("associated atom key came from the foundation")
+                .id()
+        })
+        .collect())
+}
+
 fn require_symbol(
     foundation: &OdrFreeLirFoundation,
     key: PersistentSymbolKey,
@@ -774,6 +831,12 @@ pub enum StrongInitializationUnitRegistrationPlanBuildError {
     PrimaryAtomSet {
         plan: ObjectDefinitionPlanId,
         actual: Vec<ObjectDefinitionAtomId>,
+    },
+    AssociatedAtomSet {
+        unit: PersistentInitializationUnitId,
+        definition: ObjectDefinitionPlanId,
+        expected: Vec<ObjectDefinitionAtomKey>,
+        actual: Vec<ObjectDefinitionAtomKey>,
     },
     MissingSymbol(PersistentSymbolRequest),
     MissingDigestNode(DigestNodeKey),

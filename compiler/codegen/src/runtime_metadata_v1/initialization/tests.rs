@@ -56,6 +56,8 @@ fn emits_distinct_cell_coordinator_and_registration_definitions() {
         name(registration.registration_descriptor())
     );
     assert!(registration.coordinator_descriptor().is_constant());
+    assert_eq!(registration.diagnostic_atom(), expected.diagnostic_atom());
+    assert!(registration.diagnostic().is_constant());
     assert!(registration.registration_descriptor().is_constant());
 
     let coordinator = registration

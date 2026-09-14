@@ -62,6 +62,17 @@ fn joins_unit_storage_callable_and_digest_relations() {
     );
     assert!(plan.schedule().gateway_definition_patch().is_some());
     assert_eq!(
+        fixture
+            .foundation
+            .definition_atoms()
+            .iter()
+            .find(|atom| atom.id() == plan.diagnostic_atom())
+            .unwrap()
+            .key()
+            .role(),
+        DefinitionAtomRole::AddressTakenConstant
+    );
+    assert_eq!(
         node(&fixture.digests, plan.registration_fingerprint_node())
             .direct_inputs()
             .len(),
@@ -167,6 +178,17 @@ fn requires_all_three_distinct_definition_surfaces_and_leaf_nodes() {
             }
         )
     ));
+    assert!(matches!(
+        Fixture::new(Options {
+            omit_diagnostic_atom: true,
+            ..Options::default()
+        })
+        .build(),
+        Err(StrongInitializationUnitRegistrationPlanBuildError::AssociatedAtomSet {
+            actual,
+            ..
+        }) if actual.is_empty()
+    ));
 }
 
 #[test]
@@ -215,6 +237,7 @@ struct Options {
     omit_cell_symbol: bool,
     omit_descriptor_primary: bool,
     omit_descriptor_object: bool,
+    omit_diagnostic_atom: bool,
     cell_object_input: bool,
     omit_descriptor_input: bool,
     omit_registration_patch: bool,
@@ -302,6 +325,12 @@ impl Fixture {
             StrongDefinitionEntity::initialization_unit(unit),
             StrongDefinitionRole::InitializationDescriptor,
         );
+        let diagnostic_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            descriptor.definition.id(),
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::InitializationUnit(unit),
+        ))
+        .unwrap();
         let registration = definition_artifacts(
             StrongDefinitionEntity::initialization_unit(unit),
             StrongDefinitionRole::InitializationRegistration,
@@ -366,6 +395,7 @@ impl Fixture {
                 [cell.primary.clone()]
                     .into_iter()
                     .chain((!options.omit_descriptor_primary).then(|| descriptor.primary.clone()))
+                    .chain((!options.omit_diagnostic_atom).then_some(diagnostic_atom))
                     .chain((!options.omit_unit_registration).then(|| registration.primary.clone()))
                     .chain(
                         storage_registrations

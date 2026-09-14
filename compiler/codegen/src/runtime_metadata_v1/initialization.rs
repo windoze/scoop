@@ -60,6 +60,8 @@ pub struct EmittedStrongInitializationUnitRegistrationV1<'ctx> {
     unit: PersistentInitializationUnitId,
     cell: GlobalValue<'ctx>,
     coordinator_descriptor: GlobalValue<'ctx>,
+    diagnostic_atom: ObjectDefinitionAtomId,
+    diagnostic: GlobalValue<'ctx>,
     registration_descriptor: GlobalValue<'ctx>,
     registration_definition_patch: InitializationRegistrationPatchSiteV1<'ctx>,
     gateway_definition_patch: Option<InitializationRegistrationPatchSiteV1<'ctx>>,
@@ -76,6 +78,14 @@ impl<'ctx> EmittedStrongInitializationUnitRegistrationV1<'ctx> {
 
     pub const fn coordinator_descriptor(self) -> GlobalValue<'ctx> {
         self.coordinator_descriptor
+    }
+
+    pub const fn diagnostic_atom(self) -> ObjectDefinitionAtomId {
+        self.diagnostic_atom
+    }
+
+    pub const fn diagnostic(self) -> GlobalValue<'ctx> {
+        self.diagnostic
     }
 
     pub const fn registration_descriptor(self) -> GlobalValue<'ctx> {
@@ -408,6 +418,8 @@ fn emit_registration<'ctx>(
         unit: semantic.unit(),
         cell,
         coordinator_descriptor: coordinator,
+        diagnostic_atom: plan.diagnostic_atom(),
+        diagnostic,
         registration_descriptor: registration,
         registration_definition_patch,
         gateway_definition_patch,
