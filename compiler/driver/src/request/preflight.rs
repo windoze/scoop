@@ -543,6 +543,20 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
+        let root = ManifestRootLocator::cone_directory(
+            crate::workspace_root().join("sysroot/lib/scoop.core"),
+        );
+        let manifest = scoop_manifest::load_trusted_core_manifest(&root).unwrap();
+        let sources = discover_manifest_sources(&manifest).unwrap();
+        let parsed = parse_discovered_sources(&sources).unwrap();
+        let input = scoop_hir_lower::CoreBootstrapSources::try_new(&parsed).unwrap();
+
+        let output = scoop_hir_lower::lower_core_bootstrap(&input).unwrap();
+        scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+    }
+
     fn manifest_cone() -> tempfile::TempDir {
         let directory = tempfile::tempdir().unwrap();
         std::fs::create_dir(directory.path().join("src")).unwrap();

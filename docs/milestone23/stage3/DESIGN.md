@@ -847,6 +847,10 @@ field `1`保存上述payload。`binding`只引用foundation binding record；`de
 `SignatureCallableShape`复用identity schema，receiver/parameters必须逐结构等于source
 declaration的duplicate signature，binder只能使用depth 0且index小于声明type parameter
 count；result与effect作为本constituent的规范typed source interface。
+producer读取参数类型的唯一authority是该function恰好一条完整`ExportParameterInterface`：required/default直接
+取其`value_type`，vararg取受检`ExportVarargParameterType.array_type`。不得读取body-local `Function.params`，因为
+bodyless intrinsic/extern按定义没有body local，而source interface仍必须完整；parameter interface缺失、重复或引用
+越界均使core interface构造失败，不以body local或duplicate-signature中的type key反向补造HIR `TypeId`。
 
 非generic target必须携带`ExactCallableSignature`，reader从foundation exact-type图把它递归
 重放为`SignatureCallableShape`并逐结构比较。receiver、parameter和result的根exact key全部

@@ -497,20 +497,21 @@ fn build_target(
     if source.duplicate_signature().type_parameter_count() != type_parameter_count {
         return Err(CoreCallableTargetSurfaceBuildError::TypeParameterCountMismatch { binding });
     }
-    let (receiver, parameters) = split_receiver(
+    let receiver = source_receiver_type(
         binding,
         source.duplicate_signature().receiver_is_present(),
-        &declaration.params,
+        declaration,
     )?;
+    let parameters = source_parameter_types(export, binding, function)?;
     let receiver_shape = receiver
-        .map(|parameter| mapper.map(parameter.ty, &binders))
+        .map(|ty| mapper.map(ty, &binders))
         .transpose()
         .map_err(
             |error| CoreCallableTargetSurfaceBuildError::InvalidSignatureType { binding, error },
         )?;
     let parameter_shapes = parameters
         .iter()
-        .map(|parameter| mapper.map(parameter.ty, &binders))
+        .map(|&ty| mapper.map(ty, &binders))
         .collect::<Result<Vec<_>, _>>()
         .map_err(
             |error| CoreCallableTargetSurfaceBuildError::InvalidSignatureType { binding, error },
@@ -533,7 +534,7 @@ fn build_target(
             type_parameter_count,
         }
     } else {
-        let exact = exact_signature(export, binding, declaration, receiver, parameters, effect)?;
+        let exact = exact_signature(export, binding, declaration, receiver, &parameters, effect)?;
         if exact_signature_is_nominal(export, &exact) {
             CoreHirCallableCapabilityV1::ParamFreeStrong(exact)
         } else {
@@ -566,37 +567,76 @@ pub(super) fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
     }
 }
 
-fn split_receiver(
+fn source_receiver_type(
     binding: PersistentExportBindingId,
     has_receiver: bool,
-    parameters: &[crate::Param],
-) -> Result<(Option<&crate::Param>, &[crate::Param]), CoreCallableTargetSurfaceBuildError> {
+    declaration: &crate::Function,
+) -> Result<Option<TypeId>, CoreCallableTargetSurfaceBuildError> {
     if has_receiver {
-        parameters
-            .split_first()
-            .map(|(receiver, parameters)| (Some(receiver), parameters))
+        declaration
+            .params
+            .first()
+            .map(|receiver| Some(receiver.ty))
             .ok_or(CoreCallableTargetSurfaceBuildError::MissingReceiver { binding })
     } else {
-        Ok((None, parameters))
+        Ok(None)
     }
+}
+
+fn source_parameter_types(
+    export: &ExportHir,
+    binding: PersistentExportBindingId,
+    function: crate::FunctionId,
+) -> Result<Vec<TypeId>, CoreCallableTargetSurfaceBuildError> {
+    let mut interfaces = export
+        .source_parameter_interfaces
+        .iter()
+        .filter(|interface| interface.owner == crate::ExportParameterOwner::Function(function));
+    let interface = interfaces
+        .next()
+        .ok_or(CoreCallableTargetSurfaceBuildError::MissingSourceParameterInterface { binding })?;
+    if interfaces.next().is_some() {
+        return Err(
+            CoreCallableTargetSurfaceBuildError::DuplicateSourceParameterInterface { binding },
+        );
+    }
+    interface
+        .parameters
+        .iter()
+        .map(|parameter| match parameter.calling {
+            crate::ExportParameterCalling::Required { value_type }
+            | crate::ExportParameterCalling::Default { value_type, .. } => Ok(value_type),
+            crate::ExportParameterCalling::Vararg { parameter_type, .. } => {
+                let index = parameter_type.into_raw().into_u32() as usize;
+                if index >= export.export_vararg_parameter_types.len() {
+                    return Err(
+                        CoreCallableTargetSurfaceBuildError::InvalidSourceParameterInterface {
+                            binding,
+                        },
+                    );
+                }
+                Ok(export.export_vararg_parameter_types[parameter_type].array_type)
+            }
+        })
+        .collect()
 }
 
 fn exact_signature(
     export: &ExportHir,
     binding: PersistentExportBindingId,
     declaration: &crate::Function,
-    receiver: Option<&crate::Param>,
-    parameters: &[crate::Param],
+    receiver: Option<TypeId>,
+    parameters: &[TypeId],
     effect: Effect,
 ) -> Result<ExactCallableSignature, CoreCallableTargetSurfaceBuildError> {
     Ok(ExactCallableSignature::new(
         effect,
         receiver
-            .map(|parameter| exact_type(export, binding, parameter.ty))
+            .map(|ty| exact_type(export, binding, ty))
             .transpose()?,
         parameters
             .iter()
-            .map(|parameter| exact_type(export, binding, parameter.ty))
+            .map(|&ty| exact_type(export, binding, ty))
             .collect::<Result<Vec<_>, _>>()?,
         exact_type(export, binding, declaration.return_ty)?,
     ))
@@ -1137,6 +1177,15 @@ pub enum CoreCallableTargetSurfaceBuildError {
     MissingReceiver {
         binding: PersistentExportBindingId,
     },
+    MissingSourceParameterInterface {
+        binding: PersistentExportBindingId,
+    },
+    DuplicateSourceParameterInterface {
+        binding: PersistentExportBindingId,
+    },
+    InvalidSourceParameterInterface {
+        binding: PersistentExportBindingId,
+    },
     InvalidSignatureType {
         binding: PersistentExportBindingId,
         error: crate::HirSignatureTypeMappingError,
@@ -1212,6 +1261,18 @@ impl fmt::Display for CoreCallableTargetSurfaceBuildError {
                     "core extension binding {binding} has no receiver parameter"
                 )
             }
+            Self::MissingSourceParameterInterface { binding } => write!(
+                formatter,
+                "core callable binding {binding} has no source parameter interface"
+            ),
+            Self::DuplicateSourceParameterInterface { binding } => write!(
+                formatter,
+                "core callable binding {binding} has duplicate source parameter interfaces"
+            ),
+            Self::InvalidSourceParameterInterface { binding } => write!(
+                formatter,
+                "core callable binding {binding} has an invalid source parameter interface"
+            ),
             Self::InvalidSignatureType { binding, error } => {
                 write!(
                     formatter,

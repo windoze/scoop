@@ -23,6 +23,7 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     assert_eq!(source.identity.logical_path().as_str(), "src/core.scoop");
     assert_eq!(source.name, "<core>");
     assert!(source.source.is_empty());
+    scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
 }
 
 #[test]
