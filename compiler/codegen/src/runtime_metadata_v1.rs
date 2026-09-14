@@ -44,6 +44,13 @@ pub use immortal_registration::{
     ImmortalObjectRegistrationPatchSiteV1, emit_strong_immortal_object_registrations_v1,
 };
 
+mod static_storage;
+pub use static_storage::{
+    EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
+    EmittedStrongStaticStorageRegistrationSetV1, EmittedStrongStaticStorageRegistrationV1,
+    StaticStorageRegistrationPatchSiteV1, emit_strong_static_storage_registrations_v1,
+};
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,

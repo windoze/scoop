@@ -236,27 +236,35 @@ pub(crate) fn emit_llvm_module<'ctx>(
                 initial_state,
                 thread_local,
             } => {
-                let ty = basic_ty(
+                let logical_ty = basic_ty(
                     context,
                     &module.structs,
                     &module.enums,
                     managed_address_space,
                     lir_ty,
                 )?;
-                let value = match initial_state {
-                    LirStaticInitialState::ZeroedForRuntimeUnit => ty.const_zero(),
-                    LirStaticInitialState::EncodedStaticValue { payload } => llvm_constant(
-                        context,
-                        &module.structs,
-                        &module.enums,
-                        &globals,
-                        managed_address_space,
-                        lir_ty,
-                        payload,
-                    )?,
+                let logical_size = target_data.get_store_size(&logical_ty);
+                let logical_alignment = target_data.get_abi_alignment(&logical_ty);
+                let (storage_ty, value) = if logical_size == 0 {
+                    (i8_ty.into(), i8_ty.const_zero().into())
+                } else {
+                    let value = match initial_state {
+                        LirStaticInitialState::ZeroedForRuntimeUnit => logical_ty.const_zero(),
+                        LirStaticInitialState::EncodedStaticValue { payload } => llvm_constant(
+                            context,
+                            &module.structs,
+                            &module.enums,
+                            &globals,
+                            managed_address_space,
+                            lir_ty,
+                            payload,
+                        )?,
+                    };
+                    (logical_ty, value)
                 };
-                let llvm_global = llvm.add_global(ty, None, global.symbol());
+                let llvm_global = llvm.add_global(storage_ty, None, global.symbol());
                 llvm_global.set_initializer(&value);
+                llvm_global.set_alignment(logical_alignment);
                 llvm_global.set_thread_local(*thread_local);
                 apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
                 globals.push(Some(llvm_global));

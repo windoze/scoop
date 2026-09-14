@@ -4,9 +4,10 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, LinkageClass, PersistentImmortalObjectId, PersistentLayoutId, PersistentScanId,
-    PersistentStaticStorageId, PersistentSymbolRequest, RepresentationRole, ScanRole,
+    ConeIdentity, LinkageClass, PersistentImmortalObjectId, PersistentLayoutId,
+    PersistentSymbolRequest, RepresentationRole, ScanRole,
 };
+pub use scoop_identity::{PersistentScanId, PersistentStaticStorageId};
 
 use crate::{
     BackendScalarKind, EnumRepr, GlobalId, GlobalInit, LirConstantImage, LirStaticInitialState,
@@ -88,6 +89,7 @@ pub struct StrongStaticStorageSemanticPlanV1 {
     symbol: PersistentSymbolRequest,
     layout: PersistentLayoutId,
     scan: PersistentScanId,
+    scan_program: RefScan,
     scan_kind: StaticStorageScanKindV1,
     byte_size: u64,
     allocation_extent: u64,
@@ -114,6 +116,10 @@ impl StrongStaticStorageSemanticPlanV1 {
 
     pub const fn scan(&self) -> PersistentScanId {
         self.scan
+    }
+
+    pub const fn scan_program(&self) -> &RefScan {
+        &self.scan_program
     }
 
     pub const fn scan_kind(&self) -> StaticStorageScanKindV1 {
@@ -226,6 +232,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     expected: expected_scan,
                 });
             }
+            validate_static_scan(storage, target, byte_size, &global.scan)?;
             let scan_kind = if global.scan.contains_reference() {
                 StaticStorageScanKindV1::Recursive
             } else if global.scan == RefScan::None {
@@ -290,6 +297,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                 symbol: identity.symbol_request(),
                 layout: layout.layout_record().id(),
                 scan: layout.scan_record().id(),
+                scan_program: global.scan.clone(),
                 scan_kind,
                 byte_size,
                 allocation_extent,
@@ -315,6 +323,42 @@ impl StrongStaticStorageSemanticPlanSetV1 {
     pub fn storages(&self) -> &[StrongStaticStorageSemanticPlanV1] {
         &self.storages
     }
+}
+
+fn validate_static_scan(
+    storage: PersistentStaticStorageId,
+    target: LirTargetProfile,
+    byte_size: u64,
+    scan: &RefScan,
+) -> Result<(), StrongStaticStorageSemanticPlanBuildError> {
+    let RefScan::References(offsets) = scan else {
+        return if scan == &RefScan::None {
+            Ok(())
+        } else {
+            Err(StrongStaticStorageSemanticPlanBuildError::NonCanonicalRecursiveScan(storage))
+        };
+    };
+    if offsets.is_empty() || offsets.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(StrongStaticStorageSemanticPlanBuildError::NonCanonicalRecursiveScan(storage));
+    }
+    let pointer = target.pointer_layout(PointerKind::Managed);
+    for offset in offsets {
+        let end = offset.checked_add(pointer.size_bytes()).ok_or(
+            StrongStaticStorageSemanticPlanBuildError::InvalidScanSlot {
+                storage,
+                offset: *offset,
+                byte_size,
+            },
+        )?;
+        if offset % pointer.alignment_bytes() != 0 || end > byte_size {
+            return Err(StrongStaticStorageSemanticPlanBuildError::InvalidScanSlot {
+                storage,
+                offset: *offset,
+                byte_size,
+            });
+        }
+    }
+    Ok(())
 }
 
 fn storage_shape(
@@ -711,6 +755,12 @@ pub enum StrongStaticStorageSemanticPlanBuildError {
         expected: RefScan,
     },
     NonCanonicalEmptyScan(PersistentStaticStorageId),
+    NonCanonicalRecursiveScan(PersistentStaticStorageId),
+    InvalidScanSlot {
+        storage: PersistentStaticStorageId,
+        offset: u64,
+        byte_size: u64,
+    },
     Shape {
         storage: PersistentStaticStorageId,
         kind: StaticStorageShapeFailureV1,

@@ -373,6 +373,7 @@ impl Fixture {
                 symbol: symbol(PersistentSymbolKey::StaticStorage(artifacts.storage.id())),
                 layout: shape.layout.id(),
                 scan: shape.scan.id(),
+                scan_program: crate::RefScan::References(vec![0]),
                 scan_kind: StaticStorageScanKindV1::Recursive,
                 byte_size: 8,
                 allocation_extent: 8,

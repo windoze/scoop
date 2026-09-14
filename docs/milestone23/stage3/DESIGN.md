@@ -1568,6 +1568,17 @@ ObjectDefinition以及对应Layout、Scan四项，且只允许自身Registration
 type registration的typed patch。完整计划保留全部definition/atom/node/patch id，codegen不得重新查询零散
 foundation表、从符号名推断shape，或绕过该proof发射record。
 
+codegen据此直接发射冻结的296-byte `ScoopStaticStorageDescriptorV1`；storage definition必须已经是default
+address space中的writable、address-significant、non-TLS `ConeStrong`定义，且物理extent和显式有效alignment
+分别精确等于计划值。ZST storage不再发射LLVM零字节全局量，而是发射一个按logical alignment对齐的可寻址
+`i8` token，使`allocation_extent == 1`在object与descriptor两侧一致。scan program只接受canonical
+`None -> [0]`或`References -> [count, strictly increasing offsets...]`的`u64` words；Sequence不进入本阶段
+成功artifact。encoded template是private、address-significant的exact extent byte array；非空relocation table是
+`{pointer_offset, immortal registration pointer}`的private typed array，空template/relocation分别引用全Cone唯一
+typed sentinel。descriptor的RegistrationDefinition、Scan、Layout三个32-byte槽保持全零，并分别产出offset
+120、200、232的typed patch site；发射前先验证完整storage集合及所有既有声明，因此任一错误不得留下部分
+descriptor、scan或initial-state support global。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction

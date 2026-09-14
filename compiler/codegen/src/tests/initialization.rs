@@ -39,6 +39,34 @@ fn storage_global_linkage_follows_its_materialization_root() {
 }
 
 #[test]
+fn zero_sized_storage_uses_one_addressable_byte() {
+    let mut module = values_module();
+    let identity = static_storage_identity("zeroSizedStorage");
+    let symbol = identity.symbol().to_string();
+    module.globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::Storage {
+            identity,
+            layout: layout_identity(
+                "zeroSizedStorage",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
+            ty: LirType::Aggregate(Vec::new()),
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
+            thread_local: false,
+        },
+    });
+
+    let ir = ir_of(&module);
+
+    assert!(
+        ir.contains(&format!("@\"{symbol}\" = global i8 0, align 1")),
+        "zero-sized storage must retain a unique address token:\n{ir}"
+    );
+}
+
+#[test]
 fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
     let mut module = values_module();
     let storage = module.globals.alloc(Global {
