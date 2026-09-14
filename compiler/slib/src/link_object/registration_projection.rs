@@ -10,6 +10,12 @@ use scoop_wire::{Encoder, WireEncode};
 
 use super::{StrongRegistrationFingerprintV1, VerifiedStrongRegistrationPatchSetV1};
 
+mod wire;
+pub use wire::{
+    DecodedCanonicalStrongRegistrationFingerprintSetV1,
+    StrongRegistrationFingerprintSetValidationError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongRegistrationFingerprintEntryV1<I> {
     semantic_id: I,
