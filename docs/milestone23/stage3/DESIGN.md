@@ -2610,6 +2610,13 @@ typed request门负责，发布函数不接受跳过双视图验证的proof或ca
 
 output destination不能与current manifest/source、trusted core input或任一dependency artifact解析为同一文件；检查失败早于写入。host I/O error不伪造成source diagnostic。
 
+driver在构造`SingleConeBuildRequest`时即完成该隔离证明：output basename必须使用精确`.slib`扩展；已存在
+output按最终文件canonicalize，不存在的output按canonical parent加basename形成候选；current
+manifest/source、trusted core artifact与每个direct/support artifact逐一canonicalize后比较。任一输入
+无法解析、现有output不是regular file或路径相同都以typed `OutputIsolationErrorKind`失败。trusted core
+bootstrap的artifact slot是本次output而不是input，因此只比较其source manifest，不把合法self-output误判
+为alias。
+
 ### 15.4 core input门
 
 普通Cone不仅需要core Compile view用于semantic bridge，也保留同一core Link view以证明其确为可发布dependency。若core只通过Compile、Link object损坏、image不唯一、profile foundation或target不匹配，必须在parse current source前失败。不能因为当前compile“暂时只用名字”而接受不可链接core。

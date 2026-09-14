@@ -182,6 +182,18 @@ impl TrustedCoreArtifactInput {
     pub const fn toolchain_compatibility(&self) -> CompositeIdentityAbiFingerprint {
         self.toolchain_compatibility
     }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(path: PathBuf) -> Self {
+        Self {
+            path,
+            expected_coordinate: ConeCoordinate::reserved_core(),
+            target: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            toolchain_compatibility: IdentityAbiDescriptor::current()
+                .and_then(IdentityAbiDescriptor::fingerprint)
+                .unwrap(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -1,6 +1,10 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+mod output;
+use output::validate_output_isolation;
+pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestination};
+
 use scoop_codegen::{CodegenError, ResolvedTargetProfile};
 use scoop_manifest::{
     ManifestRootError, ManifestRootLocator, SingleFileInputError, SingleFileLocator,
@@ -114,32 +118,6 @@ pub enum StageDumpPolicy {
     Stage(StageDumpKind),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SlibOutputDestination {
-    path: PathBuf,
-}
-
-impl SlibOutputDestination {
-    pub fn new(path: impl Into<PathBuf>) -> Result<Self, SingleConeBuildRequestError> {
-        let path = path.into();
-        if path.as_os_str().is_empty() {
-            return Err(SingleConeBuildRequestError::EmptyOutputDestination);
-        }
-        let path = if path.is_absolute() {
-            path
-        } else {
-            std::env::current_dir()
-                .map_err(SingleConeBuildRequestError::CurrentDirectory)?
-                .join(path)
-        };
-        Ok(Self { path })
-    }
-
-    pub fn as_path(&self) -> &Path {
-        &self.path
-    }
-}
-
 #[derive(Debug)]
 pub struct SingleConeBuildRequest {
     current: CurrentConeInput,
@@ -206,14 +184,24 @@ impl SingleConeBuildRequest {
 #[derive(Debug)]
 pub enum SingleConeBuildRequestError {
     EmptyArtifactLocator,
-    TooManyDependencyInputs { role: &'static str, actual: usize },
+    TooManyDependencyInputs {
+        role: &'static str,
+        actual: usize,
+    },
     EmptyOutputDestination,
+    InvalidOutputExtension {
+        path: PathBuf,
+    },
     CurrentDirectory(std::io::Error),
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
     BootstrapHasDependencies,
     BootstrapSlotMismatch,
     BootstrapOutputMismatch,
+    OutputIsolation {
+        path: PathBuf,
+        kind: OutputIsolationErrorKind,
+    },
 }
 
 impl fmt::Display for SingleConeBuildRequestError {
@@ -227,6 +215,11 @@ impl fmt::Display for SingleConeBuildRequestError {
             Self::EmptyOutputDestination => {
                 formatter.write_str(".slib output destination must not be empty")
             }
+            Self::InvalidOutputExtension { path } => write!(
+                formatter,
+                ".slib output destination must use the exact .slib extension: {}",
+                path.display()
+            ),
             Self::CurrentDirectory(error) => {
                 write!(formatter, "cannot resolve current directory: {error}")
             }
@@ -243,6 +236,9 @@ impl fmt::Display for SingleConeBuildRequestError {
             Self::BootstrapOutputMismatch => formatter.write_str(
                 "trusted core bootstrap output must be the configured target artifact slot",
             ),
+            Self::OutputIsolation { path, kind } => {
+                write!(formatter, "invalid .slib output {}: {kind}", path.display())
+            }
         }
     }
 }
@@ -251,6 +247,7 @@ impl std::error::Error for SingleConeBuildRequestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::CurrentDirectory(error) => Some(error),
+            Self::OutputIsolation { kind, .. } => kind.source(),
             _ => None,
         }
     }
@@ -559,7 +556,8 @@ fn validate_request_shape(
             Ok(())
         }
         _ => Err(SingleConeBuildRequestError::InvalidCurrentCoreCombination),
-    }
+    }?;
+    validate_output_isolation(current, dependencies, trusted_core, output)
 }
 
 fn validate_dependency_shape_before_toolchain(
@@ -731,6 +729,63 @@ mod tests {
                 SingleConeBuildRequestError::SingleFileHasDependencies
             ))
         ));
+    }
+
+    #[test]
+    fn output_destination_requires_the_exact_slib_extension() {
+        assert!(matches!(
+            SlibOutputDestination::new("output.bin"),
+            Err(SingleConeBuildRequestError::InvalidOutputExtension { .. })
+        ));
+    }
+
+    #[test]
+    fn output_isolation_rejects_dependency_aliases_before_writing() {
+        let directory = TempDirectory::new();
+        let manifest = directory.0.join("Cone.toml");
+        let core = directory.0.join("core.slib");
+        let dependency = directory.0.join("dependency.slib");
+        std::fs::write(&manifest, "manifest").unwrap();
+        std::fs::write(&core, "core").unwrap();
+        std::fs::write(&dependency, "dependency").unwrap();
+        let current = CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(directory.0.clone()),
+        };
+        let dependencies = ExplicitDependencyInputs::new(
+            vec![HostArtifactLocator::new(&dependency).unwrap()],
+            Vec::new(),
+        )
+        .unwrap();
+        let trusted_core = TrustedCoreInput::Artifact(TrustedCoreArtifactInput::for_test(core));
+        let output = SlibOutputDestination::new(&dependency).unwrap();
+
+        assert!(matches!(
+            validate_output_isolation(&current, &dependencies, &trusted_core, &output),
+            Err(SingleConeBuildRequestError::OutputIsolation {
+                kind: OutputIsolationErrorKind::AliasesInput {
+                    role: OutputAliasRole::DirectArtifact { index: 0 },
+                    ..
+                },
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn output_isolation_accepts_a_new_file_in_an_existing_directory() {
+        let directory = TempDirectory::new();
+        let manifest = directory.0.join("Cone.toml");
+        let core = directory.0.join("core.slib");
+        std::fs::write(&manifest, "manifest").unwrap();
+        std::fs::write(&core, "core").unwrap();
+        let current = CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(directory.0.clone()),
+        };
+        let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap();
+        let trusted_core = TrustedCoreInput::Artifact(TrustedCoreArtifactInput::for_test(core));
+        let output = SlibOutputDestination::new(directory.0.join("output.slib")).unwrap();
+
+        validate_output_isolation(&current, &dependencies, &trusted_core, &output).unwrap();
     }
 
     #[test]
