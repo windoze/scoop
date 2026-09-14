@@ -10,6 +10,14 @@ impl CanonicalLirFoundation {
     /// safepoint semantics from local arena ids.
     pub fn from_module(module: &Module) -> Result<Self, LirFoundationBuildError> {
         let mut foundation = Self::from_functions(&module.functions)?;
+        validate_unique_layout_definitions(
+            module
+                .meta
+                .layouts
+                .iter()
+                .map(|(_, layout)| &layout.identity)
+                .chain(module.meta.arrays.iter().map(|(_, array)| &array.identity)),
+        )?;
         let layout_identities = module
             .meta
             .layouts
@@ -395,6 +403,22 @@ fn insert_materialization_records(
     insert_projected_identity(members, member, LirFoundationTable::OdrMember)
 }
 
+fn validate_unique_layout_definitions<'a>(
+    identities: impl IntoIterator<Item = &'a crate::LayoutIdentity>,
+) -> Result<(), LirFoundationBuildError> {
+    let mut defined_layouts = BTreeSet::new();
+    for identity in identities {
+        let id = identity.layout_record().id();
+        if !defined_layouts.insert(id) {
+            return Err(LirFoundationBuildError::DuplicateIdentity {
+                table: LirFoundationTable::Layout,
+                identity: *id.as_array(),
+            });
+        }
+    }
+    Ok(())
+}
+
 fn insert_projected_identity<I, K>(
     records: &mut BTreeMap<I, CborIdentityRecord<I, K>>,
     record: Option<&CborIdentityRecord<I, K>>,
@@ -518,6 +542,28 @@ mod tests {
             member.key().group() == foundation.odr_groups[0].id()
                 || member.key().group() == inherited_group.id()
         }));
+    }
+
+    #[test]
+    fn rejects_two_physical_layout_definitions_with_one_identity() {
+        let exact_type = exact_tuple(0);
+        let identity = LayoutIdentity::managed_value(
+            exact_type,
+            LirTargetProfile::DARWIN_AARCH64,
+            MaterializationRoot::lir_structural_odr(exact_type).unwrap(),
+        )
+        .unwrap();
+        let identities = [identity.clone(), identity];
+
+        let error = validate_unique_layout_definitions(&identities).unwrap_err();
+
+        assert!(matches!(
+            error,
+            LirFoundationBuildError::DuplicateIdentity {
+                table: LirFoundationTable::Layout,
+                ..
+            }
+        ));
     }
 
     #[test]
