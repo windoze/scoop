@@ -878,6 +878,115 @@ mod tests {
             scoop_hir::CoreHirInterfaceBranchV1::Core(_)
         ));
         scoop_hir::CoreHirInterfaceV1::from_core_export(&output.hir().export).unwrap();
+
+        let scoop_hir::CoreHirInterfaceBranchV1::Core(interface) =
+            output.production_section().core_interface()
+        else {
+            panic!("the trusted bootstrap output has a core interface")
+        };
+        let signatures = interface
+            .callable_targets()
+            .targets()
+            .iter()
+            .filter_map(|target| {
+                let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeStrong(signature) =
+                    target.capability()
+                else {
+                    return None;
+                };
+                let scoop_hir::CoreCallableDefinitionV1::Function(definition) = target.definition()
+                else {
+                    panic!("a param-free strong core callable has a source function definition")
+                };
+                Some(scoop_mir::CallableSignatureRecord::new(
+                    scoop_mir::CallableSignatureSubject::Strong(
+                        scoop_identity::CallableOwner::Function(definition),
+                    ),
+                    signature.clone(),
+                ))
+            })
+            .collect::<Vec<_>>();
+        assert!(!signatures.is_empty());
+
+        let empty_mir_foundation =
+            scoop_mir::OdrFreeMirFoundation::try_new(scoop_mir::CanonicalMirFoundation::empty())
+                .unwrap();
+        assert!(matches!(
+            scoop_mir_lower::lower_production_section(
+                scoop_identity::ConeIdentity::CORE,
+                output.production_section(),
+                &empty_mir_foundation,
+            ),
+            Err(scoop_mir_lower::MirProductionLoweringError::MissingStrongCoreCallable { .. })
+        ));
+
+        let mut mismatched_signatures = signatures.clone();
+        let expected = mismatched_signatures[0].signature();
+        let wrong_effect = match expected.effect() {
+            scoop_identity::Effect::Ordinary => scoop_identity::Effect::Suspend,
+            scoop_identity::Effect::Suspend => scoop_identity::Effect::Ordinary,
+        };
+        mismatched_signatures[0] = scoop_mir::CallableSignatureRecord::new(
+            mismatched_signatures[0].subject(),
+            scoop_identity::ExactCallableSignature::new(
+                wrong_effect,
+                expected.receiver().into_option(),
+                expected.parameters().to_vec(),
+                expected.result(),
+            ),
+        );
+        let mut mismatched_foundation = scoop_mir::CanonicalMirFoundation::empty();
+        mismatched_foundation
+            .set_callable_signatures(mismatched_signatures)
+            .unwrap();
+        let mismatched_foundation =
+            scoop_mir::OdrFreeMirFoundation::try_new(mismatched_foundation).unwrap();
+        assert!(matches!(
+            scoop_mir_lower::lower_production_section(
+                scoop_identity::ConeIdentity::CORE,
+                output.production_section(),
+                &mismatched_foundation,
+            ),
+            Err(scoop_mir_lower::MirProductionLoweringError::CoreCallableSignatureMismatch { .. })
+        ));
+
+        let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
+        mir_foundation.set_callable_signatures(signatures).unwrap();
+        let mir_foundation = scoop_mir::OdrFreeMirFoundation::try_new(mir_foundation).unwrap();
+        assert!(matches!(
+            scoop_mir_lower::lower_production_section(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                output.production_section(),
+                &mir_foundation,
+            ),
+            Err(scoop_mir_lower::MirProductionLoweringError::Production(
+                scoop_mir::MirProductionBuildError::UnexpectedCoreBridge(
+                    scoop_identity::ConeIdentity::SINGLE_FILE
+                )
+            ))
+        ));
+        let mir_production = scoop_mir_lower::lower_production_section(
+            scoop_identity::ConeIdentity::CORE,
+            output.production_section(),
+            &mir_foundation,
+        )
+        .unwrap();
+        let scoop_mir::CoreMirBridgeBranchV1::Core(core_bridge) = mir_production.core_bridge()
+        else {
+            panic!("the trusted bootstrap MIR production has a core bridge")
+        };
+        assert_eq!(
+            core_bridge.callable_targets().len(),
+            interface
+                .callable_targets()
+                .targets()
+                .iter()
+                .filter(|target| matches!(
+                    target.capability(),
+                    scoop_hir::CoreHirCallableCapabilityV1::ParamFreeStrong(_)
+                ))
+                .count()
+        );
     }
 
     #[test]

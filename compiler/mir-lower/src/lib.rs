@@ -124,7 +124,7 @@ mod strings;
 mod structured;
 mod types;
 
-pub use production::lower_entry_bridge;
+pub use production::{MirProductionLoweringError, lower_production_section};
 
 use context::*;
 use globals::*;

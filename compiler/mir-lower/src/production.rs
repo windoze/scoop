@@ -1,6 +1,87 @@
-/// Projects the sealed HIR output branch into the MIR entry bridge without
-/// dropping any part of the executable source-entry proof.
-pub fn lower_entry_bridge(
+use std::fmt;
+
+use scoop_hir::{
+    CoreBootstrapInterfaceSectionV1, CoreCallableDefinitionV1, CoreHirCallableCapabilityV1,
+    CoreHirInterfaceBranchV1,
+};
+use scoop_mir::{
+    CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
+    CoreMirBridgeV1, CoreMirCallableBridgeV1, MirProductionBuildError, OdrFreeMirFoundation,
+    StrongCallableBridgeSurfaceV1,
+};
+
+/// Projects one checked HIR production section and the complete strong MIR
+/// foundation into the mandatory MIR production section.
+///
+/// The projection is intentionally atomic: callers cannot obtain a public
+/// entry-only bridge and later pair it with an unrelated core-callable
+/// surface.
+pub fn lower_production_section(
+    artifact: ConeIdentity,
+    hir: &CoreBootstrapInterfaceSectionV1,
+    foundation: &OdrFreeMirFoundation,
+) -> Result<CoreBootstrapBridgeSectionV1, MirProductionLoweringError> {
+    let strong_callable_bridges =
+        StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation);
+    let core_bridge = lower_core_bridge(hir.core_interface(), &strong_callable_bridges)?;
+    let entry_bridge = lower_entry_bridge(hir.output_contract())
+        .map_err(MirProductionLoweringError::Production)?;
+    CoreBootstrapBridgeSectionV1::try_new(
+        artifact,
+        core_bridge,
+        entry_bridge,
+        strong_callable_bridges,
+    )
+    .map_err(MirProductionLoweringError::Production)
+}
+
+fn lower_core_bridge(
+    interface: &CoreHirInterfaceBranchV1,
+    strong: &StrongCallableBridgeSurfaceV1,
+) -> Result<CoreMirBridgeBranchV1, MirProductionLoweringError> {
+    let CoreHirInterfaceBranchV1::Core(interface) = interface else {
+        return Ok(CoreMirBridgeBranchV1::NotCore);
+    };
+
+    let mut callable_targets = Vec::new();
+    for (index, target) in interface.callable_targets().targets().iter().enumerate() {
+        let CoreHirCallableCapabilityV1::ParamFreeStrong(signature) = target.capability() else {
+            continue;
+        };
+        let CoreCallableDefinitionV1::Function(definition) = target.definition() else {
+            return Err(MirProductionLoweringError::GenericStrongCoreCallable { index });
+        };
+        let implementation = CallableOwner::Function(definition);
+        let Some(bridge) = strong
+            .bridges()
+            .iter()
+            .find(|bridge| bridge.implementation() == implementation)
+        else {
+            return Err(MirProductionLoweringError::MissingStrongCoreCallable {
+                index,
+                implementation,
+            });
+        };
+        if bridge.signature() != signature {
+            return Err(MirProductionLoweringError::CoreCallableSignatureMismatch {
+                index,
+                implementation,
+            });
+        }
+        callable_targets.push(
+            CoreMirCallableBridgeV1::new(target.binding(), definition, implementation)
+                .map_err(MirProductionLoweringError::Production)?,
+        );
+    }
+
+    CoreMirBridgeV1::try_new(callable_targets)
+        .map(CoreMirBridgeBranchV1::Core)
+        .map_err(MirProductionLoweringError::Production)
+}
+
+/// Projects the sealed HIR output branch without dropping any part of the
+/// executable source-entry proof.
+fn lower_entry_bridge(
     output: &scoop_hir::HirOutputContractV1,
 ) -> Result<scoop_mir::EntryMirBridgeBranchV1, scoop_mir::MirProductionBuildError> {
     match output {
@@ -10,6 +91,39 @@ pub fn lower_entry_bridge(
             scoop_mir::EntryMirBridgeV1::new(source.as_ref().clone(), implementation)
                 .map(Box::new)
                 .map(scoop_mir::EntryMirBridgeBranchV1::Executable)
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum MirProductionLoweringError {
+    GenericStrongCoreCallable {
+        index: usize,
+    },
+    MissingStrongCoreCallable {
+        index: usize,
+        implementation: CallableOwner,
+    },
+    CoreCallableSignatureMismatch {
+        index: usize,
+        implementation: CallableOwner,
+    },
+    Production(MirProductionBuildError),
+}
+
+impl fmt::Display for MirProductionLoweringError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "cannot lower MIR production section: {self:?}")
+    }
+}
+
+impl std::error::Error for MirProductionLoweringError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Production(source) => Some(source),
+            Self::GenericStrongCoreCallable { .. }
+            | Self::MissingStrongCoreCallable { .. }
+            | Self::CoreCallableSignatureMismatch { .. } => None,
         }
     }
 }
