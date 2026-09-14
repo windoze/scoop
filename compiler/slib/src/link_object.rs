@@ -100,6 +100,9 @@ pub use undefined_requirements::*;
 mod defined_owners;
 pub use defined_owners::*;
 
+mod code_fingerprint;
+pub use code_fingerprint::*;
+
 mod macho;
 pub use macho::*;
 

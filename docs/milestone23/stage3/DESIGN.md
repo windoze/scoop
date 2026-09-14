@@ -2258,6 +2258,17 @@ packager只有在全部Link-purpose输入就绪后计算：
 - `CanonicalNativeExternalContractSet`与target-tagged native library requirements；
 - strong/image verification surface中registry指定进入Code sink的canonical projection。
 
+其中`CanonicalNativeExternalContractCodeSetV1`只保存Link判等所需的contract，不携带
+source/diagnostic provenance。它编码为array，元素`NativeExternalContractCodeRecordV1`固定为
+`1=symbol_id`、`2=symbol_key`、`3=fingerprint`、`4=contract`，按
+`symbol_key.native_link_symbol`的原始bytes严格递增。`symbol_key`自身携带target，`contract`携带
+`NativeLibraryBinding`；非默认library的完整target-tagged
+`CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>`另由native library
+requirement array按requirement id严格递增编码。多个source声明归并为同一contract时，增删或重排
+其source identity不改变Code fingerprint；symbol key、contract fingerprint、contract payload或
+library requirement任一变化都必须改变Code fingerprint。reader从已验证LIR native requirement
+surface重建该集合，不从hash input提升decoded identity。
+
 domain固定为`scoop-code-v1`。optional blob、diagnostic attachment、physical ar name、host path和producer临时目录不进入。只改object分片会改变member/Code fingerprint但不改变LIR semantic fingerprint；只改optional附件只改变Artifact fingerprint。
 
 ### 14.5 fingerprint可用性
