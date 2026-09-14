@@ -54,6 +54,14 @@ impl CodeLinkObjectMemberSetV1 {
     }
 }
 
+#[cfg(test)]
+pub(in crate::link_object) fn empty_code_link_object_member_set_for_test()
+-> CodeLinkObjectMemberSetV1 {
+    CodeLinkObjectMemberSetV1 {
+        members: Vec::new(),
+    }
+}
+
 impl WireEncode for CodeLinkObjectMemberSetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(self.members.len() as u64)?;

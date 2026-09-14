@@ -16,6 +16,9 @@ use crate::{
     LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberId, SlibMemberRole,
 };
 
+mod wire;
+pub(crate) use wire::DecodedFixedBytesV1;
+
 const SCOOP_LIR_UNIT_SET_DOMAIN: &str = "scoop-lir-object-unit-set-v1";
 const GENERATED_BRIDGE_UNIT_SET_DOMAIN: &str = "scoop-generated-bridge-object-unit-set-v1";
 

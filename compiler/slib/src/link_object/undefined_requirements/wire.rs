@@ -1,7 +1,6 @@
 //! Closed wire schema for finalized undefined-symbol requirements.
 
 use std::fmt;
-use std::marker::PhantomData;
 
 use scoop_identity::{
     ConeIdentity, DecodedNativeLibraryBinding, DecodedPersistentId, DefinitionAtomRole,
@@ -19,7 +18,8 @@ use super::{
 use crate::SlibMemberId;
 use crate::link_object::defined_owners::DecodedStrongDefinitionOwnerV1;
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, RelocationTargetSlotV1, VerifiedDarwinArm64RelocationFormV1,
+    BuiltinObjectSectionRoleV1, DecodedFixedBytesV1, RelocationTargetSlotV1,
+    VerifiedDarwinArm64RelocationFormV1,
 };
 
 impl WireEncode for FinalUndefinedSymbolRequirementV1 {
@@ -97,37 +97,6 @@ impl WireEncode for CanonicalUndefinedRelocationUseV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct DecodedFixedId<I> {
-    bytes: [u8; 32],
-    marker: PhantomData<fn() -> I>,
-}
-
-impl<I> WireEncode for DecodedFixedId<I> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.bytes(&self.bytes)
-    }
-}
-
-impl<I> WireDecode for DecodedFixedId<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        let bytes = decoder.bytes()?;
-        let bytes = <&[u8; 32]>::try_from(bytes).copied().map_err(|_| {
-            wire_error(
-                decoder,
-                WireErrorKind::InvalidLength {
-                    expected: 32,
-                    actual: bytes.len() as u64,
-                },
-            )
-        })?;
-        Ok(Self {
-            bytes,
-            marker: PhantomData,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
     IntraConeStrong {
         owner: DecodedStrongDefinitionOwnerV1,
@@ -144,13 +113,13 @@ pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
         library: DecodedNativeLibraryBinding,
     },
     RuntimeAbi {
-        contract: DecodedFixedId<RuntimeSymbolContractId>,
+        contract: DecodedFixedBytesV1<RuntimeSymbolContractId>,
     },
     TargetEhSupport {
-        contract: DecodedFixedId<TargetEhRequirementId>,
+        contract: DecodedFixedBytesV1<TargetEhRequirementId>,
     },
     CBridgeTargetSupport {
-        contract: DecodedFixedId<CBridgeTargetSupportRequirementId>,
+        contract: DecodedFixedBytesV1<CBridgeTargetSupportRequirementId>,
     },
 }
 
@@ -216,19 +185,19 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
             5 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder
-                    .field(1, DecodedFixedId::decode)
+                    .field(1, DecodedFixedBytesV1::decode)
                     .map(|contract| Self::RuntimeAbi { contract })
             }
             6 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder
-                    .field(1, DecodedFixedId::decode)
+                    .field(1, DecodedFixedBytesV1::decode)
                     .map(|contract| Self::TargetEhSupport { contract })
             }
             7 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder
-                    .field(1, DecodedFixedId::decode)
+                    .field(1, DecodedFixedBytesV1::decode)
                     .map(|contract| Self::CBridgeTargetSupport { contract })
             }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
@@ -238,7 +207,7 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DecodedCanonicalUndefinedRelocationUseV1 {
-    source_member: DecodedFixedId<SlibMemberId>,
+    source_member: DecodedFixedBytesV1<SlibMemberId>,
     containing_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
     containing_atom_role: DefinitionAtomRole,
     section_role: BuiltinObjectSectionRoleV1,
@@ -280,7 +249,7 @@ impl WireDecode for DecodedCanonicalUndefinedRelocationUseV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
-            source_member: decoder.field(1, DecodedFixedId::decode)?,
+            source_member: decoder.field(1, DecodedFixedBytesV1::decode)?,
             containing_atom: decoder.field(2, DecodedPersistentId::decode)?,
             containing_atom_role: decoder.field(3, DefinitionAtomRole::decode)?,
             section_role: decoder.field(4, decode_section_role)?,

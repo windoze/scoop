@@ -11,6 +11,9 @@ use super::{
 };
 use crate::SlibMemberId;
 
+mod wire;
+pub use wire::{DecodedLinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LinkObjectMaterializationV1 {
     ScoopLir {
