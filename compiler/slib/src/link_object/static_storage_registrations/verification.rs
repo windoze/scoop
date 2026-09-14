@@ -36,6 +36,8 @@ pub struct VerifiedStrongStaticStorageRegistrationV1 {
     member: SlibMemberId,
     primary_symbol_table_index: u32,
     checked_offset: u64,
+    storage_member: SlibMemberId,
+    storage_checked_offset: u64,
     storage_relocation: StrongRelocationBindingV1,
     scan_relocation: StrongRelocationBindingV1,
     template_relocation: VerifiedRelocationUseV1,
@@ -62,6 +64,14 @@ impl VerifiedStrongStaticStorageRegistrationV1 {
 
     pub const fn checked_offset(&self) -> u64 {
         self.checked_offset
+    }
+
+    pub const fn storage_member(&self) -> SlibMemberId {
+        self.storage_member
+    }
+
+    pub const fn storage_checked_offset(&self) -> u64 {
+        self.storage_checked_offset
     }
 
     pub const fn storage_relocation(&self) -> &StrongRelocationBindingV1 {
@@ -236,7 +246,7 @@ fn verify_registration(
         file_end - file_start,
     )?;
 
-    verify_storage_artifacts(patch_sites, objects, plan)?;
+    let storage_artifacts = verify_storage_artifacts(patch_sites, objects, plan)?;
     let relocations = verify_relocations(patch_sites, verified_member, plan)?;
     let registration_definition_patch = require_patch(
         patch_sites,
@@ -282,6 +292,7 @@ fn verify_registration(
         member,
         primary_symbol_table_index,
         file_start,
+        storage_artifacts,
         relocations,
         registration_definition_patch,
         scan_fingerprint_patch,
@@ -289,11 +300,17 @@ fn verify_registration(
     ))
 }
 
+#[derive(Clone, Copy)]
+struct VerifiedStaticStorageArtifactsV1 {
+    member: SlibMemberId,
+    checked_offset: u64,
+}
+
 fn verify_storage_artifacts(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     objects: &BTreeMap<SlibMemberId, &[u8]>,
     plan: &StrongStaticStorageRegistrationPlanV1,
-) -> Result<(), StrongStaticStorageRegistrationValidationError> {
+) -> Result<VerifiedStaticStorageArtifactsV1, StrongStaticStorageRegistrationValidationError> {
     let builtins = patch_sites.builtins();
     let storage_member = required_scoop_member(builtins, plan, plan.storage_definition_plan())?;
     let storage_index = verified_member(builtins, storage_member)?;
@@ -424,7 +441,10 @@ fn verify_storage_artifacts(
             }
         }
     }
-    Ok(())
+    Ok(VerifiedStaticStorageArtifactsV1 {
+        member: storage_member,
+        checked_offset: storage_start,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -433,6 +453,7 @@ fn build_verified_registration(
     member: SlibMemberId,
     primary_symbol_table_index: u32,
     checked_offset: u64,
+    storage_artifacts: VerifiedStaticStorageArtifactsV1,
     relocations: VerifiedStaticStorageRelocations,
     registration_definition_patch: VerifiedMaterializedPatchSiteV1,
     scan_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
@@ -443,6 +464,8 @@ fn build_verified_registration(
         member,
         primary_symbol_table_index,
         checked_offset,
+        storage_member: storage_artifacts.member,
+        storage_checked_offset: storage_artifacts.checked_offset,
         storage_relocation: relocations.storage,
         scan_relocation: relocations.scan,
         template_relocation: relocations.template,

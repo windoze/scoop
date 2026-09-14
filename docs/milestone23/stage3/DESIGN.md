@@ -1604,6 +1604,14 @@ content digest的object全集产生。计算器把descriptor的四个pointer载�
 sentinel role 1/2。物理member、atom id、symbol-table index、section-base addend与sentinel地址均不进入hash；
 调用方不能传入裸target或自行选择local target种类。
 
+storage本体的ObjectDefinition leaf只能经
+`compute_strong_static_storage_definition_fingerprints_v1`继续消费registration-object proof与再次匹配
+content digest的object全集产生。计算器从proof持有的精确writable Primary range读取
+`allocation_extent` bytes，逐项核对并清零managed pointer载荷，再把每项按offset排序编码为
+`Unsigned64 + IntraConeStrong ImmortalObject(target)` relocation；零/非零 relocation 集合都显式编码count，
+direct input固定为空。registration verifier已经把template、relocation table及storage初值逐byte绑定到同一
+semantic plan，因此该leaf不能脱离完整initial-state artifact proof单独从裸writable bytes构造。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction
