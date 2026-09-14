@@ -35,20 +35,31 @@ use crate::{
     ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
     ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError, SemanticFingerprintError,
     SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord, SlibMemberRole,
-    StrongCallableRegistrationValidationError, StrongImmortalObjectRegistrationValidationError,
+    StrongCallableRegistrationObjectFingerprintError, StrongCallableRegistrationValidationError,
+    StrongImmortalObjectRegistrationObjectFingerprintError,
+    StrongImmortalObjectRegistrationValidationError,
+    StrongInitializationRegistrationObjectFingerprintError,
     StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
-    StrongSafepointRegistrationValidationError, StrongStaticStorageRegistrationValidationError,
+    StrongSafepointFingerprintError, StrongSafepointRegistrationValidationError,
+    StrongStaticStorageRegistrationObjectFingerprintError,
+    StrongStaticStorageRegistrationValidationError, StrongTypeRegistrationObjectFingerprintError,
     StrongTypeRegistrationValidationError, ValidatedGraphArtifact,
     ValidatedSingleConeStrongProduction, VerifiedBuiltinObjectStrongRelocationSetV1,
     VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableRegistrationSetV1,
-    VerifiedStrongImmortalObjectRegistrationSetV1, VerifiedStrongInitializationRegistrationSetV1,
-    VerifiedStrongSafepointRegistrationSetV1, VerifiedStrongStaticStorageRegistrationSetV1,
-    VerifiedStrongTypeRegistrationSetV1, hir_core_bootstrap_interface_capability,
-    hir_identity_foundation_capability, lir_identity_foundation_capability,
-    lir_link_identity_closure_capability, lir_strong_production_capability,
-    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    VerifiedStrongCallableRegistrationSetV1,
+    VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    VerifiedStrongImmortalObjectRegistrationSetV1,
+    VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+    VerifiedStrongInitializationRegistrationSetV1, VerifiedStrongSafepointFingerprintSetV1,
+    VerifiedStrongSafepointRegistrationSetV1,
+    VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
+    VerifiedStrongStaticStorageRegistrationSetV1,
+    VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
+    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
+    lir_identity_foundation_capability, lir_link_identity_closure_capability,
+    lir_strong_production_capability, manifest_single_cone_production_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 
 const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
@@ -185,6 +196,31 @@ pub struct RegistrationObjectCheckedSingleConeLinkSections<'input> {
     immortal_object_registrations: VerifiedStrongImmortalObjectRegistrationSetV1,
     static_storage_registrations: VerifiedStrongStaticStorageRegistrationSetV1,
     initialization_registrations: VerifiedStrongInitializationRegistrationSetV1,
+    production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
+}
+
+/// Link sections whose six registration-object leaves were canonically
+/// fingerprinted from the verified provisional object bytes. Safepoints also
+/// carry their final strong-registration fingerprints because their only
+/// non-object input is the already normalized stackmap proof. Remaining
+/// registration dependency leaves are still unproven.
+pub struct RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    production: ValidatedSingleConeStrongProduction,
+    link_identity_closure: ObjectProjectionCheckedLinkIdentityClosureSectionV1,
+    scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
+    generated_bridge_objects: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
+    safepoints: VerifiedStrongSafepointFingerprintSetV1,
+    callable_registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    immortal_object_registration_objects:
+        VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    static_storage_registration_objects:
+        VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
+    initialization_registration_objects:
+        VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
     production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 
@@ -1071,7 +1107,7 @@ impl<'input> DigestPatchCheckedSingleConeLinkSections<'input> {
     }
 }
 
-impl RegistrationObjectCheckedSingleConeLinkSections<'_> {
+impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -1152,6 +1188,170 @@ impl RegistrationObjectCheckedSingleConeLinkSections<'_> {
         &self,
     ) -> &VerifiedStrongInitializationRegistrationSetV1 {
         &self.initialization_registrations
+    }
+
+    pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
+
+    pub fn fingerprint_registration_leaves(
+        self,
+    ) -> Result<
+        RegistrationLeafFingerprintedSingleConeLinkSections<'input>,
+        StrongLinkRegistrationLeafFingerprintError,
+    > {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects,
+            safepoint_registrations,
+            callable_registrations,
+            type_registrations,
+            immortal_object_registrations,
+            static_storage_registrations,
+            initialization_registrations,
+            production_manifest,
+        } = self;
+        let safepoints = crate::compute_strong_safepoint_fingerprints_v1(
+            safepoint_registrations,
+            &scoop_objects,
+        )
+        .map_err(StrongLinkRegistrationLeafFingerprintError::Safepoints)?;
+        let callable_registration_objects =
+            crate::compute_strong_callable_registration_object_fingerprints_v1(
+                callable_registrations,
+                &scoop_objects,
+            )
+            .map_err(StrongLinkRegistrationLeafFingerprintError::Callables)?;
+        let type_registration_objects =
+            crate::compute_strong_type_registration_object_fingerprints_v1(
+                type_registrations,
+                &scoop_objects,
+            )
+            .map_err(StrongLinkRegistrationLeafFingerprintError::Types)?;
+        let immortal_object_registration_objects =
+            crate::compute_strong_immortal_object_registration_object_fingerprints_v1(
+                immortal_object_registrations,
+                &scoop_objects,
+            )
+            .map_err(StrongLinkRegistrationLeafFingerprintError::ImmortalObjects)?;
+        let static_storage_registration_objects =
+            crate::compute_strong_static_storage_registration_object_fingerprints_v1(
+                static_storage_registrations,
+                &scoop_objects,
+            )
+            .map_err(StrongLinkRegistrationLeafFingerprintError::StaticStorages)?;
+        let initialization_registration_objects =
+            crate::compute_strong_initialization_registration_object_fingerprints_v1(
+                initialization_registrations,
+                &scoop_objects,
+            )
+            .map_err(StrongLinkRegistrationLeafFingerprintError::InitializationUnits)?;
+
+        Ok(RegistrationLeafFingerprintedSingleConeLinkSections {
+            graph,
+            identities,
+            foundations,
+            production,
+            link_identity_closure,
+            scoop_objects,
+            generated_bridge_objects,
+            safepoints,
+            callable_registration_objects,
+            type_registration_objects,
+            immortal_object_registration_objects,
+            static_storage_registration_objects,
+            initialization_registration_objects,
+            production_manifest,
+        })
+    }
+}
+
+impl RegistrationLeafFingerprintedSingleConeLinkSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn decode_usage(&self) -> DecodeUsage {
+        self.graph.decode_usage()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub const fn production(&self) -> &ValidatedSingleConeStrongProduction {
+        &self.production
+    }
+
+    pub const fn object_projections(&self) -> &ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
+        &self.link_identity_closure
+    }
+
+    pub fn scoop_objects(&self) -> &[ScoopLirObjectCandidateV1<'_>] {
+        &self.scoop_objects
+    }
+
+    pub fn generated_bridge_objects(&self) -> &[GeneratedCBridgeObjectCandidateV1<'_>] {
+        &self.generated_bridge_objects
+    }
+
+    pub const fn safepoints(&self) -> &VerifiedStrongSafepointFingerprintSetV1 {
+        &self.safepoints
+    }
+
+    pub const fn callable_registration_objects(
+        &self,
+    ) -> &VerifiedStrongCallableRegistrationObjectFingerprintSetV1 {
+        &self.callable_registration_objects
+    }
+
+    pub const fn type_registration_objects(
+        &self,
+    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
+        &self.type_registration_objects
+    }
+
+    pub const fn immortal_object_registration_objects(
+        &self,
+    ) -> &VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1 {
+        &self.immortal_object_registration_objects
+    }
+
+    pub const fn static_storage_registration_objects(
+        &self,
+    ) -> &VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1 {
+        &self.static_storage_registration_objects
+    }
+
+    pub const fn initialization_registration_objects(
+        &self,
+    ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+        &self.initialization_registration_objects
     }
 
     pub const fn production_manifest(&self) -> &CBridgeCheckedSingleConeProductionManifestV1 {
@@ -1537,6 +1737,38 @@ impl std::error::Error for StrongLinkRegistrationObjectError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::Stackmaps(error) => error,
+            Self::Safepoints(error) => error,
+            Self::Callables(error) => error,
+            Self::Types(error) => error,
+            Self::ImmortalObjects(error) => error,
+            Self::StaticStorages(error) => error,
+            Self::InitializationUnits(error) => error,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum StrongLinkRegistrationLeafFingerprintError {
+    Safepoints(StrongSafepointFingerprintError),
+    Callables(StrongCallableRegistrationObjectFingerprintError),
+    Types(StrongTypeRegistrationObjectFingerprintError),
+    ImmortalObjects(StrongImmortalObjectRegistrationObjectFingerprintError),
+    StaticStorages(StrongStaticStorageRegistrationObjectFingerprintError),
+    InitializationUnits(StrongInitializationRegistrationObjectFingerprintError),
+}
+
+impl fmt::Display for StrongLinkRegistrationLeafFingerprintError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed to fingerprint strong Link registration leaves: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongLinkRegistrationLeafFingerprintError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
             Self::Safepoints(error) => error,
             Self::Callables(error) => error,
             Self::Types(error) => error,

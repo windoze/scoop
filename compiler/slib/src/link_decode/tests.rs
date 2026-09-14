@@ -149,6 +149,34 @@ fn strong_graph_decodes_all_link_sections_atomically() {
             .registrations()
             .is_empty()
     );
+    let leaves = registrations.fingerprint_registration_leaves().unwrap();
+    assert_eq!(leaves.identity(), cone().identity());
+    assert!(leaves.safepoints().fingerprints().is_empty());
+    assert!(
+        leaves
+            .callable_registration_objects()
+            .fingerprints()
+            .is_empty()
+    );
+    assert!(leaves.type_registration_objects().fingerprints().is_empty());
+    assert!(
+        leaves
+            .immortal_object_registration_objects()
+            .fingerprints()
+            .is_empty()
+    );
+    assert!(
+        leaves
+            .static_storage_registration_objects()
+            .fingerprints()
+            .is_empty()
+    );
+    assert!(
+        leaves
+            .initialization_registration_objects()
+            .fingerprints()
+            .is_empty()
+    );
 }
 
 #[test]
