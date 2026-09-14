@@ -46,6 +46,7 @@ macro_rules! typed_fingerprint {
 }
 
 typed_fingerprint!(ObjectDefinitionFingerprintV1);
+typed_fingerprint!(ScanFingerprintV1);
 typed_fingerprint!(StrongRegistrationFingerprintV1);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

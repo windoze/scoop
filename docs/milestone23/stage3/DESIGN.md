@@ -1612,6 +1612,14 @@ content digest的object全集产生。计算器从proof持有的精确writable P
 direct input固定为空。registration verifier已经把template、relocation table及storage初值逐byte绑定到同一
 semantic plan，因此该leaf不能脱离完整initial-state artifact proof单独从裸writable bytes构造。
 
+本阶段static storage所需的两个semantic leaf由
+`compute_strong_static_storage_shape_fingerprints_v1`继续消费上述storage-definition proof产生，不开放裸
+layout/scan输入。LayoutFingerprint使用domain `scoop-layout-v1`，依次编码static-value layout kind tag 1、
+`PersistentLayoutId`、logical `byte_size`与`required_alignment`；identity已经封闭exact type、target与
+representation。ScanFingerprint使用domain `scoop-scan-v1`和总设计的`None=0 | References=1 { count,
+offsets }` runtime encoding；static plan已拒绝Sequence及非canonical offsets。输出把两个digest分别绑定到
+plan中的Layout/Scan node id，并继续拥有同一完整物理proof。
+
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
 结果按persistent site id排序。构造器要求每个function-local safepoint reference恰被一条instruction
