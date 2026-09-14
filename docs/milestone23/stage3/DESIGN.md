@@ -1672,6 +1672,11 @@ candidate，不能用任意本地strong定义冒充。offset 120只允许同一r
 registration object leaf、实际immortal object ObjectDefinition与StrongRegistration节点，重验leaf闭包、
 两项direct input和唯一writer；不接受调用方自报target、node、digest或兼容record格式。
 
+core-external exact type的`TypeDescriptor` bridge同时授权同一type的`TypeRegistration` support owner；两者都
+必须在受信任core owner表中以各自精确role和规范symbol存在。descriptor relocation仍是bridge的必需直接use，
+type-registration relocation只在实际需要immortal metadata时进入requirement集合；它不能被当作source extern、
+runtime symbol或未分类external保留，也不新增一套无typed bridge来源的兼容授权。
+
 immortal registration自身的ObjectDefinition leaf只能经
 `compute_strong_immortal_object_registration_object_fingerprints_v1`消费上述完整registration proof和再次
 匹配content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确

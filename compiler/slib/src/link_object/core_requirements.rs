@@ -4,8 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{
-    CallableBodyKey, ConeIdentity, PersistentCallableBodyId, StrongCallableDefinitionOwner,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    CallableBodyKey, ConeIdentity, LinkageClass, PersistentCallableBodyId, PersistentExactTypeId,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{LirTargetProfile, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1};
 
@@ -110,6 +111,14 @@ pub fn verify_core_strong_requirements_v1(
             StrongDefinitionOwnerV1,
         ),
     >::new();
+    let mut support_bridges = BTreeMap::<
+        Vec<u8>,
+        (
+            &StrongExternalLirBridgeV1,
+            SlibMemberId,
+            StrongDefinitionOwnerV1,
+        ),
+    >::new();
     for bridge in external_bridges.bridges() {
         let request = expected_symbol(bridge);
         let name = normalization
@@ -142,6 +151,43 @@ pub fn verify_core_strong_requirements_v1(
                 CoreStrongRequirementValidationError::DuplicateNormalizedBridgeSymbol { name },
             );
         }
+        if let Some((request, support_owner)) = type_registration_support(bridge)? {
+            let support_name = normalization
+                .compiler_generated_object_symbol(request.symbol().as_str())
+                .into_bytes();
+            let Some(core_owner) = core_owners
+                .owners()
+                .binary_search_by(|owner| owner.symbol().cmp(&support_name))
+                .ok()
+                .map(|index| &core_owners.owners()[index])
+            else {
+                return Err(CoreStrongRequirementValidationError::MissingCoreOwner {
+                    name: support_name,
+                    owner: support_owner,
+                });
+            };
+            if core_owner.owner() != LinkDefinitionOwnerV1::StrongDefinition(support_owner) {
+                return Err(CoreStrongRequirementValidationError::CoreOwnerMismatch {
+                    name: support_name,
+                    expected: support_owner,
+                    actual: core_owner.owner(),
+                });
+            }
+            if bridges.contains_key(&support_name)
+                || support_bridges
+                    .insert(
+                        support_name.clone(),
+                        (bridge, core_owner.member(), support_owner),
+                    )
+                    .is_some()
+            {
+                return Err(
+                    CoreStrongRequirementValidationError::DuplicateNormalizedBridgeSymbol {
+                        name: support_name,
+                    },
+                );
+            }
+        }
     }
 
     let mut used = BTreeSet::new();
@@ -153,6 +199,13 @@ pub fn verify_core_strong_requirements_v1(
         };
         if let Some((bridge, core_member, owner)) = bridges.get(binding.symbol()) {
             used.insert(binding.symbol().to_vec());
+            core_requirements.push(CoreStrongRequirementUseV1 {
+                use_site: CanonicalUndefinedRelocationUseV1::from(binding),
+                core_member: *core_member,
+                owner: *owner,
+                bridge: (*bridge).clone(),
+            });
+        } else if let Some((bridge, core_member, owner)) = support_bridges.get(binding.symbol()) {
             core_requirements.push(CoreStrongRequirementUseV1 {
                 use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                 core_member: *core_member,
@@ -177,6 +230,37 @@ pub fn verify_core_strong_requirements_v1(
         core_requirements,
         remaining_external_candidates,
     })
+}
+
+fn type_registration_support(
+    bridge: &StrongExternalLirBridgeV1,
+) -> Result<
+    Option<(PersistentSymbolRequest, StrongDefinitionOwnerV1)>,
+    CoreStrongRequirementValidationError,
+> {
+    let StrongExternalLirBridgeV1::TypeDescriptor(bridge) = bridge else {
+        return Ok(None);
+    };
+    let target = bridge.target();
+    let request =
+        PersistentSymbolRequest::new(
+            PersistentSymbolKey::TypeRegistration(target),
+            LinkageClass::ConeStrong,
+        )
+        .map_err(|source| {
+            CoreStrongRequirementValidationError::InvalidTypeRegistrationSymbol { target, source }
+        })?;
+    let owner = StrongDefinitionOwnerV1::new(
+        StrongDefinitionEntity::exact_type(target),
+        StrongDefinitionRole::TypeRegistration,
+    )
+    .map_err(
+        |_| CoreStrongRequirementValidationError::InvalidExpectedOwner {
+            entity: StrongDefinitionEntity::exact_type(target),
+            role: StrongDefinitionRole::TypeRegistration,
+        },
+    )?;
+    Ok(Some((request, owner)))
 }
 
 fn expected_symbol(bridge: &StrongExternalLirBridgeV1) -> scoop_identity::PersistentSymbolRequest {
@@ -238,6 +322,10 @@ pub enum CoreStrongRequirementValidationError {
         entity: StrongDefinitionEntity,
         role: StrongDefinitionRole,
     },
+    InvalidTypeRegistrationSymbol {
+        target: PersistentExactTypeId,
+        source: PersistentSymbolError,
+    },
     UnusedExternalBridge {
         name: Vec<u8>,
     },
@@ -252,7 +340,14 @@ impl fmt::Display for CoreStrongRequirementValidationError {
     }
 }
 
-impl std::error::Error for CoreStrongRequirementValidationError {}
+impl std::error::Error for CoreStrongRequirementValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidTypeRegistrationSymbol { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests;

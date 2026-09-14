@@ -11,7 +11,9 @@ use scoop_lir::{
 use super::super::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
 };
-use super::super::symbol_verification::tests::{fixture_for_producer, fixture_for_type_descriptor};
+use super::super::symbol_verification::tests::{
+    fixture_for_producer, fixture_for_type_descriptor, fixture_for_type_registration,
+};
 use super::*;
 use crate::{
     CanonicalDefinedLinkSymbolOwnerSetV1, verify_current_cone_strong_relocation_closure_v1,
@@ -60,6 +62,86 @@ fn resolves_core_bridges_against_the_actual_core_owner() {
     assert_eq!(requirement.core_member(), expected_member);
     assert_eq!(requirement.use_site().symbol(), expected_name);
     assert!(verified.remaining_external_candidates().is_empty());
+}
+
+#[test]
+fn resolves_the_type_registration_support_of_a_core_descriptor_bridge() {
+    let producer = ConeIdentity::SINGLE_FILE;
+    let target = core_exact_type("SupportedString");
+    let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
+        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+    );
+    let descriptor_source = fixture_for_producer(producer, "coreDescriptorConsumer");
+    let registration_source = fixture_for_producer(producer, "coreRegistrationConsumer");
+    let registration_name = type_registration_name(target);
+    let strong = verify_current_cone_strong_relocation_closure_v1(vec![
+        verified_member_with_undefined(&descriptor_source, &bridge_name(&bridge)),
+        verified_member_with_undefined(&registration_source, &registration_name),
+    ])
+    .unwrap();
+    let surface =
+        StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge.clone()]).unwrap();
+
+    let verified = verify_core_strong_requirements_v1(
+        LirTargetProfile::DARWIN_AARCH64,
+        strong,
+        surface,
+        core_owner_set(target),
+    )
+    .unwrap();
+
+    assert_eq!(verified.core_requirements().len(), 2);
+    let support = verified
+        .core_requirements()
+        .iter()
+        .find(|requirement| requirement.use_site().symbol() == registration_name)
+        .unwrap();
+    assert_eq!(support.bridge(), &bridge);
+    assert_eq!(
+        support.owner(),
+        StrongDefinitionOwnerV1::new(
+            StrongDefinitionEntity::exact_type(target),
+            StrongDefinitionRole::TypeRegistration,
+        )
+        .unwrap()
+    );
+    assert!(verified.remaining_external_candidates().is_empty());
+}
+
+#[test]
+fn rejects_a_core_descriptor_bridge_without_its_registration_support_owner() {
+    let producer = ConeIdentity::SINGLE_FILE;
+    let target = core_exact_type("MissingRegistrationSupport");
+    let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
+        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+    );
+    let source = fixture_for_producer(producer, "missingRegistrationSupportConsumer");
+    let strong =
+        verify_current_cone_strong_relocation_closure_v1(vec![verified_member_with_undefined(
+            &source,
+            &bridge_name(&bridge),
+        )])
+        .unwrap();
+    let surface = StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap();
+    let expected_name = type_registration_name(target);
+    let expected_owner = StrongDefinitionOwnerV1::new(
+        StrongDefinitionEntity::exact_type(target),
+        StrongDefinitionRole::TypeRegistration,
+    )
+    .unwrap();
+
+    assert_eq!(
+        verify_core_strong_requirements_v1(
+            LirTargetProfile::DARWIN_AARCH64,
+            strong,
+            surface,
+            descriptor_only_core_owner_set(target),
+        ),
+        Err(CoreStrongRequirementValidationError::MissingCoreOwner {
+            name: expected_name,
+            owner: expected_owner,
+        })
+    );
 }
 
 #[test]
@@ -199,6 +281,19 @@ fn bridge_name(bridge: &StrongExternalLirBridgeV1) -> Vec<u8> {
         .into_bytes()
 }
 
+fn type_registration_name(target: PersistentExactTypeId) -> Vec<u8> {
+    let request = scoop_identity::PersistentSymbolRequest::new(
+        scoop_identity::PersistentSymbolKey::TypeRegistration(target),
+        scoop_identity::LinkageClass::ConeStrong,
+    )
+    .unwrap();
+    LirTargetProfile::DARWIN_AARCH64
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol(request.symbol().as_str())
+        .into_bytes()
+}
+
 fn core_exact_type(name: &str) -> PersistentExactTypeId {
     let site = SourceDeclarationSite::new(
         ConeIdentity::CORE,
@@ -218,9 +313,22 @@ fn core_exact_type(name: &str) -> PersistentExactTypeId {
 }
 
 fn core_owner_set(target: PersistentExactTypeId) -> CanonicalDefinedLinkSymbolOwnerSetV1 {
-    let fixture = fixture_for_type_descriptor(ConeIdentity::CORE, target);
+    let descriptor = fixture_for_type_descriptor(ConeIdentity::CORE, target);
+    let registration = fixture_for_type_registration(ConeIdentity::CORE, target);
     let closure = verify_current_cone_strong_relocation_closure_v1(vec![
-        verified_member_without_relocations(&fixture),
+        verified_member_without_relocations(&descriptor),
+        verified_member_without_relocations(&registration),
+    ])
+    .unwrap();
+    CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure).unwrap()
+}
+
+fn descriptor_only_core_owner_set(
+    target: PersistentExactTypeId,
+) -> CanonicalDefinedLinkSymbolOwnerSetV1 {
+    let descriptor = fixture_for_type_descriptor(ConeIdentity::CORE, target);
+    let closure = verify_current_cone_strong_relocation_closure_v1(vec![
+        verified_member_without_relocations(&descriptor),
     ])
     .unwrap();
     CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure).unwrap()

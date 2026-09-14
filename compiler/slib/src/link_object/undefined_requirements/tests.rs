@@ -22,7 +22,7 @@ use super::super::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
 };
 use super::super::symbol_verification::tests::{
-    fixture_for_producer, fixture_for_type_descriptor, fixture_named,
+    fixture_for_producer, fixture_for_type_descriptor, fixture_for_type_registration, fixture_named,
 };
 use super::*;
 use crate::{
@@ -333,9 +333,11 @@ pub(in crate::link_object) fn empty_bridge_plan(
 }
 
 fn core_owner_set(target: PersistentExactTypeId) -> CanonicalDefinedLinkSymbolOwnerSetV1 {
-    let fixture = fixture_for_type_descriptor(ConeIdentity::CORE, target);
+    let descriptor = fixture_for_type_descriptor(ConeIdentity::CORE, target);
+    let registration = fixture_for_type_registration(ConeIdentity::CORE, target);
     let closure = verify_current_cone_strong_relocation_closure_v1(vec![
-        verified_member_without_relocations(&fixture),
+        verified_member_without_relocations(&descriptor),
+        verified_member_without_relocations(&registration),
     ])
     .unwrap();
     CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure).unwrap()

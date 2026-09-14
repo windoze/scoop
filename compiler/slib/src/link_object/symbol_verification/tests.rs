@@ -218,13 +218,35 @@ pub(in crate::link_object) fn fixture_for_type_descriptor(
     producer: ConeIdentity,
     target: PersistentExactTypeId,
 ) -> Fixture {
+    fixture_for_exact_type_definition(
+        producer,
+        target,
+        StrongDefinitionRole::TypeDescriptor,
+        PersistentSymbolKey::TypeDescriptor(target),
+    )
+}
+
+pub(in crate::link_object) fn fixture_for_type_registration(
+    producer: ConeIdentity,
+    target: PersistentExactTypeId,
+) -> Fixture {
+    fixture_for_exact_type_definition(
+        producer,
+        target,
+        StrongDefinitionRole::TypeRegistration,
+        PersistentSymbolKey::TypeRegistration(target),
+    )
+}
+
+fn fixture_for_exact_type_definition(
+    producer: ConeIdentity,
+    target: PersistentExactTypeId,
+    role: StrongDefinitionRole,
+    symbol_key: PersistentSymbolKey,
+) -> Fixture {
     let plan = CborIdentityRecord::from_key(
-        ObjectDefinitionPlanKey::strong(
-            producer,
-            StrongDefinitionEntity::exact_type(target),
-            StrongDefinitionRole::TypeDescriptor,
-        )
-        .unwrap(),
+        ObjectDefinitionPlanKey::strong(producer, StrongDefinitionEntity::exact_type(target), role)
+            .unwrap(),
     )
     .unwrap();
     let atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
@@ -233,11 +255,7 @@ pub(in crate::link_object) fn fixture_for_type_descriptor(
         DefinitionAtomSubkey::Singleton,
     ))
     .unwrap();
-    let symbol = PersistentSymbolRequest::new(
-        PersistentSymbolKey::TypeDescriptor(target),
-        LinkageClass::ConeStrong,
-    )
-    .unwrap();
+    let symbol = PersistentSymbolRequest::new(symbol_key, LinkageClass::ConeStrong).unwrap();
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_definition_plans(vec![plan.clone()]).unwrap();
     canonical.set_definition_atoms(vec![atom.clone()]).unwrap();
