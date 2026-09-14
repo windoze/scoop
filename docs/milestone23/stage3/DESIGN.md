@@ -1028,6 +1028,16 @@ SingleConeProductionManifestV1 {
 }
 ```
 
+field 4不引入另一种registration identity结构；其精确类型就是与
+`StrongProductionSectionV1.registration_plans`逐byte相等的
+`StrongRegistrationIdentitySurfaceV1`。field 5为
+`CanonicalStrongRegistrationFingerprintSetV1`：fields `1..6`依次对应static storage、immortal
+object、initialization unit、type、safepoint、callable六张表；每项固定为
+`1=semantic_id`、`2=fingerprint: StrongRegistrationFingerprintV1`，各表按本表kind-specific
+semantic id严格递增。该集合只能从完成六类fingerprint计算并保留共同object/digest proof的
+`VerifiedStrongRegistrationPatchSetV1`投影；reader从相同proof重建并逐byte比较，不能接收六个裸digest
+array后自行拼表。
+
 bootstrap manifest field 9中Code/RuntimeImage两槽必须为`Available`且逐byte等于本section及object中相应值。`image_owner_member`必须等于Link closure重算值。重复摘要不是第二真源；任一不一致使Link proof失败。
 
 `ExecutableRootProjection`保存main body、source signature fingerprint、gateway body/fingerprint、failure-root identity和entry owner member。raw pointer、object-local symbol index或未来program graph不进入manifest。

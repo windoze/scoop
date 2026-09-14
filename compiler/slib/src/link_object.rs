@@ -64,6 +64,9 @@ pub use entry_production::*;
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 
+mod registration_projection;
+pub use registration_projection::*;
+
 mod generated_bridge_semantics;
 pub use generated_bridge_semantics::*;
 
