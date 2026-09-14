@@ -903,6 +903,13 @@ DefinitionAtomSubkey =
   | ExactType { id: PersistentExactTypeId }                          // tag 6
   | SafepointSite { id: PersistentSafepointSiteId }                  // tag 7
   | StructuralPath { path: StructuralDefinitionPath }              // tag 8
+  | ConeImageSupport { role: ConeImageSupportRole }                  // tag 9
+
+ConeImageSupportRole =
+    CoordinateGroup=1 | CoordinateName=2 | CoordinateVersion=3
+  | Dependencies=4 | StaticStorages=5 | ImmortalObjects=6
+  | InitializationUnits=7 | TypeRegistrations=8 | Safepoints=9
+  | Callables=10
 ```
 
 `GeneratedBridgeSemanticTarget`是LIR canonical definition、ODR fingerprint与undefined requirement中唯一可引用的bridge target；它只有unit，不含producer/atom。每个实际producer Cone必须为所用unit恰好生成一个`PrimaryEntry { unit }` atom，codegen把semantic target映射成`GeneratedBridgeAtomKey { producer = current artifact Cone, atom = PrimaryEntry(unit) }`。object verifier核对真实`br` symbol后，把relocation规范化回`GeneratedBridgeUnit { id }` canonical target；defined owner仍是producer-specific atom。这样两个Cone生成同一ODR body时，其机器relocation可各指向本Cone强bridge，但canonical LIR/object definition都观察相同unit recipe，不把consumer-local atom id写进ODR fingerprint。缺失/多个primary、跨producer atom或LIR直接保存atom id全部拒绝。
@@ -910,6 +917,10 @@ DefinitionAtomSubkey =
 `StrongDefinitionEntity × StrongDefinitionRole`矩阵逐项对应第7.1节key tag 1…18：CallableBody只接受role 1/16，StaticStorage接受2/11，ImmortalObject接受3/12，ExactType接受4/14，Layout、Scan、DispatchTable、DispatchSlot分别接受5…8，InitializationUnit接受9/10/13，SafepointSite接受15，ConeImage接受17，GeneratedBridgeAtom接受18。GeneratedBridgeAtom entity只接受`PrimaryEntry`、`SignatureDescriptor`或`ContextDescriptor`三种可物理materialize的atom id；`StaticAssertSupport`虽有identity record，却永远不能进入plan。Strong owner的entity必须按第7.2节求得同一个`producer` Cone；ODR owner只能与`OdrMemberPrimary`配对，Strong owner只能与`Strong` role配对。由此同一typed entity的body与registration可得到两个不同plan，而不同kind的裸32-byte值不能混用。plan key不含member、section、range、offset或digest；M23-3/M23-7只增加expected boundary/associated-role payload和物理materialization relation，不得重定义plan id。
 
 `DefinitionAtomRole`为`Primary=1, Lsda=2, EhFrame=3, CompactUnwind=4, Stackmap=5, RuntimeRecord=6, AddressTakenConstant=7`。同一Cone中的相同语义subkey必然得到相同bridge atom id；不同Cone可复用同一`GeneratedBridgeUnitId`与canonical C source recipe，但必须得到各自的atom id和`ConeStrong` symbol。v1刻意不把generated bridge atom纳入Specialization ODR；M23-7也不能移除producer或把`br`改成weak，未来若要跨Cone共享atom必须提升identity/schema。generated-bridge object verifier从artifact Cone与unit-to-member relation重算field 1；producer不是first use、worker或临时translation-unit identity。`StaticAssertSupport`只证明canonical generated-C source中的compile-time assertion recipe，成功object中没有对应section bytes，因此它可以有identity record但绝不能产生`br` request、ObjectDefinitionPlan或defined-symbol owner；只有PrimaryEntry、SignatureDescriptor与ContextDescriptor可物理materialize。缺少预期assert proof或为它凭空造sentinel atom都拒绝。同plan/role下的多个object atom必须有不同typed subkey，而不能因插入一个更早元素重编号。M23-2 foundation可以把plan/atom table编码为空，但任何出现的record都必须按上述完整key重算；M23-3/M23-7接入实际producer/materialization，不接受raw bytes或伪plan。
+
+`ConeImageSupport`只接受`ConeImage/ImageDescriptor` plan；coordinate三项使用
+`AddressTakenConstant`，dependency与六张registration table使用`RuntimeRecord`。空表的物理sentinel
+同样由其固定role认领，不能留下无owner local section。
 
 现有generic materialization已经要求可持久引用的ODR identity，因此M23-2冻结最小、但不声称完成definition等价验证的key：
 

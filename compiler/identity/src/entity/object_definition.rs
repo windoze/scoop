@@ -380,6 +380,37 @@ impl WireEncode for DefinitionAtomRole {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ConeImageSupportRole {
+    CoordinateGroup,
+    CoordinateName,
+    CoordinateVersion,
+    Dependencies,
+    StaticStorages,
+    ImmortalObjects,
+    InitializationUnits,
+    TypeRegistrations,
+    Safepoints,
+    Callables,
+}
+
+impl WireEncode for ConeImageSupportRole {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::CoordinateGroup => 1,
+            Self::CoordinateName => 2,
+            Self::CoordinateVersion => 3,
+            Self::Dependencies => 4,
+            Self::StaticStorages => 5,
+            Self::ImmortalObjects => 6,
+            Self::InitializationUnits => 7,
+            Self::TypeRegistrations => 8,
+            Self::Safepoints => 9,
+            Self::Callables => 10,
+        })
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefinitionAtomSubkey {
     Singleton,
@@ -390,6 +421,7 @@ pub enum DefinitionAtomSubkey {
     ExactType(PersistentExactTypeId),
     SafepointSite(PersistentSafepointSiteId),
     StructuralPath(StructuralDefinitionPath),
+    ConeImageSupport(ConeImageSupportRole),
 }
 
 impl WireEncode for DefinitionAtomSubkey {
@@ -403,6 +435,7 @@ impl WireEncode for DefinitionAtomSubkey {
             Self::ExactType(id) => encode_value_sum(encoder, 6, id),
             Self::SafepointSite(id) => encode_value_sum(encoder, 7, id),
             Self::StructuralPath(path) => encode_value_sum(encoder, 8, path),
+            Self::ConeImageSupport(role) => encode_value_sum(encoder, 9, role),
         }
     }
 }
@@ -505,7 +538,7 @@ fn encode_value_sum(
 #[cfg(test)]
 mod tests {
     use super::{
-        DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
+        ConeImageSupportRole, DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
         ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
         ObjectDefinitionPlanRole, StrongDefinitionEntity, StrongDefinitionRole,
     };
@@ -801,5 +834,21 @@ mod tests {
         assert_eq!(key.plan(), plan);
         assert_eq!(key.role(), DefinitionAtomRole::RuntimeRecord);
         assert_eq!(key.subkey(), &DefinitionAtomSubkey::StaticStorage(storage));
+    }
+
+    #[test]
+    fn cone_image_support_atom_has_a_fixed_typed_identity() {
+        let plan = ObjectDefinitionPlanId(ConeIdentity::CORE.0);
+        let key = ObjectDefinitionAtomKey::new(
+            plan,
+            DefinitionAtomRole::RuntimeRecord,
+            DefinitionAtomSubkey::ConeImageSupport(ConeImageSupportRole::Dependencies),
+        );
+        assert_eq!(key.plan(), plan);
+        assert_eq!(key.role(), DefinitionAtomRole::RuntimeRecord);
+        assert_eq!(
+            key.subkey(),
+            &DefinitionAtomSubkey::ConeImageSupport(ConeImageSupportRole::Dependencies)
+        );
     }
 }

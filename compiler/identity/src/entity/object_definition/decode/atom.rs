@@ -2,11 +2,29 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use super::{DefinitionAtomResolver, ObjectDefinitionResolutionError};
 use crate::{
-    DecodedPersistentId, DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentExactTypeId,
-    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
-    PersistentStaticStorageId, StructuralDefinitionPath,
+    ConeImageSupportRole, DecodedPersistentId, DefinitionAtomRole, DefinitionAtomSubkey,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, PersistentCallableBodyId,
+    PersistentExactTypeId, PersistentImmortalObjectId, PersistentInitializationUnitId,
+    PersistentSafepointSiteId, PersistentStaticStorageId, StructuralDefinitionPath,
 };
+
+impl WireDecode for ConeImageSupportRole {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::CoordinateGroup),
+            2 => Ok(Self::CoordinateName),
+            3 => Ok(Self::CoordinateVersion),
+            4 => Ok(Self::Dependencies),
+            5 => Ok(Self::StaticStorages),
+            6 => Ok(Self::ImmortalObjects),
+            7 => Ok(Self::InitializationUnits),
+            8 => Ok(Self::TypeRegistrations),
+            9 => Ok(Self::Safepoints),
+            10 => Ok(Self::Callables),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
 
 impl WireDecode for DefinitionAtomRole {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
@@ -33,6 +51,7 @@ pub enum DecodedDefinitionAtomSubkey {
     ExactType(DecodedPersistentId<PersistentExactTypeId>),
     SafepointSite(DecodedPersistentId<PersistentSafepointSiteId>),
     StructuralPath(StructuralDefinitionPath),
+    ConeImageSupport(ConeImageSupportRole),
 }
 
 impl DecodedDefinitionAtomSubkey {
@@ -57,6 +76,7 @@ impl DecodedDefinitionAtomSubkey {
                 .resolve(id)
                 .map(DefinitionAtomSubkey::SafepointSite),
             Self::StructuralPath(path) => Ok(DefinitionAtomSubkey::StructuralPath(path)),
+            Self::ConeImageSupport(role) => Ok(DefinitionAtomSubkey::ConeImageSupport(role)),
         }
     }
 }
@@ -72,6 +92,7 @@ impl WireEncode for DecodedDefinitionAtomSubkey {
             Self::ExactType(id) => encode_value_sum(encoder, 6, id),
             Self::SafepointSite(id) => encode_value_sum(encoder, 7, id),
             Self::StructuralPath(path) => encode_value_sum(encoder, 8, path),
+            Self::ConeImageSupport(role) => encode_value_sum(encoder, 9, role),
         }
     }
 }
@@ -96,6 +117,12 @@ impl WireDecode for DecodedDefinitionAtomSubkey {
                 decoder
                     .field(1, StructuralDefinitionPath::decode)
                     .map(Self::StructuralPath)
+            }
+            9 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, ConeImageSupportRole::decode)
+                    .map(Self::ConeImageSupport)
             }
             tag => Err(unknown_tag(decoder, tag)),
         }

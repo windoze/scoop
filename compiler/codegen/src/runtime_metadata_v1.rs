@@ -13,7 +13,10 @@ use inkwell::types::StructType;
 use crate::CodegenError;
 
 mod image;
-pub use image::{EmittedConeImageV1, RuntimeImagePatchSiteV1, emit_cone_image_v1};
+pub use image::{
+    EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1, EmittedConeImageV1,
+    RuntimeImagePatchSiteV1, emit_cone_image_v1,
+};
 
 mod entry;
 pub use entry::{

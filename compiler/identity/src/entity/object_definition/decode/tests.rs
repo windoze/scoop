@@ -6,17 +6,17 @@ use super::{
     ObjectDefinitionResolutionError,
 };
 use crate::{
-    CanonicalCAbiLayoutFingerprint, CborIdentityRecord, ConeIdentity, DecodedCborIdentityRecord,
-    DefinitionAtomRole, DefinitionAtomSubkey, GeneratedBridgeAtomId, GeneratedBridgeAtomKey,
-    GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, OdrMemberId,
-    PersistentCallableBodyId, PersistentDispatchSlotId, PersistentDispatchTableId,
-    PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver, PersistentImmortalObjectId,
-    PersistentInitializationUnitId, PersistentKeyResolver, PersistentLayoutId,
-    PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId, StrongDefinitionEntity,
-    StrongDefinitionRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    CanonicalCAbiLayoutFingerprint, CborIdentityRecord, ConeIdentity, ConeImageSupportRole,
+    DecodedCborIdentityRecord, DefinitionAtomRole, DefinitionAtomSubkey, GeneratedBridgeAtomId,
+    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
+    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
+    ObjectDefinitionPlanRole, OdrMemberId, PersistentCallableBodyId, PersistentDispatchSlotId,
+    PersistentDispatchTableId, PersistentExactTypeId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentKeyResolver,
+    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
+    StrongDefinitionEntity, StrongDefinitionRole, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -219,7 +219,8 @@ fn object_definition_decoders_reject_unknown_tags() {
     assert_unknown::<StrongDefinitionRole>(b"\x14", 20);
     assert_unknown::<ObjectDefinitionPlanRole>(b"\xa1\x00\x03", 3);
     assert_unknown::<DefinitionAtomRole>(b"\x08", 8);
-    assert_unknown::<DecodedDefinitionAtomSubkey>(b"\xa1\x00\x09", 9);
+    assert_unknown::<ConeImageSupportRole>(b"\x0b", 11);
+    assert_unknown::<DecodedDefinitionAtomSubkey>(b"\xa1\x00\x0a", 10);
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
@@ -337,6 +338,10 @@ fn atom_cases() -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
         (
             DefinitionAtomRole::Primary,
             DefinitionAtomSubkey::StructuralPath(structural_path()),
+        ),
+        (
+            DefinitionAtomRole::RuntimeRecord,
+            DefinitionAtomSubkey::ConeImageSupport(ConeImageSupportRole::Dependencies),
         ),
     ]
 }

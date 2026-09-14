@@ -93,8 +93,9 @@ use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;
 pub use runtime_metadata_v1::{
-    CallableRegistrationPatchSiteV1, EmittedConeImageV1, EmittedEntryProductionV1,
-    EmittedRootEntryV1, EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
+    CallableRegistrationPatchSiteV1, EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1,
+    EmittedConeImageV1, EmittedEntryProductionV1, EmittedRootEntryV1,
+    EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
     EmittedStrongCallableRegistrationSetV1, EmittedStrongCallableRegistrationV1,
     EmittedStrongImmortalObjectRegistrationSetV1, EmittedStrongImmortalObjectRegistrationV1,
     EmittedStrongInitializationUnitRegistrationSetV1,

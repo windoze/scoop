@@ -139,12 +139,13 @@ pub use entity::{
     ScoopAbiResolutionError, ScoopAbiReturn, ScoopAbiValueShape,
 };
 pub use entity::{
-    DecodedDefinitionAtomSubkey, DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey,
-    DecodedObjectDefinitionPlanOwner, DecodedStrongDefinitionEntity, DefinitionAtomResolver,
-    DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
-    ObjectDefinitionPlanRole, ObjectDefinitionResolutionError, StrongDefinitionEntity,
-    StrongDefinitionEntityKind, StrongDefinitionResolver, StrongDefinitionRole,
+    ConeImageSupportRole, DecodedDefinitionAtomSubkey, DecodedObjectDefinitionAtomKey,
+    DecodedObjectDefinitionPlanKey, DecodedObjectDefinitionPlanOwner,
+    DecodedStrongDefinitionEntity, DefinitionAtomResolver, DefinitionAtomRole,
+    DefinitionAtomSubkey, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole,
+    ObjectDefinitionResolutionError, StrongDefinitionEntity, StrongDefinitionEntityKind,
+    StrongDefinitionResolver, StrongDefinitionRole,
 };
 pub use entity::{
     DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DecodedDigestPatchIntentKey, DigestKind,

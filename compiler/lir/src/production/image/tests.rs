@@ -1,6 +1,6 @@
 use scoop_identity::{
-    CborIdentityRecord, ConeCoordinate, ConeIdentity, CoreBuiltinNominal, DefinitionAtomRole,
-    DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
+    CborIdentityRecord, ConeCoordinate, ConeIdentity, ConeImageSupportRole, CoreBuiltinNominal,
+    DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
     DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
@@ -16,7 +16,7 @@ use crate::{
 #[test]
 fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     let coordinate = ConeCoordinate::reserved_single_file();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true);
+    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan = ConeImagePlanV1::new(
@@ -37,6 +37,10 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     assert!(plan.tables().safepoints().is_empty());
     assert!(plan.tables().callables().is_empty());
     assert_eq!(plan.symbol().linkage(), LinkageClass::ConeStrong);
+    assert_ne!(
+        plan.support_atoms().dependencies(),
+        plan.support_atoms().static_storages()
+    );
 
     let bytes = encode(&plan).unwrap();
     let decoded: DecodedConeImagePlanV1 =
@@ -47,14 +51,14 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(
         hex(&bytes),
-        "a601a201a3016573636f6f70026b73696e676c652d66696c650365302e302e3002582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6028158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d03a601800280038004800580068004a201a2001101582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b602010558200a6b2c5d4d7a6df125364db1b8299514682385fbb59b91bc4cc661d456f8d12c06582072888c00464fa258dfb42b658f906c21cc9ded31ce0a4077616ee2f0caa402c1"
+        "a701a201a3016573636f6f70026b73696e676c652d66696c650365302e302e3002582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6028158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d03a601800280038004800580068004a201a2001101582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b602010558200a6b2c5d4d7a6df125364db1b8299514682385fbb59b91bc4cc661d456f8d12c06aa01582073f2fdcb7429fe8bd11f3fc99126ad7a633b3dd7923907e9725a3a0d105508a30258206201bf4b3657fdcdc2027baedd4e7115fe96c99cd03543e2ca050fe4fdfd31d1035820b34ed9537b06e55fe3759051e00d7a5fcb4463826571c120b5373ad0b5785b5004582023697c2b6819a50f041a0ccef1821dbd911e8d97d0c17e19422d9748af13f682055820b77bcdfe99e5148caf8a888e888410ed9be43294cf02378aa1097a8ccfb136c2065820fa6b3ba4eb80b07fc0ba7b7f170dcc8ef39a995ca2dca206dca4cf58451251c10758201cac9a0d4cb821b0b8b71aab4066e8ab44b278a29ec2a511a754bad6f7432aaf085820e486529b0103087625514cf0a890a15fc954aece66801177ed942cac2f23996d0958201a3312e5ae116d0648c83edc2989ca558541d7c3eb6f1d8cc8d6bf288fed06fd0a582088a456ea6eeae7001794f6cd99f19a749e3d751842f46074d7334f27cf831ece07582072888c00464fa258dfb42b658f906c21cc9ded31ce0a4077616ee2f0caa402c1"
     );
 }
 
 #[test]
 fn core_image_has_no_dependency_edge() {
     let coordinate = ConeCoordinate::reserved_core();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true);
+    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan).unwrap();
@@ -66,7 +70,7 @@ fn core_image_has_no_dependency_edge() {
 fn image_requires_every_registration_fingerprint_as_a_direct_input() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let exact = unit_exact_type();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), Some(exact), false);
+    let (foundation, digest_plan) = image_fixture(coordinate.clone(), Some(exact), false, true);
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
@@ -79,7 +83,7 @@ fn image_requires_every_registration_fingerprint_as_a_direct_input() {
 #[test]
 fn reader_rejects_a_coordinate_from_another_cone() {
     let coordinate = ConeCoordinate::reserved_single_file();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true);
+    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan = ConeImagePlanV1::new(
@@ -104,10 +108,24 @@ fn reader_rejects_a_coordinate_from_another_cone() {
     );
 }
 
+#[test]
+fn image_rejects_the_obsolete_primary_only_atom_shape() {
+    let coordinate = ConeCoordinate::reserved_single_file();
+    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, false);
+    let registrations =
+        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+
+    assert!(matches!(
+        ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan),
+        Err(ConeImagePlanBuildError::AtomSet { .. })
+    ));
+}
+
 fn image_fixture(
     coordinate: ConeCoordinate,
     registration: Option<PersistentExactTypeId>,
     image_depends_on_registration: bool,
+    include_support_atoms: bool,
 ) -> (OdrFreeLirFoundation, StrongDigestFinalizationPlanV1) {
     let producer = coordinate.identity().unwrap();
     let image_plan_key = ObjectDefinitionPlanKey::strong(
@@ -118,12 +136,10 @@ fn image_fixture(
     .unwrap();
     let image_plan = CborIdentityRecord::from_key(image_plan_key).unwrap();
     let image_plan_id = image_plan.id();
-    let image_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
-        image_plan.id(),
-        DefinitionAtomRole::Primary,
-        DefinitionAtomSubkey::Singleton,
-    ))
-    .unwrap();
+    let mut image_atoms = image_atoms(image_plan.id());
+    if !include_support_atoms {
+        image_atoms.truncate(1);
+    }
     let image_symbol = PersistentSymbolRequest::new(
         PersistentSymbolKey::ImageDescriptor(producer),
         LinkageClass::ConeStrong,
@@ -154,7 +170,7 @@ fn image_fixture(
 
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_definition_plans(plans).unwrap();
-    canonical.set_definition_atoms(vec![image_atom]).unwrap();
+    canonical.set_definition_atoms(image_atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![image_symbol]).unwrap());
     let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
 
@@ -175,6 +191,70 @@ fn image_fixture(
     nodes.push(image_node);
     let digest_plan = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     (foundation, digest_plan)
+}
+
+fn image_atoms(
+    plan: scoop_identity::ObjectDefinitionPlanId,
+) -> Vec<CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>> {
+    let mut keys = vec![ObjectDefinitionAtomKey::new(
+        plan,
+        DefinitionAtomRole::Primary,
+        DefinitionAtomSubkey::Singleton,
+    )];
+    keys.extend(
+        [
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::CoordinateGroup,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::CoordinateName,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::CoordinateVersion,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::Dependencies,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::StaticStorages,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::ImmortalObjects,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::InitializationUnits,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::TypeRegistrations,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::Safepoints,
+            ),
+            (
+                DefinitionAtomRole::RuntimeRecord,
+                ConeImageSupportRole::Callables,
+            ),
+        ]
+        .map(|(role, support)| {
+            ObjectDefinitionAtomKey::new(
+                plan,
+                role,
+                DefinitionAtomSubkey::ConeImageSupport(support),
+            )
+        }),
+    );
+    keys.into_iter()
+        .map(|key| CborIdentityRecord::from_key(key).unwrap())
+        .collect()
 }
 
 fn unit_exact_type() -> PersistentExactTypeId {

@@ -2070,6 +2070,18 @@ ConeImagePlan {
     },
     symbol: PersistentV1::Image(ConeIdentity),
     definition_plan: ObjectDefinitionPlanId,
+    support_atoms: {
+        coordinate_group,
+        coordinate_name,
+        coordinate_version,
+        dependencies,
+        static_storages,
+        immortal_objects,
+        initialization_units,
+        type_registrations,
+        safepoints,
+        callables,
+    },
     fingerprint_patch: DigestPatchIntentId,
 }
 ```
@@ -2078,9 +2090,14 @@ ConeImagePlan {
 `{1=coordinate: ConeCoordinate, 2=identity: ConeIdentity}`，identity必须从coordinate重算且等于
 LIR strong foundation producer。`tables`是fields `1..6`依13.2表顺序排列的六个kind-specific
 semantic-id array，逐项来自已经重建的`StrongRegistrationIdentitySurfaceV1`，不得携带通用
-32-byte id。`ConeImagePlan`按上述伪代码顺序编码fields `1..6`；其中field 4编码从
+32-byte id。`ConeImagePlan`按上述伪代码顺序编码fields `1..7`；其中field 4编码从
 `PersistentSymbolKey::ImageDescriptor(cone)`唯一派生的`ConeStrong`
-`PersistentSymbolRequest`，field 5必须是当前Cone `ImageDescriptor` strong definition plan，field 6
+`PersistentSymbolRequest`，field 5必须是当前Cone `ImageDescriptor` strong definition plan。field 6是
+`ConeImageSupportAtomsV1` closed product，fields `1..10`依上述顺序编码十个
+`ObjectDefinitionAtomId`：coordinate三项必须分别是
+`AddressTakenConstant/ConeImageSupport(CoordinateGroup|CoordinateName|CoordinateVersion)`，
+其余七项必须分别是`RuntimeRecord/ConeImageSupport(Dependencies|六类table role)`；它们必须精确、
+全量覆盖image plan的associated atom集合，即使数组为空也必须保留对应sentinel atom。field 7
 必须是同一runtime-image node写入该plan `Primary` atom `RuntimeImage` field的patch intent。image
 node的全部`StrongRegistration` direct input必须与六表中的fingerprint node集合逐项相等；不能漏掉
 空表count、复制external core registration、引用未登记node或额外注入registration input。

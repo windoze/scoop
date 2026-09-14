@@ -2,10 +2,10 @@ use inkwell::GlobalVisibility;
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::{AnyType, IntType, StructType};
-use inkwell::values::{GlobalValue, PointerValue, StructValue};
+use inkwell::values::{GlobalValue, StructValue};
 use scoop_lir::{
-    ConeImagePlanV1, DigestPatchIntentId, LinkageClass, ObjectDefinitionPlanId,
-    PersistentSymbolRequest,
+    ConeImagePlanV1, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
+    ObjectDefinitionPlanId, PersistentSymbolRequest,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -22,6 +22,7 @@ const DIGEST_SIZE: u64 = 32;
 pub struct RuntimeImagePatchSiteV1<'ctx> {
     intent: DigestPatchIntentId,
     definition: ObjectDefinitionPlanId,
+    atom: ObjectDefinitionAtomId,
     owner: GlobalValue<'ctx>,
 }
 
@@ -32,6 +33,10 @@ impl<'ctx> RuntimeImagePatchSiteV1<'ctx> {
 
     pub const fn definition(self) -> ObjectDefinitionPlanId {
         self.definition
+    }
+
+    pub const fn atom(self) -> ObjectDefinitionAtomId {
+        self.atom
     }
 
     pub const fn owner(self) -> GlobalValue<'ctx> {
@@ -47,16 +52,98 @@ impl<'ctx> RuntimeImagePatchSiteV1<'ctx> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct EmittedConeImageSupportAtomV1<'ctx> {
+    atom: ObjectDefinitionAtomId,
+    global: GlobalValue<'ctx>,
+}
+
+impl<'ctx> EmittedConeImageSupportAtomV1<'ctx> {
+    pub const fn atom(self) -> ObjectDefinitionAtomId {
+        self.atom
+    }
+
+    pub const fn global(self) -> GlobalValue<'ctx> {
+        self.global
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct EmittedConeImageSupportAtomsV1<'ctx> {
+    coordinate_group: EmittedConeImageSupportAtomV1<'ctx>,
+    coordinate_name: EmittedConeImageSupportAtomV1<'ctx>,
+    coordinate_version: EmittedConeImageSupportAtomV1<'ctx>,
+    dependencies: EmittedConeImageSupportAtomV1<'ctx>,
+    static_storages: EmittedConeImageSupportAtomV1<'ctx>,
+    immortal_objects: EmittedConeImageSupportAtomV1<'ctx>,
+    initialization_units: EmittedConeImageSupportAtomV1<'ctx>,
+    type_registrations: EmittedConeImageSupportAtomV1<'ctx>,
+    safepoints: EmittedConeImageSupportAtomV1<'ctx>,
+    callables: EmittedConeImageSupportAtomV1<'ctx>,
+}
+
+impl<'ctx> EmittedConeImageSupportAtomsV1<'ctx> {
+    pub const fn coordinate_group(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.coordinate_group
+    }
+
+    pub const fn coordinate_name(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.coordinate_name
+    }
+
+    pub const fn coordinate_version(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.coordinate_version
+    }
+
+    pub const fn dependencies(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.dependencies
+    }
+
+    pub const fn static_storages(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.static_storages
+    }
+
+    pub const fn immortal_objects(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.immortal_objects
+    }
+
+    pub const fn initialization_units(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.initialization_units
+    }
+
+    pub const fn type_registrations(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.type_registrations
+    }
+
+    pub const fn safepoints(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.safepoints
+    }
+
+    pub const fn callables(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.callables
+    }
+}
+
 /// Fully emitted per-Cone image and its single provisional digest slot.
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedConeImageV1<'ctx> {
     image: GlobalValue<'ctx>,
+    primary_atom: ObjectDefinitionAtomId,
+    support_atoms: EmittedConeImageSupportAtomsV1<'ctx>,
     patch: RuntimeImagePatchSiteV1<'ctx>,
 }
 
 impl<'ctx> EmittedConeImageV1<'ctx> {
     pub const fn image(self) -> GlobalValue<'ctx> {
         self.image
+    }
+
+    pub const fn primary_atom(self) -> ObjectDefinitionAtomId {
+        self.primary_atom
+    }
+
+    pub const fn support_atoms(self) -> EmittedConeImageSupportAtomsV1<'ctx> {
+        self.support_atoms
     }
 
     pub const fn patch(self) -> RuntimeImagePatchSiteV1<'ctx> {
@@ -90,21 +177,21 @@ pub fn emit_cone_image_v1<'ctx>(
 
     let coordinate = plan.cone().coordinate();
     let prefix = format!("{}.metadata", image_symbol.as_str());
-    let group = emit_byte_span(
+    let (group, group_global) = emit_byte_span(
         context,
         llvm,
         types.byte_span,
         &format!("{prefix}.coordinate.group"),
         coordinate.group().as_bytes(),
     );
-    let name = emit_byte_span(
+    let (name, name_global) = emit_byte_span(
         context,
         llvm,
         types.byte_span,
         &format!("{prefix}.coordinate.name"),
         coordinate.name().as_bytes(),
     );
-    let version = emit_byte_span(
+    let (version, version_global) = emit_byte_span(
         context,
         llvm,
         types.byte_span,
@@ -185,25 +272,25 @@ pub fn emit_cone_image_v1<'ctx>(
         prefix_value.into(),
         cone.into(),
         zero_digest.into(),
-        dependency_table.into(),
+        dependency_table.as_pointer_value().into(),
         i64.const_int(plan.dependencies().len() as u64, false)
             .into(),
-        static_storages.into(),
+        static_storages.as_pointer_value().into(),
         i64.const_int(tables.static_storages().len() as u64, false)
             .into(),
-        immortal_objects.into(),
+        immortal_objects.as_pointer_value().into(),
         i64.const_int(tables.immortal_objects().len() as u64, false)
             .into(),
-        initialization_units.into(),
+        initialization_units.as_pointer_value().into(),
         i64.const_int(tables.initialization_units().len() as u64, false)
             .into(),
-        type_registrations.into(),
+        type_registrations.as_pointer_value().into(),
         i64.const_int(tables.type_registrations().len() as u64, false)
             .into(),
-        safepoints.into(),
+        safepoints.as_pointer_value().into(),
         i64.const_int(tables.safepoints().len() as u64, false)
             .into(),
-        callables.into(),
+        callables.as_pointer_value().into(),
         i64.const_int(tables.callables().len() as u64, false).into(),
     ]);
     let image = llvm.add_global(types.image_descriptor, None, image_symbol.as_str());
@@ -212,11 +299,38 @@ pub fn emit_cone_image_v1<'ctx>(
     image.set_constant(true);
     image.set_initializer(&image_value);
 
+    let support_atoms = plan.support_atoms();
     Ok(EmittedConeImageV1 {
         image,
+        primary_atom: plan.primary_atom(),
+        support_atoms: EmittedConeImageSupportAtomsV1 {
+            coordinate_group: emitted_support_atom(support_atoms.coordinate_group(), group_global),
+            coordinate_name: emitted_support_atom(support_atoms.coordinate_name(), name_global),
+            coordinate_version: emitted_support_atom(
+                support_atoms.coordinate_version(),
+                version_global,
+            ),
+            dependencies: emitted_support_atom(support_atoms.dependencies(), dependency_table),
+            static_storages: emitted_support_atom(support_atoms.static_storages(), static_storages),
+            immortal_objects: emitted_support_atom(
+                support_atoms.immortal_objects(),
+                immortal_objects,
+            ),
+            initialization_units: emitted_support_atom(
+                support_atoms.initialization_units(),
+                initialization_units,
+            ),
+            type_registrations: emitted_support_atom(
+                support_atoms.type_registrations(),
+                type_registrations,
+            ),
+            safepoints: emitted_support_atom(support_atoms.safepoints(), safepoints),
+            callables: emitted_support_atom(support_atoms.callables(), callables),
+        },
         patch: RuntimeImagePatchSiteV1 {
             intent: plan.fingerprint_patch(),
             definition: plan.definition_plan(),
+            atom: plan.primary_atom(),
             owner: image,
         },
     })
@@ -228,19 +342,22 @@ fn emit_byte_span<'ctx>(
     span_type: StructType<'ctx>,
     symbol: &str,
     bytes: &[u8],
-) -> StructValue<'ctx> {
+) -> (StructValue<'ctx>, GlobalValue<'ctx>) {
     let initializer = context.const_string(bytes, false);
     let global = llvm.add_global(initializer.get_type(), None, symbol);
     global.set_linkage(Linkage::Private);
     global.set_constant(true);
     global.set_initializer(&initializer);
-    span_type.const_named_struct(&[
-        global.as_pointer_value().into(),
-        context
-            .i64_type()
-            .const_int(bytes.len() as u64, false)
-            .into(),
-    ])
+    (
+        span_type.const_named_struct(&[
+            global.as_pointer_value().into(),
+            context
+                .i64_type()
+                .const_int(bytes.len() as u64, false)
+                .into(),
+        ]),
+        global,
+    )
 }
 
 fn digest_value<'ctx>(
@@ -260,7 +377,7 @@ fn emit_digest_table<'ctx>(
     digest_type: StructType<'ctx>,
     symbol: &str,
     mut values: Vec<StructValue<'ctx>>,
-) -> PointerValue<'ctx> {
+) -> GlobalValue<'ctx> {
     if values.is_empty() {
         values.push(digest_type.const_zero());
     }
@@ -272,7 +389,7 @@ fn emit_registration_table<'ctx>(
     record_type: StructType<'ctx>,
     table_symbol: &str,
     requests: impl IntoIterator<Item = PersistentSymbolRequest>,
-) -> Result<PointerValue<'ctx>, CodegenError> {
+) -> Result<GlobalValue<'ctx>, CodegenError> {
     let pointer_type = llvm.get_context().ptr_type(Default::default());
     let mut records = Vec::new();
     for request in requests {
@@ -313,12 +430,19 @@ fn emit_constant_array<'ctx>(
     llvm: &LlvmModule<'ctx>,
     symbol: &str,
     initializer: inkwell::values::BasicValueEnum<'ctx>,
-) -> PointerValue<'ctx> {
+) -> GlobalValue<'ctx> {
     let global = llvm.add_global(initializer.get_type(), None, symbol);
     global.set_linkage(Linkage::Private);
     global.set_constant(true);
     global.set_initializer(&initializer);
-    global.as_pointer_value()
+    global
+}
+
+fn emitted_support_atom<'ctx>(
+    atom: ObjectDefinitionAtomId,
+    global: GlobalValue<'ctx>,
+) -> EmittedConeImageSupportAtomV1<'ctx> {
+    EmittedConeImageSupportAtomV1 { atom, global }
 }
 
 #[cfg(test)]
@@ -328,12 +452,12 @@ mod tests {
     use inkwell::module::Linkage;
     use inkwell::values::AnyValue;
     use scoop_identity::{
-        CborIdentityRecord, ConeCoordinate, CoreBuiltinNominal, DefinitionAtomRole,
-        DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-        DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomKey,
-        ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey,
-        PersistentSymbolRequest, PersistentSymbolRequestTable, StrongDefinitionEntity,
-        StrongDefinitionRole,
+        CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, CoreBuiltinNominal,
+        DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey,
+        DigestPatchIntentKey, DigestSemanticFieldRole, ExactTypeKey, LinkageClass,
+        ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PersistentExactTypeId,
+        PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
+        StrongDefinitionEntity, StrongDefinitionRole,
     };
     use scoop_lir::{
         CanonicalLirFoundation, ConeImagePlanV1, DigestInputRefV1, DigestNodeV1,
@@ -359,6 +483,23 @@ mod tests {
         assert!(emitted.image().is_constant());
         assert_eq!(emitted.patch().intent(), plan.fingerprint_patch());
         assert_eq!(emitted.patch().definition(), plan.definition_plan());
+        assert_eq!(emitted.primary_atom(), plan.primary_atom());
+        assert_eq!(emitted.patch().atom(), plan.primary_atom());
+        assert_eq!(
+            emitted.support_atoms().dependencies().atom(),
+            plan.support_atoms().dependencies()
+        );
+        assert_eq!(
+            emitted.support_atoms().callables().atom(),
+            plan.support_atoms().callables()
+        );
+        assert!(
+            emitted
+                .support_atoms()
+                .dependencies()
+                .global()
+                .is_constant()
+        );
         assert_eq!(emitted.patch().byte_offset(), 96);
         assert_eq!(emitted.patch().byte_size(), DIGEST_SIZE);
         let image_ir = emitted.image().print_to_string().to_string();
@@ -414,12 +555,7 @@ mod tests {
         .unwrap();
         let image_plan = CborIdentityRecord::from_key(image_plan_key).unwrap();
         let image_plan_id = image_plan.id();
-        let image_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
-            image_plan.id(),
-            DefinitionAtomRole::Primary,
-            DefinitionAtomSubkey::Singleton,
-        ))
-        .unwrap();
+        let image_atoms = image_atoms(image_plan.id());
         let image_symbol = PersistentSymbolRequest::new(
             PersistentSymbolKey::ImageDescriptor(producer),
             LinkageClass::ConeStrong,
@@ -450,7 +586,7 @@ mod tests {
 
         let mut canonical = CanonicalLirFoundation::empty();
         canonical.set_definition_plans(plans).unwrap();
-        canonical.set_definition_atoms(vec![image_atom]).unwrap();
+        canonical.set_definition_atoms(image_atoms).unwrap();
         canonical
             .set_symbol_requests(PersistentSymbolRequestTable::new(vec![image_symbol]).unwrap());
         let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
@@ -467,6 +603,71 @@ mod tests {
         nodes.push(DigestNodeV1::new(image_key, inputs, vec![image_patch]).unwrap());
         let digest_plan = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
         (foundation, digest_plan)
+    }
+
+    fn image_atoms(
+        plan: scoop_identity::ObjectDefinitionPlanId,
+    ) -> Vec<CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>>
+    {
+        let mut keys = vec![ObjectDefinitionAtomKey::new(
+            plan,
+            DefinitionAtomRole::Primary,
+            DefinitionAtomSubkey::Singleton,
+        )];
+        keys.extend(
+            [
+                (
+                    DefinitionAtomRole::AddressTakenConstant,
+                    ConeImageSupportRole::CoordinateGroup,
+                ),
+                (
+                    DefinitionAtomRole::AddressTakenConstant,
+                    ConeImageSupportRole::CoordinateName,
+                ),
+                (
+                    DefinitionAtomRole::AddressTakenConstant,
+                    ConeImageSupportRole::CoordinateVersion,
+                ),
+                (
+                    DefinitionAtomRole::RuntimeRecord,
+                    ConeImageSupportRole::Dependencies,
+                ),
+                (
+                    DefinitionAtomRole::RuntimeRecord,
+                    ConeImageSupportRole::StaticStorages,
+                ),
+                (
+                    DefinitionAtomRole::RuntimeRecord,
+                    ConeImageSupportRole::ImmortalObjects,
+                ),
+                (
+                    DefinitionAtomRole::RuntimeRecord,
+                    ConeImageSupportRole::InitializationUnits,
+                ),
+                (
+                    DefinitionAtomRole::RuntimeRecord,
+                    ConeImageSupportRole::TypeRegistrations,
+                ),
+                (
+                    DefinitionAtomRole::RuntimeRecord,
+                    ConeImageSupportRole::Safepoints,
+                ),
+                (
+                    DefinitionAtomRole::RuntimeRecord,
+                    ConeImageSupportRole::Callables,
+                ),
+            ]
+            .map(|(role, support)| {
+                ObjectDefinitionAtomKey::new(
+                    plan,
+                    role,
+                    DefinitionAtomSubkey::ConeImageSupport(support),
+                )
+            }),
+        );
+        keys.into_iter()
+            .map(|key| CborIdentityRecord::from_key(key).unwrap())
+            .collect()
     }
 
     fn unit_exact_type() -> PersistentExactTypeId {

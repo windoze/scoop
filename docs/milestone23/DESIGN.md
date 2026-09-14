@@ -597,11 +597,23 @@ DefinitionAtomSubkey =
   | ExactType(PersistentExactTypeId)                    // tag 6
   | SafepointSite(PersistentSafepointSiteId)            // tag 7
   | StructuralPath(StructuralDefinitionPath)          // tag 8
+  | ConeImageSupport(ConeImageSupportRole)              // tag 9
+
+ConeImageSupportRole =
+    CoordinateGroup=1 | CoordinateName=2 | CoordinateVersion=3
+  | Dependencies=4 | StaticStorages=5 | ImmortalObjects=6
+  | InitializationUnits=7 | TypeRegistrations=8 | Safepoints=9
+  | Callables=10
 
 ObjectDefinitionAtomId =
     DomainSeparatedCborHash("scoop-object-definition-atom-v1",
                             ObjectDefinitionAtomKey)
 ```
+
+`ConeImageSupport`只用于`ConeImage/ImageDescriptor` definition plan：三个coordinate role使用
+`AddressTakenConstant` atom，dependency与六张registration table使用`RuntimeRecord` atom。
+这十个role直接描述固定ABI中的物理职责，不允许退化为symbol字符串、结构路径或按出现顺序编号；
+即使某张表为空，其单元素sentinel仍由对应role的atom认领。
 
 合法矩阵为：CallableBody entity只接role 1/16，StaticStorage接2/11，ImmortalObject接3/12，ExactType接4/14，Layout/Scan/DispatchTable/DispatchSlot接5…8，InitializationUnit接9/10/13，SafepointSite接15，ConeImage接17，GeneratedBridgeAtom接18；后者只接受`PrimaryEntry`、`SignatureDescriptor`或`ContextDescriptor`，`StaticAssertSupport`没有物理plan。Strong owner只能配Strong role，ODR owner只能配`OdrMemberPrimary`。每个ODR member恰有一个primary，选择按kind固定：CallableBody/DispatchAdapter/ReleaseHook用`cb`，Layout用`ly`，ScanProgram用`sp`，TypeDescriptor用`td`，DispatchTable用`dt`，StaticStorage用`ss`，ImmortalObject用`io`，InitializationCell/Descriptor用`ic`/`id`，RegistrationRecord按discriminator唯一使用`rr/ir/nr/tr/sr/cr`。`od`只给GeneratedNominal及没有专用primary的DiagnosticBytes、AddressTakenConstant、ObjectSupport；同member不得再发`od` alias，避免native linker对两个名字分别选不同producer。
 
