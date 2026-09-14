@@ -25,6 +25,11 @@ use crate::{
 
 const CODE_FINGERPRINT_DOMAIN: &str = "scoop-code-v1";
 
+mod wire;
+pub use wire::{
+    DecodedCanonicalNativeExternalContractCodeSetV1, NativeExternalContractCodeSetValidationError,
+};
+
 /// One final LinkObject directory identity and its content-bound fingerprint.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedCodeLinkObjectMemberV1 {
