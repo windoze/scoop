@@ -307,9 +307,14 @@ private checked constructor证明所有source identity的Cone相同、logical pa
 driver只在持有`ValidatedCoreOnlyBuildRequest`后调用`parse_current_sources`。manifest与trusted-core bootstrap
 分支从结构非空的`DiscoveredManifestSources { first, rest }`机械构造parser输入，single-file分支只构造一个
 reserved source input；不再把运行时“已检查非空”的`Vec`交给driver后用`expect`恢复证明。成功返回
-`ParsedSingleConeBuildRequest`，同时拥有`CurrentConeParsedSources`并借用产生它的request/core proof，不能把AST
-与另一请求重新拼接；该类型及`CurrentConeParsedSources`均不提供拆出裸AST所有权的降级接口。discovery、
-single-file读取和parser错误是三个封闭分支，任一失败均无partial parsed output。
+`ParsedSingleConeBuildRequest::{Ordinary, TrustedCoreBootstrap}`封闭sum；两个variant分别拥有独立的
+`ParsedOrdinaryConeBuildRequest`或`ParsedCoreBootstrapBuildRequest`以及`CurrentConeParsedSources`，并借用产生它的
+request/core proof，不能把AST与另一请求重新拼接。bootstrap variant非可选地保留原resolver authority与本请求
+artifact slot；ordinary variant非可选地保留本请求自身的`ValidatedTrustedCoreArtifact`。这些类型及
+`CurrentConeParsedSources`均不提供拆出裸AST所有权的降级接口。discovery、single-file读取和parser错误是三个封闭
+分支，任一失败均无partial parsed output。`ValidatedCoreOnlyBuildRequest`在parser前已经把current/core组合收窄为
+`ValidatedCurrentConeInput::{Manifest, SingleFile, TrustedCoreBootstrap}`；parser只match这个闭合sum，不再重新组合
+两个独立枚举或保留理论上不可达的错误分支。
 
 `CurrentConeParsedSources::iter`把已经验证为同序、同identity全集的AST、source text与diagnostic context投影为
 逐source的非可选borrowed view；HIR入口只能沿该迭代器消费三张表，不再用identity执行返回`Option`的sidecar
@@ -550,9 +555,11 @@ core bootstrap执行普通manifest discovery和同一parser→HIR→MIR→LIR→
 
 bootstrap失败时不保留或覆盖旧slot artifact。普通`scoopc`请求不会因slot缺失/stale而自行bootstrap；M23-4的trusted orchestration负责先显式发起bootstrap，再把成功artifact交给dependent。
 
-HIR侧正式bootstrap输入为借用`CurrentConeParsedSources`的`CoreBootstrapSources`，其构造首先拒绝非reserved-core
-Cone；driver只能从同时持有bootstrap request/core authority的`ParsedSingleConeBuildRequest`投影该值。随后
-`lower_core_bootstrap`直接沿原子source view建立当前core的source/provider表，并以固定`CoreOnly` intrinsic策略
+HIR侧source-only输入为借用`CurrentConeParsedSources`的`CoreBootstrapSources`，其构造首先拒绝非reserved-core
+Cone；driver只能从`ParsedCoreBootstrapBuildRequest`投影更强的`TrustedCoreBootstrapHirInput`，后者同时借用原
+resolver `CoreBootstrapAuthority`和必须接收最终产物的精确`TrustedCoreArtifactSlot`，逐项验证path、target和
+toolchain compatibility仍与authority一致。普通parsed variant没有该投影API。随后该driver input调用
+`lower_core_bootstrap`，直接沿原子source view建立当前core的source/provider表，并以固定`CoreOnly` intrinsic策略
 运行lowerer；它不构造`LegacyCombinedSources`，不注入伪current-unit source，也不把core AST/text复制到另一个
 可重新配对的公开输入。lowerer在没有ordinary current-unit时以canonical首个core source作为output/诊断主source，
 输出Cone仍由全部core source共同证明为reserved core。

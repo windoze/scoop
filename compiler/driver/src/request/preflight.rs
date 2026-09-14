@@ -16,8 +16,9 @@ use super::{
     SlibOutputDestination, StageDumpPolicy, TrustedCoreInput,
 };
 use crate::{
-    LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError, TrustedCoreArtifactSlot,
-    TrustedCoreArtifactValidationError, TrustedCoreBootstrapInput, ValidatedTrustedCoreArtifact,
+    CoreBootstrapAuthority, LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError,
+    TrustedCoreArtifactSlot, TrustedCoreArtifactValidationError, TrustedCoreBootstrapInput,
+    ValidatedTrustedCoreArtifact,
 };
 
 /// The complete dependency input set supported by M23-3.
@@ -165,45 +166,94 @@ impl LoadedSingleConeBuildRequest {
     /// loading or parser entry.
     pub fn validate(
         &self,
-    ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, TrustedCoreArtifactValidationError> {
-        let trusted_core = match &self.trusted_core {
-            LoadedTrustedCoreInput::Artifact(artifact) => {
-                ValidatedTrustedCoreInput::Artifact(Box::new(artifact.validate(&self.target)?))
-            }
-            LoadedTrustedCoreInput::BootstrapSelf { artifact_slot } => {
-                ValidatedTrustedCoreInput::BootstrapSelf { artifact_slot }
-            }
+    ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
+        let current = match (&self.current, &self.trusted_core) {
+            (
+                LoadedCurrentConeInput::Manifest { manifest },
+                LoadedTrustedCoreInput::Artifact(artifact),
+            ) => ValidatedCurrentConeInput::Manifest {
+                manifest,
+                trusted_core: Box::new(artifact.validate(&self.target).map_err(|source| {
+                    CoreOnlyRequestValidationError::TrustedCore(Box::new(source))
+                })?),
+            },
+            (
+                LoadedCurrentConeInput::SingleFile { source },
+                LoadedTrustedCoreInput::Artifact(artifact),
+            ) => ValidatedCurrentConeInput::SingleFile {
+                source,
+                trusted_core: Box::new(artifact.validate(&self.target).map_err(|source| {
+                    CoreOnlyRequestValidationError::TrustedCore(Box::new(source))
+                })?),
+            },
+            (
+                LoadedCurrentConeInput::TrustedCoreBootstrap { input },
+                LoadedTrustedCoreInput::BootstrapSelf { artifact_slot },
+            ) => ValidatedCurrentConeInput::TrustedCoreBootstrap {
+                input,
+                artifact_slot,
+            },
+            _ => return Err(CoreOnlyRequestValidationError::InvalidLoadedInputPair),
         };
         Ok(ValidatedCoreOnlyBuildRequest {
             request: self,
-            trusted_core,
+            current,
         })
     }
 }
 
-pub enum ValidatedTrustedCoreInput<'input> {
-    Artifact(Box<ValidatedTrustedCoreArtifact<'input>>),
-    BootstrapSelf {
+#[derive(Debug)]
+pub enum CoreOnlyRequestValidationError {
+    InvalidLoadedInputPair,
+    TrustedCore(Box<TrustedCoreArtifactValidationError>),
+}
+
+impl fmt::Display for CoreOnlyRequestValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidLoadedInputPair => formatter
+                .write_str("loaded current Cone and trusted core inputs are not a permitted pair"),
+            Self::TrustedCore(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreOnlyRequestValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidLoadedInputPair => None,
+            Self::TrustedCore(source) => Some(source.as_ref()),
+        }
+    }
+}
+
+pub enum ValidatedCurrentConeInput<'input> {
+    Manifest {
+        manifest: &'input LoadedConeManifest,
+        trusted_core: Box<ValidatedTrustedCoreArtifact<'input>>,
+    },
+    SingleFile {
+        source: &'input SingleFileLocator,
+        trusted_core: Box<ValidatedTrustedCoreArtifact<'input>>,
+    },
+    TrustedCoreBootstrap {
+        input: &'input TrustedCoreBootstrapInput,
         artifact_slot: &'input TrustedCoreArtifactSlot,
     },
 }
 
 pub struct ValidatedCoreOnlyBuildRequest<'input> {
     request: &'input LoadedSingleConeBuildRequest,
-    trusted_core: ValidatedTrustedCoreInput<'input>,
+    current: ValidatedCurrentConeInput<'input>,
 }
 
 impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
-    pub const fn current(&self) -> &LoadedCurrentConeInput {
-        &self.request.current
+    pub const fn current(&self) -> &ValidatedCurrentConeInput<'input> {
+        &self.current
     }
 
     pub const fn dependencies(&self) -> ValidatedExplicitDependencyInputSet {
         self.request.dependencies
-    }
-
-    pub const fn trusted_core(&self) -> &ValidatedTrustedCoreInput<'input> {
-        &self.trusted_core
     }
 
     pub const fn target(&self) -> &scoop_codegen::ResolvedTargetProfile {
@@ -225,20 +275,70 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
     pub fn parse_current_sources<'request>(
         &'request self,
     ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
-        let sources = parse_loaded_current(&self.request.current)?;
-        Ok(ParsedSingleConeBuildRequest {
-            request: self,
-            sources,
-        })
+        match &self.current {
+            ValidatedCurrentConeInput::Manifest {
+                manifest,
+                trusted_core,
+            } => Ok(ParsedSingleConeBuildRequest::Ordinary(
+                ParsedOrdinaryConeBuildRequest {
+                    request: self,
+                    trusted_core,
+                    sources: parse_manifest_current(manifest)?,
+                },
+            )),
+            ValidatedCurrentConeInput::SingleFile {
+                source,
+                trusted_core,
+            } => Ok(ParsedSingleConeBuildRequest::Ordinary(
+                ParsedOrdinaryConeBuildRequest {
+                    request: self,
+                    trusted_core,
+                    sources: parse_single_file_current(source)?,
+                },
+            )),
+            ValidatedCurrentConeInput::TrustedCoreBootstrap {
+                input,
+                artifact_slot,
+            } => Ok(ParsedSingleConeBuildRequest::TrustedCoreBootstrap(
+                ParsedCoreBootstrapBuildRequest {
+                    request: self,
+                    authority: input.authority(),
+                    artifact_slot,
+                    sources: parse_manifest_current(input.source_slot().manifest())?,
+                },
+            )),
+        }
     }
 }
 
-pub struct ParsedSingleConeBuildRequest<'request, 'artifact> {
-    request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
-    sources: CurrentConeParsedSources,
+pub enum ParsedSingleConeBuildRequest<'request, 'artifact> {
+    Ordinary(ParsedOrdinaryConeBuildRequest<'request, 'artifact>),
+    TrustedCoreBootstrap(ParsedCoreBootstrapBuildRequest<'request, 'artifact>),
 }
 
 impl<'request, 'artifact> ParsedSingleConeBuildRequest<'request, 'artifact> {
+    pub const fn request(&self) -> &'request ValidatedCoreOnlyBuildRequest<'artifact> {
+        match self {
+            Self::Ordinary(parsed) => parsed.request,
+            Self::TrustedCoreBootstrap(parsed) => parsed.request,
+        }
+    }
+
+    pub const fn sources(&self) -> &CurrentConeParsedSources {
+        match self {
+            Self::Ordinary(parsed) => &parsed.sources,
+            Self::TrustedCoreBootstrap(parsed) => &parsed.sources,
+        }
+    }
+}
+
+pub struct ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
+    request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
+    trusted_core: &'request ValidatedTrustedCoreArtifact<'artifact>,
+    sources: CurrentConeParsedSources,
+}
+
+impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
     pub const fn request(&self) -> &'request ValidatedCoreOnlyBuildRequest<'artifact> {
         self.request
     }
@@ -246,28 +346,130 @@ impl<'request, 'artifact> ParsedSingleConeBuildRequest<'request, 'artifact> {
     pub const fn sources(&self) -> &CurrentConeParsedSources {
         &self.sources
     }
+
+    pub const fn trusted_core(&self) -> &'request ValidatedTrustedCoreArtifact<'artifact> {
+        self.trusted_core
+    }
 }
 
-fn parse_loaded_current(
-    current: &LoadedCurrentConeInput,
-) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
-    match current {
-        LoadedCurrentConeInput::Manifest { manifest } => {
-            let sources = discover_manifest_sources(manifest)
-                .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
-            parse_discovered_sources(&sources)
+pub struct ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
+    request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
+    authority: &'request CoreBootstrapAuthority,
+    artifact_slot: &'request TrustedCoreArtifactSlot,
+    sources: CurrentConeParsedSources,
+}
+
+impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
+    pub const fn request(&self) -> &'request ValidatedCoreOnlyBuildRequest<'artifact> {
+        self.request
+    }
+
+    pub const fn sources(&self) -> &CurrentConeParsedSources {
+        &self.sources
+    }
+
+    pub fn hir_input(
+        &self,
+    ) -> Result<TrustedCoreBootstrapHirInput<'_>, CoreBootstrapHirInputError> {
+        TrustedCoreBootstrapHirInput::try_new(&self.sources, self.authority, self.artifact_slot)
+    }
+}
+
+/// Authority-bearing driver projection for the trusted-core HIR stage.
+///
+/// The source-only lowerer input cannot mint this value: it additionally
+/// binds the resolver authority to the configured artifact slot that must
+/// receive the eventual bootstrap artifact.
+pub struct TrustedCoreBootstrapHirInput<'a> {
+    sources: scoop_hir_lower::CoreBootstrapSources<'a>,
+    authority: &'a CoreBootstrapAuthority,
+    artifact_slot: &'a TrustedCoreArtifactSlot,
+}
+
+impl<'a> TrustedCoreBootstrapHirInput<'a> {
+    fn try_new(
+        sources: &'a CurrentConeParsedSources,
+        authority: &'a CoreBootstrapAuthority,
+        artifact_slot: &'a TrustedCoreArtifactSlot,
+    ) -> Result<Self, CoreBootstrapHirInputError> {
+        if authority.expected_identity() != scoop_identity::ConeIdentity::CORE {
+            return Err(CoreBootstrapHirInputError::InvalidAuthorityIdentity(
+                authority.expected_identity(),
+            ));
         }
-        LoadedCurrentConeInput::SingleFile { source } => {
-            let source = load_single_file_source(source)
-                .map_err(|source| CurrentConeSourceStageError::SingleFile(Box::new(source)))?;
-            parse_single_discovered_source(&source)
+        if authority.artifact_path() != artifact_slot.path()
+            || authority.target() != artifact_slot.target()
+            || authority.toolchain_compatibility() != artifact_slot.toolchain_compatibility()
+        {
+            return Err(CoreBootstrapHirInputError::ArtifactSlotMismatch);
         }
-        LoadedCurrentConeInput::TrustedCoreBootstrap { input } => {
-            let sources = discover_manifest_sources(input.source_slot().manifest())
-                .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
-            parse_discovered_sources(&sources)
+        let sources = scoop_hir_lower::CoreBootstrapSources::try_new(sources)
+            .map_err(CoreBootstrapHirInputError::Sources)?;
+        Ok(Self {
+            sources,
+            authority,
+            artifact_slot,
+        })
+    }
+
+    pub fn lower(&self) -> Result<scoop_hir::Output, Vec<scoop_ast::Diagnostic>> {
+        scoop_hir_lower::lower_core_bootstrap(&self.sources)
+    }
+
+    pub const fn authority(&self) -> &'a CoreBootstrapAuthority {
+        self.authority
+    }
+
+    pub const fn artifact_slot(&self) -> &'a TrustedCoreArtifactSlot {
+        self.artifact_slot
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapHirInputError {
+    InvalidAuthorityIdentity(scoop_identity::ConeIdentity),
+    ArtifactSlotMismatch,
+    Sources(scoop_hir_lower::CoreBootstrapSourceError),
+}
+
+impl fmt::Display for CoreBootstrapHirInputError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidAuthorityIdentity(actual) => write!(
+                formatter,
+                "trusted core bootstrap authority names Cone {actual}, expected the reserved core Cone"
+            ),
+            Self::ArtifactSlotMismatch => formatter.write_str(
+                "trusted core bootstrap authority and configured artifact slot do not match",
+            ),
+            Self::Sources(source) => source.fmt(formatter),
         }
     }
+}
+
+impl std::error::Error for CoreBootstrapHirInputError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Sources(source) => Some(source),
+            Self::InvalidAuthorityIdentity(_) | Self::ArtifactSlotMismatch => None,
+        }
+    }
+}
+
+fn parse_manifest_current(
+    manifest: &LoadedConeManifest,
+) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
+    let sources = discover_manifest_sources(manifest)
+        .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
+    parse_discovered_sources(&sources)
+}
+
+fn parse_single_file_current(
+    source: &SingleFileLocator,
+) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
+    let source = load_single_file_source(source)
+        .map_err(|source| CurrentConeSourceStageError::SingleFile(Box::new(source)))?;
+    parse_single_discovered_source(&source)
 }
 
 fn parse_discovered_sources(
@@ -483,7 +685,10 @@ mod tests {
         })
         .unwrap();
 
-        let parsed = parse_loaded_current(&current).unwrap();
+        let LoadedCurrentConeInput::Manifest { manifest } = &current else {
+            panic!("test constructs a manifest input")
+        };
+        let parsed = parse_manifest_current(manifest).unwrap();
 
         let paths = parsed
             .sources()
@@ -506,7 +711,10 @@ mod tests {
         })
         .unwrap();
 
-        let parsed = parse_loaded_current(&current).unwrap();
+        let LoadedCurrentConeInput::SingleFile { source } = &current else {
+            panic!("test constructs a single-file input")
+        };
+        let parsed = parse_single_file_current(source).unwrap();
 
         assert_eq!(parsed.cone(), scoop_identity::ConeIdentity::SINGLE_FILE);
         assert_eq!(
@@ -532,7 +740,10 @@ mod tests {
         })
         .unwrap();
 
-        let error = parse_loaded_current(&current).unwrap_err();
+        let LoadedCurrentConeInput::Manifest { manifest } = &current else {
+            panic!("test constructs a manifest input")
+        };
+        let error = parse_manifest_current(manifest).unwrap_err();
 
         assert!(matches!(
             error,
@@ -545,16 +756,57 @@ mod tests {
 
     #[test]
     fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
-        let root = ManifestRootLocator::cone_directory(
-            crate::workspace_root().join("sysroot/lib/scoop.core"),
-        );
-        let manifest = scoop_manifest::load_trusted_core_manifest(&root).unwrap();
-        let sources = discover_manifest_sources(&manifest).unwrap();
+        let slot = crate::trusted_core::resolve_trusted_core_slot_at(
+            &crate::workspace_root().join("sysroot"),
+            scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        )
+        .unwrap();
+        let (bootstrap, artifact_slot) = slot.into_bootstrap_parts();
+        let sources = discover_manifest_sources(bootstrap.source_slot().manifest()).unwrap();
         let parsed = parse_discovered_sources(&sources).unwrap();
-        let input = scoop_hir_lower::CoreBootstrapSources::try_new(&parsed).unwrap();
+        let input =
+            TrustedCoreBootstrapHirInput::try_new(&parsed, bootstrap.authority(), &artifact_slot)
+                .unwrap();
 
-        let output = scoop_hir_lower::lower_core_bootstrap(&input).unwrap();
+        assert!(std::ptr::eq(input.authority(), bootstrap.authority()));
+        assert_eq!(input.artifact_slot(), &artifact_slot);
+        let output = input.lower().unwrap();
         scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+    }
+
+    #[test]
+    fn bootstrap_hir_input_rejects_an_artifact_slot_from_another_sysroot() {
+        let slot = crate::trusted_core::resolve_trusted_core_slot_at(
+            &crate::workspace_root().join("sysroot"),
+            scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        )
+        .unwrap();
+        let (bootstrap, _) = slot.into_bootstrap_parts();
+        let sources = discover_manifest_sources(bootstrap.source_slot().manifest()).unwrap();
+        let parsed = parse_discovered_sources(&sources).unwrap();
+
+        let other = tempfile::tempdir().unwrap();
+        let other_core = other.path().join("lib/scoop.core");
+        std::fs::create_dir_all(&other_core).unwrap();
+        std::fs::write(
+            other_core.join("Cone.toml"),
+            "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.core\"\nversion = \"0.1.0\"\nkind = \"library\"\n",
+        )
+        .unwrap();
+        let other_slot = crate::trusted_core::resolve_trusted_core_slot_at(
+            other.path(),
+            scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        )
+        .unwrap();
+
+        assert!(matches!(
+            TrustedCoreBootstrapHirInput::try_new(
+                &parsed,
+                bootstrap.authority(),
+                other_slot.artifact(),
+            ),
+            Err(CoreBootstrapHirInputError::ArtifactSlotMismatch)
+        ));
     }
 
     fn manifest_cone() -> tempfile::TempDir {

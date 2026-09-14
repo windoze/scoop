@@ -341,7 +341,7 @@ pub(crate) fn configured_sysroot_root() -> PathBuf {
     }
 }
 
-fn resolve_trusted_core_slot_at(
+pub(crate) fn resolve_trusted_core_slot_at(
     sysroot: &Path,
     target: ValidatedLirTargetSelection,
 ) -> Result<TrustedCoreSlot, TrustedCoreSlotError> {
