@@ -14,6 +14,9 @@ pub use fingerprints::*;
 mod object_fingerprints;
 pub use object_fingerprints::*;
 
+mod registration_fingerprints;
+pub use registration_fingerprints::*;
+
 mod verification;
 pub use verification::*;
 

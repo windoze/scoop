@@ -1698,6 +1698,13 @@ core-external分支必须保持external candidate，并由最终requirement proo
 TypeDescriptor` owner。哈希前将指针载荷归零，并用通用canonical relocation schema连同精确对象bytes编码；
 不接受长度不闭合、非法UTF-8、非零padding、错owner或未分类external，也不从String显示值重建另一份旁路hash。
 
+immortal object的StrongRegistration只能经`compute_strong_immortal_object_fingerprints_v1`消费上述实际对象
+ObjectDefinition proof（它继续拥有同一registration-object proof）。canonical record依次编码record kind 2、
+Strong linkage、object semantic id、三个零own/ODR digest、`OwnImmortalAtom` role tag 2与同一object id、object
+size、required alignment和target exact type-registration id；最后编码registration object与实际immortal object
+两个按`(kind, node id)`排序的ObjectDefinition direct input。公共入口不接受裸digest、裸node或调用方拼装的
+direct-input数组；proof coverage、object identity或两个node任一不一致均在hash前失败。
+
 type registration自身的ObjectDefinition leaf只能经
 `compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content
 digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确240-byte
