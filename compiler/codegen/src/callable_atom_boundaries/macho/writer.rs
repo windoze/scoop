@@ -8,7 +8,7 @@ use super::{BoundaryDefinitionV1, MachOLayout, NLIST_64_SIZE, malformed, read_u3
 use crate::CodegenError;
 
 impl MachOLayout {
-    pub(in crate::callable_atom_boundaries) fn add_external_definitions(
+    pub(crate) fn add_external_definitions(
         &self,
         bytes: &mut Vec<u8>,
         mut additions: Vec<BoundaryDefinitionV1>,

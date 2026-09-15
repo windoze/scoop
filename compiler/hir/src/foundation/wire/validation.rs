@@ -301,9 +301,16 @@ fn validate_foundation(
         .map_err(HirFoundationValidationError::Resource)?;
     for (index, boundary) in native_boundary_types.into_iter().enumerate() {
         boundary_types.push(
-            boundary.resolve(identities).map_err(|error| {
-                HirFoundationValidationError::NativeBoundaryType { index, error }
-            })?,
+            boundary
+                .resolve_with_external_core(
+                    identities,
+                    &core_external_source_types,
+                    &core_external_generic_types,
+                )
+                .map_err(|error| HirFoundationValidationError::NativeBoundaryType {
+                    index,
+                    error,
+                })?,
         );
     }
     native_boundary::validate_shape_coverage(

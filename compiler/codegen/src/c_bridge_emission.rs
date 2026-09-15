@@ -71,12 +71,20 @@ pub fn emit_c_bridge_object_set(
     profile: &ValidatedCBridgeToolchainProfile,
 ) -> Result<EmittedGeneratedCBridgeObjectSetV1, CodegenError> {
     profile.validate_lir_target_profile(input.module().meta.target_profile)?;
+    let target = input.module().meta.target_profile;
+    let symbol_surface =
+        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(input.foundation())
+            .map_err(|error| {
+                CodegenError(format!(
+                    "cannot plan generated-C atom boundary symbols: {error}"
+                ))
+            })?;
     let sources = render_c_bridge_source_set(input)?;
     emit_source_set_with_compiler(
         sources,
         temporary_parent,
         profile.profile().clone(),
-        |source, object| {
+        |plan, source, object| {
             let output = profile
                 .object_compilation_command(source, object)
                 .output()
@@ -93,7 +101,12 @@ pub fn emit_c_bridge_object_set(
                     String::from_utf8_lossy(&output.stderr).trim()
                 )));
             }
-            Ok(())
+            crate::generated_c_atom_boundaries::materialize_v1(
+                object,
+                target,
+                plan,
+                &symbol_surface,
+            )
         },
     )
 }
@@ -102,7 +115,11 @@ fn emit_source_set_with_compiler(
     sources: GeneratedCBridgeSourceSetV1,
     temporary_parent: &Path,
     profile: scoop_lir::CBridgeToolchainProfileV1,
-    mut compile: impl FnMut(&Path, &Path) -> Result<(), CodegenError>,
+    mut compile: impl FnMut(
+        &scoop_lir::GeneratedBridgeUnitPlanV1,
+        &Path,
+        &Path,
+    ) -> Result<(), CodegenError>,
 ) -> Result<EmittedGeneratedCBridgeObjectSetV1, CodegenError> {
     std::fs::create_dir_all(temporary_parent).map_err(|error| {
         CodegenError(format!(
@@ -147,7 +164,7 @@ fn emit_source_set_with_compiler(
             ))
         })?;
         seal_regular_file(&source_path, "generated-C source", false)?;
-        compile(&source_path, &object_path).map_err(|error| {
+        compile(plan, &source_path, &object_path).map_err(|error| {
             CodegenError(format!(
                 "cannot compile generated-C unit {}: {error}",
                 source.unit()
@@ -200,7 +217,7 @@ pub(crate) fn emit_c_bridge_object_set_with_compiler_for_test(
     sources: GeneratedCBridgeSourceSetV1,
     temporary_parent: &Path,
     profile: scoop_lir::CBridgeToolchainProfileV1,
-    compile: impl FnMut(&Path, &Path) -> Result<(), CodegenError>,
+    compile: impl FnMut(&scoop_lir::GeneratedBridgeUnitPlanV1, &Path, &Path) -> Result<(), CodegenError>,
 ) -> Result<EmittedGeneratedCBridgeObjectSetV1, CodegenError> {
     emit_source_set_with_compiler(sources, temporary_parent, profile, compile)
 }

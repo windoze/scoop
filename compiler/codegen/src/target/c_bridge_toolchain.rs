@@ -224,6 +224,15 @@ fn canonical_object_compilation_command(
             CanonicalCBridgeFlagV1::OmitCompilerIdentification => {
                 command.arg("-fno-ident");
             }
+            CanonicalCBridgeFlagV1::NoStackProtector => {
+                command.arg("-fno-stack-protector");
+            }
+            CanonicalCBridgeFlagV1::NoUnwindTables => {
+                command.arg("-fno-unwind-tables");
+            }
+            CanonicalCBridgeFlagV1::NoAsynchronousUnwindTables => {
+                command.arg("-fno-asynchronous-unwind-tables");
+            }
         }
     }
     command
@@ -514,6 +523,9 @@ mod tests {
                 "-g0",
                 "-fno-common",
                 "-fno-ident",
+                "-fno-stack-protector",
+                "-fno-unwind-tables",
+                "-fno-asynchronous-unwind-tables",
             ]
         );
         assert_eq!(

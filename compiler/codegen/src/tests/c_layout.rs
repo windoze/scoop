@@ -754,7 +754,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     assert!(bridge.contains(&format!(
         "void {outbound_symbol}(void *result, const void *arg0)"
     )));
-    assert!(bridge.contains("memcpy(result, &native_result, sizeof(native_result));"));
+    assert!(bridge.contains("__builtin_memcpy(result, &native_result, sizeof(native_result));"));
+    assert!(!bridge.contains("#include <string.h>"));
     assert!(bridge.contains(&format!(
         "extern void scoop_callback_storage_bridge(void *result, const void *arg0) __asm__(\"{callback_bridge_object_symbol}\");"
     )));
@@ -765,7 +766,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     assert_eq!(
         bridge
             .matches(&format!(
-                "const unsigned char {} = 0;",
+                "const unsigned char {} __attribute__((section(\"__TEXT,__scoop_sig\"))) = 0;",
                 foreign_trampoline.signature_descriptor_symbol()
             ))
             .count(),

@@ -293,6 +293,38 @@ impl NativeBoundaryTypeDefinitionRecord {
         })
     }
 
+    fn from_external_core_source(
+        owner: PersistentTypeId,
+        type_parameter_count: u32,
+        shape: NativeBoundaryNominalShape,
+    ) -> Result<Self, ExternalCoreNativeBoundaryDefinitionError> {
+        if type_parameter_count != 0 {
+            return Err(
+                ExternalCoreNativeBoundaryDefinitionError::NonZeroTypeParameterCount(
+                    type_parameter_count,
+                ),
+            );
+        }
+        let supported = match &shape {
+            NativeBoundaryNominalShape::Reference => true,
+            NativeBoundaryNominalShape::Struct {
+                c_layout: NativeBoundaryCLayoutPolicy::NotCLayout,
+                fields,
+            } => fields.is_empty(),
+            NativeBoundaryNominalShape::Struct { .. } | NativeBoundaryNominalShape::Enum { .. } => {
+                false
+            }
+        };
+        if !supported {
+            return Err(ExternalCoreNativeBoundaryDefinitionError::UnsupportedShape);
+        }
+        Ok(Self {
+            owner: NativeBoundaryNominalOwner::Concrete(owner),
+            type_parameter_count,
+            shape,
+        })
+    }
+
     pub const fn owner(&self) -> NativeBoundaryNominalOwner {
         self.owner
     }
@@ -305,6 +337,28 @@ impl NativeBoundaryTypeDefinitionRecord {
         &self.shape
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExternalCoreNativeBoundaryDefinitionError {
+    NonZeroTypeParameterCount(u32),
+    UnsupportedShape,
+}
+
+impl fmt::Display for ExternalCoreNativeBoundaryDefinitionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonZeroTypeParameterCount(actual) => write!(
+                formatter,
+                "external core native-boundary type has {actual} type parameters, expected zero"
+            ),
+            Self::UnsupportedShape => formatter.write_str(
+                "external core native-boundary type must be an empty NotCLayout struct or a reference",
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ExternalCoreNativeBoundaryDefinitionError {}
 
 impl WireEncode for NativeBoundaryTypeDefinitionRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {

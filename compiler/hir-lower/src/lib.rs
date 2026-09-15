@@ -474,9 +474,12 @@ pub fn lower_ordinary_core_only<'core>(
         )]
     })?;
     let local = concretize::lower_output(&export);
-    let native_boundary_types =
-        crate::persistent_native_boundary::build(export.module(), local.module())
-            .map_err(native_boundary_diagnostic)?;
+    let native_boundary_types = crate::persistent_native_boundary::build(
+        export.module(),
+        local.module(),
+        hir::HirNativeBoundaryExternalTypes::TrustedCore(input.core.native_boundary_types()),
+    )
+    .map_err(native_boundary_diagnostic)?;
     let output =
         hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
             vec![Diagnostic::at(
@@ -524,9 +527,12 @@ fn finish_output(
     } else {
         concretize::lower_output(&export)
     };
-    let native_boundary_types =
-        crate::persistent_native_boundary::build(export.module(), local.module())
-            .map_err(native_boundary_diagnostic)?;
+    let native_boundary_types = crate::persistent_native_boundary::build(
+        export.module(),
+        local.module(),
+        hir::HirNativeBoundaryExternalTypes::CurrentArtifactOnly,
+    )
+    .map_err(native_boundary_diagnostic)?;
     hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
         vec![Diagnostic::at(
             Span { start: 0, end: 0 },

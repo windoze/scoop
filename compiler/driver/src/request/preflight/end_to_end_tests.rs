@@ -125,6 +125,49 @@ fn formal_pipeline_is_byte_reproducible_across_absolute_source_and_output_paths(
     );
 }
 
+#[test]
+fn formal_pipeline_preserves_source_extern_without_attempting_final_link() {
+    let Some(target) = resolved_target() else {
+        return;
+    };
+    let sysroot = tempfile::tempdir().unwrap();
+    bootstrap_core(sysroot.path(), &target);
+
+    let executable_root = sysroot.path().join("source-extern");
+    write_manifest_cone(
+        &executable_root,
+        "dev.example",
+        "stage3.source-extern",
+        "executable",
+        r#"@Extern(lib = "stage3_library_that_does_not_exist", name = "stage3_add")
+fun stage3Add(left: Int, right: Int): Int
+
+fun main() {
+    @Unsafe {
+        val result = stage3Add(1, 2)
+    }
+}
+"#,
+    );
+    let artifact = build_manifest(
+        sysroot.path(),
+        &target,
+        &executable_root,
+        &sysroot.path().join("output/source-extern.slib"),
+    );
+
+    assert!(artifact.artifact().path().is_file());
+    assert_eq!(
+        artifact.artifact().validation().kind(),
+        ConeKind::Executable
+    );
+    assert!(matches!(
+        artifact.artifact().validation().link_summary().output(),
+        SingleConeProductionOutputV1::Executable(_)
+    ));
+    assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);
+}
+
 fn resolved_target() -> Option<scoop_codegen::ResolvedTargetProfile> {
     // The target resolver owns host Apple-toolchain qualification. A machine
     // blocked by the Xcode license gate cannot enter object production.

@@ -10,8 +10,9 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
-    NativeBoundaryCLayoutPolicy, NativeBoundaryDefinitionError, NativeBoundaryFieldDefinition,
-    NativeBoundaryNominalOwner, NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord,
+    ExternalCoreNativeBoundaryDefinitionError, NativeBoundaryCLayoutPolicy,
+    NativeBoundaryDefinitionError, NativeBoundaryFieldDefinition, NativeBoundaryNominalOwner,
+    NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord,
     NativeBoundaryVariantDefinition, NativeBoundaryVariantFieldDefinition, encode_empty_sum,
     encode_sequence, encode_tag, encode_two_value_sum, encode_value_sum,
 };
@@ -415,6 +416,47 @@ impl DecodedNativeBoundaryTypeDefinitionRecord {
         }
         Ok(record)
     }
+
+    pub fn resolve_with_external_core<R, E>(
+        self,
+        resolver: &mut R,
+        external_source_types: &[PersistentTypeId],
+        external_generic_types: &[PersistentGenericTypeId],
+    ) -> Result<NativeBoundaryTypeDefinitionRecord, NativeBoundaryResolutionError<E>>
+    where
+        R: NativeBoundaryResolver<E>,
+    {
+        match self.owner {
+            DecodedNativeBoundaryNominalOwner::Concrete(id)
+                if external_source_types
+                    .binary_search_by(|candidate| candidate.as_array().cmp(id.as_array()))
+                    .is_ok() =>
+            {
+                let owner = resolver
+                    .resolve(id)
+                    .map_err(NativeBoundaryResolutionError::Reference)?;
+                let shape = self.shape.resolve(resolver)?;
+                NativeBoundaryTypeDefinitionRecord::from_external_core_source(
+                    owner,
+                    self.type_parameter_count,
+                    shape,
+                )
+                .map_err(NativeBoundaryResolutionError::ExternalCoreDefinition)
+            }
+            DecodedNativeBoundaryNominalOwner::GenericTemplate(id)
+                if external_generic_types
+                    .binary_search_by(|candidate| candidate.as_array().cmp(id.as_array()))
+                    .is_ok() =>
+            {
+                resolver
+                    .resolve(id)
+                    .map_err(NativeBoundaryResolutionError::Reference)?;
+                Err(NativeBoundaryResolutionError::ExternalCoreGenericUnavailable)
+            }
+            DecodedNativeBoundaryNominalOwner::Concrete(_)
+            | DecodedNativeBoundaryNominalOwner::GenericTemplate(_) => self.resolve(resolver),
+        }
+    }
 }
 
 impl WireEncode for DecodedNativeBoundaryTypeDefinitionRecord {
@@ -444,6 +486,8 @@ impl WireDecode for DecodedNativeBoundaryTypeDefinitionRecord {
 pub enum NativeBoundaryResolutionError<E> {
     Reference(E),
     Definition(NativeBoundaryDefinitionError),
+    ExternalCoreDefinition(ExternalCoreNativeBoundaryDefinitionError),
+    ExternalCoreGenericUnavailable,
     OwnerKindMismatch,
     TypeParameterCountMismatch { expected: u32, actual: u32 },
     Allocation,
@@ -454,6 +498,9 @@ impl<E: fmt::Display> fmt::Display for NativeBoundaryResolutionError<E> {
         match self {
             Self::Reference(error) => error.fmt(formatter),
             Self::Definition(error) => error.fmt(formatter),
+            Self::ExternalCoreDefinition(error) => error.fmt(formatter),
+            Self::ExternalCoreGenericUnavailable => formatter
+                .write_str("external core generic native-boundary types are unavailable in M23-3"),
             Self::OwnerKindMismatch => {
                 formatter.write_str("native boundary owner kind does not match its declaration")
             }

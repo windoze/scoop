@@ -103,11 +103,12 @@ impl StrongCallableRegistrationPlanSetV1 {
         runtime_scans: StrongCallableRuntimeScanPlanSetV1,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, StrongCallableRegistrationPlanBuildError> {
-        let expected = foundation
+        let mut expected = foundation
             .callable_bodies()
             .iter()
             .map(|body| body.id())
             .collect::<Vec<_>>();
+        expected.sort_unstable();
         let actual = identities
             .callables()
             .iter()

@@ -61,7 +61,7 @@ pub fn validate_builtin_object_section_inventory_v1(
         if !names.insert((name.0.to_vec(), name.1.to_vec())) {
             return Err(BuiltinObjectSectionValidationError::DuplicateSectionName);
         }
-        let Some((role, expected_flags)) = classify_section(name.0, name.1) else {
+        let Some((role, expected_flags)) = classify_section(profile, name.0, name.1) else {
             return Err(
                 BuiltinObjectSectionValidationError::UnsupportedSectionName {
                     segment: name.0.to_vec(),
@@ -112,13 +112,22 @@ fn section_flags_match(role: BuiltinObjectSectionRoleV1, expected: u32, actual: 
             && actual == macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS)
 }
 
-fn classify_section(segment: &[u8], section: &[u8]) -> Option<(BuiltinObjectSectionRoleV1, u32)> {
+fn classify_section(
+    profile: BuiltinLinkObjectSectionProfileV1,
+    segment: &[u8],
+    section: &[u8],
+) -> Option<(BuiltinObjectSectionRoleV1, u32)> {
     match (segment, section) {
         (b"__TEXT", b"__text") => Some((
             BuiltinObjectSectionRoleV1::Text,
             macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS,
         )),
         (b"__TEXT", b"__const") | (b"__DATA", b"__const") | (b"__DATA_CONST", b"__const") => {
+            Some((BuiltinObjectSectionRoleV1::ReadOnlyData, macho::S_REGULAR))
+        }
+        (b"__TEXT", b"__scoop_sig") | (b"__TEXT", b"__scoop_ctx")
+            if profile == BuiltinLinkObjectSectionProfileV1::GeneratedCBridge =>
+        {
             Some((BuiltinObjectSectionRoleV1::ReadOnlyData, macho::S_REGULAR))
         }
         (b"__TEXT", b"__cstring") => Some((

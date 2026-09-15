@@ -82,10 +82,18 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
         .filter(|plan| shape_roles.contains(&plan.definition_role()))
     {
         let symbol = plan.primary_symbol().symbol();
+        let global = llvm.get_global(symbol.as_str());
         assert!(
-            llvm.get_global(symbol.as_str()).is_some(),
+            global.is_some(),
             "missing primary shape definition `{symbol}`\n{ir}"
         );
+        if plan.definition_role() == StrongDefinitionRole::Layout {
+            assert_eq!(
+                global.unwrap().get_alignment(),
+                8,
+                "layout definition `{symbol}` must carry its verifier-required alignment"
+            );
+        }
         for boundary in plan.atom_boundaries() {
             for symbol in [boundary.start().symbol(), boundary.end().symbol()] {
                 assert!(

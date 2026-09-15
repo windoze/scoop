@@ -105,6 +105,7 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
         let global = llvm.add_global(context.i8_type(), None, symbol.as_str());
         global.set_linkage(Linkage::External);
         global.set_constant(true);
+        global.set_alignment(8);
         global.set_initializer(&context.i8_type().const_zero());
         emitted.record_atom(definition.primary_atom(), global);
     }

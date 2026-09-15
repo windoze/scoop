@@ -342,10 +342,13 @@ pub enum CanonicalCBridgeFlagV1 {
     NoDebugInformation,
     NoCommonSymbols,
     OmitCompilerIdentification,
+    NoStackProtector,
+    NoUnwindTables,
+    NoAsynchronousUnwindTables,
 }
 
 impl CanonicalCBridgeFlagV1 {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 12] = [
         Self::ExplicitCanonicalTarget,
         Self::ExplicitResolvedSdkRoot,
         Self::ExplicitMinimumDeployment,
@@ -355,6 +358,9 @@ impl CanonicalCBridgeFlagV1 {
         Self::NoDebugInformation,
         Self::NoCommonSymbols,
         Self::OmitCompilerIdentification,
+        Self::NoStackProtector,
+        Self::NoUnwindTables,
+        Self::NoAsynchronousUnwindTables,
     ];
 
     const fn tag(self) -> u32 {
@@ -368,6 +374,9 @@ impl CanonicalCBridgeFlagV1 {
             Self::NoDebugInformation => 7,
             Self::NoCommonSymbols => 8,
             Self::OmitCompilerIdentification => 9,
+            Self::NoStackProtector => 10,
+            Self::NoUnwindTables => 11,
+            Self::NoAsynchronousUnwindTables => 12,
         }
     }
 }
@@ -438,10 +447,11 @@ pub enum GeneratedCSourceTemplateComponentV1 {
     CallbackTrampolines,
     ForeignCallbackTrampolines,
     UnitObjectPartition,
+    AtomBoundaryMaterialization,
 }
 
 impl GeneratedCSourceTemplateComponentV1 {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::TypeRenderer,
         Self::LayoutAssertions,
         Self::ExternalDeclarations,
@@ -450,6 +460,7 @@ impl GeneratedCSourceTemplateComponentV1 {
         Self::CallbackTrampolines,
         Self::ForeignCallbackTrampolines,
         Self::UnitObjectPartition,
+        Self::AtomBoundaryMaterialization,
     ];
 
     const fn tag(self) -> u32 {
@@ -462,6 +473,7 @@ impl GeneratedCSourceTemplateComponentV1 {
             Self::CallbackTrampolines => 6,
             Self::ForeignCallbackTrampolines => 7,
             Self::UnitObjectPartition => 8,
+            Self::AtomBoundaryMaterialization => 9,
         }
     }
 }

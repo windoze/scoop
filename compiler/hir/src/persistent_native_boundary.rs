@@ -7,7 +7,8 @@ use la_arena::Arena;
 use crate::{
     ClassDecl, EnumDecl, HirCallbackRegistrationIdentities, HirEnumMemberIdentities,
     HirFieldIdentities, HirInitializationUnitIdentities, HirNominalIdentities,
-    HirSignatureTypeMapper, HirSourceNativeContracts, HirTypeIdentityInputs, InterfaceDecl,
+    HirSignatureTypeMapper, HirSourceNativeContracts, HirTypeIdentityInputs,
+    ImportedCoreNativeBoundaryTypes, InterfaceDecl, NativeBoundaryNominalOwner,
     NativeBoundaryTypeDefinitionRecord, ObjectDecl, StructDecl,
 };
 
@@ -18,6 +19,24 @@ mod roots;
 
 use declarations::LocalNominalDeclarations;
 pub use error::HirNativeBoundaryTypeDefinitionError;
+
+#[derive(Clone, Copy, Debug)]
+pub enum HirNativeBoundaryExternalTypes<'a> {
+    CurrentArtifactOnly,
+    TrustedCore(&'a ImportedCoreNativeBoundaryTypes),
+}
+
+impl<'a> HirNativeBoundaryExternalTypes<'a> {
+    fn definition(
+        self,
+        owner: NativeBoundaryNominalOwner,
+    ) -> Option<&'a NativeBoundaryTypeDefinitionRecord> {
+        match self {
+            Self::CurrentArtifactOnly => None,
+            Self::TrustedCore(core) => core.definition(owner),
+        }
+    }
+}
 
 pub struct HirNativeBoundaryTypeDefinitionInputs<'a> {
     pub structs: &'a Arena<StructDecl>,
@@ -33,6 +52,7 @@ pub struct HirNativeBoundaryTypeDefinitionInputs<'a> {
     pub callback_registration_identities: &'a HirCallbackRegistrationIdentities,
     pub initialization_unit_identities: &'a HirInitializationUnitIdentities,
     pub local: &'a crate::concrete::Module,
+    pub external_types: HirNativeBoundaryExternalTypes<'a>,
 }
 
 /// Canonically ordered, exact native-boundary source-nominal closure.
@@ -59,15 +79,18 @@ impl HirNativeBoundaryTypeDefinitions {
             if !visited.insert(owner) {
                 continue;
             }
-            let declaration = declarations
-                .get(owner)
-                .ok_or(HirNativeBoundaryTypeDefinitionError::MissingSourceNominal { owner })?;
-            result.push(records::build(
-                declaration,
-                &inputs,
-                &mapper,
-                &mut required,
-            )?);
+            if let Some(declaration) = declarations.get(owner) {
+                result.push(records::build(
+                    declaration,
+                    &inputs,
+                    &mapper,
+                    &mut required,
+                )?);
+            } else if let Some(definition) = inputs.external_types.definition(owner) {
+                result.push(definition.clone());
+            } else {
+                return Err(HirNativeBoundaryTypeDefinitionError::MissingSourceNominal { owner });
+            }
         }
         result.sort_by(|left, right| left.owner().compare_sort_key(right.owner()));
         Ok(Self { records: result })

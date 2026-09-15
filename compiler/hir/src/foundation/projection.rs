@@ -62,6 +62,32 @@ impl CanonicalHirFoundation {
                 | ExactTypeKey::NativeFunctionPointer { .. } => {}
             }
         }
+        for record in &foundation.native_boundary_types {
+            match record.owner() {
+                crate::NativeBoundaryNominalOwner::Concrete(source)
+                    if !declared_source_types.contains(&source) =>
+                {
+                    if !output.imported_core().contains_hir_identity(source) {
+                        return Err(HirFoundationBuildError::MissingCoreExternalSourceType(
+                            source,
+                        ));
+                    }
+                    external_source_types.insert(source);
+                }
+                crate::NativeBoundaryNominalOwner::GenericTemplate(origin)
+                    if !declared_generic_types.contains(&origin) =>
+                {
+                    if !output.imported_core().contains_hir_identity(origin) {
+                        return Err(HirFoundationBuildError::MissingCoreExternalGenericType(
+                            origin,
+                        ));
+                    }
+                    external_generic_types.insert(origin);
+                }
+                crate::NativeBoundaryNominalOwner::Concrete(_)
+                | crate::NativeBoundaryNominalOwner::GenericTemplate(_) => {}
+            }
+        }
         foundation.set_core_external_source_types(external_source_types.into_iter().collect())?;
         foundation.set_core_external_generic_types(external_generic_types.into_iter().collect())?;
         Ok(foundation)

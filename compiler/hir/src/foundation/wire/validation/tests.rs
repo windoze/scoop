@@ -1,14 +1,17 @@
 use scoop_identity::{
-    CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity, DeclarationScope,
-    DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerChain,
-    ExactTypeKey, NormalizedSourcePath, PackagePath, PendingIdentityValidation,
-    PersistentExactTypeId, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
-    SourceIdentity, SourceNominalKind, SourceSpan,
+    CLayoutOverride, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity,
+    DeclarationScope, DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject,
+    DefinitionOwnerChain, ExactTypeKey, NormalizedSourcePath, PackagePath,
+    PendingIdentityValidation, PersistentExactTypeId, SourceContextKey, SourceDeclarationKey,
+    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::{NativeBoundaryCLayoutPolicy, NativeBoundaryNominalShape};
+use crate::{
+    ExternalCoreNativeBoundaryDefinitionError, NativeBoundaryCLayoutPolicy,
+    NativeBoundaryNominalShape,
+};
 
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
@@ -165,13 +168,11 @@ fn validates_the_complete_hir_foundation_atomically() {
 }
 
 #[test]
-fn validates_an_ordinary_exact_type_against_a_core_external_nominal_leaf() {
+fn validates_an_ordinary_native_boundary_against_a_core_external_nominal_leaf() {
     let coordinate = ConeCoordinate::new("example", "ordinary", "0.1.0").unwrap();
-    let external = CborIdentityRecord::<PersistentTypeId, _>::from_key(declaration(
-        ConeIdentity::CORE,
-        "String",
-    ))
-    .unwrap();
+    let external =
+        CborIdentityRecord::<PersistentTypeId, _>::from_key(declaration(ConeIdentity::CORE, "Int"))
+            .unwrap();
     let exact = CborIdentityRecord::<PersistentExactTypeId, _>::from_key(ExactTypeKey::Nominal(
         external.id(),
     ))
@@ -184,6 +185,19 @@ fn validates_an_ordinary_exact_type_against_a_core_external_nominal_leaf() {
         ])
         .unwrap();
     canonical.set_exact_types(vec![exact]).unwrap();
+    canonical
+        .set_native_boundary_types(vec![
+            NativeBoundaryTypeDefinitionRecord::new(
+                external.key(),
+                &[0],
+                NativeBoundaryNominalShape::Struct {
+                    c_layout: NativeBoundaryCLayoutPolicy::NotCLayout,
+                    fields: Vec::new(),
+                },
+            )
+            .unwrap(),
+        ])
+        .unwrap();
     canonical
         .set_core_external_source_types(vec![external.id()])
         .unwrap();
@@ -201,7 +215,61 @@ fn validates_an_ordinary_exact_type_against_a_core_external_nominal_leaf() {
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(validated.counts().types, 2);
     assert_eq!(validated.counts().exact_types, 1);
+    assert_eq!(validated.counts().native_boundary_types, 1);
     assert_eq!(validated.counts().core_external_source_types, 1);
+}
+
+#[test]
+fn rejects_a_non_fundamental_shape_for_a_core_external_native_boundary() {
+    let coordinate = ConeCoordinate::new("example", "ordinary-shape", "0.1.0").unwrap();
+    let external = CborIdentityRecord::<PersistentTypeId, _>::from_key(declaration(
+        ConeIdentity::CORE,
+        "ForeignStruct",
+    ))
+    .unwrap();
+    let exact = CborIdentityRecord::<PersistentExactTypeId, _>::from_key(ExactTypeKey::Nominal(
+        external.id(),
+    ))
+    .unwrap();
+    let boundary = NativeBoundaryTypeDefinitionRecord::new(
+        external.key(),
+        &[0],
+        NativeBoundaryNominalShape::Struct {
+            c_layout: NativeBoundaryCLayoutPolicy::CLayout {
+                aligned: CLayoutOverride::Natural,
+                packed: CLayoutOverride::Natural,
+            },
+            fields: Vec::new(),
+        },
+    )
+    .unwrap();
+    let mut canonical = CanonicalHirFoundation::empty();
+    canonical
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    canonical.set_exact_types(vec![exact]).unwrap();
+    canonical.set_native_boundary_types(vec![boundary]).unwrap();
+    canonical
+        .set_core_external_source_types(vec![external.id()])
+        .unwrap();
+    let decoded = decode(&canonical);
+    let mut identities = validate_identities(
+        &decoded,
+        [ConeIdentity::CORE, coordinate.identity().unwrap()],
+    );
+
+    assert!(matches!(
+        decoded.validate(&coordinate, &mut identities, &mut meter()),
+        Err(HirFoundationValidationError::NativeBoundaryType {
+            error: NativeBoundaryResolutionError::ExternalCoreDefinition(
+                ExternalCoreNativeBoundaryDefinitionError::UnsupportedShape
+            ),
+            ..
+        })
+    ));
 }
 
 #[test]

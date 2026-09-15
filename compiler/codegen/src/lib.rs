@@ -76,6 +76,7 @@ mod callable_runtime_scans;
 mod declarations;
 mod emission;
 mod function;
+mod generated_c_atom_boundaries;
 mod llvm_types;
 mod module_context;
 mod object_materialization;

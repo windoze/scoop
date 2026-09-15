@@ -79,6 +79,17 @@ impl ImportedHirFoundation {
         self.identities.get(id).map(ImportedHirId)
     }
 
+    pub(super) fn core_source_type_key(
+        &self,
+        id: PersistentTypeId,
+    ) -> Option<&scoop_identity::SourceDeclarationKey> {
+        self.canonical.source_type_key(id)
+    }
+
+    pub(super) fn core_source_field_count(&self, owner: PersistentTypeId) -> usize {
+        self.canonical.source_field_count(owner)
+    }
+
     /// Restricts one already imported core foundation to the M23-3 prelude
     /// capability. The resulting value has no API for ordinary package,
     /// exact-import, star-import, or re-export enumeration.

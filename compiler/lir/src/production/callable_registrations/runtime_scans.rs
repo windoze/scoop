@@ -66,7 +66,7 @@ impl StrongCallableRuntimeScanPlanSetV1 {
     pub fn from_foundation_without_scans(
         foundation: &crate::OdrFreeLirFoundation,
     ) -> Result<Self, StrongCallableRuntimeScanPlanError> {
-        let callables = foundation
+        let mut callables = foundation
             .callable_bodies()
             .iter()
             .map(|body| {
@@ -95,6 +95,7 @@ impl StrongCallableRuntimeScanPlanSetV1 {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
+        callables.sort_unstable_by_key(StrongCallableRuntimeScanPlanV1::body);
         Self::from_artifact(foundation.producer(), callables)
     }
 

@@ -10,7 +10,7 @@ fn empty_bridge_plan_produces_an_empty_owned_object_set_without_compiling() {
         sources,
         parent.path(),
         generated_c_profile(),
-        |_source, _object| -> Result<(), CodegenError> {
+        |_plan, _source, _object| -> Result<(), CodegenError> {
             panic!("an empty bridge plan must not invoke the compiler")
         },
     )
@@ -43,7 +43,7 @@ fn generated_c_object_set_preserves_unit_authority_and_immutable_backing() {
         sources,
         parent.path(),
         profile.clone(),
-        |source, object| {
+        |_plan, source, object| {
             assert!(
                 std::fs::metadata(source)
                     .map_err(|error| CodegenError(error.to_string()))?
@@ -119,7 +119,7 @@ fn generated_c_object_set_discards_all_partial_outputs_on_compiler_failure() {
         sources,
         parent.path(),
         generated_c_profile(),
-        |_source, object| {
+        |_plan, _source, object| {
             compilation += 1;
             if compilation == 1 {
                 std::fs::write(object, b"first object")
@@ -146,7 +146,7 @@ fn generated_c_object_set_rejects_a_missing_compiler_output() {
         sources,
         parent.path(),
         generated_c_profile(),
-        |_source, _object| Ok(()),
+        |_plan, _source, _object| Ok(()),
     )
     .unwrap_err();
 

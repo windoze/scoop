@@ -42,11 +42,11 @@ pub use imported::{
     SelectedImportedCoreId, SelectedImportedCoreSet, SelectedImportedCoreTarget,
 };
 pub use imported_protocols::{
-    CoreInterfaceImportError, CoreProtocolIdentityKind, CoreProtocolImportError,
-    ImportedCoreCompilerOperation, ImportedCoreCoroutineProtocol, ImportedCoreExceptionProtocol,
-    ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
+    CoreInterfaceImportError, CoreNativeBoundaryImportError, CoreProtocolIdentityKind,
+    CoreProtocolImportError, ImportedCoreCompilerOperation, ImportedCoreCoroutineProtocol,
+    ImportedCoreExceptionProtocol, ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
     ImportedCoreFundamentalTypeProtocol, ImportedCoreInputs, ImportedCoreIterationProtocol,
-    ImportedCoreOptionProtocol, ImportedCoreProtocolCallable,
+    ImportedCoreNativeBoundaryTypes, ImportedCoreOptionProtocol, ImportedCoreProtocolCallable,
     ImportedCoreProtocolCallableDefinition, ImportedCoreProtocolEntry, ImportedCoreProtocolNominal,
     ImportedCoreProtocols, ImportedCoreSourceLocationProtocol,
 };
@@ -213,6 +213,21 @@ impl CanonicalHirFoundation {
         self.types.iter().find_map(|record| {
             (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
         })
+    }
+
+    pub(crate) fn source_type_key(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKey> {
+        self.types
+            .iter()
+            .find(|record| record.id() == id)
+            .map(CborIdentityRecord::key)
+    }
+
+    pub(crate) fn source_field_count(&self, owner: PersistentTypeId) -> usize {
+        let owner = scoop_identity::NominalDeclarationOwner::Concrete(owner);
+        self.fields
+            .iter()
+            .filter(|record| record.key().source_owner() == Some(owner))
+            .count()
     }
 
     pub(crate) fn exact_type_by_bytes(

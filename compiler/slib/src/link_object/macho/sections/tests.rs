@@ -113,6 +113,34 @@ fn generated_bridge_requires_text_and_rejects_writable_state() {
 }
 
 #[test]
+fn generated_bridge_descriptor_sections_are_capability_private() {
+    for section in [b"__scoop_sig".as_slice(), b"__scoop_ctx".as_slice()] {
+        let bytes = object_with_section(b"__TEXT", section, macho::S_REGULAR);
+        let generated = validate_builtin_object_section_inventory_v1(
+            validate_darwin_arm64_object_envelope_v1(&bytes).unwrap(),
+            BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
+        );
+        assert_eq!(
+            generated.unwrap_err(),
+            BuiltinObjectSectionValidationError::MissingGeneratedBridgeText
+        );
+
+        let scoop = validate_builtin_object_section_inventory_v1(
+            validate_darwin_arm64_object_envelope_v1(&bytes).unwrap(),
+            BuiltinLinkObjectSectionProfileV1::ScoopLir,
+        );
+        assert_eq!(
+            scoop.unwrap_err(),
+            BuiltinObjectSectionValidationError::UnsupportedSectionName {
+                segment: b"__TEXT".to_vec(),
+                section: section.to_vec(),
+                symbols: Vec::new(),
+            }
+        );
+    }
+}
+
+#[test]
 fn relocated_data_const_is_read_only_but_other_data_sections_stay_closed() {
     let relocated_const = object_with_section(b"__DATA", b"__const", macho::S_REGULAR);
     let inventory = validate_builtin_object_section_inventory_v1(

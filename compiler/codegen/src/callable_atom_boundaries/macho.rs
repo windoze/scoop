@@ -14,14 +14,14 @@ const DYSYMTAB_COMMAND_SIZE: usize = 80;
 const NLIST_64_SIZE: usize = 16;
 
 #[derive(Clone, Debug)]
-pub(super) struct BoundaryDefinitionV1 {
+pub(crate) struct BoundaryDefinitionV1 {
     pub(super) name: Vec<u8>,
     pub(super) section_ordinal: u8,
     pub(super) value: u64,
 }
 
 impl BoundaryDefinitionV1 {
-    pub(super) fn new(name: Vec<u8>, section_ordinal: u8, value: u64) -> Self {
+    pub(crate) fn new(name: Vec<u8>, section_ordinal: u8, value: u64) -> Self {
         Self {
             name,
             section_ordinal,
@@ -31,7 +31,7 @@ impl BoundaryDefinitionV1 {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct MachOSection {
+pub(crate) struct MachOSection {
     pub(super) ordinal: u8,
     segment: [u8; 16],
     section: [u8; 16],
@@ -42,15 +42,15 @@ pub(super) struct MachOSection {
 }
 
 impl MachOSection {
-    pub(super) const fn ordinal(self) -> u8 {
+    pub(crate) const fn ordinal(self) -> u8 {
         self.ordinal
     }
 
-    pub(super) const fn address(self) -> u64 {
+    pub(crate) const fn address(self) -> u64 {
         self.address
     }
 
-    pub(super) fn checked_end(self) -> Result<u64, CodegenError> {
+    pub(crate) fn checked_end(self) -> Result<u64, CodegenError> {
         let end = self.address.checked_add(self.size).ok_or_else(|| {
             CodegenError(format!(
                 "callable section {},{} range overflows",
@@ -70,7 +70,7 @@ impl MachOSection {
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct MachOSymbol {
+pub(crate) struct MachOSymbol {
     pub(super) name: Vec<u8>,
     symbol_type: u8,
     section_ordinal: u8,
@@ -84,11 +84,11 @@ impl MachOSymbol {
             && self.description & !(macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY) == 0
     }
 
-    pub(super) const fn section_ordinal(&self) -> u8 {
+    pub(crate) const fn section_ordinal(&self) -> u8 {
         self.section_ordinal
     }
 
-    pub(super) const fn value(&self) -> u64 {
+    pub(crate) const fn value(&self) -> u64 {
         self.value
     }
 }
@@ -112,7 +112,7 @@ pub(super) struct DynamicSymbolTableLayout {
 }
 
 #[derive(Debug)]
-pub(super) struct MachOLayout {
+pub(crate) struct MachOLayout {
     pub(super) sections: Vec<MachOSection>,
     pub(super) symbols: Vec<MachOSymbol>,
     pub(super) symtab: SymbolTableLayout,
@@ -120,7 +120,7 @@ pub(super) struct MachOLayout {
 }
 
 impl MachOLayout {
-    pub(super) fn parse(bytes: &[u8]) -> Result<Self, CodegenError> {
+    pub(crate) fn parse(bytes: &[u8]) -> Result<Self, CodegenError> {
         if read_u32(bytes, 0)? != macho::MH_MAGIC_64
             || read_u32(bytes, 4)? != macho::CPU_TYPE_ARM64
             || read_u32(bytes, 12)? != macho::MH_OBJECT
@@ -195,7 +195,7 @@ impl MachOLayout {
         })
     }
 
-    pub(super) fn require_external_definition(
+    pub(crate) fn require_external_definition(
         &self,
         name: &[u8],
     ) -> Result<&MachOSymbol, CodegenError> {
@@ -226,7 +226,7 @@ impl MachOLayout {
         Ok(symbol)
     }
 
-    pub(super) fn require_existing_boundary_pair(
+    pub(crate) fn require_existing_boundary_pair(
         &self,
         start_name: &[u8],
         end_name: &[u8],
@@ -243,7 +243,7 @@ impl MachOLayout {
         Ok(())
     }
 
-    pub(super) fn find_section(
+    pub(crate) fn find_section(
         &self,
         segment: &[u8],
         section: &[u8],
@@ -268,7 +268,7 @@ impl MachOLayout {
         }
     }
 
-    pub(super) fn require_section(
+    pub(crate) fn require_section(
         &self,
         segment: &[u8],
         section: &[u8],
@@ -280,6 +280,21 @@ impl MachOLayout {
                 String::from_utf8_lossy(section)
             ))
         })
+    }
+
+    pub(crate) fn require_section_ordinal(
+        &self,
+        ordinal: u8,
+    ) -> Result<MachOSection, CodegenError> {
+        if ordinal == 0 {
+            return Err(CodegenError(
+                "Mach-O boundary symbol has no section".to_string(),
+            ));
+        }
+        self.sections
+            .get(usize::from(ordinal) - 1)
+            .copied()
+            .ok_or_else(malformed)
     }
 }
 

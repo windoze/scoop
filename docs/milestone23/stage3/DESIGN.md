@@ -612,6 +612,23 @@ external leaf只解决Compile identity closure，不授予lookup、layout、defi
 authority仍唯一来自下述checked core-external TypeDescriptor bridge。旧的“让ordinary exact record引用一个完全未
 声明的owner”形态直接拒绝，不提供兼容分支。
 
+ordinary source extern或callback若把受信core基础类型放入native boundary，native-boundary source witness必须由
+同一个`ImportedCoreInputs`额外机械投影，不能要求ordinary Cone复制core AST、HIR nominal declaration或一般field表。
+该投影是封闭能力：只包含八种整数与`Boolean`的零类型参数、`NotCLayout`无字段struct witness，以及`String`的
+零类型参数`Reference` witness；`Unit`继续由每个HIR foundation已有的编译器内建声明闭合。构造投影时必须按
+compiler protocol中的typed fundamental role解析同一imported foundation的source identity，验证整数/布尔确为
+无字段source struct、`String`确为source class，并按owner规范排序；不得按名称、FQN、digest前缀或目标ABI反推。
+ordinary lowering只从中挑选本次extern/callback传递闭包实际需要的record，且把对应owner同时登记进上述
+core-external typed表。一般core struct/enum、任意core generic template及其字段闭包仍以
+`native-boundary-closure-required`失败，留待M23-6的跨Cone proof。
+
+HIR foundation reader解析native-boundary record时，local owner仍必须由当前foundation的canonical declaration key
+重建；只有已在`core_external_source_types`登记的owner可走上述external分支，且payload必须严格是零类型参数的
+`NotCLayout`无字段struct或`Reference`，external generic owner直接拒绝。这个分支只产生依赖绑定的
+native-boundary witness，不能补出canonical declaration key或对consumer开放lookup/layout；受信构建路径还必须以
+同一core artifact的typed fundamental投影证明具体role。旧的缺key即接受、任意external shape、复制core声明和
+按名称兜底路径均不存在。
+
 HIR foundation的definition-origin覆盖按“是否为源码声明”决定，而不是按origin Cone决定：reserved core中由源码
 声明的`String`、primitive及其他nominal与普通Cone声明一样必须且只能携带一条origin；只有编译器拥有且没有普通
 source declaration的`CoreBuiltinNominal::{Unit, Any}`从type required set排除。validator必须按这两个固定typed
@@ -1538,6 +1555,19 @@ source/object path映射，并拥有覆盖全部临时source/object的immutable 
 plan/source/object或接收裸`Vec<PathBuf>`作为producer结果。任一unit的source写入、compiler执行、object
 检查或封存失败都使整个object set构造失败并随backing一并丢弃，不返回部分结果。
 
+canonical generated-C object command必须显式关闭stack protector、同步unwind table与异步unwind table；这些
+选项进入`CanonicalCBridgeFlagContractV1`及其fingerprint，不允许依赖compiler默认值。桥接wrapper不允许C/C++
+异常跨越Scoop native boundary，GC也不扫描native frame，因此generated-C member不得产生未计划的stack-check、
+compact-unwind或EH support定义/引用。编译成功后、object封存前，producer必须按同一unit的typed atom authority
+原子物化boundary：`PrimaryEntry`必须是从`__TEXT,__text`起点开始的唯一bridge body，其range恰为该非空section；
+`SignatureDescriptor`与`ContextDescriptor`分别是专用`__TEXT,__scoop_sig`与
+`__TEXT,__scoop_ctx` section中唯一的1-byte marker，range恰为该section。producer复用共同的Mach-O symbol-table
+重建器加入external start/end definition并同步修正被后移的undefined relocation index；任一primary symbol、
+section、extent、atom/definition plan或边界冲突都必须在写回前失败。不得按相邻symbol、nlist size、普通
+`__const` section整体或编译器临时label猜测range，也不得保留未带boundary的旧object路径。
+canonical source只用`__builtin_memcpy`表达storage copy且不包含`<string.h>`；toolchain可把它内联或降为已登记的
+`memcpy` target support，但`__memcpy_chk`等fortify派生symbol不在闭包内并必须失败。
+
 本阶段Scoop LLVM producer采用确定性的强对象分片策略：每个`CallableBody` definition plan连同其全部
 associated atom独占一个provisional object，其余Scoop LIR definition plan进入恰一个non-callable object。
 这样每个LLVM module至多定义一个callable body，`__llvm_stackmaps`、LSDA、EH frame与compact-unwind等
@@ -2158,7 +2188,7 @@ M23-3不发射`ScoopProgramDescriptorV1`或`ScoopRuntimeCoreBindingsV1`实例；
 | safepoint registration | `PersistentSafepointSiteId` |
 | callable registration | `PersistentCallableBodyId` |
 
-本profile全部`linkage_kind=Strong`，ODR group/member 64 bytes全零。`definition_fingerprint`由相应StrongRegistration node写入；callable的`body_definition_fingerprint`独立取body atom的ObjectDefinition fingerprint。六张表分别按总设计canonical key严格排序，即使为空也在image/hash中保留count 0，并在object中使用typed addressable sentinel。
+本profile全部`linkage_kind=Strong`，ODR group/member 64 bytes全零。`definition_fingerprint`由相应StrongRegistration node写入；callable的`body_definition_fingerprint`独立取body atom的ObjectDefinition fingerprint。六张表分别按总设计canonical key严格排序，即使为空也在image/hash中保留count 0，并在object中使用typed addressable sentinel。callable表具体按`PersistentCallableBodyId`排序；LIR foundation中的callable-body identity表因`RootGateway -> main`依赖采用稳定拓扑序，两者只能按typed body id做全集相等与join，禁止按相同index位置配对或把拓扑序误当registration wire顺序。
 
 LIR先从strong object-definition plan重建`StrongRegistrationIdentitySurfaceV1`，作为完整
 registration plan与image plan共用的不可伪造索引。顶层是fields `1..6`依上表次序排列的六个

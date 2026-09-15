@@ -8,7 +8,7 @@ use scoop_lir::{
     StrongDefinitionSymbolPlanV1,
 };
 
-use self::macho::{BoundaryDefinitionV1, MachOLayout};
+pub(crate) use self::macho::{BoundaryDefinitionV1, MachOLayout};
 use crate::CodegenError;
 
 mod macho;

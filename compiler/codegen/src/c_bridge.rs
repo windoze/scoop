@@ -7,6 +7,9 @@ pub use layout::c_layout_assertions;
 use layout::c_layout_assertions_for_unit;
 use render::{CBridgeTypeSurface, CTypeRenderer};
 
+pub(crate) const GENERATED_BRIDGE_SIGNATURE_SECTION: (&[u8], &[u8]) = (b"__TEXT", b"__scoop_sig");
+pub(crate) const GENERATED_BRIDGE_CONTEXT_SECTION: (&[u8], &[u8]) = (b"__TEXT", b"__scoop_ctx");
+
 /// One canonical generated-C translation unit and the bridge unit whose
 /// physical object it must produce.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -223,9 +226,7 @@ fn unit_prelude(
     plan: &scoop_lir::GeneratedBridgeUnitPlanV1,
     surface: &CBridgeTypeSurface,
 ) -> Result<String, CodegenError> {
-    let mut out = c_layout_assertions_for_unit(module, surface, plan)?;
-    out.push_str("#include <string.h>\n\n");
-    Ok(out)
+    c_layout_assertions_for_unit(module, surface, plan)
 }
 
 fn render_outbound_function(
@@ -276,7 +277,7 @@ fn render_outbound_function(
     for (index, parameter) in signature.params.iter().enumerate() {
         let declaration = renderer.declaration(parameter, &format!("value{index}"))?;
         out.push_str(&format!(
-            "  {declaration};\n  memcpy(&value{index}, arg{index}, sizeof(value{index}));\n"
+            "  {declaration};\n  __builtin_memcpy(&value{index}, arg{index}, sizeof(value{index}));\n"
         ));
     }
     let arguments = (0..signature.params.len())
@@ -287,7 +288,7 @@ fn render_outbound_function(
         let result_declaration =
             renderer.return_declaration(&signature.return_type, "native_result")?;
         out.push_str(&format!(
-            "  {result_declaration} = {}({arguments});\n  memcpy(result, &native_result, sizeof(native_result));\n",
+            "  {result_declaration} = {}({arguments});\n  __builtin_memcpy(result, &native_result, sizeof(native_result));\n",
             function.native_symbol
         ));
     } else {
@@ -323,15 +324,15 @@ fn render_native_global(
     out.push_str(&format!("extern {thread_local}{declaration};\n"));
     match kind {
         NativeGlobalBridgeKind::Read => out.push_str(&format!(
-            "void {}(void *result) {{\n  memcpy(result, &{}, sizeof({}));\n}}\n",
+            "void {}(void *result) {{\n  __builtin_memcpy(result, &{}, sizeof({}));\n}}\n",
             bridge.symbol(), global.native_symbol, global.native_symbol
         )),
         NativeGlobalBridgeKind::Write => out.push_str(&format!(
-            "void {}(const void *value) {{\n  memcpy(&{}, value, sizeof({}));\n}}\n",
+            "void {}(const void *value) {{\n  __builtin_memcpy(&{}, value, sizeof({}));\n}}\n",
             bridge.symbol(), global.native_symbol, global.native_symbol
         )),
         NativeGlobalBridgeKind::Address => out.push_str(&format!(
-            "void {}(void *result) {{\n  void *native_address = (void *)&{};\n  memcpy(result, &native_address, sizeof(native_address));\n}}\n",
+            "void {}(void *result) {{\n  void *native_address = (void *)&{};\n  __builtin_memcpy(result, &native_address, sizeof(native_address));\n}}\n",
             bridge.symbol(), global.native_symbol
         )),
     }
@@ -416,7 +417,7 @@ fn render_foreign_callback(
         scoop_lir::RuntimeAbiSymbolV1::CallbackInvoke.logical_symbol()
     ));
     out.push_str(&format!(
-        "const unsigned char {} = 0;\n",
+        "const unsigned char {} __attribute__((section(\"__TEXT,__scoop_sig\"))) = 0;\n",
         callback.trampoline.signature_descriptor_symbol()
     ));
     let parameters = render_named_parameters(&renderer, &callback.params)?;
