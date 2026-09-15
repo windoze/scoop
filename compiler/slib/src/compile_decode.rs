@@ -560,6 +560,19 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
         self.graph.envelope.manifest().semantic_fingerprints()
     }
 
+    /// Projects the exact graph/semantic authority of this validated artifact
+    /// into the record consumed by a direct dependent.
+    pub fn dependency_record(&self) -> DependencyRecord {
+        let semantic = self.semantic_fingerprints();
+        DependencyRecord::from_validated(
+            self.coordinate().clone(),
+            self.identity(),
+            semantic.hir(),
+            semantic.mir(),
+            semantic.lir(),
+        )
+    }
+
     pub const fn decode_usage(&self) -> DecodeUsage {
         self.graph.decode_usage()
     }

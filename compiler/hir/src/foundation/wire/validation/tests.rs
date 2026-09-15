@@ -1,8 +1,9 @@
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity, DeclarationScope,
     DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerChain,
-    NormalizedSourcePath, PackagePath, PendingIdentityValidation, SourceContextKey,
-    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
+    ExactTypeKey, NormalizedSourcePath, PackagePath, PendingIdentityValidation,
+    PersistentExactTypeId, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
+    SourceIdentity, SourceNominalKind, SourceSpan,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
@@ -161,6 +162,93 @@ fn validates_the_complete_hir_foundation_atomically() {
     assert_eq!(validated.counts().types, 3);
     assert_eq!(validated.counts().definition_origins, 1);
     assert_eq!(validated.counts().native_boundary_types, 1);
+}
+
+#[test]
+fn validates_an_ordinary_exact_type_against_a_core_external_nominal_leaf() {
+    let coordinate = ConeCoordinate::new("example", "ordinary", "0.1.0").unwrap();
+    let external = CborIdentityRecord::<PersistentTypeId, _>::from_key(declaration(
+        ConeIdentity::CORE,
+        "String",
+    ))
+    .unwrap();
+    let exact = CborIdentityRecord::<PersistentExactTypeId, _>::from_key(ExactTypeKey::Nominal(
+        external.id(),
+    ))
+    .unwrap();
+    let mut canonical = CanonicalHirFoundation::empty();
+    canonical
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    canonical.set_exact_types(vec![exact]).unwrap();
+    canonical
+        .set_core_external_source_types(vec![external.id()])
+        .unwrap();
+    let bytes = encode(&canonical).unwrap();
+    let decoded = decode(&canonical);
+    let mut identities = validate_identities(
+        &decoded,
+        [ConeIdentity::CORE, coordinate.identity().unwrap()],
+    );
+
+    let validated = decoded
+        .validate(&coordinate, &mut identities, &mut meter())
+        .unwrap();
+
+    assert_eq!(encode(&validated).unwrap(), bytes);
+    assert_eq!(validated.counts().types, 2);
+    assert_eq!(validated.counts().exact_types, 1);
+    assert_eq!(validated.counts().core_external_source_types, 1);
+}
+
+#[test]
+fn rejects_core_or_unused_core_external_nominal_authority() {
+    let external = CborIdentityRecord::<PersistentTypeId, _>::from_key(declaration(
+        ConeIdentity::CORE,
+        "String",
+    ))
+    .unwrap();
+    let exact = CborIdentityRecord::<PersistentExactTypeId, _>::from_key(ExactTypeKey::Nominal(
+        external.id(),
+    ))
+    .unwrap();
+    let mut canonical = CanonicalHirFoundation::empty();
+    canonical
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    canonical.set_exact_types(vec![exact]).unwrap();
+    canonical
+        .set_core_external_source_types(vec![external.id()])
+        .unwrap();
+    let decoded = decode(&canonical);
+    let mut identities = validate_identities(&decoded, [ConeIdentity::CORE]);
+    assert!(matches!(
+        decoded.validate(
+            &ConeCoordinate::reserved_core(),
+            &mut identities,
+            &mut meter()
+        ),
+        Err(HirFoundationValidationError::CoreDeclaresExternalTypeAuthority)
+    ));
+
+    canonical.set_exact_types(Vec::new()).unwrap();
+    let coordinate = ConeCoordinate::new("example", "ordinary", "0.1.0").unwrap();
+    let decoded = decode(&canonical);
+    let mut identities = validate_identities(
+        &decoded,
+        [ConeIdentity::CORE, coordinate.identity().unwrap()],
+    );
+    assert!(matches!(
+        decoded.validate(&coordinate, &mut identities, &mut meter()),
+        Err(HirFoundationValidationError::InvalidCoreExternalSourceType(identity))
+            if identity == external.id()
+    ));
 }
 
 #[test]

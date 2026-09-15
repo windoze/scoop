@@ -927,9 +927,6 @@ pub(super) fn string_metadata() -> LirMeta {
         target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
         native_externals: scoop_lir::NativeExternalMetadata::default(),
-        well_known_layouts: WellKnownLayouts {
-            string: string_layout,
-        },
         well_known_type_descriptors: WellKnownTypeDescriptors {
             string: TypeDescriptorRef::Local(string_descriptor),
         },

@@ -20,7 +20,7 @@ use scoop_lir::{
     StaticStorageIdentity, StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
     StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanSetV1,
     StrongRegistrationIdentitySurfaceV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
-    TypeDescriptorRef, WellKnownLayouts, WellKnownTypeDescriptors,
+    TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) struct SemanticInputs {
@@ -579,7 +579,7 @@ fn storage_global(
 fn metadata() -> LirMeta {
     let string_type = exact_type("String", SourceNominalKind::Class);
     let mut layouts = Arena::new();
-    let string_layout = layouts.alloc(Layout {
+    let _string_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             string_type,
             LirTargetProfile::DARWIN_AARCH64,
@@ -602,9 +602,6 @@ fn metadata() -> LirMeta {
         target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),
-        well_known_layouts: WellKnownLayouts {
-            string: string_layout,
-        },
         well_known_type_descriptors: WellKnownTypeDescriptors {
             string: TypeDescriptorRef::CoreExternal(string_descriptor),
         },

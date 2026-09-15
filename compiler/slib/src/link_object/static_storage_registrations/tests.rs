@@ -59,6 +59,10 @@ fn verifies_zeroed_runtime_storage_with_shared_sentinels() {
     .unwrap();
 
     let registration = &verified.registrations()[0];
+    assert_eq!(
+        registration.storage_materialization(),
+        VerifiedStaticStorageMaterializationV1::ZeroFill
+    );
     assert!(registration.initial_storage_relocations().is_empty());
     assert!(registration.initial_target_relocations().is_empty());
     assert!(matches!(
@@ -70,6 +74,41 @@ fn verifies_zeroed_runtime_storage_with_shared_sentinels() {
             }
         }
     ));
+}
+
+#[test]
+fn rejects_zeroed_runtime_storage_in_file_backed_writable_data() {
+    assert_storage_section_mismatch(Corruption::StaticZeroedWritableSection);
+}
+
+#[test]
+fn rejects_encoded_storage_in_zero_fill() {
+    assert_storage_section_mismatch(Corruption::StaticEncodedZeroFillSection);
+}
+
+fn assert_storage_section_mismatch(corruption: Corruption) {
+    let fixture = Fixture::new(corruption);
+    let storage = fixture.static_storage_registration_plan.registrations()[0]
+        .semantic()
+        .storage();
+    let objects = [ScoopLirObjectCandidateV1::new(
+        fixture.member,
+        &fixture.object_bytes,
+    )];
+
+    assert_eq!(
+        verify_strong_static_storage_registrations_v1(
+            fixture.verified_patch_sites(),
+            fixture.static_storage_registration_plan,
+            &objects,
+        ),
+        Err(
+            StrongStaticStorageRegistrationValidationError::AtomSectionMismatch {
+                storage,
+                role: StaticStorageArtifactRoleV1::Storage,
+            }
+        )
+    );
 }
 
 #[test]
@@ -88,6 +127,10 @@ fn verifies_encoded_null_storage_with_an_empty_relocation_sentinel() {
     .unwrap();
 
     let registration = &verified.registrations()[0];
+    assert!(matches!(
+        registration.storage_materialization(),
+        VerifiedStaticStorageMaterializationV1::FileBacked { .. }
+    ));
     assert!(registration.initial_storage_relocations().is_empty());
     assert!(registration.initial_target_relocations().is_empty());
     assert!(matches!(

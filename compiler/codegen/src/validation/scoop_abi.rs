@@ -1766,9 +1766,6 @@ mod tests {
                 target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
                 canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
                 native_externals: scoop_lir::NativeExternalMetadata::default(),
-                well_known_layouts: scoop_lir::WellKnownLayouts {
-                    string: scoop_lir::LayoutId::from_raw(0.into()),
-                },
                 well_known_type_descriptors: scoop_lir::WellKnownTypeDescriptors {
                     string: scoop_lir::TypeDescriptorRef::Local(
                         scoop_lir::TypeDescriptorId::from_raw(0.into()),

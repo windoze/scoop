@@ -385,6 +385,8 @@ pub struct ValidatedBackendProfile {
     relocation: RelocMode,
     code_model: CodeModel,
     object_format: ObjectFormat,
+    writable_storage_section: &'static str,
+    zero_fill_storage_section: &'static str,
     eh: EhProfile,
     llvm_target_backend: LlvmTargetBackend,
     machine_pipeline: MachinePipeline,
@@ -405,6 +407,8 @@ impl ValidatedBackendProfile {
         relocation: RelocMode::PIC,
         code_model: CodeModel::Default,
         object_format: ObjectFormat::MachO64,
+        writable_storage_section: "__DATA,__data",
+        zero_fill_storage_section: "__DATA,__bss",
         eh: EhProfile::DARWIN_AARCH64,
         llvm_target_backend: LlvmTargetBackend::Aarch64,
         machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
@@ -446,6 +450,14 @@ impl ValidatedBackendProfile {
 
     pub(crate) fn managed_address_space_contract(self) -> ManagedAddressSpace {
         self.managed_address_space
+    }
+
+    pub(crate) const fn writable_storage_section(self) -> &'static str {
+        self.writable_storage_section
+    }
+
+    pub(crate) const fn zero_fill_storage_section(self) -> &'static str {
+        self.zero_fill_storage_section
     }
 
     /// Closed backend projection used by codegen tests that deliberately do

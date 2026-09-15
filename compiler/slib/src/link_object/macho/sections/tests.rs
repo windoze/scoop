@@ -62,7 +62,11 @@ fn constructors_and_flag_drift_fail_closed() {
     .unwrap_err();
     assert_eq!(
         error,
-        BuiltinObjectSectionValidationError::UnsupportedSectionName
+        BuiltinObjectSectionValidationError::UnsupportedSectionName {
+            segment: b"__DATA".to_vec(),
+            section: b"__mod_init_func".to_vec(),
+            symbols: Vec::new(),
+        }
     );
 
     let wrong_text_flags = object_with_section(b"__TEXT", b"__text", macho::S_REGULAR);
@@ -127,7 +131,13 @@ fn relocated_data_const_is_read_only_but_other_data_sections_stay_closed() {
             validate_darwin_arm64_object_envelope_v1(&literal_pool).unwrap(),
             BuiltinLinkObjectSectionProfileV1::ScoopLir,
         ),
-        Err(BuiltinObjectSectionValidationError::UnsupportedSectionName)
+        Err(
+            BuiltinObjectSectionValidationError::UnsupportedSectionName {
+                segment: b"__DATA".to_vec(),
+                section: b"__literal8".to_vec(),
+                symbols: Vec::new(),
+            }
+        )
     );
 }
 

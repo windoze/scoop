@@ -38,7 +38,8 @@ pub use bridge_layouts::GeneratedBridgeLayoutClosureError;
 pub(crate) use bridge_layouts::{bridge_unit_keys, required_generated_bridge_layouts};
 pub use imported::{
     ImportedCoreLirCallableId, ImportedLirCallableProjectionError, ImportedLirFoundation,
-    ImportedLirId, ImportedLirSelectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
+    ImportedLirId, ImportedLirSelectionError, ImportedLirTypeDescriptorProjectionError,
+    SelectedImportedLirCallable, SelectedImportedLirSet, SelectedImportedLirTypeDescriptor,
 };
 pub use strong_profile::{
     DefinitionAtomResolutionError, OdrFreeLirFoundation, OdrFreeLirFoundationError,

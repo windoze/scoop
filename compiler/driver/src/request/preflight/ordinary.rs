@@ -20,12 +20,8 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
         let input = self.hir_input().map_err(OrdinaryConeHirStageError::Input)?;
         let hir = scoop_hir_lower::lower_ordinary_core_only(requested, &input)
             .map_err(OrdinaryConeHirStageError::Lowering)?;
-        let foundation = scoop_hir::CanonicalHirFoundation::from_modules(
-            &hir.output().export,
-            &hir.output().local,
-            &hir.output().native_boundary_types,
-        )
-        .map_err(OrdinaryConeHirStageError::Foundation)?;
+        let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&hir)
+            .map_err(OrdinaryConeHirStageError::Foundation)?;
         let production_section =
             scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.output().export)
                 .map_err(OrdinaryConeHirStageError::ProductionSection)?;
@@ -74,6 +70,7 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
         let producer =
             scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
                 .map_err(OrdinaryConeProductionError::Producer)?;
+        let direct_dependencies = vec![self.trusted_core.dependency_record()];
         let emit = self.request.emit();
         let mut emitted_dump = capture_stage_dump(emit, StageDumpKind::Ast, || {
             self.sources
@@ -106,7 +103,7 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
             .produce_artifact(
                 producer,
                 cone,
-                Vec::new(),
+                direct_dependencies,
                 temporary_parent,
                 self.request.target(),
                 self.trusted_core.defined_symbols(),

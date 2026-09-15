@@ -218,7 +218,7 @@ impl DependencyRecord {
         ))
     }
 
-    pub(super) const fn from_validated(
+    pub(crate) const fn from_validated(
         coordinate: ConeCoordinate,
         identity: ConeIdentity,
         hir_fingerprint: HirFingerprint,

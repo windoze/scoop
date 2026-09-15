@@ -280,36 +280,20 @@ fn layouts_mark_reference_fields_for_the_gc() {
             .unwrap_or_else(|| panic!("missing layout for {name}"))
     };
 
-    // The String singleton is structurally separate; the remaining typed
+    // The runtime String shape is imported from core. The remaining typed
     // intrinsic layouts stay in declaration order with ordinary layouts.
     let names: Vec<&str> = layout_values(&module).map(|l| l.name.as_str()).collect();
-    assert_eq!(
-        module.meta.layouts[module.meta.well_known_layouts.string].kind,
+    assert!(layout_values(&module).all(|layout| !matches!(
+        layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
-    );
+    )));
     assert_eq!(
         names,
         [
-            "S",
-            "Outer",
-            "Int8",
-            "Int16",
-            "Int",
-            "Long",
-            "UInt8",
-            "UInt16",
-            "UInt",
-            "ULong",
-            "Boolean",
-            "String value",
-            "String",
-            "Unit"
+            "S", "Outer", "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong",
+            "Boolean", "Unit"
         ]
     );
-
-    let string = &module.meta.layouts[module.meta.well_known_layouts.string];
-    assert_eq!((string.size, string.align), (24, 8));
-    assert!(string.fields.is_empty());
 
     // S { a: Int @0, s: String @8 }: size 16, align 8, refs [8].
     let s_layout = by_name("S");

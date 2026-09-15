@@ -1,10 +1,13 @@
 use scoop_identity::{
-    CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
-    PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
+    CanonicalIdentifier, CanonicalScoopAbiFunctionSignature, ConeIdentity, DeclarationScope,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, GcEffect, PackagePath,
+    PersistentExactTypeId, PersistentFunctionId, PersistentTypeId, ScoopAbiReturn,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    LirTargetProfile, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
+    CallingConvention, CoreExternalCallableRootPlan, LirTargetProfile,
+    StrongExternalCallableBridgeV1, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongExternalTypeDescriptorBridgeV1,
 };
 
@@ -168,15 +171,34 @@ fn preserves_non_core_external_candidates() {
 }
 
 #[test]
-fn rejects_unused_bridges_and_cross_producer_surfaces() {
+fn permits_metadata_only_descriptor_authorities() {
     let producer = ConeIdentity::SINGLE_FILE;
-    let source = fixture_for_producer(producer, "unusedBridge");
+    let source = fixture_for_producer(producer, "metadataOnlyDescriptor");
     let member = verified_member_without_relocations(&source);
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
     let target = core_exact_type("Unit");
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
         StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
     );
+    let surface = StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap();
+    let verified = verify_core_strong_requirements_v1(
+        LirTargetProfile::DARWIN_AARCH64,
+        strong,
+        surface,
+        core_owner_set(target),
+    )
+    .unwrap();
+    assert!(verified.core_requirements().is_empty());
+    assert_eq!(verified.external_bridges().bridges().len(), 1);
+}
+
+#[test]
+fn rejects_unused_callable_bridges_and_cross_producer_surfaces() {
+    let producer = ConeIdentity::SINGLE_FILE;
+    let source = fixture_for_producer(producer, "unusedBridgeConsumer");
+    let member = verified_member_without_relocations(&source);
+    let strong = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
+    let bridge = core_callable_bridge("unusedBridge");
     let expected_name = bridge_name(&bridge);
     let surface = StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap();
     assert_eq!(
@@ -184,11 +206,13 @@ fn rejects_unused_bridges_and_cross_producer_surfaces() {
             LirTargetProfile::DARWIN_AARCH64,
             strong,
             surface,
-            core_owner_set(target),
+            core_callable_owner_set("unusedBridge"),
         ),
-        Err(CoreStrongRequirementValidationError::UnusedExternalBridge {
-            name: expected_name,
-        })
+        Err(
+            CoreStrongRequirementValidationError::UnusedExternalCallableBridge {
+                name: expected_name,
+            }
+        )
     );
 
     let source = fixture_for_producer(producer, "producerMismatch");
@@ -208,6 +232,26 @@ fn rejects_unused_bridges_and_cross_producer_surfaces() {
             bridge: ConeIdentity::CORE,
         })
     );
+}
+
+fn core_callable_bridge(name: &str) -> StrongExternalLirBridgeV1 {
+    let target = StrongCallableDefinitionOwner::Function(core_function(name));
+    let unit = core_exact_type("Unit");
+    StrongExternalLirBridgeV1::Callable(
+        StrongExternalCallableBridgeV1::new(
+            target,
+            CanonicalScoopAbiFunctionSignature::new(
+                ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
+                Vec::new(),
+                ScoopAbiReturn::unit_void(),
+                GcEffect::Managed,
+            )
+            .unwrap(),
+            CallingConvention::Cdecl,
+            CoreExternalCallableRootPlan::ManagedStatepoint,
+        )
+        .unwrap(),
+    )
 }
 
 #[test]
@@ -312,6 +356,23 @@ fn core_exact_type(name: &str) -> PersistentExactTypeId {
     PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(ty)).unwrap()
 }
 
+fn core_function(name: &str) -> PersistentFunctionId {
+    PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(name).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    ))
+    .unwrap()
+}
+
 fn core_owner_set(target: PersistentExactTypeId) -> CanonicalDefinedLinkSymbolOwnerSetV1 {
     let descriptor = fixture_for_type_descriptor(ConeIdentity::CORE, target);
     let registration = fixture_for_type_registration(ConeIdentity::CORE, target);
@@ -329,6 +390,15 @@ fn descriptor_only_core_owner_set(
     let descriptor = fixture_for_type_descriptor(ConeIdentity::CORE, target);
     let closure = verify_current_cone_strong_relocation_closure_v1(vec![
         verified_member_without_relocations(&descriptor),
+    ])
+    .unwrap();
+    CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure).unwrap()
+}
+
+fn core_callable_owner_set(name: &str) -> CanonicalDefinedLinkSymbolOwnerSetV1 {
+    let callable = fixture_for_producer(ConeIdentity::CORE, name);
+    let closure = verify_current_cone_strong_relocation_closure_v1(vec![
+        verified_member_without_relocations(&callable),
     ])
     .unwrap();
     CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure).unwrap()

@@ -192,6 +192,27 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.insert_resolved_leaf(id)
     }
 
+    /// Registers one typed external reference whose canonical key is owned by
+    /// another artifact in the already validated dependency graph.
+    ///
+    /// The raw digest never escapes this transaction. It may only satisfy
+    /// references from records that are themselves rehashed here, and it is
+    /// excluded from the semantic import delta because this artifact does not
+    /// declare the referenced identity.
+    pub fn register_external_source_type(
+        &mut self,
+        id: DecodedPersistentId<crate::PersistentTypeId>,
+    ) -> Result<(), IdentityValidationError> {
+        self.register_external_reference(id)
+    }
+
+    pub fn register_external_generic_type(
+        &mut self,
+        id: DecodedPersistentId<crate::PersistentGenericTypeId>,
+    ) -> Result<(), IdentityValidationError> {
+        self.register_external_reference(id)
+    }
+
     pub fn register_c_abi_signature(
         &mut self,
         layer: IdentityLayer,
@@ -253,6 +274,17 @@ impl<'meter> PendingIdentityValidation<'meter> {
             },
         );
         Ok(())
+    }
+
+    fn register_external_reference<I>(
+        &mut self,
+        id: DecodedPersistentId<I>,
+    ) -> Result<(), IdentityValidationError>
+    where
+        I: PersistentId + PersistentIdConstruction + 'static,
+    {
+        self.require_registration_phase()?;
+        self.insert_resolved_leaf(I::from_digest(Digest256::from_array(*id.as_array())))
     }
 
     /// Registers one decoded record and verifies its raw hash preimage.

@@ -3,9 +3,9 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, ExactCallableSignature, ImportedIdentityId, ImportedIdentityMap,
-    LirIdentityLayer, ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentExportBindingId,
-    PersistentId, PersistentSymbolRequest, StrongCallableDefinitionOwner, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    LirIdentityLayer, ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentExactTypeId,
+    PersistentExportBindingId, PersistentId, PersistentSymbolRequest,
+    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::WireEncode;
 
@@ -142,6 +142,61 @@ impl ImportedLirFoundation {
             required_definition,
         })
     }
+
+    /// Projects one core-owned TypeDescriptor only after its exact type and
+    /// canonical strong definition have both been proven by this imported
+    /// LIR world. Public-surface capability checks remain the responsibility
+    /// of the artifact-level caller that supplies `target`.
+    pub fn project_core_type_descriptor<'a>(
+        &'a self,
+        definitions: &'a crate::StrongObjectSymbolSurfaceV1,
+        target: PersistentExactTypeId,
+    ) -> Result<SelectedImportedLirTypeDescriptor<'a>, ImportedLirTypeDescriptorProjectionError>
+    {
+        if self.origin() != ConeIdentity::CORE {
+            return Err(ImportedLirTypeDescriptorProjectionError::FoundationNotCore(
+                self.origin(),
+            ));
+        }
+        if self
+            .canonical
+            .materialized_exact_types
+            .binary_search(&target)
+            .is_err()
+        {
+            return Err(ImportedLirTypeDescriptorProjectionError::MissingExactType(
+                target,
+            ));
+        }
+        let (expected_symbol, required_definition) =
+            crate::core_type_descriptor_link_contract(target)
+                .map_err(ImportedLirTypeDescriptorProjectionError::Contract)?;
+        let required_definition = self.identity(required_definition).ok_or(
+            ImportedLirTypeDescriptorProjectionError::MissingDefinition(required_definition),
+        )?;
+        let plan = definitions.plan(required_definition.persistent()).ok_or(
+            ImportedLirTypeDescriptorProjectionError::MissingDefinition(
+                required_definition.persistent(),
+            ),
+        )?;
+        if plan.owner() != StrongDefinitionEntity::exact_type(target)
+            || plan.definition_role() != StrongDefinitionRole::TypeDescriptor
+            || plan.primary_symbol() != expected_symbol
+        {
+            return Err(
+                ImportedLirTypeDescriptorProjectionError::DefinitionMismatch(
+                    required_definition.persistent(),
+                ),
+            );
+        }
+        Ok(SelectedImportedLirTypeDescriptor {
+            foundation: self,
+            definitions,
+            target,
+            expected_symbol,
+            required_definition,
+        })
+    }
 }
 
 impl WireEncode for ImportedLirFoundation {
@@ -175,6 +230,19 @@ pub struct SelectedImportedLirCallable<'a> {
     required_definition: ImportedLirId<ObjectDefinitionPlanId>,
 }
 
+/// The runtime String TypeDescriptor authority imported from trusted core.
+///
+/// The retained imported LIR foundation proves the exact-type reference, and
+/// the retained definition plan proves the only legal strong symbol request.
+#[derive(Clone)]
+pub struct SelectedImportedLirTypeDescriptor<'a> {
+    foundation: &'a ImportedLirFoundation,
+    definitions: &'a crate::StrongObjectSymbolSurfaceV1,
+    target: PersistentExactTypeId,
+    expected_symbol: PersistentSymbolRequest,
+    required_definition: ImportedLirId<ObjectDefinitionPlanId>,
+}
+
 /// Request-local LIR id for one callable selected from trusted core.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportedCoreLirCallableId(u32);
@@ -190,22 +258,28 @@ pub struct SelectedImportedLirSet<'a> {
     core_bridge: &'a crate::CoreLirBridgeV1,
     by_binding: BTreeMap<PersistentExportBindingId, ImportedCoreLirCallableId>,
     callables: Vec<SelectedImportedLirCallable<'a>>,
+    runtime_string: SelectedImportedLirTypeDescriptor<'a>,
 }
 
 impl<'a> SelectedImportedLirSet<'a> {
     #[doc(hidden)]
-    pub fn new(
+    pub fn try_new(
         foundation: &'a ImportedLirFoundation,
         definitions: &'a crate::StrongObjectSymbolSurfaceV1,
         core_bridge: &'a crate::CoreLirBridgeV1,
-    ) -> Self {
-        Self {
+        runtime_string: SelectedImportedLirTypeDescriptor<'a>,
+    ) -> Result<Self, ImportedLirSelectionError> {
+        if !runtime_string.belongs_to(foundation, definitions) {
+            return Err(ImportedLirSelectionError::ForeignRuntimeString);
+        }
+        Ok(Self {
             foundation,
             definitions,
             core_bridge,
             by_binding: BTreeMap::new(),
             callables: Vec::new(),
-        }
+            runtime_string,
+        })
     }
 
     #[doc(hidden)]
@@ -266,6 +340,10 @@ impl<'a> SelectedImportedLirSet<'a> {
         self.callables.is_empty()
     }
 
+    pub const fn runtime_string(&self) -> &SelectedImportedLirTypeDescriptor<'a> {
+        &self.runtime_string
+    }
+
     #[doc(hidden)]
     pub fn callable_selections(&self) -> impl Iterator<Item = &SelectedImportedLirCallable<'a>> {
         self.callables.iter()
@@ -274,6 +352,7 @@ impl<'a> SelectedImportedLirSet<'a> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportedLirSelectionError {
+    ForeignRuntimeString,
     ForeignSelection(PersistentExportBindingId),
     ConflictingSelection(PersistentExportBindingId),
 }
@@ -281,6 +360,9 @@ pub enum ImportedLirSelectionError {
 impl fmt::Display for ImportedLirSelectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ForeignRuntimeString => formatter.write_str(
+                "imported LIR runtime String belongs to another core artifact projection",
+            ),
             Self::ForeignSelection(binding) => write!(
                 formatter,
                 "imported LIR binding {binding} belongs to another core artifact projection"
@@ -360,6 +442,46 @@ impl SelectedImportedLirCallable<'_> {
     }
 }
 
+impl SelectedImportedLirTypeDescriptor<'_> {
+    pub const fn target(&self) -> PersistentExactTypeId {
+        self.target
+    }
+
+    pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
+        self.expected_symbol
+    }
+
+    pub const fn required_definition(&self) -> ImportedLirId<ObjectDefinitionPlanId> {
+        self.required_definition
+    }
+
+    pub fn materialize(
+        &self,
+    ) -> Result<crate::CoreExternalTypeDescriptor, crate::CoreExternalBuildError> {
+        crate::CoreExternalTypeDescriptor::new(self.target())
+    }
+
+    #[doc(hidden)]
+    pub fn belongs_to(
+        &self,
+        foundation: &ImportedLirFoundation,
+        definitions: &crate::StrongObjectSymbolSurfaceV1,
+    ) -> bool {
+        std::ptr::eq(self.foundation, foundation) && std::ptr::eq(self.definitions, definitions)
+    }
+}
+
+impl fmt::Debug for SelectedImportedLirTypeDescriptor<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SelectedImportedLirTypeDescriptor")
+            .field("target", &self.target)
+            .field("expected_symbol", &self.expected_symbol)
+            .field("required_definition", &self.required_definition)
+            .finish_non_exhaustive()
+    }
+}
+
 impl fmt::Debug for SelectedImportedLirCallable<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -388,6 +510,33 @@ pub enum ImportedLirCallableProjectionError {
     MissingBody(PersistentCallableBodyId),
     MissingDefinition(ObjectDefinitionPlanId),
     DefinitionMismatch(ObjectDefinitionPlanId),
+}
+
+#[derive(Debug)]
+pub enum ImportedLirTypeDescriptorProjectionError {
+    FoundationNotCore(ConeIdentity),
+    MissingExactType(PersistentExactTypeId),
+    Contract(crate::CoreExternalBuildError),
+    MissingDefinition(ObjectDefinitionPlanId),
+    DefinitionMismatch(ObjectDefinitionPlanId),
+}
+
+impl fmt::Display for ImportedLirTypeDescriptorProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "cannot project imported LIR TypeDescriptor: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for ImportedLirTypeDescriptorProjectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Contract(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for ImportedLirCallableProjectionError {
@@ -440,6 +589,13 @@ mod tests {
         let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
         let target = StrongCallableDefinitionOwner::Function(function);
         let body = RuntimeIdentityRecord::from_key(&CallableBodyKey::strong(target)).unwrap();
+        let unit_record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+            scoop_identity::CoreBuiltinNominal::Unit
+                .identity_record()
+                .id(),
+        ))
+        .unwrap();
+        let unit = unit_record.id();
         let definition = CborIdentityRecord::from_key(
             ObjectDefinitionPlanKey::strong(
                 ConeIdentity::CORE,
@@ -449,10 +605,20 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
+        let type_descriptor_definition = CborIdentityRecord::from_key(
+            ObjectDefinitionPlanKey::strong(
+                ConeIdentity::CORE,
+                StrongDefinitionEntity::exact_type(unit),
+                StrongDefinitionRole::TypeDescriptor,
+            )
+            .unwrap(),
+        )
+        .unwrap();
         let mut canonical = super::super::CanonicalLirFoundation::empty();
+        canonical.set_materialized_exact_types(vec![unit]).unwrap();
         canonical.set_callable_bodies(vec![body.clone()]).unwrap();
         canonical
-            .set_definition_plans(vec![definition.clone()])
+            .set_definition_plans(vec![definition.clone(), type_descriptor_definition.clone()])
             .unwrap();
         canonical
             .set_definition_atoms(vec![
@@ -468,6 +634,12 @@ mod tests {
                     DefinitionAtomSubkey::Singleton,
                 ))
                 .unwrap(),
+                CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+                    type_descriptor_definition.id(),
+                    DefinitionAtomRole::Primary,
+                    DefinitionAtomSubkey::Singleton,
+                ))
+                .unwrap(),
             ])
             .unwrap();
         let expected_symbol = PersistentSymbolRequest::new(
@@ -475,20 +647,20 @@ mod tests {
             LinkageClass::ConeStrong,
         )
         .unwrap();
-        canonical
-            .set_symbol_requests(PersistentSymbolRequestTable::new(vec![expected_symbol]).unwrap());
+        let string_symbol = PersistentSymbolRequest::new(
+            PersistentSymbolKey::TypeDescriptor(unit),
+            LinkageClass::ConeStrong,
+        )
+        .unwrap();
+        canonical.set_symbol_requests(
+            PersistentSymbolRequestTable::new(vec![expected_symbol, string_symbol]).unwrap(),
+        );
         let strong_foundation =
             OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical.clone()).unwrap();
         let definitions =
             StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&strong_foundation).unwrap();
-        let foundation = imported_foundation(canonical.clone(), function);
-        let other_foundation = imported_foundation(canonical, function);
-        let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-            scoop_identity::CoreBuiltinNominal::Unit
-                .identity_record()
-                .id(),
-        ))
-        .unwrap();
+        let foundation = imported_foundation(canonical.clone(), function, &unit_record);
+        let other_foundation = imported_foundation(canonical, function, &unit_record);
         let signature = ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit);
         let binding = PersistentExportBindingId::from_key(&ExportBindingKey::new(
             ConeIdentity::CORE,
@@ -544,7 +716,16 @@ mod tests {
         assert_eq!(selected.expected_symbol(), expected_symbol);
         assert_eq!(selected.required_definition().persistent(), definition.id());
 
-        let mut selected_set = SelectedImportedLirSet::new(&foundation, &definitions, &core_bridge);
+        let runtime_string = foundation
+            .project_core_type_descriptor(&definitions, unit)
+            .unwrap();
+        let mut selected_set = SelectedImportedLirSet::try_new(
+            &foundation,
+            &definitions,
+            &core_bridge,
+            runtime_string,
+        )
+        .unwrap();
         let id = selected_set.insert(selected.clone()).unwrap();
         assert_eq!(selected_set.insert(selected).unwrap(), id);
         assert_eq!(selected_set.callable_for_binding(binding), Some(id));
@@ -560,6 +741,7 @@ mod tests {
     fn imported_foundation(
         canonical: super::super::CanonicalLirFoundation,
         function: PersistentFunctionId,
+        exact: &CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
     ) -> ImportedLirFoundation {
         let decoded = decode_canonical::<super::super::DecodedLirFoundation>(
             &encode(&canonical).unwrap(),
@@ -569,7 +751,25 @@ mod tests {
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(ConeIdentity::CORE).unwrap();
         pending.register_authority(function).unwrap();
+        pending
+            .register_authority(
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id(),
+            )
+            .unwrap();
+        let decoded_exact = decode_canonical::<
+            scoop_identity::DecodedCborIdentityRecord<
+                PersistentExactTypeId,
+                scoop_identity::DecodedExactTypeKey,
+            >,
+        >(&encode(exact).unwrap(), DecodeLimits::default())
+        .unwrap();
+        pending
+            .register(scoop_identity::IdentityLayer::Hir, &decoded_exact)
+            .unwrap();
         decoded.register_identities(&mut pending).unwrap();
+        pending.resolve(&decoded_exact).unwrap();
         decoded.resolve_identities(&mut pending).unwrap();
         let identities = pending.finish().unwrap();
         let mut session = SemanticIdentitySession::new();

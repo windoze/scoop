@@ -15,7 +15,8 @@ pub(crate) fn layouts(
     identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-) -> (Arena<lir::Layout>, lir::WellKnownLayouts) {
+    emit_runtime_string: bool,
+) -> Arena<lir::Layout> {
     let mut layouts = Arena::new();
     for (id, def) in module.structs.iter() {
         let ty = def.physical_type(id);
@@ -60,7 +61,6 @@ pub(crate) fn layouts(
             &def.name,
         ));
     }
-    let mut string = None;
     for (id, def) in module.classes.iter() {
         let ty = if matches!(
             def.representation,
@@ -70,6 +70,9 @@ pub(crate) fn layouts(
         } else {
             mir::Type::Class(id)
         };
+        if matches!(ty, mir::Type::String) && !emit_runtime_string {
+            continue;
+        }
         if !identity_roots.materializes_type(&ty) {
             continue;
         }
@@ -80,17 +83,13 @@ pub(crate) fn layouts(
         ));
         match def.representation {
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
-                let layout = class_definition_layout(
+                layouts.alloc(class_definition_layout(
                     context,
                     module,
                     enums,
                     managed_object_layout_identity(context, identity_roots, module, &ty),
                     def,
-                );
-                assert!(
-                    string.replace(layouts.alloc(layout)).is_none(),
-                    "one typed String representation"
-                );
+                ));
             }
             mir::ClassRepresentation::Intrinsic(
                 mir::IntrinsicTypeRepresentation::Array { .. }
@@ -131,6 +130,9 @@ pub(crate) fn layouts(
         });
     }
     for root in identity_roots.source_nominal_shapes() {
+        if matches!(root.ty(), mir::Type::String) && !emit_runtime_string {
+            continue;
+        }
         if layouts.iter().any(|(_, layout)| {
             layout.identity.layout_record().key().exact_type() == root.exact()
                 && layout.identity.layout_record().key().representation()
@@ -153,13 +155,7 @@ pub(crate) fn layouts(
             },
         });
     }
-    (
-        layouts,
-        lir::WellKnownLayouts {
-            string: string
-                .expect("LocalConcreteHir supplies the typed intrinsic String representation"),
-        },
-    )
+    layouts
 }
 
 fn managed_reference_value_layout(

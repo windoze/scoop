@@ -599,6 +599,10 @@ pub struct SelectedImportedCoreSet<'a> {
 }
 
 impl<'a> SelectedImportedCoreSet<'a> {
+    pub(crate) fn contains_hir_identity<I: PersistentId + 'static>(&self, identity: I) -> bool {
+        self.foundation.identity(identity).is_some()
+    }
+
     /// Resolves a branded callable only when it was minted by this exact set.
     pub fn resolve_callable(
         &self,

@@ -78,13 +78,20 @@ pub(crate) fn type_descriptors(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
-) -> (
-    Arena<lir::TypeDescriptor>,
-    TypeDescriptorRefs,
-    lir::WellKnownTypeDescriptors,
-) {
+    imported_runtime_string: Option<lir::TypeDescriptorRef>,
+) -> Result<
+    (
+        Arena<lir::TypeDescriptor>,
+        TypeDescriptorRefs,
+        lir::WellKnownTypeDescriptors,
+    ),
+    StrongLirLoweringError,
+> {
     let mut descriptors = Arena::new();
-    let mut refs = TypeDescriptorRefs::default();
+    let mut refs = TypeDescriptorRefs {
+        string: imported_runtime_string,
+        ..TypeDescriptorRefs::default()
+    };
     for (interface, def) in module.interfaces.iter() {
         let ty = mir::Type::Interface(interface);
         if !identity_roots.materializes_type(&ty) {
@@ -115,7 +122,6 @@ pub(crate) fn type_descriptors(
         refs.interfaces
             .insert(interface, lir::TypeDescriptorRef::Local(id));
     }
-    let mut string = None;
     for id in class_order(module) {
         let def = &module.classes[id];
         let is_string = matches!(
@@ -127,6 +133,9 @@ pub(crate) fn type_descriptors(
         } else {
             mir::Type::Class(id)
         };
+        if is_string && imported_runtime_string.is_some() {
+            continue;
+        }
         if !identity_roots.materializes_type(&descriptor_type) {
             continue;
         }
@@ -142,10 +151,6 @@ pub(crate) fn type_descriptors(
         let descriptor = lir::TypeDescriptorRef::Local(descriptors.alloc(descriptor));
         assert!(refs.classes.insert(id, descriptor).is_none());
         if is_string {
-            assert!(
-                string.replace(descriptor).is_none(),
-                "one typed String TypeDescriptor"
-            );
             refs.string = Some(descriptor);
         }
     }
@@ -184,6 +189,9 @@ pub(crate) fn type_descriptors(
             .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
     }
     for root in identity_roots.source_nominal_shapes() {
+        if matches!(root.ty(), mir::Type::String) && imported_runtime_string.is_some() {
+            continue;
+        }
         if descriptors
             .iter()
             .any(|(_, descriptor)| descriptor.identity.exact_type() == root.exact())
@@ -235,8 +243,20 @@ pub(crate) fn type_descriptors(
                 .map(|descriptor| (boxed.payload().clone(), descriptor))
         })
         .collect();
-    let string = string.expect("LocalConcreteHir supplies the typed intrinsic String descriptor");
-    (descriptors, refs, lir::WellKnownTypeDescriptors { string })
+    let string = refs
+        .string
+        .ok_or(StrongLirLoweringError::MissingRuntimeStringDescriptor {
+            producer: module.cone,
+        })?;
+    if matches!(
+        (module.cone == lir::ConeIdentity::CORE, string),
+        (true, lir::TypeDescriptorRef::CoreExternal(_)) | (false, lir::TypeDescriptorRef::Local(_))
+    ) {
+        return Err(StrongLirLoweringError::RuntimeStringDescriptorOwnership {
+            producer: module.cone,
+        });
+    }
+    Ok((descriptors, refs, lir::WellKnownTypeDescriptors { string }))
 }
 
 fn value_or_abstract_type_descriptor(

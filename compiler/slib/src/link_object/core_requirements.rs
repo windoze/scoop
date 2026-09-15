@@ -216,10 +216,16 @@ pub fn verify_core_strong_requirements_v1(
             remaining_external_candidates.push(binding.clone());
         }
     }
-    if let Some(name) = bridges.keys().find(|name| !used.contains(*name)) {
-        return Err(CoreStrongRequirementValidationError::UnusedExternalBridge {
-            name: name.clone(),
-        });
+    if let Some(name) = bridges.iter().find_map(|(name, (bridge, _, _))| {
+        matches!(bridge, StrongExternalLirBridgeV1::Callable(_))
+            .then(|| name)
+            .filter(|name| !used.contains(*name))
+    }) {
+        return Err(
+            CoreStrongRequirementValidationError::UnusedExternalCallableBridge {
+                name: name.clone(),
+            },
+        );
     }
 
     Ok(VerifiedCoreStrongRequirementClosureV1 {
@@ -326,7 +332,7 @@ pub enum CoreStrongRequirementValidationError {
         target: PersistentExactTypeId,
         source: PersistentSymbolError,
     },
-    UnusedExternalBridge {
+    UnusedExternalCallableBridge {
         name: Vec<u8>,
     },
 }

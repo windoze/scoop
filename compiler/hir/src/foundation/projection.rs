@@ -8,6 +8,65 @@ use super::*;
 use crate::{ExportHir, HirNativeBoundaryTypeDefinitions, LocalConcreteHir};
 
 impl CanonicalHirFoundation {
+    /// Builds an ordinary HIR foundation together with the exact external
+    /// nominal authority required by its imported-core exact types.
+    pub fn from_ordinary_output(
+        output: &crate::OrdinaryHirOutput<'_>,
+    ) -> Result<Self, HirFoundationBuildError> {
+        let hir = output.output();
+        let mut foundation =
+            Self::from_modules(&hir.export, &hir.local, &hir.native_boundary_types)?;
+        let declared_source_types = foundation
+            .types
+            .iter()
+            .map(CborIdentityRecord::id)
+            .chain(
+                foundation
+                    .generated_types
+                    .iter()
+                    .map(CborIdentityRecord::id),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
+        let declared_generic_types = foundation
+            .generic_types
+            .iter()
+            .map(CborIdentityRecord::id)
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut external_source_types = std::collections::BTreeSet::new();
+        let mut external_generic_types = std::collections::BTreeSet::new();
+        for record in &foundation.exact_types {
+            match record.key() {
+                ExactTypeKey::Nominal(source) if !declared_source_types.contains(source) => {
+                    if !output.imported_core().contains_hir_identity(*source) {
+                        return Err(HirFoundationBuildError::MissingCoreExternalSourceType(
+                            *source,
+                        ));
+                    }
+                    external_source_types.insert(*source);
+                }
+                ExactTypeKey::NominalApplication { origin, .. }
+                    if !declared_generic_types.contains(origin) =>
+                {
+                    if !output.imported_core().contains_hir_identity(*origin) {
+                        return Err(HirFoundationBuildError::MissingCoreExternalGenericType(
+                            *origin,
+                        ));
+                    }
+                    external_generic_types.insert(*origin);
+                }
+                ExactTypeKey::Nominal(_)
+                | ExactTypeKey::NominalApplication { .. }
+                | ExactTypeKey::Tuple(_)
+                | ExactTypeKey::Function { .. }
+                | ExactTypeKey::RawPointer(_)
+                | ExactTypeKey::NativeFunctionPointer { .. } => {}
+            }
+        }
+        foundation.set_core_external_source_types(external_source_types.into_iter().collect())?;
+        foundation.set_core_external_generic_types(external_generic_types.into_iter().collect())?;
+        Ok(foundation)
+    }
+
     /// Build the complete HIR identity delta from the two structurally
     /// isolated HIR graphs and their shared native-boundary witness.
     pub fn from_modules(

@@ -13,8 +13,9 @@ use scoop_identity::{
     ConeCoordinate, ConeIdentity, PersistentExportBindingId, SemanticIdentitySession,
 };
 use scoop_lir::{
-    ImportedLirCallableProjectionError, ImportedLirSelectionError, SelectedImportedLirCallable,
-    SelectedImportedLirSet, StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
+    ImportedLirCallableProjectionError, ImportedLirSelectionError,
+    ImportedLirTypeDescriptorProjectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
+    StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
 };
 use scoop_mir::{
     CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, ImportedMirSelectionError,
@@ -384,6 +385,10 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         &self.authority
     }
 
+    pub fn dependency_record(&self) -> scoop_slib::DependencyRecord {
+        self.compile.dependency_record()
+    }
+
     /// Atomically projects the only HIR lookup and compiler-protocol
     /// capabilities authorized for an M23-3 consumer from this artifact's
     /// own Compile proof and core interface.
@@ -528,8 +533,50 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .core_lir_bridge()
             .core()
             .expect("a validated trusted core artifact has a core LIR bridge");
-        let mut projected =
-            SelectedImportedLirSet::new(self.compile.lir(), definitions, core_bridge);
+        let string_exact = self
+            .core_interface
+            .interface
+            .string_capability()
+            .exact_type();
+        let shape_support = self
+            .compile
+            .production()
+            .lir()
+            .core_shape_support()
+            .core()
+            .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
+        let string_shape = shape_support
+            .closures()
+            .binary_search_by_key(&string_exact, |closure| closure.owner())
+            .ok()
+            .map(|index| &shape_support.closures()[index])
+            .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
+        let string_descriptor = string_shape
+            .roles()
+            .type_descriptor()
+            .available()
+            .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
+        if string_descriptor.semantic_id() != string_exact {
+            return Err(TrustedCoreLirSetProjectionError::RuntimeStringShapeSupportMismatch);
+        }
+        let runtime_string = self
+            .compile
+            .lir()
+            .project_core_type_descriptor(definitions, string_exact)
+            .map_err(TrustedCoreLirSetProjectionError::RuntimeString)?;
+        if runtime_string.expected_symbol() != string_descriptor.symbol()
+            || runtime_string.required_definition().persistent()
+                != string_descriptor.definition_plan()
+        {
+            return Err(TrustedCoreLirSetProjectionError::RuntimeStringShapeSupportMismatch);
+        }
+        let mut projected = SelectedImportedLirSet::try_new(
+            self.compile.lir(),
+            definitions,
+            core_bridge,
+            runtime_string,
+        )
+        .map_err(TrustedCoreLirSetProjectionError::LirSet)?;
         for selected in selected.callable_selections() {
             let callable = self
                 .project_core_callable_to_lir(selected)
@@ -582,6 +629,9 @@ impl std::error::Error for TrustedCoreCallableSetProjectionError {
 #[derive(Debug)]
 pub enum TrustedCoreLirSetProjectionError {
     ForeignMirSet,
+    MissingRuntimeStringShapeSupport,
+    RuntimeStringShapeSupportMismatch,
+    RuntimeString(ImportedLirTypeDescriptorProjectionError),
     Callable(TrustedCoreCallableProjectionError),
     LirSet(ImportedLirSelectionError),
 }
@@ -592,6 +642,13 @@ impl fmt::Display for TrustedCoreLirSetProjectionError {
             Self::ForeignMirSet => {
                 formatter.write_str("selected core MIR set belongs to another artifact projection")
             }
+            Self::MissingRuntimeStringShapeSupport => formatter.write_str(
+                "trusted core LIR shape support is missing the runtime String descriptor",
+            ),
+            Self::RuntimeStringShapeSupportMismatch => formatter.write_str(
+                "trusted core runtime String descriptor disagrees with its LIR shape support",
+            ),
+            Self::RuntimeString(error) => error.fmt(formatter),
             Self::Callable(error) => error.fmt(formatter),
             Self::LirSet(error) => error.fmt(formatter),
         }
@@ -601,7 +658,10 @@ impl fmt::Display for TrustedCoreLirSetProjectionError {
 impl std::error::Error for TrustedCoreLirSetProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::ForeignMirSet => None,
+            Self::ForeignMirSet
+            | Self::MissingRuntimeStringShapeSupport
+            | Self::RuntimeStringShapeSupportMismatch => None,
+            Self::RuntimeString(error) => Some(error),
             Self::Callable(error) => Some(error),
             Self::LirSet(error) => Some(error),
         }

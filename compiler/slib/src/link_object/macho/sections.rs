@@ -56,13 +56,29 @@ pub fn validate_builtin_object_section_inventory_v1(
     }
     let mut names = BTreeSet::new();
     let mut roles = Vec::with_capacity(envelope.sections().len());
-    for section in envelope.sections() {
+    for (section_index, section) in envelope.sections().iter().enumerate() {
         let name = (section.segment_name(), section.section_name());
         if !names.insert((name.0.to_vec(), name.1.to_vec())) {
             return Err(BuiltinObjectSectionValidationError::DuplicateSectionName);
         }
         let Some((role, expected_flags)) = classify_section(name.0, name.1) else {
-            return Err(BuiltinObjectSectionValidationError::UnsupportedSectionName);
+            return Err(
+                BuiltinObjectSectionValidationError::UnsupportedSectionName {
+                    segment: name.0.to_vec(),
+                    section: name.1.to_vec(),
+                    symbols: envelope
+                        .symbols()
+                        .iter()
+                        .filter(|symbol| {
+                            symbol
+                                .section_ordinal()
+                                .map(|ordinal| usize::from(ordinal.get()))
+                                == Some(section_index + 1)
+                        })
+                        .map(|symbol| symbol.name().to_vec())
+                        .collect(),
+                },
+            );
         };
         if !section_flags_match(role, expected_flags, section.flags()) {
             return Err(BuiltinObjectSectionValidationError::SectionFlagsMismatch {
@@ -152,11 +168,15 @@ fn profile_accepts(
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BuiltinObjectSectionValidationError {
     EmptySectionTable,
     DuplicateSectionName,
-    UnsupportedSectionName,
+    UnsupportedSectionName {
+        segment: Vec<u8>,
+        section: Vec<u8>,
+        symbols: Vec<Vec<u8>>,
+    },
     SectionFlagsMismatch {
         role: BuiltinObjectSectionRoleV1,
         expected: u32,

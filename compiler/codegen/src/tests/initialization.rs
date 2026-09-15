@@ -63,8 +63,42 @@ fn zero_sized_storage_uses_one_addressable_byte() {
     let ir = ir_of(&module);
 
     assert!(
-        ir.contains(&format!("@\"{symbol}\" = global i8 0, align 1")),
+        ir.contains(&format!(
+            "@\"{symbol}\" = global i8 0, section \"__DATA,__bss\", align 1"
+        )),
         "zero-sized storage must retain a unique address token:\n{ir}"
+    );
+}
+
+#[test]
+fn encoded_storage_is_forced_out_of_the_common_section() {
+    let mut module = values_module();
+    let identity = static_storage_identity("encodedZeroStorage");
+    let symbol = identity.symbol().to_string();
+    module.globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::Storage {
+            identity,
+            layout: layout_identity(
+                "encodedZeroStorage",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
+            ty: LirType::I64,
+            initial_state: LirStaticInitialState::EncodedStaticValue {
+                payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
+            },
+            thread_local: false,
+        },
+    });
+
+    let ir = ir_of(&module);
+
+    assert!(
+        ir.contains(&format!(
+            "@\"{symbol}\" = global i64 0, section \"__DATA,__data\", align 8"
+        )),
+        "encoded storage must be an explicit writable definition:\n{ir}"
     );
 }
 

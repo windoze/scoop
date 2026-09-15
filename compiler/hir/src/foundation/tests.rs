@@ -11,10 +11,10 @@ use super::{CanonicalHirFoundation, HirFoundationBuildError, HirFoundationTable}
 use crate::{NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord, SourceRecord};
 
 #[test]
-fn empty_foundation_has_all_thirty_empty_tables() {
+fn empty_foundation_has_all_thirty_two_empty_tables() {
     let actual = encode(&CanonicalHirFoundation::empty()).unwrap();
-    let mut expected = vec![0xb8, 30];
-    for field in 1_u8..=30 {
+    let mut expected = vec![0xb8, 32];
+    for field in 1_u8..=32 {
         if field < 24 {
             expected.push(field);
         } else {

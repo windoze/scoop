@@ -211,9 +211,27 @@ fn try_lower(
     let input = seal_strong_input(module);
     super::lower(
         &input,
-        super::StrongImportedCoreLirInput::Unused,
+        test_imported_core_lir_input(&input),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
+}
+
+fn test_imported_core_lir_input(
+    input: &mir::SingleConeStrongMirInput,
+) -> super::StrongImportedCoreLirInput<'static> {
+    if input.module().cone == ConeIdentity::CORE {
+        super::StrongImportedCoreLirInput::Unused
+    } else {
+        let string = input
+            .module()
+            .meta
+            .source_exact_types
+            .get(&mir::Type::String)
+            .expect("the MIR fixture supplies the core String exact type")
+            .identity_record()
+            .id();
+        super::StrongImportedCoreLirInput::TestRuntimeString(string)
+    }
 }
 
 fn lower(module: mir::Module) -> lir::Module {
@@ -225,7 +243,7 @@ fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
     let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
     let output = super::lower(
         &input,
-        super::StrongImportedCoreLirInput::Unused,
+        test_imported_core_lir_input(&input),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
@@ -548,6 +566,14 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
                 .map(|identity| identity.exact_record().clone()),
         )
         .collect::<Vec<_>>();
+    let string_exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::String)
+        .unwrap()
+        .identity_record()
+        .id();
+    expected.retain(|record| record.id() != string_exact);
     expected.sort_unstable_by_key(|record| record.id());
 
     let input = seal_strong_input(source);
@@ -566,7 +592,7 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
     let c_struct_exact = exact(&mir::Type::Struct(c_struct));
     let output = super::lower(
         &input,
-        super::StrongImportedCoreLirInput::Unused,
+        test_imported_core_lir_input(&input),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();

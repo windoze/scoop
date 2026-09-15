@@ -14,7 +14,7 @@ use crate::{
     CanonicalCAbiMetadata, EnumDefs, ExternFunctions, Layout, LayoutIdentity, LayoutKind, LirMeta,
     LirOutput, LirTargetProfile, MaterializationRoot, Module, NativeExternalMetadata,
     NativeGlobalBridges, RefScan, RuntimeTypeMappingRecord, StructDefs, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord, WellKnownLayouts,
+    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord,
     WellKnownTypeDescriptors,
 };
 
@@ -161,7 +161,7 @@ fn core_output_rejects_reference_box_and_mismatched_descriptor_layout() {
     let unit_exact = source_exact(&unit);
     let mut module = fixture_module(ConeIdentity::CORE);
     add_shape_support(&mut module, &unit, true);
-    let anchor_layout = module.meta.well_known_layouts.string;
+    let anchor_layout = module.meta.layouts.iter().next().unwrap().0;
     let descriptor = module
         .meta
         .type_descriptors
@@ -182,7 +182,7 @@ fn fixture_module(producer: ConeIdentity) -> Module {
     let mut exact_types = Vec::new();
     let mut layouts = Arena::new();
     let mut type_descriptors = Arena::new();
-    let (_, anchor_layout, anchor_descriptor) = add_exact_shape_to_components(
+    let (_, _anchor_layout, anchor_descriptor) = add_exact_shape_to_components(
         &mut exact_types,
         &mut layouts,
         &mut type_descriptors,
@@ -207,9 +207,6 @@ fn fixture_module(producer: ConeIdentity) -> Module {
             target_profile: LirTargetProfile::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
-            well_known_layouts: WellKnownLayouts {
-                string: anchor_layout,
-            },
             well_known_type_descriptors: WellKnownTypeDescriptors {
                 string: TypeDescriptorRef::Local(anchor_descriptor),
             },

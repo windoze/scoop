@@ -34,13 +34,6 @@ fn lowers_hello_world() {
         .expect("hello-world String exact identity")
         .identity_record()
         .id();
-    let string_runtime_type = lir::RuntimeTypeMappingRecord::new(string_exact_type).unwrap();
-    let string_layout_identity = lir::LayoutIdentity::managed_object(
-        string_exact_type,
-        lir::LirTargetProfile::DARWIN_AARCH64,
-        lir::MaterializationRoot::cone_owned(),
-    )
-    .unwrap();
     let expected_callable_bodies = source
         .top_level
         .iter()
@@ -154,36 +147,27 @@ fn lowers_hello_world() {
         1
     );
 
-    // The source declaration's typed intrinsic identity survives through
-    // MIR and LIR. String metadata is a required singleton, not a layout
-    // or descriptor that codegen has to rediscover by name.
-    let string_layout = &module.meta.layouts[module.meta.well_known_layouts.string];
-    let string_descriptor = descriptor(&module, module.meta.well_known_type_descriptors.string);
-    assert_eq!(string_layout.identity, string_layout_identity);
+    // Ordinary Cones import the runtime String descriptor and never duplicate
+    // its layout or local TypeDescriptor definition.
+    let lir::TypeDescriptorRef::CoreExternal(string_descriptor) =
+        module.meta.well_known_type_descriptors.string
+    else {
+        panic!("ordinary String authority must be core-external")
+    };
     assert_eq!(
-        string_layout.kind,
+        module.meta.core_external_type_descriptors[string_descriptor].target(),
+        string_exact_type
+    );
+    assert_eq!(module.meta.core_external_type_descriptors.len(), 1);
+    assert!(layout_values(&module).all(|layout| !matches!(
+        layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
-    );
-    assert_eq!(
-        string_descriptor.identity.symbol_request().key(),
-        scoop_identity::PersistentSymbolKey::TypeDescriptor(string_runtime_type.exact_type())
-    );
-    assert_eq!(
-        string_descriptor.identity.symbol_request().linkage(),
-        scoop_identity::LinkageClass::ConeStrong
-    );
-    assert_eq!(
-        string_descriptor.identity.runtime_type(),
-        string_runtime_type
-    );
-    assert!(string_descriptor.vtable.slots().is_empty());
+    )));
     assert_eq!(
         descriptor_values(&module)
-            .filter(
-                |descriptor| descriptor.identity.exact_type() == string_runtime_type.exact_type()
-            )
+            .filter(|descriptor| descriptor.identity.exact_type() == string_exact_type)
             .count(),
-        1
+        0
     );
     for representation in lir::IntegerKind::ALL
         .map(lir::IntrinsicTypeRepresentation::Integer)
@@ -231,17 +215,16 @@ Module
     global_store global2, t2
     end_catch
     ret integer<UInt>(0x00000001)
-  td td1 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td5 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td6 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td7 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td8 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td9 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td10 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout String size=24 align=8 refs=[]
+  td td0 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td1 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
   layout Int size=4 align=4 refs=[]
@@ -251,7 +234,6 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout String value size=8 align=8 refs=[0]
   layout Unit size=0 align=1 refs=[]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
@@ -290,7 +272,10 @@ fn strong_writer_projects_the_complete_executable_production_section() {
         section.entry_plan(),
         lir::EntryProductionPlanV1::Executable(_)
     ));
-    assert!(section.external_bridges().bridges().is_empty());
+    assert!(matches!(
+        section.external_bridges().bridges(),
+        [lir::StrongExternalLirBridgeV1::TypeDescriptor(_)]
+    ));
 }
 
 #[test]

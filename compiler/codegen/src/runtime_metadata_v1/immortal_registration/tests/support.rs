@@ -17,7 +17,7 @@ use scoop_lir::{
     NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan,
     StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
     StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationIdentitySurfaceV1, StructDefs,
-    TypeDescriptorRef, WellKnownLayouts, WellKnownTypeDescriptors,
+    TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) fn immortal_plan(object_count: u32) -> StrongImmortalObjectRegistrationPlanSetV1 {
@@ -129,7 +129,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
         });
     }
     let mut layouts = Arena::new();
-    let string_layout = layouts.alloc(Layout {
+    let _string_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             string_type,
             LirTargetProfile::DARWIN_AARCH64,
@@ -168,9 +168,6 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
             target_profile: LirTargetProfile::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
-            well_known_layouts: WellKnownLayouts {
-                string: string_layout,
-            },
             well_known_type_descriptors: WellKnownTypeDescriptors {
                 string: TypeDescriptorRef::CoreExternal(string_descriptor),
             },

@@ -97,16 +97,23 @@ fn validate_core_external_metadata(module: &Module) -> Result<(), CodegenError> 
 }
 
 fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError> {
-    let TypeDescriptorRef::Local(string) = module.meta.well_known_type_descriptors.string else {
-        return Err(CodegenError(
-            "the executable runtime requires a local core String TypeDescriptor".to_string(),
-        ));
-    };
-    if arena_index(string) >= module.meta.type_descriptors.len() {
-        return Err(CodegenError(format!(
-            "the core String TypeDescriptor reference {} is out of bounds",
-            arena_index(string)
-        )));
+    match module.meta.well_known_type_descriptors.string {
+        TypeDescriptorRef::Local(string) => {
+            if arena_index(string) >= module.meta.type_descriptors.len() {
+                return Err(CodegenError(format!(
+                    "the runtime String TypeDescriptor local reference {} is out of bounds",
+                    arena_index(string)
+                )));
+            }
+        }
+        TypeDescriptorRef::CoreExternal(string) => {
+            if arena_index(string) >= module.meta.core_external_type_descriptors.len() {
+                return Err(CodegenError(format!(
+                    "the runtime String TypeDescriptor core-external reference {} is out of bounds",
+                    arena_index(string)
+                )));
+            }
+        }
     }
 
     for (_, descriptor) in module.meta.type_descriptors.iter() {

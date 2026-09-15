@@ -10,7 +10,9 @@ use scoop_lir::{
 };
 
 use super::digest::validate_digest_graph;
-use super::physical::{atom_file_range, validate_objects, verified_member};
+use super::physical::{
+    StaticStorageAtomRangeV1, atom_file_range, atom_range, validate_objects, verified_member,
+};
 use super::record::{DESCRIPTOR_SIZE, validate_record_bytes};
 use super::relocations::{
     VerifiedStaticStorageRelocations, sentinel_target_key, verify_relocations,
@@ -22,7 +24,8 @@ use super::{
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, ScoopLirObjectCandidateV1, StrongRelocationBindingV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    VerifiedDefinitionAtomRangeV1, VerifiedMaterializedPatchSiteV1, VerifiedRelocationUseV1,
+    VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
 const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
@@ -37,7 +40,7 @@ pub struct VerifiedStrongStaticStorageRegistrationV1 {
     primary_symbol_table_index: u32,
     checked_offset: u64,
     storage_member: SlibMemberId,
-    storage_checked_offset: u64,
+    storage_materialization: VerifiedStaticStorageMaterializationV1,
     storage_relocation: StrongRelocationBindingV1,
     scan_relocation: StrongRelocationBindingV1,
     template_relocation: VerifiedRelocationUseV1,
@@ -70,8 +73,8 @@ impl VerifiedStrongStaticStorageRegistrationV1 {
         self.storage_member
     }
 
-    pub const fn storage_checked_offset(&self) -> u64 {
-        self.storage_checked_offset
+    pub(super) const fn storage_materialization(&self) -> VerifiedStaticStorageMaterializationV1 {
+        self.storage_materialization
     }
 
     pub const fn storage_relocation(&self) -> &StrongRelocationBindingV1 {
@@ -109,6 +112,12 @@ impl VerifiedStrongStaticStorageRegistrationV1 {
     pub const fn layout_fingerprint_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
         self.layout_fingerprint_patch
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum VerifiedStaticStorageMaterializationV1 {
+    FileBacked { checked_offset: u64 },
+    ZeroFill,
 }
 
 /// Proof that every final-LIR static storage has one exact provisional root
@@ -303,7 +312,7 @@ fn verify_registration(
 #[derive(Clone, Copy)]
 struct VerifiedStaticStorageArtifactsV1 {
     member: SlibMemberId,
-    checked_offset: u64,
+    materialization: VerifiedStaticStorageMaterializationV1,
 }
 
 fn verify_storage_artifacts(
@@ -314,19 +323,26 @@ fn verify_storage_artifacts(
     let builtins = patch_sites.builtins();
     let storage_member = required_scoop_member(builtins, plan, plan.storage_definition_plan())?;
     let storage_index = verified_member(builtins, storage_member)?;
-    let (_, storage_start, storage_end) = require_primary_atom(
+    let expected_storage_section = match plan.initial_artifacts() {
+        StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit => {
+            BuiltinObjectSectionRoleV1::ZeroFill
+        }
+        StrongStaticStorageInitialArtifactPlanV1::EncodedStaticValue { .. } => {
+            BuiltinObjectSectionRoleV1::WritableData
+        }
+    };
+    let (_, storage_range) = require_storage_primary_atom(
         storage_index,
         plan,
         plan.storage_definition_plan(),
         plan.storage_primary_atom(),
-        StaticStorageArtifactRoleV1::Storage,
-        BuiltinObjectSectionRoleV1::WritableData,
+        expected_storage_section,
     )?;
     require_size(
         plan,
         StaticStorageArtifactRoleV1::Storage,
         plan.semantic().allocation_extent(),
-        storage_end - storage_start,
+        storage_range.byte_size(),
     )?;
 
     require_primary_atom(
@@ -366,19 +382,22 @@ fn verify_storage_artifacts(
     )?;
 
     match plan.initial_artifacts() {
-        StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit => {
-            validate_artifact_bytes(
-                objects[&storage_member],
-                storage_start,
-                &vec![0; usize::try_from(plan.semantic().allocation_extent()).unwrap()],
-                plan,
-                StaticStorageArtifactRoleV1::Storage,
-            )?;
-        }
+        StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit => {}
         StrongStaticStorageInitialArtifactPlanV1::EncodedStaticValue {
             template_atom,
             relocation_table,
         } => {
+            let storage_start = match storage_range {
+                StaticStorageAtomRangeV1::FileBacked { start, .. } => start,
+                StaticStorageAtomRangeV1::ZeroFill { .. } => {
+                    return Err(
+                        StrongStaticStorageRegistrationValidationError::AtomSectionMismatch {
+                            storage: plan.semantic().storage(),
+                            role: StaticStorageArtifactRoleV1::Storage,
+                        },
+                    );
+                }
+            };
             let (_, template_start, template_end) = require_associated_atom(
                 storage_index,
                 plan,
@@ -443,7 +462,16 @@ fn verify_storage_artifacts(
     }
     Ok(VerifiedStaticStorageArtifactsV1 {
         member: storage_member,
-        checked_offset: storage_start,
+        materialization: match storage_range {
+            StaticStorageAtomRangeV1::FileBacked { start, .. } => {
+                VerifiedStaticStorageMaterializationV1::FileBacked {
+                    checked_offset: start,
+                }
+            }
+            StaticStorageAtomRangeV1::ZeroFill { .. } => {
+                VerifiedStaticStorageMaterializationV1::ZeroFill
+            }
+        },
     })
 }
 
@@ -465,7 +493,7 @@ fn build_verified_registration(
         primary_symbol_table_index,
         checked_offset,
         storage_member: storage_artifacts.member,
-        storage_checked_offset: storage_artifacts.checked_offset,
+        storage_materialization: storage_artifacts.materialization,
         storage_relocation: relocations.storage,
         scan_relocation: relocations.scan,
         template_relocation: relocations.template,
@@ -517,6 +545,65 @@ fn require_primary_atom(
     role: StaticStorageArtifactRoleV1,
     expected_section: BuiltinObjectSectionRoleV1,
 ) -> Result<(u32, u64, u64), StrongStaticStorageRegistrationValidationError> {
+    let (primary_symbol_table_index, atom) =
+        primary_atom(member, plan, definition_id, atom_id, role)?;
+    let (section, start, end) = atom_file_range(member, atom).map_err(|kind| {
+        StrongStaticStorageRegistrationValidationError::InvalidAtomRange {
+            storage: plan.semantic().storage(),
+            role,
+            atom: atom_id,
+            kind,
+        }
+    })?;
+    if section != expected_section {
+        return Err(
+            StrongStaticStorageRegistrationValidationError::AtomSectionMismatch {
+                storage: plan.semantic().storage(),
+                role,
+            },
+        );
+    }
+    require_primary_alignment(plan, role, atom.start())?;
+    Ok((primary_symbol_table_index, start, end))
+}
+
+fn require_storage_primary_atom(
+    member: &crate::link_object::VerifiedMemberObjectRelocationIndexV1,
+    plan: &StrongStaticStorageRegistrationPlanV1,
+    definition_id: ObjectDefinitionPlanId,
+    atom_id: ObjectDefinitionAtomId,
+    expected_section: BuiltinObjectSectionRoleV1,
+) -> Result<(u32, StaticStorageAtomRangeV1), StrongStaticStorageRegistrationValidationError> {
+    let role = StaticStorageArtifactRoleV1::Storage;
+    let (primary_symbol_table_index, atom) =
+        primary_atom(member, plan, definition_id, atom_id, role)?;
+    let range = atom_range(member, atom).map_err(|kind| {
+        StrongStaticStorageRegistrationValidationError::InvalidAtomRange {
+            storage: plan.semantic().storage(),
+            role,
+            atom: atom_id,
+            kind,
+        }
+    })?;
+    if range.role() != expected_section {
+        return Err(
+            StrongStaticStorageRegistrationValidationError::AtomSectionMismatch {
+                storage: plan.semantic().storage(),
+                role,
+            },
+        );
+    }
+    require_primary_alignment(plan, role, atom.start())?;
+    Ok((primary_symbol_table_index, range))
+}
+
+fn primary_atom(
+    member: &crate::link_object::VerifiedMemberObjectRelocationIndexV1,
+    plan: &StrongStaticStorageRegistrationPlanV1,
+    definition_id: ObjectDefinitionPlanId,
+    atom_id: ObjectDefinitionAtomId,
+    role: StaticStorageArtifactRoleV1,
+) -> Result<(u32, VerifiedDefinitionAtomRangeV1), StrongStaticStorageRegistrationValidationError> {
     let definition = member.definitions().definition(definition_id).ok_or(
         StrongStaticStorageRegistrationValidationError::MissingVerifiedDefinition {
             storage: plan.semantic().storage(),
@@ -545,22 +632,14 @@ fn require_primary_atom(
                 atom: atom_id,
             },
         )?;
-    let (section, start, end) = atom_file_range(member, atom).map_err(|kind| {
-        StrongStaticStorageRegistrationValidationError::InvalidAtomFileRange {
-            storage: plan.semantic().storage(),
-            role,
-            atom: atom_id,
-            kind,
-        }
-    })?;
-    if section != expected_section {
-        return Err(
-            StrongStaticStorageRegistrationValidationError::AtomSectionMismatch {
-                storage: plan.semantic().storage(),
-                role,
-            },
-        );
-    }
+    Ok((definition.primary_symbol_table_index(), atom))
+}
+
+fn require_primary_alignment(
+    plan: &StrongStaticStorageRegistrationPlanV1,
+    role: StaticStorageArtifactRoleV1,
+    address: u64,
+) -> Result<(), StrongStaticStorageRegistrationValidationError> {
     let required_alignment = match role {
         StaticStorageArtifactRoleV1::Storage => plan.semantic().required_alignment(),
         StaticStorageArtifactRoleV1::Registration
@@ -571,8 +650,7 @@ fn require_primary_atom(
             unreachable!("associated static-storage atoms use require_associated_atom")
         }
     };
-    require_alignment(plan, role, required_alignment, atom.start())?;
-    Ok((definition.primary_symbol_table_index(), start, end))
+    require_alignment(plan, role, required_alignment, address)
 }
 
 fn require_associated_atom(
@@ -605,7 +683,7 @@ fn require_associated_atom(
             },
         )?;
     let range = atom_file_range(member, atom).map_err(|kind| {
-        StrongStaticStorageRegistrationValidationError::InvalidAtomFileRange {
+        StrongStaticStorageRegistrationValidationError::InvalidAtomRange {
             storage: plan.semantic().storage(),
             role,
             atom: atom_id,

@@ -652,6 +652,14 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 llvm_global.set_thread_local(*thread_local);
                 apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
                 if selection.defines_non_callable() {
+                    let section = if logical_size == 0
+                        || matches!(initial_state, LirStaticInitialState::ZeroedForRuntimeUnit)
+                    {
+                        profile.zero_fill_storage_section()
+                    } else {
+                        profile.writable_storage_section()
+                    };
+                    llvm_global.set_section(Some(section));
                     let value = if logical_size == 0 {
                         i8_ty.const_zero().into()
                     } else {

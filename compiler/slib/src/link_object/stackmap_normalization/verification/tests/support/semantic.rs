@@ -29,7 +29,7 @@ use scoop_lir::{
     StrongSafepointRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
     StrongTypeRegistrationPlanSetV1, StructDefs, Terminator, TypeDescriptor,
     TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
-    VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
+    VtableRecord, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
@@ -259,10 +259,15 @@ fn semantic_module(
     });
     let initial_state = if matches!(
         corruption,
-        Corruption::StaticZeroedInitialState | Corruption::StaticSentinelCollision
+        Corruption::StaticZeroedInitialState
+            | Corruption::StaticZeroedWritableSection
+            | Corruption::StaticSentinelCollision
     ) {
         LirStaticInitialState::ZeroedForRuntimeUnit
-    } else if matches!(corruption, Corruption::StaticEncodedEmptyInitialState) {
+    } else if matches!(
+        corruption,
+        Corruption::StaticEncodedEmptyInitialState | Corruption::StaticEncodedZeroFillSection
+    ) {
         LirStaticInitialState::EncodedStaticValue {
             payload: LirConstantImage::NullPointer(PointerKind::Managed),
         }
@@ -1120,9 +1125,6 @@ fn metadata(corruption: Corruption) -> LirMeta {
         target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),
-        well_known_layouts: WellKnownLayouts {
-            string: string_layout,
-        },
         well_known_type_descriptors: WellKnownTypeDescriptors {
             string: well_known_string,
         },

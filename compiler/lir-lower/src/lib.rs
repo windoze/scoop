@@ -145,6 +145,7 @@ pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequireme
 mod imported_core;
 pub use imported_core::StrongImportedCoreLirInput;
 use imported_core::lower_imported_core_callables;
+use imported_core::lower_imported_core_runtime_string;
 
 /// Lower one sealed single-Cone strong MIR product to ODR-free LIR.
 pub fn lower(
@@ -187,6 +188,8 @@ pub fn lower(
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums);
+    let (core_external_type_descriptors, imported_runtime_string) =
+        lower_imported_core_runtime_string(input, imported_core)?;
     let (core_external_callables, core_external_callable_map) =
         lower_imported_core_callables(&context, input, imported_core, &structs, &enums)?;
     let native_abi = native_abi::lower(&context, module, &structs, &enums);
@@ -296,7 +299,8 @@ pub fn lower(
         module,
         &enums,
         &local_function_map,
-    );
+        imported_runtime_string,
+    )?;
     let (arrays, array_type_map) = array_types(
         &context,
         &identity_roots,
@@ -348,7 +352,17 @@ pub fn lower(
     let core_lir_bridge =
         lower_core_lir_bridge(input, module, &functions, &enums, &local_function_map)?;
 
-    let (layouts, well_known_layouts) = layouts(&context, &identity_roots, module, &enums);
+    let layouts = layouts(
+        &context,
+        &identity_roots,
+        module,
+        &enums,
+        imported_runtime_string.is_none(),
+    );
+    let imported_runtime_string_exact = core_external_type_descriptors
+        .iter()
+        .next()
+        .map(|(_, descriptor)| descriptor.target());
     let module = lir::Module {
         cone: module.cone,
         globals,
@@ -369,16 +383,15 @@ pub fn lower(
             },
         },
         meta: lir::LirMeta {
-            exact_types: materialized_exact_types(input),
+            exact_types: materialized_exact_types(input, imported_runtime_string_exact),
             target_profile: context.target_profile(),
             canonical_c_abi: native_abi.canonical_c_abi,
             native_externals: native_abi.native_externals,
-            well_known_layouts,
             well_known_type_descriptors,
             arrays,
             layouts,
             type_descriptors,
-            core_external_type_descriptors: Arena::new(),
+            core_external_type_descriptors,
             core_external_callables,
         },
     };
@@ -499,6 +512,7 @@ fn strong_callable_owner(
 
 fn materialized_exact_types(
     input: &mir::SingleConeStrongMirInput,
+    imported_runtime_string: Option<scoop_identity::PersistentExactTypeId>,
 ) -> Vec<
     scoop_identity::CborIdentityRecord<
         scoop_identity::PersistentExactTypeId,
@@ -510,6 +524,7 @@ fn materialized_exact_types(
         .materialization()
         .source_nominal_shapes()
         .iter()
+        .filter(|root| Some(root.exact()) != imported_runtime_string)
         .map(|root| {
             let record = exact_type_record(module, root.ty());
             assert_eq!(record.id(), root.exact());
@@ -579,6 +594,17 @@ pub enum StrongLirLoweringError {
         exact: scoop_identity::PersistentExactTypeId,
     },
     ImportedCoreCallable(lir::CoreExternalBuildError),
+    ImportedCoreTypeDescriptor(lir::CoreExternalBuildError),
+    ImportedCoreRuntimeStringMismatch {
+        mir: scoop_identity::PersistentExactTypeId,
+        lir: scoop_identity::PersistentExactTypeId,
+    },
+    MissingRuntimeStringDescriptor {
+        producer: scoop_identity::ConeIdentity,
+    },
+    RuntimeStringDescriptorOwnership {
+        producer: scoop_identity::ConeIdentity,
+    },
     MissingCoreCallableMaterialization(scoop_identity::CallableOwner),
     MissingCoreCallableSignature(scoop_identity::CallableOwner),
     UnsupportedCoreCallableEffect(scoop_identity::CallableOwner),
@@ -593,6 +619,7 @@ impl fmt::Display for StrongLirLoweringError {
         match self {
             Self::Capability(source) => source.fmt(formatter),
             Self::ImportedCoreCallable(source) => source.fmt(formatter),
+            Self::ImportedCoreTypeDescriptor(source) => source.fmt(formatter),
             Self::CoreLirBridge(source) => source.fmt(formatter),
             Self::MissingImportedCoreLirAuthority => formatter
                 .write_str("imported-core MIR roots require the exact selected LIR authority"),
@@ -622,6 +649,18 @@ impl fmt::Display for StrongLirLoweringError {
             Self::MissingImportedCoreResultType { index, exact } => write!(
                 formatter,
                 "imported-core MIR callable {index} result {exact} has no exact MIR type relation"
+            ),
+            Self::ImportedCoreRuntimeStringMismatch { mir, lir } => write!(
+                formatter,
+                "runtime String exact type mismatch: MIR requires {mir}, LIR authority provides {lir}"
+            ),
+            Self::MissingRuntimeStringDescriptor { producer } => write!(
+                formatter,
+                "Cone {producer} has no complete runtime String TypeDescriptor authority"
+            ),
+            Self::RuntimeStringDescriptorOwnership { producer } => write!(
+                formatter,
+                "Cone {producer} has an invalid local/external runtime String TypeDescriptor branch"
             ),
             Self::MissingCoreCallableMaterialization(owner) => {
                 write!(
@@ -654,6 +693,7 @@ impl std::error::Error for StrongLirLoweringError {
         match self {
             Self::Capability(source) => Some(source),
             Self::ImportedCoreCallable(source) => Some(source),
+            Self::ImportedCoreTypeDescriptor(source) => Some(source),
             Self::CoreLirBridge(source) => Some(source),
             Self::Output(source) => Some(source),
             Self::MissingCoreCallableMaterialization(_)
@@ -664,6 +704,9 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::ImportedCoreLirCallableMismatch { .. }
             | Self::MissingImportedCoreParameterType { .. }
             | Self::MissingImportedCoreResultType { .. }
+            | Self::ImportedCoreRuntimeStringMismatch { .. }
+            | Self::MissingRuntimeStringDescriptor { .. }
+            | Self::RuntimeStringDescriptorOwnership { .. }
             | Self::MissingCoreCallableSignature(_)
             | Self::UnsupportedCoreCallableEffect(_)
             | Self::UnsupportedCoreCallableReceiver(_)

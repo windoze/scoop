@@ -17,7 +17,7 @@ use scoop_lir::{
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
     StrongTypeDescriptorSemanticPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs,
     TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    WellKnownTypeDescriptors,
 };
 
 pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
@@ -211,7 +211,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
     }
     let first_descriptor = first_descriptor.expect("the fixture requires at least one type");
     let mut layouts = Arena::new();
-    let first_layout = layouts.alloc(Layout {
+    let _first_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             types[0].exact_type,
             LirTargetProfile::DARWIN_AARCH64,
@@ -250,9 +250,6 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
             target_profile: LirTargetProfile::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
-            well_known_layouts: WellKnownLayouts {
-                string: first_layout,
-            },
             well_known_type_descriptors: WellKnownTypeDescriptors {
                 string: TypeDescriptorRef::Local(first_descriptor),
             },

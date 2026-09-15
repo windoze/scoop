@@ -600,6 +600,18 @@ foundation field 1因此是按`PersistentExactTypeId`严格递增、无重复的
 HIR、MIR声明完成canonical-key重算后逐项解析这些引用，再重建LIR内部的物化集合。旧的LIR exact-type record
 数组不是兼容输入，直接按当前closed wire shape拒绝。
 
+普通Cone的HIR exact-type表仍声明本次语义图实际使用的完整结构key；若其中的`Nominal`或
+`NominalApplication`引用受信core声明，则HIR foundation必须另以两个严格排序、无重复的
+`core_external_source_types: [PersistentTypeId]`和
+`core_external_generic_types: [PersistentGenericTypeId]`表把这些owner登记为外部身份叶节点。两张表只允许由
+`OrdinaryHirOutput`绑定的同一`ImportedHirFoundation`机械投影：每项必须确实存在于该core foundation，且恰好覆盖
+exact-type表引用但本foundation未声明的core nominal owner；core bootstrap两表必须为空。reader先把这些typed id
+登记为不属于当前Cone、无需在本artifact重复canonical key的external authority，再重算本artifact声明的exact
+record；不得把core的`SourceDeclarationKey`复制进ordinary type表，也不得把缺失owner当成普通local声明。该
+external leaf只解决Compile identity closure，不授予lookup、layout、definition或link authority；String的物理
+authority仍唯一来自下述checked core-external TypeDescriptor bridge。旧的“让ordinary exact record引用一个完全未
+声明的owner”形态直接拒绝，不提供兼容分支。
+
 HIR foundation的definition-origin覆盖按“是否为源码声明”决定，而不是按origin Cone决定：reserved core中由源码
 声明的`String`、primitive及其他nominal与普通Cone声明一样必须且只能携带一条origin；只有编译器拥有且没有普通
 source declaration的`CoreBuiltinNominal::{Unit, Any}`从type required set排除。validator必须按这两个固定typed
@@ -727,7 +739,12 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   `ImportedCoreMirCallableId`，并在任一项失败时不返回部分集合；不存在接受裸binding/definition/
   signature的第二构造路径。selected MIR target再以同样方式投影成绑定同一LIR
   foundation与strong-definition surface的`SelectedImportedLirSet<'core>`，并使用与前两层都不
-  相容的`ImportedCoreLirCallableId`。LIR集合项同时保留body、definition plan和唯一symbol request；
+  相容的`ImportedCoreLirCallableId`。该LIR set还必须从同一artifact的String capability及
+  `core_shape_support`闭包原子投影非可选的runtime String TypeDescriptor authority；集合项同时保留body、
+  definition plan和唯一symbol request，String authority同时保留exact type、definition plan和唯一symbol request；
+  普通Cone lowering据此只产生`TypeDescriptorRef::CoreExternal`及external definition requirement，不能本地复制String
+  layout/scan/TypeDescriptor。core producer则必须产生`TypeDescriptorRef::Local`。LIR meta不保留只能指向本地arena的
+  well-known String `LayoutId`；String物理格式由封闭intrinsic representation和target ABI决定；
 - `mir-lower`只返回拥有上述MIR selected set的`OrdinaryMirOutput<'core>`；构造时验证每个arena entry的品牌、
   binding唯一性、每项至少被一个direct call引用以及整图MIR合法性。strong sealer必须显式接收
   `StrongImportedCoreInput::{Unused, Selected}`：有imported-core arena时只允许`Selected`，逐项通过该set解析品牌后，
@@ -1176,6 +1193,14 @@ request与core `TypeDescriptor` definition plan。codegen只能从typed request�
 必须用bridge携带的`ScoopAbiSignature`预声明core callable；不得等到dispatch table发射时猜测函数类型。
 core bootstrap携带任一`CoreExternal*`即失败；普通Cone中的target/body/exact type必须分别唯一，
 且不得与当前Cone的local callable body或local type descriptor重合。
+
+callable bridge表示本Cone中已经materialize的调用，因此必须至少命中一个真实object relocation，缺失时以
+`UnusedExternalCallableBridge`拒绝。type-descriptor bridge同时承担compile/LIR metadata authority；尤其
+well-known runtime String即使当前Cone没有产生取descriptor地址的指令，也必须保留该typed bridge并验证core
+descriptor及配套type-registration owner，但不得伪造object relocation来满足“used”计数。真实出现的descriptor或
+type-registration relocation仍必须逐项解析为该bridge的`CoreStrong` use；registration/type/immortal等专用verifier
+继续核对其semantic edge与物理relocation一一对应。不得把metadata-only descriptor authority误报为unused object
+requirement，也不得因此放宽callable bridge或真实descriptor use的覆盖验证。
 
 `external_bridges`的元素sum tag固定为`Callable=1`、`TypeDescriptor=2`，payload均位于field `1`；
 顶层array先按tag、再按callable body/exact type identity bytes严格递增。callable payload是closed
@@ -1871,6 +1896,13 @@ source，以请求级完整target profile分别运行Scoop LLVM与generated-C pr
 archive adapter。调用者只能额外提供typed Cone/direct dependency、临时目录、producer record和已经验证的
 core owner authority，不能取得任一producer的裸路径后自行拼装另一条production链。
 
+其中“无显式dependency input”不等于ordinary artifact的direct dependency table为空：core bootstrap传空表；
+每个ordinary请求必须从同一个`ValidatedTrustedCoreArtifact`原子投影唯一core `DependencyRecord`（coordinate、identity
+及HIR/MIR/LIR三层fingerprint），并把恰含该记录的canonical vector同时交给Code projection与archive metadata。
+不得传`Vec::new()`后仅依赖`ConeImagePlan`补出core identity，也不得从路径、slot配置或当前重新编码的core section
+拼装fingerprint。`ConeImagePlan.dependencies == [CORE]`、manifest direct dependency record及实际选用的trusted-core
+authority三者必须同源一致。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
@@ -2156,6 +2188,15 @@ ManagedObject representation与InlineValue scan role。`EncodedStaticValue`递�
 无重复的`StaticImmortalRelocationPlanV1`；`ZeroedForRuntimeUnit`没有relocation。结果按
 `PersistentStaticStorageId`排序，错type、悬空/非immortal target、size溢出、重复identity或非canonical空scan
 均在codegen前失败，不从LLVM initializer反推semantic relation。
+
+storage Primary的物理materialization由initial-state variant封闭决定：`ZeroedForRuntimeUnit`必须落在
+`ZeroFill` section，artifact verifier以symbol boundary重建其虚拟range并核对`allocation_extent`、alignment与
+section级零relocation证明，不要求也不允许为其伪造file-backed payload；`EncodedStaticValue`必须落在
+`WritableData` section并具有完整file-backed range，verifier逐byte核对canonical template及其typed relocation。
+verified proof因此保存`ZeroFill | FileBacked { checked_offset }` sum，而不是对所有storage保留一个可能无效的
+文件偏移。definition fingerprint对前者使用同长度canonical zero bytes，对后者使用验证后的真实bytes；两者只有
+物理规范bytes与canonical relocation相同时才可得到相同ObjectDefinition fingerprint。`__common`/tentative symbol
+不是zero-fill表示，始终由section/symbol inventory拒绝。
 
 `EncodedStaticValue`的semantic plan还直接保存长度恰为`allocation_extent`的`initial_template` bytes：
 integer与tag按target little-endian写入，struct field按已验证offset写入，padding、ZST identity token、null及
@@ -3316,6 +3357,7 @@ M23-3只有同时满足以下条件才完成：
 - 每个成功artifact都至少含一个verified LinkObject，全部object联合恰有一个当前Cone image，并完整证明六类strong registration、entry分支、definition、undefined requirement、patch、Strong/RuntimeImage/Code fingerprint；
 - 任意ODR group/member/body/linkage/symbol都无法取得production Compile/Link proof；
 - core param-free exported source nominal的有限shape-support closure由core定义并完整物化，consumer只产生external typed requirement；
+- core的well-known String TypeDescriptor为本地strong定义；每个普通Cone从同一trusted core proof投影typed external引用，且不含重复String layout/scan/TypeDescriptor定义；
 - writer只有在最终bytes分别通过Compile和Link验证后才原子发布；foundation、Graph-only、Compile-only、损坏object或错image均不可发布/消费；
 - 成员语义不依赖文件名、扩展名、ordinal或固定object数量，opaque blob绝不被提升为object；
 - library不需要main且没有root metadata，executable entry/root gateway/failure root非可选且互证；

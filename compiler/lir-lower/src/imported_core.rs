@@ -4,9 +4,82 @@ use super::*;
 ///
 /// The selected branch must cover the MIR materialization roots exactly.
 /// `Unused` is legal only when that root set is empty.
+#[derive(Clone, Copy)]
 pub enum StrongImportedCoreLirInput<'a> {
     Unused,
     Selected(&'a lir::SelectedImportedLirSet<'a>),
+    #[cfg(test)]
+    TestRuntimeString(scoop_identity::PersistentExactTypeId),
+}
+
+pub(super) fn lower_imported_core_runtime_string(
+    input: &mir::SingleConeStrongMirInput,
+    imported: StrongImportedCoreLirInput<'_>,
+) -> Result<
+    (
+        Arena<lir::CoreExternalTypeDescriptor>,
+        Option<lir::TypeDescriptorRef>,
+    ),
+    StrongLirLoweringError,
+> {
+    match (input.module().cone == lir::ConeIdentity::CORE, imported) {
+        (true, StrongImportedCoreLirInput::Unused) => Ok((Arena::new(), None)),
+        (true, StrongImportedCoreLirInput::Selected(_)) => {
+            Err(StrongLirLoweringError::CoreCannotImportCore)
+        }
+        (false, StrongImportedCoreLirInput::Unused) => {
+            Err(StrongLirLoweringError::MissingImportedCoreLirAuthority)
+        }
+        (false, StrongImportedCoreLirInput::Selected(selected)) => {
+            let actual = selected.runtime_string().target();
+            if let Some(expected) = runtime_string_exact_type(input) {
+                if actual != expected {
+                    return Err(StrongLirLoweringError::ImportedCoreRuntimeStringMismatch {
+                        mir: expected,
+                        lir: actual,
+                    });
+                }
+            }
+            let mut descriptors = Arena::new();
+            let descriptor = selected
+                .runtime_string()
+                .materialize()
+                .map_err(StrongLirLoweringError::ImportedCoreTypeDescriptor)?;
+            let reference = lir::TypeDescriptorRef::CoreExternal(descriptors.alloc(descriptor));
+            Ok((descriptors, Some(reference)))
+        }
+        #[cfg(test)]
+        (true, StrongImportedCoreLirInput::TestRuntimeString(_)) => {
+            Err(StrongLirLoweringError::CoreCannotImportCore)
+        }
+        #[cfg(test)]
+        (false, StrongImportedCoreLirInput::TestRuntimeString(target)) => {
+            if let Some(expected) = runtime_string_exact_type(input)
+                && target != expected
+            {
+                return Err(StrongLirLoweringError::ImportedCoreRuntimeStringMismatch {
+                    mir: expected,
+                    lir: target,
+                });
+            }
+            let mut descriptors = Arena::new();
+            let descriptor = lir::CoreExternalTypeDescriptor::new(target)
+                .map_err(StrongLirLoweringError::ImportedCoreTypeDescriptor)?;
+            let reference = lir::TypeDescriptorRef::CoreExternal(descriptors.alloc(descriptor));
+            Ok((descriptors, Some(reference)))
+        }
+    }
+}
+
+fn runtime_string_exact_type(
+    input: &mir::SingleConeStrongMirInput,
+) -> Option<scoop_identity::PersistentExactTypeId> {
+    input
+        .module()
+        .meta
+        .source_exact_types
+        .get(&mir::Type::String)
+        .map(|identity| identity.identity_record().id())
 }
 
 pub(super) fn lower_imported_core_callables(
@@ -36,6 +109,14 @@ pub(super) fn lower_imported_core_callables(
             return Err(StrongLirLoweringError::CoreCannotImportCore);
         }
         StrongImportedCoreLirInput::Selected(selected) => selected,
+        #[cfg(test)]
+        StrongImportedCoreLirInput::TestRuntimeString(_) if roots.is_empty() => {
+            return Ok((Arena::new(), HashMap::new()));
+        }
+        #[cfg(test)]
+        StrongImportedCoreLirInput::TestRuntimeString(_) => {
+            return Err(StrongLirLoweringError::MissingImportedCoreLirAuthority);
+        }
     };
     if selected.len() != roots.len() {
         return Err(StrongLirLoweringError::ImportedCoreLirCountMismatch {

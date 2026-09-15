@@ -8,6 +8,7 @@ use scoop_wire::{HashError, domain_separated_runtime_hash};
 use super::StrongStaticStorageRegistrationValidationError;
 use super::fingerprints::VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1;
 use super::physical::validate_objects;
+use super::verification::VerifiedStaticStorageMaterializationV1;
 use crate::SlibMemberId;
 use crate::link_object::callable_registrations::object_definition::{
     CanonicalObjectRelocationV1, ObjectDefinitionFingerprintInputV1,
@@ -102,7 +103,7 @@ pub fn compute_strong_static_storage_definition_fingerprints_v1(
         )?;
         let mut bytes = storage_bytes(
             object,
-            verified.storage_checked_offset(),
+            verified.storage_materialization(),
             plan.semantic().allocation_extent(),
             storage,
         )?;
@@ -155,20 +156,26 @@ pub fn compute_strong_static_storage_definition_fingerprints_v1(
 
 fn storage_bytes(
     object: &[u8],
-    checked_offset: u64,
+    materialization: VerifiedStaticStorageMaterializationV1,
     extent: u64,
     storage: PersistentStaticStorageId,
 ) -> Result<Vec<u8>, StrongStaticStorageDefinitionFingerprintError> {
-    let start = usize::try_from(checked_offset)
-        .map_err(|_| StrongStaticStorageDefinitionFingerprintError::StorageRange(storage))?;
     let extent = usize::try_from(extent)
         .map_err(|_| StrongStaticStorageDefinitionFingerprintError::StorageRange(storage))?;
-    let end = start.checked_add(extent).ok_or(
-        StrongStaticStorageDefinitionFingerprintError::StorageRange(storage),
-    )?;
-    object.get(start..end).map(<[u8]>::to_vec).ok_or(
-        StrongStaticStorageDefinitionFingerprintError::StorageRange(storage),
-    )
+    match materialization {
+        VerifiedStaticStorageMaterializationV1::FileBacked { checked_offset } => {
+            let start = usize::try_from(checked_offset).map_err(|_| {
+                StrongStaticStorageDefinitionFingerprintError::StorageRange(storage)
+            })?;
+            let end = start.checked_add(extent).ok_or(
+                StrongStaticStorageDefinitionFingerprintError::StorageRange(storage),
+            )?;
+            object.get(start..end).map(<[u8]>::to_vec).ok_or(
+                StrongStaticStorageDefinitionFingerprintError::StorageRange(storage),
+            )
+        }
+        VerifiedStaticStorageMaterializationV1::ZeroFill => Ok(vec![0; extent]),
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

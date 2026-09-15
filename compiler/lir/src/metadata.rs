@@ -263,7 +263,6 @@ pub struct LirMeta {
     /// Complete target-normalized contracts for source extern declarations.
     pub native_externals: NativeExternalMetadata,
     /// Non-optional identities selected from typed intrinsic declarations.
-    pub well_known_layouts: WellKnownLayouts,
     pub well_known_type_descriptors: WellKnownTypeDescriptors,
     /// Every fully specialized intrinsic `Array<T>` / `MutableArray<T>`
     /// application. Array instructions carry an `ArrayTypeId`; codegen never
@@ -277,11 +276,6 @@ pub struct LirMeta {
     pub core_external_type_descriptors: Arena<CoreExternalTypeDescriptor>,
     /// Cross-Cone callables referenced from local dispatch tables.
     pub core_external_callables: Arena<CoreExternalCallable>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct WellKnownLayouts {
-    pub string: LayoutId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

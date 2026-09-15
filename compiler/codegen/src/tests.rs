@@ -18,7 +18,7 @@ use scoop_lir::{
     EnumVariantRepr, GcEffect, Global, GlobalInit, IndirectResultCallSignature, Layout, LayoutKind,
     LirMeta, Local, MANAGED_PTR, METADATA_PTR, MachineScalarValue, NativeBorrowedResultRoot,
     PointerKind, RAW_PTR, Temp, TypeDescriptor, TypeDescriptorRef, TypeInstanceShapeV1, TypedCall,
-    VoidCallSignature, WellKnownLayouts, WellKnownTypeDescriptors,
+    VoidCallSignature, WellKnownTypeDescriptors,
 };
 
 use super::*;

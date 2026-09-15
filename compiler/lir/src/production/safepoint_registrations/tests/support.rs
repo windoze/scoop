@@ -22,7 +22,7 @@ use crate::{
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
     StrongSafepointSemanticPlanSetV1, StructDefs, Terminator, TypeDescriptor,
     TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
-    VtableRecord, WellKnownLayouts, WellKnownTypeDescriptors,
+    VtableRecord, WellKnownTypeDescriptors,
 };
 
 #[derive(Clone, Copy)]
@@ -437,9 +437,6 @@ fn metadata() -> LirMeta {
         target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),
-        well_known_layouts: WellKnownLayouts {
-            string: string_layout,
-        },
         well_known_type_descriptors: WellKnownTypeDescriptors {
             string: TypeDescriptorRef::Local(string_descriptor),
         },

@@ -6,7 +6,7 @@ use scoop_identity::{
     DecodedEnumVariantIdentityKey, DecodedExactTypeKey, DecodedExportBindingKey,
     DecodedFieldIdentityKey, DecodedGeneratedCallableKey, DecodedGeneratedNominalKey,
     DecodedInitializationUnitKey, DecodedLocalBindingKey, DecodedLocalValueKey,
-    DecodedOdrMemberKey, DecodedPropertyAccessorKey, DecodedSourceContextKey,
+    DecodedOdrMemberKey, DecodedPersistentId, DecodedPropertyAccessorKey, DecodedSourceContextKey,
     DecodedSourceDeclarationKey, DecodedSourceNativeExternalContractRecord,
     DecodedSpecializationKey, IdentityLayer, IdentityValidationError, PendingIdentityValidation,
 };
@@ -103,6 +103,8 @@ struct DecodedHirFoundationWire {
     odr_members: Vec<DecodedOdrMemberRecord>,
     definition_origins: Vec<DecodedDefinitionOriginRecord>,
     native_boundary_types: Vec<DecodedNativeBoundaryTypeDefinitionRecord>,
+    core_external_source_types: Vec<DecodedPersistentId<PersistentTypeId>>,
+    core_external_generic_types: Vec<DecodedPersistentId<PersistentGenericTypeId>>,
 }
 
 /// Canonically decoded HIR foundation wire graph.
@@ -134,6 +136,12 @@ impl DecodedHirFoundation {
         &self,
         validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
+        for identity in &self.decoded.core_external_source_types {
+            validation.register_external_source_type(*identity)?;
+        }
+        for identity in &self.decoded.core_external_generic_types {
+            validation.register_external_generic_type(*identity)?;
+        }
         macro_rules! register_tables {
             ($($table:ident),+ $(,)?) => {
                 $(for record in &self.decoded.$table {
@@ -229,7 +237,7 @@ impl DecodedHirFoundation {
 
 impl WireEncode for DecodedHirFoundationWire {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(30)?;
+        encoder.map(32)?;
         encode_table_field(encoder, 1, &self.sources)?;
         encode_table_field(encoder, 2, &self.types)?;
         encode_table_field(encoder, 3, &self.generic_types)?;
@@ -259,13 +267,15 @@ impl WireEncode for DecodedHirFoundationWire {
         encode_table_field(encoder, 27, &self.odr_groups)?;
         encode_table_field(encoder, 28, &self.odr_members)?;
         encode_table_field(encoder, 29, &self.definition_origins)?;
-        encode_table_field(encoder, 30, &self.native_boundary_types)
+        encode_table_field(encoder, 30, &self.native_boundary_types)?;
+        encode_table_field(encoder, 31, &self.core_external_source_types)?;
+        encode_table_field(encoder, 32, &self.core_external_generic_types)
     }
 }
 
 impl WireDecode for DecodedHirFoundationWire {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(30)?;
+        decoder.expect_map(32)?;
         Ok(Self {
             sources: decode_table_field(decoder, 1)?,
             types: decode_table_field(decoder, 2)?,
@@ -297,6 +307,8 @@ impl WireDecode for DecodedHirFoundationWire {
             odr_members: decode_table_field(decoder, 28)?,
             definition_origins: decode_table_field(decoder, 29)?,
             native_boundary_types: decode_table_field(decoder, 30)?,
+            core_external_source_types: decode_table_field(decoder, 31)?,
+            core_external_generic_types: decode_table_field(decoder, 32)?,
         })
     }
 }
@@ -373,6 +385,8 @@ mod tests {
         assert!(decoded.odr_members.is_empty());
         assert!(decoded.definition_origins.is_empty());
         assert!(decoded.native_boundary_types.is_empty());
+        assert!(decoded.core_external_source_types.is_empty());
+        assert!(decoded.core_external_generic_types.is_empty());
     }
 
     #[test]
@@ -420,16 +434,16 @@ mod tests {
     #[test]
     fn rejects_a_different_closed_product_length() {
         let mut bytes = encode(&CanonicalHirFoundation::empty()).unwrap();
-        assert_eq!(&bytes[..2], &[0xb8, 30]);
-        bytes[1] = 29;
+        assert_eq!(&bytes[..2], &[0xb8, 32]);
+        bytes[1] = 31;
 
         let error =
             decode_canonical::<DecodedHirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
-                expected: 30,
-                actual: 29,
+                expected: 32,
+                actual: 31,
             }
         );
     }

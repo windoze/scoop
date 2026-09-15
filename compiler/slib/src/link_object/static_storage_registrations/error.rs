@@ -65,7 +65,7 @@ pub enum StaticStorageRegistrationDigestPlanFailureV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StaticStorageAtomFileRangeFailureV1 {
+pub enum StaticStorageAtomRangeFailureV1 {
     MissingSection,
     NotFileBacked,
     InvalidRange,
@@ -129,11 +129,11 @@ pub enum StrongStaticStorageRegistrationValidationError {
         role: StaticStorageArtifactRoleV1,
         atom: ObjectDefinitionAtomId,
     },
-    InvalidAtomFileRange {
+    InvalidAtomRange {
         storage: PersistentStaticStorageId,
         role: StaticStorageArtifactRoleV1,
         atom: ObjectDefinitionAtomId,
-        kind: StaticStorageAtomFileRangeFailureV1,
+        kind: StaticStorageAtomRangeFailureV1,
     },
     AtomSectionMismatch {
         storage: PersistentStaticStorageId,

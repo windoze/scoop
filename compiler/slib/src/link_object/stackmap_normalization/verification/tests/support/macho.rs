@@ -75,7 +75,9 @@ pub(crate) fn object_bytes(
         | Corruption::StaticInitialStorageRelocationTarget
         | Corruption::StaticInitialTableRelocationTarget
         | Corruption::StaticZeroedInitialState
+        | Corruption::StaticZeroedWritableSection
         | Corruption::StaticEncodedEmptyInitialState
+        | Corruption::StaticEncodedZeroFillSection
         | Corruption::StaticSentinelCollision
         | Corruption::CoreExternalImmortalTypeRegistration
         | Corruption::WritableRegistrationSection
@@ -184,7 +186,28 @@ fn macho_object(
             .sum::<usize>(),
     )
     .unwrap();
-    let relocation_offset = writable_offset + writable_size;
+    let storage_is_zero_fill = if matches!(corruption, Corruption::StaticZeroedWritableSection) {
+        false
+    } else if matches!(corruption, Corruption::StaticEncodedZeroFillSection) {
+        true
+    } else {
+        !static_storage_registrations.registrations().is_empty()
+            && static_storage_registrations
+                .registrations()
+                .iter()
+                .all(|registration| {
+                    matches!(
+                        registration.initial_artifacts(),
+                        StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit
+                    )
+                })
+    };
+    let writable_file_size = if storage_is_zero_fill {
+        0
+    } else {
+        writable_size
+    };
+    let relocation_offset = writable_offset + writable_file_size;
     let registration_relocation_count = u32::try_from(callable_registrations.registrations().len())
         .unwrap()
         + 2 * u32::try_from(type_registrations.registrations().len()).unwrap()
@@ -322,6 +345,7 @@ fn macho_object(
         stackmap_size,
         registration_size,
         writable_size,
+        writable_file_size,
     );
     push_section(
         &mut bytes,
@@ -369,11 +393,28 @@ fn macho_object(
         registration_relocation_count,
         macho::S_REGULAR,
     );
-    let (storage_section, storage_segment) =
+    let (storage_section, storage_segment, storage_offset, storage_flags) =
         if matches!(corruption, Corruption::WritableRegistrationSection) {
-            (b"__const".as_slice(), b"__DATA_CONST".as_slice())
+            (
+                b"__const".as_slice(),
+                b"__DATA_CONST".as_slice(),
+                writable_offset,
+                macho::S_REGULAR,
+            )
+        } else if storage_is_zero_fill {
+            (
+                b"__bss".as_slice(),
+                b"__DATA".as_slice(),
+                0,
+                macho::S_ZEROFILL,
+            )
         } else {
-            (b"__data".as_slice(), b"__DATA".as_slice())
+            (
+                b"__data".as_slice(),
+                b"__DATA".as_slice(),
+                writable_offset,
+                macho::S_REGULAR,
+            )
         };
     push_section(
         &mut bytes,
@@ -381,7 +422,7 @@ fn macho_object(
         storage_segment,
         TEXT_SIZE + u64::from(stackmap_size) + u64::from(registration_size),
         writable_size,
-        writable_offset,
+        storage_offset,
         3,
         if writable_relocation_count == 0 {
             0
@@ -389,7 +430,7 @@ fn macho_object(
             relocation_offset + 16 + 8 * registration_relocation_count
         },
         writable_relocation_count,
-        macho::S_REGULAR,
+        storage_flags,
     );
     push_symbol_commands(
         &mut bytes,
@@ -488,14 +529,16 @@ fn macho_object(
         }
         push_static_storage_registration(&mut bytes, registration);
     }
-    for registration in static_storage_registrations.registrations() {
-        let initial = registration.semantic().initial_state().initial_template();
-        bytes.extend_from_slice(initial);
-        bytes.resize(
-            bytes.len() + usize::try_from(registration.semantic().allocation_extent()).unwrap()
-                - initial.len(),
-            0,
-        );
+    if !storage_is_zero_fill {
+        for registration in static_storage_registrations.registrations() {
+            let initial = registration.semantic().initial_state().initial_template();
+            bytes.extend_from_slice(initial);
+            bytes.resize(
+                bytes.len() + usize::try_from(registration.semantic().allocation_extent()).unwrap()
+                    - initial.len(),
+                0,
+            );
+        }
     }
     assert_eq!(bytes.len(), usize::try_from(relocation_offset).unwrap());
     if matches!(corruption, Corruption::RegistrationMagic) {
@@ -1248,7 +1291,8 @@ fn push_segment(
     text_offset: u32,
     stackmap_size: u32,
     registration_size: u32,
-    writable_size: u32,
+    writable_virtual_size: u32,
+    writable_file_size: u32,
 ) {
     push_u32(bytes, macho::LC_SEGMENT_64);
     push_u32(bytes, segment_size);
@@ -1259,7 +1303,7 @@ fn push_segment(
         TEXT_SIZE
             + u64::from(stackmap_size)
             + u64::from(registration_size)
-            + u64::from(writable_size),
+            + u64::from(writable_virtual_size),
     );
     push_u64(bytes, u64::from(text_offset));
     push_u64(
@@ -1267,7 +1311,7 @@ fn push_segment(
         TEXT_SIZE
             + u64::from(stackmap_size)
             + u64::from(registration_size)
-            + u64::from(writable_size),
+            + u64::from(writable_file_size),
     );
     push_u32(bytes, 0);
     push_u32(bytes, 0);

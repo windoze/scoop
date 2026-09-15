@@ -387,31 +387,38 @@ pub fn dump(module: &Module) -> String {
     }
     // String remains first, followed by every exact source integer layout in
     // arena order, Boolean, and ordinary layouts.
-    let string_layout = module.meta.well_known_layouts.string;
-    for (_layout_id, layout) in
-        std::iter::once((string_layout, &module.meta.layouts[string_layout]))
-            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
-                matches!(
-                    layout.kind,
-                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Integer(_))
+    for (_layout_id, layout) in module
+        .meta
+        .layouts
+        .iter()
+        .filter(|(_, layout)| {
+            matches!(
+                layout.kind,
+                LayoutKind::Intrinsic(IntrinsicTypeRepresentation::String)
+            )
+        })
+        .chain(module.meta.layouts.iter().filter(|(_, layout)| {
+            matches!(
+                layout.kind,
+                LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Integer(_))
+            )
+        }))
+        .chain(module.meta.layouts.iter().filter(|(_, layout)| {
+            matches!(
+                layout.kind,
+                LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Boolean)
+            )
+        }))
+        .chain(module.meta.layouts.iter().filter(|(_, layout)| {
+            !matches!(
+                layout.kind,
+                LayoutKind::Intrinsic(
+                    IntrinsicTypeRepresentation::Integer(_)
+                        | IntrinsicTypeRepresentation::Boolean
+                        | IntrinsicTypeRepresentation::String
                 )
-            }))
-            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
-                matches!(
-                    layout.kind,
-                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Boolean)
-                )
-            }))
-            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
-                !matches!(
-                    layout.kind,
-                    LayoutKind::Intrinsic(
-                        IntrinsicTypeRepresentation::Integer(_)
-                            | IntrinsicTypeRepresentation::Boolean
-                            | IntrinsicTypeRepresentation::String
-                    )
-                )
-            }))
+            )
+        }))
     {
         match &layout.kind {
             LayoutKind::Plain { scan } => match scan {

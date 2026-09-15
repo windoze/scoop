@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_wire::sha256;
 
-use super::{StaticStorageAtomFileRangeFailureV1, StrongStaticStorageRegistrationValidationError};
+use super::{StaticStorageAtomRangeFailureV1, StrongStaticStorageRegistrationValidationError};
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, ScoopLirObjectCandidateV1,
@@ -78,10 +78,38 @@ pub(super) fn verified_member(
         .ok_or(StrongStaticStorageRegistrationValidationError::MissingVerifiedMember(member))
 }
 
-pub(super) fn atom_file_range(
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum StaticStorageAtomRangeV1 {
+    FileBacked {
+        role: BuiltinObjectSectionRoleV1,
+        start: u64,
+        end: u64,
+    },
+    ZeroFill {
+        byte_size: u64,
+    },
+}
+
+impl StaticStorageAtomRangeV1 {
+    pub(super) const fn role(self) -> BuiltinObjectSectionRoleV1 {
+        match self {
+            Self::FileBacked { role, .. } => role,
+            Self::ZeroFill { .. } => BuiltinObjectSectionRoleV1::ZeroFill,
+        }
+    }
+
+    pub(super) const fn byte_size(self) -> u64 {
+        match self {
+            Self::FileBacked { start, end, .. } => end - start,
+            Self::ZeroFill { byte_size } => byte_size,
+        }
+    }
+}
+
+pub(super) fn atom_range(
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: VerifiedDefinitionAtomRangeV1,
-) -> Result<(BuiltinObjectSectionRoleV1, u64, u64), StaticStorageAtomFileRangeFailureV1> {
+) -> Result<StaticStorageAtomRangeV1, StaticStorageAtomRangeFailureV1> {
     let index = usize::from(atom.section_ordinal().get()) - 1;
     let section = member
         .definitions()
@@ -90,32 +118,52 @@ pub(super) fn atom_file_range(
         .sections()
         .get(index)
         .copied()
-        .ok_or(StaticStorageAtomFileRangeFailureV1::MissingSection)?;
+        .ok_or(StaticStorageAtomRangeFailureV1::MissingSection)?;
     let role = *member
         .definitions()
         .sections()
         .roles()
         .get(index)
-        .ok_or(StaticStorageAtomFileRangeFailureV1::MissingSection)?;
-    let section_file_offset = section
-        .file_offset()
-        .ok_or(StaticStorageAtomFileRangeFailureV1::NotFileBacked)?;
+        .ok_or(StaticStorageAtomRangeFailureV1::MissingSection)?;
     let start_in_section = atom
         .start()
         .checked_sub(section.virtual_address())
-        .ok_or(StaticStorageAtomFileRangeFailureV1::InvalidRange)?;
+        .ok_or(StaticStorageAtomRangeFailureV1::InvalidRange)?;
     let end_in_section = atom
         .end()
         .checked_sub(section.virtual_address())
-        .ok_or(StaticStorageAtomFileRangeFailureV1::InvalidRange)?;
+        .ok_or(StaticStorageAtomRangeFailureV1::InvalidRange)?;
     if end_in_section > section.byte_size() || start_in_section > end_in_section {
-        return Err(StaticStorageAtomFileRangeFailureV1::InvalidRange);
+        return Err(StaticStorageAtomRangeFailureV1::InvalidRange);
+    }
+    let byte_size = end_in_section - start_in_section;
+    let Some(section_file_offset) = section.file_offset() else {
+        return if role == BuiltinObjectSectionRoleV1::ZeroFill {
+            Ok(StaticStorageAtomRangeV1::ZeroFill { byte_size })
+        } else {
+            Err(StaticStorageAtomRangeFailureV1::NotFileBacked)
+        };
+    };
+    if role == BuiltinObjectSectionRoleV1::ZeroFill {
+        return Err(StaticStorageAtomRangeFailureV1::InvalidRange);
     }
     let start = section_file_offset
         .checked_add(start_in_section)
-        .ok_or(StaticStorageAtomFileRangeFailureV1::InvalidRange)?;
+        .ok_or(StaticStorageAtomRangeFailureV1::InvalidRange)?;
     let end = section_file_offset
         .checked_add(end_in_section)
-        .ok_or(StaticStorageAtomFileRangeFailureV1::InvalidRange)?;
-    Ok((role, start, end))
+        .ok_or(StaticStorageAtomRangeFailureV1::InvalidRange)?;
+    Ok(StaticStorageAtomRangeV1::FileBacked { role, start, end })
+}
+
+pub(super) fn atom_file_range(
+    member: &VerifiedMemberObjectRelocationIndexV1,
+    atom: VerifiedDefinitionAtomRangeV1,
+) -> Result<(BuiltinObjectSectionRoleV1, u64, u64), StaticStorageAtomRangeFailureV1> {
+    match atom_range(member, atom)? {
+        StaticStorageAtomRangeV1::FileBacked { role, start, end } => Ok((role, start, end)),
+        StaticStorageAtomRangeV1::ZeroFill { .. } => {
+            Err(StaticStorageAtomRangeFailureV1::NotFileBacked)
+        }
+    }
 }
