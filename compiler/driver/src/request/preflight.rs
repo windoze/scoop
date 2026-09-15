@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
 use scoop_hir::CoreInterfaceImportError;
-use scoop_identity::ConeCoordinate;
+use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
     ManifestSpan, SingleFileInputError, SingleFileLocator, SourceDiscoveryError,
@@ -14,9 +14,8 @@ use scoop_wire::DecodeLimits;
 
 use super::{
     CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, CurrentConeInput,
-    DiagnosticOutputPolicy, EmittedStageDump, ExplicitDependencyInputs, SingleConeBuildRequest,
-    SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind, StageDumpPolicy,
-    TrustedCoreInput,
+    DiagnosticOutputPolicy, EmittedStageDump, SingleConeBuildRequest, SingleConeProductionSuccess,
+    SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreInput,
 };
 use crate::{
     CoreBootstrapAuthority, LoadedTrustedCoreArtifact, SingleConeStrongIrProductionV1,
@@ -24,19 +23,23 @@ use crate::{
     TrustedCoreBootstrapInput, ValidatedTrustedCoreArtifact,
 };
 
+mod dependencies;
 #[cfg(test)]
 mod end_to_end_tests;
 mod ordinary;
+use dependencies::LoadedExplicitDependencyInputs;
+pub use dependencies::{
+    ExplicitDependencyArtifactInput, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,
+    ExplicitDependencyRole, ExplicitDependencyValidationError,
+};
 pub use ordinary::{
     OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput,
     OrdinaryConeLirStageError, OrdinaryConeMirOutput, OrdinaryConeMirStageError,
     OrdinaryConeProductionError, OrdinaryConeStrongProfileError,
 };
 
-/// The complete dependency input set supported by M23-3.
-///
-/// Its private constructor proves that neither request arguments nor the
-/// current manifest contain a non-core dependency.
+/// Proof that the manifest, explicit artifacts, and their recursive closure
+/// were all validated and contain no non-core dependency.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ValidatedExplicitDependencyInputSet {
     _core_only: (),
@@ -66,7 +69,7 @@ pub enum LoadedTrustedCoreInput {
 #[derive(Debug)]
 pub struct LoadedSingleConeBuildRequest {
     current: LoadedCurrentConeInput,
-    dependencies: ValidatedExplicitDependencyInputSet,
+    dependencies: LoadedExplicitDependencyInputs,
     trusted_core: LoadedTrustedCoreInput,
     target: scoop_codegen::ResolvedTargetProfile,
     output: SlibOutputDestination,
@@ -109,9 +112,9 @@ impl SingleConeBuildRequest {
         }
     }
 
-    /// Loads only the current manifest and trusted artifact bytes. Current
-    /// source discovery and parsing are deliberately unavailable before this
-    /// method returns the core-only dependency proof.
+    /// Loads the current manifest, every explicit dependency artifact, and
+    /// trusted core bytes. Current source discovery and parsing remain
+    /// deliberately unavailable at this stage.
     pub fn load_preflight(
         self,
         limits: DecodeLimits,
@@ -126,7 +129,12 @@ impl SingleConeBuildRequest {
             emit,
         } = self;
         let current = load_current_input(current)?;
-        let dependencies = validate_core_only_dependencies(&current, &dependencies)?;
+        let dependencies = LoadedExplicitDependencyInputs::load(
+            dependencies.direct(),
+            dependencies.support(),
+            limits,
+        )
+        .map_err(|source| SingleConePreflightError::ExplicitDependencyLoad(Box::new(source)))?;
         let trusted_core = match trusted_core {
             TrustedCoreInput::Artifact(input) => {
                 LoadedTrustedCoreInput::Artifact(input.load(limits).map_err(|source| {
@@ -218,85 +226,85 @@ fn load_current_input(
     }
 }
 
-fn validate_core_only_dependencies(
-    current: &LoadedCurrentConeInput,
-    dependencies: &ExplicitDependencyInputs,
-) -> Result<ValidatedExplicitDependencyInputSet, SingleConePreflightError> {
-    if let LoadedCurrentConeInput::Manifest { manifest } = current
-        && let Some((key, coordinate)) = manifest.parsed().semantic().dependencies().iter().next()
-    {
-        let declaration = manifest
-            .parsed()
-            .diagnostic_spans()
-            .dependency(key)
-            .ok_or_else(|| SingleConePreflightError::MissingManifestDependencySpan {
-                coordinate: coordinate.clone(),
-            })?
-            .declaration()
-            .clone();
-        return Err(SingleConePreflightError::NonCoreDependencyUnavailable(
-            NonCoreDependencyInput::Manifest {
-                coordinate: coordinate.clone(),
-                declaration,
-            },
-        ));
-    }
-    if let Some((index, artifact)) = dependencies.direct().iter().enumerate().next() {
-        return Err(SingleConePreflightError::NonCoreDependencyUnavailable(
-            NonCoreDependencyInput::DirectArtifact {
-                index,
-                path: artifact.as_path().to_path_buf(),
-            },
-        ));
-    }
-    if let Some((index, artifact)) = dependencies.support().iter().enumerate().next() {
-        return Err(SingleConePreflightError::NonCoreDependencyUnavailable(
-            NonCoreDependencyInput::SupportArtifact {
-                index,
-                path: artifact.as_path().to_path_buf(),
-            },
-        ));
-    }
-    Ok(ValidatedExplicitDependencyInputSet { _core_only: () })
-}
-
 impl LoadedSingleConeBuildRequest {
     /// Constructs the trusted-core proof before exposing any current source
     /// loading or parser entry.
     pub fn validate(
         &self,
     ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
-        let current = match (&self.current, &self.trusted_core) {
+        let (current, dependencies) = match (&self.current, &self.trusted_core) {
             (
                 LoadedCurrentConeInput::Manifest { manifest },
                 LoadedTrustedCoreInput::Artifact(artifact),
-            ) => ValidatedCurrentConeInput::Manifest {
-                manifest,
-                trusted_core: Box::new(artifact.validate(&self.target).map_err(|source| {
+            ) => {
+                let trusted_core = Box::new(artifact.validate(&self.target).map_err(|source| {
                     CoreOnlyRequestValidationError::TrustedCore(Box::new(source))
-                })?),
-            },
+                })?);
+                let current_identity = manifest
+                    .parsed()
+                    .semantic()
+                    .coordinate()
+                    .identity()
+                    .map_err(CoreOnlyRequestValidationError::CurrentIdentity)?;
+                let dependencies = self
+                    .dependencies
+                    .validate(
+                        Some(manifest),
+                        current_identity,
+                        trusted_core.as_ref(),
+                        &self.target,
+                    )
+                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
+                (
+                    ValidatedCurrentConeInput::Manifest {
+                        manifest,
+                        trusted_core,
+                    },
+                    dependencies,
+                )
+            }
             (
                 LoadedCurrentConeInput::SingleFile { source },
                 LoadedTrustedCoreInput::Artifact(artifact),
-            ) => ValidatedCurrentConeInput::SingleFile {
-                source,
-                trusted_core: Box::new(artifact.validate(&self.target).map_err(|source| {
+            ) => {
+                let trusted_core = Box::new(artifact.validate(&self.target).map_err(|source| {
                     CoreOnlyRequestValidationError::TrustedCore(Box::new(source))
-                })?),
-            },
+                })?);
+                let dependencies = self
+                    .dependencies
+                    .validate(
+                        None,
+                        ConeIdentity::SINGLE_FILE,
+                        trusted_core.as_ref(),
+                        &self.target,
+                    )
+                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
+                (
+                    ValidatedCurrentConeInput::SingleFile {
+                        source,
+                        trusted_core,
+                    },
+                    dependencies,
+                )
+            }
             (
                 LoadedCurrentConeInput::TrustedCoreBootstrap { input },
                 LoadedTrustedCoreInput::BootstrapSelf { artifact_slot },
-            ) => ValidatedCurrentConeInput::TrustedCoreBootstrap {
-                input,
-                artifact_slot,
-            },
+            ) => (
+                ValidatedCurrentConeInput::TrustedCoreBootstrap {
+                    input,
+                    artifact_slot,
+                },
+                self.dependencies
+                    .validate_bootstrap_empty()
+                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?,
+            ),
             _ => return Err(CoreOnlyRequestValidationError::InvalidLoadedInputPair),
         };
         Ok(ValidatedCoreOnlyBuildRequest {
             request: self,
             current,
+            dependencies,
         })
     }
 }
@@ -304,7 +312,9 @@ impl LoadedSingleConeBuildRequest {
 #[derive(Debug)]
 pub enum CoreOnlyRequestValidationError {
     InvalidLoadedInputPair,
+    CurrentIdentity(scoop_wire::HashError),
     TrustedCore(Box<TrustedCoreArtifactValidationError>),
+    ExplicitDependencies(Box<ExplicitDependencyValidationError>),
 }
 
 impl fmt::Display for CoreOnlyRequestValidationError {
@@ -312,7 +322,9 @@ impl fmt::Display for CoreOnlyRequestValidationError {
         match self {
             Self::InvalidLoadedInputPair => formatter
                 .write_str("loaded current Cone and trusted core inputs are not a permitted pair"),
+            Self::CurrentIdentity(source) => source.fmt(formatter),
             Self::TrustedCore(source) => source.fmt(formatter),
+            Self::ExplicitDependencies(source) => source.fmt(formatter),
         }
     }
 }
@@ -321,7 +333,9 @@ impl std::error::Error for CoreOnlyRequestValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::InvalidLoadedInputPair => None,
+            Self::CurrentIdentity(source) => Some(source),
             Self::TrustedCore(source) => Some(source.as_ref()),
+            Self::ExplicitDependencies(source) => Some(source.as_ref()),
         }
     }
 }
@@ -344,6 +358,7 @@ pub enum ValidatedCurrentConeInput<'input> {
 pub struct ValidatedCoreOnlyBuildRequest<'input> {
     request: &'input LoadedSingleConeBuildRequest,
     current: ValidatedCurrentConeInput<'input>,
+    dependencies: ValidatedExplicitDependencyInputSet,
 }
 
 impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
@@ -352,7 +367,7 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
     }
 
     pub const fn dependencies(&self) -> ValidatedExplicitDependencyInputSet {
-        self.request.dependencies
+        self.dependencies
     }
 
     pub const fn target(&self) -> &scoop_codegen::ResolvedTargetProfile {
@@ -1100,8 +1115,7 @@ impl fmt::Display for NonCoreDependencyInput {
 #[derive(Debug)]
 pub enum SingleConePreflightError {
     Manifest(Box<ManifestRootError>),
-    MissingManifestDependencySpan { coordinate: ConeCoordinate },
-    NonCoreDependencyUnavailable(NonCoreDependencyInput),
+    ExplicitDependencyLoad(Box<ExplicitDependencyLoadError>),
     TrustedCoreLoad(Box<TrustedCoreArtifactLoadError>),
 }
 
@@ -1109,15 +1123,7 @@ impl fmt::Display for SingleConePreflightError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Manifest(source) => source.fmt(formatter),
-            Self::MissingManifestDependencySpan { coordinate } => write!(
-                formatter,
-                "manifest dependency {coordinate} has no diagnostic declaration span"
-            ),
-            Self::NonCoreDependencyUnavailable(input) => write!(
-                formatter,
-                "{}: {input} requires non-core dependency support unavailable in M23-3",
-                NonCoreDependencyInput::CODE
-            ),
+            Self::ExplicitDependencyLoad(source) => source.fmt(formatter),
             Self::TrustedCoreLoad(source) => source.fmt(formatter),
         }
     }
@@ -1127,10 +1133,8 @@ impl std::error::Error for SingleConePreflightError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Manifest(source) => Some(source.as_ref()),
+            Self::ExplicitDependencyLoad(source) => Some(source.as_ref()),
             Self::TrustedCoreLoad(source) => Some(source.as_ref()),
-            Self::MissingManifestDependencySpan { .. } | Self::NonCoreDependencyUnavailable(_) => {
-                None
-            }
         }
     }
 }
@@ -1141,10 +1145,10 @@ mod tests {
     use scoop_manifest::ManifestRootLocator;
 
     use super::*;
-    use crate::HostArtifactLocator;
+    use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 
     #[test]
-    fn manifest_dependency_is_rejected_with_coordinate_and_original_span() {
+    fn manifest_dependency_is_loaded_without_discovering_current_sources() {
         let directory = tempfile::tempdir().unwrap();
         let manifest_path = directory.path().join("Cone.toml");
         let text = "schema = 1\n[cone]\ngroup = \"test\"\nname = \"current\"\nversion = \"0.0.0\"\nkind = \"library\"\n[dependencies]\n\"dev.example:dep\" = \"1.2.3\"\n";
@@ -1153,34 +1157,34 @@ mod tests {
             root: ManifestRootLocator::exact_manifest_file(manifest_path),
         })
         .unwrap();
-        let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap();
-
-        let error = validate_core_only_dependencies(&current, &dependencies).unwrap_err();
-
-        assert!(matches!(
-            error,
-            SingleConePreflightError::NonCoreDependencyUnavailable(
-                NonCoreDependencyInput::Manifest {
-                    coordinate,
-                    declaration,
-                }
-            ) if coordinate
-                == ConeCoordinate::new("dev.example", "dep", "1.2.3").unwrap()
-                && &text[declaration.range()] == "\"1.2.3\""
-        ));
+        let LoadedCurrentConeInput::Manifest { manifest } = current else {
+            panic!("test constructs a manifest input")
+        };
+        let (key, coordinate) = manifest
+            .parsed()
+            .semantic()
+            .dependencies()
+            .iter()
+            .next()
+            .unwrap();
+        let declaration = manifest
+            .parsed()
+            .diagnostic_spans()
+            .dependency(key)
+            .unwrap()
+            .declaration();
+        assert_eq!(
+            coordinate,
+            &ConeCoordinate::new("dev.example", "dep", "1.2.3").unwrap()
+        );
+        assert_eq!(&text[declaration.range()], "\"1.2.3\"");
         assert!(!directory.path().join("src").exists());
     }
 
     #[test]
-    fn explicit_artifact_is_rejected_without_reading_it() {
-        let source_directory = tempfile::tempdir().unwrap();
-        let source_path = source_directory.path().join("main.scoop");
-        std::fs::write(&source_path, "fun main() {}\n").unwrap();
-        let current = load_current_input(CurrentConeInput::SingleFile {
-            source: SingleFileLocator::from_path(source_path).unwrap(),
-        })
-        .unwrap();
-        let missing = source_directory.path().join("missing.slib");
+    fn explicit_artifact_is_read_during_preflight() {
+        let directory = tempfile::tempdir().unwrap();
+        let missing = directory.path().join("missing.slib");
         let dependencies = ExplicitDependencyInputs::new(
             vec![HostArtifactLocator::new(&missing).unwrap()],
             Vec::new(),
@@ -1188,29 +1192,32 @@ mod tests {
         .unwrap();
 
         assert!(matches!(
-            validate_core_only_dependencies(&current, &dependencies),
-            Err(SingleConePreflightError::NonCoreDependencyUnavailable(
-                NonCoreDependencyInput::DirectArtifact { index: 0, path }
-            )) if path == missing
+            LoadedExplicitDependencyInputs::load(
+                dependencies.direct(),
+                dependencies.support(),
+                DecodeLimits::default(),
+            ),
+            Err(ExplicitDependencyLoadError::Io {
+                input,
+                operation: ExplicitDependencyLoadOperation::Open,
+                ..
+            }) if input.role() == ExplicitDependencyRole::Direct
+                && input.index() == 0
+                && input.path() == missing
         ));
     }
 
     #[test]
-    fn empty_dependency_input_constructs_the_only_success_state() {
-        let source_directory = tempfile::tempdir().unwrap();
-        let source_path = source_directory.path().join("main.scoop");
-        std::fs::write(&source_path, "fun main() {}\n").unwrap();
-        let current = load_current_input(CurrentConeInput::SingleFile {
-            source: SingleFileLocator::from_path(source_path).unwrap(),
-        })
-        .unwrap();
+    fn empty_loaded_dependency_input_constructs_bootstrap_proof() {
         let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap();
+        let loaded = LoadedExplicitDependencyInputs::load(
+            dependencies.direct(),
+            dependencies.support(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
 
-        assert!(
-            validate_core_only_dependencies(&current, &dependencies)
-                .unwrap()
-                .is_empty()
-        );
+        assert!(loaded.validate_bootstrap_empty().unwrap().is_empty());
     }
 
     #[test]

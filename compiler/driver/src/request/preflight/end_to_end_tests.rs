@@ -9,6 +9,7 @@ use scoop_slib::{
 use scoop_wire::DecodeLimits;
 
 use super::*;
+use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 
 #[test]
 fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
@@ -261,6 +262,247 @@ fun main() {
     assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);
 }
 
+#[test]
+fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery() {
+    let Some(target) = resolved_target() else {
+        return;
+    };
+    let sysroot = tempfile::tempdir().unwrap();
+    let core = bootstrap_core(sysroot.path(), &target);
+
+    let dependency_root = sysroot.path().join("dependency");
+    write_manifest_cone(
+        &dependency_root,
+        "dev.example",
+        "stage3.dependency",
+        "library",
+        "fun answer(): Long = 42\n",
+    );
+    let dependency = build_manifest(
+        sysroot.path(),
+        &target,
+        &dependency_root,
+        &sysroot.path().join("artifacts/dependency.slib"),
+    );
+    let dependency_path = dependency.artifact().path().to_path_buf();
+    let dependency_coordinate =
+        ConeCoordinate::new("dev.example", "stage3.dependency", "0.1.0").unwrap();
+
+    let current = sysroot.path().join("current-valid");
+    let manifest_text =
+        write_dependency_manifest(&current, "stage3.current-valid", &[&dependency_coordinate]);
+    let error = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &current,
+        &sysroot.path().join("output/current-valid.slib"),
+        vec![dependency_path.clone()],
+        Vec::new(),
+    )
+    .build_and_publish(DecodeLimits::default())
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        SingleConeProductionError::Validation(
+            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        ) if matches!(
+            source.as_ref(),
+            ExplicitDependencyValidationError::CapabilityUnavailable(
+                NonCoreDependencyInput::Manifest {
+                    coordinate,
+                    declaration,
+                }
+            ) if coordinate == &dependency_coordinate
+                && &manifest_text[declaration.range()] == "\"0.1.0\""
+        )
+    ));
+    assert!(!current.join("src").exists());
+
+    let malformed = sysroot.path().join("artifacts/malformed.slib");
+    std::fs::write(&malformed, b"not a slib").unwrap();
+    let current = sysroot.path().join("current-malformed");
+    write_dependency_manifest(
+        &current,
+        "stage3.current-malformed",
+        &[&dependency_coordinate],
+    );
+    let error = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &current,
+        &sysroot.path().join("output/current-malformed.slib"),
+        vec![malformed],
+        Vec::new(),
+    )
+    .build_and_publish(DecodeLimits::default())
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        SingleConeProductionError::Validation(
+            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        ) if matches!(
+            source.as_ref(),
+            ExplicitDependencyValidationError::Artifact { .. }
+        )
+    ));
+    assert!(!current.join("src").exists());
+
+    let current = sysroot.path().join("current-missing-direct");
+    write_dependency_manifest(
+        &current,
+        "stage3.current-missing-direct",
+        &[&dependency_coordinate],
+    );
+    let error = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &current,
+        &sysroot.path().join("output/current-missing-direct.slib"),
+        Vec::new(),
+        Vec::new(),
+    )
+    .build_and_publish(DecodeLimits::default())
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        SingleConeProductionError::Validation(
+            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        ) if matches!(
+            source.as_ref(),
+            ExplicitDependencyValidationError::ManifestDirectSet { .. }
+        )
+    ));
+    assert!(!current.join("src").exists());
+
+    let current = sysroot.path().join("current-duplicate");
+    write_dependency_manifest(
+        &current,
+        "stage3.current-duplicate",
+        &[&dependency_coordinate],
+    );
+    let error = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &current,
+        &sysroot.path().join("output/current-duplicate.slib"),
+        vec![dependency_path.clone(), dependency_path.clone()],
+        Vec::new(),
+    )
+    .build_and_publish(DecodeLimits::default())
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        SingleConeProductionError::Validation(
+            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        ) if matches!(
+            source.as_ref(),
+            ExplicitDependencyValidationError::DuplicateIdentity {
+                same_fingerprint: true,
+                ..
+            }
+        )
+    ));
+    assert!(!current.join("src").exists());
+
+    let current = sysroot.path().join("current-extra-support");
+    write_dependency_manifest(&current, "stage3.current-extra-support", &[]);
+    let error = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &current,
+        &sysroot.path().join("output/current-extra-support.slib"),
+        Vec::new(),
+        vec![dependency_path],
+    )
+    .build_and_publish(DecodeLimits::default())
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        SingleConeProductionError::Validation(
+            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        ) if matches!(
+            source.as_ref(),
+            ExplicitDependencyValidationError::SupportClosure { .. }
+        )
+    ));
+    assert!(!current.join("src").exists());
+
+    let current = sysroot.path().join("current-core-explicit");
+    write_dependency_manifest(&current, "stage3.current-core-explicit", &[]);
+    let error = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &current,
+        &sysroot.path().join("output/current-core-explicit.slib"),
+        Vec::new(),
+        vec![core.artifact().path().to_path_buf()],
+    )
+    .build_and_publish(DecodeLimits::default())
+    .unwrap_err();
+    assert!(
+        matches!(
+            &error,
+            SingleConeProductionError::Validation(
+                CoreOnlyRequestValidationError::ExplicitDependencies(source)
+            ) if matches!(
+                source.as_ref(),
+                ExplicitDependencyValidationError::ReservedCoreArtifact { .. }
+            )
+        ),
+        "{error:?}"
+    );
+    assert!(!current.join("src").exists());
+
+    let executable_root = sysroot.path().join("dependency-executable");
+    write_manifest_cone(
+        &executable_root,
+        "dev.example",
+        "stage3.dependency-executable",
+        "executable",
+        "fun main() {}\n",
+    );
+    let executable = build_manifest(
+        sysroot.path(),
+        &target,
+        &executable_root,
+        &sysroot.path().join("artifacts/dependency-executable.slib"),
+    );
+    let executable_coordinate =
+        ConeCoordinate::new("dev.example", "stage3.dependency-executable", "0.1.0").unwrap();
+    let current = sysroot.path().join("current-executable-dependency");
+    write_dependency_manifest(
+        &current,
+        "stage3.current-executable-dependency",
+        &[&executable_coordinate],
+    );
+    let error = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &current,
+        &sysroot
+            .path()
+            .join("output/current-executable-dependency.slib"),
+        vec![executable.artifact().path().to_path_buf()],
+        Vec::new(),
+    )
+    .build_and_publish(DecodeLimits::default())
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        SingleConeProductionError::Validation(
+            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        ) if matches!(
+            source.as_ref(),
+            ExplicitDependencyValidationError::UnsupportedArtifactShape {
+                kind: ConeKind::Executable,
+                source_form: ConeSourceForm::Manifest,
+                ..
+            }
+        )
+    ));
+    assert!(!current.join("src").exists());
+}
+
 fn resolved_target() -> Option<scoop_codegen::ResolvedTargetProfile> {
     // The target resolver owns host Apple-toolchain qualification. A machine
     // blocked by the Xcode license gate cannot enter object production.
@@ -350,6 +592,44 @@ fn build_ordinary(
     .unwrap()
 }
 
+fn build_manifest_request(
+    sysroot: &Path,
+    target: &scoop_codegen::ResolvedTargetProfile,
+    root: &Path,
+    output: &Path,
+    direct: Vec<std::path::PathBuf>,
+    support: Vec<std::path::PathBuf>,
+) -> SingleConeBuildRequest {
+    std::fs::create_dir_all(output.parent().unwrap()).unwrap();
+    let core_slot =
+        crate::trusted_core::resolve_trusted_core_slot_at(sysroot, target.lir_target_selection())
+            .unwrap();
+    SingleConeBuildRequest::new(
+        CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(root),
+        },
+        ExplicitDependencyInputs::new(
+            direct
+                .into_iter()
+                .map(HostArtifactLocator::new)
+                .collect::<Result<_, _>>()
+                .unwrap(),
+            support
+                .into_iter()
+                .map(HostArtifactLocator::new)
+                .collect::<Result<_, _>>()
+                .unwrap(),
+        )
+        .unwrap(),
+        TrustedCoreInput::Artifact(core_slot.existing_artifact_input().unwrap()),
+        target.clone(),
+        SlibOutputDestination::new(output).unwrap(),
+        DiagnosticOutputPolicy::Human,
+        StageDumpPolicy::None,
+    )
+    .unwrap()
+}
+
 fn assert_graph_dependencies(
     artifact: &SingleConeProductionSuccess,
     target: &scoop_codegen::ResolvedTargetProfile,
@@ -398,6 +678,26 @@ fn write_manifest_cone(root: &Path, group: &str, name: &str, kind: &str, source:
     )
     .unwrap();
     std::fs::write(root.join("src/main.scoop"), source).unwrap();
+}
+
+fn write_dependency_manifest(root: &Path, name: &str, dependencies: &[&ConeCoordinate]) -> String {
+    std::fs::create_dir_all(root).unwrap();
+    let mut manifest = format!(
+        "schema = 1\n[cone]\ngroup = \"dev.example\"\nname = \"{name}\"\nversion = \"0.1.0\"\nkind = \"library\"\n"
+    );
+    if !dependencies.is_empty() {
+        manifest.push_str("[dependencies]\n");
+        for coordinate in dependencies {
+            manifest.push_str(&format!(
+                "\"{}:{}\" = \"{}\"\n",
+                coordinate.group(),
+                coordinate.name(),
+                coordinate.version()
+            ));
+        }
+    }
+    std::fs::write(root.join("Cone.toml"), &manifest).unwrap();
+    manifest
 }
 
 fn copy_trusted_core_sources(sysroot: &Path) {
