@@ -75,6 +75,21 @@ impl ExpectedEh {
         self.functions.get(symbol)
     }
 
+    pub(crate) fn without_body_metadata(&self) -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn for_function(&self, symbol: &str) -> Self {
+        Self {
+            functions: self
+                .functions
+                .get(symbol)
+                .cloned()
+                .map(|function| BTreeMap::from([(symbol.to_string(), function)]))
+                .unwrap_or_default(),
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn action_count(&self, symbol: &str, action: EhActionKind) -> usize {
         self.function(symbol)

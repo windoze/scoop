@@ -87,3 +87,67 @@ fn partition_is_complete_non_overlapping_and_excludes_generated_bridge_units() {
             .all(|plan| !generated_bridge_definitions.contains(plan))
     );
 }
+
+#[test]
+fn renders_only_the_callable_selected_by_each_physical_member() {
+    let mut module = exceptions_module();
+    module.output = scoop_lir::LirOutput::Library;
+    let symbols = module
+        .functions
+        .iter()
+        .map(|function| (function.callable_body.id(), function.symbol().to_string()))
+        .collect::<Vec<_>>();
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+
+    let rendered = render_llvm_ir_members(
+        &input,
+        &scoop_lir::ConeCoordinate::reserved_single_file(),
+        scoop_lir::EntryProductionSourceV1::Library,
+        host_profile(),
+    )
+    .unwrap();
+
+    for member in rendered {
+        let defined = symbols
+            .iter()
+            .filter(|(_, symbol)| {
+                member.llvm_ir().lines().any(|line| {
+                    line.starts_with("define ") && line.contains(&format!("@\"{symbol}\""))
+                })
+            })
+            .map(|(body, _)| *body)
+            .collect::<Vec<_>>();
+        match member.units().kind() {
+            StrongScoopLirObjectKindV1::NonCallable => assert!(defined.is_empty()),
+            StrongScoopLirObjectKindV1::CallableBody(body) => assert_eq!(defined, vec![body]),
+        }
+    }
+}
+
+#[test]
+fn emitted_object_set_owns_verified_temporary_members() {
+    let mut module = exceptions_module();
+    module.output = scoop_lir::LirOutput::Library;
+    let expected_members = module.functions.len() + 1;
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let parent = tempfile::tempdir().unwrap();
+
+    let emitted = emit_object_set(
+        &input,
+        &scoop_lir::ConeCoordinate::reserved_single_file(),
+        scoop_lir::EntryProductionSourceV1::Library,
+        parent.path(),
+        host_profile(),
+    )
+    .unwrap();
+
+    assert_eq!(emitted.members().len(), expected_members);
+    assert!(emitted.members().iter().all(|member| {
+        std::fs::metadata(member.path())
+            .is_ok_and(|metadata| metadata.len() > 0 && metadata.permissions().readonly())
+    }));
+    let backing = emitted.temporary_directory().to_path_buf();
+    assert!(backing.starts_with(parent.path()));
+    drop(emitted);
+    assert!(!backing.exists());
+}

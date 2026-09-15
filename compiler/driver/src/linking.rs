@@ -86,7 +86,7 @@ pub(super) fn build_runtime(
 /// Link the object file and the runtime static library into an executable
 /// using the system `cc` driver.
 pub(super) struct LinkRequest<'a> {
-    pub(super) object: &'a Path,
+    pub(super) objects: &'a [PathBuf],
     pub(super) bridge_object: Option<&'a Path>,
     pub(super) runtime_lib: &'a Path,
     pub(super) libraries: &'a [String],
@@ -98,7 +98,7 @@ pub(super) struct LinkRequest<'a> {
 
 pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
     let LinkRequest {
-        object,
+        objects,
         bridge_object,
         runtime_lib,
         libraries,
@@ -116,7 +116,7 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
 
     let mut command = Command::new(profile.linker_driver());
     command.arg("-target").arg(profile.canonical_triple());
-    command.arg(object);
+    command.args(objects);
     if let Some(bridge_object) = bridge_object {
         command.arg(bridge_object);
     }

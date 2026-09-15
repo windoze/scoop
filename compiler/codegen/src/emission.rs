@@ -1,40 +1,106 @@
 use super::*;
 
-/// Verified strong object emission inputs retained for `.slib` packaging.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EmittedStrongObjectV1 {
-    production: scoop_lir::StrongProductionSectionV1,
-    runtime_metadata: EmittedStrongRuntimeMetadataV1,
+/// One verified provisional Scoop object and its exact producer units.
+#[derive(Debug)]
+pub struct EmittedStrongObjectMemberV1 {
+    units: StrongScoopLirObjectUnitSetV1,
+    path: std::path::PathBuf,
+    kind: EmittedStrongObjectMemberKind,
 }
 
-impl EmittedStrongObjectV1 {
+#[derive(Debug)]
+enum EmittedStrongObjectMemberKind {
+    NonCallable {
+        runtime_metadata: EmittedStrongRuntimeMetadataV1,
+    },
+    CallableBody {
+        body: scoop_lir::PersistentCallableBodyId,
+    },
+}
+
+/// Borrowed typed contents of one verified provisional member.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmittedStrongObjectMemberKindV1<'a> {
+    NonCallable {
+        runtime_metadata: &'a EmittedStrongRuntimeMetadataV1,
+    },
+    CallableBody {
+        body: scoop_lir::PersistentCallableBodyId,
+    },
+}
+
+impl EmittedStrongObjectMemberV1 {
+    pub const fn units(&self) -> &StrongScoopLirObjectUnitSetV1 {
+        &self.units
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub const fn kind(&self) -> EmittedStrongObjectMemberKindV1<'_> {
+        match &self.kind {
+            EmittedStrongObjectMemberKind::NonCallable { runtime_metadata } => {
+                EmittedStrongObjectMemberKindV1::NonCallable { runtime_metadata }
+            }
+            EmittedStrongObjectMemberKind::CallableBody { body } => {
+                EmittedStrongObjectMemberKindV1::CallableBody { body: *body }
+            }
+        }
+    }
+}
+
+/// Complete verified provisional Scoop object set retained for `.slib`
+/// packaging. The owned temporary directory keeps every member immutable and
+/// alive for exactly as long as this result.
+#[derive(Debug)]
+pub struct EmittedStrongObjectSetV1 {
+    production: scoop_lir::StrongProductionSectionV1,
+    members: Vec<EmittedStrongObjectMemberV1>,
+    backing: tempfile::TempDir,
+}
+
+impl EmittedStrongObjectSetV1 {
     pub const fn production(&self) -> &scoop_lir::StrongProductionSectionV1 {
         &self.production
     }
 
-    pub const fn runtime_metadata(&self) -> &EmittedStrongRuntimeMetadataV1 {
-        &self.runtime_metadata
+    pub fn members(&self) -> &[EmittedStrongObjectMemberV1] {
+        &self.members
     }
 
-    pub fn into_parts(
-        self,
-    ) -> (
-        scoop_lir::StrongProductionSectionV1,
-        EmittedStrongRuntimeMetadataV1,
-    ) {
-        (self.production, self.runtime_metadata)
+    pub fn temporary_directory(&self) -> &Path {
+        self.backing.path()
     }
 }
 
-/// Translate one sealed strong LIR product to a provisional object and retain
-/// the exact production/patch authority required by `.slib` packaging.
-pub fn emit_object(
+/// One rendered physical member used by diagnostics and golden tests.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RenderedStrongObjectModuleV1 {
+    units: StrongScoopLirObjectUnitSetV1,
+    llvm_ir: String,
+}
+
+impl RenderedStrongObjectModuleV1 {
+    pub const fn units(&self) -> &StrongScoopLirObjectUnitSetV1 {
+        &self.units
+    }
+
+    pub fn llvm_ir(&self) -> &str {
+        &self.llvm_ir
+    }
+}
+
+/// Translate one sealed strong LIR product to its complete provisional object
+/// set and retain the exact production/patch authority required by `.slib`
+/// packaging.
+pub fn emit_object_set(
     input: &scoop_lir::SingleConeStrongLirOutput,
     coordinate: &scoop_lir::ConeCoordinate,
     entry_source: scoop_lir::EntryProductionSourceV1,
-    output: &Path,
+    temporary_parent: &Path,
     profile: ValidatedBackendProfile,
-) -> Result<EmittedStrongObjectV1, CodegenError> {
+) -> Result<EmittedStrongObjectSetV1, CodegenError> {
     let module = input.module();
     validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
@@ -43,48 +109,110 @@ pub fn emit_object(
         .map_err(|error| {
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
+    let partition = StrongScoopLirObjectPartitionV1::from_input(input)
+        .map_err(|error| CodegenError(error.to_string()))?;
     let expected_safepoints = statepoint::expectations(module)?;
     let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
-    let context = Context::create();
-    let (llvm, runtime_metadata) = prepare_strong_llvm_module(
-        &context,
-        module,
-        &production,
-        &machine,
-        profile,
-        &expected_safepoints,
-    )?;
-
-    machine
-        .write_to_file(&llvm, FileType::Object, output)
-        .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
-    if let Err(error) = profile.verify_object(output, &expected_safepoints, &expected_eh) {
-        if let Err(remove_error) = std::fs::remove_file(output) {
-            return Err(CodegenError(format!(
-                "{error}; also failed to discard invalid object {}: {remove_error}",
-                output.display()
-            )));
-        }
-        return Err(error);
+    std::fs::create_dir_all(temporary_parent).map_err(|error| {
+        CodegenError(format!(
+            "cannot create object temporary parent {}: {error}",
+            temporary_parent.display()
+        ))
+    })?;
+    let backing = tempfile::Builder::new()
+        .prefix("scoop-lir-")
+        .tempdir_in(temporary_parent)
+        .map_err(|error| {
+            CodegenError(format!(
+                "cannot create immutable object backing under {}: {error}",
+                temporary_parent.display()
+            ))
+        })?;
+    let mut members = Vec::with_capacity(partition.objects().len());
+    for units in partition.objects() {
+        let path = backing
+            .path()
+            .join(format!("{}.o", units.definition_plans()[0]));
+        let context = Context::create();
+        let member = match units.kind() {
+            StrongScoopLirObjectKindV1::NonCallable => {
+                let selected_safepoints = expected_safepoints.without_body_sites();
+                let selected_eh = expected_eh.without_body_metadata();
+                let (llvm, runtime_metadata) = prepare_non_callable_strong_llvm_module(
+                    &context,
+                    module,
+                    &production,
+                    &machine,
+                    profile,
+                    &selected_safepoints,
+                )?;
+                write_and_verify_object(
+                    &machine,
+                    &llvm,
+                    &path,
+                    profile,
+                    &selected_safepoints,
+                    &selected_eh,
+                )?;
+                EmittedStrongObjectMemberV1 {
+                    units: units.clone(),
+                    path,
+                    kind: EmittedStrongObjectMemberKind::NonCallable { runtime_metadata },
+                }
+            }
+            StrongScoopLirObjectKindV1::CallableBody(body) => {
+                let function = module
+                    .functions
+                    .iter()
+                    .find(|function| function.callable_body.id() == body)
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "strong object partition selected missing callable body {body}"
+                        ))
+                    })?;
+                let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
+                let selected_eh = expected_eh.for_function(function.symbol());
+                let llvm = prepare_callable_strong_llvm_module(
+                    &context,
+                    module,
+                    &production,
+                    &machine,
+                    profile,
+                    &selected_safepoints,
+                    body,
+                )?;
+                write_and_verify_object(
+                    &machine,
+                    &llvm,
+                    &path,
+                    profile,
+                    &selected_safepoints,
+                    &selected_eh,
+                )?;
+                EmittedStrongObjectMemberV1 {
+                    units: units.clone(),
+                    path,
+                    kind: EmittedStrongObjectMemberKind::CallableBody { body },
+                }
+            }
+        };
+        members.push(member);
     }
-    Ok(EmittedStrongObjectV1 {
+    Ok(EmittedStrongObjectSetV1 {
         production,
-        runtime_metadata,
+        members,
+        backing,
     })
 }
 
-/// Translate sealed strong LIR to verified LLVM IR text without writing an
-/// artifact. The rendered module includes the complete runtime metadata v1
-/// surface and still contains zeroed digest slots awaiting object finalization.
-///
-/// This is the same translation and statepoint rewrite used by [`emit_object`].
-pub fn render_llvm_ir(
+/// Render every physical strong object module without writing artifacts.
+pub fn render_llvm_ir_members(
     input: &scoop_lir::SingleConeStrongLirOutput,
     coordinate: &scoop_lir::ConeCoordinate,
     entry_source: scoop_lir::EntryProductionSourceV1,
     profile: ValidatedBackendProfile,
-) -> Result<String, CodegenError> {
+) -> Result<Vec<RenderedStrongObjectModuleV1>, CodegenError> {
     let module = input.module();
     validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
@@ -93,21 +221,59 @@ pub fn render_llvm_ir(
         .map_err(|error| {
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
+    let partition = StrongScoopLirObjectPartitionV1::from_input(input)
+        .map_err(|error| CodegenError(error.to_string()))?;
     let expected_safepoints = statepoint::expectations(module)?;
     let machine = profile.create_target_machine()?;
-    let context = Context::create();
-    let (llvm, _) = prepare_strong_llvm_module(
-        &context,
-        module,
-        &production,
-        &machine,
-        profile,
-        &expected_safepoints,
-    )?;
-    Ok(llvm.print_to_string().to_string())
+    partition
+        .objects()
+        .iter()
+        .map(|units| {
+            let context = Context::create();
+            let llvm = match units.kind() {
+                StrongScoopLirObjectKindV1::NonCallable => {
+                    let selected = expected_safepoints.without_body_sites();
+                    prepare_non_callable_strong_llvm_module(
+                        &context,
+                        module,
+                        &production,
+                        &machine,
+                        profile,
+                        &selected,
+                    )?
+                    .0
+                }
+                StrongScoopLirObjectKindV1::CallableBody(body) => {
+                    let function = module
+                        .functions
+                        .iter()
+                        .find(|function| function.callable_body.id() == body)
+                        .ok_or_else(|| {
+                            CodegenError(format!(
+                                "strong object partition selected missing callable body {body}"
+                            ))
+                        })?;
+                    let selected = expected_safepoints.for_function(function.symbol())?;
+                    prepare_callable_strong_llvm_module(
+                        &context,
+                        module,
+                        &production,
+                        &machine,
+                        profile,
+                        &selected,
+                        body,
+                    )?
+                }
+            };
+            Ok(RenderedStrongObjectModuleV1 {
+                units: units.clone(),
+                llvm_ir: llvm.print_to_string().to_string(),
+            })
+        })
+        .collect()
 }
 
-fn prepare_strong_llvm_module<'ctx>(
+fn prepare_non_callable_strong_llvm_module<'ctx>(
     context: &'ctx Context,
     module: &Module,
     production: &scoop_lir::StrongProductionSectionV1,
@@ -124,6 +290,7 @@ fn prepare_strong_llvm_module<'ctx>(
         production.canonical_definitions(),
         machine,
         profile,
+        StrongObjectEmissionSelection::NonCallable,
         |context, llvm, target_data, bounds_message, array_size_message| {
             let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
                 context,
@@ -142,6 +309,74 @@ fn prepare_strong_llvm_module<'ctx>(
 
     verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
     Ok((llvm, runtime_metadata))
+}
+
+fn prepare_callable_strong_llvm_module<'ctx>(
+    context: &'ctx Context,
+    module: &Module,
+    production: &scoop_lir::StrongProductionSectionV1,
+    machine: &TargetMachine,
+    profile: ValidatedBackendProfile,
+    expected_safepoints: &statepoint::ExpectedSafepoints,
+    body: scoop_lir::PersistentCallableBodyId,
+) -> Result<LlvmModule<'ctx>, CodegenError> {
+    if let scoop_lir::LirOutput::Executable { entry } = module.output {
+        validation::validate_executable_entry(module, entry)?;
+    }
+    let (llvm, ()) = emit_llvm_module_with_surface(
+        context,
+        module,
+        production.canonical_definitions(),
+        machine,
+        profile,
+        StrongObjectEmissionSelection::CallableBody(body),
+        |context, llvm, _, _, _| {
+            Ok((
+                (),
+                declare_initialization_unit_globals(context, llvm, module, production)?,
+            ))
+        },
+    )?;
+    verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
+    Ok(llvm)
+}
+
+fn write_and_verify_object(
+    machine: &TargetMachine,
+    llvm: &LlvmModule<'_>,
+    output: &Path,
+    profile: ValidatedBackendProfile,
+    expected_safepoints: &statepoint::ExpectedSafepoints,
+    expected_eh: &artifact::ExpectedEh,
+) -> Result<(), CodegenError> {
+    machine
+        .write_to_file(llvm, FileType::Object, output)
+        .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))?;
+    if let Err(error) = profile.verify_object(output, expected_safepoints, expected_eh) {
+        if let Err(remove_error) = std::fs::remove_file(output) {
+            return Err(CodegenError(format!(
+                "{error}; also failed to discard invalid object {}: {remove_error}",
+                output.display()
+            )));
+        }
+        return Err(error);
+    }
+    let mut permissions = std::fs::metadata(output)
+        .map_err(|error| {
+            CodegenError(format!(
+                "cannot inspect verified object {}: {error}",
+                output.display()
+            ))
+        })?
+        .permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(output, permissions).map_err(|error| {
+        CodegenError(format!(
+            "cannot seal verified object {} read-only: {error}",
+            output.display()
+        ))
+    })?;
+    Ok(())
 }
 
 fn verify_and_rewrite_module(
@@ -171,12 +406,41 @@ pub(crate) fn host_target_machine() -> Result<TargetMachine, CodegenError> {
 
 /// Translate `module` to an (unverified) LLVM module: globals,
 /// TypeDescriptors, and every function.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StrongObjectEmissionSelection {
+    #[cfg(test)]
+    CompleteTestModule,
+    NonCallable,
+    CallableBody(scoop_lir::PersistentCallableBodyId),
+}
+
+impl StrongObjectEmissionSelection {
+    fn defines_non_callable(self) -> bool {
+        match self {
+            #[cfg(test)]
+            Self::CompleteTestModule => true,
+            Self::NonCallable => true,
+            Self::CallableBody(_) => false,
+        }
+    }
+
+    fn defines_callable(self, body: scoop_lir::PersistentCallableBodyId) -> bool {
+        match self {
+            #[cfg(test)]
+            Self::CompleteTestModule => true,
+            Self::NonCallable => false,
+            Self::CallableBody(selected) => selected == body,
+        }
+    }
+}
+
 fn emit_llvm_module_with_surface<'ctx, R>(
     context: &'ctx Context,
     module: &Module,
     surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
+    selection: StrongObjectEmissionSelection,
     emit_runtime_metadata: impl FnOnce(
         &'ctx Context,
         &LlvmModule<'ctx>,
@@ -244,8 +508,11 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         &target_data,
         surface,
         module.cone,
-        scoop_lir::ConeImageSupportRole::ArrayBoundsMessage,
-        b"array index out of bounds",
+        (
+            scoop_lir::ConeImageSupportRole::ArrayBoundsMessage,
+            b"array index out of bounds",
+        ),
+        selection.defines_non_callable(),
     )?;
     let array_size_message = emit_cone_trap_message(
         context,
@@ -253,8 +520,11 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         &target_data,
         surface,
         module.cone,
-        scoop_lir::ConeImageSupportRole::ArraySizeOverflowMessage,
-        b"array size overflow",
+        (
+            scoop_lir::ConeImageSupportRole::ArraySizeOverflowMessage,
+            b"array size overflow",
+        ),
+        selection.defines_non_callable(),
     )?;
 
     // Ordinary globals are disjoint from descriptor identities.
@@ -277,15 +547,17 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 let llvm_global =
                     llvm.add_global(ty, Some(managed_address_space.inkwell()), global.symbol());
                 llvm_global.set_constant(true);
-                llvm_global.set_initializer(&context.const_struct(
-                    &[
-                        string_td.as_pointer_value().into(),
-                        i64_ty.const_zero().into(),
-                        i64_ty.const_int(bytes.len() as u64, false).into(),
-                        context.const_string(bytes, false).into(),
-                    ],
-                    false,
-                ));
+                if selection.defines_non_callable() {
+                    llvm_global.set_initializer(&context.const_struct(
+                        &[
+                            string_td.as_pointer_value().into(),
+                            i64_ty.const_zero().into(),
+                            i64_ty.const_int(bytes.len() as u64, false).into(),
+                            context.const_string(bytes, false).into(),
+                        ],
+                        false,
+                    ));
+                }
                 apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
                 globals.push(Some(llvm_global));
             }
@@ -297,7 +569,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 let llvm_global = llvm.add_global(ty, None, global.symbol());
                 llvm_global.set_constant(true);
                 apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
-                llvm_global.set_initializer(&context.const_string(bytes, true));
+                if selection.defines_callable(identity.owner()) {
+                    llvm_global.set_initializer(&context.const_string(bytes, true));
+                }
                 globals.push(Some(llvm_global));
             }
             GlobalInit::Storage {
@@ -316,28 +590,34 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 )?;
                 let logical_size = target_data.get_store_size(&logical_ty);
                 let logical_alignment = target_data.get_abi_alignment(&logical_ty);
-                let (storage_ty, value) = if logical_size == 0 {
-                    (i8_ty.into(), i8_ty.const_zero().into())
+                let storage_ty = if logical_size == 0 {
+                    i8_ty.into()
                 } else {
-                    let value = match initial_state {
-                        LirStaticInitialState::ZeroedForRuntimeUnit => logical_ty.const_zero(),
-                        LirStaticInitialState::EncodedStaticValue { payload } => llvm_constant(
-                            context,
-                            &module.structs,
-                            &module.enums,
-                            &globals,
-                            managed_address_space,
-                            lir_ty,
-                            payload,
-                        )?,
-                    };
-                    (logical_ty, value)
+                    logical_ty
                 };
                 let llvm_global = llvm.add_global(storage_ty, None, global.symbol());
-                llvm_global.set_initializer(&value);
                 llvm_global.set_alignment(logical_alignment);
                 llvm_global.set_thread_local(*thread_local);
                 apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
+                if selection.defines_non_callable() {
+                    let value = if logical_size == 0 {
+                        i8_ty.const_zero().into()
+                    } else {
+                        match initial_state {
+                            LirStaticInitialState::ZeroedForRuntimeUnit => storage_ty.const_zero(),
+                            LirStaticInitialState::EncodedStaticValue { payload } => llvm_constant(
+                                context,
+                                &module.structs,
+                                &module.enums,
+                                &globals,
+                                managed_address_space,
+                                lir_ty,
+                                payload,
+                            )?,
+                        }
+                    };
+                    llvm_global.set_initializer(&value);
+                }
                 globals.push(Some(llvm_global));
             }
         }
@@ -350,6 +630,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             let GlobalInit::CString { identity, .. } = &global.init else {
                 return None;
             };
+            if !selection.defines_callable(identity.owner()) {
+                return None;
+            }
             let owner = llvm
                 .get_global(identity.symbol())
                 .expect("the callable C string was emitted above");
@@ -424,15 +707,17 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         array_size_message,
     )?;
 
-    shape_definitions::emit_strong_shape_definitions_v1(
-        context,
-        &llvm,
-        &target_data,
-        surface,
-        module,
-        &type_tds,
-        &external_type_tds,
-    )?;
+    if selection.defines_non_callable() {
+        shape_definitions::emit_strong_shape_definitions_v1(
+            context,
+            &llvm,
+            &target_data,
+            surface,
+            module,
+            &type_tds,
+            &external_type_tds,
+        )?;
+    }
     let module_ctx = ModuleCtx {
         managed_address_space,
         functions: &module.functions,
@@ -456,7 +741,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         array_size_message,
     };
     for function in &module.functions {
-        emit_function(context, &llvm, &builder, &module_ctx, function)?;
+        if selection.defines_callable(function.callable_body.id()) {
+            emit_function(context, &llvm, &builder, &module_ctx, function)?;
+        }
     }
     Ok((llvm, runtime_metadata))
 }
@@ -467,9 +754,10 @@ pub(crate) fn emit_cone_trap_message<'ctx>(
     target_data: &inkwell::targets::TargetData,
     surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
     producer: scoop_lir::ConeIdentity,
-    support: scoop_lir::ConeImageSupportRole,
-    bytes: &[u8],
+    message: (scoop_lir::ConeImageSupportRole, &[u8]),
+    define: bool,
 ) -> Result<GlobalValue<'ctx>, CodegenError> {
+    let (support, bytes) = message;
     let plan_key = scoop_lir::ObjectDefinitionPlanKey::strong(
         producer,
         scoop_lir::StrongDefinitionEntity::cone_image(producer),
@@ -504,15 +792,17 @@ pub(crate) fn emit_cone_trap_message<'ctx>(
     let global = llvm.add_global(ty, None, symbol.as_str());
     global.set_constant(true);
     apply_persistent_linkage(&global, boundary.start())?;
-    global.set_initializer(&context.const_string(bytes, true));
-    atom_boundaries::emit_global_atom_boundaries_v1(
-        llvm,
-        target_data,
-        surface,
-        [atom_boundaries::GlobalAtomMaterializationV1::new(
-            atom, global,
-        )],
-    )?;
+    if define {
+        global.set_initializer(&context.const_string(bytes, true));
+        atom_boundaries::emit_global_atom_boundaries_v1(
+            llvm,
+            target_data,
+            surface,
+            [atom_boundaries::GlobalAtomMaterializationV1::new(
+                atom, global,
+            )],
+        )?;
+    }
     Ok(global)
 }
 
@@ -539,6 +829,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
         &surface,
         machine,
         profile,
+        StrongObjectEmissionSelection::CompleteTestModule,
         |_, _, _, _, _| Ok(((), Vec::new())),
     )
     .map(|(llvm, ())| llvm)
@@ -555,6 +846,55 @@ fn initialization_unit_globals<'ctx>(
             .iter()
             .map(|registration| (registration.unit(), registration.coordinator_descriptor())),
     )
+}
+
+fn declare_initialization_unit_globals<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    module: &Module,
+    production: &scoop_lir::StrongProductionSectionV1,
+) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+    let plans = production
+        .registration_production()
+        .initialization_units()
+        .registrations()
+        .iter()
+        .map(|plan| (plan.semantic().unit(), plan))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let ty = runtime_metadata_v1::coordinator_descriptor_type(context);
+    let globals = module
+        .initialization_units
+        .iter()
+        .map(|(_, unit)| {
+            let id = unit.identity.id();
+            let plan = plans.get(&id).ok_or_else(|| {
+                CodegenError(format!(
+                    "initialization unit {id} has no strong production plan"
+                ))
+            })?;
+            let request = plan.descriptor_symbol();
+            let symbol = request.symbol();
+            if llvm.get_global(symbol.as_str()).is_some()
+                || llvm.get_function(symbol.as_str()).is_some()
+            {
+                return Err(CodegenError(format!(
+                    "initialization coordinator declaration `{symbol}` collides with an LLVM value"
+                )));
+            }
+            let global = llvm.add_global(ty, None, symbol.as_str());
+            global.set_constant(true);
+            apply_persistent_linkage(&global, request)?;
+            Ok(global)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if globals.len() != plans.len() {
+        return Err(CodegenError(format!(
+            "strong initialization declaration coverage mismatch: LIR {}, planned {}",
+            globals.len(),
+            plans.len()
+        )));
+    }
+    Ok(globals)
 }
 
 pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(

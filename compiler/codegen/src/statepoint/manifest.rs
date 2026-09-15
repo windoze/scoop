@@ -17,14 +17,14 @@ impl ExpectedRoot {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum ExpectedStatepoint {
     Relocating(Vec<ExpectedRoot>),
     NativeTransition(scoop_lir::RuntimeAbiSymbolV1),
     ZeroLiveInvoke,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ExpectedSite {
     pub(super) function: String,
     pub(super) block: String,
@@ -49,6 +49,30 @@ impl ExpectedSafepoints {
                 ExpectedStatepoint::Relocating(roots) => roots.len(),
                 ExpectedStatepoint::NativeTransition(_) | ExpectedStatepoint::ZeroLiveInvoke => 0,
             })
+    }
+
+    pub(crate) fn without_body_sites(&self) -> Self {
+        Self {
+            sites: BTreeMap::new(),
+            functions: self.functions.clone(),
+        }
+    }
+
+    pub(crate) fn for_function(&self, symbol: &str) -> Result<Self, CodegenError> {
+        if !self.functions.contains_key(symbol) {
+            return Err(CodegenError(format!(
+                "cannot select safepoints for unknown LIR function `{symbol}`"
+            )));
+        }
+        Ok(Self {
+            sites: self
+                .sites
+                .iter()
+                .filter(|(_, site)| site.function == symbol)
+                .map(|(id, site)| (*id, site.clone()))
+                .collect(),
+            functions: self.functions.clone(),
+        })
     }
 }
 

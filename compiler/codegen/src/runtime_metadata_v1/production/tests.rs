@@ -29,8 +29,11 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
         &target_data,
         production.canonical_definitions(),
         producer,
-        ConeImageSupportRole::ArrayBoundsMessage,
-        b"array index out of bounds",
+        (
+            ConeImageSupportRole::ArrayBoundsMessage,
+            b"array index out of bounds",
+        ),
+        true,
     )
     .unwrap();
     let array_size_message = crate::emission::emit_cone_trap_message(
@@ -39,8 +42,11 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
         &target_data,
         production.canonical_definitions(),
         producer,
-        ConeImageSupportRole::ArraySizeOverflowMessage,
-        b"array size overflow",
+        (
+            ConeImageSupportRole::ArraySizeOverflowMessage,
+            b"array size overflow",
+        ),
+        true,
     )
     .unwrap();
 

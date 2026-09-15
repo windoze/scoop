@@ -52,10 +52,12 @@ pub use immortal_registration::{
 };
 
 mod initialization;
-pub(crate) use initialization::emit_strong_initialization_unit_registrations_v1;
 pub use initialization::{
     EmittedStrongInitializationUnitRegistrationSetV1,
     EmittedStrongInitializationUnitRegistrationV1, InitializationRegistrationPatchSiteV1,
+};
+pub(crate) use initialization::{
+    coordinator_descriptor_type, emit_strong_initialization_unit_registrations_v1,
 };
 
 mod static_storage;

@@ -116,13 +116,17 @@ pub(super) fn lower_program(
         scoop_codegen::ResolvedTargetProfile::resolve_host().expect("supported host profile");
     let lir = scoop_lir_lower::lower(&mir, profile.lir_target())
         .expect("integer test lowers to ODR-free LIR");
-    let llvm = scoop_codegen::render_llvm_ir(
+    let llvm = scoop_codegen::render_llvm_ir_members(
         &lir,
         &scoop_lir::ConeCoordinate::reserved_single_file(),
         entry_source,
         profile.backend(),
     )
-    .expect("render verified LLVM IR");
+    .expect("render verified LLVM IR members")
+    .iter()
+    .map(|member| member.llvm_ir())
+    .collect::<Vec<_>>()
+    .join("\n");
     let lir = lir.into_module();
     (mir, lir, llvm)
 }

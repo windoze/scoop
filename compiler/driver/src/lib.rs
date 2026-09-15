@@ -247,17 +247,21 @@ pub fn compile_file_with_options(
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("scoop-out");
-        let object = out_dir.join(format!("{stem}.o"));
         let binary = out_dir.join(stem);
 
-        scoop_codegen::emit_object(
+        let scoop_objects = scoop_codegen::emit_object_set(
             &lir,
             &scoop_lir::ConeCoordinate::reserved_single_file(),
             entry_source,
-            &object,
+            out_dir,
             target_profile.backend(),
         )
         .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
+        let object_paths = scoop_objects
+            .members()
+            .iter()
+            .map(|member| member.path().to_path_buf())
+            .collect::<Vec<_>>();
 
         let bridge_object = match scoop_codegen::c_bridge_source(lir.module()).map_err(|e| {
             vec![no_span(
@@ -298,7 +302,7 @@ pub fn compile_file_with_options(
             }
         }
         link(LinkRequest {
-            object: &object,
+            objects: &object_paths,
             bridge_object: bridge_object.as_deref(),
             runtime_lib: &runtime_lib,
             libraries: &libraries,

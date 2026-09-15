@@ -177,7 +177,7 @@ pub(super) fn emit_function<'ctx>(
     module_ctx: &ModuleCtx<'_, 'ctx>,
     function: &Function,
 ) -> Result<(), CodegenError> {
-    // Pre-declared in the first pass (see `emit_object`).
+    // Pre-declared in the first pass of the selected object member.
     let llvm_function = llvm
         .get_function(function.symbol())
         .expect("function declared in the first pass");

@@ -426,7 +426,7 @@ fn emit_registration<'ctx>(
     })
 }
 
-fn coordinator_descriptor_type(context: &Context) -> StructType<'_> {
+pub(crate) fn coordinator_descriptor_type(context: &Context) -> StructType<'_> {
     let ptr = context.ptr_type(inkwell::AddressSpace::default());
     context.struct_type(
         &[

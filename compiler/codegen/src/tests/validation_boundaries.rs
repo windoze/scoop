@@ -87,7 +87,7 @@ fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
 
     assert_validation_error(
         std::panic::catch_unwind(|| {
-            emit_object(
+            emit_object_set(
                 &input,
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 scoop_lir::EntryProductionSourceV1::Library,
@@ -103,7 +103,7 @@ fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
     );
     assert_validation_error(
         std::panic::catch_unwind(|| {
-            render_llvm_ir(
+            render_llvm_ir_members(
                 &input,
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 scoop_lir::EntryProductionSourceV1::Library,
