@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::marker::PhantomData;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use scoop_identity::{
     BindingNamespace, ConeIdentity, ExportBindingKey, HirIdentityLayer, ImportedIdentityId,
@@ -234,6 +235,7 @@ impl<'a> ImportedHirSet<'a, CorePreludeOnly> {
             foundation: self.foundation,
             interface: self.interface,
             strong_callable_bindings: self.strong_callable_bindings,
+            selection: next_imported_core_selection(),
             by_binding: BTreeMap::new(),
             callables: Vec::new(),
             types: Vec::new(),
@@ -356,6 +358,38 @@ pub struct SelectedImportedCoreTarget<'a> {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportedCoreCallableId(u32);
 
+/// One callable reference branded by the exact selected-set world that
+/// admitted it. Two lowering requests may both allocate callable index zero;
+/// this value keeps those otherwise equal indices non-interchangeable.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ImportedCoreCallableRef {
+    selection: ImportedCoreSelectionId,
+    callable: ImportedCoreCallableId,
+}
+
+impl ImportedCoreCallableRef {
+    pub const fn callable(self) -> ImportedCoreCallableId {
+        self.callable
+    }
+}
+
+/// Process-local brand for one selected imported-core world.
+///
+/// It is neither a wire identity nor a persistent semantic identity. The
+/// private representation ensures only this module can mint brands.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ImportedCoreSelectionId(u64);
+
+fn next_imported_core_selection() -> ImportedCoreSelectionId {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    let selection = NEXT
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            current.checked_add(1)
+        })
+        .expect("the imported core selection id space is exhausted");
+    ImportedCoreSelectionId(selection)
+}
+
 /// Request-local id of one selected type from the trusted core prelude.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportedCoreTypeId(u32);
@@ -383,6 +417,7 @@ pub struct SelectedImportedCoreSet<'a> {
     foundation: &'a ImportedHirFoundation,
     interface: &'a CoreHirInterfaceV1,
     strong_callable_bindings: &'a [PersistentExportBindingId],
+    selection: ImportedCoreSelectionId,
     by_binding: BTreeMap<PersistentExportBindingId, SelectedImportedCoreId>,
     callables: Vec<SelectedImportedCoreTarget<'a>>,
     types: Vec<SelectedImportedCoreTarget<'a>>,
@@ -438,6 +473,26 @@ impl<'a> SelectedImportedCoreSet<'a> {
 
     pub fn callable(&self, id: ImportedCoreCallableId) -> Option<SelectedImportedCoreTarget<'a>> {
         self.callables.get(id.0 as usize).copied()
+    }
+
+    /// Binds one selected callable id to this exact request-local world.
+    /// The returned reference is the only imported callable form admitted by
+    /// HIR expressions.
+    pub fn callable_ref(&self, id: ImportedCoreCallableId) -> Option<ImportedCoreCallableRef> {
+        self.callable(id).map(|_| ImportedCoreCallableRef {
+            selection: self.selection,
+            callable: id,
+        })
+    }
+
+    /// Resolves a branded callable only when it was minted by this exact set.
+    pub fn resolve_callable(
+        &self,
+        reference: ImportedCoreCallableRef,
+    ) -> Option<SelectedImportedCoreTarget<'a>> {
+        (reference.selection == self.selection)
+            .then(|| self.callable(reference.callable))
+            .flatten()
     }
 
     pub fn ty(&self, id: ImportedCoreTypeId) -> Option<SelectedImportedCoreTarget<'a>> {
@@ -724,6 +779,14 @@ mod tests {
         assert_eq!(
             capability_error_code(CorePreludeUnavailableCapability::Implementation),
             "SCOOPC_CAPABILITY_CORE_IMPLEMENTATION_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn selected_imported_worlds_have_distinct_process_local_brands() {
+        assert_ne!(
+            next_imported_core_selection(),
+            next_imported_core_selection()
         );
     }
 }

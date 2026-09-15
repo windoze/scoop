@@ -687,7 +687,10 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   binding去重，并为callable/type/value分别分配`ImportedCoreCallableId`/
   `ImportedCoreTypeId`/`ImportedCoreValueId`三种request-local typed id；三种id不是wire identity，
   只能在同一sidecar内解引用到仍借用原artifact的`SelectedImportedCoreTarget`。HIR表达式与
-  type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena。selected set与
+  type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena。callable id进入
+  HIR表达式前还必须由其selected set绑定成`ImportedCoreCallableRef { selection-world, callable-id }`；
+  `selection-world`是不可序列化、不可由调用方构造的进程内品牌，因此两个请求即使都分配了callable index 0也不能
+  互换引用，sidecar只解析由自身品牌化的ref。selected set与
   其中的target只借用artifact拥有的foundation/interface/strong-binding surface，不借用临时
   `ImportedHirSet<CorePreludeOnly>`包装或其候选Vec；lowering结束后包装可以销毁，而sidecar必须继续由原artifact
   lifetime约束并随HIR stage product进入后续投影；
