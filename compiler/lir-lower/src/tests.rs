@@ -1351,7 +1351,9 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     assert_eq!(counts.native_contracts, 1);
     assert_eq!(counts.native_link_requirements, 1);
     assert_eq!(counts.bridge_units, 2);
-    assert_eq!(counts.bridge_atoms, 2);
+    // The read and address bridge units each own their primary atom plus one
+    // generated C static-assert atom for the shared Header layout.
+    assert_eq!(counts.bridge_atoms, 4);
 }
 
 #[test]
