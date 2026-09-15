@@ -702,14 +702,12 @@ ParamFreeShapeSupportRole =
   | BoxedValue
   | CoroutineStep
   | CoroutineSlot
-  | ContinuationShell
-  | CoroutineStart
 ```
 
-`roles`不是可扩展map，而是field `1..10`依次对应上列role的closed product；每个field都是
+`roles`不是可扩展map，而是field `1..8`依次对应上列role的closed product；每个field都是
 `Available=1 { 1=payload } | NotApplicable=2 { 1=reason }`。`ClosedReasonTag`在本阶段只含
 `ReferenceNominalRequiresNoBox=1`。`SourceNominal`、`ValueLayout`、`RefScan`、
-`TypeDescriptor`、`TypeRegistration`和四个coroutine role总是`Available`；`BoxedValue`对
+`TypeDescriptor`、`TypeRegistration`和两个coroutine exact-shape role总是`Available`；`BoxedValue`对
 `struct | enum`为`Available`，对`class | interface | object | annotation class`必须是上述
 `NotApplicable`。其他role不得借用该reason关闭。
 
@@ -724,19 +722,22 @@ target的`ManagedValue` representation，scan固定为该layout的`InlineValue` 
 `TypeDescriptor`携带definition plan和symbol，`TypeRegistration`另携带registration fingerprint
 node。三个generated exact role携带generated nominal id、exact id以及完整的layout/scan/TD/type
 registration子闭包；generated identity分别从`BoxedValue(owner)`、`CoroutineStep(owner)`、
-`CoroutineSlot(owner)`唯一派生。`ContinuationShell`包含从`(owner, Success | Failure)`派生的两个
-generated callable子闭包，`CoroutineStart`包含从`owner`派生的一个子闭包；每个callable子闭包
-携带generated callable id、body id、body definition/symbol和callable registration
-definition/symbol/fingerprint。所有role payload都由source owner重算，reader逐字段比较，不接受wire
+`CoroutineSlot(owner)`唯一派生。所有role payload都由source owner重算，reader逐字段比较，不接受wire
 选择另一个已存在的definition。
 
 子payload field固定如下：`StrongShapeDefinitionV1`为`1=semantic_id`、`2=definition_plan`、
 `3=symbol`；`StrongShapeRegistrationV1`为前三项加`4=fingerprint_node`；
 `StrongExactShapeSupportV1`为`1=nominal`、`2=exact`、`3=layout`、`4=scan`、
-`5=descriptor`、`6=registration`；`StrongCallableShapeSupportV1`为
-`1=generated_callable`、`2=body`、`3=body_definition`、`4=registration`；
-`StrongContinuationShellSupportV1`为`1=success`、`2=failure`。这些product不允许省略可由其他字段派生的
-值；重复值是跨stage关系证明的一部分，并由reader重算后逐byte核对。
+`5=descriptor`、`6=registration`。这些product不允许省略可由其他字段派生的值；重复值是跨stage
+关系证明的一部分，并由reader重算后逐byte核对。
+
+`ContinuationShell(owner)`与`CoroutineStart(owner)`的generated identity及其
+`ExactOwnerRoot(owner)`规则仍由M23-2冻结，但不属于本阶段production closure。二者的合法signature
+分别依赖`Continuation<owner>`以及`SuspendTask<owner>`/`Continuation<owner>`的generic nominal
+application；这些application按M23-2必须进入Nominal ODR group。helper自身回溯到source Cone并不能把
+其generic dependency改写成Strong，也不能让定义Cone以“预物化support”为由跳过第10.2节。M23-7在完整
+ODR member/definition proof可用后一次性加入这两个callable closure；M23-3 reader不解码旧的10-field
+roles product，也不提供可选占位、legacy tag或兼容分支。
 
 所有实际definition沿M23-2的`ExactOwnerRoot`回到core Cone并使用`ConeStrong`；每个definition plan
 必须存在且有唯一primary atom，每个registration必须出现在`StrongRegistrationPlanSet`。因此
@@ -2873,7 +2874,7 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - 显式core exact/star/public import仍稳定拒绝；
 - generic core target、generic local application和structural TD materialization命中对应capability门，不生成partial LIR；
 - consumer对core param-free target只产生external requirement，object内没有第二份body/TD/registration；
-- 每个exported param-free core nominal的有限shape-support role完整，缺项/错root/错linkage被Compile或Link proof拒绝；
+- 每个exported param-free core nominal的八项有限shape-support role完整，缺项/错root/错linkage被Compile或Link proof拒绝；
 - core source/artifact不兼容时普通`scoopc`只失败，不读取core source或自行重建。
 
 ### 18.4 kind与entry
