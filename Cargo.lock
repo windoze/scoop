@@ -451,6 +451,8 @@ dependencies = [
  "scoop-ast",
  "scoop-hir",
  "scoop-identity",
+ "scoop-mir",
+ "scoop-mir-lower",
  "scoop-wire",
 ]
 

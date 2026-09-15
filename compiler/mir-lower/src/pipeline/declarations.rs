@@ -6,8 +6,9 @@ impl Lowerer {
             assert!(module.initialization_failure_roots.is_empty());
             return;
         }
-        let throwable_ty =
-            mir::Type::Class(self.class_map[&self.core_protocols.exceptions.throwable.class()]);
+        let throwable_ty = mir::Type::Class(
+            self.class_map[&self.core_protocols.defined().exceptions.throwable.class()],
+        );
         for (source_id, source) in module.initialization_failure_roots.iter() {
             let raw = source_id.into_raw().into_u32();
             let global = self.globals.alloc(mir::Global {
@@ -29,6 +30,7 @@ impl Lowerer {
 
         let cycle_source = self
             .core_protocols
+            .defined()
             .exceptions
             .illegal_state_message_constructor;
         let message_type = {

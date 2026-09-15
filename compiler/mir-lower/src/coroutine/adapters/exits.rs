@@ -28,8 +28,14 @@ pub(super) fn drive_exit_blocks(
         .coroutines
         .step_metadata_for_type(step_ty)
         .completed_payload();
-    let throwable =
-        mir::Type::Class(lowerer.class_map[&lowerer.core_protocols.exceptions.throwable.class()]);
+    let throwable = mir::Type::Class(
+        lowerer.class_map[&lowerer
+            .core_protocols
+            .defined()
+            .exceptions
+            .throwable
+            .class()],
+    );
     let exception = locals.alloc(local("$uncaught", throwable.clone()));
     let completion_ty = mir::Type::Interface(outer_continuation);
     let completed_value_ty = lowerer.functions[outer_resume].params[1].ty.clone();

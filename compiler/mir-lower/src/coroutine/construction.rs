@@ -156,11 +156,13 @@ pub(super) fn protocol_error_block(
 ) -> mir::BlockId {
     let class = lowerer
         .core_protocols
+        .defined()
         .exceptions
         .illegal_state_exception
         .class();
     let constructor = lowerer
         .core_protocols
+        .defined()
         .exceptions
         .illegal_state_exception
         .callable();

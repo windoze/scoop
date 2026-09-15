@@ -29,8 +29,14 @@ pub(super) fn rewrite_intrinsic_site(
     let SuspendKind::Intrinsic { register } = site.kind else {
         unreachable!("intrinsic site carries its concrete register method")
     };
-    let throwable =
-        mir::Type::Class(lowerer.class_map[&lowerer.core_protocols.exceptions.throwable.class()]);
+    let throwable = mir::Type::Class(
+        lowerer.class_map[&lowerer
+            .core_protocols
+            .defined()
+            .exceptions
+            .throwable
+            .class()],
+    );
     let (result_latch_id, result_latch_ty) = lowerer.coroutines.slot_for(
         &lowerer.source_exact_types,
         &site.result,
