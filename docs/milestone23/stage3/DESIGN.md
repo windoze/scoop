@@ -1394,6 +1394,14 @@ ProvisionalLinkObjectMember {
 
 generated bridge absent时没有generated object member，但manifest的`CBridgeProductionSet::NotUsed`仍是显式variant。存在bridge时每个实际unit在当前Cone恰有一个`PrimaryEntry(unit)` atom；同unit不得跨多个member重复生产。
 
+当前generated C producer采用唯一的确定性分片：`GeneratedBridgePlanSetV1`中每个unit独占一份canonical
+C translation unit，并恰好编译为一个provisional `GeneratedCBridgeV1` object；source set和object set都按
+`GeneratedBridgeUnitId`严格递增。translation unit只能从该unit的完整authority plan生成：恰好发射其
+primary definition、全部materialized associated definition，以及其`StaticAssertSupport`集合承诺的
+layout definition/assertion；不得扫描整Cone后把其他unit的declaration、typedef、layout或bridge body复制
+进来。空plan产生空source/object set；不存在单体`bridge.c`、多unit generated-C object或把同一unit再次
+按source declaration拆分的入口。临时source/object文件名只由unit id派生且不承担语义。
+
 本阶段Scoop LLVM producer采用确定性的强对象分片策略：每个`CallableBody` definition plan连同其全部
 associated atom独占一个provisional object，其余Scoop LIR definition plan进入恰一个non-callable object。
 这样每个LLVM module至多定义一个callable body，`__llvm_stackmaps`、LSDA、EH frame与compact-unwind等
@@ -1556,10 +1564,11 @@ canonical flag contract编码为下列九个closed tag组成的固定有序array
 `scoop-c-bridge-canonical-flags-v1`。target/deployment值来自上述profile，SDK root tag只承诺
 调用时显式传入已经解析的SDK locator，不把locator byte写入canonical flag contract。
 
-generated source template contract编码为七个`{1=component_tag, 2=schema=1}`组成的固定有序array；
+generated source template contract编码为八个`{1=component_tag, 2=schema=1}`组成的固定有序array；
 component tag依次为`TypeRenderer=1`、`LayoutAssertions=2`、`ExternalDeclarations=3`、
 `OutboundWrappers=4`、`NativeGlobalAccessors=5`、`CallbackTrampolines=6`、
-`ForeignCallbackTrampolines=7`，fingerprint domain为`scoop-generated-c-source-template-v1`。
+`ForeignCallbackTrampolines=7`、`UnitObjectPartition=8`，fingerprint domain为
+`scoop-generated-c-source-template-v1`。
 environment product固定为`1=inherited_names=[]`、`2=locale="C"`、`3=timezone="UTC"`；producer
 必须清空host environment后只建立这个投影，不能继承`CFLAGS`、`CPATH`、`SDKROOT`、locale或其他
 能改变object的隐式输入。

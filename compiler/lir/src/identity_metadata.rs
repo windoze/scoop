@@ -3,6 +3,13 @@
 use std::fmt;
 use std::num::NonZeroU64;
 
+pub use scoop_identity::{
+    CDataPointee as CanonicalCDataPointee, CLayoutByteAlignment as CanonicalCLayoutByteAlignment,
+    CLayoutOverride as CanonicalCLayoutOverride, CPointerStorage as CanonicalCPointerStorage,
+    CanonicalCAbiLayout, CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord,
+    CanonicalCStorageType as CanonicalCAbiStorageType, IntegerBitWidth as CanonicalIntegerBitWidth,
+    Signedness as CanonicalIntegerSignedness,
+};
 use scoop_identity::{
     CanonicalCAbiSignatureFingerprint, DecodedPersistentId, DerivedIdError, GeneratedBridgeUnitId,
     PersistentCallbackApplicationId, PersistentExactTypeId, PersistentIdResolver,

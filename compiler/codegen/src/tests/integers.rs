@@ -160,9 +160,11 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
         },
     });
 
-    let source = c_bridge_source(&module)
-        .expect("valid integer C bridge")
-        .expect("C extern produces a bridge");
+    let assertions = c_layout_assertions(&module).expect("integer C layout assertions");
+    let bridge_sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("C extern produces a bridge source");
+    assert_eq!(bridge_sources.units().len(), 1);
+    let source = bridge_sources.units()[0].source();
     assert!(source.contains("#include <stdint.h>"), "{source}");
     for (index, spelling) in [
         "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
@@ -171,8 +173,8 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
     .enumerate()
     {
         assert!(
-            source.contains(&format!("{spelling} _field_{index};")),
-            "C-layout field {index} lost its exact integer spelling:\n{source}"
+            assertions.contains(&format!("{spelling} _field_{index};")),
+            "C-layout field {index} lost its exact integer spelling:\n{assertions}"
         );
     }
     assert!(
@@ -186,7 +188,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
         "scoop_fixed_width_integer_bridge_{}.c",
         std::process::id()
     ));
-    std::fs::write(&bridge_source, &source).expect("write generated integer bridge C");
+    std::fs::write(&bridge_source, source).expect("write generated integer bridge C");
     let status = std::process::Command::new("cc")
         .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
         .arg(&bridge_source)

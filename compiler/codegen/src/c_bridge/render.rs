@@ -1,5 +1,183 @@
 use super::*;
 
+pub(super) struct CBridgeTypeSurface {
+    function_types: Vec<scoop_lir::CFunctionType>,
+    struct_declarations: HashSet<usize>,
+    struct_definitions: HashSet<usize>,
+}
+
+impl CBridgeTypeSurface {
+    pub(super) fn for_function(
+        module: &Module,
+        signature: &scoop_lir::CFunctionType,
+    ) -> Result<Self, CodegenError> {
+        let mut surface = Self::empty();
+        for parameter in &signature.params {
+            surface.visit_type(module, parameter, true)?;
+        }
+        surface.visit_return(module, &signature.return_type, true)?;
+        Ok(surface)
+    }
+
+    pub(super) fn for_signature_parts(
+        module: &Module,
+        parameters: &[scoop_lir::CType],
+        result: &scoop_lir::CReturnType,
+    ) -> Result<Self, CodegenError> {
+        let mut surface = Self::empty();
+        surface.visit_types(module, parameters, result, true)?;
+        Ok(surface)
+    }
+
+    pub(super) fn for_value(module: &Module, ty: &scoop_lir::CType) -> Result<Self, CodegenError> {
+        let mut surface = Self::empty();
+        surface.visit_type(module, ty, true)?;
+        Ok(surface)
+    }
+
+    pub(super) fn for_module(module: &Module) -> Result<Self, CodegenError> {
+        let mut surface = Self::empty();
+        for (id, definition) in module.structs.iter() {
+            if definition.is_c_layout() {
+                surface.materialize_struct(module, id)?;
+            }
+        }
+        for (_, function) in module.extern_functions.iter() {
+            if let ExternFunctionKind::C { signature, .. } = &function.kind {
+                surface.visit_function(module, signature, true)?;
+            }
+        }
+        for (_, global) in module.native_globals.iter() {
+            surface.visit_type(module, &global.c_type, true)?;
+        }
+        for (_, callback) in module.callback_bridges.iter() {
+            surface.visit_types(module, &callback.params, &callback.return_type, true)?;
+        }
+        for (_, callback) in module.foreign_callback_bridges.iter() {
+            surface.visit_types(module, &callback.params, &callback.return_type, true)?;
+        }
+        Ok(surface)
+    }
+
+    fn empty() -> Self {
+        Self {
+            function_types: Vec::new(),
+            struct_declarations: HashSet::new(),
+            struct_definitions: HashSet::new(),
+        }
+    }
+
+    fn visit_types(
+        &mut self,
+        module: &Module,
+        parameters: &[scoop_lir::CType],
+        result: &scoop_lir::CReturnType,
+        materialize_structs: bool,
+    ) -> Result<(), CodegenError> {
+        for parameter in parameters {
+            self.visit_type(module, parameter, materialize_structs)?;
+        }
+        self.visit_return(module, result, materialize_structs)
+    }
+
+    fn visit_function(
+        &mut self,
+        module: &Module,
+        signature: &scoop_lir::CFunctionType,
+        materialize_structs: bool,
+    ) -> Result<(), CodegenError> {
+        self.visit_types(
+            module,
+            &signature.params,
+            &signature.return_type,
+            materialize_structs,
+        )?;
+        if !self.function_types.contains(signature) {
+            self.function_types.push(signature.clone());
+        }
+        Ok(())
+    }
+
+    fn visit_return(
+        &mut self,
+        module: &Module,
+        ty: &scoop_lir::CReturnType,
+        materialize_structs: bool,
+    ) -> Result<(), CodegenError> {
+        if let scoop_lir::CReturnType::Value(ty) = ty {
+            self.visit_type(module, ty, materialize_structs)?;
+        }
+        Ok(())
+    }
+
+    fn visit_type(
+        &mut self,
+        module: &Module,
+        ty: &scoop_lir::CType,
+        materialize_structs: bool,
+    ) -> Result<(), CodegenError> {
+        match ty {
+            scoop_lir::CType::DataPointer { pointee, storage } => {
+                let pointee = exact_data_pointee(pointee, storage)?;
+                if let scoop_lir::CDataPointee::Object(pointee) = pointee {
+                    self.visit_type(module, pointee, false)?;
+                }
+            }
+            scoop_lir::CType::CodePointer { signature, storage } => {
+                let signature = exact_code_signature(signature, storage)?;
+                self.visit_function(module, signature, false)?;
+            }
+            scoop_lir::CType::Struct(reference) => {
+                let id = reference.definition();
+                self.struct_declarations.insert(arena_index(id));
+                if materialize_structs {
+                    self.materialize_struct(module, id)?;
+                }
+            }
+            scoop_lir::CType::Integer(_) | scoop_lir::CType::Boolean => {}
+        }
+        Ok(())
+    }
+
+    fn materialize_struct(
+        &mut self,
+        module: &Module,
+        id: scoop_lir::StructDefId,
+    ) -> Result<(), CodegenError> {
+        let raw = arena_index(id);
+        self.struct_declarations.insert(raw);
+        if !self.struct_definitions.insert(raw) {
+            return Ok(());
+        }
+        let fields = module.structs[id].c_fields().ok_or_else(|| {
+            CodegenError(format!(
+                "ordinary struct `{}` entered the generated C type surface",
+                module.structs[id].name
+            ))
+        })?;
+        for field in fields {
+            self.visit_type(module, &field.ty, true)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn function_types(&self) -> &[scoop_lir::CFunctionType] {
+        &self.function_types
+    }
+
+    pub(super) fn declares_struct(&self, id: scoop_lir::StructDefId) -> bool {
+        self.struct_declarations.contains(&arena_index(id))
+    }
+
+    pub(super) fn defines_struct(&self, id: scoop_lir::StructDefId) -> bool {
+        self.struct_definitions.contains(&arena_index(id))
+    }
+
+    pub(super) fn definition_count(&self) -> usize {
+        self.struct_definitions.len()
+    }
+}
+
 pub(super) fn integer_name(kind: scoop_lir::IntegerKind) -> &'static str {
     match (kind.signedness(), kind.width()) {
         (scoop_lir::IntegerSignedness::Signed, scoop_lir::IntegerWidth::W8) => "int8_t",
@@ -45,79 +223,6 @@ fn exact_code_signature<'a>(
                 )
             }),
     }
-}
-
-fn collect_return_function_types(
-    ty: &scoop_lir::CReturnType,
-    found: &mut Vec<scoop_lir::CFunctionType>,
-) -> Result<(), CodegenError> {
-    if let scoop_lir::CReturnType::Value(ty) = ty {
-        collect_function_types_from_type(ty, found)?;
-    }
-    Ok(())
-}
-
-fn collect_function_types_from_type(
-    ty: &scoop_lir::CType,
-    found: &mut Vec<scoop_lir::CFunctionType>,
-) -> Result<(), CodegenError> {
-    match ty {
-        scoop_lir::CType::DataPointer { pointee, storage } => {
-            let pointee = exact_data_pointee(pointee, storage)?;
-            if let scoop_lir::CDataPointee::Object(pointee) = pointee {
-                collect_function_types_from_type(pointee, found)?;
-            }
-        }
-        scoop_lir::CType::CodePointer { signature, storage } => {
-            let signature = exact_code_signature(signature, storage)?;
-            for parameter in &signature.params {
-                collect_function_types_from_type(parameter, found)?;
-            }
-            collect_return_function_types(&signature.return_type, found)?;
-            if !found.contains(signature) {
-                found.push(signature.clone());
-            }
-        }
-        scoop_lir::CType::Integer(_) | scoop_lir::CType::Boolean | scoop_lir::CType::Struct(_) => {}
-    }
-    Ok(())
-}
-
-pub(super) fn collect_module_function_types(
-    module: &Module,
-) -> Result<Vec<scoop_lir::CFunctionType>, CodegenError> {
-    let mut found = Vec::new();
-    for (_, definition) in module.structs.iter() {
-        if let Some(fields) = definition.c_fields() {
-            for field in fields {
-                collect_function_types_from_type(&field.ty, &mut found)?;
-            }
-        }
-    }
-    for (_, function) in module.extern_functions.iter() {
-        if let ExternFunctionKind::C { signature, .. } = &function.kind {
-            for parameter in &signature.params {
-                collect_function_types_from_type(parameter, &mut found)?;
-            }
-            collect_return_function_types(&signature.return_type, &mut found)?;
-        }
-    }
-    for (_, global) in module.native_globals.iter() {
-        collect_function_types_from_type(&global.c_type, &mut found)?;
-    }
-    for (_, callback) in module.callback_bridges.iter() {
-        for parameter in &callback.params {
-            collect_function_types_from_type(parameter, &mut found)?;
-        }
-        collect_return_function_types(&callback.return_type, &mut found)?;
-    }
-    for (_, callback) in module.foreign_callback_bridges.iter() {
-        for parameter in &callback.params {
-            collect_function_types_from_type(parameter, &mut found)?;
-        }
-        collect_return_function_types(&callback.return_type, &mut found)?;
-    }
-    Ok(found)
 }
 
 pub(super) struct CTypeRenderer<'a> {
@@ -211,10 +316,13 @@ impl<'a> CTypeRenderer<'a> {
     }
 }
 
-pub(super) fn c_struct_forward_declarations(module: &Module) -> String {
+pub(super) fn c_struct_forward_declarations(
+    module: &Module,
+    surface: &CBridgeTypeSurface,
+) -> String {
     let mut out = String::new();
     for (id, definition) in module.structs.iter() {
-        if definition.is_c_layout() {
+        if definition.is_c_layout() && surface.declares_struct(id) {
             let name = format!("scoop_c_layout_{}", arena_index(id));
             out.push_str(&format!("typedef struct {name} {name};\n"));
         }

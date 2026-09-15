@@ -376,6 +376,88 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     });
 
     let mut meta = string_metadata();
+    let bool_exact = test_exact_type("Bool");
+    let int64_exact = test_exact_type("Int64");
+    let inner_exact = test_exact_type("Inner");
+    let inner_layout = scoop_identity::CanonicalCAbiLayoutFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiLayout::new(
+            inner_exact,
+            16,
+            std::num::NonZeroU64::new(8).unwrap(),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes8),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes1),
+            vec![
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Inner", "flag"),
+                    0,
+                    scoop_identity::CanonicalCStorageType::Boolean {
+                        exact_type: bool_exact,
+                    },
+                ),
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Inner", "value"),
+                    1,
+                    scoop_identity::CanonicalCStorageType::Integer {
+                        exact_type: int64_exact,
+                        signedness: scoop_identity::Signedness::Signed,
+                        bit_width: scoop_identity::IntegerBitWidth::Bits64,
+                    },
+                ),
+            ],
+        ),
+    )
+    .unwrap();
+    let outer_exact = test_exact_type("Outer");
+    let outer_layout = scoop_identity::CanonicalCAbiLayoutFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiLayout::new(
+            outer_exact,
+            32,
+            std::num::NonZeroU64::new(16).unwrap(),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes16),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes2),
+            vec![
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Outer", "flag"),
+                    0,
+                    scoop_identity::CanonicalCStorageType::Boolean {
+                        exact_type: bool_exact,
+                    },
+                ),
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Outer", "inner"),
+                    2,
+                    scoop_identity::CanonicalCStorageType::Struct {
+                        exact_type: inner_exact,
+                        layout: inner_layout.fingerprint(),
+                    },
+                ),
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Outer", "value"),
+                    18,
+                    scoop_identity::CanonicalCStorageType::Integer {
+                        exact_type: int64_exact,
+                        signedness: scoop_identity::Signedness::Signed,
+                        bit_width: scoop_identity::IntegerBitWidth::Bits64,
+                    },
+                ),
+            ],
+        ),
+    )
+    .unwrap();
+    let outer_storage = scoop_identity::CanonicalCStorageType::Struct {
+        exact_type: outer_exact,
+        layout: outer_layout.fingerprint(),
+    };
+    let outer_signature = scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            vec![scoop_identity::CanonicalCAbiParameter::new(outer_exact, outer_storage).unwrap()],
+            scoop_identity::CanonicalCAbiReturn::value(outer_exact, outer_storage).unwrap(),
+        ),
+    )
+    .unwrap();
+    meta.canonical_c_abi =
+        scoop_lir::CanonicalCAbiMetadata::checked(Vec::new(), vec![inner_layout, outer_layout])
+            .unwrap();
     let outer_array = array_type(
         &mut meta,
         "ArrayOuter",
@@ -523,8 +605,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     std::fs::remove_file(&source).ok();
     assert!(status.success(), "generated C assertions must compile");
 
-    install_test_native_function_contract(&mut module, 1);
-    let outbound = outbound_bridge(1);
+    install_test_native_function_contract_with_signature(&mut module, 1, &outer_signature);
+    let outbound = outbound_bridge_with_signature(1, &outer_signature);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "swap".to_string(),
@@ -539,8 +621,9 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         },
     });
     let static_bridge = static_callback_bridge(&mut module, "scoop_callback_bridge_0");
-    install_test_c_signature(&mut module, 3);
-    let static_trampoline = static_callback_trampoline(3);
+    install_test_c_signature_record(&mut module, outer_signature.clone());
+    let static_trampoline =
+        static_callback_trampoline_with_signature(3, outer_signature.fingerprint());
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
         bridge: static_bridge,
@@ -586,7 +669,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         .expect("callback bridge identities project into the LIR foundation");
     let counts = foundation.counts();
     assert_eq!(counts.bridge_units, 3);
-    assert_eq!(counts.bridge_atoms, 4);
+    assert_eq!(counts.bridge_atoms, 8);
     assert_eq!(counts.callback_bridges, 2);
     let outbound_symbol = match &module
         .extern_functions
@@ -607,9 +690,22 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         .1
         .trampoline
         .clone();
-    let bridge = c_bridge_source(&module)
-        .expect("C bridge")
-        .expect("C extern needs a bridge");
+    let bridge_sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("C extern needs bridge sources");
+    assert_eq!(bridge_sources.units().len(), 3);
+    assert!(
+        bridge_sources
+            .units()
+            .windows(2)
+            .all(|units| units[0].unit() < units[1].unit()),
+        "generated C sources must follow canonical unit order"
+    );
+    let bridge = bridge_sources
+        .units()
+        .iter()
+        .map(|unit| unit.source())
+        .collect::<Vec<_>>()
+        .join("\n");
     let static_callback = module
         .callback_bridges
         .iter()
@@ -625,18 +721,47 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         .contract()
         .native_symbol_normalization()
         .compiler_generated_object_symbol(callback_bridge_symbol);
+    assert_eq!(
+        bridge_sources.plan().units().len(),
+        bridge_sources.units().len()
+    );
+    let primary_symbols = [
+        outbound_symbol.as_str(),
+        static_trampoline_symbol,
+        foreign_trampoline.entry().symbol(),
+    ];
+    for (index, symbol) in primary_symbols.iter().enumerate() {
+        let owners = bridge_sources
+            .units()
+            .iter()
+            .filter(|unit| unit.source().contains(symbol))
+            .count();
+        assert_eq!(owners, 1, "primary {symbol} must belong to one C source");
+        let owner = bridge_sources
+            .units()
+            .iter()
+            .find(|unit| unit.source().contains(symbol))
+            .unwrap();
+        for unrelated in primary_symbols.iter().skip(index + 1) {
+            assert!(
+                !owner.source().contains(unrelated),
+                "unit {} leaked unrelated primary {unrelated}",
+                owner.unit()
+            );
+        }
+    }
     assert!(bridge.contains("extern scoop_c_layout_1 native_swap(scoop_c_layout_1);"));
     assert!(bridge.contains(&format!(
         "void {outbound_symbol}(void *result, const void *arg0)"
     )));
     assert!(bridge.contains("memcpy(result, &native_result, sizeof(native_result));"));
     assert!(bridge.contains(&format!(
-        "extern void scoop_callback_bridge_0(void *result, const void *arg0) __asm__(\"{callback_bridge_object_symbol}\");"
+        "extern void scoop_callback_storage_bridge(void *result, const void *arg0) __asm__(\"{callback_bridge_object_symbol}\");"
     )));
     assert!(bridge.contains(&format!(
         "scoop_c_layout_1 {static_trampoline_symbol}(scoop_c_layout_1 arg0)"
     )));
-    assert!(bridge.contains("scoop_callback_bridge_0(&result, &arg0);"));
+    assert!(bridge.contains("scoop_callback_storage_bridge(&result, &arg0);"));
     assert_eq!(
         bridge
             .matches(&format!(
@@ -663,18 +788,21 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         "scoop_runtime_callback_invoke(arg1, &{}, &result, arguments)",
         foreign_trampoline.signature_descriptor_symbol()
     )));
-    let bridge_source = std::env::temp_dir().join(format!(
-        "scoop_c_foreign_callback_bridge_{}.c",
-        std::process::id()
-    ));
-    std::fs::write(&bridge_source, &bridge).expect("write generated callback C");
-    let status = std::process::Command::new("cc")
-        .args(["-std=c11", "-fsyntax-only"])
-        .arg(&bridge_source)
-        .status()
-        .expect("run C compiler");
-    std::fs::remove_file(&bridge_source).ok();
-    assert!(status.success(), "generated callback C must compile");
+    for unit in bridge_sources.units() {
+        let bridge_source = std::env::temp_dir().join(format!(
+            "scoop_c_bridge_{}_{}.c",
+            std::process::id(),
+            unit.unit()
+        ));
+        std::fs::write(&bridge_source, unit.source()).expect("write generated callback C");
+        let status = std::process::Command::new("cc")
+            .args(["-std=c11", "-fsyntax-only"])
+            .arg(&bridge_source)
+            .status()
+            .expect("run C compiler");
+        std::fs::remove_file(&bridge_source).ok();
+        assert!(status.success(), "generated callback C must compile");
+    }
 
     let array_outer_symbol = type_descriptor_symbol(&module, "ArrayOuter");
     let ir = ir_of(&module);
@@ -690,6 +818,16 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         )),
         "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
     );
+}
+
+#[test]
+fn generated_c_source_set_is_empty_when_the_bridge_plan_is_empty() {
+    let module = values_module();
+    let sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("bridge-free module has a canonical empty source set");
+
+    assert!(sources.plan().units().is_empty());
+    assert!(sources.units().is_empty());
 }
 
 #[test]
@@ -717,9 +855,7 @@ fn c_extern_derives_physical_signature_from_exact_c_types() {
     };
     assert_eq!(signature.storage_params(), vec![LirType::I64]);
     assert_eq!(signature.storage_return_type(), LirType::Void);
-    let bridge = c_bridge_source(&module)
-        .expect("exact signature validates")
-        .expect("C extern emits a bridge");
+    let bridge = joined_c_bridge_sources(&module).expect("C extern emits a bridge source");
     assert!(bridge.contains("extern void machine_size(uint64_t);"));
 }
 
@@ -902,9 +1038,7 @@ fn native_global_derives_physical_storage_from_exact_c_type() {
         .next()
         .expect("one native global");
     assert_eq!(global.storage_type(), LirType::I64);
-    let bridge = c_bridge_source(&module)
-        .expect("exact global validates")
-        .expect("native global emits a bridge");
+    let bridge = joined_c_bridge_sources(&module).expect("native global emits bridge sources");
     assert!(bridge.contains("extern uint64_t machine_global;"));
 }
 
@@ -941,9 +1075,7 @@ fn equivalent_native_global_contracts_share_generated_bridge_definitions() {
         });
     }
 
-    let bridge = c_bridge_source(&module)
-        .expect("C bridge")
-        .expect("native global needs a bridge");
+    let bridge = joined_c_bridge_sources(&module).expect("native global needs bridge sources");
     assert_eq!(
         bridge
             .matches(&format!("void {read_symbol}(void *result)"))
@@ -1292,13 +1424,25 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
         });
     }
 
-    let source = c_bridge_source(&module)
-        .expect("exact C pointer tree validates")
-        .expect("pointer externs and globals emit a bridge");
-    assert!(source.contains("void *_field_0;"), "{source}");
-    assert!(source.contains("void *_field_1;"), "{source}");
-    assert!(source.contains("scoop_c_funptr_0 _field_2;"), "{source}");
-    assert!(source.contains("scoop_c_funptr_0 _field_3;"), "{source}");
+    let assertions = c_layout_assertions(&module).expect("pointer C layout assertions");
+    assert!(assertions.contains("void *_field_0;"), "{assertions}");
+    assert!(assertions.contains("void *_field_1;"), "{assertions}");
+    assert!(
+        assertions.contains("scoop_c_funptr_0 _field_2;"),
+        "{assertions}"
+    );
+    assert!(
+        assertions.contains("scoop_c_funptr_0 _field_3;"),
+        "{assertions}"
+    );
+    let bridge_sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("pointer externs and globals emit bridge sources");
+    let source = bridge_sources
+        .units()
+        .iter()
+        .map(|unit| unit.source())
+        .collect::<Vec<_>>()
+        .join("\n");
     for name in ["direct_data", "nullable_data"] {
         assert!(
             source.contains(&format!("extern void *roundtrip_{name}(void *);")),
@@ -1322,18 +1466,21 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
         );
     }
 
-    let bridge_source = std::env::temp_dir().join(format!(
-        "scoop_exact_c_pointer_tree_{}.c",
-        std::process::id()
-    ));
-    std::fs::write(&bridge_source, &source).expect("write exact C pointer bridge");
-    let status = std::process::Command::new("cc")
-        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
-        .arg(&bridge_source)
-        .status()
-        .expect("compile exact C pointer bridge");
-    std::fs::remove_file(&bridge_source).ok();
-    assert!(status.success(), "exact C pointer bridge must compile");
+    for unit in bridge_sources.units() {
+        let bridge_source = std::env::temp_dir().join(format!(
+            "scoop_exact_c_pointer_tree_{}_{}.c",
+            std::process::id(),
+            unit.unit()
+        ));
+        std::fs::write(&bridge_source, unit.source()).expect("write exact C pointer bridge");
+        let status = std::process::Command::new("cc")
+            .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+            .arg(&bridge_source)
+            .status()
+            .expect("compile exact C pointer bridge");
+        std::fs::remove_file(&bridge_source).ok();
+        assert!(status.success(), "exact C pointer bridge must compile");
+    }
 }
 
 #[test]
@@ -1623,7 +1770,7 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
             mode: module.foreign_callback_families[family].modes.reusable(),
         });
 
-    let error = c_bridge_source(&module)
+    let error = joined_c_bridge_sources(&module)
         .expect_err("foreign callback bridge must point at an exact managed adapter");
     assert!(
         error.0.contains(&format!(
@@ -1652,7 +1799,7 @@ fn foreign_callback_operation_rejects_lookalike_callback_struct() {
             },
         ));
 
-    let error = c_bridge_source(&module)
+    let error = joined_c_bridge_sources(&module)
         .expect_err("callback operations must preserve nominal callback identity");
     assert!(
         error.0.contains("requires exact callback struct")
@@ -1717,7 +1864,7 @@ fn foreign_callback_family_revalidates_mode_state_and_failure_metadata() {
         let family = foreign_callback_family(&mut module);
         corrupt(&mut module, family);
 
-        let error = c_bridge_source(&module)
+        let error = joined_c_bridge_sources(&module)
             .expect_err("callback family metadata must be revalidated at codegen entry");
         assert!(error.0.contains(kind), "unexpected error: {error}");
     }
@@ -1747,8 +1894,8 @@ fn foreign_callback_bridge_mode_must_belong_to_its_family() {
         .0;
     module.foreign_callback_bridges[bridge].mode = foreign_mode;
 
-    let error =
-        c_bridge_source(&module).expect_err("callback bridge mode must belong to its typed family");
+    let error = joined_c_bridge_sources(&module)
+        .expect_err("callback bridge mode must belong to its typed family");
     assert!(
         error.0.contains("mode outside family"),
         "unexpected error: {error}"
@@ -1824,7 +1971,7 @@ fn foreign_callback_state_operation_rejects_lookalike_state_enum() {
             },
         ));
 
-    let error = c_bridge_source(&module)
+    let error = joined_c_bridge_sources(&module)
         .expect_err("callback state operations must preserve nominal state identity");
     assert!(
         error.0.contains("foreign callback operation")
@@ -1856,7 +2003,7 @@ fn foreign_callback_failure_operation_rejects_lookalike_failure_enum() {
             },
         ));
 
-    let error = c_bridge_source(&module)
+    let error = joined_c_bridge_sources(&module)
         .expect_err("callback failure operations must preserve nominal failure identity");
     assert!(
         error.0.contains("foreign callback operation")
@@ -1881,7 +2028,8 @@ fn foreign_callback_bridge_rejects_out_of_bounds_context_index() {
         },
     );
 
-    let error = c_bridge_source(&module).expect_err("context index must name a C parameter");
+    let error =
+        joined_c_bridge_sources(&module).expect_err("context index must name a C parameter");
     assert!(
         error
             .0
@@ -1906,7 +2054,7 @@ fn foreign_callback_bridge_rejects_non_pointer_context() {
         },
     );
 
-    let error = c_bridge_source(&module).expect_err("callback context must be a C pointer");
+    let error = joined_c_bridge_sources(&module).expect_err("callback context must be a C pointer");
     assert!(
         error
             .0
@@ -1955,7 +2103,7 @@ fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
         .entry()
         .symbol()
         .to_string();
-    let error = c_bridge_source(&module)
+    let error = joined_c_bridge_sources(&module)
         .expect_err("a shared trampoline symbol must have one ABI description");
     assert!(
         error.0.contains(&format!(

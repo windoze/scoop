@@ -267,31 +267,30 @@ pub fn compile_file_with_options(
             .map(|member| member.path().to_path_buf())
             .collect::<Vec<_>>();
 
-        let bridge_object = match scoop_codegen::c_bridge_source(lir.module()).map_err(|e| {
+        let bridge_sources = scoop_codegen::render_c_bridge_source_set(&lir).map_err(|e| {
             vec![no_span(
                 user_index,
                 format!("C bridge generation failed: {e}"),
             )]
-        })? {
-            Some(source) => {
-                let source_path = out_dir.join(format!("{stem}.ffi.c"));
-                let object_path = out_dir.join(format!("{stem}.ffi.o"));
-                std::fs::write(&source_path, source).map_err(|error| {
-                    vec![no_span(
-                        user_index,
-                        format!("cannot write C bridge {}: {error}", source_path.display()),
-                    )]
-                })?;
-                compile_c_bridge(
-                    &source_path,
-                    &object_path,
-                    target_profile.c_bridge_toolchain(),
+        })?;
+        let mut bridge_objects = Vec::with_capacity(bridge_sources.units().len());
+        for unit in bridge_sources.units() {
+            let source_path = out_dir.join(format!("{stem}.ffi.{}.c", unit.unit()));
+            let object_path = out_dir.join(format!("{stem}.ffi.{}.o", unit.unit()));
+            std::fs::write(&source_path, unit.source()).map_err(|error| {
+                vec![no_span(
                     user_index,
-                )?;
-                Some(object_path)
-            }
-            None => None,
-        };
+                    format!("cannot write C bridge {}: {error}", source_path.display()),
+                )]
+            })?;
+            compile_c_bridge(
+                &source_path,
+                &object_path,
+                target_profile.c_bridge_toolchain(),
+                user_index,
+            )?;
+            bridge_objects.push(object_path);
+        }
 
         let runtime_lib = build_runtime(user_index, target_profile.runtime_build())?;
         let mut libraries = Vec::new();
@@ -307,7 +306,7 @@ pub fn compile_file_with_options(
         }
         link(LinkRequest {
             objects: &object_paths,
-            bridge_object: bridge_object.as_deref(),
+            bridge_objects: &bridge_objects,
             runtime_lib: &runtime_lib,
             libraries: &libraries,
             library_paths: &options.library_paths,

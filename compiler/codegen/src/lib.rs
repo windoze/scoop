@@ -85,7 +85,10 @@ mod target;
 mod type_descriptors;
 mod validation;
 
-pub use c_bridge::{c_bridge_source, c_layout_assertions};
+pub use c_bridge::{
+    GeneratedCBridgeSourceSetV1, GeneratedCBridgeSourceUnitV1, c_layout_assertions,
+    render_c_bridge_source_set,
+};
 pub(crate) use declarations::*;
 #[cfg(test)]
 pub(crate) use emission::emit_llvm_module;

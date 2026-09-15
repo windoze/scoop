@@ -113,7 +113,7 @@ fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
         &expected,
     );
     assert_validation_error(
-        std::panic::catch_unwind(|| c_bridge_source(module)),
+        std::panic::catch_unwind(|| render_c_bridge_source_set(&input)),
         &expected,
     );
     assert_validation_error(

@@ -39,6 +39,20 @@ pub(super) fn callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
 
 pub(super) fn outbound_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntryIdentity {
     let contract = native_function_contract(seed);
+    outbound_bridge_for_contract(&contract)
+}
+
+pub(super) fn outbound_bridge_with_signature(
+    seed: u8,
+    signature: &scoop_identity::CanonicalCAbiSignatureFingerprintRecord,
+) -> scoop_lir::GeneratedBridgeEntryIdentity {
+    let contract = native_function_contract_with_signature(seed, signature.signature().clone());
+    outbound_bridge_for_contract(&contract)
+}
+
+fn outbound_bridge_for_contract(
+    contract: &scoop_identity::NativeExternalContractRecord,
+) -> scoop_lir::GeneratedBridgeEntryIdentity {
     scoop_lir::GeneratedBridgeEntryIdentity::new(
         ConeIdentity::SINGLE_FILE,
         scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract.fingerprint()),
@@ -77,6 +91,13 @@ pub(super) fn callback_trampoline(
 }
 
 pub(super) fn static_callback_trampoline(seed: u8) -> scoop_lir::StaticCallbackTrampolineIdentity {
+    static_callback_trampoline_with_signature(seed, c_signature(seed).fingerprint())
+}
+
+pub(super) fn static_callback_trampoline_with_signature(
+    seed: u8,
+    signature: scoop_identity::CanonicalCAbiSignatureFingerprint,
+) -> scoop_lir::StaticCallbackTrampolineIdentity {
     let site = SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,
         PackagePath::root(),
@@ -111,19 +132,26 @@ pub(super) fn static_callback_trampoline(seed: u8) -> scoop_lir::StaticCallbackT
     scoop_lir::StaticCallbackTrampolineIdentity::new(
         ConeIdentity::SINGLE_FILE,
         storage_bridge,
-        c_signature(seed).fingerprint(),
+        signature,
     )
     .unwrap()
 }
 
 fn native_function_contract(seed: u8) -> scoop_identity::NativeExternalContractRecord {
+    native_function_contract_with_signature(seed, c_signature(seed).signature().clone())
+}
+
+fn native_function_contract_with_signature(
+    seed: u8,
+    signature: scoop_identity::CanonicalCAbiFunctionSignature,
+) -> scoop_identity::NativeExternalContractRecord {
     let symbol = scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
         &scoop_identity::SourceNativeSymbol::new(&format!("test_bridge_{seed}")).unwrap(),
     )
     .unwrap();
     let contract = scoop_identity::NativeExternalContract::c_function(
         scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
-        c_signature(seed).signature().clone(),
+        signature,
     );
     scoop_identity::NativeExternalContractRecord::new(
         test_native_source_contract(seed, false),
@@ -180,6 +208,18 @@ pub(super) fn install_test_native_function_contract(module: &mut Module, seed: u
     install_test_native_contract(module, native_function_contract(seed));
 }
 
+pub(super) fn install_test_native_function_contract_with_signature(
+    module: &mut Module,
+    seed: u8,
+    signature: &scoop_identity::CanonicalCAbiSignatureFingerprintRecord,
+) {
+    install_test_native_contract(
+        module,
+        native_function_contract_with_signature(seed, signature.signature().clone()),
+    );
+    install_test_c_signature_record(module, signature.clone());
+}
+
 pub(super) fn install_test_native_global_contract(module: &mut Module, seed: u8) {
     install_test_native_contract(module, native_global_contract(seed));
 }
@@ -207,8 +247,15 @@ fn install_test_native_contract(
 }
 
 pub(super) fn install_test_c_signature(module: &mut Module, seed: u8) {
+    install_test_c_signature_record(module, c_signature(seed));
+}
+
+pub(super) fn install_test_c_signature_record(
+    module: &mut Module,
+    signature: scoop_identity::CanonicalCAbiSignatureFingerprintRecord,
+) {
     let mut signatures = module.meta.canonical_c_abi.signatures().to_vec();
-    signatures.push(c_signature(seed));
+    signatures.push(signature);
     module.meta.canonical_c_abi = scoop_lir::CanonicalCAbiMetadata::checked(
         signatures,
         module.meta.canonical_c_abi.layouts().to_vec(),
@@ -508,7 +555,7 @@ pub(super) fn immortal_string_identity(name: &str) -> scoop_lir::ImmortalObjectI
     .unwrap()
 }
 
-fn test_exact_type(name: &str) -> PersistentExactTypeId {
+pub(super) fn test_exact_type(name: &str) -> PersistentExactTypeId {
     let identifier = format!(
         "test{}",
         name.as_bytes()
@@ -1130,6 +1177,16 @@ pub(super) fn ir_of(module: &Module) -> String {
     let llvm = emit_llvm_module(&context, module, &machine, host_profile()).expect("emit module");
     llvm.verify().expect("valid LLVM module");
     llvm.print_to_string().to_string()
+}
+
+pub(super) fn joined_c_bridge_sources(module: &Module) -> Result<String, CodegenError> {
+    crate::c_bridge::render_c_bridge_source_set_for_module(module).map(|set| {
+        set.units()
+            .iter()
+            .map(|unit| unit.source())
+            .collect::<Vec<_>>()
+            .join("\n")
+    })
 }
 
 pub(super) fn rewritten_ir_of(module: &Module) -> String {

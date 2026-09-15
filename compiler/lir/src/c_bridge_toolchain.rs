@@ -437,10 +437,11 @@ pub enum GeneratedCSourceTemplateComponentV1 {
     NativeGlobalAccessors,
     CallbackTrampolines,
     ForeignCallbackTrampolines,
+    UnitObjectPartition,
 }
 
 impl GeneratedCSourceTemplateComponentV1 {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::TypeRenderer,
         Self::LayoutAssertions,
         Self::ExternalDeclarations,
@@ -448,6 +449,7 @@ impl GeneratedCSourceTemplateComponentV1 {
         Self::NativeGlobalAccessors,
         Self::CallbackTrampolines,
         Self::ForeignCallbackTrampolines,
+        Self::UnitObjectPartition,
     ];
 
     const fn tag(self) -> u32 {
@@ -459,6 +461,7 @@ impl GeneratedCSourceTemplateComponentV1 {
             Self::NativeGlobalAccessors => 5,
             Self::CallbackTrampolines => 6,
             Self::ForeignCallbackTrampolines => 7,
+            Self::UnitObjectPartition => 8,
         }
     }
 }

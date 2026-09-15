@@ -2,9 +2,11 @@
 
 use scoop_identity::{
     CallbackParameterIndex, CanonicalCAbiSignatureFingerprint, CborIdentityRecord, ConeIdentity,
+    LinkageClass, PersistentSymbolKey, PersistentSymbolRequest, StaticNoGcCallbackStorageBridgeId,
+};
+pub use scoop_identity::{
     GeneratedBridgeAtomId, GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey,
-    GeneratedBridgeUnitId, GeneratedBridgeUnitKey, LinkageClass, PersistentSymbolKey,
-    PersistentSymbolRequest, StaticNoGcCallbackStorageBridgeId,
+    GeneratedBridgeUnitId, GeneratedBridgeUnitKey,
 };
 
 use crate::MaterializedSymbol;

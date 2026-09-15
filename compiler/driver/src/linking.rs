@@ -87,7 +87,7 @@ pub(super) fn build_runtime(
 /// using the system `cc` driver.
 pub(super) struct LinkRequest<'a> {
     pub(super) objects: &'a [PathBuf],
-    pub(super) bridge_object: Option<&'a Path>,
+    pub(super) bridge_objects: &'a [PathBuf],
     pub(super) runtime_lib: &'a Path,
     pub(super) libraries: &'a [String],
     pub(super) library_paths: &'a [PathBuf],
@@ -99,7 +99,7 @@ pub(super) struct LinkRequest<'a> {
 pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
     let LinkRequest {
         objects,
-        bridge_object,
+        bridge_objects,
         runtime_lib,
         libraries,
         library_paths,
@@ -117,9 +117,7 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
     let mut command = Command::new(profile.linker_driver());
     command.arg("-target").arg(profile.canonical_triple());
     command.args(objects);
-    if let Some(bridge_object) = bridge_object {
-        command.arg(bridge_object);
-    }
+    command.args(bridge_objects);
     command.arg(runtime_lib);
     for path in library_paths {
         command.arg("-L").arg(path);
