@@ -342,6 +342,10 @@ impl std::error::Error for LirFoundationOwnershipError {}
 pub enum LirFoundationValidationError {
     Resource(scoop_wire::WireError),
     Identity(IdentityValidationError),
+    MaterializedExactType {
+        index: usize,
+        error: IdentityReferenceError,
+    },
     RuntimeType {
         index: usize,
         error: RuntimeTypeMappingResolutionError<IdentityReferenceError>,
@@ -404,6 +408,10 @@ impl fmt::Display for LirFoundationValidationError {
         match self {
             Self::Resource(error) => error.fmt(formatter),
             Self::Identity(error) => error.fmt(formatter),
+            Self::MaterializedExactType { index, error } => write!(
+                formatter,
+                "LIR materialized exact type reference {index} is invalid: {error}"
+            ),
             Self::RuntimeType { index, error } => {
                 write!(
                     formatter,

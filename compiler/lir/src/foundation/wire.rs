@@ -2,13 +2,13 @@
 
 use scoop_identity::{
     DecodedCanonicalCAbiLayoutFingerprintRecord, DecodedCanonicalCAbiSignatureFingerprintRecord,
-    DecodedCborIdentityRecord, DecodedDispatchTableKey, DecodedExactTypeKey,
-    DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeUnitKey, DecodedImmortalObjectKey,
-    DecodedLayoutKey, DecodedNativeExternalContractRecord, DecodedNativeLinkRequirementKey,
+    DecodedCborIdentityRecord, DecodedDispatchTableKey, DecodedGeneratedBridgeAtomKey,
+    DecodedGeneratedBridgeUnitKey, DecodedImmortalObjectKey, DecodedLayoutKey,
+    DecodedNativeExternalContractRecord, DecodedNativeLinkRequirementKey,
     DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey, DecodedOdrMemberKey,
-    DecodedPersistentSymbolRequestTable, DecodedRuntimeIdentityRecord, DecodedSafepointSiteKey,
-    DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey, IdentityLayer,
-    IdentityValidationError, PendingIdentityValidation,
+    DecodedPersistentId, DecodedPersistentSymbolRequestTable, DecodedRuntimeIdentityRecord,
+    DecodedSafepointSiteKey, DecodedScanKey, DecodedSpecializationKey, DecodedStaticStorageKey,
+    IdentityLayer, IdentityValidationError, PendingIdentityValidation,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -23,7 +23,6 @@ pub use validation::{
     NativeContractRelationError, SafepointRelationError, ValidatedLirFoundation,
 };
 
-type DecodedExactTypeRecord = DecodedCborIdentityRecord<PersistentExactTypeId, DecodedExactTypeKey>;
 type DecodedLayoutRecord = DecodedCborIdentityRecord<PersistentLayoutId, DecodedLayoutKey>;
 type DecodedScanRecord = DecodedCborIdentityRecord<PersistentScanId, DecodedScanKey>;
 type DecodedDispatchTableRecord =
@@ -50,7 +49,7 @@ type DecodedDefinitionAtomRecord =
 
 #[derive(Debug)]
 struct DecodedLirFoundationWire {
-    exact_types: Vec<DecodedExactTypeRecord>,
+    materialized_exact_types: Vec<DecodedPersistentId<PersistentExactTypeId>>,
     layouts: Vec<DecodedLayoutRecord>,
     scans: Vec<DecodedScanRecord>,
     dispatch_tables: Vec<DecodedDispatchTableRecord>,
@@ -121,7 +120,6 @@ impl DecodedLirFoundation {
         }
 
         register_tables!(
-            exact_types,
             layouts,
             scans,
             dispatch_tables,
@@ -157,7 +155,6 @@ impl DecodedLirFoundation {
         }
 
         resolve_tables!(
-            exact_types,
             layouts,
             scans,
             dispatch_tables,
@@ -195,7 +192,7 @@ impl DecodedLirFoundation {
 impl WireEncode for DecodedLirFoundationWire {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(22)?;
-        encode_table_field(encoder, 1, &self.exact_types)?;
+        encode_table_field(encoder, 1, &self.materialized_exact_types)?;
         encode_table_field(encoder, 2, &self.layouts)?;
         encode_table_field(encoder, 3, &self.scans)?;
         encode_table_field(encoder, 4, &self.dispatch_tables)?;
@@ -225,7 +222,7 @@ impl WireDecode for DecodedLirFoundationWire {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(22)?;
         Ok(Self {
-            exact_types: decode_table_field(decoder, 1)?,
+            materialized_exact_types: decode_table_field(decoder, 1)?,
             layouts: decode_table_field(decoder, 2)?,
             scans: decode_table_field(decoder, 3)?,
             dispatch_tables: decode_table_field(decoder, 4)?,
@@ -278,9 +275,9 @@ mod tests {
     use scoop_identity::{
         CallableBodyKey, CanonicalCAbiFunctionSignature, CanonicalCAbiReturn,
         CanonicalCAbiSignatureFingerprintRecord, CanonicalIdentifier, CborIdentityRecord,
-        ConeIdentity, DeclarationScope, DefinitionOwnerChain, GeneratedBridgeUnitKey,
-        NativeExternalContract, NativeExternalContractRecord, NativeExternalSymbolKey,
-        NativeLibraryBinding, PackagePath, PersistentFunctionId,
+        ConeIdentity, CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
+        GeneratedBridgeUnitKey, NativeExternalContract, NativeExternalContractRecord,
+        NativeExternalSymbolKey, NativeLibraryBinding, PackagePath, PersistentFunctionId,
         PersistentSourceNativeExternalContractId, RuntimeIdentityRecord, SemanticIdentitySession,
         SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite,
         SourceNativeExternalContractKey, SourceNativeSymbol, StrongCallableDefinitionOwner,
@@ -298,7 +295,7 @@ mod tests {
             decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
         let decoded = validated.decoded;
 
-        assert!(decoded.exact_types.is_empty());
+        assert!(decoded.materialized_exact_types.is_empty());
         assert!(decoded.layouts.is_empty());
         assert!(decoded.scans.is_empty());
         assert!(decoded.dispatch_tables.is_empty());
@@ -319,6 +316,27 @@ mod tests {
         assert!(decoded.native_link_requirements.is_empty());
         assert!(decoded.definition_plans.is_empty());
         assert!(decoded.definition_atoms.is_empty());
+    }
+
+    #[test]
+    fn rejects_the_obsolete_materialized_exact_type_identity_record_shape() {
+        let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap();
+        let mut canonical = CanonicalLirFoundation::empty();
+        canonical
+            .set_materialized_exact_types(vec![record.id()])
+            .unwrap();
+        let mut bytes = encode(&canonical).unwrap();
+        let id_offset = bytes
+            .windows(record.id().as_array().len())
+            .position(|window| window == record.id().as_array())
+            .unwrap();
+        assert_eq!(&bytes[id_offset - 2..id_offset], &[0x58, 0x20]);
+        bytes.splice(id_offset - 2..id_offset + 32, encode(&record).unwrap());
+
+        assert!(decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).is_err());
     }
 
     #[test]

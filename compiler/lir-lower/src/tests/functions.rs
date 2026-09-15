@@ -243,6 +243,24 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending.register_authority(definition).unwrap();
+    let decoded_exact_types = core_input
+        .module()
+        .meta
+        .source_exact_types
+        .iter()
+        .map(|identity| {
+            scoop_wire::decode_canonical::<
+                scoop_identity::DecodedCborIdentityRecord<
+                    scoop_identity::PersistentExactTypeId,
+                    scoop_identity::DecodedExactTypeKey,
+                >,
+            >(
+                &scoop_wire::encode(identity.identity_record()).unwrap(),
+                scoop_wire::DecodeLimits::default(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
     for identity in core_input.module().meta.source_exact_types.iter() {
         match identity.identity_record().key() {
             scoop_identity::ExactTypeKey::Nominal(owner) => {
@@ -257,7 +275,15 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
             | scoop_identity::ExactTypeKey::NativeFunctionPointer { .. } => {}
         }
     }
+    for identity in &decoded_exact_types {
+        pending
+            .register(scoop_identity::IdentityLayer::Hir, identity)
+            .unwrap();
+    }
     decoded_lir.register_identities(&mut pending).unwrap();
+    for identity in &decoded_exact_types {
+        pending.resolve(identity).unwrap();
+    }
     decoded_lir.resolve_identities(&mut pending).unwrap();
     let identities = pending.finish().unwrap();
     let mut session = SemanticIdentitySession::new();

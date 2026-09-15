@@ -6,18 +6,17 @@ use std::fmt;
 use scoop_identity::{
     CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiSignatureFingerprintRecord,
     CborIdentityRecord, ConeImageSupportRole, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
-    DefinitionAtomRole, DefinitionAtomSubkey, DispatchTableKey, ExactTypeKey,
-    GeneratedBridgeAtomId, GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey,
-    GeneratedBridgeUnitId, GeneratedBridgeUnitKey, ImmortalObjectKey, LayoutKey, LinkageClass,
+    DefinitionAtomRole, DefinitionAtomSubkey, DispatchTableKey, GeneratedBridgeAtomId,
+    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
+    GeneratedBridgeUnitKey, ImmortalObjectKey, LayoutKey, LinkageClass,
     NativeExternalContractRecord, NativeLinkRequirementId, NativeLinkRequirementKey,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey,
     PersistentCallableBodyId, PersistentDispatchTableId, PersistentExactTypeId, PersistentId,
     PersistentImmortalObjectId, PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
     PersistentStaticStorageId, PersistentSymbolRequest, RuntimeIdentityRecord, SafepointSiteKey,
-    ScanKey, SpecializationKey, StableIdentityOrderError, StaticStorageKey, StrongDefinitionEntity,
-    StrongDefinitionRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment, stable_topological_identity_delta_order,
+    ScanKey, SpecializationKey, StaticStorageKey, StrongDefinitionEntity, StrongDefinitionRole,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_wire::{Encoder, HashError, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -46,7 +45,6 @@ pub use strong_profile::{
     OdrFreeLirFoundationProjectionError,
 };
 
-type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type LayoutRecord = CborIdentityRecord<PersistentLayoutId, LayoutKey>;
 type ScanRecord = CborIdentityRecord<PersistentScanId, ScanKey>;
 type DispatchTableRecord = CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>;
@@ -74,7 +72,7 @@ pub(crate) type DefinitionAtomRecord =
 /// encoded directly without a second sorting pass.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalLirFoundation {
-    exact_types: Vec<ExactTypeRecord>,
+    materialized_exact_types: Vec<PersistentExactTypeId>,
     layouts: Vec<LayoutRecord>,
     scans: Vec<ScanRecord>,
     dispatch_tables: Vec<DispatchTableRecord>,
@@ -101,7 +99,7 @@ pub struct CanonicalLirFoundation {
 impl CanonicalLirFoundation {
     pub fn empty() -> Self {
         Self {
-            exact_types: Vec::new(),
+            materialized_exact_types: Vec::new(),
             layouts: Vec::new(),
             scans: Vec::new(),
             dispatch_tables: Vec::new(),
@@ -128,7 +126,7 @@ impl CanonicalLirFoundation {
 
     pub fn counts(&self) -> LirFoundationCounts {
         LirFoundationCounts {
-            exact_types: self.exact_types.len(),
+            materialized_exact_types: self.materialized_exact_types.len(),
             layouts: self.layouts.len(),
             scans: self.scans.len(),
             dispatch_tables: self.dispatch_tables.len(),
@@ -153,15 +151,15 @@ impl CanonicalLirFoundation {
         }
     }
 
-    pub fn set_exact_types(
+    pub fn set_materialized_exact_types(
         &mut self,
-        records: Vec<ExactTypeRecord>,
+        exact_types: Vec<PersistentExactTypeId>,
     ) -> Result<(), LirFoundationBuildError> {
-        self.exact_types =
-            stable_topological_identity_delta_order(records, CborIdentityRecord::id, |record| {
-                record.key().exact_type_dependencies()
-            })
-            .map_err(LirFoundationBuildError::ExactTypeOrder)?;
+        self.materialized_exact_types = sort_unique(
+            exact_types,
+            LirFoundationTable::MaterializedExactType,
+            |exact| *exact,
+        )?;
         Ok(())
     }
 
@@ -398,7 +396,7 @@ impl CanonicalLirFoundation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LirFoundationCounts {
-    pub exact_types: usize,
+    pub materialized_exact_types: usize,
     pub layouts: usize,
     pub scans: usize,
     pub dispatch_tables: usize,
@@ -425,7 +423,7 @@ pub struct LirFoundationCounts {
 impl WireEncode for CanonicalLirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(22)?;
-        encode_table_field(encoder, 1, &self.exact_types)?;
+        encode_table_field(encoder, 1, &self.materialized_exact_types)?;
         encode_table_field(encoder, 2, &self.layouts)?;
         encode_table_field(encoder, 3, &self.scans)?;
         encode_table_field(encoder, 4, &self.dispatch_tables)?;
@@ -453,7 +451,7 @@ impl WireEncode for CanonicalLirFoundation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LirFoundationTable {
-    ExactType,
+    MaterializedExactType,
     Layout,
     Scan,
     DispatchTable,
@@ -479,7 +477,7 @@ pub enum LirFoundationTable {
 impl LirFoundationTable {
     const fn name(self) -> &'static str {
         match self {
-            Self::ExactType => "exact type",
+            Self::MaterializedExactType => "materialized exact type reference",
             Self::Layout => "layout",
             Self::Scan => "scan",
             Self::DispatchTable => "dispatch table",
@@ -506,7 +504,6 @@ impl LirFoundationTable {
 
 #[derive(Debug)]
 pub enum LirFoundationBuildError {
-    ExactTypeOrder(StableIdentityOrderError<PersistentExactTypeId>),
     CallableBodyKey(RuntimeDecodeError),
     DuplicateIdentity {
         table: LirFoundationTable,
@@ -555,7 +552,6 @@ pub enum LirFoundationBuildError {
 impl fmt::Display for LirFoundationBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ExactTypeOrder(error) => error.fmt(formatter),
             Self::CallableBodyKey(error) => error.fmt(formatter),
             Self::DuplicateIdentity { table, identity } => write!(
                 formatter,

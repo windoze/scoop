@@ -422,7 +422,15 @@ fn finish_fixture(
         parts.atoms.retain(|record| record.key().plan() != omitted);
     }
     let mut canonical = CanonicalLirFoundation::empty();
-    canonical.set_exact_types(parts.exact_types).unwrap();
+    canonical
+        .set_materialized_exact_types(
+            parts
+                .exact_types
+                .into_iter()
+                .map(|record| record.id())
+                .collect(),
+        )
+        .unwrap();
     canonical.set_layouts(parts.layouts).unwrap();
     canonical.set_scans(parts.scans).unwrap();
     canonical.set_definition_plans(parts.plans).unwrap();

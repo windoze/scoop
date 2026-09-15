@@ -49,6 +49,7 @@ fn graph_decodes_identity_checks_and_structurally_validates_all_foundation_layer
     let mut mir = CanonicalMirFoundation::empty();
     mir.set_exact_types(vec![exact_record]).unwrap();
     let mut lir = CanonicalLirFoundation::empty();
+    lir.set_materialized_exact_types(vec![exact]).unwrap();
     lir.set_layouts(vec![layout_record]).unwrap();
     let cone = ConeRecord::new(
         ConeCoordinate::reserved_core(),
@@ -94,6 +95,7 @@ fn graph_decodes_identity_checks_and_structurally_validates_all_foundation_layer
     assert_eq!(validated.identity_count(), 5);
     assert_eq!(validated.hir().counts().types, 2);
     assert_eq!(validated.mir().counts().exact_types, 1);
+    assert_eq!(validated.lir().counts().materialized_exact_types, 1);
     assert_eq!(validated.lir().counts().layouts, 1);
     assert_eq!(encode(validated.hir()).unwrap(), encode(&hir).unwrap());
     assert_eq!(encode(validated.mir()).unwrap(), encode(&mir).unwrap());
@@ -113,6 +115,7 @@ fn graph_decodes_identity_checks_and_structurally_validates_all_foundation_layer
     assert_eq!(compiled.hir().identity_count(), 2);
     assert_eq!(compiled.mir().identity_count(), 1);
     assert_eq!(compiled.lir().identity_count(), 1);
+    assert!(compiled.lir().identity(exact).is_none());
     assert_eq!(
         compiled
             .mir()

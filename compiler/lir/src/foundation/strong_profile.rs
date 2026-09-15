@@ -4,8 +4,8 @@ use scoop_identity::{
     ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DefinitionAtomRole,
     DefinitionOwner, GeneratedBridgeAtomId, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
-    PersistentCallableBodyId, PersistentStaticStorageId, PersistentSymbolKey,
-    PersistentSymbolRequest, SafepointId, StorageRole,
+    PersistentCallableBodyId, PersistentExactTypeId, PersistentStaticStorageId,
+    PersistentSymbolKey, PersistentSymbolRequest, SafepointId, StorageRole,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -168,8 +168,8 @@ impl OdrFreeLirFoundation {
         &self.canonical.definition_atoms
     }
 
-    pub(crate) fn exact_types(&self) -> &[super::ExactTypeRecord] {
-        &self.canonical.exact_types
+    pub(crate) fn materialized_exact_types(&self) -> &[PersistentExactTypeId] {
+        &self.canonical.materialized_exact_types
     }
 
     pub(crate) fn layouts(&self) -> &[super::LayoutRecord] {

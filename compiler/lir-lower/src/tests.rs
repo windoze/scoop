@@ -573,7 +573,11 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
 
     assert_eq!(output.module().meta.exact_types, expected);
     assert_eq!(
-        output.foundation().as_canonical().counts().exact_types,
+        output
+            .foundation()
+            .as_canonical()
+            .counts()
+            .materialized_exact_types,
         expected.len()
     );
     let expected_ids = expected

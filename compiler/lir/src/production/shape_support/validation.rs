@@ -110,16 +110,8 @@ fn exact_shape_support(
 ) -> Result<StrongExactShapeSupportV1, ParamFreeShapeSupportBuildError> {
     let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal))
         .map_err(ParamFreeShapeSupportBuildError::Hash)?;
-    let exact_record = foundation
-        .exact_types()
-        .iter()
-        .find(|record| record.id() == exact)
-        .ok_or(ParamFreeShapeSupportBuildError::MissingExactType(exact))?;
-    if exact_record.key() != &ExactTypeKey::Nominal(nominal) {
-        return Err(ParamFreeShapeSupportBuildError::ExactTypeMismatch {
-            exact,
-            expected_nominal: nominal,
-        });
+    if !foundation.materialized_exact_types().contains(&exact) {
+        return Err(ParamFreeShapeSupportBuildError::MissingExactType(exact));
     }
 
     let layouts = foundation

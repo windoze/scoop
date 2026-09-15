@@ -594,6 +594,11 @@ driver只暴露消费上述sealed MIR product的`lower_lir(self, lir_target)`；
 `TrustedCoreBootstrapLirOutput`私有拥有此前的`TrustedCoreBootstrapMirOutput`、最终LIR graph与由该graph投影的
 `OdrFreeLirFoundation`。因此调用方不能把另一份MIR proof、materialization plan或foundation与LIR结果重新配对；
 capability失败或LIR foundation出现ODR record时均不产生partial stage成功值，也不存在接收裸MIR的driver入口。
+三层foundation的identity transaction同时要求每个typed identity只有一个声明层：HIR声明source/concrete exact
+type，MIR只声明本层生成的exact type，LIR不得为了描述runtime物化闭包再次复制相同`{ id, key }`。LIR
+foundation field 1因此是按`PersistentExactTypeId`严格递增、无重复的materialized exact-type引用集合；reader在
+HIR、MIR声明完成canonical-key重算后逐项解析这些引用，再重建LIR内部的物化集合。旧的LIR exact-type record
+数组不是兼容输入，直接按当前closed wire shape拒绝。
 
 `ParsedCoreBootstrapBuildRequest::build_and_publish(self, temporary_parent, limits)`是bootstrap从parsed request到
 published artifact的唯一终态入口。它按上述顺序消费HIR、MIR、LIR与strong-profile状态，从请求自身唯一派生
@@ -1843,7 +1848,7 @@ section，不能把foundation推迟到packager临时重算。`OdrFreeHirFoundati
 bootstrap路径。
 
 这里的`application`只指会产生body materialization的`CallableApplicationKey`，不包括仅作为完整签名类型出现的
-`ExactTypeKey::NominalApplication`。后者必须原样保留在exact-type表；若当前Cone没有为它选择layout、scan、
+`ExactTypeKey::NominalApplication`。后者必须原样保留在其最早声明层的exact-type identity表；若当前Cone没有为它选择layout、scan、
 TypeDescriptor、adapter或generated helper，canonical projection从一开始就不产生Nominal ODR group，而不是在
 profile收窄时删除记录。任何实际materialization仍须建立group/member并被本阶段拒绝；第7.6节所列
 `ContinuationShell`/`CoroutineStart`正因需要generic dependency物化而继续失败。

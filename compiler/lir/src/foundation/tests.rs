@@ -21,30 +21,41 @@ fn empty_foundation_has_all_twenty_two_empty_tables() {
 }
 
 #[test]
-fn exact_types_use_dependency_first_order_instead_of_raw_id_order() {
-    let (child, parent) = dependency_pair_with_parent_sorting_first();
-    assert!(parent.id() < child.id());
-
+fn materialized_exact_type_references_are_sorted_by_persistent_id() {
+    let (first, _) = nominal_exact("FirstMaterialized");
+    let (second, _) = nominal_exact("SecondMaterialized");
     let mut foundation = CanonicalLirFoundation::empty();
+
     foundation
-        .set_exact_types(vec![parent.clone(), child.clone()])
+        .set_materialized_exact_types(vec![second, first])
         .unwrap();
 
-    assert_eq!(foundation.exact_types, vec![child, parent]);
+    assert_eq!(
+        foundation.materialized_exact_types,
+        if first < second {
+            vec![first, second]
+        } else {
+            vec![second, first]
+        }
+    );
 }
 
 #[test]
-fn exact_type_dependencies_from_earlier_layers_are_not_local_ordering_errors() {
-    let (external_child, _) = nominal_exact("ExternalChild");
-    let local_parent =
-        CborIdentityRecord::from_key(ExactTypeKey::RawPointer(external_child)).unwrap();
+fn duplicate_materialized_exact_type_reference_is_rejected() {
+    let (exact, _) = nominal_exact("DuplicateMaterialized");
     let mut foundation = CanonicalLirFoundation::empty();
 
-    foundation
-        .set_exact_types(vec![local_parent.clone()])
-        .unwrap();
+    let error = foundation
+        .set_materialized_exact_types(vec![exact, exact])
+        .unwrap_err();
 
-    assert_eq!(foundation.exact_types, vec![local_parent]);
+    assert!(matches!(
+        error,
+        LirFoundationBuildError::DuplicateIdentity {
+            table: LirFoundationTable::MaterializedExactType,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -117,20 +128,6 @@ fn duplicate_primary_identity_is_rejected_before_encoding() {
             ..
         }
     ));
-}
-
-fn dependency_pair_with_parent_sorting_first() -> (
-    CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
-    CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
-) {
-    for ordinal in 0..1_000 {
-        let (child_id, child) = nominal_exact(&format!("Dependency{ordinal}"));
-        let parent = CborIdentityRecord::from_key(ExactTypeKey::RawPointer(child_id)).unwrap();
-        if parent.id() < child.id() {
-            return (child, parent);
-        }
-    }
-    panic!("expected to find a deterministic hash pair within the test bound")
 }
 
 fn nominal_exact(

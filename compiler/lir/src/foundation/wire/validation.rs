@@ -1,3 +1,4 @@
+use scoop_identity::PersistentIdResolver;
 use scoop_identity::{
     CallableBodyKey, ConeIdentity, GeneratedBridgeUnitKey, IdentityLayer, ValidatedIdentityGraph,
 };
@@ -85,7 +86,7 @@ fn validate_foundation(
     let original = encode_canonical_temporary_with_meter(&foundation, meter, &WirePath::root())
         .map_err(LirFoundationValidationError::Resource)?;
     let DecodedLirFoundationWire {
-        exact_types: _,
+        materialized_exact_types,
         layouts: _,
         scans: _,
         dispatch_tables: _,
@@ -109,6 +110,22 @@ fn validate_foundation(
         definition_atoms: _,
     } = foundation.decoded;
 
+    let mut resolved_materialized_exact_types = Vec::new();
+    meter
+        .try_reserve_collection_slots(
+            &mut resolved_materialized_exact_types,
+            materialized_exact_types.len(),
+            &WirePath::root().field(1),
+        )
+        .map_err(LirFoundationValidationError::Resource)?;
+    for (index, exact) in materialized_exact_types.into_iter().enumerate() {
+        resolved_materialized_exact_types.push(
+            PersistentIdResolver::resolve(identities, exact).map_err(|error| {
+                LirFoundationValidationError::MaterializedExactType { index, error }
+            })?,
+        );
+    }
+
     macro_rules! records {
         ($field:literal, $id:ty, $key:ty) => {
             identities
@@ -116,7 +133,6 @@ fn validate_foundation(
                 .map_err(LirFoundationValidationError::Identity)?
         };
     }
-    let exact_types: Vec<ExactTypeRecord> = records!(1, PersistentExactTypeId, ExactTypeKey);
     let layouts: Vec<LayoutRecord> = records!(2, PersistentLayoutId, LayoutKey);
     let scans: Vec<ScanRecord> = records!(3, PersistentScanId, ScanKey);
     let dispatch_tables: Vec<DispatchTableRecord> =
@@ -283,7 +299,10 @@ fn validate_foundation(
                 .map_err(LirFoundationValidationError::Build)?
         };
     }
-    set!(set_exact_types, exact_types);
+    set!(
+        set_materialized_exact_types,
+        resolved_materialized_exact_types
+    );
     set!(set_layouts, layouts);
     set!(set_scans, scans);
     set!(set_dispatch_tables, dispatch_tables);
