@@ -70,6 +70,7 @@ mod abi;
 mod artifact;
 mod atom_boundaries;
 mod c_bridge;
+mod c_bridge_emission;
 mod callable_atom_boundaries;
 mod declarations;
 mod emission;
@@ -88,6 +89,10 @@ mod validation;
 pub use c_bridge::{
     GeneratedCBridgeSourceSetV1, GeneratedCBridgeSourceUnitV1, c_layout_assertions,
     render_c_bridge_source_set,
+};
+pub use c_bridge_emission::{
+    EmittedGeneratedCBridgeObjectMemberV1, EmittedGeneratedCBridgeObjectSetV1,
+    emit_c_bridge_object_set,
 };
 pub(crate) use declarations::*;
 #[cfg(test)]

@@ -15,7 +15,7 @@ mod request;
 mod trusted_core;
 
 pub use inputs::{load_inputs, render_diagnostics};
-use linking::{LinkRequest, build_runtime, compile_c_bridge, link};
+use linking::{LinkRequest, build_runtime, link};
 pub use object_production::{
     PlannedScoopLirObjectInputV1, PlannedScoopLirObjectProductionV1, ScoopLirObjectProductionError,
 };
@@ -267,30 +267,17 @@ pub fn compile_file_with_options(
             .map(|member| member.path().to_path_buf())
             .collect::<Vec<_>>();
 
-        let bridge_sources = scoop_codegen::render_c_bridge_source_set(&lir).map_err(|e| {
+        let bridge_objects = scoop_codegen::emit_c_bridge_object_set(
+            &lir,
+            out_dir,
+            target_profile.c_bridge_toolchain(),
+        )
+        .map_err(|e| {
             vec![no_span(
                 user_index,
-                format!("C bridge generation failed: {e}"),
+                format!("generated-C object production failed: {e}"),
             )]
         })?;
-        let mut bridge_objects = Vec::with_capacity(bridge_sources.units().len());
-        for unit in bridge_sources.units() {
-            let source_path = out_dir.join(format!("{stem}.ffi.{}.c", unit.unit()));
-            let object_path = out_dir.join(format!("{stem}.ffi.{}.o", unit.unit()));
-            std::fs::write(&source_path, unit.source()).map_err(|error| {
-                vec![no_span(
-                    user_index,
-                    format!("cannot write C bridge {}: {error}", source_path.display()),
-                )]
-            })?;
-            compile_c_bridge(
-                &source_path,
-                &object_path,
-                target_profile.c_bridge_toolchain(),
-                user_index,
-            )?;
-            bridge_objects.push(object_path);
-        }
 
         let runtime_lib = build_runtime(user_index, target_profile.runtime_build())?;
         let mut libraries = Vec::new();

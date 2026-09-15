@@ -4,37 +4,6 @@ use super::*;
 
 mod eh_artifact;
 
-pub(super) fn compile_c_bridge(
-    source: &Path,
-    object: &Path,
-    toolchain: &scoop_codegen::ValidatedCBridgeToolchainProfile,
-    file: usize,
-) -> Result<(), Vec<Diagnostic>> {
-    let output = toolchain
-        .object_compilation_command(source, object)
-        .output()
-        .map_err(|error| {
-            vec![no_span(
-                file,
-                format!(
-                    "failed to run C bridge compiler `{}`: {error}",
-                    toolchain.compiler_driver().display()
-                ),
-            )]
-        })?;
-    if !output.status.success() {
-        return Err(vec![no_span(
-            file,
-            format!(
-                "C bridge compilation failed (status {}): {}",
-                output.status,
-                String::from_utf8_lossy(&output.stderr).trim()
-            ),
-        )]);
-    }
-    Ok(())
-}
-
 /// Compile the C runtime into a static library cached under
 /// `target/scoop-rt/`. The complete source set comes from the selected target
 /// profile; rebuilding it is still cheap enough (see
@@ -87,7 +56,7 @@ pub(super) fn build_runtime(
 /// using the system `cc` driver.
 pub(super) struct LinkRequest<'a> {
     pub(super) objects: &'a [PathBuf],
-    pub(super) bridge_objects: &'a [PathBuf],
+    pub(super) bridge_objects: &'a scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
     pub(super) runtime_lib: &'a Path,
     pub(super) libraries: &'a [String],
     pub(super) library_paths: &'a [PathBuf],
@@ -117,7 +86,12 @@ pub(super) fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
     let mut command = Command::new(profile.linker_driver());
     command.arg("-target").arg(profile.canonical_triple());
     command.args(objects);
-    command.args(bridge_objects);
+    command.args(
+        bridge_objects
+            .members()
+            .iter()
+            .map(scoop_codegen::EmittedGeneratedCBridgeObjectMemberV1::object_path),
+    );
     command.arg(runtime_lib);
     for path in library_paths {
         command.arg("-L").arg(path);

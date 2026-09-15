@@ -53,6 +53,31 @@ impl ValidatedCBridgeToolchainProfile {
             object,
         )
     }
+
+    pub(crate) fn validate_lir_target_profile(
+        &self,
+        actual: LirTargetProfile,
+    ) -> Result<(), CodegenError> {
+        let contract = self.profile.contract();
+        let actual_fingerprint = actual.fingerprint().map_err(|error| {
+            CodegenError(format!(
+                "cannot fingerprint LIR target profile for generated-C production: {error}"
+            ))
+        })?;
+        if contract.target() == &actual.wire_id()
+            && contract.target_fingerprint() == actual_fingerprint
+        {
+            return Ok(());
+        }
+        let profile_id = self.profile.id().capability();
+        Err(CodegenError(format!(
+            "LIR target profile `{}` does not match generated-C toolchain profile `{}/{}/{}`",
+            actual.id().canonical_name(),
+            profile_id.namespace(),
+            profile_id.name(),
+            profile_id.major_version()
+        )))
+    }
 }
 
 pub(super) fn resolve_system_c_bridge_toolchain()

@@ -40,6 +40,7 @@ mod runtime_eh_lifecycle_tests;
 mod runtime_eh_personality_tests;
 
 mod arrays;
+mod c_bridge_objects;
 mod c_layout;
 mod closures;
 mod constants;

@@ -1402,6 +1402,15 @@ layout definition/assertion；不得扫描整Cone后把其他unit的declaration�
 进来。空plan产生空source/object set；不存在单体`bridge.c`、多unit generated-C object或把同一unit再次
 按source declaration拆分的入口。临时source/object文件名只由unit id派生且不承担语义。
 
+generated C producer必须原子地接收sealed strong LIR、请求级
+`ValidatedCBridgeToolchainProfile`与临时目录父路径：先生成上述canonical source set，再只通过该profile的
+canonical object command逐unit编译。其typed结果必须同时保留完整`GeneratedBridgePlanSetV1`、精确
+`CBridgeToolchainProfileV1`、每个unit的authority plan及其source/object path映射，并拥有覆盖全部临时
+source/object的immutable backing；每个成功object必须存在、为非空普通文件且在返回前标记只读。driver只
+能在该结果存活期间借用object path交给linker，不能自行写source、调用compiler、按文件名重建unit、重新配对
+plan/source/object或接收裸`Vec<PathBuf>`作为producer结果。任一unit的source写入、compiler执行、object
+检查或封存失败都使整个object set构造失败并随backing一并丢弃，不返回部分结果。
+
 本阶段Scoop LLVM producer采用确定性的强对象分片策略：每个`CallableBody` definition plan连同其全部
 associated atom独占一个provisional object，其余Scoop LIR definition plan进入恰一个non-callable object。
 这样每个LLVM module至多定义一个callable body，`__llvm_stackmaps`、LSDA、EH frame与compact-unwind等
