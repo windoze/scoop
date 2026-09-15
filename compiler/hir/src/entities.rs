@@ -170,13 +170,26 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    /// The single compiler-protocol authority defined by declarations in this
-    /// HIR graph. Protocol constituents cannot be replaced independently.
-    pub core_protocols: DefinedCoreProtocols,
+    /// The single compiler-protocol authority for this HIR graph.
+    ///
+    /// Bootstrap graphs define the complete protocol product locally;
+    /// ordinary graphs import the complete product from their trusted core
+    /// artifact. The two worlds are deliberately mutually exclusive.
+    pub core_protocols: CoreProtocols,
     /// Resolved generic function applications, deduplicated in
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+/// Closed compiler-protocol authority carried by one Export HIR graph.
+///
+/// Keeping the variants disjoint prevents ordinary lowering from presenting
+/// imported persistent subjects as declarations owned by the current Cone.
+#[derive(Debug, Clone)]
+pub enum CoreProtocols {
+    Defined(Box<DefinedCoreProtocols>),
+    Imported(Box<ImportedCoreProtocols>),
 }
 
 /// Complete compiler-facing protocol authority defined by the current HIR

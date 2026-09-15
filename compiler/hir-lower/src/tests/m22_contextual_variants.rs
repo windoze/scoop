@@ -598,7 +598,7 @@ fn checked_variant_references_reject_wrong_owners_and_indices() {
         hir::OptionCore::checked(&module.enums, &module.types, present_payload, absent).is_none()
     );
 
-    let checked = module.core_protocols.option;
+    let checked = defined_export_core(&module).option;
     assert_eq!(module.enums[checked.enumeration()].name, "Option");
     assert_eq!(checked.some_payload().variant(), checked.some());
     assert_eq!(checked.some_payload().local_index(), 0);

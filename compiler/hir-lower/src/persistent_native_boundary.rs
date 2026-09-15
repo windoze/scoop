@@ -6,6 +6,14 @@ pub(crate) fn build(
     export: &hir::Module,
     local: &hir::concrete::Module,
 ) -> Result<hir::HirNativeBoundaryTypeDefinitions, PersistentNativeBoundaryTypeError> {
+    let core_types = match &export.core_protocols {
+        hir::CoreProtocols::Defined(protocols) => {
+            hir::HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)
+        }
+        hir::CoreProtocols::Imported(protocols) => {
+            hir::HirCoreTypeIdentityAuthority::Imported(protocols.fundamental_types())
+        }
+    };
     hir::HirNativeBoundaryTypeDefinitions::from_roots(hir::HirNativeBoundaryTypeDefinitionInputs {
         structs: &export.structs,
         enums: &export.enums,
@@ -27,9 +35,7 @@ pub(crate) fn build(
             interfaces: &export.interfaces,
             interface_applications: &export.interface_applications,
             objects: &export.objects,
-            core_types: hir::HirCoreTypeIdentityAuthority::Defined(
-                &export.core_protocols.fundamental_types,
-            ),
+            core_types,
             nominal_identities: &export.nominal_identities,
         },
         source_native_contracts: &export.source_native_contracts,

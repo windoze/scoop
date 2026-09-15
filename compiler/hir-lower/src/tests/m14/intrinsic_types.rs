@@ -65,7 +65,7 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
     ]))
     .expect("the core intrinsic type contract must lower");
     let export = &output.export;
-    let core = export.core_protocols.fundamental_types;
+    let core = defined_export_core(export.module()).fundamental_types;
     for (kind, id) in core.integers.iter() {
         let hir::StructRepresentation::Intrinsic(declaration) = export.structs[id].representation
         else {
@@ -237,12 +237,11 @@ fn allowlisted_type_provider_preserves_provenance_without_relaxing_shape() {
         },
     )
     .expect("the internal allowlist grants only declaration authority");
-    let hir::StructRepresentation::Intrinsic(declaration) = output.export.structs[output
-        .export
-        .core_protocols
-        .fundamental_types
-        .integers
-        .owner(hir::IntegerKind::SIGNED_32)]
+    let hir::StructRepresentation::Intrinsic(declaration) = output.export.structs
+        [defined_export_core(output.export.module())
+            .fundamental_types
+            .integers
+            .owner(hir::IntegerKind::SIGNED_32)]
     .representation
     else {
         panic!("the allowlisted declaration remains typed")

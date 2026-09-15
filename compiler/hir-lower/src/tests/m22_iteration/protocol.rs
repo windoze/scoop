@@ -50,7 +50,7 @@ fn basic_for_plan_keeps_source_iterator_and_next_exactly_once() {
     let application = &module.interface_applications[conformance.application()];
     assert_eq!(
         application.template,
-        module.core_protocols.iteration.iterator()
+        defined_export_core(module).iteration.iterator()
     );
     assert_eq!(application.arguments, [int]);
     assert_eq!(conformance.iterator().ty, application.canonical_type);
@@ -83,12 +83,15 @@ fn basic_for_plan_keeps_source_iterator_and_next_exactly_once() {
     let next_application = &module.method_applications[next.callable()];
     assert_eq!(
         next_application.function,
-        module.interface_methods[module.core_protocols.iteration.next()].function
+        module.interface_methods[defined_export_core(module).iteration.next()].function
     );
     assert_eq!(next.element().ty, int);
     assert_eq!(plan.binding().subject, next.element());
     let option = &module.enum_applications[next.option().application()];
-    assert_eq!(option.template, module.core_protocols.option.enumeration());
+    assert_eq!(
+        option.template,
+        defined_export_core(module).option.enumeration()
+    );
     assert_eq!(option.arguments, [int]);
     let hir::IrrefutableBindingShape::Binding(binding) = &plan.binding().shape else {
         panic!("a plain for variable must retain one binding leaf")
@@ -469,7 +472,8 @@ fn iteration_plan_keeps_canonical_next_some_and_none_identities() {
 
     let plan = first_for(export_body(&module, "consume"));
     let next = &module.method_applications[plan.next().callable()];
-    let canonical_next = module.interface_methods[module.core_protocols.iteration.next()].function;
+    let canonical_next =
+        module.interface_methods[defined_export_core(&module).iteration.next()].function;
     let shadow_next = module
         .functions
         .iter()
@@ -481,20 +485,20 @@ fn iteration_plan_keeps_canonical_next_some_and_none_identities() {
     let option = plan.next().option();
     assert_eq!(
         option.some_payload().variant().declaration(),
-        module.core_protocols.option.some()
+        defined_export_core(&module).option.some()
     );
     assert_eq!(
         option.none().declaration(),
-        module.core_protocols.option.none()
+        defined_export_core(&module).option.none()
     );
     assert_eq!(
         module.enum_applications[option.application()].template,
-        module.core_protocols.option.enumeration()
+        defined_export_core(&module).option.enumeration()
     );
     let shadow = module
         .enums
         .iter()
         .find_map(|(id, enumeration)| (enumeration.name == "ShadowOption").then_some(id))
         .expect("the shadow enum is retained");
-    assert_ne!(shadow, module.core_protocols.option.enumeration());
+    assert_ne!(shadow, defined_export_core(&module).option.enumeration());
 }

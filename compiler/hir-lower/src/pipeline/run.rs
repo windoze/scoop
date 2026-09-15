@@ -831,7 +831,7 @@ impl Lowerer {
             unit: self.unit,
             boolean: self.boolean,
             string: self.string,
-            core_protocols: hir::DefinedCoreProtocols {
+            core_protocols: hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
                 option: option_core,
                 iteration: iteration_core,
                 exceptions: exception_core,
@@ -840,7 +840,7 @@ impl Lowerer {
                 foreign_callbacks: foreign_callback_core,
                 fundamental_types: intrinsic_type_core,
                 source_location: source_location_core,
-            },
+            })),
             instantiations: self.instantiations,
         };
         Ok((module, warnings))

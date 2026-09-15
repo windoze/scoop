@@ -78,6 +78,13 @@ use ast::{
 pub(crate) use builders::*;
 pub(crate) use core::*;
 
+pub(crate) fn defined_export_core(module: &hir::Module) -> &hir::DefinedCoreProtocols {
+    let hir::CoreProtocols::Defined(protocols) = &module.core_protocols else {
+        panic!("test Export HIR carries locally defined core protocols")
+    };
+    protocols
+}
+
 trait TestExecutableEntry {
     type FunctionId: Copy;
 

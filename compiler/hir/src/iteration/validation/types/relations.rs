@@ -45,26 +45,21 @@ impl Validator<'_> {
             }
             Type::Enum(application) => self.collect_enum_interfaces(*application, &mut roots)?,
             Type::Integer(kind) => {
-                let owner = self
-                    .module
-                    .core_protocols
-                    .fundamental_types
-                    .integers
-                    .owner(*kind);
+                let owner = self.protocols.fundamental_types.integers.owner(*kind);
                 let application = checked_arena(&self.module.structs, owner)
                     .ok_or_else(|| invalid("integer core owner is invalid"))?
                     .self_application;
                 self.collect_struct_interfaces(application, &mut roots)?;
             }
             Type::Boolean => {
-                let owner = self.module.core_protocols.fundamental_types.boolean;
+                let owner = self.protocols.fundamental_types.boolean;
                 let application = checked_arena(&self.module.structs, owner)
                     .ok_or_else(|| invalid("Boolean core owner is invalid"))?
                     .self_application;
                 self.collect_struct_interfaces(application, &mut roots)?;
             }
             Type::String => {
-                let owner = self.module.core_protocols.fundamental_types.string;
+                let owner = self.protocols.fundamental_types.string;
                 let application = checked_arena(&self.module.classes, owner)
                     .ok_or_else(|| invalid("String core owner is invalid"))?
                     .self_application;

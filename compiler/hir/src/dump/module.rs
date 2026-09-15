@@ -20,6 +20,10 @@ pub fn dump_module(module: &Module) -> String {
 
 fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) -> String {
     let mut out = String::from("Module\n");
+    let defined_core = match &module.core_protocols {
+        CoreProtocols::Defined(protocols) => Some(protocols),
+        CoreProtocols::Imported(_) => None,
+    };
     let object_backings = module
         .objects
         .iter()
@@ -33,13 +37,14 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         ));
     }
     for (id, decl) in module.structs.iter() {
-        if id == module.core_protocols.ffi.ptr
-            || id == module.core_protocols.ffi.fun_ptr
-            || id == module.core_protocols.ffi.pinned_ptr
-            || id == module.core_protocols.ffi.gc_handle
-            || id == module.core_protocols.foreign_callbacks.callback
-            || id == module.core_protocols.source_location.location
-        {
+        if defined_core.is_some_and(|core| {
+            id == core.ffi.ptr
+                || id == core.ffi.fun_ptr
+                || id == core.ffi.pinned_ptr
+                || id == core.ffi.gc_handle
+                || id == core.foreign_callbacks.callback
+                || id == core.source_location.location
+        }) {
             continue;
         }
         if matches!(decl.representation, StructRepresentation::Intrinsic(_)) {
@@ -71,9 +76,10 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         }
     }
     for (id, decl) in module.enums.iter() {
-        if id == module.core_protocols.foreign_callbacks.modes.enumeration()
-            || id == module.core_protocols.foreign_callbacks.states.enumeration()
-        {
+        if defined_core.is_some_and(|core| {
+            id == core.foreign_callbacks.modes.enumeration()
+                || id == core.foreign_callbacks.states.enumeration()
+        }) {
             continue;
         }
         let type_params = if decl.type_params.is_empty() {
@@ -334,23 +340,24 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         ));
     }
     for &id in &module.top_level {
-        if [
-            module.core_protocols.ffi.address_of,
-            module.core_protocols.ffi.size_of,
-            module.core_protocols.ffi.align_of,
-            module.core_protocols.ffi.gc_pin_raw,
-            module.core_protocols.ffi.gc_unpin_raw,
-            module.core_protocols.ffi.gc_get_handle_raw,
-            module.core_protocols.ffi.gc_release_handle_raw,
-            module.core_protocols.foreign_callbacks.register,
-            module.core_protocols.foreign_callbacks.retain,
-            module.core_protocols.foreign_callbacks.release,
-            module.core_protocols.foreign_callbacks.query_state,
-            module.core_protocols.foreign_callbacks.failure,
-            module.core_protocols.source_location.current,
-        ]
-        .contains(&id)
-        {
+        if defined_core.is_some_and(|core| {
+            [
+                core.ffi.address_of,
+                core.ffi.size_of,
+                core.ffi.align_of,
+                core.ffi.gc_pin_raw,
+                core.ffi.gc_unpin_raw,
+                core.ffi.gc_get_handle_raw,
+                core.ffi.gc_release_handle_raw,
+                core.foreign_callbacks.register,
+                core.foreign_callbacks.retain,
+                core.foreign_callbacks.release,
+                core.foreign_callbacks.query_state,
+                core.foreign_callbacks.failure,
+                core.source_location.current,
+            ]
+            .contains(&id)
+        }) {
             continue;
         }
         let function = &module.functions[id];
@@ -452,14 +459,15 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
     write_entry(module, &mut out);
     for (_, instantiation) in module.instantiations.iter() {
         let function = module.generic_functions[instantiation.generic].function;
-        if [
-            module.core_protocols.ffi.gc_pin_raw,
-            module.core_protocols.ffi.gc_unpin_raw,
-            module.core_protocols.ffi.gc_get_handle_raw,
-            module.core_protocols.ffi.gc_release_handle_raw,
-        ]
-        .contains(&function)
-        {
+        if defined_core.is_some_and(|core| {
+            [
+                core.ffi.gc_pin_raw,
+                core.ffi.gc_unpin_raw,
+                core.ffi.gc_get_handle_raw,
+                core.ffi.gc_release_handle_raw,
+            ]
+            .contains(&function)
+        }) {
             continue;
         }
         let args: Vec<String> = instantiation

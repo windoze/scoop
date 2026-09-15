@@ -11,7 +11,7 @@ use super::{
     CanonicalDirectPublicSurfaceV1, DecodedCanonicalDirectPublicSurfaceV1,
     DirectPublicSurfaceBuildError, DirectPublicSurfaceValidationError,
 };
-use crate::{CanonicalHirFoundation, ExportHir, ValidatedHirFoundation};
+use crate::{CanonicalHirFoundation, DefinedCoreProtocols, ExportHir, ValidatedHirFoundation};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CorePreludeSnapshotV1 {
@@ -22,16 +22,19 @@ pub struct CorePreludeSnapshotV1 {
 }
 
 impl CorePreludeSnapshotV1 {
-    pub fn from_core_export(export: &ExportHir) -> Result<Self, CorePreludeSnapshotBuildError> {
+    pub(super) fn from_core_export(
+        export: &ExportHir,
+        protocols: &DefinedCoreProtocols,
+    ) -> Result<Self, CorePreludeSnapshotBuildError> {
         if export.cone != ConeIdentity::CORE {
             return Err(CorePreludeSnapshotBuildError::NotCore(export.cone));
         }
         let ordinary_bindings = CanonicalDirectPublicSurfaceV1::from_export_hir(export)
             .map_err(CorePreludeSnapshotBuildError::DirectSurface)?;
-        let option_some = export.enum_member_identities[export.core_protocols.option.some()].id();
+        let option_some = export.enum_member_identities[protocols.option.some()].id();
         let option_some_payload =
-            export.enum_member_identities[export.core_protocols.option.some_payload()].id();
-        let option_none = export.enum_member_identities[export.core_protocols.option.none()].id();
+            export.enum_member_identities[protocols.option.some_payload()].id();
+        let option_none = export.enum_member_identities[protocols.option.none()].id();
         Ok(Self {
             ordinary_bindings,
             option_some,

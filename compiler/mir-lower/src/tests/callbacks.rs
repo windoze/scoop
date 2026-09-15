@@ -44,7 +44,8 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
     )));
 
     let export = executable_output(source, entry);
-    let concrete = scoop_hir_lower::concretize_output(&export);
+    let concrete = scoop_hir_lower::concretize_output(&export)
+        .expect("test Export HIR carries locally defined core protocols");
     let module = crate::lower(&concrete);
     let (_, bridge) = module
         .callback_bridges
@@ -227,7 +228,10 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     let executable = h.finish(main);
     let entry = executable.entry();
     let mut source = executable.into_module();
-    source.core_protocols.foreign_callbacks.callback = callback;
+    let hir::CoreProtocols::Defined(protocols) = &mut source.core_protocols else {
+        panic!("test Export HIR carries locally defined core protocols")
+    };
+    protocols.foreign_callbacks.callback = callback;
     let definition_path = scoop_identity::StructuralDefinitionPath::from_first(
         scoop_identity::StructuralPathSegment::new(
             scoop_identity::StructuralDefinitionSiteRole::CallableConversion,
@@ -245,7 +249,10 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         origin: definition_origin(),
         span: SPAN,
     });
-    let mode = source.core_protocols.foreign_callbacks.modes.reusable();
+    let mode = defined_export_core(&source)
+        .foreign_callbacks
+        .modes
+        .reusable();
     let registration =
         source
             .foreign_callback_registrations
@@ -288,7 +295,8 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     .unwrap();
 
     let source = executable_output(source, entry);
-    let concrete = scoop_hir_lower::concretize_output(&source);
+    let concrete = scoop_hir_lower::concretize_output(&source)
+        .expect("test Export HIR carries locally defined core protocols");
     let concrete_reference = concrete
         .module()
         .callable_references

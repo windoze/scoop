@@ -574,12 +574,7 @@ impl Concretizer<'_> {
         kind: export::IntegerKind,
         function: export::FunctionId,
     ) -> concrete::FunctionId {
-        let owner = self
-            .source
-            .core_protocols
-            .fundamental_types
-            .integers
-            .owner(kind);
+        let owner = self.protocols.fundamental_types.integers.owner(kind);
         let application = self.source.structs[owner].self_application;
         let owner = self.lower_struct_application(application, &[]);
         self.request_method(
@@ -600,8 +595,7 @@ impl Concretizer<'_> {
             return None;
         };
         if !args.is_empty()
-            || self.source.callable_function(*callee)
-                != self.source.core_protocols.source_location.current
+            || self.source.callable_function(*callee) != self.protocols.source_location.current
         {
             return None;
         }
@@ -622,9 +616,8 @@ impl Concretizer<'_> {
             "evaluation context source must match its source file"
         );
         let (function_name, type_name) = self.source.source_context_names(evaluation.context);
-        let location_application = self.source.structs
-            [self.source.core_protocols.source_location.location]
-            .self_application;
+        let location_application =
+            self.source.structs[self.protocols.source_location.location].self_application;
         let location = self.lower_struct_application(location_application, substitution);
         let string_type = self.lower_type(self.source.string, substitution);
         let long_type = self.lower_integer_type(export::IntegerKind::SIGNED_64, substitution);

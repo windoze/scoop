@@ -132,6 +132,7 @@ impl CoreProtocolCallableV1 {
 
     pub(super) fn from_function(
         export: &ExportHir,
+        protocols: &crate::DefinedCoreProtocols,
         function: FunctionId,
     ) -> Result<Self, CoreProtocolCallableBuildError> {
         let declaration = arena_get(&export.functions, function).ok_or(
@@ -198,7 +199,7 @@ impl CoreProtocolCallableV1 {
         };
         let parameter_types =
             source_parameter_types(export, ExportParameterOwner::Function(function), source)?;
-        let mapper = HirSignatureTypeMapper::new(type_inputs(export));
+        let mapper = HirSignatureTypeMapper::new(type_inputs(export, protocols));
         let receiver_shape = receiver
             .map(|ty| mapper.map(ty, &binders))
             .transpose()
@@ -238,6 +239,7 @@ impl CoreProtocolCallableV1 {
 
     pub(super) fn from_class_constructor(
         export: &ExportHir,
+        protocols: &crate::DefinedCoreProtocols,
         constructor: ClassConstructorId,
     ) -> Result<Self, CoreProtocolCallableBuildError> {
         let declaration = arena_get(&export.class_constructors, constructor).ok_or(
@@ -272,7 +274,7 @@ impl CoreProtocolCallableV1 {
                     definition,
                 )?;
                 let shapes = map_types(
-                    &HirSignatureTypeMapper::new(type_inputs(export)),
+                    &HirSignatureTypeMapper::new(type_inputs(export, protocols)),
                     &parameters,
                     &binders,
                     definition,
@@ -292,7 +294,7 @@ impl CoreProtocolCallableV1 {
                 CoreProtocolCallableBuildError::UnknownConstructorSelfApplication { definition },
             )?
             .canonical_type;
-        let mapper = HirSignatureTypeMapper::new(type_inputs(export));
+        let mapper = HirSignatureTypeMapper::new(type_inputs(export, protocols));
         let result = mapper.map(owner_type, &binders).map_err(|error| {
             CoreProtocolCallableBuildError::InvalidSignatureType { definition, error }
         })?;
@@ -479,7 +481,10 @@ fn map_types(
         .collect()
 }
 
-fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
+fn type_inputs<'a>(
+    export: &'a ExportHir,
+    protocols: &'a crate::DefinedCoreProtocols,
+) -> HirTypeIdentityInputs<'a> {
     HirTypeIdentityInputs {
         types: &export.types,
         function_types: &export.function_types,
@@ -492,9 +497,7 @@ fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
         interfaces: &export.interfaces,
         interface_applications: &export.interface_applications,
         objects: &export.objects,
-        core_types: crate::HirCoreTypeIdentityAuthority::Defined(
-            &export.core_protocols.fundamental_types,
-        ),
+        core_types: crate::HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types),
         nominal_identities: &export.nominal_identities,
     }
 }

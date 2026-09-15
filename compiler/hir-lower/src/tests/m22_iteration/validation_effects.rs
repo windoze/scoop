@@ -30,7 +30,7 @@ fn iteration_plan_validator_checks_the_enclosing_suspend_contract() {
 #[test]
 fn iteration_core_rejects_a_suspend_next_slot() {
     let mut export = checked_basic_iteration_export().into_module();
-    let next = export.interface_methods[export.core_protocols.iteration.next()].function;
+    let next = export.interface_methods[defined_export_core(&export).iteration.next()].function;
     assert!(!export.functions[next].is_suspend);
     export.functions[next].is_suspend = true;
 

@@ -271,9 +271,7 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
         .expect("the selected intrinsic owner is concrete")
     };
     let int = scoop_identity::SignatureTypeKey::Nominal(nominal(Owner::Struct(
-        output
-            .export
-            .core_protocols
+        crate::tests::defined_export_core(output.export.module())
             .fundamental_types
             .integers
             .owner(hir::IntegerKind::SIGNED_32),
@@ -284,7 +282,9 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
         (
             0,
             scoop_identity::SignatureTypeKey::Nominal(nominal(Owner::Struct(
-                output.export.core_protocols.fundamental_types.boolean
+                crate::tests::defined_export_core(output.export.module())
+                    .fundamental_types
+                    .boolean
             )))
         )
     );
@@ -293,7 +293,9 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
         (
             0,
             scoop_identity::SignatureTypeKey::Nominal(nominal(Owner::Class(
-                output.export.core_protocols.fundamental_types.string
+                crate::tests::defined_export_core(output.export.module())
+                    .fundamental_types
+                    .string
             )))
         )
     );

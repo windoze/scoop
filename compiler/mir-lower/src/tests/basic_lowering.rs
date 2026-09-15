@@ -19,7 +19,8 @@ fn string_identity(
 #[test]
 fn lowers_hello_world() {
     let source = hello_world();
-    let concrete = scoop_hir_lower::concretize_output(&source);
+    let concrete = scoop_hir_lower::concretize_output(&source)
+        .expect("test Export HIR carries locally defined core protocols");
     let expected_string_identities = [
         string_identity(concrete.functions[concrete.top_level[1]].materialization, 0),
         string_identity(concrete.functions[concrete.top_level[2]].materialization, 0),

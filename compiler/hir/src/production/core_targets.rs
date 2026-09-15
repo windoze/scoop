@@ -239,14 +239,15 @@ pub struct CoreCallableTargetSurfaceV1 {
 }
 
 impl CoreCallableTargetSurfaceV1 {
-    pub fn from_core_export(
+    pub(super) fn from_core_export(
         export: &ExportHir,
+        protocols: &crate::DefinedCoreProtocols,
     ) -> Result<Self, CoreCallableTargetSurfaceBuildError> {
         if export.cone != ConeIdentity::CORE {
             return Err(CoreCallableTargetSurfaceBuildError::NotCore(export.cone));
         }
         let functions = source_functions(export)?;
-        let mapper = HirSignatureTypeMapper::new(type_inputs(export));
+        let mapper = HirSignatureTypeMapper::new(type_inputs(export, protocols));
         let mut targets = Vec::new();
         for binding in export.export_binding_identities.iter() {
             if binding.key().exporter() != ConeIdentity::CORE {
@@ -549,7 +550,10 @@ fn build_target(
     })
 }
 
-pub(super) fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
+pub(super) fn type_inputs<'a>(
+    export: &'a ExportHir,
+    protocols: &'a crate::DefinedCoreProtocols,
+) -> HirTypeIdentityInputs<'a> {
     HirTypeIdentityInputs {
         types: &export.types,
         function_types: &export.function_types,
@@ -562,9 +566,7 @@ pub(super) fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
         interfaces: &export.interfaces,
         interface_applications: &export.interface_applications,
         objects: &export.objects,
-        core_types: crate::HirCoreTypeIdentityAuthority::Defined(
-            &export.core_protocols.fundamental_types,
-        ),
+        core_types: crate::HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types),
         nominal_identities: &export.nominal_identities,
     }
 }

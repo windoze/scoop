@@ -389,7 +389,10 @@ fn class_method(module: &hir::Module, class: hir::ClassId, name: &str) -> hir::F
 }
 
 fn integer_method(module: &hir::Module, kind: hir::IntegerKind, name: &str) -> hir::FunctionId {
-    let owner = module.core_protocols.fundamental_types.integers.owner(kind);
+    let owner = defined_export_core(module)
+        .fundamental_types
+        .integers
+        .owner(kind);
     module.structs[owner]
         .methods
         .iter()
@@ -620,7 +623,7 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         index_out_of_bounds_exception,
         illegal_state_exception,
         illegal_state_message_constructor: _,
-    } = module.core_protocols.exceptions;
+    } = defined_export_core(&module).exceptions;
     for compiler_owned in [
         throwable.class(),
         unwrap_exception.class(),

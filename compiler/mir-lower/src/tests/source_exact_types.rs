@@ -27,7 +27,8 @@ fn mir_records_exact_identities_without_materializing_unused_types() {
         },
     );
     let export = harness.finish(entry);
-    let concrete = scoop_hir_lower::concretize_output(&export);
+    let concrete = scoop_hir_lower::concretize_output(&export)
+        .expect("test Export HIR carries locally defined core protocols");
     let module = lower(&export);
 
     let expected = concrete

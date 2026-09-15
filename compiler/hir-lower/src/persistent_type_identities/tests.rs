@@ -108,7 +108,7 @@ fn rebuild(module: &hir::Module) -> Result<hir::HirTypeIdentities, hir::HirTypeI
         interface_applications: &module.interface_applications,
         objects: &module.objects,
         core_types: hir::HirCoreTypeIdentityAuthority::Defined(
-            &module.core_protocols.fundamental_types,
+            &crate::tests::defined_export_core(module).fundamental_types,
         ),
         nominal_identities: &module.nominal_identities,
     })
@@ -261,7 +261,10 @@ fn type_identity_rejects_noncanonical_and_duplicate_type_entries() {
     ));
 
     let mut changed = output.export.module().clone();
-    changed.core_protocols.fundamental_types.boolean = hir::StructId::from_raw(999_u32.into());
+    let hir::CoreProtocols::Defined(protocols) = &mut changed.core_protocols else {
+        panic!("test Export HIR carries locally defined core protocols")
+    };
+    protocols.fundamental_types.boolean = hir::StructId::from_raw(999_u32.into());
     assert!(matches!(
         rebuild(&changed),
         Err(hir::HirTypeIdentityError::UnknownReference {

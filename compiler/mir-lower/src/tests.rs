@@ -49,7 +49,8 @@ impl TestExecutableEntry for hir::LocalConcreteHirOutput {
 }
 
 fn lower(module: &hir::ExportHirOutput) -> mir::Module {
-    let concrete = scoop_hir_lower::concretize_output(module);
+    let concrete = scoop_hir_lower::concretize_output(module)
+        .expect("test Export HIR carries locally defined core protocols");
     let mut module = super::lower(&concrete);
     // Handcrafted unit modules use hidden, valid exception shells to satisfy
     // LocalConcreteHir's complete core contract. Keep their constructor
@@ -61,6 +62,13 @@ fn lower(module: &hir::ExportHirOutput) -> mir::Module {
             && !name.starts_with("init.$ThrowableProtocol.$c")
     });
     module
+}
+
+fn defined_export_core(module: &hir::Module) -> &hir::DefinedCoreProtocols {
+    let hir::CoreProtocols::Defined(protocols) = &module.core_protocols else {
+        panic!("test Export HIR carries locally defined core protocols")
+    };
+    protocols
 }
 
 fn assert_mir_foundation_projection(module: &mir::Module) -> mir::MirFoundationCounts {
@@ -126,7 +134,7 @@ fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
         interface_applications: &module.interface_applications,
         objects: &module.objects,
         core_types: hir::HirCoreTypeIdentityAuthority::Defined(
-            &module.core_protocols.fundamental_types,
+            &defined_export_core(module).fundamental_types,
         ),
         nominal_identities: &module.nominal_identities,
     })
@@ -226,7 +234,7 @@ fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistra
             property_accessor_identities: &module.property_accessor_identities,
             constructor_identities: &module.constructor_identities,
             enum_member_identities: &module.enum_member_identities,
-            callback_modes: module.core_protocols.foreign_callbacks.modes,
+            callback_modes: defined_export_core(module).foreign_callbacks.modes,
             type_inputs: hir::HirTypeIdentityInputs {
                 types: &module.types,
                 function_types: &module.function_types,
@@ -240,7 +248,7 @@ fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistra
                 interface_applications: &module.interface_applications,
                 objects: &module.objects,
                 core_types: hir::HirCoreTypeIdentityAuthority::Defined(
-                    &module.core_protocols.fundamental_types,
+                    &defined_export_core(module).fundamental_types,
                 ),
                 nominal_identities: &module.nominal_identities,
             },

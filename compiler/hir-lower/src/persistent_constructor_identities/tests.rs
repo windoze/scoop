@@ -106,7 +106,7 @@ fn rebuild(
                 interface_applications: &module.interface_applications,
                 objects: &module.objects,
                 core_types: hir::HirCoreTypeIdentityAuthority::Defined(
-                    &module.core_protocols.fundamental_types,
+                    &crate::tests::defined_export_core(module).fundamental_types,
                 ),
                 nominal_identities: &module.nominal_identities,
             },

@@ -558,12 +558,15 @@ pub struct CoreValueTargetSurfaceV1 {
 }
 
 impl CoreValueTargetSurfaceV1 {
-    pub fn from_core_export(export: &ExportHir) -> Result<Self, CoreValueTargetSurfaceBuildError> {
+    pub(super) fn from_core_export(
+        export: &ExportHir,
+        protocols: &crate::DefinedCoreProtocols,
+    ) -> Result<Self, CoreValueTargetSurfaceBuildError> {
         if export.cone != ConeIdentity::CORE {
             return Err(CoreValueTargetSurfaceBuildError::NotCore(export.cone));
         }
         let values = source_values(export)?;
-        let mapper = HirSignatureTypeMapper::new(type_inputs(export));
+        let mapper = HirSignatureTypeMapper::new(type_inputs(export, protocols));
         let mut targets = Vec::new();
         for binding in export.export_binding_identities.iter() {
             if binding.key().exporter() != ConeIdentity::CORE {

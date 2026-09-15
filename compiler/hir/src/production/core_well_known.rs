@@ -6,7 +6,10 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use crate::{CanonicalHirFoundation, ExportHir, HirNominalIdentity, Type, ValidatedHirFoundation};
+use crate::{
+    CanonicalHirFoundation, DefinedCoreProtocols, ExportHir, HirNominalIdentity, Type,
+    ValidatedHirFoundation,
+};
 
 /// Runtime-visible core capabilities whose semantic owner is established in
 /// target-independent Export HIR. Target layout is attached by LIR later.
@@ -19,13 +22,14 @@ pub enum RuntimeCoreCapabilityV1 {
 }
 
 impl RuntimeCoreCapabilityV1 {
-    pub fn string_from_core_export(
+    pub(super) fn string_from_core_export(
         export: &ExportHir,
+        protocols: &DefinedCoreProtocols,
     ) -> Result<Self, RuntimeCoreCapabilityBuildError> {
         if export.cone != ConeIdentity::CORE {
             return Err(RuntimeCoreCapabilityBuildError::NotCore(export.cone));
         }
-        let class = export.core_protocols.fundamental_types.string;
+        let class = protocols.fundamental_types.string;
         let HirNominalIdentity::Source(source_identity) = &export.nominal_identities[class] else {
             return Err(RuntimeCoreCapabilityBuildError::StringSourceNotSource);
         };

@@ -82,18 +82,21 @@ impl CoreHirInterfaceV1 {
         if export.cone != ConeIdentity::CORE {
             return Err(CoreHirInterfaceBuildError::NotCore(export.cone));
         }
+        let crate::CoreProtocols::Defined(protocols) = &export.core_protocols else {
+            return Err(CoreHirInterfaceBuildError::ImportedProtocolsInCore);
+        };
         let interface = Self {
-            prelude_snapshot: CorePreludeSnapshotV1::from_core_export(export)
+            prelude_snapshot: CorePreludeSnapshotV1::from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::Prelude)?,
-            string_capability: RuntimeCoreCapabilityV1::string_from_core_export(export)
+            string_capability: RuntimeCoreCapabilityV1::string_from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::String)?,
-            callable_targets: CoreCallableTargetSurfaceV1::from_core_export(export)
+            callable_targets: CoreCallableTargetSurfaceV1::from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::CallableTargets)?,
             type_targets: CoreTypeTargetSurfaceV1::from_core_export(export)
                 .map_err(CoreHirInterfaceBuildError::TypeTargets)?,
-            value_targets: CoreValueTargetSurfaceV1::from_core_export(export)
+            value_targets: CoreValueTargetSurfaceV1::from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::ValueTargets)?,
-            compiler_protocols: CoreCompilerProtocolSurfaceV1::from_core_export(export)
+            compiler_protocols: CoreCompilerProtocolSurfaceV1::from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::CompilerProtocols)?,
         };
         validate_relations(&interface, direct_surface)
@@ -570,6 +573,7 @@ fn validate_relations(
 #[derive(Debug)]
 pub enum CoreHirInterfaceBuildError {
     NotCore(ConeIdentity),
+    ImportedProtocolsInCore,
     DirectSurface(DirectPublicSurfaceBuildError),
     Prelude(CorePreludeSnapshotBuildError),
     String(RuntimeCoreCapabilityBuildError),

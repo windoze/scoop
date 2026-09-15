@@ -981,7 +981,7 @@ impl Harness {
             unit: self.unit,
             boolean: self.boolean,
             string: self.string,
-            core_protocols: hir::DefinedCoreProtocols {
+            core_protocols: hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
                 option: option_core,
                 iteration: iteration_core,
                 exceptions: exception_core,
@@ -1003,7 +1003,7 @@ impl Harness {
                     location: ptr,
                     current: entry,
                 },
-            },
+            })),
             instantiations: self.instantiations,
         };
         let local_entry = hir::LocalExecutableEntry::try_new(&module, entry)

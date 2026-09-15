@@ -130,8 +130,9 @@ pub struct CoreCompilerProtocolSurfaceV1 {
 }
 
 impl CoreCompilerProtocolSurfaceV1 {
-    pub fn from_core_export(
+    pub(super) fn from_core_export(
         export: &ExportHir,
+        protocols: &crate::DefinedCoreProtocols,
     ) -> Result<Self, CoreCompilerProtocolSurfaceBuildError> {
         if export.cone != scoop_identity::ConeIdentity::CORE {
             return Err(CoreCompilerProtocolSurfaceBuildError::NotCore(export.cone));
@@ -140,41 +141,26 @@ impl CoreCompilerProtocolSurfaceV1 {
             concrete(CoreProtocolNominalV1::Type(
                 CoreBuiltinNominal::Unit.identity_record().id(),
             ))?,
-            concrete(integer(export, crate::IntegerKind::SIGNED_8)?)?,
-            concrete(integer(export, crate::IntegerKind::SIGNED_16)?)?,
-            concrete(integer(export, crate::IntegerKind::SIGNED_32)?)?,
-            concrete(integer(export, crate::IntegerKind::SIGNED_64)?)?,
-            concrete(integer(export, crate::IntegerKind::UNSIGNED_8)?)?,
-            concrete(integer(export, crate::IntegerKind::UNSIGNED_16)?)?,
-            concrete(integer(export, crate::IntegerKind::UNSIGNED_32)?)?,
-            concrete(integer(export, crate::IntegerKind::UNSIGNED_64)?)?,
-            concrete(struct_nominal(
-                export,
-                export.core_protocols.fundamental_types.boolean,
-            )?)?,
-            concrete(class_nominal(
-                export,
-                export.core_protocols.fundamental_types.string,
-            )?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::SIGNED_8)?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::SIGNED_16)?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::SIGNED_32)?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::SIGNED_64)?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::UNSIGNED_8)?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::UNSIGNED_16)?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::UNSIGNED_32)?)?,
+            concrete(integer(export, protocols, crate::IntegerKind::UNSIGNED_64)?)?,
+            concrete(struct_nominal(export, protocols.fundamental_types.boolean)?)?,
+            concrete(class_nominal(export, protocols.fundamental_types.string)?)?,
+            generic(class_nominal(export, protocols.fundamental_types.array)?)?,
             generic(class_nominal(
                 export,
-                export.core_protocols.fundamental_types.array,
+                protocols.fundamental_types.mutable_array,
             )?)?,
-            generic(class_nominal(
-                export,
-                export.core_protocols.fundamental_types.mutable_array,
-            )?)?,
-            generic(struct_nominal(
-                export,
-                export.core_protocols.fundamental_types.ptr,
-            )?)?,
-            generic(struct_nominal(
-                export,
-                export.core_protocols.fundamental_types.fun_ptr,
-            )?)?,
+            generic(struct_nominal(export, protocols.fundamental_types.ptr)?)?,
+            generic(struct_nominal(export, protocols.fundamental_types.fun_ptr)?)?,
         ]));
 
-        let option = export.core_protocols.option;
+        let option = protocols.option;
         let option_protocol = CoreOptionProtocolV1(product([
             generic(enum_nominal(export, option.enumeration())?)?,
             variant(export, option.some()),
@@ -182,86 +168,111 @@ impl CoreCompilerProtocolSurfaceV1 {
             variant(export, option.none()),
         ]));
 
-        let iteration = export.core_protocols.iteration;
+        let iteration = protocols.iteration;
         let iteration_protocol = CoreIterationProtocolV1(product([
             generic(interface_nominal(export, iteration.iterator())?)?,
-            callable(export, export.interface_methods[iteration.next()].function)?,
+            callable(
+                export,
+                protocols,
+                export.interface_methods[iteration.next()].function,
+            )?,
             dispatch_slot(export, iteration.next()),
         ]));
 
-        let exceptions = export.core_protocols.exceptions;
+        let exceptions = protocols.exceptions;
         let exception_protocol = CoreExceptionProtocolV1(product([
             concrete(class_nominal(export, exceptions.throwable.class())?)?,
-            constructor(export, exceptions.throwable.callable())?,
+            constructor(export, protocols, exceptions.throwable.callable())?,
             concrete(class_nominal(export, exceptions.unwrap_exception.class())?)?,
-            constructor(export, exceptions.unwrap_exception.callable())?,
+            constructor(export, protocols, exceptions.unwrap_exception.callable())?,
             concrete(class_nominal(
                 export,
                 exceptions.class_cast_exception.class(),
             )?)?,
-            constructor(export, exceptions.class_cast_exception.callable())?,
+            constructor(
+                export,
+                protocols,
+                exceptions.class_cast_exception.callable(),
+            )?,
             concrete(class_nominal(
                 export,
                 exceptions.arithmetic_exception.class(),
             )?)?,
-            constructor(export, exceptions.arithmetic_exception.callable())?,
+            constructor(
+                export,
+                protocols,
+                exceptions.arithmetic_exception.callable(),
+            )?,
             concrete(class_nominal(
                 export,
                 exceptions.index_out_of_bounds_exception.class(),
             )?)?,
-            constructor(export, exceptions.index_out_of_bounds_exception.callable())?,
+            constructor(
+                export,
+                protocols,
+                exceptions.index_out_of_bounds_exception.callable(),
+            )?,
             concrete(class_nominal(
                 export,
                 exceptions.illegal_state_exception.class(),
             )?)?,
-            constructor(export, exceptions.illegal_state_exception.callable())?,
             constructor(
                 export,
+                protocols,
+                exceptions.illegal_state_exception.callable(),
+            )?,
+            constructor(
+                export,
+                protocols,
                 exceptions.illegal_state_message_constructor.constructor,
             )?,
         ]));
 
-        let coroutine = export.core_protocols.coroutines;
+        let coroutine = protocols.coroutines;
         let coroutine_protocol = CoreCoroutineProtocolV1(product([
             generic(interface_nominal(export, coroutine.continuation)?)?,
-            callable(export, coroutine.continuation_resume)?,
+            callable(export, protocols, coroutine.continuation_resume)?,
             function_dispatch_slot(export, coroutine.continuation_resume)?,
-            callable(export, coroutine.continuation_resume_with_exception)?,
+            callable(
+                export,
+                protocols,
+                coroutine.continuation_resume_with_exception,
+            )?,
             function_dispatch_slot(export, coroutine.continuation_resume_with_exception)?,
             generic(interface_nominal(export, coroutine.suspend_task)?)?,
-            callable(export, coroutine.suspend_task_run)?,
+            callable(export, protocols, coroutine.suspend_task_run)?,
             function_dispatch_slot(export, coroutine.suspend_task_run)?,
             generic(interface_nominal(export, coroutine.suspend_registration)?)?,
-            callable(export, coroutine.suspend_registration_register)?,
+            callable(export, protocols, coroutine.suspend_registration_register)?,
             function_dispatch_slot(export, coroutine.suspend_registration_register)?,
-            callable(export, coroutine.start_coroutine)?,
-            callable(export, coroutine.suspend_coroutine)?,
+            callable(export, protocols, coroutine.start_coroutine)?,
+            callable(export, protocols, coroutine.suspend_coroutine)?,
         ]));
 
-        let ffi = export.core_protocols.ffi;
+        let ffi = protocols.ffi;
         let ffi_protocol = CoreFfiProtocolV1(product([
             generic(struct_nominal(export, ffi.ptr)?)?,
             generic(struct_nominal(export, ffi.fun_ptr)?)?,
             generic(struct_nominal(export, ffi.pinned_ptr)?)?,
             generic(struct_nominal(export, ffi.gc_handle)?)?,
-            callable(export, ffi.ptr_to_ulong)?,
-            callable(export, ffi.ptr_cast)?,
-            callable(export, ffi.ptr_load)?,
-            callable(export, ffi.ptr_load_offset)?,
-            callable(export, ffi.ptr_store)?,
-            callable(export, ffi.ptr_store_offset)?,
-            callable(export, ffi.ptr_plus)?,
-            callable(export, ffi.ptr_minus)?,
-            callable(export, ffi.address_of)?,
-            callable(export, ffi.size_of)?,
-            callable(export, ffi.align_of)?,
-            callable(export, ffi.gc_pin_raw)?,
-            callable(export, ffi.gc_unpin_raw)?,
-            callable(export, ffi.gc_get_handle_raw)?,
-            callable(export, ffi.gc_release_handle_raw)?,
+            callable(export, protocols, ffi.ptr_to_ulong)?,
+            callable(export, protocols, ffi.ptr_cast)?,
+            callable(export, protocols, ffi.ptr_load)?,
+            callable(export, protocols, ffi.ptr_load_offset)?,
+            callable(export, protocols, ffi.ptr_store)?,
+            callable(export, protocols, ffi.ptr_store_offset)?,
+            callable(export, protocols, ffi.ptr_plus)?,
+            callable(export, protocols, ffi.ptr_minus)?,
+            callable(export, protocols, ffi.address_of)?,
+            callable(export, protocols, ffi.size_of)?,
+            callable(export, protocols, ffi.align_of)?,
+            callable(export, protocols, ffi.gc_pin_raw)?,
+            callable(export, protocols, ffi.gc_unpin_raw)?,
+            callable(export, protocols, ffi.gc_get_handle_raw)?,
+            callable(export, protocols, ffi.gc_release_handle_raw)?,
         ]));
 
-        let callback = export.core_protocols.foreign_callbacks;
+        let callback = protocols.foreign_callbacks;
         let callback_mode = callback.modes;
         let callback_state = callback.states;
         let failure_type =
@@ -277,20 +288,20 @@ impl CoreCompilerProtocolSurfaceV1 {
             applied_variant(export, callback_state.completed()),
             applied_variant(export, callback_state.failed()),
             exact_type(export, failure_type)?,
-            callable(export, callback.register)?,
-            callable(export, callback.retain)?,
-            callable(export, callback.release)?,
-            callable(export, callback.query_state)?,
-            callable(export, callback.failure)?,
+            callable(export, protocols, callback.register)?,
+            callable(export, protocols, callback.retain)?,
+            callable(export, protocols, callback.release)?,
+            callable(export, protocols, callback.query_state)?,
+            callable(export, protocols, callback.failure)?,
         ]));
 
-        let location = export.core_protocols.source_location;
+        let location = protocols.source_location;
         let source_location_protocol = CoreSourceLocationProtocolV1(product([
             concrete(struct_nominal(export, location.location)?)?,
-            callable(export, location.current)?,
+            callable(export, protocols, location.current)?,
         ]));
 
-        let compiler_operation_protocol = compiler_operations(export)?;
+        let compiler_operation_protocol = compiler_operations(export, protocols)?;
         let surface = Self {
             fundamental_types,
             option_protocol,
@@ -559,6 +570,7 @@ impl CoreCompilerProtocolSurfaceV1 {
 
 fn compiler_operations(
     export: &ExportHir,
+    protocols: &crate::DefinedCoreProtocols,
 ) -> Result<CoreCompilerOperationProtocolV1, CoreCompilerProtocolSurfaceBuildError> {
     let mut operations = export
         .functions
@@ -570,7 +582,7 @@ fn compiler_operations(
             | crate::FunctionKind::Extern(_) => None,
         })
         .map(|(function, kind)| {
-            callable(export, function).map(|entry| CoreCompilerOperationV1 {
+            callable(export, protocols, function).map(|entry| CoreCompilerOperationV1 {
                 kind,
                 callable: callable_entry(entry),
             })
@@ -717,18 +729,20 @@ fn generic(
 
 fn callable(
     export: &ExportHir,
+    protocols: &crate::DefinedCoreProtocols,
     function: FunctionId,
 ) -> Result<CoreProtocolEntryV1, CoreCompilerProtocolSurfaceBuildError> {
-    CoreProtocolCallableV1::from_function(export, function)
+    CoreProtocolCallableV1::from_function(export, protocols, function)
         .map(CoreProtocolEntryV1::Callable)
         .map_err(CoreCompilerProtocolSurfaceBuildError::Callable)
 }
 
 fn constructor(
     export: &ExportHir,
+    protocols: &crate::DefinedCoreProtocols,
     constructor: crate::ClassConstructorId,
 ) -> Result<CoreProtocolEntryV1, CoreCompilerProtocolSurfaceBuildError> {
-    CoreProtocolCallableV1::from_class_constructor(export, constructor)
+    CoreProtocolCallableV1::from_class_constructor(export, protocols, constructor)
         .map(CoreProtocolEntryV1::Callable)
         .map_err(CoreCompilerProtocolSurfaceBuildError::Callable)
 }
@@ -788,12 +802,10 @@ fn exact_type(
 
 fn integer(
     export: &ExportHir,
+    protocols: &crate::DefinedCoreProtocols,
     kind: crate::IntegerKind,
 ) -> Result<CoreProtocolNominalV1, CoreCompilerProtocolSurfaceBuildError> {
-    struct_nominal(
-        export,
-        export.core_protocols.fundamental_types.integers.owner(kind),
-    )
+    struct_nominal(export, protocols.fundamental_types.integers.owner(kind))
 }
 
 fn struct_nominal(

@@ -30,6 +30,9 @@ impl fmt::Display for InvalidIterationPlan {
 impl std::error::Error for InvalidIterationPlan {}
 
 pub fn validate_iteration_plans(module: &Module) -> Check {
+    let CoreProtocols::Defined(protocols) = &module.core_protocols else {
+        return validate_imported_iteration_absence(module);
+    };
     let checked_core = IterationCore::checked(
         &module.interfaces,
         &module.interface_applications,
@@ -38,12 +41,12 @@ pub fn validate_iteration_plans(module: &Module) -> Check {
         &module.enums,
         &module.enum_applications,
         &module.types,
-        module.core_protocols.option,
-        module.core_protocols.iteration.iterator(),
-        module.core_protocols.iteration.next(),
+        protocols.option,
+        protocols.iteration.iterator(),
+        protocols.iteration.next(),
     )
     .ok_or_else(|| invalid("invalid canonical Iterator core relation"))?;
-    if checked_core != module.core_protocols.iteration {
+    if checked_core != protocols.iteration {
         return fail("iteration core does not match its checked identities");
     }
 
@@ -54,11 +57,17 @@ pub fn validate_iteration_plans(module: &Module) -> Check {
                 .into_iter()
                 .map(|parameter| parameter.id)
                 .collect();
-            Validator::new(module, &body.locals, parameters, function.is_suspend)
-                .validate_with_predefined(
-                    body.statements.as_slice(),
-                    function.params.iter().map(|parameter| parameter.local),
-                )?;
+            Validator::new(
+                module,
+                protocols,
+                &body.locals,
+                parameters,
+                function.is_suspend,
+            )
+            .validate_with_predefined(
+                body.statements.as_slice(),
+                function.params.iter().map(|parameter| parameter.local),
+            )?;
         }
     }
     for (_, application) in module.derived_equality_applications.iter() {
@@ -69,11 +78,17 @@ pub fn validate_iteration_plans(module: &Module) -> Check {
             .into_iter()
             .map(|parameter| parameter.id)
             .collect();
-        Validator::new(module, &application.body.locals, parameters, false)
-            .validate_with_predefined(
-                application.body.statements.as_slice(),
-                function.params.iter().map(|parameter| parameter.local),
-            )?;
+        Validator::new(
+            module,
+            protocols,
+            &application.body.locals,
+            parameters,
+            false,
+        )
+        .validate_with_predefined(
+            application.body.statements.as_slice(),
+            function.params.iter().map(|parameter| parameter.local),
+        )?;
     }
     for (expression_id, expression) in module.export_default_exprs.iter() {
         let owner_allows_suspend = default_expression_allows_suspend(module, expression_id)?;
@@ -82,6 +97,7 @@ pub fn validate_iteration_plans(module: &Module) -> Check {
         }
         Validator::new(
             module,
+            protocols,
             &expression.locals,
             expression.type_parameters.clone(),
             expression.allows_suspend,
@@ -100,9 +116,154 @@ pub fn validate_iteration_plans(module: &Module) -> Check {
                 ),
         )?;
     }
-    validate_class_constructor_regions(module)?;
-    validate_struct_constructor_regions(module)?;
+    validate_class_constructor_regions(module, protocols)?;
+    validate_struct_constructor_regions(module, protocols)?;
     Ok(())
+}
+
+fn validate_imported_iteration_absence(module: &Module) -> Check {
+    let contains_for = module
+        .functions
+        .iter()
+        .filter_map(|(_, function)| match &function.kind {
+            FunctionKind::User(body) => Some(body.statements.as_slice()),
+            FunctionKind::Intrinsic(_)
+            | FunctionKind::Extern(_)
+            | FunctionKind::DerivedEquality => None,
+        })
+        .chain(
+            module
+                .derived_equality_applications
+                .iter()
+                .map(|(_, application)| application.body.statements.as_slice()),
+        )
+        .chain(
+            module
+                .export_default_exprs
+                .iter()
+                .map(|(_, expression)| expression.statements.as_slice()),
+        )
+        .any(statements_contain_for)
+        || module
+            .class_constructors
+            .iter()
+            .any(|(_, constructor)| class_constructor_contains_for(constructor))
+        || module
+            .struct_constructors
+            .iter()
+            .any(|(_, constructor)| struct_constructor_contains_for(constructor));
+    if contains_for {
+        fail("an imported-core HIR graph cannot contain a local iteration plan")
+    } else {
+        Ok(())
+    }
+}
+
+fn class_constructor_contains_for(constructor: &ClassConstructor) -> bool {
+    match &constructor.kind {
+        ClassConstructorKind::Primary {
+            base,
+            common_initialization,
+            ..
+        } => {
+            base_initialization_contains_for(base)
+                || class_initialization_contains_for(common_initialization)
+        }
+        ClassConstructorKind::Secondary { delegation, body } => {
+            let delegation_contains_for = match delegation {
+                ClassSecondaryDelegation::This { arguments, .. } => {
+                    statements_contain_for(&arguments.statements)
+                }
+                ClassSecondaryDelegation::Terminal {
+                    base,
+                    common_initialization,
+                } => {
+                    base_initialization_contains_for(base)
+                        || class_initialization_contains_for(common_initialization)
+                }
+            };
+            delegation_contains_for || statements_contain_for(&body.statements)
+        }
+    }
+}
+
+fn struct_constructor_contains_for(constructor: &StructConstructor) -> bool {
+    match &constructor.kind {
+        StructConstructorKind::Primary => false,
+        StructConstructorKind::Secondary { delegation, body } => {
+            statements_contain_for(&delegation.arguments.statements)
+                || statements_contain_for(&body.statements)
+        }
+    }
+}
+
+fn base_initialization_contains_for(base: &BaseInitialization) -> bool {
+    match base {
+        BaseInitialization::Root => false,
+        BaseInitialization::Super { arguments, .. } => {
+            statements_contain_for(&arguments.statements)
+        }
+    }
+}
+
+fn class_initialization_contains_for(steps: &[ClassInitializationStep]) -> bool {
+    steps.iter().any(|step| match step {
+        ClassInitializationStep::StoredProperty { initializer, .. }
+        | ClassInitializationStep::DelegatedProperty { initializer, .. } => {
+            statements_contain_for(&initializer.statements)
+        }
+        ClassInitializationStep::InitBlock { body, .. } => statements_contain_for(&body.statements),
+    })
+}
+
+fn statements_contain_for(statements: &[Statement]) -> bool {
+    statements.iter().any(|statement| match &statement.kind {
+        StatementKind::For(_) => true,
+        StatementKind::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            statements_contain_for(then_body)
+                || else_body.as_deref().is_some_and(statements_contain_for)
+        }
+        StatementKind::While {
+            condition_setup,
+            body,
+            ..
+        } => statements_contain_for(condition_setup) || statements_contain_for(body),
+        StatementKind::When(when) => {
+            when.arms.iter().any(|arm| {
+                arm.guard
+                    .as_ref()
+                    .is_some_and(|guard| statements_contain_for(&guard.setup))
+                    || statements_contain_for(&arm.body)
+            }) || match &when.fallback {
+                WhenFallback::Else(body) => statements_contain_for(body),
+                WhenFallback::Impossible(_) => false,
+            }
+        }
+        StatementKind::Try(try_) => {
+            statements_contain_for(&try_.body)
+                || try_
+                    .catches
+                    .iter()
+                    .any(|catch| statements_contain_for(&catch.body))
+                || try_
+                    .finally_body
+                    .as_deref()
+                    .is_some_and(statements_contain_for)
+        }
+        StatementKind::Expr(_)
+        | StatementKind::InitializationEnsure(_)
+        | StatementKind::LocalFunction(_)
+        | StatementKind::Return { .. }
+        | StatementKind::ValDecl { .. }
+        | StatementKind::Assign { .. }
+        | StatementKind::Break { .. }
+        | StatementKind::Continue { .. }
+        | StatementKind::Throw(_) => false,
+    })
 }
 
 fn default_expression_allows_suspend(
@@ -167,7 +328,7 @@ fn parameter_owner_allows_suspend(module: &Module, owner: ExportParameterOwner) 
     }
 }
 
-fn validate_class_constructor_regions(module: &Module) -> Check {
+fn validate_class_constructor_regions(module: &Module, protocols: &DefinedCoreProtocols) -> Check {
     for (_, constructor) in module.class_constructors.iter() {
         let owner = checked_arena(&module.classes, constructor.owner)
             .ok_or_else(|| invalid("class constructor has an invalid owner"))?;
@@ -182,12 +343,17 @@ fn validate_class_constructor_regions(module: &Module) -> Check {
                 common_initialization,
                 ..
             } => {
-                validate_base_initialization(module, base, &parameters)?;
-                validate_class_initialization(module, common_initialization, &parameters)?;
+                validate_base_initialization(module, protocols, base, &parameters)?;
+                validate_class_initialization(
+                    module,
+                    protocols,
+                    common_initialization,
+                    &parameters,
+                )?;
             }
             ClassConstructorKind::Secondary { delegation, body } => {
-                validate_class_delegation(module, delegation, &parameters)?;
-                Validator::new(module, &body.locals, parameters, false)
+                validate_class_delegation(module, protocols, delegation, &parameters)?;
+                Validator::new(module, protocols, &body.locals, parameters, false)
                     .validate(body.statements.as_slice())?;
             }
         }
@@ -197,38 +363,41 @@ fn validate_class_constructor_regions(module: &Module) -> Check {
 
 fn validate_class_delegation(
     module: &Module,
+    protocols: &DefinedCoreProtocols,
     delegation: &ClassSecondaryDelegation,
     parameters: &[TypeParamId],
 ) -> Check {
     match delegation {
         ClassSecondaryDelegation::This { arguments, .. } => {
-            validate_constructor_arguments(module, arguments, parameters)
+            validate_constructor_arguments(module, protocols, arguments, parameters)
         }
         ClassSecondaryDelegation::Terminal {
             base,
             common_initialization,
         } => {
-            validate_base_initialization(module, base, parameters)?;
-            validate_class_initialization(module, common_initialization, parameters)
+            validate_base_initialization(module, protocols, base, parameters)?;
+            validate_class_initialization(module, protocols, common_initialization, parameters)
         }
     }
 }
 
 fn validate_base_initialization(
     module: &Module,
+    protocols: &DefinedCoreProtocols,
     base: &BaseInitialization,
     parameters: &[TypeParamId],
 ) -> Check {
     match base {
         BaseInitialization::Root => Ok(()),
         BaseInitialization::Super { arguments, .. } => {
-            validate_constructor_arguments(module, arguments, parameters)
+            validate_constructor_arguments(module, protocols, arguments, parameters)
         }
     }
 }
 
 fn validate_class_initialization(
     module: &Module,
+    protocols: &DefinedCoreProtocols,
     steps: &[ClassInitializationStep],
     parameters: &[TypeParamId],
 ) -> Check {
@@ -236,11 +405,17 @@ fn validate_class_initialization(
         match step {
             ClassInitializationStep::StoredProperty { initializer, .. }
             | ClassInitializationStep::DelegatedProperty { initializer, .. } => {
-                Validator::new(module, &initializer.locals, parameters.to_vec(), false)
-                    .validate(initializer.statements.as_slice())?;
+                Validator::new(
+                    module,
+                    protocols,
+                    &initializer.locals,
+                    parameters.to_vec(),
+                    false,
+                )
+                .validate(initializer.statements.as_slice())?;
             }
             ClassInitializationStep::InitBlock { body, .. } => {
-                Validator::new(module, &body.locals, parameters.to_vec(), false)
+                Validator::new(module, protocols, &body.locals, parameters.to_vec(), false)
                     .validate(body.statements.as_slice())?;
             }
         }
@@ -250,14 +425,21 @@ fn validate_class_initialization(
 
 fn validate_constructor_arguments(
     module: &Module,
+    protocols: &DefinedCoreProtocols,
     arguments: &ConstructorArguments,
     parameters: &[TypeParamId],
 ) -> Check {
-    Validator::new(module, &arguments.locals, parameters.to_vec(), false)
-        .validate(arguments.statements.as_slice())
+    Validator::new(
+        module,
+        protocols,
+        &arguments.locals,
+        parameters.to_vec(),
+        false,
+    )
+    .validate(arguments.statements.as_slice())
 }
 
-fn validate_struct_constructor_regions(module: &Module) -> Check {
+fn validate_struct_constructor_regions(module: &Module, protocols: &DefinedCoreProtocols) -> Check {
     for (_, constructor) in module.struct_constructors.iter() {
         let owner = checked_arena(&module.structs, constructor.owner)
             .ok_or_else(|| invalid("struct constructor has an invalid owner"))?;
@@ -267,8 +449,8 @@ fn validate_struct_constructor_regions(module: &Module) -> Check {
             .map(|parameter| parameter.id)
             .collect::<Vec<_>>();
         if let StructConstructorKind::Secondary { delegation, body } = &constructor.kind {
-            validate_constructor_arguments(module, &delegation.arguments, &parameters)?;
-            Validator::new(module, &body.locals, parameters, false)
+            validate_constructor_arguments(module, protocols, &delegation.arguments, &parameters)?;
+            Validator::new(module, protocols, &body.locals, parameters, false)
                 .validate(body.statements.as_slice())?;
         }
     }
@@ -277,6 +459,7 @@ fn validate_struct_constructor_regions(module: &Module) -> Check {
 
 struct Validator<'a> {
     module: &'a Module,
+    protocols: &'a DefinedCoreProtocols,
     locals: &'a Arena<Local>,
     parameters: Vec<TypeParamId>,
     allows_suspend: bool,
@@ -287,12 +470,14 @@ struct Validator<'a> {
 impl<'a> Validator<'a> {
     fn new(
         module: &'a Module,
+        protocols: &'a DefinedCoreProtocols,
         locals: &'a Arena<Local>,
         parameters: Vec<TypeParamId>,
         allows_suspend: bool,
     ) -> Self {
         Self {
             module,
+            protocols,
             locals,
             parameters,
             allows_suspend,
@@ -442,7 +627,7 @@ impl<'a> Validator<'a> {
         )?;
 
         let application = self.checked_interface_application(conformance.application())?;
-        if application.template != self.module.core_protocols.iteration.iterator()
+        if application.template != self.protocols.iteration.iterator()
             || application.arguments.len() != 1
             || conformance.iterator().ty != application.canonical_type
         {
@@ -450,7 +635,7 @@ impl<'a> Validator<'a> {
         }
         let exact = self.exact_interface_applications(
             conformance.source().ty,
-            self.module.core_protocols.iteration.iterator(),
+            self.protocols.iteration.iterator(),
         )?;
         if exact.as_slice() != [conformance.application()] {
             return fail("for conformance is not the unique exact Iterator application");
@@ -464,7 +649,7 @@ impl<'a> Validator<'a> {
             .ok_or_else(|| invalid("next plan has an invalid method application"))?;
         let next_function = checked_arena(
             &self.module.interface_methods,
-            self.module.core_protocols.iteration.next(),
+            self.protocols.iteration.next(),
         )
         .ok_or_else(|| invalid("iteration core has an invalid next member"))?
         .function;
@@ -479,7 +664,7 @@ impl<'a> Validator<'a> {
             &self.module.enums,
             &self.module.enum_applications,
             &self.module.types,
-            self.module.core_protocols.option,
+            self.protocols.option,
             element,
             next.option().some_payload(),
             next.option().none(),

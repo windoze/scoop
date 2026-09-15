@@ -173,7 +173,7 @@ fn is_cast_and_ref_eq() {
                 let application = &module.enum_applications[*application];
                 assert_eq!(
                     application.template,
-                    module.core_protocols.option.enumeration()
+                    defined_export_core(&module).option.enumeration()
                 );
                 assert_eq!(application.arguments.len(), 1);
                 assert!(matches!(

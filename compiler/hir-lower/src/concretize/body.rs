@@ -53,11 +53,7 @@ impl Concretizer<'_> {
                 concrete::StatementKind::Expr(self.lower_expr(expr, substitution, locals))
             }
             export::StatementKind::InitializationEnsure(unit) => {
-                let source = self
-                    .source
-                    .core_protocols
-                    .exceptions
-                    .illegal_state_message_constructor;
+                let source = self.protocols.exceptions.illegal_state_message_constructor;
                 let class = self.class_by_key[&(source.class, Vec::new())];
                 concrete::StatementKind::InitializationEnsure {
                     unit: concrete::InitializationUnitId::from_raw(unit.into_raw()),
