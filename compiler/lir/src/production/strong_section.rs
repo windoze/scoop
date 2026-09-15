@@ -15,10 +15,10 @@ use crate::{
     DigestPlanError, EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1,
     GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, OdrFreeLirFoundation,
     StrongDigestFinalizationPlanV1, StrongDigestPlanValidationError,
-    StrongExternalLirBridgeSurfaceV1, StrongObjectDefinitionPlanBuildError,
-    StrongObjectDefinitionPlanSurfaceV1, StrongObjectSymbolSurfaceBuildError,
-    StrongObjectSymbolSurfaceV1, StrongRegistrationProductionSurfaceV1,
-    StrongRegistrationProductionValidationError,
+    StrongExternalLirBridgeReconstructionError, StrongExternalLirBridgeSurfaceV1,
+    StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
+    StrongObjectSymbolSurfaceBuildError, StrongObjectSymbolSurfaceV1,
+    StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError,
 };
 
 use crate::{ConeImagePlanBuildError, ConeImagePlanV1};
@@ -183,6 +183,14 @@ pub struct DecodedStrongProductionSectionV1 {
 }
 
 impl DecodedStrongProductionSectionV1 {
+    pub fn reconstruct_external_bridges(
+        &self,
+        producer: scoop_identity::ConeIdentity,
+        identities: &mut ValidatedIdentityGraph,
+    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
+        self.external_bridges.reconstruct(producer, identities)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn validate(
         self,

@@ -14,8 +14,8 @@ use scoop_lir::{
     CBridgeProductionValidationError, CBridgeToolchainProfileV1,
     CanonicalNativeExternalRequirementBuildError, CanonicalNativeExternalRequirementSurfaceV1,
     DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation,
-    StrongExternalLirBridgeSurfaceV1, StrongProducerUnitPartitionError,
-    StrongProducerUnitPartitionV1,
+    StrongExternalLirBridgeReconstructionError, StrongExternalLirBridgeSurfaceV1,
+    StrongProducerUnitPartitionError, StrongProducerUnitPartitionV1,
 };
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
@@ -330,6 +330,51 @@ pub fn validate_single_cone_strong_link_artifact<'input>(
         .validate_foundation_structure()
         .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?
         .validate_production(expected_external_bridges)
+        .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
+        .validate_materializations()
+        .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?
+        .validate_c_bridge_envelopes(c_bridge_profile)
+        .map_err(|error| StrongLinkArtifactValidationError::CBridge(Box::new(error)))?
+        .validate_builtin_objects()
+        .map_err(|error| StrongLinkArtifactValidationError::BuiltinObjects(Box::new(error)))?
+        .validate_digest_patch_sites()
+        .map_err(|error| StrongLinkArtifactValidationError::DigestPatches(Box::new(error)))?
+        .validate_registration_objects()
+        .map_err(|error| StrongLinkArtifactValidationError::RegistrationObjects(Box::new(error)))?
+        .fingerprint_registration_leaves()
+        .map_err(|error| StrongLinkArtifactValidationError::RegistrationLeaves(Box::new(error)))?
+        .validate_link_symbol_requirements(core_owners, c_bridge_profile)
+        .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
+        .fingerprint_registration_dependencies()
+        .map_err(|error| {
+            StrongLinkArtifactValidationError::RegistrationDependencies(Box::new(error))
+        })?
+        .finalize_strong_objects()
+        .map_err(|error| StrongLinkArtifactValidationError::ObjectFinalization(Box::new(error)))?
+        .validate_code_and_closure()
+        .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
+}
+
+/// Validates a previously published artifact without compiler-side IR by
+/// reconstructing its typed external bridge surface from the validated Link
+/// identity graph before replaying every remaining Link proof.
+pub fn validate_self_describing_single_cone_strong_link_artifact<'input>(
+    graph: ValidatedGraphArtifact<'input>,
+    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+) -> Result<ValidatedSingleConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+    let mut front = graph
+        .decode_single_cone_link_sections()
+        .map_err(|error| StrongLinkArtifactValidationError::Decode(Box::new(error)))?
+        .validate_identities()
+        .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
+        .validate_foundation_structure()
+        .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?;
+    let external_bridges = front
+        .reconstruct_external_bridges()
+        .map_err(|error| StrongLinkArtifactValidationError::ExternalBridges(Box::new(error)))?;
+    front
+        .validate_production(&external_bridges)
         .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
         .validate_materializations()
         .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?
@@ -685,6 +730,15 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
 
     pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
         &self.production_manifest
+    }
+
+    pub fn reconstruct_external_bridges(
+        &mut self,
+    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
+        let producer = self.graph.identity();
+        self.production
+            .lir
+            .reconstruct_external_bridges(producer, &mut self.identities)
     }
 
     pub fn validate_production(
@@ -2694,6 +2748,7 @@ pub enum StrongLinkArtifactValidationError {
     Decode(Box<SingleConeLinkSectionDecodeError>),
     Identities(Box<IdentityValidationError>),
     Foundations(Box<StrongProfileFoundationError>),
+    ExternalBridges(Box<StrongExternalLirBridgeReconstructionError>),
     Production(Box<StrongProfileProductionError>),
     Materializations(Box<StrongLinkMaterializationError>),
     CBridge(Box<StrongLinkCBridgeError>),
@@ -2722,6 +2777,7 @@ impl std::error::Error for StrongLinkArtifactValidationError {
             Self::Decode(error) => error.as_ref(),
             Self::Identities(error) => error.as_ref(),
             Self::Foundations(error) => error.as_ref(),
+            Self::ExternalBridges(error) => error.as_ref(),
             Self::Production(error) => error.as_ref(),
             Self::Materializations(error) => error.as_ref(),
             Self::CBridge(error) => error.as_ref(),

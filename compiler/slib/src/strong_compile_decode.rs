@@ -17,8 +17,9 @@ use scoop_identity::{
 use scoop_lir::{
     CoreLirBridgeBranchV1, DecodedLirFoundation, DecodedStrongProductionSectionV1,
     EntryProductionSourceV1, ImportedLirFoundation, LirFoundationValidationError,
-    OdrFreeLirFoundation, OdrFreeLirFoundationError, StrongExternalLirBridgeSurfaceV1,
-    StrongProductionSectionV1, StrongProductionSectionValidationError,
+    OdrFreeLirFoundation, OdrFreeLirFoundationError, StrongExternalLirBridgeReconstructionError,
+    StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
+    StrongProductionSectionValidationError,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1, DecodedCoreBootstrapBridgeSectionV1,
@@ -177,6 +178,40 @@ pub fn validate_single_cone_strong_compile_artifact<'input>(
         .validate_cross_layer()
         .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?
         .validate_lir_production(expected_external_bridges)
+        .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
+        .validate_native_boundary()
+        .map_err(|error| StrongCompileArtifactValidationError::NativeBoundary(Box::new(error)))?
+        .commit(session)
+        .map_err(|error| StrongCompileArtifactValidationError::Commit(Box::new(error)))
+}
+
+/// Validates a previously published artifact without compiler-side IR by
+/// reconstructing its typed external bridge surface from the artifact's
+/// already validated identity graph before replaying the complete Compile
+/// view.
+pub fn validate_self_describing_single_cone_strong_compile_artifact<'input>(
+    graph: ValidatedGraphArtifact<'input>,
+    session: &mut SemanticIdentitySession,
+) -> Result<
+    ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
+    StrongCompileArtifactValidationError,
+> {
+    let mut front = graph
+        .decode_single_cone_compile_sections()
+        .map_err(|error| StrongCompileArtifactValidationError::Decode(Box::new(error)))?
+        .validate_identities()
+        .map_err(|error| StrongCompileArtifactValidationError::Identities(Box::new(error)))?
+        .validate_foundation_structure()
+        .map_err(|error| StrongCompileArtifactValidationError::Foundations(Box::new(error)))?
+        .validate_local_production()
+        .map_err(|error| StrongCompileArtifactValidationError::LocalProduction(Box::new(error)))?
+        .validate_cross_layer()
+        .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?;
+    let external_bridges = front
+        .reconstruct_external_bridges()
+        .map_err(|error| StrongCompileArtifactValidationError::ExternalBridges(Box::new(error)))?;
+    front
+        .validate_lir_production(&external_bridges)
         .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
         .validate_native_boundary()
         .map_err(|error| StrongCompileArtifactValidationError::NativeBoundary(Box::new(error)))?
@@ -669,6 +704,15 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
 
     pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         self.local.lir_production_wire()
+    }
+
+    pub fn reconstruct_external_bridges(
+        &mut self,
+    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
+        let producer = self.local.identity();
+        self.local
+            .lir_production
+            .reconstruct_external_bridges(producer, &mut self.local.identities)
     }
 
     /// Closes the LIR production proof without accepting independently
@@ -1524,6 +1568,7 @@ pub enum StrongCompileArtifactValidationError {
     Foundations(Box<StrongProfileFoundationError>),
     LocalProduction(Box<StrongProfileLocalProductionError>),
     Relations(Box<StrongProfileRelationError>),
+    ExternalBridges(Box<StrongExternalLirBridgeReconstructionError>),
     LirProduction(Box<StrongProfileLirProductionError>),
     NativeBoundary(Box<NativeBoundaryCompileError>),
     Commit(Box<CompileCommitError>),
@@ -1546,6 +1591,7 @@ impl std::error::Error for StrongCompileArtifactValidationError {
             Self::Foundations(error) => error.as_ref(),
             Self::LocalProduction(error) => error.as_ref(),
             Self::Relations(error) => error.as_ref(),
+            Self::ExternalBridges(error) => error.as_ref(),
             Self::LirProduction(error) => error.as_ref(),
             Self::NativeBoundary(error) => error.as_ref(),
             Self::Commit(error) => error.as_ref(),

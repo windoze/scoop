@@ -13,10 +13,13 @@ use scoop_wire::{DecodeLimits, DecodeUsage};
 
 use crate::{
     ArtifactDistributionClassV1, ArtifactFingerprint, CanonicalDefinedLinkSymbolOwnerSetV1,
-    ConeKind, ConeSourceForm, DecodedSlibEnvelope, FingerprintAvailability, GraphValidationError,
-    SemanticFingerprintRecord, SingleConeProductionOutputV1, SingleConeStrongProfile, SlibMemberId,
-    SlibReadError, StrongCompileArtifactValidationError, StrongLinkArtifactValidationError,
-    ValidatedCompileArtifact, ValidatedSingleConeStrongLinkArtifact,
+    ConeKind, ConeSourceForm, DecodedSlibEnvelope, DependencyRecord, FingerprintAvailability,
+    GraphValidationError, SemanticFingerprintRecord, SingleConeProductionOutputV1,
+    SingleConeStrongProfile, SlibMemberId, SlibReadError, StrongCompileArtifactValidationError,
+    StrongLinkArtifactValidationError, ValidatedCompileArtifact,
+    ValidatedSingleConeStrongLinkArtifact,
+    validate_self_describing_single_cone_strong_compile_artifact,
+    validate_self_describing_single_cone_strong_link_artifact,
     validate_single_cone_strong_compile_artifact, validate_single_cone_strong_link_artifact,
 };
 
@@ -82,6 +85,7 @@ pub struct PublishableSingleConeArtifact {
     kind: ConeKind,
     source_form: ConeSourceForm,
     target_selection: ValidatedLirTargetSelection,
+    direct_dependencies: Vec<DependencyRecord>,
     compile_summary: CompileViewSummaryV1,
     link_summary: LinkViewSummaryV1,
 }
@@ -148,6 +152,7 @@ impl PublishableSingleConeArtifact {
             kind: compile.kind(),
             source_form: compile.source_form(),
             target_selection: compile.target_selection(),
+            direct_dependencies: compile.direct_dependencies().to_vec(),
             compile_summary: CompileViewSummaryV1 {
                 semantic_fingerprints: compile_semantic,
                 decode_usage: compile.decode_usage(),
@@ -185,6 +190,21 @@ impl PublishableSingleConeArtifact {
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
         self.target_selection
+    }
+
+    pub fn direct_dependencies(&self) -> &[DependencyRecord] {
+        &self.direct_dependencies
+    }
+
+    pub fn dependency_record(&self) -> DependencyRecord {
+        let semantic = self.compile_summary.semantic_fingerprints();
+        DependencyRecord::from_validated(
+            self.coordinate.clone(),
+            self.identity,
+            semantic.hir(),
+            semantic.mir(),
+            semantic.lir(),
+        )
     }
 
     pub const fn compile_summary(&self) -> CompileViewSummaryV1 {
@@ -225,6 +245,41 @@ pub fn validate_publishable_single_cone_artifact(
     let link = validate_single_cone_strong_link_artifact(
         link_graph,
         expected_external_bridges,
+        core_owners,
+        c_bridge_profile,
+    )
+    .map_err(|error| PublishableArtifactValidationError::Link(Box::new(error)))?;
+
+    PublishableSingleConeArtifact::from_validated_views(&compile, &link)
+        .map_err(PublishableArtifactValidationError::ViewMismatch)
+}
+
+/// Reopens final bytes through both strong views without any compiler-side IR
+/// authority. External bridge expectations are reconstructed from each
+/// view's validated identity graph, while trusted core definitions remain an
+/// explicit caller-supplied authority.
+pub fn validate_self_describing_publishable_single_cone_artifact(
+    final_bytes: &[u8],
+    limits: DecodeLimits,
+    target_selection: ValidatedLirTargetSelection,
+    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+) -> Result<PublishableSingleConeArtifact, PublishableArtifactValidationError> {
+    let compile_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
+        .map_err(|error| PublishableArtifactValidationError::CompileEnvelope(Box::new(error)))?
+        .validate_graph()
+        .map_err(|error| PublishableArtifactValidationError::CompileGraph(Box::new(error)))?;
+    let mut session = SemanticIdentitySession::new();
+    let compile =
+        validate_self_describing_single_cone_strong_compile_artifact(compile_graph, &mut session)
+            .map_err(|error| PublishableArtifactValidationError::Compile(Box::new(error)))?;
+
+    let link_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
+        .map_err(|error| PublishableArtifactValidationError::LinkEnvelope(Box::new(error)))?
+        .validate_graph()
+        .map_err(|error| PublishableArtifactValidationError::LinkGraph(Box::new(error)))?;
+    let link = validate_self_describing_single_cone_strong_link_artifact(
+        link_graph,
         core_owners,
         c_bridge_profile,
     )
@@ -515,6 +570,30 @@ mod tests {
         assert_eq!(
             publishable.compile_summary().semantic_fingerprints(),
             publishable.link_summary().semantic_fingerprints()
+        );
+    }
+
+    #[test]
+    fn published_bytes_reconstruct_external_bridge_authority_from_both_views() {
+        let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
+        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+
+        let publishable = validate_self_describing_publishable_single_cone_artifact(
+            &bytes,
+            DecodeLimits::default(),
+            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            &core_owners,
+            &crate::link_decode::c_bridge_profile_for_test(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            publishable.identity(),
+            crate::link_decode::complete_strong_artifact_identity_for_test()
+        );
+        assert_eq!(
+            publishable.dependency_record().coordinate(),
+            publishable.coordinate()
         );
     }
 

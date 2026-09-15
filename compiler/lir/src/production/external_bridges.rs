@@ -3,8 +3,10 @@ use std::fmt;
 use scoop_identity::{
     CanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopAbiFunctionSignature,
     DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongCallableDefinitionOwner,
-    ObjectDefinitionPlanId, PersistentExactTypeId, PersistentSymbolRequest,
-    StrongCallableDefinitionOwner,
+    IdentityReferenceError, ObjectDefinitionPlanId, PersistentConstructorId, PersistentExactTypeId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentIdResolver,
+    PersistentPropertyAccessorId, PersistentSymbolRequest, ScoopAbiResolutionError,
+    StrongCallableDefinitionOwner, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -243,7 +245,7 @@ impl WireEncode for StrongExternalLirBridgeSurfaceV1 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct DecodedStrongExternalCallableBridgeV1 {
     target: DecodedStrongCallableDefinitionOwner,
     abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
@@ -285,7 +287,7 @@ impl WireDecode for DecodedStrongExternalCallableBridgeV1 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct DecodedStrongExternalTypeDescriptorBridgeV1 {
     target: DecodedPersistentId<PersistentExactTypeId>,
     expected_symbol: DecodedPersistentSymbolRequest,
@@ -315,7 +317,7 @@ impl WireDecode for DecodedStrongExternalTypeDescriptorBridgeV1 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum DecodedStrongExternalLirBridgeV1 {
     Callable(DecodedStrongExternalCallableBridgeV1),
     TypeDescriptor(DecodedStrongExternalTypeDescriptorBridgeV1),
@@ -374,12 +376,58 @@ impl WireDecode for DecodedStrongExternalLirBridgeV1 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DecodedStrongExternalLirBridgeSurfaceV1 {
     bridges: Vec<DecodedStrongExternalLirBridgeV1>,
 }
 
 impl DecodedStrongExternalLirBridgeSurfaceV1 {
+    /// Reconstructs the typed external bridge authority solely from decoded
+    /// references that already belong to one validated identity graph.
+    /// Contract-derived symbols and definition ids are recomputed rather than
+    /// trusted from the artifact bytes.
+    pub fn reconstruct(
+        &self,
+        producer: scoop_identity::ConeIdentity,
+        identities: &mut ValidatedIdentityGraph,
+    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
+        let mut bridges = Vec::with_capacity(self.bridges.len());
+        for bridge in &self.bridges {
+            bridges.push(match bridge {
+                DecodedStrongExternalLirBridgeV1::Callable(bridge) => {
+                    let target = resolve_callable_target(bridge.target, identities)
+                        .map_err(StrongExternalLirBridgeReconstructionError::Identity)?;
+                    let abi_signature = bridge
+                        .abi_signature
+                        .clone()
+                        .resolve(identities)
+                        .map_err(StrongExternalLirBridgeReconstructionError::ScoopAbi)?;
+                    StrongExternalLirBridgeV1::Callable(
+                        StrongExternalCallableBridgeV1::new(
+                            target,
+                            abi_signature,
+                            bridge.calling_convention,
+                            bridge.root_plan,
+                        )
+                        .map_err(StrongExternalLirBridgeReconstructionError::Contract)?,
+                    )
+                }
+                DecodedStrongExternalLirBridgeV1::TypeDescriptor(bridge) => {
+                    let target = <ValidatedIdentityGraph as PersistentIdResolver<
+                        PersistentExactTypeId,
+                    >>::resolve(identities, bridge.target)
+                    .map_err(StrongExternalLirBridgeReconstructionError::Identity)?;
+                    StrongExternalLirBridgeV1::TypeDescriptor(
+                        StrongExternalTypeDescriptorBridgeV1::new(target)
+                            .map_err(StrongExternalLirBridgeReconstructionError::Contract)?,
+                    )
+                }
+            });
+        }
+        StrongExternalLirBridgeSurfaceV1::try_new(producer, bridges)
+            .map_err(StrongExternalLirBridgeReconstructionError::Surface)
+    }
+
     /// Validate untrusted bytes against an independently reconstructed typed
     /// surface. The returned value is the trusted reconstruction, never a
     /// cast of decoded identities.
@@ -395,6 +443,42 @@ impl DecodedStrongExternalLirBridgeSurfaceV1 {
         }
         Ok(expected.clone())
     }
+}
+
+fn resolve_callable_target(
+    target: DecodedStrongCallableDefinitionOwner,
+    identities: &mut ValidatedIdentityGraph,
+) -> Result<StrongCallableDefinitionOwner, IdentityReferenceError> {
+    Ok(match target {
+        DecodedStrongCallableDefinitionOwner::Function(id) => {
+            StrongCallableDefinitionOwner::Function(
+                <ValidatedIdentityGraph as PersistentIdResolver<PersistentFunctionId>>::resolve(
+                    identities, id,
+                )?,
+            )
+        }
+        DecodedStrongCallableDefinitionOwner::Constructor(id) => {
+            StrongCallableDefinitionOwner::Constructor(
+                <ValidatedIdentityGraph as PersistentIdResolver<PersistentConstructorId>>::resolve(
+                    identities, id,
+                )?,
+            )
+        }
+        DecodedStrongCallableDefinitionOwner::PropertyAccessor(id) => {
+            StrongCallableDefinitionOwner::PropertyAccessor(
+                <ValidatedIdentityGraph as PersistentIdResolver<
+                    PersistentPropertyAccessorId,
+                >>::resolve(identities, id)?,
+            )
+        }
+        DecodedStrongCallableDefinitionOwner::GeneratedCallable(id) => {
+            StrongCallableDefinitionOwner::GeneratedCallable(
+                <ValidatedIdentityGraph as PersistentIdResolver<
+                    PersistentGeneratedCallableId,
+                >>::resolve(identities, id)?,
+            )
+        }
+    })
 }
 
 impl WireEncode for DecodedStrongExternalLirBridgeSurfaceV1 {
@@ -444,6 +528,34 @@ impl std::error::Error for StrongExternalLirBridgeBuildError {
 pub enum StrongExternalLirBridgeValidationError {
     Wire(scoop_wire::cbor::EncodeError),
     SurfaceMismatch,
+}
+
+#[derive(Debug)]
+pub enum StrongExternalLirBridgeReconstructionError {
+    Identity(IdentityReferenceError),
+    ScoopAbi(ScoopAbiResolutionError<IdentityReferenceError>),
+    Contract(CoreExternalBuildError),
+    Surface(StrongExternalLirBridgeBuildError),
+}
+
+impl fmt::Display for StrongExternalLirBridgeReconstructionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "cannot reconstruct strong external LIR bridge surface: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongExternalLirBridgeReconstructionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Identity(error) => error,
+            Self::ScoopAbi(error) => error,
+            Self::Contract(error) => error,
+            Self::Surface(error) => error,
+        })
+    }
 }
 
 impl fmt::Display for StrongExternalLirBridgeValidationError {
