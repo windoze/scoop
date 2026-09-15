@@ -377,8 +377,7 @@ impl ValidatedFinalLinkProfile {
 /// profile. New targets are admitted only by [`ResolvedTargetProfile::resolve`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ValidatedBackendProfile {
-    lir_target_profile: LirTargetProfile,
-    backend_profile: BackendProfile,
+    lir_target_selection: ValidatedLirTargetSelection,
     canonical_triple: &'static str,
     cpu: &'static str,
     features: &'static str,
@@ -398,8 +397,7 @@ pub struct ValidatedBackendProfile {
 
 impl ValidatedBackendProfile {
     const DARWIN_AARCH64: Self = Self {
-        lir_target_profile: LirTargetProfile::DARWIN_AARCH64,
-        backend_profile: BackendProfile::LLVM_22_1,
+        lir_target_selection: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         canonical_triple: "aarch64-apple-darwin",
         cpu: "generic",
         features: "",
@@ -418,18 +416,24 @@ impl ValidatedBackendProfile {
     };
 
     pub fn id(self) -> TargetProfileId {
-        self.lir_target_profile.id()
+        self.lir_target_selection.target().id()
     }
 
     /// Complete LIR-facing target capabilities selected by this backend
     /// profile. The driver passes this exact value into LIR lowering; codegen
     /// later requires the finished module to carry the same value.
     pub const fn lir_target_profile(self) -> LirTargetProfile {
-        self.lir_target_profile
+        self.lir_target_selection.target()
     }
 
     pub const fn backend_profile(self) -> BackendProfile {
-        self.backend_profile
+        self.lir_target_selection.backend()
+    }
+
+    /// The exact closed LIR/backend selection represented by this backend
+    /// projection.
+    pub const fn lir_target_selection(self) -> ValidatedLirTargetSelection {
+        self.lir_target_selection
     }
 
     pub fn canonical_triple(self) -> &'static str {
@@ -486,7 +490,7 @@ impl ValidatedBackendProfile {
         self,
         actual: LirTargetProfile,
     ) -> Result<(), CodegenError> {
-        if actual == self.lir_target_profile {
+        if actual == self.lir_target_selection.target() {
             return Ok(());
         }
         Err(CodegenError(format!(

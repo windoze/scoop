@@ -1681,6 +1681,15 @@ immortal-object、static-storage、initialization五类registration object leaf�
 原始registration proof只作为各自fingerprint proof的内部authority继续存在；任一叶子计算失败时不返回部分
 结果，也不存在逐类公开转换或接受caller外送digest的旧路径。
 
+registration依赖指纹计算前，producer adapter必须消耗上述叶子状态并闭合全部link symbol requirement。
+Scoop codegen输出保留完整`ValidatedLirTargetSelection`而不只保留LIR target，使runtime/EH registry验证使用
+发射该object的同一backend选择。adapter只额外接收已经验证的core defined-owner authority；current-Cone、
+source-native、runtime/EH、generated-C semantic与target-support requirement都从私有strong-relocation proof、
+foundation、production、C-bridge profile和同一patch-site proof内部重建，随后拒绝未分类external relocation并
+形成唯一canonical undefined-symbol集合。成功的`LinkSymbolVerifiedObjectProductionV1`同时拥有defined/undefined
+集合、六份registration leaf proof、原production和symbol plan；不允许caller替换target、backend、bridge
+profile、native requirement surface或任一中间closure。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

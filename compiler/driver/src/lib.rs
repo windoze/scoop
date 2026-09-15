@@ -19,9 +19,9 @@ use linking::{LinkRequest, build_runtime, link};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
     CBridgeEnvelopeVerifiedObjectProductionV1, DigestPatchVerifiedObjectProductionV1,
-    PlannedBuiltinObjectProductionV1, RegistrationObjectLeafFingerprintedProductionV1,
-    RegistrationObjectVerifiedObjectProductionV1, StackmapVerifiedObjectProductionV1,
-    StrongRelocationVerifiedObjectProductionV1,
+    LinkSymbolVerifiedObjectProductionV1, PlannedBuiltinObjectProductionV1,
+    RegistrationObjectLeafFingerprintedProductionV1, RegistrationObjectVerifiedObjectProductionV1,
+    StackmapVerifiedObjectProductionV1, StrongRelocationVerifiedObjectProductionV1,
 };
 pub use request::{
     BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,

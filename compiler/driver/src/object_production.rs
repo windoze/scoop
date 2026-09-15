@@ -8,18 +8,24 @@ use scoop_codegen::{
     ProvisionalStrongDigestPatchLocationV1,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CBridgeToolchainProfileV1, GeneratedBridgeUnitId, LirTargetProfile,
+    CBridgeProductionSetV1, CBridgeToolchainProfileV1,
+    CanonicalNativeExternalRequirementBuildError, GeneratedBridgeUnitId, LirTargetProfile,
     ObjectDefinitionPlanId, OdrFreeLirFoundation, StrongProducerUnitPartitionV1,
-    StrongProductionSectionV1,
+    StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
 use scoop_slib::{
-    BuiltinObjectSetValidationError, CBridgeProductionEnvelopeValidationError,
-    CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
-    DigestPatchSiteValidationError, GeneratedCBridgeObjectCandidateV1,
+    BuiltinObjectExternalRequirementClosureError, BuiltinObjectSetValidationError,
+    CBridgeProductionEnvelopeValidationError, CBridgeTargetSupportRequirementValidationError,
+    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalGeneratedBridgeObjectUnitSetV1,
+    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
+    CoreStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
+    DefinedLinkSymbolOwnerBuildError, DigestPatchSiteValidationError,
+    GeneratedCBridgeObjectCandidateV1, GeneratedCBridgeSemanticValidationError,
     LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
     PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1,
-    ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError,
-    SlibMemberId, StrongCallableRegistrationObjectFingerprintError,
+    ProvisionalDigestPatchSiteV1, RuntimeAndEhRequirementValidationError,
+    ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError, SlibMemberId,
+    SourceExternalRequirementValidationError, StrongCallableRegistrationObjectFingerprintError,
     StrongCallableRegistrationValidationError,
     StrongImmortalObjectRegistrationObjectFingerprintError,
     StrongImmortalObjectRegistrationValidationError,
@@ -28,9 +34,10 @@ use scoop_slib::{
     StrongSafepointFingerprintError, StrongSafepointRegistrationValidationError,
     StrongStaticStorageRegistrationObjectFingerprintError,
     StrongStaticStorageRegistrationValidationError, StrongTypeRegistrationObjectFingerprintError,
-    StrongTypeRegistrationValidationError, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    StrongTypeRegistrationValidationError, UndefinedSymbolRequirementFinalizationError,
+    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedCBridgeProductionEnvelopeSetV1,
+    VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapSetV1,
+    VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     VerifiedStrongCallableRegistrationSetV1,
     VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
     VerifiedStrongImmortalObjectRegistrationSetV1,
@@ -46,8 +53,12 @@ use scoop_slib::{
     compute_strong_safepoint_fingerprints_v1,
     compute_strong_static_storage_registration_object_fingerprints_v1,
     compute_strong_type_registration_object_fingerprints_v1,
+    finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
     verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
-    verify_scoop_lir_digest_patch_sites_v1, verify_scoop_lir_stackmaps_v1,
+    verify_c_bridge_target_support_requirements_v1, verify_core_strong_requirements_v1,
+    verify_current_cone_undefined_requirements_v1, verify_generated_c_bridge_semantics_v1,
+    verify_runtime_and_eh_requirements_v1, verify_scoop_lir_digest_patch_sites_v1,
+    verify_scoop_lir_stackmaps_v1, verify_source_external_requirements_v1,
     verify_strong_callable_registrations_v1, verify_strong_immortal_object_registrations_v1,
     verify_strong_initialization_registrations_v1, verify_strong_safepoint_registrations_v1,
     verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
@@ -73,7 +84,7 @@ pub struct PlannedGeneratedCBridgeObjectInputV1 {
 /// typed digest-site binding, ready for the `.slib` object verifiers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedBuiltinObjectProductionV1 {
-    target: LirTargetProfile,
+    target_selection: ValidatedLirTargetSelection,
     foundation: OdrFreeLirFoundation,
     production: StrongProductionSectionV1,
     c_bridge_profile: CBridgeToolchainProfileV1,
@@ -149,7 +160,7 @@ impl PlannedBuiltinObjectProductionV1 {
         let c_bridge_profile = generated_c_bridge.profile().clone();
         let c_bridge_production = generated_c_bridge.production().clone();
         Ok(Self {
-            target: scoop_lir.target(),
+            target_selection: scoop_lir.target_selection(),
             foundation: scoop_lir.foundation().clone(),
             production: scoop_lir.production().clone(),
             c_bridge_profile,
@@ -166,7 +177,11 @@ impl PlannedBuiltinObjectProductionV1 {
     }
 
     pub const fn target(&self) -> LirTargetProfile {
-        self.target
+        self.target_selection.target()
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target_selection
     }
 
     pub const fn foundation(&self) -> &OdrFreeLirFoundation {
@@ -247,7 +262,7 @@ impl CBridgeEnvelopeVerifiedObjectProductionV1 {
             proof: c_bridge_proof,
         } = self;
         let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
-            production.target,
+            production.target(),
             production.production.canonical_definitions(),
             &production.member_plan,
         )
@@ -682,6 +697,152 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
     ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
         &self.initialization_registration_objects
     }
+
+    pub fn verify_link_symbol_requirements(
+        self,
+        core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    ) -> Result<LinkSymbolVerifiedObjectProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan,
+            safepoints,
+            callable_registration_objects,
+            type_registration_objects,
+            immortal_object_registration_objects,
+            static_storage_registration_objects,
+            initialization_registration_objects,
+        } = self;
+        let patch_sites = callable_registration_objects
+            .registrations()
+            .patch_sites()
+            .clone();
+        let strong_closure = patch_sites.builtins().strong_relocations().clone();
+        let defined_symbols =
+            CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong_closure)
+                .map_err(BuiltinObjectProductionError::DefinedSymbols)?;
+        let bridge_plan = production.production.generated_bridge_plan().clone();
+        let current_cone = verify_current_cone_undefined_requirements_v1(
+            strong_closure.clone(),
+            bridge_plan.clone(),
+        )
+        .map_err(BuiltinObjectProductionError::CurrentConeRequirements)?;
+        let native_requirements =
+            scoop_lir::CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
+                production.target(),
+                &production.foundation,
+            )
+            .map_err(BuiltinObjectProductionError::NativeRequirementSurface)?;
+        let core = verify_core_strong_requirements_v1(
+            production.target(),
+            strong_closure,
+            production.production.external_bridges().clone(),
+            core_owners.clone(),
+        )
+        .map_err(BuiltinObjectProductionError::CoreRequirements)?;
+        let source = verify_source_external_requirements_v1(core, native_requirements.clone())
+            .map_err(BuiltinObjectProductionError::SourceExternalRequirements)?;
+        let runtime_and_eh =
+            verify_runtime_and_eh_requirements_v1(source, production.target_selection)
+                .map_err(BuiltinObjectProductionError::RuntimeAndEhRequirements)?;
+        let bridge_semantics = verify_generated_c_bridge_semantics_v1(
+            patch_sites,
+            bridge_plan,
+            native_requirements,
+            &production.c_bridge_profile,
+        )
+        .map_err(BuiltinObjectProductionError::GeneratedBridgeSemantics)?;
+        let external =
+            verify_c_bridge_target_support_requirements_v1(runtime_and_eh, bridge_semantics)
+                .map_err(BuiltinObjectProductionError::CBridgeTargetSupportRequirements)?;
+        let external = seal_builtin_object_external_requirements_v1(external)
+            .map_err(BuiltinObjectProductionError::UnclassifiedExternalRequirement)?;
+        let undefined_symbols = finalize_undefined_symbol_requirements_v1(current_cone, external)
+            .map_err(BuiltinObjectProductionError::UndefinedSymbols)?;
+
+        Ok(LinkSymbolVerifiedObjectProductionV1 {
+            production,
+            symbol_plan,
+            defined_symbols,
+            undefined_symbols,
+            safepoints,
+            callable_registration_objects,
+            type_registration_objects,
+            immortal_object_registration_objects,
+            static_storage_registration_objects,
+            initialization_registration_objects,
+        })
+    }
+}
+
+/// Complete member-aware defined and undefined symbol closure for the exact
+/// built-in object bytes whose registration leaves were fingerprinted.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LinkSymbolVerifiedObjectProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
+    undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
+    safepoints: VerifiedStrongSafepointFingerprintSetV1,
+    callable_registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    immortal_object_registration_objects:
+        VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    static_storage_registration_objects:
+        VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
+    initialization_registration_objects:
+        VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+}
+
+impl LinkSymbolVerifiedObjectProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        &self.defined_symbols
+    }
+
+    pub const fn undefined_symbols(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        &self.undefined_symbols
+    }
+
+    pub const fn safepoints(&self) -> &VerifiedStrongSafepointFingerprintSetV1 {
+        &self.safepoints
+    }
+
+    pub const fn callable_registration_objects(
+        &self,
+    ) -> &VerifiedStrongCallableRegistrationObjectFingerprintSetV1 {
+        &self.callable_registration_objects
+    }
+
+    pub const fn type_registration_objects(
+        &self,
+    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
+        &self.type_registration_objects
+    }
+
+    pub const fn immortal_object_registration_objects(
+        &self,
+    ) -> &VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1 {
+        &self.immortal_object_registration_objects
+    }
+
+    pub const fn static_storage_registration_objects(
+        &self,
+    ) -> &VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1 {
+        &self.static_storage_registration_objects
+    }
+
+    pub const fn initialization_registration_objects(
+        &self,
+    ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+        &self.initialization_registration_objects
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -882,6 +1043,16 @@ pub enum BuiltinObjectProductionError {
     InitializationRegistrationObjectFingerprints(
         StrongInitializationRegistrationObjectFingerprintError,
     ),
+    DefinedSymbols(DefinedLinkSymbolOwnerBuildError),
+    CurrentConeRequirements(CurrentConeUndefinedRequirementValidationError),
+    NativeRequirementSurface(CanonicalNativeExternalRequirementBuildError),
+    CoreRequirements(CoreStrongRequirementValidationError),
+    SourceExternalRequirements(SourceExternalRequirementValidationError),
+    RuntimeAndEhRequirements(RuntimeAndEhRequirementValidationError),
+    GeneratedBridgeSemantics(GeneratedCBridgeSemanticValidationError),
+    CBridgeTargetSupportRequirements(CBridgeTargetSupportRequirementValidationError),
+    UnclassifiedExternalRequirement(BuiltinObjectExternalRequirementClosureError),
+    UndefinedSymbols(UndefinedSymbolRequirementFinalizationError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -929,6 +1100,16 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::ImmortalObjectRegistrationObjectFingerprints(source) => Some(source),
             Self::StaticStorageRegistrationObjectFingerprints(source) => Some(source),
             Self::InitializationRegistrationObjectFingerprints(source) => Some(source),
+            Self::DefinedSymbols(source) => Some(source),
+            Self::CurrentConeRequirements(source) => Some(source),
+            Self::NativeRequirementSurface(source) => Some(source),
+            Self::CoreRequirements(source) => Some(source),
+            Self::SourceExternalRequirements(source) => Some(source),
+            Self::RuntimeAndEhRequirements(source) => Some(source),
+            Self::GeneratedBridgeSemantics(source) => Some(source),
+            Self::CBridgeTargetSupportRequirements(source) => Some(source),
+            Self::UnclassifiedExternalRequirement(source) => Some(source),
+            Self::UndefinedSymbols(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,

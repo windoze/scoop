@@ -14,7 +14,7 @@ pub(super) fn validate_target_machine(
     profile: ValidatedBackendProfile,
     machine: &TargetMachine,
 ) -> Result<(), CodegenError> {
-    let contract = profile.lir_target_profile;
+    let contract = profile.lir_target_selection.target();
     let target_data = machine.get_target_data();
     let data_layout = target_data.get_data_layout();
     let actual_data_layout = data_layout.as_str().to_str().map_err(|error| {
