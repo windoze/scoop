@@ -62,6 +62,7 @@ impl EmittedStrongObjectMemberV1 {
 #[derive(Debug)]
 pub struct EmittedStrongObjectSetV1 {
     target: scoop_lir::LirTargetProfile,
+    foundation: scoop_lir::OdrFreeLirFoundation,
     production: scoop_lir::StrongProductionSectionV1,
     partition: StrongScoopLirObjectPartitionV1,
     members: Vec<EmittedStrongObjectMemberV1>,
@@ -71,6 +72,10 @@ pub struct EmittedStrongObjectSetV1 {
 impl EmittedStrongObjectSetV1 {
     pub const fn target(&self) -> scoop_lir::LirTargetProfile {
         self.target
+    }
+
+    pub const fn foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
+        &self.foundation
     }
 
     pub const fn production(&self) -> &scoop_lir::StrongProductionSectionV1 {
@@ -232,6 +237,7 @@ pub fn emit_object_set(
     }
     Ok(EmittedStrongObjectSetV1 {
         target: module.meta.target_profile,
+        foundation: input.foundation().clone(),
         production,
         partition,
         members,

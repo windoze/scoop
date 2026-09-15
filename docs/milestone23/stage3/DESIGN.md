@@ -1656,6 +1656,12 @@ generated-C member落槽、错序/重复/漏项/额外intent、错member/offset/
 这一步只闭合digest slot的物理materialization，不替代后续对registration/image/entry canonical record
 非patch bytes以及stackmap语义的独立验证。
 
+producer adapter的对应转换必须消耗`StrongRelocationVerifiedObjectProductionV1`，从Scoop emitted set一直
+保留的同一`OdrFreeLirFoundation`、strong production内的digest plan、私有Scoop bytes和已绑定typed patch
+sites原子调用上述入口。成功的`DigestPatchVerifiedObjectProductionV1`继续拥有原planned production、symbol
+plan与`VerifiedScoopLirDigestPatchSiteSetV1`；不得公开provisional patch array或允许caller替换foundation、
+digest plan、candidate bytes。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

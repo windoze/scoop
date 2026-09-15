@@ -9,17 +9,20 @@ use scoop_codegen::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CBridgeToolchainProfileV1, GeneratedBridgeUnitId, LirTargetProfile,
-    ObjectDefinitionPlanId, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
+    ObjectDefinitionPlanId, OdrFreeLirFoundation, StrongProducerUnitPartitionV1,
+    StrongProductionSectionV1,
 };
 use scoop_slib::{
     BuiltinObjectSetValidationError, CBridgeProductionEnvelopeValidationError,
     CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
-    GeneratedCBridgeObjectCandidateV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
-    PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
-    PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
-    ScoopLirObjectCandidateV1, SlibMemberId, StrongObjectSymbolPlanningError,
-    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedCBridgeProductionEnvelopeSetV1,
+    DigestPatchSiteValidationError, GeneratedCBridgeObjectCandidateV1,
+    LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
+    PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1,
+    ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, SlibMemberId,
+    StrongObjectSymbolPlanningError, VerifiedBuiltinObjectStrongRelocationSetV1,
+    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
     verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    verify_scoop_lir_digest_patch_sites_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -43,6 +46,7 @@ pub struct PlannedGeneratedCBridgeObjectInputV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedBuiltinObjectProductionV1 {
     target: LirTargetProfile,
+    foundation: OdrFreeLirFoundation,
     production: StrongProductionSectionV1,
     c_bridge_profile: CBridgeToolchainProfileV1,
     c_bridge_production: CBridgeProductionSetV1,
@@ -118,6 +122,7 @@ impl PlannedBuiltinObjectProductionV1 {
         let c_bridge_production = generated_c_bridge.production().clone();
         Ok(Self {
             target: scoop_lir.target(),
+            foundation: scoop_lir.foundation().clone(),
             production: scoop_lir.production().clone(),
             c_bridge_profile,
             c_bridge_production,
@@ -136,6 +141,10 @@ impl PlannedBuiltinObjectProductionV1 {
         self.target
     }
 
+    pub const fn foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundation
+    }
+
     pub const fn c_bridge_profile(&self) -> &CBridgeToolchainProfileV1 {
         &self.c_bridge_profile
     }
@@ -146,10 +155,6 @@ impl PlannedBuiltinObjectProductionV1 {
 
     pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
         &self.member_plan
-    }
-
-    pub fn digest_patches(&self) -> &[ProvisionalDigestPatchSiteV1] {
-        &self.digest_patches
     }
 
     fn c_bridge_candidates(&self) -> Vec<GeneratedCBridgeObjectCandidateV1<'_>> {
@@ -258,6 +263,55 @@ impl StrongRelocationVerifiedObjectProductionV1 {
     }
 
     pub const fn proof(&self) -> &VerifiedBuiltinObjectStrongRelocationSetV1 {
+        &self.proof
+    }
+
+    pub fn verify_digest_patch_sites(
+        self,
+    ) -> Result<DigestPatchVerifiedObjectProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan,
+            proof: strong_relocations,
+        } = self;
+        let proof = {
+            let candidates = production.scoop_lir_candidates();
+            verify_scoop_lir_digest_patch_sites_v1(
+                strong_relocations,
+                &production.foundation,
+                production.production.digest_finalization_plan().clone(),
+                &candidates,
+                &production.digest_patches,
+            )
+            .map_err(BuiltinObjectProductionError::DigestPatchSites)?
+        };
+        Ok(DigestPatchVerifiedObjectProductionV1 {
+            production,
+            symbol_plan,
+            proof,
+        })
+    }
+}
+
+/// Proof that every planned digest intent owns one in-atom,
+/// relocation-free, provisionally zero Scoop object slot.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DigestPatchVerifiedObjectProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    proof: VerifiedScoopLirDigestPatchSiteSetV1,
+}
+
+impl DigestPatchVerifiedObjectProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn proof(&self) -> &VerifiedScoopLirDigestPatchSiteSetV1 {
         &self.proof
     }
 }
@@ -440,6 +494,7 @@ pub enum BuiltinObjectProductionError {
     CBridgeEnvelopes(CBridgeProductionEnvelopeValidationError),
     StrongSymbolPlan(StrongObjectSymbolPlanningError),
     StrongRelocations(BuiltinObjectSetValidationError),
+    DigestPatchSites(DigestPatchSiteValidationError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -473,6 +528,7 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::CBridgeEnvelopes(source) => Some(source),
             Self::StrongSymbolPlan(source) => Some(source),
             Self::StrongRelocations(source) => Some(source),
+            Self::DigestPatchSites(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,
