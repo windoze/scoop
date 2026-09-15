@@ -21,14 +21,14 @@ pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;
 
-const FUNDAMENTAL_TYPE_COUNT: usize = 15;
-const OPTION_PROTOCOL_COUNT: usize = 4;
-const ITERATION_PROTOCOL_COUNT: usize = 3;
-const EXCEPTION_PROTOCOL_COUNT: usize = 13;
-const COROUTINE_PROTOCOL_COUNT: usize = 13;
-const FFI_PROTOCOL_COUNT: usize = 19;
-const FOREIGN_CALLBACK_PROTOCOL_COUNT: usize = 15;
-const SOURCE_LOCATION_PROTOCOL_COUNT: usize = 2;
+pub(crate) const FUNDAMENTAL_TYPE_COUNT: usize = 15;
+pub(crate) const OPTION_PROTOCOL_COUNT: usize = 4;
+pub(crate) const ITERATION_PROTOCOL_COUNT: usize = 3;
+pub(crate) const EXCEPTION_PROTOCOL_COUNT: usize = 13;
+pub(crate) const COROUTINE_PROTOCOL_COUNT: usize = 13;
+pub(crate) const FFI_PROTOCOL_COUNT: usize = 19;
+pub(crate) const FOREIGN_CALLBACK_PROTOCOL_COUNT: usize = 15;
+pub(crate) const SOURCE_LOCATION_PROTOCOL_COUNT: usize = 2;
 
 /// Persistent nominal identity without an arena-id or FQN fallback.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -59,7 +59,7 @@ macro_rules! protocol_product {
         pub struct $name(CoreProtocolProductV1<$count>);
 
         impl $name {
-            fn entries(&self) -> &[CoreProtocolEntryV1; $count] {
+            pub(crate) fn entries(&self) -> &[CoreProtocolEntryV1; $count] {
                 &self.0.entries
             }
         }

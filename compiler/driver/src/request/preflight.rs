@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
-use scoop_hir::CorePreludeImportError;
+use scoop_hir::CoreInterfaceImportError;
 use scoop_identity::ConeCoordinate;
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
@@ -353,25 +353,25 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
     pub fn hir_input(
         &self,
     ) -> Result<scoop_hir_lower::OrdinaryCoreOnlySources<'_>, OrdinaryCoreOnlyHirInputError> {
-        let core_prelude = self
+        let core = self
             .trusted_core
-            .import_core_prelude()
-            .map_err(OrdinaryCoreOnlyHirInputError::CorePrelude)?;
-        scoop_hir_lower::OrdinaryCoreOnlySources::try_new(&self.sources, core_prelude)
+            .import_core_inputs()
+            .map_err(OrdinaryCoreOnlyHirInputError::CoreInterface)?;
+        scoop_hir_lower::OrdinaryCoreOnlySources::try_new(&self.sources, core)
             .map_err(OrdinaryCoreOnlyHirInputError::Sources)
     }
 }
 
 #[derive(Debug)]
 pub enum OrdinaryCoreOnlyHirInputError {
-    CorePrelude(CorePreludeImportError),
+    CoreInterface(CoreInterfaceImportError),
     Sources(scoop_hir_lower::OrdinaryCoreOnlySourceError),
 }
 
 impl fmt::Display for OrdinaryCoreOnlyHirInputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CorePrelude(source) => source.fmt(formatter),
+            Self::CoreInterface(source) => source.fmt(formatter),
             Self::Sources(source) => source.fmt(formatter),
         }
     }
@@ -380,7 +380,7 @@ impl fmt::Display for OrdinaryCoreOnlyHirInputError {
 impl std::error::Error for OrdinaryCoreOnlyHirInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CorePrelude(source) => Some(source),
+            Self::CoreInterface(source) => Some(source),
             Self::Sources(source) => Some(source),
         }
     }

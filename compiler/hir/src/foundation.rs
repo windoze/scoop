@@ -29,6 +29,7 @@ pub use wire::{
 };
 mod counts;
 mod imported;
+mod imported_protocols;
 mod projection;
 mod strong_profile;
 pub use counts::HirFoundationCounts;
@@ -38,6 +39,12 @@ pub use imported::{
     ImportedCorePreludeBinding, ImportedCorePreludeTarget, ImportedCoreTypeId, ImportedCoreValueId,
     ImportedHirFoundation, ImportedHirId, ImportedHirSet, SelectedImportedCoreId,
     SelectedImportedCoreSet, SelectedImportedCoreTarget,
+};
+pub use imported_protocols::{
+    CoreInterfaceImportError, CoreProtocolIdentityKind, CoreProtocolImportError,
+    ImportedCoreCompilerOperation, ImportedCoreInputs, ImportedCoreProtocolCallable,
+    ImportedCoreProtocolCallableDefinition, ImportedCoreProtocolEntry, ImportedCoreProtocolNominal,
+    ImportedCoreProtocols,
 };
 pub use strong_profile::{
     OdrFreeHirFoundation, OdrFreeHirFoundationError, OdrFreeHirFoundationProjectionError,

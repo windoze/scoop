@@ -82,7 +82,7 @@ impl ImportedHirFoundation {
     /// Restricts one already imported core foundation to the M23-3 prelude
     /// capability. The resulting value has no API for ordinary package,
     /// exact-import, star-import, or re-export enumeration.
-    pub fn import_core_prelude<'a>(
+    pub(super) fn import_core_prelude<'a>(
         &'a self,
         interface: &'a CoreHirInterfaceV1,
         strong_callable_bindings: &'a [PersistentExportBindingId],

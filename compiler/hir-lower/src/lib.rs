@@ -232,24 +232,22 @@ impl std::error::Error for CoreBootstrapSourceError {}
 /// authorized by the M23-3 ordinary path.
 ///
 /// The fields remain private so the lowerer always receives the source graph
-/// and trusted core prelude as one lifetime-bound input.
+/// and the atomic trusted core prelude/protocol authority as one
+/// lifetime-bound input.
 pub struct OrdinaryCoreOnlySources<'a> {
     sources: &'a ast::CurrentConeParsedSources,
-    core_prelude: hir::ImportedHirSet<'a, hir::CorePreludeOnly>,
+    core: hir::ImportedCoreInputs<'a>,
 }
 
 impl<'a> OrdinaryCoreOnlySources<'a> {
     pub fn try_new(
         sources: &'a ast::CurrentConeParsedSources,
-        core_prelude: hir::ImportedHirSet<'a, hir::CorePreludeOnly>,
+        core: hir::ImportedCoreInputs<'a>,
     ) -> Result<Self, OrdinaryCoreOnlySourceError> {
         if sources.cone() == scoop_identity::ConeIdentity::CORE {
             return Err(OrdinaryCoreOnlySourceError::CurrentConeIsCore);
         }
-        Ok(Self {
-            sources,
-            core_prelude,
-        })
+        Ok(Self { sources, core })
     }
 
     pub const fn current_cone(&self) -> scoop_identity::ConeIdentity {
@@ -257,7 +255,11 @@ impl<'a> OrdinaryCoreOnlySources<'a> {
     }
 
     pub fn core_binding_count(&self) -> usize {
-        self.core_prelude.bindings().len()
+        self.core.prelude().bindings().len()
+    }
+
+    pub fn core_compiler_operation_count(&self) -> usize {
+        self.core.protocols().compiler_operations().len()
     }
 }
 

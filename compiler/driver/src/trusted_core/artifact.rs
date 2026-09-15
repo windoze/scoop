@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use scoop_codegen::ResolvedTargetProfile;
 use scoop_hir::{
     CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
-    CoreHirInterfaceV1, CorePreludeImportError, CorePreludeOnly, ImportedCorePreludeTarget,
-    ImportedHirSet, SelectedImportedCoreSet, SelectedImportedCoreTarget,
+    CoreHirInterfaceV1, CoreInterfaceImportError, ImportedCoreInputs, ImportedCorePreludeTarget,
+    SelectedImportedCoreSet, SelectedImportedCoreTarget,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, PersistentExportBindingId, SemanticIdentitySession,
@@ -384,12 +384,11 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         &self.authority
     }
 
-    /// Projects the only HIR lookup capability authorized for an M23-3
-    /// consumer from this artifact's own Compile proof and core interface.
-    pub fn import_core_prelude(
-        &self,
-    ) -> Result<ImportedHirSet<'_, CorePreludeOnly>, CorePreludeImportError> {
-        self.compile.hir().import_core_prelude(
+    /// Atomically projects the only HIR lookup and compiler-protocol
+    /// capabilities authorized for an M23-3 consumer from this artifact's
+    /// own Compile proof and core interface.
+    pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs<'_>, CoreInterfaceImportError> {
+        self.compile.hir().import_core_inputs(
             &self.core_interface.interface,
             &self.core_interface.strong_callable_bindings,
         )

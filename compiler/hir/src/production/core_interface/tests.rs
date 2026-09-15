@@ -12,8 +12,8 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
 use crate::{
-    CorePreludeImportError, CorePreludeUnavailableCapability, CoreTypeTargetV1,
-    DecodedHirFoundation, ImportedCorePreludeTarget, ImportedHirFoundation,
+    CoreInterfaceImportError, CorePreludeImportError, CorePreludeUnavailableCapability,
+    CoreTypeTargetV1, DecodedHirFoundation, ImportedCorePreludeTarget, ImportedHirFoundation,
 };
 
 #[test]
@@ -203,15 +203,24 @@ fn core_shape_support_sources_are_derived_from_param_free_source_nominals() {
 }
 
 #[test]
-fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
+fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);
 
-    let prelude = imported
-        .import_core_prelude(&fixture.interface, &[])
+    let core = imported
+        .import_core_inputs(&fixture.interface, &[])
         .unwrap();
+    let prelude = core.prelude();
 
     assert_eq!(prelude.origin(), ConeIdentity::CORE);
+    assert_eq!(core.protocols().fixed_subject_count(), 84);
+    assert_eq!(
+        core.protocols().compiler_operations().len(),
+        crate::intrinsic_function_kinds().len()
+    );
+    assert!(core.protocols().belongs_to(&imported, &fixture.interface));
+    let other_interface = fixture.interface.clone();
+    assert!(!core.protocols().belongs_to(&imported, &other_interface));
     let string = prelude
         .candidates(BindingNamespace::Type, "String")
         .collect::<Vec<_>>();
@@ -235,7 +244,6 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
     ));
     let selected = string[0].select_param_free_strong().unwrap();
     let other_imported = imported_foundation(&fixture.foundation);
-    let other_interface = fixture.interface.clone();
     assert!(selected.belongs_to(&imported, &fixture.interface, &[]));
     assert!(!selected.belongs_to(&other_imported, &fixture.interface, &[]));
     assert!(!selected.belongs_to(&imported, &other_interface, &[]));
@@ -274,9 +282,10 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
 fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);
-    let prelude = imported
-        .import_core_prelude(&fixture.interface, &[])
+    let core = imported
+        .import_core_inputs(&fixture.interface, &[])
         .unwrap();
+    let prelude = core.prelude();
     let string = prelude
         .candidates(BindingNamespace::Type, "String")
         .next()
@@ -317,9 +326,10 @@ fn selected_imported_core_set_borrows_the_artifact_not_the_projection_wrapper() 
     let imported = imported_foundation(&fixture.foundation);
 
     let (selected, string_id) = {
-        let prelude = imported
-            .import_core_prelude(&fixture.interface, &[])
+        let core = imported
+            .import_core_inputs(&fixture.interface, &[])
             .unwrap();
+        let prelude = core.prelude();
         let string = prelude
             .candidates(BindingNamespace::Type, "String")
             .next()
@@ -342,12 +352,14 @@ fn selected_imported_core_set_rejects_a_foreign_prelude_binding() {
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);
     let other_imported = imported_foundation(&fixture.foundation);
-    let prelude = imported
-        .import_core_prelude(&fixture.interface, &[])
+    let core = imported
+        .import_core_inputs(&fixture.interface, &[])
         .unwrap();
-    let other_prelude = other_imported
-        .import_core_prelude(&fixture.interface, &[])
+    let prelude = core.prelude();
+    let other_core = other_imported
+        .import_core_inputs(&fixture.interface, &[])
         .unwrap();
+    let other_prelude = other_core.prelude();
     let foreign = other_prelude
         .candidates(BindingNamespace::Type, "String")
         .next()
@@ -363,7 +375,7 @@ fn selected_imported_core_set_rejects_a_foreign_prelude_binding() {
 }
 
 #[test]
-fn imported_core_prelude_rejects_an_interface_from_another_foundation() {
+fn imported_core_inputs_reject_an_interface_from_another_foundation() {
     let fixture = fixture();
     let first_binding = fixture.direct.bindings()[0];
     let mut missing_binding = fixture.foundation.clone();
@@ -371,14 +383,18 @@ fn imported_core_prelude_rejects_an_interface_from_another_foundation() {
     let imported = imported_foundation(&missing_binding);
 
     assert!(matches!(
-        imported.import_core_prelude(&fixture.interface, &[]),
-        Err(CorePreludeImportError::MissingBindingKey(binding)) if binding == first_binding
+        imported.import_core_inputs(&fixture.interface, &[]),
+        Err(CoreInterfaceImportError::Prelude(
+            CorePreludeImportError::MissingBindingKey(binding)
+        )) if binding == first_binding
     ));
 
     assert!(matches!(
         imported_foundation(&fixture.foundation)
-            .import_core_prelude(&fixture.interface, &[first_binding]),
-        Err(CorePreludeImportError::UnknownStrongCallableBinding(binding))
+            .import_core_inputs(&fixture.interface, &[first_binding]),
+        Err(CoreInterfaceImportError::Prelude(
+            CorePreludeImportError::UnknownStrongCallableBinding(binding)
+        ))
             if binding == first_binding
     ));
 }
