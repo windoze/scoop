@@ -14,7 +14,11 @@ use crate::{
     IntrinsicFunctionKind, MethodDispatch, StructId, TypeId, intrinsic_function_kinds,
 };
 
+mod operation_signatures;
 mod wire;
+use operation_signatures::expected_operation_signature;
+#[cfg(test)]
+use operation_signatures::operation_own_type_parameter_count;
 pub use wire::{CoreCompilerProtocolSurfaceValidationError, DecodedCoreCompilerProtocolSurfaceV1};
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -299,6 +303,9 @@ impl CoreCompilerProtocolSurfaceV1 {
         surface
             .validate_internal_relations()
             .map_err(CoreCompilerProtocolSurfaceBuildError::Relation)?;
+        surface
+            .validate_operation_signatures()
+            .map_err(CoreCompilerProtocolSurfaceBuildError::Relation)?;
         Ok(surface)
     }
 
@@ -406,6 +413,22 @@ impl CoreCompilerProtocolSurfaceV1 {
         )?;
         validate_operation_set(&self.compiler_operation_protocol.operations)?;
         self.validate_repeated_operation_relations()?;
+        Ok(())
+    }
+
+    fn validate_operation_signatures(
+        &self,
+    ) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
+        for operation in &self.compiler_operation_protocol.operations {
+            let expected = expected_operation_signature(self, operation.kind);
+            if operation.callable.signature() != &expected {
+                return Err(
+                    CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(
+                        operation.kind,
+                    ),
+                );
+            }
+        }
         Ok(())
     }
 
@@ -912,6 +935,7 @@ pub enum CoreCompilerProtocolSurfaceRelationError {
     },
     OperationEffectMismatch(IntrinsicFunctionKind),
     OperationReceiverMismatch(IntrinsicFunctionKind),
+    OperationSignatureMismatch(IntrinsicFunctionKind),
     OperationCallableKindMismatch(IntrinsicFunctionKind),
     DuplicateOperationCallable(super::CoreProtocolCallableDefinitionV1),
     RepeatedOperationMismatch(IntrinsicFunctionKind),

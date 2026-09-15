@@ -510,6 +510,9 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
             .validate_internal_relations()
             .map_err(CoreCompilerProtocolSurfaceValidationError::Relation)?;
         validate_foundation_relations(&surface, foundation)?;
+        surface
+            .validate_operation_signatures()
+            .map_err(CoreCompilerProtocolSurfaceValidationError::Relation)?;
         Ok(surface)
     }
 }

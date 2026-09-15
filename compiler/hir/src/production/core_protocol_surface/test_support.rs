@@ -4,9 +4,10 @@ use scoop_identity::{
     DefinitionOwnerChain, DispatchSlotKey, EnumVariantFieldKey, EnumVariantFieldSelector,
     EnumVariantIdentityKey, ExactTypeKey, NonEmptyVec, NormalizedSourcePath, PackagePath,
     PersistentConstructorId, PersistentDispatchSlotId, PersistentEnumVariantFieldId,
-    PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId, PersistentGenericTypeId,
-    PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceContextKey,
-    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
+    PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentTypeId, SignatureCallableShape,
+    SignatureTypeKey, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
+    SourceIdentity, SourceNominalKind, SourceSpan,
 };
 
 use super::*;
@@ -15,6 +16,7 @@ use crate::{CanonicalHirFoundation, CoreProtocolCallableDefinitionV1};
 type TypeRecord = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
 type GenericTypeRecord = CborIdentityRecord<PersistentGenericTypeId, SourceDeclarationKey>;
 type FunctionRecord = CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>;
+type GenericFunctionRecord = CborIdentityRecord<PersistentGenericFunctionId, SourceDeclarationKey>;
 type ConstructorRecord = CborIdentityRecord<PersistentConstructorId, SourceDeclarationKey>;
 type VariantRecord = CborIdentityRecord<PersistentEnumVariantId, EnumVariantIdentityKey>;
 type VariantFieldRecord = CborIdentityRecord<PersistentEnumVariantFieldId, EnumVariantFieldKey>;
@@ -250,20 +252,27 @@ pub(crate) fn install(
     let mut source_location_protocol =
         CoreSourceLocationProtocolV1(product([source_location, current]));
 
+    let signature_surface = CoreCompilerProtocolSurfaceV1 {
+        fundamental_types: fundamental_types.clone(),
+        option_protocol: option_protocol.clone(),
+        iteration_protocol: iteration_protocol.clone(),
+        exception_protocol: exception_protocol.clone(),
+        coroutine_protocol: coroutine_protocol.clone(),
+        ffi_protocol: ffi_protocol.clone(),
+        foreign_callback_protocol: foreign_callback_protocol.clone(),
+        source_location_protocol: source_location_protocol.clone(),
+        compiler_operation_protocol: CoreCompilerOperationProtocolV1 {
+            operations: Vec::new(),
+        },
+    };
     let operations = intrinsic_function_kinds()
         .into_iter()
         .map(|kind| {
-            let callable = builder
-                .function_with_owner(
-                    fixture_operation_owner(kind, &fundamental_types),
-                    intrinsic_receiver_is_present(kind),
-                    if kind == IntrinsicFunctionKind::CoroutineSuspend {
-                        scoop_identity::Effect::Suspend
-                    } else {
-                        scoop_identity::Effect::Ordinary
-                    },
-                )
-                .0;
+            let callable = builder.operation(
+                fixture_operation_owner(kind, &fundamental_types),
+                operation_own_type_parameter_count(kind),
+                expected_operation_signature(&signature_surface, kind),
+            );
             CoreCompilerOperationV1 {
                 kind,
                 callable: callable_entry(callable),
@@ -366,6 +375,7 @@ struct FixtureBuilder {
     types: Vec<TypeRecord>,
     generic_types: Vec<GenericTypeRecord>,
     functions: Vec<FunctionRecord>,
+    generic_functions: Vec<GenericFunctionRecord>,
     constructors: Vec<ConstructorRecord>,
     variants: Vec<VariantRecord>,
     variant_fields: Vec<VariantFieldRecord>,
@@ -379,9 +389,13 @@ impl FixtureBuilder {
         Self {
             existing,
             next_name: 0,
-            types: vec![CoreBuiltinNominal::Unit.identity_record()],
+            types: vec![
+                CoreBuiltinNominal::Unit.identity_record(),
+                CoreBuiltinNominal::Any.identity_record(),
+            ],
             generic_types: Vec::new(),
             functions: Vec::new(),
+            generic_functions: Vec::new(),
             constructors: Vec::new(),
             variants: Vec::new(),
             variant_fields: Vec::new(),
@@ -479,6 +493,44 @@ impl FixtureBuilder {
             )),
             id,
         )
+    }
+
+    fn operation(
+        &mut self,
+        owner: Option<DefinitionOwnerAtom>,
+        own_type_parameter_count: u32,
+        signature: SignatureCallableShape,
+    ) -> CoreProtocolEntryV1 {
+        let source = SourceDeclarationKey::function(
+            site(owner.map_or_else(DefinitionOwnerChain::top_level, |owner| {
+                DefinitionOwnerChain::from_outer_to_inner(vec![owner])
+            })),
+            self.name(),
+            own_type_parameter_count,
+            None,
+            signature.parameters().to_vec(),
+        );
+        if own_type_parameter_count == 0 {
+            let record: FunctionRecord = CborIdentityRecord::from_key(source).unwrap();
+            let id = record.id();
+            self.origins
+                .push(origin_record(DefinitionOriginSubject::Function(id)));
+            self.functions.push(record);
+            CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+                CoreProtocolCallableDefinitionV1::Function(id),
+                signature,
+            ))
+        } else {
+            let record: GenericFunctionRecord = CborIdentityRecord::from_key(source).unwrap();
+            let id = record.id();
+            self.origins
+                .push(origin_record(DefinitionOriginSubject::GenericFunction(id)));
+            self.generic_functions.push(record);
+            CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+                CoreProtocolCallableDefinitionV1::GenericFunction(id),
+                signature,
+            ))
+        }
     }
 
     fn constructor(&mut self, owner: PersistentTypeId, has_parameter: bool) -> CoreProtocolEntryV1 {
@@ -612,6 +664,9 @@ impl FixtureBuilder {
         foundation.set_types(self.types).unwrap();
         foundation.set_generic_types(self.generic_types).unwrap();
         foundation.set_functions(self.functions).unwrap();
+        foundation
+            .set_generic_functions(self.generic_functions)
+            .unwrap();
         foundation.set_constructors(self.constructors).unwrap();
         foundation.set_enum_variants(self.variants).unwrap();
         foundation

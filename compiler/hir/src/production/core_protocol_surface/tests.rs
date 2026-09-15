@@ -1,4 +1,4 @@
-use scoop_identity::{Effect, SignatureCallableShape};
+use scoop_identity::{Effect, SignatureCallableShape, SignatureTypeKey};
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
@@ -87,6 +87,66 @@ fn compiler_protocol_surface_rejects_operation_effect_and_repetition_tampering()
         decode(&surface).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
             CoreCompilerProtocolSurfaceRelationError::DuplicateOperationCallable(definition)
+        ))
+    );
+}
+
+#[test]
+fn compiler_protocol_surface_rejects_operation_parameter_and_result_tampering() {
+    let (mut surface, foundation) = test_support::standalone();
+    let unit = SignatureTypeKey::Nominal(concrete_entry(surface.fundamental_types.entries(), 0));
+    let operation = surface
+        .compiler_operation_protocol
+        .operations
+        .iter_mut()
+        .find(|operation| operation.kind == IntrinsicFunctionKind::GcStats)
+        .unwrap();
+    operation.callable = CoreProtocolCallableV1::for_test(
+        operation.callable.definition(),
+        SignatureCallableShape::new(Effect::Ordinary, None, Vec::new(), unit),
+    );
+    assert_eq!(
+        decode(&surface).validate_against(&foundation),
+        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
+            CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(
+                IntrinsicFunctionKind::GcStats
+            )
+        ))
+    );
+
+    let (mut surface, foundation) = test_support::standalone();
+    let add = IntrinsicFunctionKind::Integer(crate::IntegerIntrinsicKind::NoGcOperation {
+        kind: crate::IntegerKind::SIGNED_8,
+        operation: crate::NoGcIntegerOperation::Add,
+    });
+    let shift = IntrinsicFunctionKind::Integer(crate::IntegerIntrinsicKind::NoGcOperation {
+        kind: crate::IntegerKind::SIGNED_8,
+        operation: crate::NoGcIntegerOperation::Shl,
+    });
+    let add_index = surface
+        .compiler_operation_protocol
+        .operations
+        .iter()
+        .position(|operation| operation.kind == add)
+        .unwrap();
+    let shift_index = surface
+        .compiler_operation_protocol
+        .operations
+        .iter()
+        .position(|operation| operation.kind == shift)
+        .unwrap();
+    let shift_callable = surface.compiler_operation_protocol.operations[shift_index]
+        .callable
+        .clone();
+    let add_callable = std::mem::replace(
+        &mut surface.compiler_operation_protocol.operations[add_index].callable,
+        shift_callable,
+    );
+    surface.compiler_operation_protocol.operations[shift_index].callable = add_callable;
+    assert_eq!(
+        decode(&surface).validate_against(&foundation),
+        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
+            CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(add)
         ))
     );
 }
