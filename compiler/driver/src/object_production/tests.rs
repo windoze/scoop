@@ -44,10 +44,10 @@ fn binds_object_bytes_to_member_ids_only_through_their_canonical_units() {
         planned
             .scoop_lir_members
             .windows(2)
-            .all(|pair| pair[0].plan().member_id() < pair[1].plan().member_id())
+            .all(|pair| pair[0].plan.member_id() < pair[1].plan.member_id())
     );
     for member in &planned.scoop_lir_members {
-        let unit = member.plan().units().units()[0];
+        let unit = member.plan.units().units()[0];
         let expected = if unit == image.id() {
             b"image".as_slice()
         } else if unit == entry.id() {
@@ -55,10 +55,10 @@ fn binds_object_bytes_to_member_ids_only_through_their_canonical_units() {
         } else {
             panic!("unexpected planned definition {unit}");
         };
-        assert_eq!(member.bytes(), expected);
+        assert_eq!(member.bytes, expected);
         assert_eq!(
             planned.member_plan.member_for_definition(unit),
-            Some(member.plan().member_id())
+            Some(member.plan.member_id())
         );
     }
 }
@@ -100,13 +100,13 @@ fn binds_generated_c_bytes_from_the_actual_singleton_unit_set() {
     let [bridge] = planned.generated_c_bridge_members.as_slice() else {
         panic!("one generated bridge unit must produce one planned member")
     };
-    assert_eq!(bridge.plan().units().units(), &[unit.id()]);
-    assert_eq!(bridge.bytes(), b"bridge");
+    assert_eq!(bridge.plan.units().units(), &[unit.id()]);
+    assert_eq!(bridge.bytes, b"bridge");
     assert_eq!(
         planned
             .member_plan
             .member_for_generated_bridge_unit(unit.id()),
-        Some(bridge.plan().member_id())
+        Some(bridge.plan.member_id())
     );
 }
 

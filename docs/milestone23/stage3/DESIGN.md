@@ -1405,8 +1405,9 @@ layout definition/assertion；不得扫描整Cone后把其他unit的declaration�
 generated C producer必须原子地接收sealed strong LIR、请求级
 `ValidatedCBridgeToolchainProfile`与临时目录父路径：先生成上述canonical source set，再只通过该profile的
 canonical object command逐unit编译。其typed结果必须同时保留完整`GeneratedBridgePlanSetV1`、精确
-`CBridgeToolchainProfileV1`、每个unit的authority plan及其source/object path映射，并拥有覆盖全部临时
-source/object的immutable backing；每个成功object必须存在、为非空普通文件且在返回前标记只读。driver只
+`CBridgeToolchainProfileV1`、从二者唯一派生的`CBridgeProductionSetV1`、每个unit的authority plan及其
+source/object path映射，并拥有覆盖全部临时source/object的immutable backing；每个成功object必须存在、
+为非空普通文件且在返回前标记只读。driver只
 能在该结果存活期间借用object path交给linker，不能自行写source、调用compiler、按文件名重建unit、重新配对
 plan/source/object或接收裸`Vec<PathBuf>`作为producer结果。任一unit的source写入、compiler执行、object
 检查或封存失败都使整个object set构造失败并随backing一并丢弃，不返回部分结果。
@@ -1609,6 +1610,10 @@ actual object bytes，并按以下顺序fail closed：
    均失败；
 5. 每个actual bytes使用同一个请求profile的deployment contract通过generated-C Mach-O envelope
    qualifier，proof保留该member plan与包含byte length/content digest的envelope。
+
+driver adapter必须以消耗完整planned built-in production的单一typed转换调用这一入口，并把返回proof与原
+production绑定；不能公开裸generated-C candidate builder、object bytes accessor或一组可由caller重新组合的
+参数来旁路该转换。
 
 这一步只产生profile/unit/member/envelope绑定证明，不冒充完整generated-C object verifier；随后仍须
 按本节其余规则验证atom、symbol、relocation与requirement。不得先用某个deployment验证object，再把

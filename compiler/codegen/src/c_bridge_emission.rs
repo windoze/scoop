@@ -35,6 +35,7 @@ impl EmittedGeneratedCBridgeObjectMemberV1 {
 #[derive(Debug)]
 pub struct EmittedGeneratedCBridgeObjectSetV1 {
     profile: scoop_lir::CBridgeToolchainProfileV1,
+    production: scoop_lir::CBridgeProductionSetV1,
     sources: GeneratedCBridgeSourceSetV1,
     members: Vec<EmittedGeneratedCBridgeObjectMemberV1>,
     backing: tempfile::TempDir,
@@ -43,6 +44,10 @@ pub struct EmittedGeneratedCBridgeObjectSetV1 {
 impl EmittedGeneratedCBridgeObjectSetV1 {
     pub const fn profile(&self) -> &scoop_lir::CBridgeToolchainProfileV1 {
         &self.profile
+    }
+
+    pub const fn production(&self) -> &scoop_lir::CBridgeProductionSetV1 {
+        &self.production
     }
 
     pub const fn sources(&self) -> &GeneratedCBridgeSourceSetV1 {
@@ -156,8 +161,11 @@ fn emit_source_set_with_compiler(
         });
     }
 
+    let production =
+        scoop_lir::CBridgeProductionSetV1::from_generated_bridge_plan(sources.plan(), &profile);
     Ok(EmittedGeneratedCBridgeObjectSetV1 {
         profile,
+        production,
         sources,
         members,
         backing,

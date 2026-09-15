@@ -18,6 +18,10 @@ fn empty_bridge_plan_produces_an_empty_owned_object_set_without_compiling() {
 
     assert!(emitted.sources().plan().units().is_empty());
     assert!(emitted.members().is_empty());
+    assert_eq!(
+        emitted.production(),
+        &scoop_lir::CBridgeProductionSetV1::NotUsed
+    );
     assert!(emitted.temporary_directory().starts_with(parent.path()));
 }
 
@@ -60,6 +64,10 @@ fn generated_c_object_set_preserves_unit_authority_and_immutable_backing() {
     .unwrap();
 
     assert_eq!(emitted.profile(), &profile);
+    let scoop_lir::CBridgeProductionSetV1::Used(production) = emitted.production() else {
+        panic!("non-empty bridge plan must retain used production authority")
+    };
+    assert_eq!(production.units(), expected_units);
     assert_eq!(emitted.sources().plan().units().len(), 2);
     assert_eq!(
         emitted

@@ -17,8 +17,8 @@ mod trusted_core;
 pub use inputs::{load_inputs, render_diagnostics};
 use linking::{LinkRequest, build_runtime, link};
 pub use object_production::{
-    BuiltinObjectProducerV1, BuiltinObjectProductionError, PlannedBuiltinObjectProductionV1,
-    PlannedGeneratedCBridgeObjectInputV1, PlannedScoopLirObjectInputV1,
+    BuiltinObjectProducerV1, BuiltinObjectProductionError,
+    CBridgeEnvelopeVerifiedObjectProductionV1, PlannedBuiltinObjectProductionV1,
 };
 pub use request::{
     BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,

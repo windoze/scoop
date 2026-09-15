@@ -12,11 +12,11 @@ use scoop_lir::{
     ObjectDefinitionPlanId, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
 };
 use scoop_slib::{
-    CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
-    GeneratedCBridgeObjectCandidateV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
-    PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
-    PlannedScoopLirObjectMemberV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
-    SlibMemberId,
+    CBridgeProductionEnvelopeValidationError, CanonicalGeneratedBridgeObjectUnitSetV1,
+    CanonicalScoopLirObjectUnitSetV1, GeneratedCBridgeObjectCandidateV1,
+    LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
+    PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, ProvisionalDigestPatchSiteV1,
+    SlibMemberId, VerifiedCBridgeProductionEnvelopeSetV1, verify_c_bridge_production_envelopes_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -27,32 +27,12 @@ pub struct PlannedScoopLirObjectInputV1 {
     bytes: Vec<u8>,
 }
 
-impl PlannedScoopLirObjectInputV1 {
-    pub const fn plan(&self) -> &PlannedScoopLirObjectMemberV1 {
-        &self.plan
-    }
-
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-}
-
 /// Immutable generated-C bytes after the exact singleton bridge unit has
 /// been bound to its stable `.slib` member identity.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedGeneratedCBridgeObjectInputV1 {
     plan: PlannedGeneratedBridgeObjectMemberV1,
     bytes: Vec<u8>,
-}
-
-impl PlannedGeneratedCBridgeObjectInputV1 {
-    pub const fn plan(&self) -> &PlannedGeneratedBridgeObjectMemberV1 {
-        &self.plan
-    }
-
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
-    }
 }
 
 /// Complete built-in object production after unified member planning and
@@ -131,10 +111,7 @@ impl PlannedBuiltinObjectProductionV1 {
             return Err(BuiltinObjectProductionError::EmptyDigestMaterializationSet);
         }
         let c_bridge_profile = generated_c_bridge.profile().clone();
-        let c_bridge_production = CBridgeProductionSetV1::from_generated_bridge_plan(
-            generated_c_bridge.sources().plan(),
-            &c_bridge_profile,
-        );
+        let c_bridge_production = generated_c_bridge.production().clone();
         Ok(Self {
             production: scoop_lir.production().clone(),
             c_bridge_profile,
@@ -162,32 +139,55 @@ impl PlannedBuiltinObjectProductionV1 {
         &self.member_plan
     }
 
-    pub fn scoop_lir_members(&self) -> &[PlannedScoopLirObjectInputV1] {
-        &self.scoop_lir_members
-    }
-
-    pub fn generated_c_bridge_members(&self) -> &[PlannedGeneratedCBridgeObjectInputV1] {
-        &self.generated_c_bridge_members
-    }
-
     pub fn digest_patches(&self) -> &[ProvisionalDigestPatchSiteV1] {
         &self.digest_patches
     }
 
-    pub fn scoop_lir_candidates(&self) -> Vec<ScoopLirObjectCandidateV1<'_>> {
-        self.scoop_lir_members
-            .iter()
-            .map(|member| ScoopLirObjectCandidateV1::new(member.plan.member_id(), &member.bytes))
-            .collect()
-    }
-
-    pub fn c_bridge_candidates(&self) -> Vec<GeneratedCBridgeObjectCandidateV1<'_>> {
+    fn c_bridge_candidates(&self) -> Vec<GeneratedCBridgeObjectCandidateV1<'_>> {
         self.generated_c_bridge_members
             .iter()
             .map(|member| {
                 GeneratedCBridgeObjectCandidateV1::new(member.plan.member_id(), &member.bytes)
             })
             .collect()
+    }
+
+    pub fn verify_c_bridge_envelopes(
+        self,
+    ) -> Result<CBridgeEnvelopeVerifiedObjectProductionV1, BuiltinObjectProductionError> {
+        let proof = {
+            let candidates = self.c_bridge_candidates();
+            verify_c_bridge_production_envelopes_v1(
+                self.production.generated_bridge_plan().clone(),
+                self.c_bridge_production.clone(),
+                &self.c_bridge_profile,
+                &self.member_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::CBridgeEnvelopes)?
+        };
+        Ok(CBridgeEnvelopeVerifiedObjectProductionV1 {
+            production: self,
+            proof,
+        })
+    }
+}
+
+/// Planned bytes paired with the generated-C production/envelope proof that
+/// authorizes the remaining built-in object verifiers.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CBridgeEnvelopeVerifiedObjectProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    proof: VerifiedCBridgeProductionEnvelopeSetV1,
+}
+
+impl CBridgeEnvelopeVerifiedObjectProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn proof(&self) -> &VerifiedCBridgeProductionEnvelopeSetV1 {
+        &self.proof
     }
 }
 
@@ -366,6 +366,7 @@ pub enum BuiltinObjectProductionError {
         source: std::io::Error,
     },
     GeneratedBridgePlanMismatch,
+    CBridgeEnvelopes(CBridgeProductionEnvelopeValidationError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -396,6 +397,7 @@ impl std::error::Error for BuiltinObjectProductionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ReadObject { source, .. } => Some(source),
+            Self::CBridgeEnvelopes(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,
