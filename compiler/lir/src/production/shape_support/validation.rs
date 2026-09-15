@@ -1,22 +1,19 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableBodyKey, ContinuationShellRole, DefinitionAtomRole, ExactTypeKey,
-    GeneratedCallableIdentityError, GeneratedCallableKey, GeneratedNominalIdentityError,
-    GeneratedNominalKey, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionIdentityError,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentGeneratedCallableId, PersistentId, PersistentLayoutId,
+    DefinitionAtomRole, ExactTypeKey, GeneratedNominalIdentityError, GeneratedNominalKey,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentId, PersistentLayoutId,
     PersistentScanId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentTypeId, RepresentationRole, ScanRole, SourceDeclarationIdentityError,
-    SourceDeclarationKey, SourceDeclarationKind, StrongCallableDefinitionOwner,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    SourceDeclarationKey, SourceDeclarationKind, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{HashError, cbor::EncodeError};
 
 use super::{
     ClosedShapeSupportReasonV1, ParamFreeShapeSupportClosureV1, ParamFreeShapeSupportRolesV1,
-    ShapeSupportAvailabilityV1, StrongCallableShapeSupportV1, StrongContinuationShellSupportV1,
-    StrongExactShapeSupportV1, StrongShapeDefinitionV1, StrongShapeRegistrationV1,
+    ShapeSupportAvailabilityV1, StrongExactShapeSupportV1, StrongShapeDefinitionV1,
+    StrongShapeRegistrationV1,
 };
 use crate::{OdrFreeLirFoundation, StrongRegistrationIdentitySurfaceV1};
 
@@ -65,28 +62,6 @@ pub(super) fn build_closure(
         foundation,
         registrations,
     )?;
-    let success = generated_callable_support(
-        GeneratedCallableKey::ContinuationShell {
-            result: owner,
-            role: ContinuationShellRole::Success,
-        },
-        foundation,
-        registrations,
-    )?;
-    let failure = generated_callable_support(
-        GeneratedCallableKey::ContinuationShell {
-            result: owner,
-            role: ContinuationShellRole::Failure,
-        },
-        foundation,
-        registrations,
-    )?;
-    let coroutine_start = generated_callable_support(
-        GeneratedCallableKey::CoroutineStart { result: owner },
-        foundation,
-        registrations,
-    )?;
-
     Ok(ParamFreeShapeSupportClosureV1 {
         owner,
         root: scoop_identity::ConeIdentity::CORE,
@@ -99,10 +74,6 @@ pub(super) fn build_closure(
             boxed_value,
             coroutine_step: ShapeSupportAvailabilityV1::Available(coroutine_step),
             coroutine_slot: ShapeSupportAvailabilityV1::Available(coroutine_slot),
-            continuation_shell: ShapeSupportAvailabilityV1::Available(
-                StrongContinuationShellSupportV1 { success, failure },
-            ),
-            coroutine_start: ShapeSupportAvailabilityV1::Available(coroutine_start),
         },
     })
 }
@@ -220,41 +191,6 @@ fn exact_shape_support(
     })
 }
 
-fn generated_callable_support(
-    key: GeneratedCallableKey,
-    foundation: &OdrFreeLirFoundation,
-    registrations: &StrongRegistrationIdentitySurfaceV1,
-) -> Result<StrongCallableShapeSupportV1, ParamFreeShapeSupportBuildError> {
-    let generated_callable = PersistentGeneratedCallableId::from_key(&key)
-        .map_err(ParamFreeShapeSupportBuildError::GeneratedCallableIdentity)?;
-    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(
-        StrongCallableDefinitionOwner::GeneratedCallable(generated_callable),
-    ))
-    .map_err(ParamFreeShapeSupportBuildError::Hash)?;
-    if !foundation.contains_callable_body(body) {
-        return Err(ParamFreeShapeSupportBuildError::MissingCallableBody(body));
-    }
-    Ok(StrongCallableShapeSupportV1 {
-        generated_callable,
-        body,
-        body_definition: strong_definition(
-            body,
-            foundation,
-            StrongDefinitionEntity::callable_body(body),
-            StrongDefinitionRole::CallableBody,
-            PersistentSymbolKey::CallableBody(body),
-        )?,
-        registration: strong_registration(
-            body,
-            foundation,
-            registrations.callables(),
-            StrongDefinitionEntity::callable_body(body),
-            StrongDefinitionRole::CallableRegistration,
-            PersistentSymbolKey::CallableRegistration(body),
-        )?,
-    })
-}
-
 fn strong_definition<I: PersistentId>(
     semantic_id: I,
     foundation: &OdrFreeLirFoundation,
@@ -362,7 +298,6 @@ fn require_symbol(
 pub enum ParamFreeShapeSupportBuildError {
     SourceIdentity(SourceDeclarationIdentityError),
     GeneratedNominalIdentity(GeneratedNominalIdentityError),
-    GeneratedCallableIdentity(GeneratedCallableIdentityError),
     DefinitionIdentity(ObjectDefinitionIdentityError),
     Symbol(PersistentSymbolError),
     Hash(HashError),
@@ -384,7 +319,6 @@ pub enum ParamFreeShapeSupportBuildError {
         layout: PersistentLayoutId,
         actual: Vec<PersistentScanId>,
     },
-    MissingCallableBody(PersistentCallableBodyId),
     MissingDefinition(ObjectDefinitionPlanId),
     PrimaryAtomSet {
         plan: ObjectDefinitionPlanId,

@@ -1,8 +1,8 @@
 use scoop_identity::{
     DecodedPersistentId, DecodedPersistentSymbolRequest, DigestNodeId, ObjectDefinitionPlanId,
-    PersistentCallableBodyId, PersistentExactTypeId, PersistentGeneratedCallableId, PersistentId,
-    PersistentKeyResolver, PersistentLayoutId, PersistentScanId, PersistentSymbolRequest,
-    PersistentTypeId, SourceDeclarationKey, ValidatedIdentityGraph,
+    PersistentExactTypeId, PersistentId, PersistentKeyResolver, PersistentLayoutId,
+    PersistentScanId, PersistentSymbolRequest, PersistentTypeId, SourceDeclarationKey,
+    ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -189,72 +189,6 @@ impl WireEncode for StrongExactShapeSupportV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongCallableShapeSupportV1 {
-    generated_callable: PersistentGeneratedCallableId,
-    body: PersistentCallableBodyId,
-    body_definition: StrongShapeDefinitionV1<PersistentCallableBodyId>,
-    registration: StrongShapeRegistrationV1<PersistentCallableBodyId>,
-}
-
-impl StrongCallableShapeSupportV1 {
-    pub const fn generated_callable(&self) -> PersistentGeneratedCallableId {
-        self.generated_callable
-    }
-
-    pub const fn body(&self) -> PersistentCallableBodyId {
-        self.body
-    }
-
-    pub const fn body_definition(&self) -> StrongShapeDefinitionV1<PersistentCallableBodyId> {
-        self.body_definition
-    }
-
-    pub const fn registration(&self) -> StrongShapeRegistrationV1<PersistentCallableBodyId> {
-        self.registration
-    }
-}
-
-impl WireEncode for StrongCallableShapeSupportV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.generated_callable.encode(encoder)?;
-        encoder.field(2)?;
-        self.body.encode(encoder)?;
-        encoder.field(3)?;
-        self.body_definition.encode(encoder)?;
-        encoder.field(4)?;
-        self.registration.encode(encoder)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongContinuationShellSupportV1 {
-    success: StrongCallableShapeSupportV1,
-    failure: StrongCallableShapeSupportV1,
-}
-
-impl StrongContinuationShellSupportV1 {
-    pub const fn success(&self) -> &StrongCallableShapeSupportV1 {
-        &self.success
-    }
-
-    pub const fn failure(&self) -> &StrongCallableShapeSupportV1 {
-        &self.failure
-    }
-}
-
-impl WireEncode for StrongContinuationShellSupportV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.success.encode(encoder)?;
-        encoder.field(2)?;
-        self.failure.encode(encoder)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParamFreeShapeSupportRolesV1 {
     source_nominal: ShapeSupportAvailabilityV1<PersistentTypeId>,
     value_layout: ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentLayoutId>>,
@@ -264,8 +198,6 @@ pub struct ParamFreeShapeSupportRolesV1 {
     boxed_value: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
     coroutine_step: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
     coroutine_slot: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
-    continuation_shell: ShapeSupportAvailabilityV1<StrongContinuationShellSupportV1>,
-    coroutine_start: ShapeSupportAvailabilityV1<StrongCallableShapeSupportV1>,
 }
 
 impl ParamFreeShapeSupportRolesV1 {
@@ -308,23 +240,11 @@ impl ParamFreeShapeSupportRolesV1 {
     pub const fn coroutine_slot(&self) -> &ShapeSupportAvailabilityV1<StrongExactShapeSupportV1> {
         &self.coroutine_slot
     }
-
-    pub const fn continuation_shell(
-        &self,
-    ) -> &ShapeSupportAvailabilityV1<StrongContinuationShellSupportV1> {
-        &self.continuation_shell
-    }
-
-    pub const fn coroutine_start(
-        &self,
-    ) -> &ShapeSupportAvailabilityV1<StrongCallableShapeSupportV1> {
-        &self.coroutine_start
-    }
 }
 
 impl WireEncode for ParamFreeShapeSupportRolesV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.source_nominal.encode(encoder)?;
         encoder.field(2)?;
@@ -340,11 +260,7 @@ impl WireEncode for ParamFreeShapeSupportRolesV1 {
         encoder.field(7)?;
         self.coroutine_step.encode(encoder)?;
         encoder.field(8)?;
-        self.coroutine_slot.encode(encoder)?;
-        encoder.field(9)?;
-        self.continuation_shell.encode(encoder)?;
-        encoder.field(10)?;
-        self.coroutine_start.encode(encoder)
+        self.coroutine_slot.encode(encoder)
     }
 }
 
@@ -531,66 +447,6 @@ impl WireDecode for DecodedStrongExactShapeSupportV1 {
 }
 
 #[derive(Debug)]
-struct DecodedStrongCallableShapeSupportV1 {
-    generated_callable: DecodedPersistentId<PersistentGeneratedCallableId>,
-    body: DecodedPersistentId<PersistentCallableBodyId>,
-    body_definition: DecodedStrongShapeDefinitionV1<PersistentCallableBodyId>,
-    registration: DecodedStrongShapeRegistrationV1<PersistentCallableBodyId>,
-}
-
-impl WireEncode for DecodedStrongCallableShapeSupportV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.generated_callable.encode(encoder)?;
-        encoder.field(2)?;
-        self.body.encode(encoder)?;
-        encoder.field(3)?;
-        self.body_definition.encode(encoder)?;
-        encoder.field(4)?;
-        self.registration.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedStrongCallableShapeSupportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
-        Ok(Self {
-            generated_callable: decoder.field(1, DecodedPersistentId::decode)?,
-            body: decoder.field(2, DecodedPersistentId::decode)?,
-            body_definition: decoder.field(3, DecodedStrongShapeDefinitionV1::decode)?,
-            registration: decoder.field(4, DecodedStrongShapeRegistrationV1::decode)?,
-        })
-    }
-}
-
-#[derive(Debug)]
-struct DecodedStrongContinuationShellSupportV1 {
-    success: DecodedStrongCallableShapeSupportV1,
-    failure: DecodedStrongCallableShapeSupportV1,
-}
-
-impl WireEncode for DecodedStrongContinuationShellSupportV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.success.encode(encoder)?;
-        encoder.field(2)?;
-        self.failure.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedStrongContinuationShellSupportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        Ok(Self {
-            success: decoder.field(1, DecodedStrongCallableShapeSupportV1::decode)?,
-            failure: decoder.field(2, DecodedStrongCallableShapeSupportV1::decode)?,
-        })
-    }
-}
-
-#[derive(Debug)]
 enum DecodedShapeSupportAvailabilityV1<T> {
     Available(T),
     NotApplicable(ClosedShapeSupportReasonV1),
@@ -630,8 +486,6 @@ struct DecodedParamFreeShapeSupportRolesV1 {
     boxed_value: DecodedShapeSupportAvailabilityV1<DecodedStrongExactShapeSupportV1>,
     coroutine_step: DecodedShapeSupportAvailabilityV1<DecodedStrongExactShapeSupportV1>,
     coroutine_slot: DecodedShapeSupportAvailabilityV1<DecodedStrongExactShapeSupportV1>,
-    continuation_shell: DecodedShapeSupportAvailabilityV1<DecodedStrongContinuationShellSupportV1>,
-    coroutine_start: DecodedShapeSupportAvailabilityV1<DecodedStrongCallableShapeSupportV1>,
 }
 
 impl DecodedParamFreeShapeSupportRolesV1 {
@@ -649,7 +503,7 @@ impl DecodedParamFreeShapeSupportRolesV1 {
 
 impl WireEncode for DecodedParamFreeShapeSupportRolesV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.source_nominal.encode(encoder)?;
         encoder.field(2)?;
@@ -665,17 +519,13 @@ impl WireEncode for DecodedParamFreeShapeSupportRolesV1 {
         encoder.field(7)?;
         self.coroutine_step.encode(encoder)?;
         encoder.field(8)?;
-        self.coroutine_slot.encode(encoder)?;
-        encoder.field(9)?;
-        self.continuation_shell.encode(encoder)?;
-        encoder.field(10)?;
-        self.coroutine_start.encode(encoder)
+        self.coroutine_slot.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedParamFreeShapeSupportRolesV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(8)?;
         Ok(Self {
             source_nominal: decoder.field(1, DecodedShapeSupportAvailabilityV1::decode)?,
             value_layout: decoder.field(2, DecodedShapeSupportAvailabilityV1::decode)?,
@@ -685,8 +535,6 @@ impl WireDecode for DecodedParamFreeShapeSupportRolesV1 {
             boxed_value: decoder.field(6, DecodedShapeSupportAvailabilityV1::decode)?,
             coroutine_step: decoder.field(7, DecodedShapeSupportAvailabilityV1::decode)?,
             coroutine_slot: decoder.field(8, DecodedShapeSupportAvailabilityV1::decode)?,
-            continuation_shell: decoder.field(9, DecodedShapeSupportAvailabilityV1::decode)?,
-            coroutine_start: decoder.field(10, DecodedShapeSupportAvailabilityV1::decode)?,
         })
     }
 }

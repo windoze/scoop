@@ -1,13 +1,12 @@
 use scoop_identity::{
-    CallableBodyKey, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
-    DecodedCborIdentityRecord, DecodedSourceDeclarationKey, DefinitionAtomRole,
-    DefinitionAtomSubkey, DigestNodeKey, ExactTypeKey, GeneratedCallableKey, GeneratedNominalKey,
-    IdentityLayer, LayoutKey, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
-    PendingIdentityValidation, PersistentCallableBodyId, PersistentExactTypeId,
-    PersistentGeneratedCallableId, PersistentLayoutId, PersistentScanId, PersistentSymbolKey,
+    CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DecodedCborIdentityRecord,
+    DecodedSourceDeclarationKey, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey,
+    ExactTypeKey, GeneratedNominalKey, IdentityLayer, LayoutKey, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PendingIdentityValidation,
+    PersistentExactTypeId, PersistentLayoutId, PersistentScanId, PersistentSymbolKey,
     PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, RepresentationRole,
-    RuntimeIdentityRecord, ScanKey, ScanRole, SourceDeclarationKey, StrongCallableDefinitionOwner,
-    StrongDefinitionEntity, StrongDefinitionRole, ValidatedIdentityGraph,
+    ScanKey, ScanRole, SourceDeclarationKey, StrongDefinitionEntity, StrongDefinitionRole,
+    ValidatedIdentityGraph,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -18,7 +17,7 @@ use crate::{
 };
 
 #[test]
-fn struct_subject_materializes_all_ten_roles_and_round_trips() {
+fn struct_subject_materializes_all_eight_roles_and_round_trips() {
     let fixture = fixture(CoreBuiltinNominal::Unit);
     let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
         [&fixture.source],
@@ -36,8 +35,6 @@ fn struct_subject_materializes_all_ten_roles_and_round_trips() {
     assert!(closure.roles().boxed_value().available().is_some());
     assert!(closure.roles().coroutine_step().available().is_some());
     assert!(closure.roles().coroutine_slot().available().is_some());
-    assert!(closure.roles().continuation_shell().available().is_some());
-    assert!(closure.roles().coroutine_start().available().is_some());
 
     let bytes = encode(&plan).unwrap();
     let decoded: DecodedParamFreeShapeSupportPlanSetV1 =
@@ -74,8 +71,6 @@ fn reference_subject_closes_only_the_boxed_value_role() {
     );
     assert!(roles.coroutine_step().available().is_some());
     assert!(roles.coroutine_slot().available().is_some());
-    assert!(roles.continuation_shell().available().is_some());
-    assert!(roles.coroutine_start().available().is_some());
 }
 
 #[test]
@@ -119,6 +114,29 @@ fn availability_and_empty_plan_have_fixed_wire_shapes() {
     )
     .unwrap();
     assert_eq!(encode(&empty).unwrap(), b"\x80");
+}
+
+#[test]
+fn roles_wire_is_closed_to_eight_fields() {
+    let fixture = fixture(CoreBuiltinNominal::Unit);
+    let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+        [&fixture.source],
+        &fixture.foundation,
+        &fixture.registrations,
+    )
+    .unwrap();
+    let bytes = encode(plan.closures()[0].roles()).unwrap();
+    assert_eq!(bytes[0], 0xa8);
+
+    let mut old_ten_field_wire = bytes;
+    old_ten_field_wire[0] = 0xaa;
+    assert!(
+        decode_canonical::<DecodedParamFreeShapeSupportRolesV1>(
+            &old_ten_field_wire,
+            DecodeLimits::default(),
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -291,7 +309,6 @@ struct FixtureParts {
     exact_types: Vec<CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>>,
     layouts: Vec<CborIdentityRecord<PersistentLayoutId, LayoutKey>>,
     scans: Vec<CborIdentityRecord<PersistentScanId, ScanKey>>,
-    bodies: Vec<RuntimeIdentityRecord<PersistentCallableBodyId>>,
     plans: Vec<CborIdentityRecord<scoop_identity::ObjectDefinitionPlanId, ObjectDefinitionPlanKey>>,
     atoms: Vec<CborIdentityRecord<scoop_identity::ObjectDefinitionAtomId, ObjectDefinitionAtomKey>>,
     symbols: Vec<PersistentSymbolRequest>,
@@ -311,7 +328,6 @@ fn fixture_parts(builtin: CoreBuiltinNominal) -> FixtureParts {
         exact_types: Vec::new(),
         layouts: Vec::new(),
         scans: Vec::new(),
-        bodies: Vec::new(),
         plans: Vec::new(),
         atoms: Vec::new(),
         symbols: Vec::new(),
@@ -332,19 +348,6 @@ fn fixture_parts(builtin: CoreBuiltinNominal) -> FixtureParts {
             &mut parts,
             PersistentTypeId::from_generated_key(&key).unwrap(),
         );
-    }
-    for key in [
-        GeneratedCallableKey::ContinuationShell {
-            result: owner,
-            role: scoop_identity::ContinuationShellRole::Success,
-        },
-        GeneratedCallableKey::ContinuationShell {
-            result: owner,
-            role: scoop_identity::ContinuationShellRole::Failure,
-        },
-        GeneratedCallableKey::CoroutineStart { result: owner },
-    ] {
-        add_callable_subject(&mut parts, key);
     }
     parts
 }
@@ -387,32 +390,6 @@ fn add_exact_subject(parts: &mut FixtureParts, nominal: PersistentTypeId) {
     }
 }
 
-fn add_callable_subject(parts: &mut FixtureParts, key: GeneratedCallableKey) {
-    let generated = PersistentGeneratedCallableId::from_key(&key).unwrap();
-    let body = RuntimeIdentityRecord::from_key(&CallableBodyKey::strong(
-        StrongCallableDefinitionOwner::GeneratedCallable(generated),
-    ))
-    .unwrap();
-    parts.bodies.push(body.clone());
-    for (role, symbol) in [
-        (
-            StrongDefinitionRole::CallableBody,
-            PersistentSymbolKey::CallableBody(body.id()),
-        ),
-        (
-            StrongDefinitionRole::CallableRegistration,
-            PersistentSymbolKey::CallableRegistration(body.id()),
-        ),
-    ] {
-        add_definition(
-            parts,
-            StrongDefinitionEntity::callable_body(body.id()),
-            role,
-            symbol,
-        );
-    }
-}
-
 fn add_definition(
     parts: &mut FixtureParts,
     entity: StrongDefinitionEntity,
@@ -448,7 +425,6 @@ fn finish_fixture(
     canonical.set_exact_types(parts.exact_types).unwrap();
     canonical.set_layouts(parts.layouts).unwrap();
     canonical.set_scans(parts.scans).unwrap();
-    canonical.set_callable_bodies(parts.bodies).unwrap();
     canonical.set_definition_plans(parts.plans).unwrap();
     canonical.set_definition_atoms(parts.atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(parts.symbols).unwrap());
@@ -461,7 +437,6 @@ fn finish_fixture(
                 record.key().definition_role(),
                 scoop_identity::ObjectDefinitionPlanRole::Strong(
                     StrongDefinitionRole::TypeRegistration
-                        | StrongDefinitionRole::CallableRegistration
                 )
             )
         })
