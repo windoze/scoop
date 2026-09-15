@@ -1675,6 +1675,12 @@ stackmap proof；其余五类分别消费从同一proof克隆出的typed patch a
 六份registration proof；任一类失败都不产生可继续使用的部分状态，也不公开单类验证入口、裸candidate、
 patch proof或可由caller重新组合的兼容路径。
 
+该状态再由单一consuming转换以同一批私有Scoop bytes依次计算safepoint完整叶子集合，以及callable、type、
+immortal-object、static-storage、initialization五类registration object leaf集合。成功的
+`RegistrationObjectLeafFingerprintedProductionV1`拥有六份fingerprint proof及原production/symbol plan，
+原始registration proof只作为各自fingerprint proof的内部authority继续存在；任一叶子计算失败时不返回部分
+结果，也不存在逐类公开转换或接受caller外送digest的旧路径。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

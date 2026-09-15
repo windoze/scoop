@@ -19,21 +19,38 @@ use scoop_slib::{
     LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
     PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1,
     ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError,
-    SlibMemberId, StrongCallableRegistrationValidationError,
+    SlibMemberId, StrongCallableRegistrationObjectFingerprintError,
+    StrongCallableRegistrationValidationError,
+    StrongImmortalObjectRegistrationObjectFingerprintError,
     StrongImmortalObjectRegistrationValidationError,
+    StrongInitializationRegistrationObjectFingerprintError,
     StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
-    StrongSafepointRegistrationValidationError, StrongStaticStorageRegistrationValidationError,
+    StrongSafepointFingerprintError, StrongSafepointRegistrationValidationError,
+    StrongStaticStorageRegistrationObjectFingerprintError,
+    StrongStaticStorageRegistrationValidationError, StrongTypeRegistrationObjectFingerprintError,
     StrongTypeRegistrationValidationError, VerifiedBuiltinObjectStrongRelocationSetV1,
     VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableRegistrationSetV1,
-    VerifiedStrongImmortalObjectRegistrationSetV1, VerifiedStrongInitializationRegistrationSetV1,
-    VerifiedStrongSafepointRegistrationSetV1, VerifiedStrongStaticStorageRegistrationSetV1,
-    VerifiedStrongTypeRegistrationSetV1, verify_builtin_object_strong_relocations_v1,
-    verify_c_bridge_production_envelopes_v1, verify_scoop_lir_digest_patch_sites_v1,
-    verify_scoop_lir_stackmaps_v1, verify_strong_callable_registrations_v1,
-    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
-    verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
-    verify_strong_type_registrations_v1,
+    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    VerifiedStrongCallableRegistrationSetV1,
+    VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    VerifiedStrongImmortalObjectRegistrationSetV1,
+    VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+    VerifiedStrongInitializationRegistrationSetV1, VerifiedStrongSafepointFingerprintSetV1,
+    VerifiedStrongSafepointRegistrationSetV1,
+    VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
+    VerifiedStrongStaticStorageRegistrationSetV1,
+    VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
+    compute_strong_callable_registration_object_fingerprints_v1,
+    compute_strong_immortal_object_registration_object_fingerprints_v1,
+    compute_strong_initialization_registration_object_fingerprints_v1,
+    compute_strong_safepoint_fingerprints_v1,
+    compute_strong_static_storage_registration_object_fingerprints_v1,
+    compute_strong_type_registration_object_fingerprints_v1,
+    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    verify_scoop_lir_digest_patch_sites_v1, verify_scoop_lir_stackmaps_v1,
+    verify_strong_callable_registrations_v1, verify_strong_immortal_object_registrations_v1,
+    verify_strong_initialization_registrations_v1, verify_strong_safepoint_registrations_v1,
+    verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -521,6 +538,150 @@ impl RegistrationObjectVerifiedObjectProductionV1 {
     ) -> &VerifiedStrongInitializationRegistrationSetV1 {
         &self.initialization_registrations
     }
+
+    pub fn fingerprint_registration_object_leaves(
+        self,
+    ) -> Result<RegistrationObjectLeafFingerprintedProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan,
+            safepoint_registrations,
+            callable_registrations,
+            type_registrations,
+            immortal_object_registrations,
+            static_storage_registrations,
+            initialization_registrations,
+        } = self;
+        let (
+            safepoints,
+            callable_registration_objects,
+            type_registration_objects,
+            immortal_object_registration_objects,
+            static_storage_registration_objects,
+            initialization_registration_objects,
+        ) = {
+            let candidates = production.scoop_lir_candidates();
+            let safepoints =
+                compute_strong_safepoint_fingerprints_v1(safepoint_registrations, &candidates)
+                    .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
+            let callable_registration_objects =
+                compute_strong_callable_registration_object_fingerprints_v1(
+                    callable_registrations,
+                    &candidates,
+                )
+                .map_err(BuiltinObjectProductionError::CallableRegistrationObjectFingerprints)?;
+            let type_registration_objects =
+                compute_strong_type_registration_object_fingerprints_v1(
+                    type_registrations,
+                    &candidates,
+                )
+                .map_err(BuiltinObjectProductionError::TypeRegistrationObjectFingerprints)?;
+            let immortal_object_registration_objects =
+                compute_strong_immortal_object_registration_object_fingerprints_v1(
+                    immortal_object_registrations,
+                    &candidates,
+                )
+                .map_err(
+                    BuiltinObjectProductionError::ImmortalObjectRegistrationObjectFingerprints,
+                )?;
+            let static_storage_registration_objects =
+                compute_strong_static_storage_registration_object_fingerprints_v1(
+                    static_storage_registrations,
+                    &candidates,
+                )
+                .map_err(
+                    BuiltinObjectProductionError::StaticStorageRegistrationObjectFingerprints,
+                )?;
+            let initialization_registration_objects =
+                compute_strong_initialization_registration_object_fingerprints_v1(
+                    initialization_registrations,
+                    &candidates,
+                )
+                .map_err(
+                    BuiltinObjectProductionError::InitializationRegistrationObjectFingerprints,
+                )?;
+            (
+                safepoints,
+                callable_registration_objects,
+                type_registration_objects,
+                immortal_object_registration_objects,
+                static_storage_registration_objects,
+                initialization_registration_objects,
+            )
+        };
+
+        Ok(RegistrationObjectLeafFingerprintedProductionV1 {
+            production,
+            symbol_plan,
+            safepoints,
+            callable_registration_objects,
+            type_registration_objects,
+            immortal_object_registration_objects,
+            static_storage_registration_objects,
+            initialization_registration_objects,
+        })
+    }
+}
+
+/// All six registration-object leaf families fingerprinted from one exact
+/// provisional Scoop object set.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RegistrationObjectLeafFingerprintedProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    safepoints: VerifiedStrongSafepointFingerprintSetV1,
+    callable_registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    immortal_object_registration_objects:
+        VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    static_storage_registration_objects:
+        VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
+    initialization_registration_objects:
+        VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+}
+
+impl RegistrationObjectLeafFingerprintedProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn safepoints(&self) -> &VerifiedStrongSafepointFingerprintSetV1 {
+        &self.safepoints
+    }
+
+    pub const fn callable_registration_objects(
+        &self,
+    ) -> &VerifiedStrongCallableRegistrationObjectFingerprintSetV1 {
+        &self.callable_registration_objects
+    }
+
+    pub const fn type_registration_objects(
+        &self,
+    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
+        &self.type_registration_objects
+    }
+
+    pub const fn immortal_object_registration_objects(
+        &self,
+    ) -> &VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1 {
+        &self.immortal_object_registration_objects
+    }
+
+    pub const fn static_storage_registration_objects(
+        &self,
+    ) -> &VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1 {
+        &self.static_storage_registration_objects
+    }
+
+    pub const fn initialization_registration_objects(
+        &self,
+    ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+        &self.initialization_registration_objects
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -709,6 +870,18 @@ pub enum BuiltinObjectProductionError {
     ImmortalObjectRegistrations(StrongImmortalObjectRegistrationValidationError),
     StaticStorageRegistrations(StrongStaticStorageRegistrationValidationError),
     InitializationRegistrations(StrongInitializationRegistrationValidationError),
+    SafepointFingerprints(StrongSafepointFingerprintError),
+    CallableRegistrationObjectFingerprints(StrongCallableRegistrationObjectFingerprintError),
+    TypeRegistrationObjectFingerprints(StrongTypeRegistrationObjectFingerprintError),
+    ImmortalObjectRegistrationObjectFingerprints(
+        StrongImmortalObjectRegistrationObjectFingerprintError,
+    ),
+    StaticStorageRegistrationObjectFingerprints(
+        StrongStaticStorageRegistrationObjectFingerprintError,
+    ),
+    InitializationRegistrationObjectFingerprints(
+        StrongInitializationRegistrationObjectFingerprintError,
+    ),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -750,6 +923,12 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::ImmortalObjectRegistrations(source) => Some(source),
             Self::StaticStorageRegistrations(source) => Some(source),
             Self::InitializationRegistrations(source) => Some(source),
+            Self::SafepointFingerprints(source) => Some(source),
+            Self::CallableRegistrationObjectFingerprints(source) => Some(source),
+            Self::TypeRegistrationObjectFingerprints(source) => Some(source),
+            Self::ImmortalObjectRegistrationObjectFingerprints(source) => Some(source),
+            Self::StaticStorageRegistrationObjectFingerprints(source) => Some(source),
+            Self::InitializationRegistrationObjectFingerprints(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,
