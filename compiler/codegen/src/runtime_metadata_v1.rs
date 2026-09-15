@@ -61,6 +61,12 @@ pub use static_storage::{
     StaticStorageRegistrationPatchSiteV1, emit_strong_static_storage_registrations_v1,
 };
 
+mod production;
+pub use production::{
+    EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1,
+    emit_strong_runtime_metadata_v1,
+};
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,
