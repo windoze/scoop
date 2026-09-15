@@ -2,10 +2,11 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use scoop_identity::{
-    CallableMaterialization, CallableTemplateOwner, ConeIdentity, DefinitionOriginRecord,
-    DefinitionOriginSubject, GeneratedCallableKey, InitializationUnitKey, LocalValueSelector,
-    NominalDeclarationOwner, PersistentGeneratedCallableId, PropertyOwner, SourceDeclarationKey,
-    SourceIdentity, SourceNativeExternalContractRecord, SourceNativeExternalOwner,
+    CallableMaterialization, CallableTemplateOwner, ConeIdentity, CoreBuiltinNominal,
+    DefinitionOriginRecord, DefinitionOriginSubject, GeneratedCallableKey, InitializationUnitKey,
+    LocalValueSelector, NominalDeclarationOwner, PersistentGeneratedCallableId, PropertyOwner,
+    SourceDeclarationKey, SourceIdentity, SourceNativeExternalContractRecord,
+    SourceNativeExternalOwner,
 };
 use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
 
@@ -34,6 +35,12 @@ impl<'a> OriginExpectation<'a> {
             source: key.scope().source(),
         }
     }
+}
+
+fn type_requires_definition_origin(record: &TypeRecord) -> bool {
+    let id = record.id();
+    id != CoreBuiltinNominal::Unit.identity_record().id()
+        && id != CoreBuiltinNominal::Any.identity_record().id()
 }
 
 struct OriginRequirements<'a> {
@@ -88,7 +95,7 @@ pub(super) fn validate(
         [
             types
                 .iter()
-                .filter(|record| record.key().origin() != ConeIdentity::CORE)
+                .filter(|record| type_requires_definition_origin(record))
                 .count(),
             generic_types.len(),
             functions.len(),
@@ -130,7 +137,7 @@ pub(super) fn validate(
         OriginRequirements::new(generated_callables, required_count, meter, &path)?;
 
     for record in types {
-        if record.key().origin() != ConeIdentity::CORE {
+        if type_requires_definition_origin(record) {
             requirements.require(
                 DefinitionOriginSubject::Type(record.id()),
                 OriginExpectation::declaration(record.key()),

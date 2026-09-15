@@ -600,6 +600,11 @@ foundation field 1因此是按`PersistentExactTypeId`严格递增、无重复的
 HIR、MIR声明完成canonical-key重算后逐项解析这些引用，再重建LIR内部的物化集合。旧的LIR exact-type record
 数组不是兼容输入，直接按当前closed wire shape拒绝。
 
+HIR foundation的definition-origin覆盖按“是否为源码声明”决定，而不是按origin Cone决定：reserved core中由源码
+声明的`String`、primitive及其他nominal与普通Cone声明一样必须且只能携带一条origin；只有编译器拥有且没有普通
+source declaration的`CoreBuiltinNominal::{Unit, Any}`从type required set排除。validator必须按这两个固定typed
+identity判断，不能把`ConeIdentity::CORE`作为整组豁免，也不能用名称或FQN回退。
+
 `ParsedCoreBootstrapBuildRequest::build_and_publish(self, temporary_parent, limits)`是bootstrap从parsed request到
 published artifact的唯一终态入口。它按上述顺序消费HIR、MIR、LIR与strong-profile状态，从请求自身唯一派生
 reserved core `ConeRecord { Library, Manifest }`、空dependency、固定compiler producer record、完整target以及

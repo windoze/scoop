@@ -21,6 +21,10 @@ struct Fixture {
 
 fn fixture(include_origin: bool, include_points: bool) -> Fixture {
     let coordinate = ConeCoordinate::new("example", "foundation", "0.1.0").unwrap();
+    fixture_at(coordinate, include_origin, include_points)
+}
+
+fn fixture_at(coordinate: ConeCoordinate, include_origin: bool, include_points: bool) -> Fixture {
     let cone = coordinate.identity().unwrap();
     let declaration = declaration(cone, "Widget");
     let record = CborIdentityRecord::from_key(declaration.clone()).unwrap();
@@ -282,6 +286,20 @@ fn rejects_a_missing_required_definition_origin() {
         Err(HirFoundationValidationError::Origin(
             DefinitionOriginValidationError::MissingSubject { subject }
         )) if subject == fixture.subject
+    ));
+}
+
+#[test]
+fn source_declared_core_nominals_require_definition_origins() {
+    let complete = fixture_at(ConeCoordinate::reserved_core(), true, true);
+    validate_origins_only(&complete, &mut meter()).unwrap();
+
+    let missing = fixture_at(ConeCoordinate::reserved_core(), false, true);
+    assert!(matches!(
+        validate_origins_only(&missing, &mut meter()),
+        Err(HirFoundationValidationError::Origin(
+            DefinitionOriginValidationError::MissingSubject { subject }
+        )) if subject == missing.subject
     ));
 }
 
