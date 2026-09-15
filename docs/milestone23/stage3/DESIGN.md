@@ -1697,6 +1697,14 @@ body绑定同一stackmap及final undefined-requirement proof，type闭合descrip
 proof、defined/undefined集合及原production/symbol plan；中间依赖proof不形成可重排或可跳过的公开状态，
 任一类失败不返回部分结果。
 
+最终对象事务消耗上述dependency-fingerprinted状态：先以共享patch-site proof和私有provisional Scoop bytes
+验证Cone image与entry record，再原子写入六类registration digest。runtime image fingerprint所需
+compatibility必须在adapter内部由retained `ValidatedLirTargetSelection`与唯一
+`SingleConeStrongProfile`重建，不能由caller送入；随后只经typed image writer与entry writer逐层复制、写槽、
+重验record、Mach-O envelope及未修改bytes。成功的`FinalizedStrongObjectProductionV1`拥有最终Scoop object
+proof、defined/undefined集合及原production/symbol plan，所有可写中间状态均已被消费，不保留旧的裸bytes
+patch入口或未验证final object分支。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

@@ -14,16 +14,18 @@ use scoop_lir::{
     StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
 use scoop_slib::{
-    BuiltinObjectExternalRequirementClosureError, BuiltinObjectSetValidationError,
-    CBridgeProductionEnvelopeValidationError, CBridgeTargetSupportRequirementValidationError,
-    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalGeneratedBridgeObjectUnitSetV1,
-    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
+    ArtifactCapabilityProfile, BuiltinObjectExternalRequirementClosureError,
+    BuiltinObjectSetValidationError, CBridgeProductionEnvelopeValidationError,
+    CBridgeTargetSupportRequirementValidationError, CanonicalDefinedLinkSymbolOwnerSetV1,
+    CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
+    CanonicalUndefinedSymbolRequirementSetV1, ConeImageValidationError,
     CoreStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
-    DefinedLinkSymbolOwnerBuildError, DigestPatchSiteValidationError,
-    GeneratedCBridgeObjectCandidateV1, GeneratedCBridgeSemanticValidationError,
-    LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
-    PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1,
-    ProvisionalDigestPatchSiteV1, RuntimeAndEhRequirementValidationError,
+    DefinedLinkSymbolOwnerBuildError, DigestPatchSiteValidationError, EntryPatchError,
+    EntryProductionValidationError, GeneratedCBridgeObjectCandidateV1,
+    GeneratedCBridgeSemanticValidationError, LinkObjectMemberSetPlanError, ObjectUnitSetError,
+    PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
+    PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
+    RuntimeAndEhRequirementValidationError, RuntimeImageFingerprintError, RuntimeImagePatchError,
     ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError, SlibMemberId,
     SourceExternalRequirementValidationError, StrongCallableBodyFingerprintError,
     StrongCallableFingerprintError, StrongCallableRegistrationObjectFingerprintError,
@@ -33,15 +35,16 @@ use scoop_slib::{
     StrongInitializationDefinitionFingerprintError, StrongInitializationFingerprintError,
     StrongInitializationRegistrationObjectFingerprintError,
     StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
-    StrongSafepointFingerprintError, StrongSafepointRegistrationValidationError,
-    StrongStaticStorageDefinitionFingerprintError, StrongStaticStorageFingerprintError,
-    StrongStaticStorageRegistrationObjectFingerprintError,
+    StrongRegistrationPatchError, StrongSafepointFingerprintError,
+    StrongSafepointRegistrationValidationError, StrongStaticStorageDefinitionFingerprintError,
+    StrongStaticStorageFingerprintError, StrongStaticStorageRegistrationObjectFingerprintError,
     StrongStaticStorageRegistrationValidationError, StrongStaticStorageShapeFingerprintError,
     StrongTypeDependencyFingerprintError, StrongTypeFingerprintError,
     StrongTypeRegistrationObjectFingerprintError, StrongTypeRegistrationValidationError,
     UndefinedSymbolRequirementFinalizationError, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableFingerprintSetV1,
+    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedEntryPatchSetV1,
+    VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapSetV1,
+    VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     VerifiedStrongCallableRegistrationSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
     VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
@@ -52,7 +55,8 @@ use scoop_slib::{
     VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
     VerifiedStrongStaticStorageRegistrationSetV1, VerifiedStrongTypeFingerprintSetV1,
     VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
-    compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
+    compute_runtime_image_fingerprint_v1, compute_strong_callable_body_object_fingerprints_v1,
+    compute_strong_callable_fingerprints_v1,
     compute_strong_callable_registration_object_fingerprints_v1,
     compute_strong_immortal_object_definition_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1,
@@ -67,15 +71,18 @@ use scoop_slib::{
     compute_strong_static_storage_shape_fingerprints_v1,
     compute_strong_type_dependency_fingerprints_v1, compute_strong_type_fingerprints_v1,
     compute_strong_type_registration_object_fingerprints_v1,
-    finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
-    verify_c_bridge_target_support_requirements_v1, verify_core_strong_requirements_v1,
-    verify_current_cone_undefined_requirements_v1, verify_generated_c_bridge_semantics_v1,
-    verify_runtime_and_eh_requirements_v1, verify_scoop_lir_digest_patch_sites_v1,
-    verify_scoop_lir_stackmaps_v1, verify_source_external_requirements_v1,
-    verify_strong_callable_registrations_v1, verify_strong_immortal_object_registrations_v1,
-    verify_strong_initialization_registrations_v1, verify_strong_safepoint_registrations_v1,
-    verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
+    finalize_undefined_symbol_requirements_v1, patch_entry_production_v1,
+    patch_runtime_image_fingerprint_v1, patch_strong_registration_fingerprints_v1,
+    seal_builtin_object_external_requirements_v1, verify_builtin_object_strong_relocations_v1,
+    verify_c_bridge_production_envelopes_v1, verify_c_bridge_target_support_requirements_v1,
+    verify_cone_image_v1, verify_core_strong_requirements_v1,
+    verify_current_cone_undefined_requirements_v1, verify_entry_production_v1,
+    verify_generated_c_bridge_semantics_v1, verify_runtime_and_eh_requirements_v1,
+    verify_scoop_lir_digest_patch_sites_v1, verify_scoop_lir_stackmaps_v1,
+    verify_source_external_requirements_v1, verify_strong_callable_registrations_v1,
+    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
+    verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
+    verify_strong_type_registrations_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -1010,6 +1017,102 @@ impl RegistrationDependencyFingerprintedProductionV1 {
     pub const fn initializations(&self) -> &VerifiedStrongInitializationFingerprintSetV1 {
         &self.initializations
     }
+
+    pub fn finalize_strong_objects(
+        self,
+    ) -> Result<FinalizedStrongObjectProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan,
+            defined_symbols,
+            undefined_symbols,
+            safepoints,
+            callables,
+            types,
+            immortal_objects,
+            static_storages,
+            initializations,
+        } = self;
+        let final_objects = {
+            let candidates = production.scoop_lir_candidates();
+            let patch_sites = safepoints.registrations().patch_sites().clone();
+            let image = verify_cone_image_v1(
+                patch_sites.clone(),
+                production.production.image_plan().clone(),
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::ConeImage)?;
+            let entry = verify_entry_production_v1(
+                patch_sites,
+                production.production.entry_plan().clone(),
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::EntryProduction)?;
+            let registrations = patch_strong_registration_fingerprints_v1(
+                safepoints,
+                callables,
+                types,
+                immortal_objects,
+                static_storages,
+                initializations,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::RegistrationPatch)?;
+            let compatibility = scoop_slib::CompatibilityRecord::new(
+                production.target_selection,
+                ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+            )
+            .map_err(BuiltinObjectProductionError::Compatibility)?;
+            let image_fingerprint =
+                compute_runtime_image_fingerprint_v1(image, registrations, compatibility)
+                    .map_err(BuiltinObjectProductionError::RuntimeImageFingerprint)?;
+            let runtime_images = patch_runtime_image_fingerprint_v1(image_fingerprint)
+                .map_err(BuiltinObjectProductionError::RuntimeImagePatch)?;
+            patch_entry_production_v1(runtime_images, entry)
+                .map_err(BuiltinObjectProductionError::EntryPatch)?
+        };
+
+        Ok(FinalizedStrongObjectProductionV1 {
+            production,
+            symbol_plan,
+            defined_symbols,
+            undefined_symbols,
+            final_objects,
+        })
+    }
+}
+
+/// Final Scoop object bytes after every strong registration, runtime-image,
+/// and entry digest write has been applied and revalidated.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FinalizedStrongObjectProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
+    undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
+    final_objects: VerifiedEntryPatchSetV1,
+}
+
+impl FinalizedStrongObjectProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        &self.defined_symbols
+    }
+
+    pub const fn undefined_symbols(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        &self.undefined_symbols
+    }
+
+    pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV1 {
+        &self.final_objects
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1231,6 +1334,13 @@ pub enum BuiltinObjectProductionError {
     StaticStorageFingerprints(StrongStaticStorageFingerprintError),
     InitializationDefinitionFingerprints(StrongInitializationDefinitionFingerprintError),
     InitializationFingerprints(StrongInitializationFingerprintError),
+    ConeImage(ConeImageValidationError),
+    EntryProduction(EntryProductionValidationError),
+    RegistrationPatch(StrongRegistrationPatchError),
+    Compatibility(scoop_wire::HashError),
+    RuntimeImageFingerprint(RuntimeImageFingerprintError),
+    RuntimeImagePatch(RuntimeImagePatchError),
+    EntryPatch(EntryPatchError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -1299,6 +1409,13 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::StaticStorageFingerprints(source) => Some(source),
             Self::InitializationDefinitionFingerprints(source) => Some(source),
             Self::InitializationFingerprints(source) => Some(source),
+            Self::ConeImage(source) => Some(source),
+            Self::EntryProduction(source) => Some(source),
+            Self::RegistrationPatch(source) => Some(source),
+            Self::Compatibility(source) => Some(source),
+            Self::RuntimeImageFingerprint(source) => Some(source),
+            Self::RuntimeImagePatch(source) => Some(source),
+            Self::EntryPatch(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,

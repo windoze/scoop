@@ -19,8 +19,8 @@ use linking::{LinkRequest, build_runtime, link};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
     CBridgeEnvelopeVerifiedObjectProductionV1, DigestPatchVerifiedObjectProductionV1,
-    LinkSymbolVerifiedObjectProductionV1, PlannedBuiltinObjectProductionV1,
-    RegistrationDependencyFingerprintedProductionV1,
+    FinalizedStrongObjectProductionV1, LinkSymbolVerifiedObjectProductionV1,
+    PlannedBuiltinObjectProductionV1, RegistrationDependencyFingerprintedProductionV1,
     RegistrationObjectLeafFingerprintedProductionV1, RegistrationObjectVerifiedObjectProductionV1,
     StackmapVerifiedObjectProductionV1, StrongRelocationVerifiedObjectProductionV1,
 };
