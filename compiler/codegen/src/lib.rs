@@ -75,6 +75,7 @@ mod emission;
 mod function;
 mod llvm_types;
 mod module_context;
+mod object_partition;
 mod runtime_metadata_v1;
 mod shape_definitions;
 mod statepoint;
@@ -92,6 +93,10 @@ pub use emission::{EmittedStrongObjectV1, emit_object, render_llvm_ir};
 use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;
+pub use object_partition::{
+    StrongScoopLirObjectKindV1, StrongScoopLirObjectPartitionError,
+    StrongScoopLirObjectPartitionV1, StrongScoopLirObjectUnitSetV1,
+};
 pub use runtime_metadata_v1::{
     CallableRegistrationPatchSiteV1, EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1,
     EmittedConeImageV1, EmittedEntryProductionV1, EmittedRootEntryV1,

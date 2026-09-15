@@ -1386,6 +1386,15 @@ ProvisionalLinkObjectMember {
 
 generated bridge absent时没有generated object member，但manifest的`CBridgeProductionSet::NotUsed`仍是显式variant。存在bridge时每个实际unit在当前Cone恰有一个`PrimaryEntry(unit)` atom；同unit不得跨多个member重复生产。
 
+本阶段Scoop LLVM producer采用确定性的强对象分片策略：每个`CallableBody` definition plan连同其全部
+associated atom独占一个provisional object，其余Scoop LIR definition plan进入恰一个non-callable object。
+这样每个LLVM module至多定义一个callable body，`__llvm_stackmaps`、LSDA、EH frame与compact-unwind等
+module-level backend section不会把多个callable atom混成需要事后猜测的物理分区。该分类只用于producer选择
+本次发射的definition闭包，不进入logical key或archive role；member身份仍完全由canonical unit set派生，
+不能用“metadata object”、文件名、输出顺序或首个member建立所有权。任一分片必须非空，全部分片的unit并集
+必须逐项等于`StrongProducerUnitPartitionV1`中的Scoop LIR definition集合且互不重叠；generated bridge
+definition只能由generated C producer分片，不得混入LLVM对象。
+
 ### 11.2 member id在finalization前确定
 
 `SlibMemberId`只依赖Cone identity与stable key，不依赖payload hash。packager因此先：

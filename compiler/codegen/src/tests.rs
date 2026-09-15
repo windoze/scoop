@@ -47,6 +47,7 @@ mod enums;
 mod exceptions;
 mod initialization;
 mod moving_gc;
+mod object_partition;
 mod objects;
 mod platform;
 mod scoop_abi;
