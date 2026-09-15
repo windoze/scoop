@@ -118,6 +118,8 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
     production: &StrongProductionSectionV1,
+    array_bounds_message: GlobalValue<'ctx>,
+    array_size_overflow_message: GlobalValue<'ctx>,
 ) -> Result<EmittedStrongRuntimeMetadataModuleV1<'ctx>, CodegenError> {
     let registrations = production.registration_production();
     let safepoints =
@@ -142,7 +144,13 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
         registrations.initialization_units(),
     )?;
     let entry = emit_entry_production_v1(context, llvm, production.entry_plan())?;
-    let image = emit_cone_image_v1(context, llvm, production.image_plan())?;
+    let image = emit_cone_image_v1(
+        context,
+        llvm,
+        production.image_plan(),
+        array_bounds_message,
+        array_size_overflow_message,
+    )?;
 
     let producer = production.external_bridges().producer();
     for actual in [

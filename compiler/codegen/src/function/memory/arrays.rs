@@ -113,12 +113,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .get_insert_block()
             .ok_or_else(|| CodegenError("builder has no insertion block".to_string()))?;
 
-        let message = self
-            .bounds_message
-            .ok_or_else(|| {
-                CodegenError("bounds check in a module without array types".to_string())
-            })?
-            .as_pointer_value();
+        let message = self.bounds_message.as_pointer_value();
 
         let trap = self.gc_leaf_fn(
             scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
@@ -162,12 +157,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let current = builder
             .get_insert_block()
             .ok_or_else(|| CodegenError("builder has no insertion block".to_string()))?;
-        let message = self
-            .array_size_message
-            .ok_or_else(|| {
-                CodegenError("array assembly in a module without its trap message".to_string())
-            })?
-            .as_pointer_value();
+        let message = self.array_size_message.as_pointer_value();
         let trap = self.gc_leaf_fn(
             scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
                 scoop_lir::NoGcRuntimeFunction::Trap,

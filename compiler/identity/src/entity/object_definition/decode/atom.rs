@@ -21,6 +21,8 @@ impl WireDecode for ConeImageSupportRole {
             8 => Ok(Self::TypeRegistrations),
             9 => Ok(Self::Safepoints),
             10 => Ok(Self::Callables),
+            11 => Ok(Self::ArrayBoundsMessage),
+            12 => Ok(Self::ArraySizeOverflowMessage),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }

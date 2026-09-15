@@ -2,10 +2,10 @@ use inkwell::GlobalVisibility;
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::{AnyType, IntType, StructType};
-use inkwell::values::{GlobalValue, StructValue};
+use inkwell::values::{AnyValue, GlobalValue, StructValue};
 use scoop_lir::{
     ConeImagePlanV1, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentSymbolRequest,
+    ObjectDefinitionPlanId, PersistentSymbolKey, PersistentSymbolRequest,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -80,6 +80,8 @@ pub struct EmittedConeImageSupportAtomsV1<'ctx> {
     type_registrations: EmittedConeImageSupportAtomV1<'ctx>,
     safepoints: EmittedConeImageSupportAtomV1<'ctx>,
     callables: EmittedConeImageSupportAtomV1<'ctx>,
+    array_bounds_message: EmittedConeImageSupportAtomV1<'ctx>,
+    array_size_overflow_message: EmittedConeImageSupportAtomV1<'ctx>,
 }
 
 impl<'ctx> EmittedConeImageSupportAtomsV1<'ctx> {
@@ -122,6 +124,14 @@ impl<'ctx> EmittedConeImageSupportAtomsV1<'ctx> {
     pub const fn callables(self) -> EmittedConeImageSupportAtomV1<'ctx> {
         self.callables
     }
+
+    pub const fn array_bounds_message(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.array_bounds_message
+    }
+
+    pub const fn array_size_overflow_message(self) -> EmittedConeImageSupportAtomV1<'ctx> {
+        self.array_size_overflow_message
+    }
 }
 
 /// Fully emitted per-Cone image and its single provisional digest slot.
@@ -161,6 +171,8 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &ConeImagePlanV1,
+    array_bounds_message: GlobalValue<'ctx>,
+    array_size_overflow_message: GlobalValue<'ctx>,
 ) -> Result<EmittedConeImageV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
     let image_symbol = plan.symbol().symbol();
@@ -174,6 +186,19 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
             "Cone image `{image_symbol}` is already declared"
         )));
     }
+    let support_atoms = plan.support_atoms();
+    validate_trap_message(
+        context,
+        support_atoms.array_bounds_message(),
+        array_bounds_message,
+        b"array index out of bounds",
+    )?;
+    validate_trap_message(
+        context,
+        support_atoms.array_size_overflow_message(),
+        array_size_overflow_message,
+        b"array size overflow",
+    )?;
 
     let coordinate = plan.cone().coordinate();
     let prefix = format!("{}.metadata", image_symbol.as_str());
@@ -299,7 +324,6 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
     image.set_constant(true);
     image.set_initializer(&image_value);
 
-    let support_atoms = plan.support_atoms();
     Ok(EmittedConeImageV1 {
         image,
         primary_atom: plan.primary_atom(),
@@ -326,6 +350,14 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
             ),
             safepoints: emitted_support_atom(support_atoms.safepoints(), safepoints),
             callables: emitted_support_atom(support_atoms.callables(), callables),
+            array_bounds_message: emitted_support_atom(
+                support_atoms.array_bounds_message(),
+                array_bounds_message,
+            ),
+            array_size_overflow_message: emitted_support_atom(
+                support_atoms.array_size_overflow_message(),
+                array_size_overflow_message,
+            ),
         },
         patch: RuntimeImagePatchSiteV1 {
             intent: plan.fingerprint_patch(),
@@ -334,6 +366,33 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
             owner: image,
         },
     })
+}
+
+fn validate_trap_message(
+    context: &Context,
+    atom: ObjectDefinitionAtomId,
+    global: GlobalValue<'_>,
+    bytes: &[u8],
+) -> Result<(), CodegenError> {
+    let request = PersistentSymbolRequest::new(
+        PersistentSymbolKey::DefinitionBoundaryStart(atom),
+        LinkageClass::ConeStrong,
+    )
+    .map_err(|error| CodegenError(format!("cannot derive trap-message boundary: {error}")))?;
+    let expected = context.const_string(bytes, true);
+    let initializer = global.get_initializer();
+    if global.get_name().to_bytes() != request.symbol().as_str().as_bytes()
+        || global.get_value_type() != expected.get_type().as_any_type_enum()
+        || global.get_linkage() != Linkage::External
+        || !global.is_constant()
+        || initializer.map(|value| value.print_to_string()).as_ref()
+            != Some(&expected.print_to_string())
+    {
+        return Err(CodegenError(format!(
+            "Cone trap-message atom {atom} does not match its canonical strong definition"
+        )));
+    }
+    Ok(())
 }
 
 fn emit_byte_span<'ctx>(
@@ -475,8 +534,10 @@ mod tests {
         let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digests).unwrap();
         let context = Context::create();
         let llvm = context.create_module("image");
+        let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
 
-        let emitted = emit_cone_image_v1(&context, &llvm, &plan).unwrap();
+        let emitted =
+            emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message).unwrap();
 
         assert_eq!(emitted.image().get_linkage(), Linkage::External);
         assert_eq!(emitted.image().get_visibility(), GlobalVisibility::Hidden);
@@ -492,6 +553,14 @@ mod tests {
         assert_eq!(
             emitted.support_atoms().callables().atom(),
             plan.support_atoms().callables()
+        );
+        assert_eq!(
+            emitted.support_atoms().array_bounds_message().atom(),
+            plan.support_atoms().array_bounds_message()
+        );
+        assert_eq!(
+            emitted.support_atoms().array_size_overflow_message().atom(),
+            plan.support_atoms().array_size_overflow_message()
         );
         assert!(
             emitted
@@ -535,11 +604,65 @@ mod tests {
         let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digests).unwrap();
         let context = Context::create();
         let llvm = context.create_module("image");
+        let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
 
-        emit_cone_image_v1(&context, &llvm, &plan).unwrap();
-        let error = emit_cone_image_v1(&context, &llvm, &plan).unwrap_err();
+        emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message).unwrap();
+        let error = emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message)
+            .unwrap_err();
 
         assert!(error.0.contains("already declared"), "{error}");
+    }
+
+    #[test]
+    fn image_emission_rejects_a_noncanonical_trap_message() {
+        let coordinate = ConeCoordinate::reserved_single_file();
+        let (foundation, digests) = image_fixture(coordinate.clone(), None);
+        let registrations =
+            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digests).unwrap();
+        let context = Context::create();
+        let llvm = context.create_module("image");
+        let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
+        bounds_message.set_initializer(&context.const_string(b"array index out of boundx", true));
+
+        let error = emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message)
+            .unwrap_err();
+
+        assert!(error.0.contains("canonical strong definition"), "{error}");
+        assert!(llvm.get_global(plan.symbol().symbol().as_str()).is_none());
+    }
+
+    fn trap_messages<'ctx>(
+        context: &'ctx Context,
+        llvm: &inkwell::module::Module<'ctx>,
+        plan: &ConeImagePlanV1,
+    ) -> (
+        inkwell::values::GlobalValue<'ctx>,
+        inkwell::values::GlobalValue<'ctx>,
+    ) {
+        let define = |atom, bytes: &[u8]| {
+            let request = PersistentSymbolRequest::new(
+                PersistentSymbolKey::DefinitionBoundaryStart(atom),
+                LinkageClass::ConeStrong,
+            )
+            .unwrap();
+            let initializer = context.const_string(bytes, true);
+            let global = llvm.add_global(initializer.get_type(), None, request.symbol().as_str());
+            global.set_linkage(Linkage::External);
+            global.set_constant(true);
+            global.set_initializer(&initializer);
+            global
+        };
+        (
+            define(
+                plan.support_atoms().array_bounds_message(),
+                b"array index out of bounds",
+            ),
+            define(
+                plan.support_atoms().array_size_overflow_message(),
+                b"array size overflow",
+            ),
+        )
     }
 
     fn image_fixture(
@@ -655,6 +778,14 @@ mod tests {
                 (
                     DefinitionAtomRole::RuntimeRecord,
                     ConeImageSupportRole::Callables,
+                ),
+                (
+                    DefinitionAtomRole::AddressTakenConstant,
+                    ConeImageSupportRole::ArrayBoundsMessage,
+                ),
+                (
+                    DefinitionAtomRole::AddressTakenConstant,
+                    ConeImageSupportRole::ArraySizeOverflowMessage,
                 ),
             ]
             .map(|(role, support)| {

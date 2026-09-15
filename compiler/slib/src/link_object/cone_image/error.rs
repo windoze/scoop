@@ -21,6 +21,8 @@ pub enum ConeImageAtomRoleV1 {
     TypeRegistrations,
     Safepoints,
     Callables,
+    ArrayBoundsMessage,
+    ArraySizeOverflowMessage,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -57,6 +57,8 @@ pub struct VerifiedConeImageSupportAtomsV1 {
     type_registrations: VerifiedConeImageAtomV1,
     safepoints: VerifiedConeImageAtomV1,
     callables: VerifiedConeImageAtomV1,
+    array_bounds_message: VerifiedConeImageAtomV1,
+    array_size_overflow_message: VerifiedConeImageAtomV1,
 }
 
 impl VerifiedConeImageSupportAtomsV1 {
@@ -98,6 +100,14 @@ impl VerifiedConeImageSupportAtomsV1 {
 
     pub const fn callables(self) -> VerifiedConeImageAtomV1 {
         self.callables
+    }
+
+    pub const fn array_bounds_message(self) -> VerifiedConeImageAtomV1 {
+        self.array_bounds_message
+    }
+
+    pub const fn array_size_overflow_message(self) -> VerifiedConeImageAtomV1 {
+        self.array_size_overflow_message
     }
 }
 
@@ -355,6 +365,22 @@ pub fn verify_cone_image_v1(
         }),
         &mut registration_relocations,
     )?;
+    let array_bounds_message = require_support_bytes(
+        verified_member,
+        definition.atoms(),
+        objects[&member],
+        support_plan.array_bounds_message(),
+        ConeImageAtomRoleV1::ArrayBoundsMessage,
+        b"array index out of bounds\0",
+    )?;
+    let array_size_overflow_message = require_support_bytes(
+        verified_member,
+        definition.atoms(),
+        objects[&member],
+        support_plan.array_size_overflow_message(),
+        ConeImageAtomRoleV1::ArraySizeOverflowMessage,
+        b"array size overflow\0",
+    )?;
 
     let support = VerifiedConeImageSupportAtomsV1 {
         coordinate_group,
@@ -367,6 +393,8 @@ pub fn verify_cone_image_v1(
         type_registrations,
         safepoints,
         callables,
+        array_bounds_message,
+        array_size_overflow_message,
     };
     let support_relocations = verify_primary_relocations(verified_member, &plan, support)?;
     let image_patch = verify_image_patch(&patch_sites, &plan, member, primary.checked_offset)?;
@@ -421,6 +449,14 @@ fn validate_exact_atom_set(
         ),
         (support.safepoints(), DefinitionAtomRole::RuntimeRecord),
         (support.callables(), DefinitionAtomRole::RuntimeRecord),
+        (
+            support.array_bounds_message(),
+            DefinitionAtomRole::AddressTakenConstant,
+        ),
+        (
+            support.array_size_overflow_message(),
+            DefinitionAtomRole::AddressTakenConstant,
+        ),
     ];
     expected.sort_unstable();
     let mut actual = actual

@@ -21,8 +21,8 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) type_tds: &'a [GlobalValue<'ctx>],
     pub(crate) external_type_tds: &'a [GlobalValue<'ctx>],
     pub(crate) target_data: &'a inkwell::targets::TargetData,
-    pub(crate) bounds_message: Option<GlobalValue<'ctx>>,
-    pub(crate) array_size_message: Option<GlobalValue<'ctx>>,
+    pub(crate) bounds_message: GlobalValue<'ctx>,
+    pub(crate) array_size_message: GlobalValue<'ctx>,
 }
 
 fn compiler_root_source_key(source: scoop_lir::CallerRootSource) -> (u8, u32) {

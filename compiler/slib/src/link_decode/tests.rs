@@ -44,11 +44,11 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     let _ = sections.link_identity_closure_wire();
     let _ = sections.production_manifest_wire();
     let checked = sections.validate_identities().unwrap();
-    assert_eq!(checked.identity_count(), 17);
-    assert_eq!(checked.declared_identity_count(), 15);
+    assert_eq!(checked.identity_count(), 19);
+    assert_eq!(checked.declared_identity_count(), 17);
     let odr_free = checked.validate_foundation_structure().unwrap();
     assert_eq!(odr_free.identity(), cone().identity());
-    assert_eq!(odr_free.declared_identity_count(), 15);
+    assert_eq!(odr_free.declared_identity_count(), 17);
     assert_eq!(
         odr_free.hir_foundation().as_canonical().counts().odr_groups,
         0
@@ -1127,6 +1127,14 @@ fn image_atoms(
             (
                 DefinitionAtomRole::RuntimeRecord,
                 ConeImageSupportRole::Callables,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::ArrayBoundsMessage,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::ArraySizeOverflowMessage,
             ),
         ]
         .map(|(role, support)| {

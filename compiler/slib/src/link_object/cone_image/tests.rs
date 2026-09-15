@@ -37,6 +37,8 @@ enum Corruption {
     CoordinateByte,
     CoordinateTarget,
     StaticSentinel,
+    ArrayBoundsMessageByte,
+    ArraySizeOverflowMessageByte,
 }
 
 #[test]
@@ -58,6 +60,11 @@ fn verifies_the_unique_image_record_support_atoms_and_relocations() {
     assert_eq!(verified.support().coordinate_group().byte_size(), 5);
     assert_eq!(verified.support().dependencies().byte_size(), 32);
     assert_eq!(verified.support().static_storages().byte_size(), 8);
+    assert_eq!(verified.support().array_bounds_message().byte_size(), 26);
+    assert_eq!(
+        verified.support().array_size_overflow_message().byte_size(),
+        20
+    );
     assert_eq!(verified.support_relocations().len(), 10);
     assert!(verified.registration_relocations().is_empty());
     assert_eq!(verified.image_patch().offset_within_atom(), 96);
@@ -81,6 +88,37 @@ fn rejects_changed_coordinate_bytes() {
             ..
         })
     ));
+}
+
+#[test]
+fn rejects_changed_array_trap_message_bytes() {
+    for (corruption, role) in [
+        (
+            Corruption::ArrayBoundsMessageByte,
+            ConeImageAtomRoleV1::ArrayBoundsMessage,
+        ),
+        (
+            Corruption::ArraySizeOverflowMessageByte,
+            ConeImageAtomRoleV1::ArraySizeOverflowMessage,
+        ),
+    ] {
+        let fixture = fixture(corruption, false);
+        assert!(matches!(
+            verify_cone_image_v1(
+                fixture.patch_sites,
+                fixture.plan,
+                &[ScoopLirObjectCandidateV1::new(
+                    fixture.member,
+                    &fixture.bytes
+                )],
+            ),
+            Err(ConeImageValidationError::AtomByteMismatch {
+                role: actual,
+                offset_within_atom: 0,
+                ..
+            }) if actual == role
+        ));
+    }
 }
 
 #[test]
@@ -419,6 +457,14 @@ fn support_roles() -> impl Iterator<Item = (DefinitionAtomRole, ConeImageSupport
             DefinitionAtomRole::RuntimeRecord,
             ConeImageSupportRole::Callables,
         ),
+        (
+            DefinitionAtomRole::AddressTakenConstant,
+            ConeImageSupportRole::ArrayBoundsMessage,
+        ),
+        (
+            DefinitionAtomRole::AddressTakenConstant,
+            ConeImageSupportRole::ArraySizeOverflowMessage,
+        ),
     ]
     .into_iter()
 }
@@ -479,12 +525,30 @@ fn image_object(
         locations[&support.dependencies()].0,
         &dependency_bytes,
     );
+    copy_atom_bytes(
+        &mut section,
+        locations[&support.array_bounds_message()].0,
+        b"array index out of bounds\0",
+    );
+    copy_atom_bytes(
+        &mut section,
+        locations[&support.array_size_overflow_message()].0,
+        b"array size overflow\0",
+    );
     match corruption {
         Corruption::CoordinateByte => {
             section[usize::try_from(locations[&support.coordinate_group()].0).unwrap()] ^= 1;
         }
         Corruption::StaticSentinel => {
             section[usize::try_from(locations[&support.static_storages()].0).unwrap()] = 1;
+        }
+        Corruption::ArrayBoundsMessageByte => {
+            section[usize::try_from(locations[&support.array_bounds_message()].0).unwrap()] ^= 1;
+        }
+        Corruption::ArraySizeOverflowMessageByte => {
+            section
+                [usize::try_from(locations[&support.array_size_overflow_message()].0).unwrap()] ^=
+                1;
         }
         Corruption::None | Corruption::CoordinateTarget => {}
     }
@@ -500,6 +564,8 @@ fn image_object(
         support.type_registrations(),
         support.safepoints(),
         support.callables(),
+        support.array_bounds_message(),
+        support.array_size_overflow_message(),
     ];
     let mut relocation_targets = vec![0_u32, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     if matches!(corruption, Corruption::CoordinateTarget) {
@@ -521,7 +587,8 @@ fn image_object(
                 )
             })
             .unwrap();
-        relocation_targets.push(10 + u32::try_from(symbol_index).unwrap());
+        relocation_targets
+            .push(u32::try_from(local_atoms.len()).unwrap() + u32::try_from(symbol_index).unwrap());
     }
     build_macho(
         symbols,
@@ -575,6 +642,8 @@ fn image_locations(
         (support.type_registrations(), 8, 8),
         (support.safepoints(), 8, 8),
         (support.callables(), 8, 8),
+        (support.array_bounds_message(), 26, 1),
+        (support.array_size_overflow_message(), 20, 1),
     ] {
         cursor = align_to(cursor, alignment);
         locations.insert(atom, (cursor, cursor + size));
@@ -590,7 +659,7 @@ fn image_locations(
 fn build_macho(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     locations: &BTreeMap<ObjectDefinitionAtomId, (u64, u64)>,
-    local_atoms: &[ObjectDefinitionAtomId; 10],
+    local_atoms: &[ObjectDefinitionAtomId],
     relocation_offsets: &[u32],
     relocation_targets: &[u32],
     section: Vec<u8>,

@@ -1453,6 +1453,14 @@ boundary，另行物化end boundary；不再产生或接受arena枚举顺序派�
 owner不在当前Cone的callable body全集、path重复、atom派生不一致或实际物理字节不等于
 `UTF-8 bytes + NUL`都必须在进入object proof前失败。
 
+后端固定的数组越界与数组大小溢出trapping message不属于任一callable的
+source-level constant集合，而是Cone image的固定associated support atoms：分别使用
+`AddressTakenConstant/ConeImageSupport(ArrayBoundsMessage)`与
+`AddressTakenConstant/ConeImageSupport(ArraySizeOverflowMessage)`。它们必须在每个Cone中各存在一项，
+物理字节精确为`array index out of bounds\0`与`array size overflow\0`，真定义符号即各自
+atom的stable start boundary，并物化end boundary。不产生、不接受另行命名的private magic
+global；也不保留从旧符号到该atom的alias或fallback。
+
 object中多一个未计划的managed entry、registration、image descriptor、Scoop-mangled external/weak definition或受检relocation都失败。普通local machine support也必须由某个plan的associated closure认领；不能因symbol local就跳过。
 
 ### 11.5 generated C bridge verifier
@@ -2412,6 +2420,8 @@ ConeImagePlan {
         type_registrations,
         safepoints,
         callables,
+        array_bounds_message,
+        array_size_overflow_message,
     },
     symbol: PersistentV1::Image(ConeIdentity),
     definition_plan: ObjectDefinitionPlanId,
@@ -2438,10 +2448,12 @@ semantic-id array，逐项来自已经重建的`StrongRegistrationIdentitySurfac
 32-byte id。`ConeImagePlan`按上述伪代码顺序编码fields `1..7`；其中field 4编码从
 `PersistentSymbolKey::ImageDescriptor(cone)`唯一派生的`ConeStrong`
 `PersistentSymbolRequest`，field 5必须是当前Cone `ImageDescriptor` strong definition plan。field 6是
-`ConeImageSupportAtomsV1` closed product，fields `1..10`依上述顺序编码十个
+`ConeImageSupportAtomsV1` closed product，fields `1..12`依上述顺序编码十二个
 `ObjectDefinitionAtomId`：coordinate三项必须分别是
 `AddressTakenConstant/ConeImageSupport(CoordinateGroup|CoordinateName|CoordinateVersion)`，
-其余七项必须分别是`RuntimeRecord/ConeImageSupport(Dependencies|六类table role)`；它们必须精确、
+接下来七项必须分别是`RuntimeRecord/ConeImageSupport(Dependencies|六类table role)`；
+最后两项必须分别是
+`AddressTakenConstant/ConeImageSupport(ArrayBoundsMessage|ArraySizeOverflowMessage)`；它们必须精确、
 全量覆盖image plan的associated atom集合，即使数组为空也必须保留对应sentinel atom。field 7
 必须是同一runtime-image node写入该plan `Primary` atom `RuntimeImage` field的patch intent。image
 node的全部`StrongRegistration` direct input必须与六表中的fingerprint node集合逐项相等；不能漏掉

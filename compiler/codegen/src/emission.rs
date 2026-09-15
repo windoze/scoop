@@ -124,12 +124,14 @@ fn prepare_strong_llvm_module<'ctx>(
         production.canonical_definitions(),
         machine,
         profile,
-        |context, llvm, target_data| {
+        |context, llvm, target_data, bounds_message, array_size_message| {
             let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
                 context,
                 llvm,
                 target_data,
                 production,
+                bounds_message,
+                array_size_message,
             )?;
             let (runtime_metadata, emitted_initialization_units) = runtime_metadata.into_parts();
             let initialization_units =
@@ -179,6 +181,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         &'ctx Context,
         &LlvmModule<'ctx>,
         &inkwell::targets::TargetData,
+        GlobalValue<'ctx>,
+        GlobalValue<'ctx>,
     ) -> Result<(R, Vec<GlobalValue<'ctx>>), CodegenError>,
 ) -> Result<(LlvmModule<'ctx>, R), CodegenError> {
     profile.validate_lir_target_profile(module.meta.target_profile)?;
@@ -234,30 +238,24 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         })
         .collect::<Result<_, _>>()?;
 
-    // Shared "array index out of bounds" message (only when the module
-    // performs a checked array access); trap blocks reference it.
-    let bounds_message = if module_uses_bounds_checks(module) {
-        let bytes = b"array index out of bounds";
-        let ty = i8_ty.array_type(bytes.len() as u32 + 1);
-        let global = llvm.add_global(ty, None, "scoop.trap.bounds");
-        global.set_constant(true);
-        global.set_linkage(inkwell::module::Linkage::Private);
-        global.set_initializer(&context.const_string(bytes, true));
-        Some(global)
-    } else {
-        None
-    };
-    let array_size_message = if module_uses_array_assembly(module) {
-        let bytes = b"array size overflow";
-        let ty = i8_ty.array_type(bytes.len() as u32 + 1);
-        let global = llvm.add_global(ty, None, "scoop.trap.array_size");
-        global.set_constant(true);
-        global.set_linkage(inkwell::module::Linkage::Private);
-        global.set_initializer(&context.const_string(bytes, true));
-        Some(global)
-    } else {
-        None
-    };
+    let bounds_message = emit_cone_trap_message(
+        context,
+        &llvm,
+        &target_data,
+        surface,
+        module.cone,
+        scoop_lir::ConeImageSupportRole::ArrayBoundsMessage,
+        b"array index out of bounds",
+    )?;
+    let array_size_message = emit_cone_trap_message(
+        context,
+        &llvm,
+        &target_data,
+        surface,
+        module.cone,
+        scoop_lir::ConeImageSupportRole::ArraySizeOverflowMessage,
+        b"array size overflow",
+    )?;
 
     // Ordinary globals are disjoint from descriptor identities.
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
@@ -418,8 +416,13 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     // Runtime records require only declarations of callable bodies and type
     // descriptors. Emitting them before function bodies exposes the exact
     // typed initialization coordinator definitions used by LIR values.
-    let (runtime_metadata, initialization_units) =
-        emit_runtime_metadata(context, &llvm, &target_data)?;
+    let (runtime_metadata, initialization_units) = emit_runtime_metadata(
+        context,
+        &llvm,
+        &target_data,
+        bounds_message,
+        array_size_message,
+    )?;
 
     shape_definitions::emit_strong_shape_definitions_v1(
         context,
@@ -458,6 +461,61 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     Ok((llvm, runtime_metadata))
 }
 
+pub(crate) fn emit_cone_trap_message<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    target_data: &inkwell::targets::TargetData,
+    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
+    producer: scoop_lir::ConeIdentity,
+    support: scoop_lir::ConeImageSupportRole,
+    bytes: &[u8],
+) -> Result<GlobalValue<'ctx>, CodegenError> {
+    let plan_key = scoop_lir::ObjectDefinitionPlanKey::strong(
+        producer,
+        scoop_lir::StrongDefinitionEntity::cone_image(producer),
+        scoop_lir::StrongDefinitionRole::ImageDescriptor,
+    )
+    .map_err(|error| CodegenError(format!("cannot derive Cone image plan: {error}")))?;
+    let plan = scoop_lir::ObjectDefinitionPlanId::from_key(&plan_key)
+        .map_err(|error| CodegenError(format!("cannot derive Cone image plan id: {error}")))?;
+    let atom =
+        scoop_lir::ObjectDefinitionAtomId::from_key(&scoop_lir::ObjectDefinitionAtomKey::new(
+            plan,
+            scoop_lir::DefinitionAtomRole::AddressTakenConstant,
+            scoop_lir::DefinitionAtomSubkey::ConeImageSupport(support),
+        ))
+        .map_err(|error| CodegenError(format!("cannot derive Cone trap-message atom: {error}")))?;
+    let boundary = surface
+        .plan(plan)
+        .and_then(|plan| {
+            plan.atom_boundaries()
+                .iter()
+                .find(|boundary| boundary.atom() == atom)
+        })
+        .copied()
+        .ok_or_else(|| CodegenError(format!("Cone trap-message atom {atom} is unplanned")))?;
+    let symbol = boundary.start().symbol();
+    if llvm.get_global(symbol.as_str()).is_some() {
+        return Err(CodegenError(format!(
+            "Cone trap-message symbol `{symbol}` is already declared"
+        )));
+    }
+    let ty = context.i8_type().array_type(bytes.len() as u32 + 1);
+    let global = llvm.add_global(ty, None, symbol.as_str());
+    global.set_constant(true);
+    apply_persistent_linkage(&global, boundary.start())?;
+    global.set_initializer(&context.const_string(bytes, true));
+    atom_boundaries::emit_global_atom_boundaries_v1(
+        llvm,
+        target_data,
+        surface,
+        [atom_boundaries::GlobalAtomMaterializationV1::new(
+            atom, global,
+        )],
+    )?;
+    Ok(global)
+}
+
 #[cfg(test)]
 pub(crate) fn emit_llvm_module<'ctx>(
     context: &'ctx Context,
@@ -475,9 +533,14 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
     let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
-    emit_llvm_module_with_surface(context, module, &surface, machine, profile, |_, _, _| {
-        Ok(((), Vec::new()))
-    })
+    emit_llvm_module_with_surface(
+        context,
+        module,
+        &surface,
+        machine,
+        profile,
+        |_, _, _, _, _| Ok(((), Vec::new())),
+    )
     .map(|(llvm, ())| llvm)
 }
 

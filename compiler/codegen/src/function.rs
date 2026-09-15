@@ -62,12 +62,11 @@ struct FnEmitter<'a, 'ctx> {
     allocation_index: u32,
     /// Lazily-created shared bounds-check trap block of this function
     /// (one per function, reused by every ArrayGet / ArraySet) and the
-    /// module-level "array index out of bounds" message global it
-    /// references (`Some` whenever the module uses arrays).
+    /// Cone-image-owned "array index out of bounds" support atom it references.
     bounds_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
-    bounds_message: Option<GlobalValue<'ctx>>,
+    bounds_message: GlobalValue<'ctx>,
     array_size_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
-    array_size_message: Option<GlobalValue<'ctx>>,
+    array_size_message: GlobalValue<'ctx>,
 }
 
 struct NativeTransition<'ctx> {

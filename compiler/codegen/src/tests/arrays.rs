@@ -240,6 +240,10 @@ fn emits_m5_arrays() {
         "ArrayAssembly must check its dynamic size and copy spread elements:\n{ir}"
     );
     assert!(
+        !ir.contains("scoop.trap.bounds") && !ir.contains("scoop.trap.array_size"),
+        "array traps must use typed Cone image atoms instead of private magic globals:\n{ir}"
+    );
+    assert!(
         ir.lines().any(|line| {
             line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
                 && line.contains(&point_array_symbol)

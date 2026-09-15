@@ -508,34 +508,6 @@ pub(crate) fn arena_index<T>(id: Idx<T>) -> usize {
     id.into_raw().into_u32() as usize
 }
 
-/// Whether any function needs the shared array-bounds trap message.
-/// Array parameters can be indexed without any array being allocated
-/// in this module, so this is intentionally independent of generated
-/// array TypeDescriptors.
-pub(crate) fn module_uses_bounds_checks(module: &Module) -> bool {
-    module.functions.iter().any(|function| {
-        function.blocks.iter().any(|(_, block)| {
-            block.instructions.iter().any(|instruction| {
-                matches!(
-                    instruction,
-                    Instruction::ArrayGet { .. } | Instruction::ArraySet { .. }
-                )
-            })
-        })
-    })
-}
-
-pub(crate) fn module_uses_array_assembly(module: &Module) -> bool {
-    module.functions.iter().any(|function| {
-        function.blocks.iter().any(|(_, block)| {
-            block
-                .instructions
-                .iter()
-                .any(|instruction| matches!(instruction, Instruction::ArrayAssembly { .. }))
-        })
-    })
-}
-
 /// Native/code/metadata pointer type.
 pub(crate) fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())

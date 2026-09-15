@@ -1,14 +1,16 @@
 use std::fmt;
 
-pub use scoop_identity::{ConeCoordinate, DigestPatchIntentId, ObjectDefinitionPlanId};
+pub use scoop_identity::{
+    ConeCoordinate, ConeImageSupportRole, DefinitionAtomSubkey, DigestPatchIntentId,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
+};
 use scoop_identity::{
-    ConeCoordinateError, ConeIdentity, ConeImageSupportRole, DecodedConeCoordinate,
-    DecodedPersistentId, DecodedPersistentSymbolRequest, DefinitionAtomRole, DefinitionAtomSubkey,
-    DigestKind, DigestNodeId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
-    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
+    ConeCoordinateError, ConeIdentity, DecodedConeCoordinate, DecodedPersistentId,
+    DecodedPersistentSymbolRequest, DefinitionAtomRole, DigestKind, DigestNodeId,
+    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
     PersistentCallableBodyId, PersistentExactTypeId, PersistentIdMismatch,
     PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
-    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolRequest,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{
@@ -262,6 +264,8 @@ pub struct ConeImageSupportAtomsV1 {
     type_registrations: ObjectDefinitionAtomId,
     safepoints: ObjectDefinitionAtomId,
     callables: ObjectDefinitionAtomId,
+    array_bounds_message: ObjectDefinitionAtomId,
+    array_size_overflow_message: ObjectDefinitionAtomId,
 }
 
 impl ConeImageSupportAtomsV1 {
@@ -304,6 +308,14 @@ impl ConeImageSupportAtomsV1 {
     pub const fn callables(self) -> ObjectDefinitionAtomId {
         self.callables
     }
+
+    pub const fn array_bounds_message(self) -> ObjectDefinitionAtomId {
+        self.array_bounds_message
+    }
+
+    pub const fn array_size_overflow_message(self) -> ObjectDefinitionAtomId {
+        self.array_size_overflow_message
+    }
 }
 
 impl WireEncode for ConeImageSupportAtomsV1 {
@@ -320,6 +332,8 @@ impl WireEncode for ConeImageSupportAtomsV1 {
             &self.type_registrations,
             &self.safepoints,
             &self.callables,
+            &self.array_bounds_message,
+            &self.array_size_overflow_message,
         )
     }
 }
@@ -336,6 +350,8 @@ struct DecodedConeImageSupportAtomsV1 {
     type_registrations: DecodedPersistentId<ObjectDefinitionAtomId>,
     safepoints: DecodedPersistentId<ObjectDefinitionAtomId>,
     callables: DecodedPersistentId<ObjectDefinitionAtomId>,
+    array_bounds_message: DecodedPersistentId<ObjectDefinitionAtomId>,
+    array_size_overflow_message: DecodedPersistentId<ObjectDefinitionAtomId>,
 }
 
 impl WireEncode for DecodedConeImageSupportAtomsV1 {
@@ -352,13 +368,15 @@ impl WireEncode for DecodedConeImageSupportAtomsV1 {
             &self.type_registrations,
             &self.safepoints,
             &self.callables,
+            &self.array_bounds_message,
+            &self.array_size_overflow_message,
         )
     }
 }
 
 impl WireDecode for DecodedConeImageSupportAtomsV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(12)?;
         Ok(Self {
             coordinate_group: decoder.field(1, DecodedPersistentId::decode)?,
             coordinate_name: decoder.field(2, DecodedPersistentId::decode)?,
@@ -370,6 +388,8 @@ impl WireDecode for DecodedConeImageSupportAtomsV1 {
             type_registrations: decoder.field(8, DecodedPersistentId::decode)?,
             safepoints: decoder.field(9, DecodedPersistentId::decode)?,
             callables: decoder.field(10, DecodedPersistentId::decode)?,
+            array_bounds_message: decoder.field(11, DecodedPersistentId::decode)?,
+            array_size_overflow_message: decoder.field(12, DecodedPersistentId::decode)?,
         })
     }
 }
@@ -772,8 +792,18 @@ fn require_image_atoms(
             DefinitionAtomRole::RuntimeRecord,
             ConeImageSupportRole::Callables,
         ),
+        image_support_key(
+            definition,
+            DefinitionAtomRole::AddressTakenConstant,
+            ConeImageSupportRole::ArrayBoundsMessage,
+        ),
+        image_support_key(
+            definition,
+            DefinitionAtomRole::AddressTakenConstant,
+            ConeImageSupportRole::ArraySizeOverflowMessage,
+        ),
     ];
-    let mut expected = Vec::with_capacity(11);
+    let mut expected = Vec::with_capacity(13);
     expected.push(primary_key.clone());
     expected.extend(support_keys.iter().cloned());
     expected.sort_unstable();
@@ -809,6 +839,8 @@ fn require_image_atoms(
             type_registrations: atom_id(&support_keys[7]),
             safepoints: atom_id(&support_keys[8]),
             callables: atom_id(&support_keys[9]),
+            array_bounds_message: atom_id(&support_keys[10]),
+            array_size_overflow_message: atom_id(&support_keys[11]),
         },
     ))
 }
@@ -876,8 +908,10 @@ fn encode_image_support_atoms<A: WireEncode>(
     type_registrations: &A,
     safepoints: &A,
     callables: &A,
+    array_bounds_message: &A,
+    array_size_overflow_message: &A,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(10)?;
+    encoder.map(12)?;
     for (field, value) in [
         (1, coordinate_group),
         (2, coordinate_name),
@@ -889,6 +923,8 @@ fn encode_image_support_atoms<A: WireEncode>(
         (8, type_registrations),
         (9, safepoints),
         (10, callables),
+        (11, array_bounds_message),
+        (12, array_size_overflow_message),
     ] {
         encoder.field(field)?;
         value.encode(encoder)?;

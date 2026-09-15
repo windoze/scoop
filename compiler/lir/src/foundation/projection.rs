@@ -615,6 +615,14 @@ impl CanonicalLirFoundation {
                 DefinitionAtomRole::RuntimeRecord,
                 ConeImageSupportRole::Callables,
             ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::ArrayBoundsMessage,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::ArraySizeOverflowMessage,
+            ),
         ]
         .into_iter()
         .map(|(role, support)| (role, DefinitionAtomSubkey::ConeImageSupport(support)))

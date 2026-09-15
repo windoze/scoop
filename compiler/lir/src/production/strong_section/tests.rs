@@ -152,6 +152,14 @@ fn image_atoms(
                 DefinitionAtomRole::RuntimeRecord,
                 ConeImageSupportRole::Callables,
             ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::ArrayBoundsMessage,
+            ),
+            (
+                DefinitionAtomRole::AddressTakenConstant,
+                ConeImageSupportRole::ArraySizeOverflowMessage,
+            ),
         ]
         .map(|(role, support)| {
             ObjectDefinitionAtomKey::new(

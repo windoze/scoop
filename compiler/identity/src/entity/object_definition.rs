@@ -392,6 +392,8 @@ pub enum ConeImageSupportRole {
     TypeRegistrations,
     Safepoints,
     Callables,
+    ArrayBoundsMessage,
+    ArraySizeOverflowMessage,
 }
 
 impl WireEncode for ConeImageSupportRole {
@@ -407,6 +409,8 @@ impl WireEncode for ConeImageSupportRole {
             Self::TypeRegistrations => 8,
             Self::Safepoints => 9,
             Self::Callables => 10,
+            Self::ArrayBoundsMessage => 11,
+            Self::ArraySizeOverflowMessage => 12,
         })
     }
 }

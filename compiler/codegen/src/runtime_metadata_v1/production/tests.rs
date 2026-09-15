@@ -22,9 +22,37 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     let llvm = context.create_module("strong-runtime-metadata");
     let target_data =
         TargetData::create(LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout());
+    let producer = production.image_plan().cone().identity();
+    let bounds_message = crate::emission::emit_cone_trap_message(
+        &context,
+        &llvm,
+        &target_data,
+        production.canonical_definitions(),
+        producer,
+        ConeImageSupportRole::ArrayBoundsMessage,
+        b"array index out of bounds",
+    )
+    .unwrap();
+    let array_size_message = crate::emission::emit_cone_trap_message(
+        &context,
+        &llvm,
+        &target_data,
+        production.canonical_definitions(),
+        producer,
+        ConeImageSupportRole::ArraySizeOverflowMessage,
+        b"array size overflow",
+    )
+    .unwrap();
 
-    let emitted =
-        emit_strong_runtime_metadata_v1(&context, &llvm, &target_data, &production).unwrap();
+    let emitted = emit_strong_runtime_metadata_v1(
+        &context,
+        &llvm,
+        &target_data,
+        &production,
+        bounds_message,
+        array_size_message,
+    )
+    .unwrap();
 
     assert_eq!(
         emitted.producer(),
@@ -50,9 +78,27 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
         .plans()
         .iter()
         .flat_map(|plan| plan.atom_boundaries());
+    let message_atoms = [
+        production
+            .image_plan()
+            .support_atoms()
+            .array_bounds_message(),
+        production
+            .image_plan()
+            .support_atoms()
+            .array_size_overflow_message(),
+    ];
     let mut expected_aliases = 0;
     for boundary in boundaries {
         for request in [boundary.start(), boundary.end()] {
+            if message_atoms.contains(&boundary.atom()) && request == boundary.start() {
+                assert!(
+                    llvm.get_global(request.symbol().as_str()).is_some(),
+                    "missing strong trap-message definition `{}`",
+                    request.symbol()
+                );
+                continue;
+            }
             expected_aliases += 1;
             assert!(
                 llvm_ir.lines().any(|line| {
@@ -184,6 +230,14 @@ fn image_atoms(
         (
             DefinitionAtomRole::RuntimeRecord,
             ConeImageSupportRole::Callables,
+        ),
+        (
+            DefinitionAtomRole::AddressTakenConstant,
+            ConeImageSupportRole::ArrayBoundsMessage,
+        ),
+        (
+            DefinitionAtomRole::AddressTakenConstant,
+            ConeImageSupportRole::ArraySizeOverflowMessage,
         ),
     ];
     std::iter::once(primary)

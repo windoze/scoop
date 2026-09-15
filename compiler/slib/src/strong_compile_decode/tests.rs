@@ -48,8 +48,8 @@ fn strong_compile_sections_validate_foundation_identities_as_one_transaction() {
         .validate_identities()
         .unwrap();
     assert_eq!(checked.identity(), cone().identity());
-    assert_eq!(checked.identity_count(), 17);
-    assert_eq!(checked.declared_identity_count(), 15);
+    assert_eq!(checked.identity_count(), 19);
+    assert_eq!(checked.declared_identity_count(), 17);
     let _ = checked.hir_production_wire();
     let _ = checked.mir_production_wire();
     let _ = checked.lir_production_wire();
@@ -67,7 +67,7 @@ fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
         .validate_foundation_structure()
         .unwrap();
     assert_eq!(checked.identity(), cone().identity());
-    assert_eq!(checked.identity_count(), 17);
+    assert_eq!(checked.identity_count(), 19);
     assert_eq!(
         checked.hir_foundation().as_canonical().counts().odr_groups,
         0
@@ -212,7 +212,7 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
     assert_eq!(compiled.mir().origin(), cone().identity());
     assert_eq!(compiled.lir().origin(), cone().identity());
     assert_eq!(session.origin_count(), 1);
-    assert_eq!(session.entity_count(), 15);
+    assert_eq!(session.entity_count(), 17);
     assert!(matches!(
         compiled.production().hir().core_interface(),
         scoop_hir::CoreHirInterfaceBranchV1::NotCore
@@ -263,7 +263,7 @@ fn strong_compile_one_shot_entry_returns_the_final_typed_artifact() {
     assert_eq!(compiled.identity(), cone().identity());
     assert_eq!(compiled.production().lir().external_bridges(), &external);
     assert_eq!(session.origin_count(), 1);
-    assert_eq!(session.entity_count(), 15);
+    assert_eq!(session.entity_count(), 17);
 }
 
 #[test]
