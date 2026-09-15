@@ -14,7 +14,9 @@ use crate::{
     IntrinsicFunctionKind, MethodDispatch, StructId, TypeId, intrinsic_function_kinds,
 };
 
+mod fixed_signatures;
 mod operation_signatures;
+use fixed_signatures::validate_fixed_callable_signatures;
 mod wire;
 use operation_signatures::expected_operation_signature;
 #[cfg(test)]
@@ -302,6 +304,8 @@ impl CoreCompilerProtocolSurfaceV1 {
         };
         surface
             .validate_internal_relations()
+            .map_err(CoreCompilerProtocolSurfaceBuildError::Relation)?;
+        validate_fixed_callable_signatures(&surface)
             .map_err(CoreCompilerProtocolSurfaceBuildError::Relation)?;
         surface
             .validate_operation_signatures()
@@ -939,6 +943,10 @@ pub enum CoreCompilerProtocolSurfaceRelationError {
     OperationCallableKindMismatch(IntrinsicFunctionKind),
     DuplicateOperationCallable(super::CoreProtocolCallableDefinitionV1),
     RepeatedOperationMismatch(IntrinsicFunctionKind),
+    FixedCallableSignatureMismatch {
+        product: CoreProtocolProductKindV1,
+        index: usize,
+    },
 }
 
 impl fmt::Display for CoreCompilerProtocolSurfaceRelationError {

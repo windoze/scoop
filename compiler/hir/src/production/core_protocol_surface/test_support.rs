@@ -117,23 +117,36 @@ pub(crate) fn install(
         CoreProtocolEntryV1::EnumVariantField(builder.existing.option_some_payload.id()),
         CoreProtocolEntryV1::EnumVariant(builder.existing.option_none.id()),
     ]));
+    let option_type = builder.existing.option.id();
+    let string_type = builder.existing.string.id();
 
     let iterator = builder.generic_nominal(SourceNominalKind::Interface);
     let iterator_id = match iterator {
         CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => id,
         _ => unreachable!("the fixture iterator is generic"),
     };
-    let (next, next_id) = builder.function_with_owner(
+    let (next, next_id) = builder.function_with_owner_signature(
         Some(DefinitionOwnerAtom::GenericType(iterator_id)),
-        false,
-        scoop_identity::Effect::Ordinary,
+        SignatureCallableShape::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            signature_application(option_type, SignatureTypeKey::Binder { depth: 0, index: 0 }),
+        ),
     );
     let iteration_protocol =
         CoreIterationProtocolV1(product([iterator, next, builder.dispatch(next_id)]));
 
     let exception_classes: [PersistentTypeId; 6] = std::array::from_fn(|_| builder.concrete_type());
-    let exception_constructors = exception_classes.map(|class| builder.constructor(class, false));
-    let message_constructor = builder.constructor(exception_classes[5], true);
+    let exception_constructors =
+        exception_classes.map(|class| builder.constructor(class, Vec::new()));
+    let message_constructor = builder.constructor(
+        exception_classes[5],
+        vec![signature_application(
+            option_type,
+            SignatureTypeKey::Nominal(string_type),
+        )],
+    );
     let exception_protocol = CoreExceptionProtocolV1(product([
         concrete_entry(exception_classes[0]),
         exception_constructors[0].clone(),
@@ -152,34 +165,53 @@ pub(crate) fn install(
 
     let continuation = builder.generic_nominal(SourceNominalKind::Interface);
     let continuation_id = generic_protocol_id(&continuation);
-    let (resume, resume_id) = builder.function_with_owner(
+    let (resume, resume_id) = builder.function_with_owner_signature(
         Some(DefinitionOwnerAtom::GenericType(continuation_id)),
-        false,
-        scoop_identity::Effect::Ordinary,
+        SignatureCallableShape::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            vec![SignatureTypeKey::Binder { depth: 0, index: 0 }],
+            SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+        ),
     );
-    let (resume_exception, resume_exception_id) = builder.function_with_owner(
+    let (resume_exception, resume_exception_id) = builder.function_with_owner_signature(
         Some(DefinitionOwnerAtom::GenericType(continuation_id)),
-        false,
-        scoop_identity::Effect::Ordinary,
+        SignatureCallableShape::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            vec![SignatureTypeKey::Nominal(exception_classes[0])],
+            SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+        ),
     );
     let suspend_task = builder.generic_nominal(SourceNominalKind::Interface);
-    let (run, run_id) = builder.function_with_owner(
+    let (run, run_id) = builder.function_with_owner_signature(
         Some(DefinitionOwnerAtom::GenericType(generic_protocol_id(
             &suspend_task,
         ))),
-        false,
-        scoop_identity::Effect::Suspend,
+        SignatureCallableShape::new(
+            scoop_identity::Effect::Suspend,
+            None,
+            Vec::new(),
+            SignatureTypeKey::Binder { depth: 0, index: 0 },
+        ),
     );
     let suspend_registration = builder.generic_nominal(SourceNominalKind::Interface);
-    let (register, register_id) = builder.function_with_owner(
+    let (register, register_id) = builder.function_with_owner_signature(
         Some(DefinitionOwnerAtom::GenericType(generic_protocol_id(
             &suspend_registration,
         ))),
-        false,
-        scoop_identity::Effect::Ordinary,
+        SignatureCallableShape::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            vec![signature_application(
+                continuation_id,
+                SignatureTypeKey::Binder { depth: 0, index: 0 },
+            )],
+            SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+        ),
     );
-    let (start, _) = builder.function(false, scoop_identity::Effect::Ordinary);
-    let (suspend, _) = builder.function(false, scoop_identity::Effect::Suspend);
+    let (start, _) = builder.function(scoop_identity::Effect::Ordinary);
+    let (suspend, _) = builder.function(scoop_identity::Effect::Suspend);
     let mut coroutine_protocol = CoreCoroutineProtocolV1(product([
         continuation,
         resume,
@@ -199,7 +231,7 @@ pub(crate) fn install(
     let pinned = builder.generic_nominal(SourceNominalKind::Struct);
     let handle = builder.generic_nominal(SourceNominalKind::Struct);
     let ffi_callables: [CoreProtocolEntryV1; 15] =
-        std::array::from_fn(|_| builder.function(false, scoop_identity::Effect::Ordinary).0);
+        std::array::from_fn(|_| builder.function(scoop_identity::Effect::Ordinary).0);
     let mut ffi_protocol = CoreFfiProtocolV1(product([
         ptr,
         fun_ptr,
@@ -228,7 +260,7 @@ pub(crate) fn install(
     let option_id = builder.existing.option.id();
     let failure_exact = builder.exact_application(option_id, exception_classes[0]);
     let callback_callables: [CoreProtocolEntryV1; 5] =
-        std::array::from_fn(|_| builder.function(false, scoop_identity::Effect::Ordinary).0);
+        std::array::from_fn(|_| builder.function(scoop_identity::Effect::Ordinary).0);
     let mut foreign_callback_protocol = CoreForeignCallbackProtocolV1(product([
         callback,
         concrete_entry(mode.owner),
@@ -248,7 +280,7 @@ pub(crate) fn install(
     ]));
 
     let source_location = builder.concrete_nominal(SourceNominalKind::Struct);
-    let current = builder.function(false, scoop_identity::Effect::Ordinary).0;
+    let current = builder.function(scoop_identity::Effect::Ordinary).0;
     let mut source_location_protocol =
         CoreSourceLocationProtocolV1(product([source_location, current]));
 
@@ -453,28 +485,28 @@ impl FixtureBuilder {
 
     fn function(
         &mut self,
-        receiver: bool,
-        effect: scoop_identity::Effect,
-    ) -> (CoreProtocolEntryV1, PersistentFunctionId) {
-        self.function_with_owner(None, receiver, effect)
-    }
-
-    fn function_with_owner(
-        &mut self,
-        owner: Option<DefinitionOwnerAtom>,
-        receiver: bool,
         effect: scoop_identity::Effect,
     ) -> (CoreProtocolEntryV1, PersistentFunctionId) {
         let unit = CoreBuiltinNominal::Unit.identity_record().id();
-        let receiver = receiver.then_some(SignatureTypeKey::Nominal(unit));
+        self.function_with_owner_signature(
+            None,
+            SignatureCallableShape::new(effect, None, Vec::new(), SignatureTypeKey::Nominal(unit)),
+        )
+    }
+
+    fn function_with_owner_signature(
+        &mut self,
+        owner: Option<DefinitionOwnerAtom>,
+        signature: SignatureCallableShape,
+    ) -> (CoreProtocolEntryV1, PersistentFunctionId) {
         let record: FunctionRecord = CborIdentityRecord::from_key(SourceDeclarationKey::function(
             site(owner.map_or_else(DefinitionOwnerChain::top_level, |owner| {
                 DefinitionOwnerChain::from_outer_to_inner(vec![owner])
             })),
             self.name(),
             0,
-            receiver.clone(),
-            Vec::new(),
+            None,
+            signature.parameters().to_vec(),
         ))
         .unwrap();
         let id = record.id();
@@ -484,12 +516,7 @@ impl FixtureBuilder {
         (
             CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
                 CoreProtocolCallableDefinitionV1::Function(id),
-                SignatureCallableShape::new(
-                    effect,
-                    receiver,
-                    Vec::new(),
-                    SignatureTypeKey::Nominal(unit),
-                ),
+                signature,
             )),
             id,
         )
@@ -533,13 +560,11 @@ impl FixtureBuilder {
         }
     }
 
-    fn constructor(&mut self, owner: PersistentTypeId, has_parameter: bool) -> CoreProtocolEntryV1 {
-        let unit = CoreBuiltinNominal::Unit.identity_record().id();
-        let parameters = if has_parameter {
-            vec![SignatureTypeKey::Nominal(unit)]
-        } else {
-            Vec::new()
-        };
+    fn constructor(
+        &mut self,
+        owner: PersistentTypeId,
+        parameters: Vec<SignatureTypeKey>,
+    ) -> CoreProtocolEntryV1 {
         let record: ConstructorRecord =
             CborIdentityRecord::from_key(SourceDeclarationKey::constructor(
                 site(DefinitionOwnerChain::from_outer_to_inner(vec![
@@ -688,6 +713,16 @@ fn concrete_entry(id: PersistentTypeId) -> CoreProtocolEntryV1 {
 
 fn generic_entry(id: PersistentGenericTypeId) -> CoreProtocolEntryV1 {
     CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id))
+}
+
+fn signature_application(
+    origin: PersistentGenericTypeId,
+    argument: SignatureTypeKey,
+) -> SignatureTypeKey {
+    SignatureTypeKey::NominalApplication {
+        origin,
+        arguments: NonEmptyVec::from_first(argument, []),
+    }
 }
 
 fn generic_protocol_id(entry: &CoreProtocolEntryV1) -> PersistentGenericTypeId {

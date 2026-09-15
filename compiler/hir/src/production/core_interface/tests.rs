@@ -20,10 +20,10 @@ use crate::{
 fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
     let fixture = fixture();
     let bytes = encode(&fixture.interface).unwrap();
-    assert_eq!(bytes.len(), 34_989);
+    assert_eq!(bytes.len(), 35_099);
     assert_eq!(
         scoop_wire::sha256(&bytes).to_string(),
-        "65ef8d981343c654004b851cd5ad8f83b453c284602fdbe08fa3a6edf9dad745"
+        "46a9ad420381b272a4b7a779e294ce82ff256d6f14b680d2ecdeec35bd3ab0ae"
     );
 
     assert_eq!(

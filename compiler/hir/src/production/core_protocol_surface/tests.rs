@@ -152,6 +152,43 @@ fn compiler_protocol_surface_rejects_operation_parameter_and_result_tampering() 
 }
 
 #[test]
+fn compiler_protocol_surface_rejects_fixed_callable_signature_tampering() {
+    let (mut surface, foundation) = test_support::standalone();
+    let original = callable_entry_ref(surface.iteration_protocol.entries(), 1).clone();
+    surface.iteration_protocol.0.entries[1] =
+        CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+            original.definition(),
+            SignatureCallableShape::new(
+                Effect::Ordinary,
+                None,
+                Vec::new(),
+                SignatureTypeKey::Nominal(concrete_entry(surface.fundamental_types.entries(), 0)),
+            ),
+        ));
+    assert_eq!(
+        decode(&surface).validate_against(&foundation),
+        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
+            CoreCompilerProtocolSurfaceRelationError::FixedCallableSignatureMismatch {
+                product: CoreProtocolProductKindV1::Iteration,
+                index: 1,
+            }
+        ))
+    );
+
+    let (mut surface, foundation) = test_support::standalone();
+    surface.exception_protocol.0.entries.swap(11, 12);
+    assert_eq!(
+        decode(&surface).validate_against(&foundation),
+        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
+            CoreCompilerProtocolSurfaceRelationError::FixedCallableSignatureMismatch {
+                product: CoreProtocolProductKindV1::Exception,
+                index: 11,
+            }
+        ))
+    );
+}
+
+#[test]
 fn compiler_protocol_surface_rejects_fixed_and_total_operation_disagreement() {
     let (mut surface, foundation) = test_support::standalone();
     let replacement = surface
