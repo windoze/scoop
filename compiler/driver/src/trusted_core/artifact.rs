@@ -498,6 +498,12 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         self.compile
             .lir()
             .project_core_callable(
+                self.compile
+                    .production()
+                    .lir()
+                    .core_lir_bridge()
+                    .core()
+                    .expect("a validated trusted core artifact has a core LIR bridge"),
                 self.compile.production().lir().canonical_definitions(),
                 selected.binding(),
                 selected.implementation(),
@@ -516,7 +522,15 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             return Err(TrustedCoreLirSetProjectionError::ForeignMirSet);
         }
         let definitions = self.compile.production().lir().canonical_definitions();
-        let mut projected = SelectedImportedLirSet::new(self.compile.lir(), definitions);
+        let core_bridge = self
+            .compile
+            .production()
+            .lir()
+            .core_lir_bridge()
+            .core()
+            .expect("a validated trusted core artifact has a core LIR bridge");
+        let mut projected =
+            SelectedImportedLirSet::new(self.compile.lir(), definitions, core_bridge);
         for selected in selected.callable_selections() {
             let callable = self
                 .project_core_callable_to_lir(selected)

@@ -334,7 +334,10 @@ pub fn lower(
     let functions = lowered_functions
         .into_iter()
         .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
-        .collect();
+        .collect::<Vec<_>>();
+
+    let core_lir_bridge =
+        lower_core_lir_bridge(input, module, &functions, &enums, &local_function_map)?;
 
     let (layouts, well_known_layouts) = layouts(&context, &identity_roots, module, &enums);
     let module = lir::Module {
@@ -376,8 +379,113 @@ pub fn lower(
             .materialization()
             .core_shape_support_sources()
             .to_vec(),
+        core_lir_bridge,
     )
     .map_err(StrongLirLoweringError::Output)
+}
+
+fn lower_core_lir_bridge(
+    input: &mir::SingleConeStrongMirInput,
+    module: &mir::Module,
+    functions: &[lir::Function],
+    enums: &lir::EnumDefs,
+    local_function_map: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+) -> Result<lir::CoreLirBridgeBranchV1, StrongLirLoweringError> {
+    let mir::CoreMirBridgeBranchV1::Core(core) = input.production().core_bridge() else {
+        return Ok(lir::CoreLirBridgeBranchV1::NotCore);
+    };
+
+    let mut callables = Vec::with_capacity(core.callable_targets().len());
+    for target in core.callable_targets() {
+        let binding = target.binding();
+        let implementation = target.implementation();
+        let root = input
+            .materialization()
+            .callable_roots()
+            .iter()
+            .find(|root| root.implementation() == implementation)
+            .ok_or(StrongLirLoweringError::MissingCoreCallableMaterialization(
+                implementation,
+            ))?;
+        let exact = input
+            .production()
+            .strong_callable_bridges()
+            .bridges()
+            .iter()
+            .find(|bridge| bridge.implementation() == implementation)
+            .ok_or(StrongLirLoweringError::MissingCoreCallableSignature(
+                implementation,
+            ))?
+            .signature();
+        if exact.effect() != scoop_identity::Effect::Ordinary {
+            return Err(StrongLirLoweringError::UnsupportedCoreCallableEffect(
+                implementation,
+            ));
+        }
+        if exact.receiver().is_present() {
+            return Err(StrongLirLoweringError::UnsupportedCoreCallableReceiver(
+                implementation,
+            ));
+        }
+        let function = &module.functions[root.function()];
+        let lowered = &functions[local_function_map[&root.function()]
+            .declaration()
+            .into_u32() as usize];
+        let owner = strong_callable_owner(implementation).ok_or(
+            StrongLirLoweringError::UnsupportedCoreCallableOwner(implementation),
+        )?;
+        let abi_signature = native_abi::canonical_scoop_signature(
+            module,
+            enums,
+            exact.clone(),
+            &function
+                .params
+                .iter()
+                .map(|parameter| parameter.ty.clone())
+                .collect::<Vec<_>>(),
+            &function.return_ty,
+            function.gc_effect,
+            &lowered.signature,
+        );
+        let root_plan = match function.gc_effect {
+            mir::GcEffect::Managed => lir::CoreExternalCallableRootPlan::ManagedStatepoint,
+            mir::GcEffect::NoGc => lir::CoreExternalCallableRootPlan::NoGc,
+        };
+        callables.push(
+            lir::CoreLirCallableBridgeV1::new(
+                binding,
+                owner,
+                abi_signature,
+                lowered.signature.calling_convention(),
+                root_plan,
+            )
+            .map_err(StrongLirLoweringError::CoreLirBridge)?,
+        );
+    }
+    lir::CoreLirBridgeV1::try_new(callables)
+        .map(lir::CoreLirBridgeBranchV1::Core)
+        .map_err(StrongLirLoweringError::CoreLirBridge)
+}
+
+fn strong_callable_owner(
+    owner: scoop_identity::CallableOwner,
+) -> Option<scoop_identity::StrongCallableDefinitionOwner> {
+    Some(match owner {
+        scoop_identity::CallableOwner::Function(id) => {
+            scoop_identity::StrongCallableDefinitionOwner::Function(id)
+        }
+        scoop_identity::CallableOwner::Constructor(id) => {
+            scoop_identity::StrongCallableDefinitionOwner::Constructor(id)
+        }
+        scoop_identity::CallableOwner::Accessor(id) => {
+            scoop_identity::StrongCallableDefinitionOwner::PropertyAccessor(id)
+        }
+        scoop_identity::CallableOwner::Generated(id) => {
+            scoop_identity::StrongCallableDefinitionOwner::GeneratedCallable(id)
+        }
+        scoop_identity::CallableOwner::GenericTemplate(_)
+        | scoop_identity::CallableOwner::Application(_) => return None,
+    })
 }
 
 fn materialized_exact_types(
@@ -438,6 +546,12 @@ fn callable_body_identity(owner: mir::CallableOwner) -> lir::CallableBodyIdentit
 #[derive(Debug)]
 pub enum StrongLirLoweringError {
     Capability(StrongLirCapabilityError),
+    MissingCoreCallableMaterialization(scoop_identity::CallableOwner),
+    MissingCoreCallableSignature(scoop_identity::CallableOwner),
+    UnsupportedCoreCallableEffect(scoop_identity::CallableOwner),
+    UnsupportedCoreCallableReceiver(scoop_identity::CallableOwner),
+    UnsupportedCoreCallableOwner(scoop_identity::CallableOwner),
+    CoreLirBridge(lir::CoreLirBridgeBuildError),
     Output(lir::SingleConeStrongLirOutputError),
 }
 
@@ -445,6 +559,28 @@ impl fmt::Display for StrongLirLoweringError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Capability(source) => source.fmt(formatter),
+            Self::CoreLirBridge(source) => source.fmt(formatter),
+            Self::MissingCoreCallableMaterialization(owner) => {
+                write!(
+                    formatter,
+                    "core callable {owner:?} has no strong materialization"
+                )
+            }
+            Self::MissingCoreCallableSignature(owner) => {
+                write!(formatter, "core callable {owner:?} has no exact signature")
+            }
+            Self::UnsupportedCoreCallableEffect(owner) => write!(
+                formatter,
+                "core callable {owner:?} has an unsupported suspend ABI"
+            ),
+            Self::UnsupportedCoreCallableReceiver(owner) => write!(
+                formatter,
+                "core callable {owner:?} has an unsupported receiver ABI"
+            ),
+            Self::UnsupportedCoreCallableOwner(owner) => write!(
+                formatter,
+                "core callable {owner:?} has no strong definition owner"
+            ),
             Self::Output(source) => source.fmt(formatter),
         }
     }
@@ -454,7 +590,13 @@ impl std::error::Error for StrongLirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Capability(source) => Some(source),
+            Self::CoreLirBridge(source) => Some(source),
             Self::Output(source) => Some(source),
+            Self::MissingCoreCallableMaterialization(_)
+            | Self::MissingCoreCallableSignature(_)
+            | Self::UnsupportedCoreCallableEffect(_)
+            | Self::UnsupportedCoreCallableReceiver(_)
+            | Self::UnsupportedCoreCallableOwner(_) => None,
         }
     }
 }

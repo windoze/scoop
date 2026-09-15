@@ -48,6 +48,7 @@ fn reachable_generic_array_reports_stable_strong_capability_error() {
         StrongLirLoweringError::Output(lir::SingleConeStrongLirOutputError::CoreShapeSupport(
             _,
         )) => panic!("a non-core capability fixture cannot enter core shape sealing"),
+        other => panic!("unexpected strong lowering error: {other}"),
     }
 }
 

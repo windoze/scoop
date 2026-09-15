@@ -177,6 +177,7 @@ fn production() -> (
         registrations,
         EntryProductionSourceV1::Library,
         &[],
+        scoop_lir::CoreLirBridgeBranchV1::NotCore,
     )
     .unwrap();
     (

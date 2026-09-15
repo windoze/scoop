@@ -1,6 +1,93 @@
 use super::*;
 
 #[test]
+fn core_lowering_publishes_callable_abi_authority() {
+    let mut builder = Builder::new();
+    let function = builder.user_fn("exported", Arena::new(), Vec::new());
+    let mut module = builder.finish(function);
+    module.cone = scoop_identity::ConeIdentity::CORE;
+    module.output = mir::MirOutput::Library;
+    let mir::CallableSignatureSubject::Strong(implementation) = module
+        .meta
+        .callable_signature_subject(function)
+        .expect("test function has a strong callable subject")
+    else {
+        panic!("test function cannot have ODR ownership")
+    };
+    let scoop_identity::CallableOwner::Function(definition) = implementation else {
+        panic!("test source function has a function owner")
+    };
+    let declaration = SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("main").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let binding = scoop_identity::PersistentExportBindingId::from_key(
+        &scoop_identity::ExportBindingKey::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            CanonicalIdentifier::new("exported").unwrap(),
+            scoop_identity::BindingTarget::function(&declaration).unwrap(),
+        ),
+    )
+    .unwrap();
+    let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
+    let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
+    let exact = strong
+        .bridges()
+        .iter()
+        .find(|bridge| bridge.implementation() == implementation)
+        .unwrap()
+        .signature()
+        .clone();
+    let core = mir::CoreMirBridgeV1::try_new(
+        vec![mir::CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap()],
+        Vec::new(),
+    )
+    .unwrap();
+    let production = mir::CoreBootstrapBridgeSectionV1::try_new(
+        ConeIdentity::CORE,
+        mir::CoreMirBridgeBranchV1::Core(core),
+        mir::EntryMirBridgeBranchV1::Library,
+        strong,
+    )
+    .unwrap();
+    let input = mir::SingleConeStrongMirInput::try_new(
+        module,
+        foundation,
+        production,
+        mir::CoreShapeSupportSourceInput::Core(Vec::new()),
+    )
+    .unwrap();
+
+    let output = super::super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64).unwrap();
+    let lir::CoreLirBridgeBranchV1::Core(core) = output.core_lir_bridge() else {
+        panic!("core lowering must publish the core LIR branch")
+    };
+    let [callable] = core.callables() else {
+        panic!("test core publishes exactly one callable")
+    };
+    assert_eq!(callable.binding(), binding);
+    assert_eq!(callable.abi_signature().signature(), &exact);
+    assert_eq!(
+        callable.root_plan(),
+        lir::CoreExternalCallableRootPlan::ManagedStatepoint
+    );
+    assert_eq!(
+        callable.expected_symbol(),
+        output.module().functions[0].callable_body.symbol_request()
+    );
+}
+
+#[test]
 fn reachable_structural_function_descriptor_reports_strong_capability_error() {
     let mut b = Builder::new();
     let function_type = b.function_types.alloc(mir::FunctionType {
@@ -49,6 +136,7 @@ fn reachable_structural_function_descriptor_reports_strong_capability_error() {
         StrongLirLoweringError::Output(lir::SingleConeStrongLirOutputError::CoreShapeSupport(
             _,
         )) => panic!("a non-core capability fixture cannot enter core shape sealing"),
+        other => panic!("unexpected strong lowering error: {other}"),
     }
 }
 

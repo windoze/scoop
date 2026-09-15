@@ -9,10 +9,10 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::{DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
+use crate::{CoreLirBridgeV1, DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
 
 #[test]
-fn strong_section_has_nine_closed_fields_and_rebuilds_from_authority() {
+fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
     let coordinate = ConeCoordinate::reserved_core();
     let (foundation, digests) = fixture(&coordinate);
     let external =
@@ -31,10 +31,11 @@ fn strong_section_has_nine_closed_fields_and_rebuilds_from_authority() {
         registrations,
         EntryProductionSourceV1::Library,
         &[],
+        CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::try_new(Vec::new()).unwrap()),
     )
     .unwrap();
     let encoded = encode(&section).unwrap();
-    assert_eq!(encoded[0], 0xa9);
+    assert_eq!(encoded[0], 0xaa);
 
     let decoded: DecodedStrongProductionSectionV1 =
         decode_canonical(&encoded, DecodeLimits::default()).unwrap();
@@ -57,7 +58,7 @@ fn strong_section_has_nine_closed_fields_and_rebuilds_from_authority() {
 
 #[test]
 fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
-    for bytes in [vec![0xa8], vec![0xaa]] {
+    for bytes in [vec![0xa9], vec![0xab]] {
         assert!(
             decode_canonical::<DecodedStrongProductionSectionV1>(&bytes, DecodeLimits::default())
                 .is_err()

@@ -13,7 +13,12 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
         .iter()
         .map(|function| function.callable_body.id())
         .collect::<BTreeSet<_>>();
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(
+        module,
+        Vec::new(),
+        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+    )
+    .unwrap();
 
     let partition = StrongScoopLirObjectPartitionV1::from_input(&input).unwrap();
 
@@ -51,7 +56,12 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
 fn partition_is_complete_non_overlapping_and_excludes_generated_bridge_units() {
     let mut module = values_module();
     module.output = scoop_lir::LirOutput::Library;
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(
+        module,
+        Vec::new(),
+        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+    )
+    .unwrap();
     let producer_units =
         scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(input.foundation())
             .unwrap();
@@ -99,7 +109,12 @@ fn renders_only_the_callable_selected_by_each_physical_member() {
         .iter()
         .map(|function| (function.callable_body.id(), function.symbol().to_string()))
         .collect::<Vec<_>>();
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(
+        module,
+        Vec::new(),
+        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+    )
+    .unwrap();
 
     let rendered = render_llvm_ir_members(
         &input,
@@ -131,7 +146,12 @@ fn emitted_object_set_owns_verified_temporary_members() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
     let expected_members = module.functions.len() + 1;
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(
+        module,
+        Vec::new(),
+        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+    )
+    .unwrap();
     let parent = tempfile::tempdir().unwrap();
 
     let emitted = emit_object_set(
@@ -207,7 +227,12 @@ fn emitted_object_set_owns_verified_temporary_members() {
 fn emitted_callable_members_materialize_every_planned_atom_boundary() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(
+        module,
+        Vec::new(),
+        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+    )
+    .unwrap();
     let parent = tempfile::tempdir().unwrap();
     let emitted = emit_object_set(
         &input,

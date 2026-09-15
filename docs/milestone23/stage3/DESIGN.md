@@ -618,7 +618,7 @@ artifact slot发布。调用方不能另传Cone、dependency、producer、output
 
 `CoreMirBridgeV1::Core`包含HIR callable candidate到实际存在的strong exact signature subject及
 implementation的typed bridge；没有strong body的extern或intrinsic不会被伪造成bridge。
-`CoreLirBridgeV1`位于第9章strong production section，进一步给出external calling convention、effect/root-plan、persistent symbol request和param-free shape-support definition引用。
+`CoreLirBridgeV1`位于第9章strong production section，进一步给出每个可导入callable的canonical Scoop ABI、external calling convention、effect/root-plan、persistent symbol request和required callable-body definition；param-free shape-support definition继续由同一section的`core_shape_support`字段唯一承载，不在callable bridge中复制第二份authority。
 
 这些record由同一`ExportHir`/MIR/LIR正式投影产生，不通过扫描名字、文件顺序或旧core arena补造。`NotCore`分支编码为显式tag，不用缺section表示。
 
@@ -1073,8 +1073,20 @@ StrongProductionSectionV1 {
     entry_plan: Library | Executable(ExecutableEntryPlan),
     core_shape_support: NotCore | Core(ParamFreeShapeSupportPlanSet),
     generated_bridge_plan: GeneratedBridgePlanSetV1,
+    core_lir_bridge: NotCore | Core(CanonicalVec<CoreLirCallableBridgeV1>),
 }
 ```
+
+field 10 `core_lir_bridge`是trusted core producer向普通Cone发布的callable ABI authority。普通Cone必须编码
+`NotCore`；reserved core必须编码`Core`，即使当前可导入callable集合为空也不能用`NotCore`代替。
+`Core` payload按`PersistentExportBindingId`严格递增，每项是closed product：
+`1=binding`、`2=target: StrongCallableDefinitionOwner`、
+`3=abi_signature: CanonicalScoopAbiFunctionSignature`、`4=expected_symbol`、
+`5=calling_convention`、`6=root_plan: ManagedStatepoint | NoGc`、
+`7=required_definition: ObjectDefinitionPlanId`。binding和target均不得重复；symbol、callable body与definition
+必须从target唯一重算并存在于同一ODR-free LIR foundation/canonical definition surface，root plan必须与
+canonical ABI的GC effect一致。reader还必须将该array与同artifact的`CoreMirBridgeV1`逐binding、target、
+exact signature一一核对；不得从decoded LIR字段单独授予core export authority。
 
 field 5 `StrongRegistrationProductionSurfaceV1`不是仅含identity的摘要，而是artifact-only Link重建
 registration与stackmap proof所需的完整、member-independent authority。其closed product固定为：
@@ -1348,7 +1360,7 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 | --- | --- |
 | `CoreBootstrapInterfaceSectionV1` | `1=core_interface`, `2=output_contract`, `3=direct_public_surface` |
 | `CoreBootstrapBridgeSectionV1` | `1=core_bridge`, `2=entry_bridge`, `3=strong_callable_bridges` |
-| `StrongProductionSectionV1` | `1=external_bridges`, `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=core_shape_support`, `9=generated_bridge_plan` |
+| `StrongProductionSectionV1` | `1=external_bridges`, `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=core_shape_support`, `9=generated_bridge_plan`, `10=core_lir_bridge` |
 | `LinkIdentityClosureSectionV1` | `1=materializations`, `2=definition_indexes`, `3=patch_sites`, `4=defined_symbols`, `5=undefined_symbols`, `6=verified_link_objects`, `7=image_owner`, `8=entry_owner` |
 | `SingleConeProductionManifestV1` | `1=distribution`, `2=output`, `3=image_owner_member`, `4=runtime_registration_projection`, `5=strong_registration_set`, `6=runtime_image_fingerprint`, `7=code_fingerprint`, `8=native_contracts`, `9=native_library_requirements`, `10=c_bridge_production` |
 

@@ -15,10 +15,10 @@ use scoop_identity::{
     IdentityValidationError, SemanticIdentitySession, ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    DecodedLirFoundation, DecodedStrongProductionSectionV1, EntryProductionSourceV1,
-    ImportedLirFoundation, LirFoundationValidationError, OdrFreeLirFoundation,
-    OdrFreeLirFoundationError, StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
-    StrongProductionSectionValidationError,
+    CoreLirBridgeBranchV1, DecodedLirFoundation, DecodedStrongProductionSectionV1,
+    EntryProductionSourceV1, ImportedLirFoundation, LirFoundationValidationError,
+    OdrFreeLirFoundation, OdrFreeLirFoundationError, StrongExternalLirBridgeSurfaceV1,
+    StrongProductionSectionV1, StrongProductionSectionValidationError,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1, DecodedCoreBootstrapBridgeSectionV1,
@@ -928,16 +928,83 @@ fn validate_strong_profile_lir_production(
             .param_free_shape_support_sources(front.hir_foundation)
             .map_err(StrongProfileLirProductionError::ShapeSources)?,
     };
-    lir.validate(
-        graph.coordinate().clone(),
-        graph.target_selection().target(),
-        front.lir_foundation,
-        expected_external_bridges,
-        entry_source,
-        &core_shape_sources,
-        identities,
+    let lir = lir
+        .validate(
+            graph.coordinate().clone(),
+            graph.target_selection().target(),
+            front.lir_foundation,
+            expected_external_bridges,
+            entry_source,
+            &core_shape_sources,
+            identities,
+        )
+        .map_err(StrongProfileLirProductionError::Production)?;
+    validate_core_lir_relation(
+        front.mir_production.core_bridge(),
+        front.mir_production.strong_callable_bridges(),
+        lir.core_lir_bridge(),
     )
-    .map_err(StrongProfileLirProductionError::Production)
+    .map_err(StrongProfileLirProductionError::CoreRelation)?;
+    Ok(lir)
+}
+
+fn validate_core_lir_relation(
+    mir: &CoreMirBridgeBranchV1,
+    strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
+    lir: &CoreLirBridgeBranchV1,
+) -> Result<(), StrongProfileCoreLirRelationError> {
+    let (CoreMirBridgeBranchV1::Core(mir), CoreLirBridgeBranchV1::Core(lir)) = (mir, lir) else {
+        return match (mir, lir) {
+            (CoreMirBridgeBranchV1::NotCore, CoreLirBridgeBranchV1::NotCore) => Ok(()),
+            _ => Err(StrongProfileCoreLirRelationError::BranchMismatch),
+        };
+    };
+    if mir.callable_targets().len() != lir.callables().len() {
+        return Err(StrongProfileCoreLirRelationError::Coverage {
+            expected: mir.callable_targets().len(),
+            actual: lir.callables().len(),
+        });
+    }
+    for (index, (mir, lir)) in mir
+        .callable_targets()
+        .iter()
+        .zip(lir.callables())
+        .enumerate()
+    {
+        let implementation = mir.implementation();
+        let expected_target = match implementation {
+            scoop_identity::CallableOwner::Function(id) => {
+                scoop_identity::StrongCallableDefinitionOwner::Function(id)
+            }
+            scoop_identity::CallableOwner::Constructor(id) => {
+                scoop_identity::StrongCallableDefinitionOwner::Constructor(id)
+            }
+            scoop_identity::CallableOwner::Accessor(id) => {
+                scoop_identity::StrongCallableDefinitionOwner::PropertyAccessor(id)
+            }
+            scoop_identity::CallableOwner::Generated(id) => {
+                scoop_identity::StrongCallableDefinitionOwner::GeneratedCallable(id)
+            }
+            scoop_identity::CallableOwner::GenericTemplate(_)
+            | scoop_identity::CallableOwner::Application(_) => {
+                return Err(StrongProfileCoreLirRelationError::InvalidStrongOwner { index });
+            }
+        };
+        if lir.binding() != mir.binding() || lir.target() != expected_target {
+            return Err(StrongProfileCoreLirRelationError::CallableMismatch { index });
+        }
+        let Some(exact) = strong
+            .bridges()
+            .iter()
+            .find(|bridge| bridge.implementation() == implementation)
+        else {
+            return Err(StrongProfileCoreLirRelationError::MissingExactSignature { index });
+        };
+        if lir.abi_signature().signature() != exact.signature() {
+            return Err(StrongProfileCoreLirRelationError::ExactSignatureMismatch { index });
+        }
+    }
+    Ok(())
 }
 
 fn validate_output_relation(
@@ -1162,6 +1229,7 @@ impl std::error::Error for StrongProfileLocalProductionError {
 pub enum StrongProfileLirProductionError {
     ShapeSources(CoreShapeSupportSourceProjectionError),
     Production(StrongProductionSectionValidationError),
+    CoreRelation(StrongProfileCoreLirRelationError),
 }
 
 impl fmt::Display for StrongProfileLirProductionError {
@@ -1175,9 +1243,31 @@ impl std::error::Error for StrongProfileLirProductionError {
         Some(match self {
             Self::ShapeSources(error) => error,
             Self::Production(error) => error,
+            Self::CoreRelation(error) => error,
         })
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StrongProfileCoreLirRelationError {
+    BranchMismatch,
+    Coverage { expected: usize, actual: usize },
+    InvalidStrongOwner { index: usize },
+    CallableMismatch { index: usize },
+    MissingExactSignature { index: usize },
+    ExactSignatureMismatch { index: usize },
+}
+
+impl fmt::Display for StrongProfileCoreLirRelationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid MIR-to-LIR core bridge relation: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for StrongProfileCoreLirRelationError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongProfileRelationError {
