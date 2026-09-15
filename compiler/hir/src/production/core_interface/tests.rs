@@ -286,7 +286,7 @@ fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
         .candidates(BindingNamespace::Type, "Option")
         .next()
         .unwrap();
-    let mut selected = crate::SelectedImportedCoreSet::new();
+    let mut selected = prelude.selected_set();
 
     let first = selected.select(string).unwrap();
     let second = selected.select(string).unwrap();
@@ -302,10 +302,39 @@ fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
     assert!(retained.belongs_to(&imported, &fixture.interface, &[]));
 
     let error = selected.select(option).unwrap_err();
-    assert_eq!(error.required(), CorePreludeUnavailableCapability::Generic);
+    assert!(matches!(
+        error,
+        crate::CorePreludeSelectionError::Capability(error)
+            if error.required() == CorePreludeUnavailableCapability::Generic
+    ));
     assert_eq!(selected.type_count(), 1);
     assert_eq!(selected.callable_count(), 0);
     assert_eq!(selected.value_count(), 0);
+}
+
+#[test]
+fn selected_imported_core_set_rejects_a_foreign_prelude_binding() {
+    let fixture = fixture();
+    let imported = imported_foundation(&fixture.foundation);
+    let other_imported = imported_foundation(&fixture.foundation);
+    let prelude = imported
+        .import_core_prelude(&fixture.interface, &[])
+        .unwrap();
+    let other_prelude = other_imported
+        .import_core_prelude(&fixture.interface, &[])
+        .unwrap();
+    let foreign = other_prelude
+        .candidates(BindingNamespace::Type, "String")
+        .next()
+        .unwrap();
+    let mut selected = prelude.selected_set();
+
+    assert!(matches!(
+        selected.select(foreign),
+        Err(crate::CorePreludeSelectionError::ForeignBinding(binding))
+            if binding == foreign.identity().persistent()
+    ));
+    assert_eq!(selected.type_count(), 0);
 }
 
 #[test]

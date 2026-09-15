@@ -143,6 +143,8 @@ impl ImportedHirFoundation {
 
         Ok(ImportedHirSet {
             foundation: self,
+            interface,
+            strong_callable_bindings,
             bindings,
             option_some,
             option_some_payload,
@@ -174,6 +176,8 @@ pub enum CorePreludeOnly {}
 /// projection above can bind an interface to its imported identity session.
 pub struct ImportedHirSet<'a, Capability> {
     foundation: &'a ImportedHirFoundation,
+    interface: &'a CoreHirInterfaceV1,
+    strong_callable_bindings: &'a [PersistentExportBindingId],
     bindings: Vec<ImportedCorePreludeBinding<'a>>,
     option_some: ImportedHirId<PersistentEnumVariantId>,
     option_some_payload: ImportedHirId<PersistentEnumVariantFieldId>,
@@ -221,6 +225,21 @@ impl ImportedHirSet<'_, CorePreludeOnly> {
     pub const fn string_exact(&self) -> ImportedHirId<PersistentExactTypeId> {
         self.string_exact
     }
+
+    /// Starts the unique selected-target sidecar for this exact core
+    /// projection. There is no detached constructor that could combine
+    /// candidates from different artifacts.
+    pub fn selected_set(&self) -> SelectedImportedCoreSet<'_> {
+        SelectedImportedCoreSet {
+            foundation: self.foundation,
+            interface: self.interface,
+            strong_callable_bindings: self.strong_callable_bindings,
+            by_binding: BTreeMap::new(),
+            callables: Vec::new(),
+            types: Vec::new(),
+            values: Vec::new(),
+        }
+    }
 }
 
 pub struct ImportedCorePreludeBinding<'a> {
@@ -243,6 +262,17 @@ impl<'a> ImportedCorePreludeBinding<'a> {
 
     pub const fn target(&self) -> ImportedCorePreludeTarget<'a> {
         self.target
+    }
+
+    fn belongs_to(
+        &self,
+        foundation: &ImportedHirFoundation,
+        interface: &CoreHirInterfaceV1,
+        strong_callable_bindings: &[PersistentExportBindingId],
+    ) -> bool {
+        std::ptr::eq(self.foundation, foundation)
+            && std::ptr::eq(self.interface, interface)
+            && std::ptr::eq(self.strong_callable_bindings, strong_callable_bindings)
     }
 
     /// Selects this lookup candidate for M23-3 lowering.
@@ -350,6 +380,9 @@ pub enum SelectedImportedCoreId {
 /// being substituted for another entity kind, while the private maps make
 /// repeated lookup of the same binding converge on one request-local id.
 pub struct SelectedImportedCoreSet<'a> {
+    foundation: &'a ImportedHirFoundation,
+    interface: &'a CoreHirInterfaceV1,
+    strong_callable_bindings: &'a [PersistentExportBindingId],
     by_binding: BTreeMap<PersistentExportBindingId, SelectedImportedCoreId>,
     callables: Vec<SelectedImportedCoreTarget<'a>>,
     types: Vec<SelectedImportedCoreTarget<'a>>,
@@ -357,26 +390,28 @@ pub struct SelectedImportedCoreSet<'a> {
 }
 
 impl<'a> SelectedImportedCoreSet<'a> {
-    pub const fn new() -> Self {
-        Self {
-            by_binding: BTreeMap::new(),
-            callables: Vec::new(),
-            types: Vec::new(),
-            values: Vec::new(),
-        }
-    }
-
     /// Selects and interns one raw lookup candidate. Capability rejection
     /// happens before the set changes, so failed selection cannot leave a
     /// partial imported world.
     pub fn select(
         &mut self,
         binding: &'a ImportedCorePreludeBinding<'a>,
-    ) -> Result<SelectedImportedCoreId, CorePreludeCapabilityError> {
+    ) -> Result<SelectedImportedCoreId, CorePreludeSelectionError> {
+        if !binding.belongs_to(
+            self.foundation,
+            self.interface,
+            self.strong_callable_bindings,
+        ) {
+            return Err(CorePreludeSelectionError::ForeignBinding(
+                binding.identity().persistent(),
+            ));
+        }
         if let Some(&selected) = self.by_binding.get(&binding.identity().persistent()) {
             return Ok(selected);
         }
-        let target = binding.select_param_free_strong()?;
+        let target = binding
+            .select_param_free_strong()
+            .map_err(CorePreludeSelectionError::Capability)?;
         let selected = match target.target() {
             ImportedCorePreludeTarget::Callable(_) => {
                 let id = ImportedCoreCallableId(checked_selection_index(self.callables.len()));
@@ -426,14 +461,35 @@ impl<'a> SelectedImportedCoreSet<'a> {
     }
 }
 
-impl Default for SelectedImportedCoreSet<'_> {
-    fn default() -> Self {
-        Self::new()
+fn checked_selection_index(length: usize) -> u32 {
+    u32::try_from(length).expect("one HIR request cannot select more than u32::MAX core bindings")
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CorePreludeSelectionError {
+    ForeignBinding(PersistentExportBindingId),
+    Capability(CorePreludeCapabilityError),
+}
+
+impl fmt::Display for CorePreludeSelectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ForeignBinding(binding) => write!(
+                formatter,
+                "imported core binding {binding} belongs to another prelude projection"
+            ),
+            Self::Capability(error) => error.fmt(formatter),
+        }
     }
 }
 
-fn checked_selection_index(length: usize) -> u32 {
-    u32::try_from(length).expect("one HIR request cannot select more than u32::MAX core bindings")
+impl std::error::Error for CorePreludeSelectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ForeignBinding(_) => None,
+            Self::Capability(error) => Some(error),
+        }
+    }
 }
 
 impl<'a> SelectedImportedCoreTarget<'a> {
