@@ -2,7 +2,7 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::{RuntimeAbiSymbolV1, TargetEhSupportV1, ValidatedLirTargetSelection};
 
 use super::super::native_requirements::tests::{core_closure, native_surface};
-use super::super::strong_relocation_closure::tests::verified_member_with_undefined;
+use super::super::strong_relocation_closure::tests::verified_member_with_undefined_form;
 use super::super::symbol_verification::tests::fixture_for_producer;
 use super::*;
 use crate::verify_source_external_requirements_v1;
@@ -30,6 +30,46 @@ fn classifies_only_exact_runtime_contract_symbols() {
 }
 
 #[test]
+fn requires_tlvp_forms_only_for_the_runtime_tls_contract() {
+    assert!(matches!(
+        classify_with_form(
+            b"_scoop_rt_allocation_context",
+            VerifiedDarwinArm64RelocationFormV1::Branch26,
+        ),
+        Err(
+            RuntimeAndEhRequirementValidationError::RuntimeRelocationFormMismatch {
+                symbol: RuntimeAbiSymbolV1::AllocationContext,
+                form: VerifiedDarwinArm64RelocationFormV1::Branch26,
+            }
+        )
+    ));
+    assert!(matches!(
+        classify_with_form(
+            b"_scoop_runtime_alloc_slow",
+            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+        ),
+        Err(
+            RuntimeAndEhRequirementValidationError::RuntimeRelocationFormMismatch {
+                symbol: RuntimeAbiSymbolV1::AllocateSlow,
+                form: VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+            }
+        )
+    ));
+    assert!(matches!(
+        classify_with_form(
+            b"__Unwind_Resume",
+            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
+        ),
+        Err(
+            RuntimeAndEhRequirementValidationError::TlvpRelocationRequiresTlsContract {
+                form: VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
+                ..
+            }
+        )
+    ));
+}
+
+#[test]
 fn classifies_only_the_closed_target_eh_symbols() {
     let personality = classify(b"_scoop_eh_personality");
     assert!(personality.runtime_requirements().is_empty());
@@ -53,9 +93,21 @@ fn classifies_only_the_closed_target_eh_symbols() {
 }
 
 pub(in crate::link_object) fn classify(symbol: &[u8]) -> VerifiedRuntimeAndEhRequirementClosureV1 {
+    let form = if symbol == b"_scoop_rt_allocation_context" {
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
+    } else {
+        VerifiedDarwinArm64RelocationFormV1::Branch26
+    };
+    classify_with_form(symbol, form).unwrap()
+}
+
+fn classify_with_form(
+    symbol: &[u8],
+    form: VerifiedDarwinArm64RelocationFormV1,
+) -> Result<VerifiedRuntimeAndEhRequirementClosureV1, RuntimeAndEhRequirementValidationError> {
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "runtimeRequirementConsumer");
-    let member = verified_member_with_undefined(&object, symbol);
+    let member = verified_member_with_undefined_form(&object, symbol, form);
     let core = core_closure(producer, member);
     let native = native_surface(producer, Vec::new(), Vec::new());
     let source = verify_source_external_requirements_v1(core, native).unwrap();
@@ -63,5 +115,4 @@ pub(in crate::link_object) fn classify(symbol: &[u8]) -> VerifiedRuntimeAndEhReq
         source,
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
-    .unwrap()
 }

@@ -221,6 +221,7 @@ fn metadata() -> LirMeta {
         instance_layout: layouts[string_layout].identity.clone(),
         instance_shape: TypeInstanceShapeV1::inline_bytes(LirTargetProfile::DARWIN_AARCH64)
             .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable,
         itables: Vec::new(),

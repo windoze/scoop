@@ -1,4 +1,4 @@
-use super::super::relocation_verification::tests::add_undefined_symbols;
+use super::super::relocation_verification::tests::{add_undefined_symbols, retag_only_relocation};
 use super::super::symbol_verification::tests::{
     Fixture, fixture_for_producer, fixture_named, object_for_plan_with_branch_relocation,
 };
@@ -165,12 +165,34 @@ pub(in crate::link_object) fn verified_member_with_undefined(
     fixture: &Fixture,
     undefined_name: &[u8],
 ) -> VerifiedMemberObjectRelocationIndexV1 {
+    verified_member_with_undefined_form(
+        fixture,
+        undefined_name,
+        VerifiedDarwinArm64RelocationFormV1::Branch26,
+    )
+}
+
+pub(in crate::link_object) fn verified_member_with_undefined_form(
+    fixture: &Fixture,
+    undefined_name: &[u8],
+    form: VerifiedDarwinArm64RelocationFormV1,
+) -> VerifiedMemberObjectRelocationIndexV1 {
     let object = object_for_plan_with_branch_relocation(
         &fixture.symbols,
         canonical_value,
         Some((0, primary_role(fixture))),
     );
     let bytes = add_undefined_symbols(object.bytes, true, &[undefined_name]);
+    let bytes = match form {
+        VerifiedDarwinArm64RelocationFormV1::Branch26 => bytes,
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => {
+            retag_only_relocation(bytes, true, object::macho::ARM64_RELOC_TLVP_LOAD_PAGE21)
+        }
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => {
+            retag_only_relocation(bytes, false, object::macho::ARM64_RELOC_TLVP_LOAD_PAGEOFF12)
+        }
+        _ => panic!("unsupported test relocation form: {form:?}"),
+    };
     verified_member(fixture, &bytes)
 }
 

@@ -147,7 +147,14 @@ fn validate_descriptor_relocations(
             _ => return descriptor_relocation_error(plan.exact_type(), offset),
         };
         let target_matches = match offset {
-            64 | 72 | 88 | 96 => matches!(
+            64 => matches!(
+                (plan.inline_scan().definition_plan(), target),
+                (
+                    Some(expected),
+                    VerifiedRelocationTargetV1::StrongDefinition { definition }
+                ) if expected == *definition
+            ),
+            72 | 88 | 96 => matches!(
                 target,
                 VerifiedRelocationTargetV1::LocalDefinition { .. }
                     | VerifiedRelocationTargetV1::StrongDefinition { .. }
@@ -173,10 +180,10 @@ fn validate_descriptor_relocations(
 
 fn expected_relocation_offsets(plan: &StrongTypeRegistrationPlanV1) -> Vec<u64> {
     let mut expected = Vec::with_capacity(6);
-    let shape = plan.semantic().instance_shape();
-    if !matches!(shape.inline_scan(), RefScan::None) {
+    if plan.inline_scan().definition_plan().is_some() {
         expected.push(64);
     }
+    let shape = plan.semantic().instance_shape();
     if !matches!(shape.object_scan(), RefScan::None) {
         expected.push(72);
     }

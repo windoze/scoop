@@ -427,6 +427,8 @@ fn encode_relocation_form(
         VerifiedDarwinArm64RelocationFormV1::GotLoadPage21 => encode_empty_sum(encoder, 6),
         VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12 => encode_empty_sum(encoder, 7),
         VerifiedDarwinArm64RelocationFormV1::PointerToGot32 => encode_empty_sum(encoder, 8),
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => encode_empty_sum(encoder, 9),
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => encode_empty_sum(encoder, 10),
     }
 }
 
@@ -471,6 +473,16 @@ fn decode_relocation_form(
             decoder,
             fields,
             VerifiedDarwinArm64RelocationFormV1::PointerToGot32,
+        ),
+        9 => closed_relocation_form(
+            decoder,
+            fields,
+            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+        ),
+        10 => closed_relocation_form(
+            decoder,
+            fields,
+            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
         ),
         tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
     }

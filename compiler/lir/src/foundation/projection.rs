@@ -1002,6 +1002,7 @@ mod tests {
             )
             .unwrap(),
             instance_shape: TypeInstanceShapeV1::abstract_ref(),
+            inline_scan: crate::TypeDescriptorInlineScanV1::Null,
             parent: None,
             vtable: interface_vtable,
             itables: Vec::new(),
@@ -1031,6 +1032,7 @@ mod tests {
             )
             .unwrap(),
             instance_shape: TypeInstanceShapeV1::abstract_ref(),
+            inline_scan: crate::TypeDescriptorInlineScanV1::Null,
             parent: None,
             vtable: owner_vtable,
             itables: owner_itables,

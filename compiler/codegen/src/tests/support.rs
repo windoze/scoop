@@ -917,6 +917,7 @@ pub(super) fn string_metadata() -> LirMeta {
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         )
         .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: vtable("String", Vec::new()),
         itables: Vec::new(),
@@ -964,6 +965,13 @@ pub(super) fn array_type(
             .unwrap(),
         )
         .unwrap(),
+        inline_scan: if element_scan.contains_reference() {
+            scoop_lir::TypeDescriptorInlineScanV1::Defined(
+                array_layout_identity(name).scan_record().id(),
+            )
+        } else {
+            scoop_lir::TypeDescriptorInlineScanV1::Null
+        },
         parent: None,
         vtable: vtable(name, Vec::new()),
         itables: Vec::new(),

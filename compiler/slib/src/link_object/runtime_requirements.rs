@@ -4,13 +4,14 @@ use std::fmt;
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::{
-    RuntimeRequirementRegistryError, RuntimeSymbolContractRegistryV1, RuntimeSymbolContractV1,
-    TargetEhRequirementRegistryV1, TargetEhRequirementV1, ValidatedLirTargetSelection,
+    RuntimeAbiSymbolV1, RuntimeRequirementRegistryError, RuntimeSymbolContractRegistryV1,
+    RuntimeSymbolContractV1, TargetEhRequirementRegistryV1, TargetEhRequirementV1,
+    ValidatedLirTargetSelection,
 };
 
 use super::{
     CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
-    VerifiedSourceExternalRequirementClosureV1,
+    VerifiedDarwinArm64RelocationFormV1, VerifiedSourceExternalRequirementClosureV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -101,12 +102,21 @@ pub fn verify_runtime_and_eh_requirements_v1(
         let eh = eh_registry.requirement_for_object_symbol(binding.symbol());
         match (runtime, eh) {
             (Some(contract), None) => {
+                validate_runtime_relocation(contract, binding.relocation_form())?;
                 runtime_requirements.push(RuntimeAbiRequirementUseV1 {
                     use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                     contract: contract.clone(),
                 });
             }
             (None, Some(requirement)) => {
+                if is_tlvp_relocation(binding.relocation_form()) {
+                    return Err(
+                        RuntimeAndEhRequirementValidationError::TlvpRelocationRequiresTlsContract {
+                            symbol: binding.symbol().to_vec(),
+                            form: binding.relocation_form(),
+                        },
+                    );
+                }
                 target_eh_requirements.push(TargetEhRequirementUseV1 {
                     use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                     requirement: requirement.clone(),
@@ -132,6 +142,30 @@ pub fn verify_runtime_and_eh_requirements_v1(
     })
 }
 
+fn validate_runtime_relocation(
+    contract: &RuntimeSymbolContractV1,
+    form: VerifiedDarwinArm64RelocationFormV1,
+) -> Result<(), RuntimeAndEhRequirementValidationError> {
+    let is_allocation_context = contract.symbol() == RuntimeAbiSymbolV1::AllocationContext;
+    if is_tlvp_relocation(form) != is_allocation_context {
+        return Err(
+            RuntimeAndEhRequirementValidationError::RuntimeRelocationFormMismatch {
+                symbol: contract.symbol(),
+                form,
+            },
+        );
+    }
+    Ok(())
+}
+
+const fn is_tlvp_relocation(form: VerifiedDarwinArm64RelocationFormV1) -> bool {
+    matches!(
+        form,
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
+            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+    )
+}
+
 #[derive(Debug)]
 pub enum RuntimeAndEhRequirementValidationError {
     TargetMismatch {
@@ -141,6 +175,14 @@ pub enum RuntimeAndEhRequirementValidationError {
     Registry(RuntimeRequirementRegistryError),
     AmbiguousRegisteredObjectSymbol {
         symbol: Vec<u8>,
+    },
+    RuntimeRelocationFormMismatch {
+        symbol: RuntimeAbiSymbolV1,
+        form: VerifiedDarwinArm64RelocationFormV1,
+    },
+    TlvpRelocationRequiresTlsContract {
+        symbol: Vec<u8>,
+        form: VerifiedDarwinArm64RelocationFormV1,
     },
 }
 

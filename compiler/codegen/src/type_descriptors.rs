@@ -151,11 +151,27 @@ fn emit_type_descriptor<'ctx>(
         .scan(descriptor.instance_layout.scan_record().id())?
         .runtime_pointer()
         .map_or_else(|| ptr.const_null().into(), Into::into);
-    let inline_scan: BasicValueEnum = inline_scan_id(module, descriptor)?
-        .map(|scan| shapes.scan(scan))
-        .transpose()?
-        .and_then(|scan| scan.runtime_pointer())
-        .map_or_else(|| ptr.const_null().into(), Into::into);
+    let inline_scan: BasicValueEnum = match descriptor.inline_scan {
+        scoop_lir::TypeDescriptorInlineScanV1::Null => {
+            if descriptor.instance_shape.inline_scan().contains_reference() {
+                return Err(CodegenError(format!(
+                    "TypeDescriptor {} has a nonempty inline scan without its typed definition",
+                    descriptor.identity.exact_type()
+                )));
+            }
+            ptr.const_null().into()
+        }
+        scoop_lir::TypeDescriptorInlineScanV1::Defined(scan) => shapes
+            .scan(scan)?
+            .runtime_pointer()
+            .ok_or_else(|| {
+                CodegenError(format!(
+                    "TypeDescriptor {} references empty typed inline scan {scan}",
+                    descriptor.identity.exact_type()
+                ))
+            })?
+            .into(),
+    };
     let parent: BasicValueEnum = match descriptor.parent {
         Some(reference) => type_descriptor_global(reference, type_globals, external_type_globals)?
             .as_pointer_value()
@@ -305,63 +321,6 @@ fn dispatch_values<'ctx>(
         )?);
     }
     Ok(values)
-}
-
-fn inline_scan_id(
-    module: &Module,
-    descriptor: &TypeDescriptor,
-) -> Result<Option<scoop_lir::PersistentScanId>, CodegenError> {
-    use scoop_lir::TypeInstanceKindV1;
-
-    if !descriptor.instance_shape.inline_scan().contains_reference() {
-        return Ok(None);
-    }
-    let exact = descriptor.identity.exact_type();
-    let mut candidates = match descriptor.instance_shape.instance_kind() {
-        TypeInstanceKindV1::InlineArray => module
-            .meta
-            .arrays
-            .iter()
-            .filter(|(_, array)| {
-                array.identity.layout_record().key().exact_type() == exact
-                    && &array.element_scan == descriptor.instance_shape.inline_scan()
-            })
-            .map(|(_, array)| array.identity.scan_record().id())
-            .collect::<Vec<_>>(),
-        TypeInstanceKindV1::BoxedValue => module
-            .meta
-            .layouts
-            .iter()
-            .filter(|(_, layout)| {
-                layout.identity.layout_record().key().exact_type() == exact
-                    && layout
-                        .identity
-                        .is_managed_value_of(exact, module.meta.target_profile)
-                    && match &layout.kind {
-                        scoop_lir::LayoutKind::Plain { scan }
-                        | scoop_lir::LayoutKind::Enum { scan } => {
-                            scan == descriptor.instance_shape.inline_scan()
-                        }
-                        scoop_lir::LayoutKind::Intrinsic(_) => false,
-                    }
-            })
-            .map(|(_, layout)| layout.identity.scan_record().id())
-            .collect::<Vec<_>>(),
-        TypeInstanceKindV1::FixedObject
-        | TypeInstanceKindV1::InlineBytes
-        | TypeInstanceKindV1::AbstractRef => Vec::new(),
-    };
-    candidates.sort_unstable();
-    candidates.dedup();
-    match candidates.as_slice() {
-        [scan] => Ok(Some(*scan)),
-        [] => Err(CodegenError(format!(
-            "TypeDescriptor {exact} has a nonempty inline scan without one typed scan definition"
-        ))),
-        _ => Err(CodegenError(format!(
-            "TypeDescriptor {exact} has multiple typed inline scan definitions"
-        ))),
-    }
 }
 
 /// Address of the exact module function named by a vtable / itable slot.

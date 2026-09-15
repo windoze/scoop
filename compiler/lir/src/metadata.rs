@@ -351,6 +351,9 @@ pub struct TypeDescriptor {
     /// to recover the relation from an unrelated layout arena.
     pub instance_layout: LayoutIdentity,
     pub instance_shape: TypeInstanceShapeV1,
+    /// Exact strong scan definition referenced by the inline-scan field, or
+    /// an explicit null branch when the inline scan is empty.
+    pub inline_scan: TypeDescriptorInlineScanV1,
     /// Classes reference their base descriptor; root/reference-key entities
     /// have no parent. The absence is emitted as a metadata-provenance null.
     pub parent: Option<TypeDescriptorRef>,

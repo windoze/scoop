@@ -10,8 +10,9 @@ use scoop_identity::{
 use scoop_wire::sha256;
 
 use super::{
-    DarwinArm64SymbolKindV1, ObservedMachOSymbolV1, PlannedMemberStrongObjectSymbolsV1,
-    PlannedStrongObjectSymbolRoleV1, ValidatedBuiltinObjectSectionInventoryV1,
+    BuiltinObjectSectionRoleV1, DarwinArm64SymbolKindV1, ObservedMachOSymbolV1,
+    PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1,
+    ValidatedBuiltinObjectSectionInventoryV1,
 };
 use crate::SlibMemberId;
 
@@ -465,6 +466,9 @@ fn validate_and_assign_zero_padding(
             if section.byte_size() != 0 {
                 return Err(StrongObjectDefinitionValidationError::UnownedSection {
                     section: ordinal,
+                    role: sections.roles()[index],
+                    segment_name: section.segment_name().to_vec(),
+                    section_name: section.section_name().to_vec(),
                 });
             }
             continue;
@@ -605,6 +609,9 @@ pub enum StrongObjectDefinitionValidationError {
     },
     UnownedSection {
         section: NonZeroU8,
+        role: BuiltinObjectSectionRoleV1,
+        segment_name: Vec<u8>,
+        section_name: Vec<u8>,
     },
     UnownedSectionPrefix {
         section: NonZeroU8,

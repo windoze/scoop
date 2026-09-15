@@ -42,6 +42,12 @@ pub enum DarwinArm64RelocationShapeV1 {
     PointerToGot32 {
         target: DarwinArm64RelocationTargetV1,
     },
+    TlvpLoadPage21 {
+        target: DarwinArm64RelocationTargetV1,
+    },
+    TlvpLoadPageOffset12 {
+        target: DarwinArm64RelocationTargetV1,
+    },
 }
 
 impl DarwinArm64RelocationShapeV1 {
@@ -53,7 +59,9 @@ impl DarwinArm64RelocationShapeV1 {
             | Self::PageOffset12 { .. }
             | Self::GotLoadPage21 { .. }
             | Self::GotLoadPageOffset12 { .. }
-            | Self::PointerToGot32 { .. } => 4,
+            | Self::PointerToGot32 { .. }
+            | Self::TlvpLoadPage21 { .. }
+            | Self::TlvpLoadPageOffset12 { .. } => 4,
         }
     }
 }
@@ -264,6 +272,26 @@ fn normalize_section_relocations(
                 (
                     4,
                     DarwinArm64RelocationShapeV1::PointerToGot32 {
+                        target: validate_target(first, section_count, symbol_count)?,
+                    },
+                    1,
+                )
+            }
+            macho::ARM64_RELOC_TLVP_LOAD_PAGE21 => {
+                validate_exact_fields(first, true, 2, true)?;
+                (
+                    4,
+                    DarwinArm64RelocationShapeV1::TlvpLoadPage21 {
+                        target: validate_target(first, section_count, symbol_count)?,
+                    },
+                    1,
+                )
+            }
+            macho::ARM64_RELOC_TLVP_LOAD_PAGEOFF12 => {
+                validate_exact_fields(first, false, 2, true)?;
+                (
+                    4,
+                    DarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 {
                         target: validate_target(first, section_count, symbol_count)?,
                     },
                     1,

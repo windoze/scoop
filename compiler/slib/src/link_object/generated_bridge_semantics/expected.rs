@@ -338,7 +338,9 @@ fn relocation_targets(
         | VerifiedDarwinArm64RelocationShapeV1::PageOffset12 { target, .. }
         | VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 { target }
         | VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target } => vec![target],
+        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
+        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
+        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => vec![target],
         VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
             minuend,
             subtrahend,

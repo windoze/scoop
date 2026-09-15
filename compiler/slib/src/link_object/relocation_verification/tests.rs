@@ -273,6 +273,22 @@ pub(in crate::link_object) fn add_undefined_symbols(
     bytes
 }
 
+pub(in crate::link_object) fn retag_only_relocation(
+    mut bytes: Vec<u8>,
+    pcrel: bool,
+    kind: u8,
+) -> Vec<u8> {
+    const SECTION_RECORD: usize = 32 + 72;
+    let relocation_offset = read_u32(&bytes, SECTION_RECORD + 56) as usize;
+    assert_eq!(read_u32(&bytes, SECTION_RECORD + 60), 1);
+    let fields_offset = relocation_offset + 4;
+    let fields = read_u32(&bytes, fields_offset);
+    let fields =
+        (fields & !((1 << 24) | (0xf << 28))) | u32::from(pcrel) << 24 | u32::from(kind) << 28;
+    write_u32(&mut bytes, fields_offset, fields);
+    bytes
+}
+
 fn add_local_symbol(mut bytes: Vec<u8>, value: u64) -> Vec<u8> {
     const SYMTAB_COMMAND: usize = 32 + 152;
     const DYSYMTAB_COMMAND: usize = SYMTAB_COMMAND + 24;

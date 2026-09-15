@@ -202,6 +202,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
                 RefScan::None,
             )
             .unwrap(),
+            inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
             parent: None,
             vtable,
             itables: Vec::new(),

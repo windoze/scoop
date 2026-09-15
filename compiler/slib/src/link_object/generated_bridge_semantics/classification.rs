@@ -43,7 +43,11 @@ pub(super) fn classify_binding(
                     binding.resolution(),
                     StrongRelocationResolutionV1::ExternalCandidate { .. }
                 )
-                && native_relocation_form_matches(unit.key, binding.relocation_form())
+                && native_relocation_form_matches(
+                    unit.key,
+                    requirement.contract(),
+                    binding.relocation_form(),
+                )
             {
                 return Ok(GeneratedBridgeRelocationSemanticV1::NativeExternal { contract });
             }
@@ -181,6 +185,7 @@ pub(super) fn validate_native_contract_kind(
 
 pub(super) fn native_relocation_form_matches(
     key: GeneratedBridgeUnitKey,
+    contract: &NativeExternalContract,
     form: VerifiedDarwinArm64RelocationFormV1,
 ) -> bool {
     match key {
@@ -189,15 +194,25 @@ pub(super) fn native_relocation_form_matches(
         }
         GeneratedBridgeUnitKey::GlobalRead(_)
         | GeneratedBridgeUnitKey::GlobalWrite(_)
-        | GeneratedBridgeUnitKey::GlobalAddress(_) => matches!(
-            form,
-            VerifiedDarwinArm64RelocationFormV1::Unsigned64
-                | VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
-                | VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
-                | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
-                | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
-                | VerifiedDarwinArm64RelocationFormV1::PointerToGot32
-        ),
+        | GeneratedBridgeUnitKey::GlobalAddress(_) => match contract {
+            NativeExternalContract::ReadOnlyTls { .. }
+            | NativeExternalContract::MutableTls { .. } => matches!(
+                form,
+                VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
+                    | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+            ),
+            NativeExternalContract::ReadOnlyData { .. }
+            | NativeExternalContract::MutableData { .. } => matches!(
+                form,
+                VerifiedDarwinArm64RelocationFormV1::Unsigned64
+                    | VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
+                    | VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
+                    | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
+                    | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
+                    | VerifiedDarwinArm64RelocationFormV1::PointerToGot32
+            ),
+            NativeExternalContract::Function { .. } => false,
+        },
         GeneratedBridgeUnitKey::CallbackTrampoline { .. }
         | GeneratedBridgeUnitKey::StaticCallbackTrampoline { .. } => false,
     }

@@ -104,6 +104,7 @@ pub(super) fn classes_module() -> Module {
             scoop_identity::RepresentationRole::ManagedObject,
         ),
         instance_shape: TypeInstanceShapeV1::abstract_ref(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: vtable("Describable", vec![]),
         itables: vec![],
@@ -122,6 +123,7 @@ pub(super) fn classes_module() -> Module {
             RefScan::References(vec![16]),
         )
         .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: vtable(
             "Shape",
@@ -145,6 +147,7 @@ pub(super) fn classes_module() -> Module {
             RefScan::References(vec![16]),
         )
         .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: Some(TypeDescriptorRef::Local(shape)),
         vtable: vtable(
             "Point",
@@ -219,6 +222,7 @@ pub(super) fn heap_module() -> Module {
             RefScan::References(vec![24]),
         )
         .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: vtable(
             "Point",

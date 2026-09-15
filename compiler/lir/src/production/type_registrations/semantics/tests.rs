@@ -21,6 +21,7 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
         diagnostic_name: "Readable".to_string(),
         instance_layout: instance_layout(interface_exact),
         instance_shape: TypeInstanceShapeV1::abstract_ref(),
+        inline_scan: TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: VtableRecord::new(&interface_identity, Vec::new()).unwrap(),
         itables: Vec::new(),
@@ -38,6 +39,7 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
             ArrayElementStorageV1::zero_sized(8).unwrap(),
         )
         .unwrap(),
+        inline_scan: TypeDescriptorInlineScanV1::Null,
         parent: Some(TypeDescriptorRef::Local(interface)),
         vtable: VtableRecord::new(&owner_identity, vec![runtime_slot]).unwrap(),
         itables: vec![
@@ -55,10 +57,14 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
     let plans = StrongTypeDescriptorSemanticPlanSetV1::from_components(
         ConeIdentity::SINGLE_FILE,
         LirTargetProfile::DARWIN_AARCH64,
-        &descriptors,
-        &Arena::new(),
-        &[],
-        &Arena::new(),
+        DescriptorSemanticInputs {
+            descriptors: &descriptors,
+            external_descriptors: &Arena::new(),
+            layouts: &Arena::new(),
+            arrays: &Arena::new(),
+            functions: &[],
+            external_callables: &Arena::new(),
+        },
     )
     .unwrap();
 
@@ -115,6 +121,7 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
             diagnostic_name: name.to_string(),
             instance_layout: instance_layout(exact),
             instance_shape: TypeInstanceShapeV1::abstract_ref(),
+            inline_scan: TypeDescriptorInlineScanV1::Null,
             parent: None,
             vtable: VtableRecord::new(&identity, Vec::new()).unwrap(),
             itables: Vec::new(),
@@ -125,10 +132,14 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
         StrongTypeDescriptorSemanticPlanSetV1::from_components(
             ConeIdentity::SINGLE_FILE,
             LirTargetProfile::DARWIN_AARCH64,
-            &descriptors,
-            &Arena::new(),
-            &[],
-            &Arena::new(),
+            DescriptorSemanticInputs {
+                descriptors: &descriptors,
+                external_descriptors: &Arena::new(),
+                layouts: &Arena::new(),
+                arrays: &Arena::new(),
+                functions: &[],
+                external_callables: &Arena::new(),
+            },
         ),
         Err(StrongTypeDescriptorSemanticPlanBuildError::DuplicateExactType(exact))
     );
@@ -140,6 +151,7 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
         diagnostic_name: "Owner".to_string(),
         instance_layout: instance_layout(exact_type("Foreign")),
         instance_shape: TypeInstanceShapeV1::abstract_ref(),
+        inline_scan: TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: VtableRecord::new(&identity, Vec::new()).unwrap(),
         itables: Vec::new(),
@@ -149,10 +161,14 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
         StrongTypeDescriptorSemanticPlanSetV1::from_components(
             ConeIdentity::SINGLE_FILE,
             LirTargetProfile::DARWIN_AARCH64,
-            &descriptors,
-            &Arena::new(),
-            &[],
-            &Arena::new(),
+            DescriptorSemanticInputs {
+                descriptors: &descriptors,
+                external_descriptors: &Arena::new(),
+                layouts: &Arena::new(),
+                arrays: &Arena::new(),
+                functions: &[],
+                external_callables: &Arena::new(),
+            },
         ),
         Err(StrongTypeDescriptorSemanticPlanBuildError::InstanceLayoutMismatch(owner))
     );

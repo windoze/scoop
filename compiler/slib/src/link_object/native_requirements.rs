@@ -11,7 +11,7 @@ use scoop_lir::{
 
 use super::{
     CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
-    VerifiedCoreStrongRequirementClosureV1,
+    VerifiedCoreStrongRequirementClosureV1, VerifiedDarwinArm64RelocationFormV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -99,6 +99,20 @@ pub fn verify_source_external_requirements_v1(
     let mut remaining_external_candidates = Vec::new();
     for binding in core_closure.remaining_external_candidates() {
         if let Some(requirement) = requirements.get(binding.symbol()) {
+            if is_tlvp_relocation(binding.relocation_form())
+                && !matches!(
+                    requirement.contract(),
+                    scoop_identity::NativeExternalContract::ReadOnlyTls { .. }
+                        | scoop_identity::NativeExternalContract::MutableTls { .. }
+                )
+            {
+                return Err(
+                    SourceExternalRequirementValidationError::TlvpRelocationRequiresTlsContract {
+                        contract: requirement.fingerprint(),
+                        form: binding.relocation_form(),
+                    },
+                );
+            }
             source_external_requirements.push(SourceExternalRequirementUseV1 {
                 use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                 requirement: (*requirement).clone(),
@@ -116,6 +130,14 @@ pub fn verify_source_external_requirements_v1(
     })
 }
 
+const fn is_tlvp_relocation(form: VerifiedDarwinArm64RelocationFormV1) -> bool {
+    matches!(
+        form,
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
+            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+    )
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceExternalRequirementValidationError {
     ProducerMismatch {
@@ -125,6 +147,10 @@ pub enum SourceExternalRequirementValidationError {
     TargetMismatch {
         object: LirTargetProfile,
         native: LirTargetProfile,
+    },
+    TlvpRelocationRequiresTlsContract {
+        contract: scoop_identity::NativeExternalContractFingerprint,
+        form: VerifiedDarwinArm64RelocationFormV1,
     },
 }
 

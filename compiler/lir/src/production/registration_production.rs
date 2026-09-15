@@ -276,7 +276,7 @@ impl WireEncode for StrongCallableRegistrationPlanV1 {
 impl WireEncode for StrongTypeRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(26)?;
+        encoder.map(27)?;
         encode_field(encoder, 1, &self.exact_type())?;
         encode_field(encoder, 2, &self.runtime_type())?;
         encode_field(encoder, 3, &self.symbol())?;
@@ -310,7 +310,23 @@ impl WireEncode for StrongTypeRegistrationPlanV1 {
         for itable in semantic.itables() {
             encode_type_itable(encoder, itable)?;
         }
-        encode_field(encoder, 26, &self.diagnostic_atom())
+        encode_field(encoder, 26, &self.diagnostic_atom())?;
+        encoder.field(27)?;
+        encode_type_descriptor_inline_scan(encoder, semantic.inline_scan())
+    }
+}
+
+fn encode_type_descriptor_inline_scan(
+    encoder: &mut Encoder,
+    inline_scan: crate::TypeDescriptorInlineScanV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match inline_scan {
+        crate::TypeDescriptorInlineScanV1::Null => {
+            encoder.map(2)?;
+            encode_unsigned_field(encoder, 0, 1)?;
+            encode_unsigned_field(encoder, 1, 0)
+        }
+        crate::TypeDescriptorInlineScanV1::Defined(scan) => encode_value_sum(encoder, 2, &scan),
     }
 }
 

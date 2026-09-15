@@ -16,7 +16,8 @@ use super::wire::{
     DecodedStrongInitializationSchedulePlanV1, DecodedStrongStaticStorageInitialStatePlanV1,
     DecodedStrongTypeDescriptorRefV1, DecodedStrongTypeDispatchCallableRefV1,
     DecodedStrongTypeItableSemanticPlanV1, DecodedStrongTypeRegistrationPlanV1,
-    DecodedStrongTypeVtableSemanticPlanV1, DecodedTypeInstanceShapeV1,
+    DecodedStrongTypeVtableSemanticPlanV1, DecodedTypeDescriptorInlineScanV1,
+    DecodedTypeInstanceShapeV1,
 };
 use super::{
     DecodedStrongImmortalObjectRegistrationPlanV1,
@@ -38,8 +39,9 @@ use crate::{
     StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1,
     StrongTypeDescriptorRefV1, StrongTypeDescriptorSemanticPlanSetV1,
     StrongTypeDescriptorSemanticPlanV1, StrongTypeDispatchCallableRefV1,
-    StrongTypeItableSemanticPlanV1, StrongTypeVtableSemanticPlanV1, TypeInstanceShapeV1,
-    ValueStorageLayoutV1, generated_unit_body, startup_gateway_body,
+    StrongTypeItableSemanticPlanV1, StrongTypeVtableSemanticPlanV1, TypeDescriptorInlineScanV1,
+    TypeInstanceKindV1, TypeInstanceShapeV1, ValueStorageLayoutV1, generated_unit_body,
+    startup_gateway_body,
 };
 
 impl DecodedStrongRegistrationProductionSurfaceV1 {
@@ -264,6 +266,14 @@ pub(crate) fn validate_types(
             ));
         }
         let instance_shape = validate_type_instance_shape(decoded.instance_shape, target, index)?;
+        let inline_scan = validate_type_descriptor_inline_scan(
+            decoded.inline_scan,
+            &instance_shape,
+            exact_type,
+            target,
+            foundation,
+            index,
+        )?;
         let parent = validate_optional_type_descriptor_ref(
             decoded.parent,
             identities,
@@ -312,6 +322,7 @@ pub(crate) fn validate_types(
             layout,
             scan,
             instance_shape,
+            inline_scan,
             parent,
             vtable,
             itables,
@@ -341,6 +352,82 @@ pub(crate) fn validate_types(
         }
     }
     Ok(semantics)
+}
+
+fn validate_type_descriptor_inline_scan(
+    decoded: DecodedTypeDescriptorInlineScanV1,
+    shape: &TypeInstanceShapeV1,
+    exact_type: scoop_identity::PersistentExactTypeId,
+    target: LirTargetProfile,
+    foundation: &OdrFreeLirFoundation,
+    index: usize,
+) -> Result<TypeDescriptorInlineScanV1, StrongRegistrationProductionValidationError> {
+    let contains_reference = shape.inline_scan().contains_reference();
+    let DecodedTypeDescriptorInlineScanV1::Defined(decoded_scan) = decoded else {
+        return if contains_reference {
+            Err(semantic_error(
+                RegistrationProductionTableV1::Type,
+                index,
+                "inline_scan_definition",
+            ))
+        } else {
+            Ok(TypeDescriptorInlineScanV1::Null)
+        };
+    };
+    if !contains_reference {
+        return Err(semantic_error(
+            RegistrationProductionTableV1::Type,
+            index,
+            "inline_scan_definition",
+        ));
+    }
+    let scan = resolve_known(
+        decoded_scan,
+        foundation.scans().iter().map(|record| record.id()),
+        RegistrationProductionTableV1::Type,
+        index,
+        "inline_scan_definition",
+    )?;
+    let scan_record = foundation
+        .scans()
+        .iter()
+        .find(|record| record.id() == scan)
+        .expect("the inline scan was resolved from this table");
+    let layout = foundation
+        .layouts()
+        .iter()
+        .find(|record| record.id() == scan_record.key().layout())
+        .ok_or_else(|| {
+            semantic_error(
+                RegistrationProductionTableV1::Type,
+                index,
+                "inline_scan_layout",
+            )
+        })?;
+    let relation_matches = match shape.instance_kind() {
+        TypeInstanceKindV1::BoxedValue => {
+            scan_record.key().role() == ScanRole::InlineValue
+                && layout.key().representation() == RepresentationRole::ManagedValue
+                && layout.key().target_profile() == &target.wire_id()
+        }
+        TypeInstanceKindV1::InlineArray => {
+            scan_record.key().role() == ScanRole::ArrayElement
+                && layout.key().representation() == RepresentationRole::ManagedObject
+                && layout.key().target_profile() == &target.wire_id()
+                && layout.key().exact_type() == exact_type
+        }
+        TypeInstanceKindV1::FixedObject
+        | TypeInstanceKindV1::InlineBytes
+        | TypeInstanceKindV1::AbstractRef => false,
+    };
+    if !relation_matches {
+        return Err(semantic_error(
+            RegistrationProductionTableV1::Type,
+            index,
+            "inline_scan_relation",
+        ));
+    }
+    Ok(TypeDescriptorInlineScanV1::Defined(scan))
 }
 
 fn validate_type_instance_shape(

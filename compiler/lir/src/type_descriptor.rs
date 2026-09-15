@@ -2,6 +2,26 @@ use std::num::NonZeroU64;
 
 use crate::{LirTargetProfile, PointerKind, RefScan};
 
+/// Typed source of the runtime inline-scan pointer stored in one
+/// `ScoopTypeDescriptor`.
+///
+/// The null and definition branches are explicit so codegen never has to
+/// recover a scan identity from equal payload bytes or arena order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TypeDescriptorInlineScanV1 {
+    Null,
+    Defined(scoop_identity::PersistentScanId),
+}
+
+impl TypeDescriptorInlineScanV1 {
+    pub const fn definition(self) -> Option<scoop_identity::PersistentScanId> {
+        match self {
+            Self::Null => None,
+            Self::Defined(scan) => Some(scan),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TypeInstanceKindV1 {
     FixedObject,

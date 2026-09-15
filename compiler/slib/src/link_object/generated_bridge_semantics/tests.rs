@@ -182,10 +182,27 @@ fn validates_each_global_bridge_against_its_data_mutability_contract() {
     assert!(validate_native_contract_kind(write_id, write, &mutable_tls).is_ok());
     assert!(native_relocation_form_matches(
         write,
+        &mutable_data,
         VerifiedDarwinArm64RelocationFormV1::Unsigned64,
     ));
     assert!(!native_relocation_form_matches(
         write,
+        &mutable_data,
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+    ));
+    assert!(native_relocation_form_matches(
+        write,
+        &mutable_tls,
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+    ));
+    assert!(!native_relocation_form_matches(
+        write,
+        &mutable_tls,
+        VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+    ));
+    assert!(!native_relocation_form_matches(
+        write,
+        &mutable_tls,
         VerifiedDarwinArm64RelocationFormV1::Branch26,
     ));
 }

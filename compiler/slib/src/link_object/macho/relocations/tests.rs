@@ -31,6 +31,28 @@ fn normalizes_direct_arm64_relocation_shapes() {
             target: DarwinArm64RelocationTargetV1::SectionOrdinal(NonZeroU32::new(1).unwrap()),
         }
     );
+
+    let tlvp = inventory(
+        &[0; 8],
+        vec![
+            raw(0, 0, true, 2, true, macho::ARM64_RELOC_TLVP_LOAD_PAGE21),
+            raw(4, 0, false, 2, true, macho::ARM64_RELOC_TLVP_LOAD_PAGEOFF12),
+        ],
+        1,
+    )
+    .unwrap();
+    assert_eq!(
+        tlvp[0].shape(),
+        DarwinArm64RelocationShapeV1::TlvpLoadPage21 {
+            target: DarwinArm64RelocationTargetV1::SymbolTableIndex(0),
+        }
+    );
+    assert_eq!(
+        tlvp[1].shape(),
+        DarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 {
+            target: DarwinArm64RelocationTargetV1::SymbolTableIndex(0),
+        }
+    );
 }
 
 #[test]
@@ -81,13 +103,13 @@ fn rejects_scattered_unknown_and_wrong_field_combinations() {
         Err(DarwinArm64RelocationInventoryValidationError::ScatteredRelocation)
     );
 
-    assert_eq!(
+    assert!(matches!(
         inventory(
             &[0; 4],
             vec![raw(
                 0,
                 0,
-                true,
+                false,
                 2,
                 true,
                 macho::ARM64_RELOC_TLVP_LOAD_PAGE21,
@@ -95,11 +117,12 @@ fn rejects_scattered_unknown_and_wrong_field_combinations() {
             1,
         ),
         Err(
-            DarwinArm64RelocationInventoryValidationError::UnsupportedRelocationKind {
-                actual: macho::ARM64_RELOC_TLVP_LOAD_PAGE21,
+            DarwinArm64RelocationInventoryValidationError::InvalidRelocationFields {
+                kind: macho::ARM64_RELOC_TLVP_LOAD_PAGE21,
+                ..
             }
         )
-    );
+    ));
 
     assert!(matches!(
         inventory(

@@ -2038,7 +2038,9 @@ contract及后续target native support requirement显式覆盖，否则generated
 section role tag按Text、ReadOnlyData、CString、WritableData、ZeroFill、GccExceptionTable、
 LlvmStackmaps、CompactUnwind、EhFrame顺序取1..9；target slot按Single、Minuend、Subtrahend取
 1..3。relocation form按Unsigned64、Subtractor64、Branch26、Page21、PageOffset12、
-GotLoadPage21、GotLoadPageOffset12、PointerToGot32取1..8；Page21/PageOffset12的field 1是
+GotLoadPage21、GotLoadPageOffset12、PointerToGot32、TlvpLoadPage21、TlvpLoadPageOffset12取1..10；
+后两项只允许指向typed TLS requirement（包括`RuntimeAbi::AllocationContext`），不能用于普通data、function或
+current-Cone strong definition。Page21/PageOffset12的field 1是
 `None=1 | NonNegative=2 {1=magnitude} | Negative=3 {1=magnitude}`，从而不引入Wire v1禁止的
 signed CBOR integer。
 
@@ -2334,8 +2336,14 @@ producer全部`TypeDescriptor` strong definition的exact type集合为完备性�
 runtime type mapping、一个当前target的`ManagedObject` layout，以及registration、descriptor、layout三套
 definition plan、各自唯一`Primary` atom和`ConeStrong`符号。descriptor definition还必须精确拥有一个
 `AddressTakenConstant + ExactType(exact_type)` diagnostic associated atom，缺失、错subkey或任何额外associated
-atom都直接失败；完整plan显式保留该atom id，Link侧不得按字符串符号或物理相邻关系猜测。registration
-Primary的ObjectDefinition固定为
+atom都直接失败；完整plan显式保留该atom id，Link侧不得按字符串符号或物理相邻关系猜测。descriptor
+semantic还必须以封闭`TypeDescriptorInlineScanV1::{Null, Defined(PersistentScanId)}`保存inline-scan
+指针来源：`Null`当且仅当instance shape的inline scan为空，`Defined`当且仅当该scan非空；所指scan record
+必须存在于同一foundation、具有与instance kind相符的typed layout/scan role，且canonical scan payload逐byte
+等于instance shape中的inline scan。该identity是type registration wire的必需字段；reader不得按descriptor
+exact type、相同scan bytes、layout arena顺序或唯一候选反推。完整plan还从该identity闭合对应
+`ScanProgram` definition plan，供codegen直接取定义、Link verifier精确核对descriptor offset 64的
+relocation target；旧26-field record直接拒绝，不提供兼容分支。registration Primary的ObjectDefinition固定为
 无input、无patch的leaf；StrongRegistration direct input精确为该leaf、descriptor Primary的
 ObjectDefinition和对应Layout node，且自身patch集合精确写入`RegistrationDefinition`。descriptor与layout
 node必须分别持有写入同一registration Primary的`DescriptorDefinition`和`Layout` patch。完整plan按
@@ -2443,7 +2451,9 @@ TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation�
 恰有一条8-byte、zero-addend、`Unsigned64` relocation，解析到该diagnostic atom起点的object-local symbol；用其他
 local atom、section base、boundary symbol或任意合法strong定义代替都失败。验证结果直接携带descriptor Primary与
 diagnostic atom的member、checked file range及已验证relocation，后续专用fingerprint计算器不得重新按物理邻接或
-symbol拼写反查。layout definition也必须由既定Scoop member物化；record指向其他合法strong定义、错owner/member/
+symbol拼写反查。descriptor offset 64在semantic为`Defined(scan)`时必须恰好解析到该scan的
+`ScanProgram` definition plan，在`Null`时不得出现；相同payload的其他scan、任意本地constant或其他合法
+strong definition均不能替代。layout definition也必须由既定Scoop member物化；record指向其他合法strong定义、错owner/member/
 symbol、额外relocation、错patch或验后换bytes均失败。验证器再从
 digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
 edge/writer集合，不接受record bytes或调用方自报digest关系。
@@ -2625,7 +2635,7 @@ role固定为`Text`。本阶段body ObjectDefinition的direct input必须精确�
 调用者传入裸digest。
 
 body bytes按已验证relocation逐项归一化：`Unsigned64/Subtractor64/PointerToGot32`清零地址载荷，AArch64
-`Branch26/Page21/PageOffset12`及GOT对应form只清零立即数字段、保留opcode/register/寻址形状；归一化前必须
+`Branch26/Page21/PageOffset12`、GOT及TLVP对应form只清零立即数字段、保留opcode/register/寻址形状；归一化前必须
 逐项复核object bytes中的encoded value。随后`scoop-object-definition-v1` RuntimeEncode依次写Primary tag、
 normalized byte span、按atom offset排序的relocation sequence及canonical direct-input sequence。每条
 relocation固定写offset、form tag及其optional explicit addend、原始checked encoded value、target count和

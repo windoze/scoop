@@ -72,6 +72,12 @@ pub enum VerifiedDarwinArm64RelocationShapeV1 {
     PointerToGot32 {
         target: VerifiedRelocationTargetV1,
     },
+    TlvpLoadPage21 {
+        target: VerifiedRelocationTargetV1,
+    },
+    TlvpLoadPageOffset12 {
+        target: VerifiedRelocationTargetV1,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -84,6 +90,8 @@ pub enum VerifiedDarwinArm64RelocationFormV1 {
     GotLoadPage21,
     GotLoadPageOffset12,
     PointerToGot32,
+    TlvpLoadPage21,
+    TlvpLoadPageOffset12,
 }
 
 impl VerifiedDarwinArm64RelocationShapeV1 {
@@ -107,6 +115,10 @@ impl VerifiedDarwinArm64RelocationShapeV1 {
                 VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
             }
             Self::PointerToGot32 { .. } => VerifiedDarwinArm64RelocationFormV1::PointerToGot32,
+            Self::TlvpLoadPage21 { .. } => VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+            Self::TlvpLoadPageOffset12 { .. } => {
+                VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+            }
         }
     }
 }
@@ -394,6 +406,26 @@ fn resolve_shape(
         }
         DarwinArm64RelocationShapeV1::PointerToGot32 { target } => {
             VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 {
+                target: resolve_target(
+                    target,
+                    definitions,
+                    local_symbol_owners,
+                    used_undefined_symbols,
+                )?,
+            }
+        }
+        DarwinArm64RelocationShapeV1::TlvpLoadPage21 { target } => {
+            VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 {
+                target: resolve_target(
+                    target,
+                    definitions,
+                    local_symbol_owners,
+                    used_undefined_symbols,
+                )?,
+            }
+        }
+        DarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
+            VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 {
                 target: resolve_target(
                     target,
                     definitions,

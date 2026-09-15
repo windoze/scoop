@@ -87,6 +87,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             ]),
         )
         .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: vtable("Holder", vec![]),
         itables: vec![],

@@ -309,7 +309,9 @@ fn collect_relocation_bindings(
         | VerifiedDarwinArm64RelocationShapeV1::PageOffset12 { target, .. }
         | VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 { target }
         | VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target } => {
+        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
+        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
+        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
             collect_target_binding(
                 source_member,
                 relocation,

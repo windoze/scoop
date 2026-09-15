@@ -15,11 +15,40 @@ use scoop_identity::{
 
 use crate::{
     DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    StrongRegistrationIdentitySurfaceV1, TypeDescriptorInlineScanV1,
 };
 
 mod semantics;
 pub use semantics::*;
+
+/// Exact strong definition, if any, referenced by the descriptor's runtime
+/// inline-scan pointer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StrongTypeDescriptorInlineScanPlanV1 {
+    Null,
+    Defined {
+        scan: scoop_identity::PersistentScanId,
+        definition_plan: ObjectDefinitionPlanId,
+    },
+}
+
+impl StrongTypeDescriptorInlineScanPlanV1 {
+    pub const fn scan(self) -> Option<scoop_identity::PersistentScanId> {
+        match self {
+            Self::Null => None,
+            Self::Defined { scan, .. } => Some(scan),
+        }
+    }
+
+    pub const fn definition_plan(self) -> Option<ObjectDefinitionPlanId> {
+        match self {
+            Self::Null => None,
+            Self::Defined {
+                definition_plan, ..
+            } => Some(definition_plan),
+        }
+    }
+}
 
 /// All semantic identities and graph writers required to emit one strong
 /// type-registration record.
@@ -37,6 +66,7 @@ pub struct StrongTypeRegistrationPlanV1 {
     layout_symbol: PersistentSymbolRequest,
     layout_definition_plan: ObjectDefinitionPlanId,
     layout_primary_atom: ObjectDefinitionAtomId,
+    inline_scan: StrongTypeDescriptorInlineScanPlanV1,
     registration_object_node: DigestNodeId,
     descriptor_definition_node: DigestNodeId,
     layout_fingerprint_node: DigestNodeId,
@@ -101,6 +131,10 @@ impl StrongTypeRegistrationPlanV1 {
 
     pub const fn layout_primary_atom(&self) -> ObjectDefinitionAtomId {
         self.layout_primary_atom
+    }
+
+    pub const fn inline_scan(&self) -> StrongTypeDescriptorInlineScanPlanV1 {
+        self.inline_scan
     }
 
     pub const fn registration_object_node(&self) -> DigestNodeId {
@@ -352,6 +386,20 @@ fn build_registration(
     )?;
     let layout_primary_atom = require_primary_atom(foundation, layout_definition.id())?;
     let layout_symbol = require_symbol(foundation, PersistentSymbolKey::Layout(layout))?;
+    let inline_scan = match semantic.inline_scan() {
+        TypeDescriptorInlineScanV1::Null => StrongTypeDescriptorInlineScanPlanV1::Null,
+        TypeDescriptorInlineScanV1::Defined(scan) => {
+            let definition = require_definition(
+                foundation,
+                StrongDefinitionEntity::scan(scan),
+                StrongDefinitionRole::ScanProgram,
+            )?;
+            StrongTypeDescriptorInlineScanPlanV1::Defined {
+                scan,
+                definition_plan: definition.id(),
+            }
+        }
+    };
 
     let registration_object =
         require_digest_node(digests, DigestNodeKey::object_definition(primary_atom))?;
@@ -449,6 +497,7 @@ fn build_registration(
         layout_symbol,
         layout_definition_plan: layout_definition.id(),
         layout_primary_atom,
+        inline_scan,
         registration_object_node: registration_object.id(),
         descriptor_definition_node: descriptor_definition_node.id(),
         layout_fingerprint_node: layout_fingerprint_node.id(),

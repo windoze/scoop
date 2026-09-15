@@ -206,11 +206,13 @@ impl CanonicalObjectRelocationV1 {
                 normalize_u32(bytes, start, self.encoded_value, 0xfc00_0000)?;
             }
             VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
-            | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21 => {
+            | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
+            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => {
                 normalize_u32(bytes, start, self.encoded_value, 0x9f00_001f)?;
             }
             VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
-            | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12 => {
+            | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
+            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => {
                 normalize_u32(bytes, start, self.encoded_value, 0xffc0_03ff)?;
             }
             VerifiedDarwinArm64RelocationFormV1::PointerToGot32 => {
@@ -376,7 +378,9 @@ fn shape_has_local_or_section_target(shape: &VerifiedDarwinArm64RelocationShapeV
         | VerifiedDarwinArm64RelocationShapeV1::PageOffset12 { target, .. }
         | VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 { target }
         | VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target } => {
+        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
+        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
+        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
             is_local_or_section(target)
         }
         VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
@@ -430,6 +434,8 @@ fn encode_relocation_form(
         VerifiedDarwinArm64RelocationFormV1::GotLoadPage21 => encoder.u32(6),
         VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12 => encoder.u32(7),
         VerifiedDarwinArm64RelocationFormV1::PointerToGot32 => encoder.u32(8),
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => encoder.u32(9),
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => encoder.u32(10),
     }
 }
 

@@ -436,6 +436,7 @@ impl Fixture {
                             RefScan::None,
                         )
                         .unwrap(),
+                        TypeDescriptorInlineScanV1::Null,
                         None,
                         StrongTypeVtableSemanticPlanV1::from_artifact(
                             artifacts.vtable.id(),

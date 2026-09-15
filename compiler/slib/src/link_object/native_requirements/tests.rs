@@ -1,8 +1,9 @@
 use scoop_identity::{
-    CanonicalCAbiFunctionSignature, CanonicalCAbiReturn, CanonicalIdentifier,
-    CanonicalNativeLibraryName, CborIdentityRecord, ConeIdentity, DeclarationScope,
-    DefinitionOwnerChain, NativeExternalContract, NativeExternalContractRecord,
-    NativeExternalSymbolKey, NativeLibraryBinding, NativeLinkRequirementKey, PackagePath,
+    CanonicalCAbiFunctionSignature, CanonicalCAbiReturn, CanonicalCStorageType,
+    CanonicalIdentifier, CanonicalNativeLibraryName, CborIdentityRecord, ConeIdentity,
+    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
+    NativeExternalContract, NativeExternalContractRecord, NativeExternalSymbolKey,
+    NativeLibraryBinding, NativeLinkRequirementKey, PackagePath, PersistentExactTypeId,
     PersistentSourceNativeExternalContractId, SourceDeclarationKey, SourceDeclarationSite,
     SourceNativeExternalContractKey, SourceNativeSymbol,
 };
@@ -12,7 +13,8 @@ use scoop_lir::{
 };
 
 use super::super::strong_relocation_closure::tests::{
-    verified_member_with_undefined, verified_member_without_relocations,
+    verified_member_with_undefined, verified_member_with_undefined_form,
+    verified_member_without_relocations,
 };
 use super::super::symbol_verification::tests::fixture_for_producer;
 use super::*;
@@ -64,6 +66,54 @@ fn resolves_source_extern_uses_and_preserves_unclassified_externals() {
     assert_eq!(
         verified.remaining_external_candidates()[0].symbol(),
         b"_runtime_symbol"
+    );
+}
+
+#[test]
+fn admits_tlvp_relocations_only_for_typed_tls_contracts() {
+    let producer = ConeIdentity::SINGLE_FILE;
+    let storage = CanonicalCStorageType::Boolean {
+        exact_type: unit_exact_type(),
+    };
+    let tls_contract =
+        NativeExternalContract::mutable_tls(NativeLibraryBinding::DefaultNativeNamespace, storage);
+    let tls_record =
+        contract_record_with_contract(producer, "tlsDeclaration", "native_tls", tls_contract);
+    let object = fixture_for_producer(producer, "nativeTlsConsumer");
+    let member = verified_member_with_undefined_form(
+        &object,
+        b"_native_tls",
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+    );
+    let verified = verify_source_external_requirements_v1(
+        core_closure(producer, member),
+        native_surface(producer, vec![tls_record], Vec::new()),
+    )
+    .unwrap();
+    assert_eq!(verified.source_external_requirements().len(), 1);
+
+    let data_contract =
+        NativeExternalContract::mutable_data(NativeLibraryBinding::DefaultNativeNamespace, storage);
+    let data_record =
+        contract_record_with_contract(producer, "dataDeclaration", "native_data", data_contract);
+    let fingerprint = data_record.fingerprint();
+    let object = fixture_for_producer(producer, "nativeDataConsumer");
+    let member = verified_member_with_undefined_form(
+        &object,
+        b"_native_data",
+        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
+    );
+    assert_eq!(
+        verify_source_external_requirements_v1(
+            core_closure(producer, member),
+            native_surface(producer, vec![data_record], Vec::new()),
+        ),
+        Err(
+            SourceExternalRequirementValidationError::TlvpRelocationRequiresTlsContract {
+                contract: fingerprint,
+                form: VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
+            }
+        )
     );
 }
 
@@ -187,12 +237,33 @@ pub(in crate::link_object) fn contract_record(
     symbol: &str,
     library: NativeLibraryBinding,
 ) -> NativeExternalContractRecord {
+    contract_record_with_contract(
+        producer,
+        declaration,
+        symbol,
+        NativeExternalContract::c_function(library, signature()),
+    )
+}
+
+fn contract_record_with_contract(
+    producer: ConeIdentity,
+    declaration: &str,
+    symbol: &str,
+    contract: NativeExternalContract,
+) -> NativeExternalContractRecord {
     NativeExternalContractRecord::new(
         source_contract(producer, declaration),
         NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new(symbol).unwrap())
             .unwrap(),
-        NativeExternalContract::c_function(library, signature()),
+        contract,
     )
+    .unwrap()
+}
+
+fn unit_exact_type() -> PersistentExactTypeId {
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))
     .unwrap()
 }
 

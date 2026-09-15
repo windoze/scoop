@@ -297,6 +297,7 @@ fn add_exact_shape_to_components(
         identity,
         instance_layout: layouts[layout].identity.clone(),
         instance_shape: TypeInstanceShapeV1::abstract_ref(),
+        inline_scan: crate::TypeDescriptorInlineScanV1::Null,
         parent: None,
         itables: Vec::new(),
     });
