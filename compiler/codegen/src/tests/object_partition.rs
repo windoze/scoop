@@ -1,5 +1,7 @@
 use std::collections::BTreeSet;
 
+use object::{Object, ObjectSymbol};
+
 use super::*;
 
 #[test]
@@ -193,4 +195,83 @@ fn emitted_object_set_owns_verified_temporary_members() {
     assert!(backing.starts_with(parent.path()));
     drop(emitted);
     assert!(!backing.exists());
+}
+
+#[test]
+fn emitted_callable_members_materialize_every_planned_atom_boundary() {
+    let mut module = exceptions_module();
+    module.output = scoop_lir::LirOutput::Library;
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let parent = tempfile::tempdir().unwrap();
+    let emitted = emit_object_set(
+        &input,
+        &scoop_lir::ConeCoordinate::reserved_single_file(),
+        scoop_lir::EntryProductionSourceV1::Library,
+        parent.path(),
+        host_profile(),
+    )
+    .unwrap();
+    let normalization = input
+        .module()
+        .meta
+        .target_profile
+        .contract()
+        .native_symbol_normalization();
+    let mut callable_count = 0;
+
+    for member in emitted.members() {
+        let EmittedStrongObjectMemberKindV1::CallableBody { body } = member.kind() else {
+            continue;
+        };
+        callable_count += 1;
+        let [definition] = member.units().definition_plans() else {
+            panic!("each callable member must own exactly one definition");
+        };
+        let plan = emitted
+            .production()
+            .canonical_definitions()
+            .plan(*definition)
+            .unwrap();
+        assert_eq!(
+            plan.owner().kind(),
+            scoop_lir::StrongDefinitionEntityKind::CallableBody(body)
+        );
+        let bytes = std::fs::read(member.path()).unwrap();
+        let object = object::File::parse(bytes.as_slice()).unwrap();
+        let primary_name =
+            normalization.compiler_generated_object_symbol(plan.primary_symbol().symbol().as_str());
+        let primary = object.symbol_by_name(&primary_name).unwrap();
+
+        for boundary in plan.atom_boundaries() {
+            let start_name =
+                normalization.compiler_generated_object_symbol(boundary.start().symbol().as_str());
+            let end_name =
+                normalization.compiler_generated_object_symbol(boundary.end().symbol().as_str());
+            let start = object.symbol_by_name(&start_name).unwrap();
+            let end = object.symbol_by_name(&end_name).unwrap();
+            assert!(
+                start.is_definition(),
+                "missing definition for `{start_name}`"
+            );
+            assert!(end.is_definition(), "missing definition for `{end_name}`");
+            assert_eq!(start.section_index(), end.section_index());
+            assert!(start.address() < end.address());
+            if boundary.atom() == plan.primary_atom() {
+                assert_eq!(primary.section_index(), start.section_index());
+                assert_eq!(primary.address(), start.address());
+            }
+        }
+
+        let duplicate_path = parent.path().join(format!("duplicate-{body}.o"));
+        std::fs::write(&duplicate_path, bytes).unwrap();
+        let error = crate::callable_atom_boundaries::materialize_v1(
+            &duplicate_path,
+            input.module().meta.target_profile,
+            plan,
+            body,
+        )
+        .unwrap_err();
+        assert!(error.0.contains("already exists"), "{error}");
+    }
+    assert_eq!(callable_count, input.module().functions.len());
 }

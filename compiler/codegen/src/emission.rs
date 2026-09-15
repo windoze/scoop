@@ -158,14 +158,8 @@ pub fn emit_object_set(
                     profile,
                     &selected_safepoints,
                 )?;
-                write_and_verify_object(
-                    &machine,
-                    &llvm,
-                    &path,
-                    profile,
-                    &selected_safepoints,
-                    &selected_eh,
-                )?;
+                write_object(&machine, &llvm, &path)?;
+                verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
                 let digest_patches =
                     object_materialization::resolve_digest_patch_materializations_v1(
                         &path,
@@ -203,14 +197,25 @@ pub fn emit_object_set(
                     &selected_safepoints,
                     body,
                 )?;
-                write_and_verify_object(
-                    &machine,
-                    &llvm,
+                write_object(&machine, &llvm, &path)?;
+                let definition = production
+                    .canonical_definitions()
+                    .plan(units.definition_plans()[0])
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "callable object unit {} has no canonical symbol plan",
+                            units.definition_plans()[0]
+                        ))
+                    })?;
+                if let Err(error) = crate::callable_atom_boundaries::materialize_v1(
                     &path,
-                    profile,
-                    &selected_safepoints,
-                    &selected_eh,
-                )?;
+                    module.meta.target_profile,
+                    definition,
+                    body,
+                ) {
+                    return Err(discard_invalid_object(&path, error));
+                }
+                verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
                 EmittedStrongObjectMemberV1 {
                     units: units.clone(),
                     path,
@@ -363,25 +368,24 @@ fn prepare_callable_strong_llvm_module<'ctx>(
     Ok(llvm)
 }
 
-fn write_and_verify_object(
+fn write_object(
     machine: &TargetMachine,
     llvm: &LlvmModule<'_>,
+    output: &Path,
+) -> Result<(), CodegenError> {
+    machine
+        .write_to_file(llvm, FileType::Object, output)
+        .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))
+}
+
+fn verify_and_seal_object(
     output: &Path,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
     expected_eh: &artifact::ExpectedEh,
 ) -> Result<(), CodegenError> {
-    machine
-        .write_to_file(llvm, FileType::Object, output)
-        .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))?;
     if let Err(error) = profile.verify_object(output, expected_safepoints, expected_eh) {
-        if let Err(remove_error) = std::fs::remove_file(output) {
-            return Err(CodegenError(format!(
-                "{error}; also failed to discard invalid object {}: {remove_error}",
-                output.display()
-            )));
-        }
-        return Err(error);
+        return Err(discard_invalid_object(output, error));
     }
     let mut permissions = std::fs::metadata(output)
         .map_err(|error| {
@@ -399,6 +403,16 @@ fn write_and_verify_object(
         ))
     })?;
     Ok(())
+}
+
+fn discard_invalid_object(output: &Path, error: CodegenError) -> CodegenError {
+    match std::fs::remove_file(output) {
+        Ok(()) => error,
+        Err(remove_error) => CodegenError(format!(
+            "{error}; also failed to discard invalid object {}: {remove_error}",
+            output.display()
+        )),
+    }
 }
 
 fn verify_and_rewrite_module(

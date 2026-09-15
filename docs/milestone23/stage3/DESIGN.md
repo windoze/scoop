@@ -1401,6 +1401,16 @@ Scoop LLVM producer在返回member前，必须把runtime-metadata emitter给出�
 全部slot不得重复或相交。成功materialization保留上述typed位置和checked object file offset；packager只把
 随后确定的member id附加到该记录并由完整object verifier复核，不能重新扫描descriptor内容寻找零串。
 
+每个callable object仅含一个body，因此该body的`Primary`精确覆盖唯一`__text`，
+`Stackmap`/`Lsda`/`EhFrame`/`CompactUnwind`分别精确覆盖同对象的
+`__llvm_stackmaps`/`__gcc_except_tab`/`__eh_frame`/`__compact_unwind`。LLVM完成object
+写出后、对象被标记只读前，producer必须为这些已计划atom向Mach-O加入真实的external
+section-definition start/end symbol；不得使用`nlist` size、相邻symbol或文件顺序推测边界。重建symbol
+table时必须保留local/extdef/undefined分区，并同步修正所有指向被后移undefined symbol的external
+relocation index。缺失/多余backend section、符号冲突、越界、scattered relocation或非canonical table
+布局都必须在改写前失败；callable-owned C string的`AddressTakenConstant`边界仍由LLVM global
+alias直接发射，并在此门禁复核为同section的非空范围。
+
 ### 11.2 member id在finalization前确定
 
 `SlibMemberId`只依赖Cone identity与stable key，不依赖payload hash。packager因此先：

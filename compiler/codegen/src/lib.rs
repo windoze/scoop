@@ -70,6 +70,7 @@ mod abi;
 mod artifact;
 mod atom_boundaries;
 mod c_bridge;
+mod callable_atom_boundaries;
 mod declarations;
 mod emission;
 mod function;
