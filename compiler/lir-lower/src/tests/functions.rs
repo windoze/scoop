@@ -96,7 +96,19 @@ fn core_lowering_publishes_callable_abi_authority() {
 #[test]
 fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
     let mut core_builder = Builder::new();
-    let core_function = core_builder.user_fn("exported", Arena::new(), Vec::new());
+    let mut core_locals = Arena::new();
+    let core_parameter = core_locals.alloc(local("value", INT));
+    let core_function = core_builder.user_fn_full(
+        "exported",
+        vec![mir::Param {
+            name: "value".to_string(),
+            ty: INT,
+            local: core_parameter,
+        }],
+        mir::Type::Unit,
+        core_locals,
+        Vec::new(),
+    );
     let mut core_module = core_builder.finish(core_function);
     core_module.cone = ConeIdentity::CORE;
     core_module.output = mir::MirOutput::Library;
@@ -202,7 +214,7 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
                 kind: mir::CallKind::Direct,
                 callee: mir::Callee::CoreExternal(imported_use),
             },
-            args: Vec::new(),
+            args: vec![int_expr(7)],
             pending: mir::CoroutinePendingContext::Root,
         }));
     let ordinary_foundation = mir::OdrFreeMirFoundation::from_module(&ordinary_module).unwrap();
@@ -294,6 +306,7 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
     let module = output.module();
     assert_eq!(module.meta.core_external_callables.len(), 1);
     let external = &module.meta.core_external_callables.iter().next().unwrap().1;
+    assert_eq!(external.signature().logical_argument_count(), 1);
     assert_eq!(
         external.target(),
         scoop_identity::StrongCallableDefinitionOwner::Function(definition)

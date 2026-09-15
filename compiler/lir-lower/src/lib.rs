@@ -569,6 +569,11 @@ pub enum StrongLirLoweringError {
         index: usize,
         binding: scoop_identity::PersistentExportBindingId,
     },
+    MissingImportedCoreParameterType {
+        index: usize,
+        parameter: usize,
+        exact: scoop_identity::PersistentExactTypeId,
+    },
     MissingImportedCoreResultType {
         index: usize,
         exact: scoop_identity::PersistentExactTypeId,
@@ -605,6 +610,14 @@ impl fmt::Display for StrongLirLoweringError {
             Self::ImportedCoreLirCallableMismatch { index, binding } => write!(
                 formatter,
                 "imported-core MIR callable {index} binding {binding} disagrees with its LIR authority"
+            ),
+            Self::MissingImportedCoreParameterType {
+                index,
+                parameter,
+                exact,
+            } => write!(
+                formatter,
+                "imported-core MIR callable {index} parameter {parameter} exact type {exact} has no MIR type relation"
             ),
             Self::MissingImportedCoreResultType { index, exact } => write!(
                 formatter,
@@ -649,6 +662,7 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::ImportedCoreLirCountMismatch { .. }
             | Self::MissingImportedCoreLirCallable { .. }
             | Self::ImportedCoreLirCallableMismatch { .. }
+            | Self::MissingImportedCoreParameterType { .. }
             | Self::MissingImportedCoreResultType { .. }
             | Self::MissingCoreCallableSignature(_)
             | Self::UnsupportedCoreCallableEffect(_)

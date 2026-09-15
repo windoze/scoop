@@ -64,6 +64,24 @@ pub(super) fn lower_imported_core_callables(
                 binding: root.binding(),
             });
         }
+        let parameters = root
+            .signature()
+            .parameters()
+            .iter()
+            .enumerate()
+            .map(|(parameter, exact)| {
+                module
+                    .meta
+                    .source_exact_types
+                    .get_by_identity(*exact)
+                    .map(|identity| identity.ty())
+                    .ok_or(StrongLirLoweringError::MissingImportedCoreParameterType {
+                        index,
+                        parameter,
+                        exact: *exact,
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let result = module
             .meta
             .source_exact_types
@@ -72,13 +90,8 @@ pub(super) fn lower_imported_core_callables(
                 index,
                 exact: root.signature().result(),
             })?;
-        let signature = abi::classify_mir_signature(
-            context,
-            std::iter::empty::<&mir::Type>(),
-            result.ty(),
-            structs,
-            enums,
-        );
+        let signature =
+            abi::classify_mir_signature(context, parameters, result.ty(), structs, enums);
         let callable = authority
             .materialize(signature)
             .map_err(StrongLirLoweringError::ImportedCoreCallable)?;

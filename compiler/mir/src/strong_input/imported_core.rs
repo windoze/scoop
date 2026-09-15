@@ -50,7 +50,6 @@ pub(super) fn validate_imported_core_callables(
         }
         if selected.signature().effect() != scoop_identity::Effect::Ordinary
             || selected.signature().receiver().is_present()
-            || !selected.signature().parameters().is_empty()
         {
             return Err(
                 SingleConeStrongMirInputError::UnsupportedImportedCoreCallableShape {
