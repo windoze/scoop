@@ -19,11 +19,21 @@ use scoop_slib::{
     LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
     PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1,
     ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError,
-    SlibMemberId, StrongObjectSymbolPlanningError, VerifiedBuiltinObjectStrongRelocationSetV1,
+    SlibMemberId, StrongCallableRegistrationValidationError,
+    StrongImmortalObjectRegistrationValidationError,
+    StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
+    StrongSafepointRegistrationValidationError, StrongStaticStorageRegistrationValidationError,
+    StrongTypeRegistrationValidationError, VerifiedBuiltinObjectStrongRelocationSetV1,
     VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    VerifiedScoopLirStackmapSetV1, verify_builtin_object_strong_relocations_v1,
+    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableRegistrationSetV1,
+    VerifiedStrongImmortalObjectRegistrationSetV1, VerifiedStrongInitializationRegistrationSetV1,
+    VerifiedStrongSafepointRegistrationSetV1, VerifiedStrongStaticStorageRegistrationSetV1,
+    VerifiedStrongTypeRegistrationSetV1, verify_builtin_object_strong_relocations_v1,
     verify_c_bridge_production_envelopes_v1, verify_scoop_lir_digest_patch_sites_v1,
-    verify_scoop_lir_stackmaps_v1,
+    verify_scoop_lir_stackmaps_v1, verify_strong_callable_registrations_v1,
+    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
+    verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
+    verify_strong_type_registrations_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -372,6 +382,145 @@ impl StackmapVerifiedObjectProductionV1 {
     pub const fn stackmaps(&self) -> &VerifiedScoopLirStackmapSetV1 {
         &self.stackmaps
     }
+
+    pub fn verify_registration_objects(
+        self,
+    ) -> Result<RegistrationObjectVerifiedObjectProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan,
+            digest_patch_sites,
+            stackmaps,
+        } = self;
+        let registration_production = production.production.registration_production();
+        let safepoint_plan = registration_production.safepoints().clone();
+        let callable_plan = registration_production.callables().clone();
+        let type_plan = registration_production.types().clone();
+        let immortal_object_plan = registration_production.immortal_objects().clone();
+        let static_storage_plan = registration_production.static_storages().clone();
+        let initialization_plan = registration_production.initialization_units().clone();
+
+        let (
+            safepoint_registrations,
+            callable_registrations,
+            type_registrations,
+            immortal_object_registrations,
+            static_storage_registrations,
+            initialization_registrations,
+        ) = {
+            let candidates = production.scoop_lir_candidates();
+            let safepoint_registrations = verify_strong_safepoint_registrations_v1(
+                stackmaps,
+                digest_patch_sites.clone(),
+                safepoint_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::SafepointRegistrations)?;
+            let callable_registrations = verify_strong_callable_registrations_v1(
+                digest_patch_sites.clone(),
+                callable_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::CallableRegistrations)?;
+            let type_registrations = verify_strong_type_registrations_v1(
+                digest_patch_sites.clone(),
+                type_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::TypeRegistrations)?;
+            let immortal_object_registrations = verify_strong_immortal_object_registrations_v1(
+                digest_patch_sites.clone(),
+                immortal_object_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::ImmortalObjectRegistrations)?;
+            let static_storage_registrations = verify_strong_static_storage_registrations_v1(
+                digest_patch_sites.clone(),
+                static_storage_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::StaticStorageRegistrations)?;
+            let initialization_registrations = verify_strong_initialization_registrations_v1(
+                digest_patch_sites,
+                initialization_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::InitializationRegistrations)?;
+            (
+                safepoint_registrations,
+                callable_registrations,
+                type_registrations,
+                immortal_object_registrations,
+                static_storage_registrations,
+                initialization_registrations,
+            )
+        };
+
+        Ok(RegistrationObjectVerifiedObjectProductionV1 {
+            production,
+            symbol_plan,
+            safepoint_registrations,
+            callable_registrations,
+            type_registrations,
+            immortal_object_registrations,
+            static_storage_registrations,
+            initialization_registrations,
+        })
+    }
+}
+
+/// Atomic proof that all six strong registration families match the same
+/// provisional Scoop object set and digest graph.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RegistrationObjectVerifiedObjectProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    safepoint_registrations: VerifiedStrongSafepointRegistrationSetV1,
+    callable_registrations: VerifiedStrongCallableRegistrationSetV1,
+    type_registrations: VerifiedStrongTypeRegistrationSetV1,
+    immortal_object_registrations: VerifiedStrongImmortalObjectRegistrationSetV1,
+    static_storage_registrations: VerifiedStrongStaticStorageRegistrationSetV1,
+    initialization_registrations: VerifiedStrongInitializationRegistrationSetV1,
+}
+
+impl RegistrationObjectVerifiedObjectProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn safepoint_registrations(&self) -> &VerifiedStrongSafepointRegistrationSetV1 {
+        &self.safepoint_registrations
+    }
+
+    pub const fn callable_registrations(&self) -> &VerifiedStrongCallableRegistrationSetV1 {
+        &self.callable_registrations
+    }
+
+    pub const fn type_registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1 {
+        &self.type_registrations
+    }
+
+    pub const fn immortal_object_registrations(
+        &self,
+    ) -> &VerifiedStrongImmortalObjectRegistrationSetV1 {
+        &self.immortal_object_registrations
+    }
+
+    pub const fn static_storage_registrations(
+        &self,
+    ) -> &VerifiedStrongStaticStorageRegistrationSetV1 {
+        &self.static_storage_registrations
+    }
+
+    pub const fn initialization_registrations(
+        &self,
+    ) -> &VerifiedStrongInitializationRegistrationSetV1 {
+        &self.initialization_registrations
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -554,6 +703,12 @@ pub enum BuiltinObjectProductionError {
     StrongRelocations(BuiltinObjectSetValidationError),
     DigestPatchSites(DigestPatchSiteValidationError),
     Stackmaps(ScoopLirStackmapValidationError),
+    SafepointRegistrations(StrongSafepointRegistrationValidationError),
+    CallableRegistrations(StrongCallableRegistrationValidationError),
+    TypeRegistrations(StrongTypeRegistrationValidationError),
+    ImmortalObjectRegistrations(StrongImmortalObjectRegistrationValidationError),
+    StaticStorageRegistrations(StrongStaticStorageRegistrationValidationError),
+    InitializationRegistrations(StrongInitializationRegistrationValidationError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -589,6 +744,12 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::StrongRelocations(source) => Some(source),
             Self::DigestPatchSites(source) => Some(source),
             Self::Stackmaps(source) => Some(source),
+            Self::SafepointRegistrations(source) => Some(source),
+            Self::CallableRegistrations(source) => Some(source),
+            Self::TypeRegistrations(source) => Some(source),
+            Self::ImmortalObjectRegistrations(source) => Some(source),
+            Self::StaticStorageRegistrations(source) => Some(source),
+            Self::InitializationRegistrations(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,

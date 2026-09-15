@@ -1667,6 +1667,14 @@ digest plan、candidate bytes。
 取得，caller不能传入另一份。成功状态同时保留digest-site proof与`VerifiedScoopLirStackmapSetV1`，供
 safepoint registration验证逐项交叉核对。
 
+`StackmapVerifiedObjectProductionV1`随后必须被一个原子转换消耗，内部从同一strong production取得
+safepoint、callable、type、immortal-object、static-storage与initialization六类registration plan，并以
+同一批私有Scoop bytes和同一digest-site proof依次完成六类object验证。safepoint验证必须消费前一步的
+stackmap proof；其余五类分别消费从同一proof克隆出的typed patch authority，最后一类消费原proof。
+成功的`RegistrationObjectVerifiedObjectProductionV1`必须同时拥有原planned production、symbol plan和
+六份registration proof；任一类失败都不产生可继续使用的部分状态，也不公开单类验证入口、裸candidate、
+patch proof或可由caller重新组合的兼容路径。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
