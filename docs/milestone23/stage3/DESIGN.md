@@ -1737,6 +1737,11 @@ section，不能把foundation推迟到packager临时重算。`OdrFreeHirFoundati
 转换以稳定能力错误结束，不能删除foundation记录、改写成strong owner或保留一条跳过`RejectAll`的core
 bootstrap路径。
 
+三层lowering完成后，driver必须消费完整IR链调用`seal_strong_profile`。成功的
+`TrustedCoreStrongIrProductionV1`同时拥有从canonical HIR收窄出的`OdrFreeHirFoundation`以及原链中的
+`OdrFreeMirFoundation`、`OdrFreeLirFoundation`和三层production；只有该状态可以进入object producer。
+收窄失败不返回LIR或任一可单独送入codegen的部分结果，也不为trusted core设置豁免分支。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

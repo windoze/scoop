@@ -610,6 +610,72 @@ impl TrustedCoreBootstrapLirOutput {
     pub const fn core_shape_support(&self) -> &scoop_lir::StrongLirCoreShapeSupportPlan {
         self.lir.core_shape_support()
     }
+
+    /// Seals all three IR foundations under the strong profile's `RejectAll`
+    /// policy before object production can observe this lowering result.
+    pub fn seal_strong_profile(
+        self,
+    ) -> Result<TrustedCoreStrongIrProductionV1, CoreBootstrapStrongProfileError> {
+        let hir_foundation =
+            scoop_hir::OdrFreeHirFoundation::try_new(self.mir.hir.foundation.clone())
+                .map_err(CoreBootstrapStrongProfileError::HirOdr)?;
+        Ok(TrustedCoreStrongIrProductionV1 {
+            lir: self,
+            hir_foundation,
+        })
+    }
+}
+
+/// Trusted-core lowering chain proven admissible for strong object production.
+///
+/// The private fields keep the HIR `RejectAll` proof attached to the exact MIR
+/// and LIR proofs that descended from the same source graph.
+pub struct TrustedCoreStrongIrProductionV1 {
+    lir: TrustedCoreBootstrapLirOutput,
+    hir_foundation: scoop_hir::OdrFreeHirFoundation,
+}
+
+impl TrustedCoreStrongIrProductionV1 {
+    pub const fn lir_output(&self) -> &scoop_lir::SingleConeStrongLirOutput {
+        &self.lir.lir
+    }
+
+    pub const fn hir_foundation(&self) -> &scoop_hir::OdrFreeHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
+        self.lir.mir.hir.production_section()
+    }
+
+    pub const fn mir_foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
+        self.lir.mir.foundation()
+    }
+
+    pub const fn mir_production(&self) -> &scoop_mir::CoreBootstrapBridgeSectionV1 {
+        self.lir.mir.production_section()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoreBootstrapStrongProfileError {
+    HirOdr(scoop_hir::OdrFreeHirFoundationError),
+}
+
+impl fmt::Display for CoreBootstrapStrongProfileError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::HirOdr(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapStrongProfileError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::HirOdr(source) => Some(source),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1396,6 +1462,10 @@ mod tests {
             production_shape_support.closures().len(),
             expected_shape_roots
         );
+        assert!(matches!(
+            real_lir.seal_strong_profile(),
+            Err(CoreBootstrapStrongProfileError::HirOdr(_))
+        ));
     }
 
     #[test]
