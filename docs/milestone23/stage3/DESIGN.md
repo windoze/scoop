@@ -2335,8 +2335,12 @@ producer全部`TypeDescriptor` strong definition的exact type集合为完备性�
 `StrongRegistrationIdentitySurfaceV1.type_registrations`逐项相等；每个exact type必须恰有一个非零
 runtime type mapping、一个当前target的`ManagedObject` layout，以及registration、descriptor、layout三套
 definition plan、各自唯一`Primary` atom和`ConeStrong`符号。descriptor definition还必须精确拥有一个
-`AddressTakenConstant + ExactType(exact_type)` diagnostic associated atom，缺失、错subkey或任何额外associated
-atom都直接失败；完整plan显式保留该atom id，Link侧不得按字符串符号或物理相邻关系猜测。descriptor
+`AddressTakenConstant + ExactType(exact_type)` diagnostic associated atom；当且仅当descriptor的itable序列非空时，
+还必须精确拥有一个`RuntimeRecord + ExactType(exact_type)` itable-directory associated atom。完整plan以封闭
+`TypeDescriptorITableDirectoryV1::{Null, Defined(ObjectDefinitionAtomId)}`显式保存该关系：`Null`当且仅当itable
+序列为空，`Defined`必须指向上述唯一atom；缺失、错subkey或任何额外associated atom都直接失败，Link侧不得按
+LLVM私有global名字、物理相邻关系或descriptor pointer反推。该closed sum是type registration wire的必需field 28，
+旧27-field record直接拒绝，不提供兼容分支。descriptor
 semantic还必须以封闭`TypeDescriptorInlineScanV1::{Null, Defined(PersistentScanId)}`保存inline-scan
 指针来源：`Null`当且仅当instance shape的inline scan为空，`Defined`当且仅当该scan非空；所指scan record
 必须存在于同一foundation、具有与instance kind相符的typed layout/scan role，且canonical scan payload逐byte
@@ -2427,6 +2431,11 @@ linkage且address-significant；旧扁平TypeDescriptor、错type、可变定义
 fingerprint均保留恰32-byte零值，返回的三个patch site共同绑定registration definition/Primary atom及各自
 typed intent。已有同type external image-table声明可以补全；错type/linkage、已有initializer或任一预检
 失败时不得留下部分registration定义，不开放接受裸exact type、runtime id、descriptor pointer或offset的入口。
+TypeDescriptor的itable序列非空时，descriptor emitter必须把每项`{interface TypeDescriptor*, slots*}`连续发射为
+只读itable-directory global，并把该global绑定到plan中的`RuntimeRecord` associated atom；空序列不得发射目录
+global或atom materialization。目录中每项interface pointer必须来自同一semantic itable的typed local/core-external
+descriptor ref；slots为空时为null，非空时必须指向同一itable identity的`DispatchTable` strong definition。不得
+保留无身份的private itable常量、按descriptor名字派生的Link语义或第二套目录表示。
 
 immortal-object registration唯一经`emit_strong_immortal_object_registrations_v1`消费完整immortal plan set。
 入口同样先对全集做无副作用预检：object必须已经是managed LLVM address space中的external、constant、
@@ -2447,7 +2456,8 @@ Link侧唯一经`verify_strong_type_registrations_v1`消费完整type plan、全
 bytes；它重验240-byte provisional record、只读Primary atom、offset 168处唯一8-byte unsigned
 TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation必须解析到同一exact type的
 `TypeDescriptor` strong definition/Primary symbol；该descriptor必须是精确128-byte只读Primary，并精确拥有plan
-指定的只读diagnostic associated atom，其bytes必须等于LIR中的UTF-8 diagnostic name。descriptor offset 112必须
+指定的只读diagnostic associated atom，其bytes必须等于LIR中的UTF-8 diagnostic name；非空itable分支还必须精确
+拥有plan指定的只读itable-directory associated atom。descriptor offset 112必须
 恰有一条8-byte、zero-addend、`Unsigned64` relocation，解析到该diagnostic atom起点的object-local symbol；用其他
 local atom、section base、boundary symbol或任意合法strong定义代替都失败。验证结果直接携带descriptor Primary与
 diagnostic atom的member、checked file range及已验证relocation，后续专用fingerprint计算器不得重新按物理邻接或
@@ -2517,7 +2527,12 @@ itables及必有的diagnostic span机械导出，严格为相应的64/72/80/88/9
 8-byte `Unsigned64`且encoded value为零，112项继续复用前述精确diagnostic-atom proof，不能出现额外pointer。
 
 descriptor fingerprint仍使用`scoop-object-definition-v1`：先编码通用Primary bytes、offset 112指向owning
-`AddressTakenConstant` atom起点的canonical relocation、零direct input及唯一diagnostic associated atom，随后
+`AddressTakenConstant` atom起点的canonical relocation、零direct input及完整associated atom集合：必有diagnostic
+atom，非空itable分支另有itable-directory atom。目录extent必须精确为`16 * itable_count`，每个pointer slot的
+provisional bytes为零；每项interface relocation必须命中semantic指定的local/core-external TypeDescriptor，每项
+非空slots relocation必须命中同一itable identity的`DispatchTable` strong definition，空slots不得出现relocation。
+descriptor offset 96必须恰好指向上述目录atom起点；目录bytes与canonical relocations一并进入descriptor
+ObjectDefinition fingerprint。随后
 编码descriptor-semantic kind tag 1、exact type、runtime type、instance Layout/Scan id、完整`TypeInstanceShape`
 （两个scan均用`None=0 | References=1 | Sequence=2 | Array=3`递归编码）、diagnostic byte span、typed parent、
 vtable identity/typed callable slots及按plan顺序的itable identity/interface/typed callable slots。descriptor中的

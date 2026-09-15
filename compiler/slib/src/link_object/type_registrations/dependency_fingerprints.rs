@@ -13,7 +13,9 @@ use crate::link_object::{
 };
 
 mod encoding;
-use encoding::{descriptor_fingerprint, layout_fingerprint};
+use encoding::{
+    TypeDescriptorITableDirectoryFingerprintInputV1, descriptor_fingerprint, layout_fingerprint,
+};
 
 mod validation;
 use validation::{TYPE_DESCRIPTOR_SIZE, exact_bytes, validate_descriptor};
@@ -129,10 +131,50 @@ pub fn compute_strong_type_dependency_fingerprints_v1(
             exact_type,
             TypeDependencyArtifactV1::Diagnostic,
         )?;
+        let itable_directory = match (plan.itable_directory(), descriptor_proof.itable_directory())
+        {
+            (
+                scoop_lir::TypeDescriptorITableDirectoryV1::Null,
+                super::VerifiedTypeDescriptorITableDirectoryV1::Null,
+            ) => TypeDescriptorITableDirectoryFingerprintInputV1::Null,
+            (
+                scoop_lir::TypeDescriptorITableDirectoryV1::Defined(atom),
+                super::VerifiedTypeDescriptorITableDirectoryV1::Defined {
+                    checked_offset,
+                    byte_size,
+                    ..
+                },
+            ) => TypeDescriptorITableDirectoryFingerprintInputV1::Defined {
+                atom,
+                bytes: exact_bytes(
+                    object,
+                    *checked_offset,
+                    usize::try_from(*byte_size).map_err(|_| {
+                        StrongTypeDependencyFingerprintError::Range {
+                            exact_type,
+                            artifact: TypeDependencyArtifactV1::ITableDirectory,
+                        }
+                    })?,
+                    exact_type,
+                    TypeDependencyArtifactV1::ITableDirectory,
+                )?,
+            },
+            _ => {
+                return Err(
+                    StrongTypeDependencyFingerprintError::ITableDirectoryProofMismatch {
+                        exact_type,
+                    },
+                );
+            }
+        };
         let descriptor_definition =
-            descriptor_fingerprint(descriptor_bytes, diagnostic_bytes, plan).map_err(|source| {
-                StrongTypeDependencyFingerprintError::DescriptorHash { exact_type, source }
-            })?;
+            descriptor_fingerprint(descriptor_bytes, diagnostic_bytes, itable_directory, plan)
+                .map_err(
+                    |source| StrongTypeDependencyFingerprintError::DescriptorHash {
+                        exact_type,
+                        source,
+                    },
+                )?;
         let layout = layout_fingerprint(plan).map_err(|source| {
             StrongTypeDependencyFingerprintError::LayoutHash { exact_type, source }
         })?;
@@ -155,6 +197,7 @@ pub fn compute_strong_type_dependency_fingerprints_v1(
 pub enum TypeDependencyArtifactV1 {
     Descriptor,
     Diagnostic,
+    ITableDirectory,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -162,6 +205,9 @@ pub enum StrongTypeDependencyFingerprintError {
     ObjectValidation(StrongTypeRegistrationValidationError),
     ProofCoverageMismatch,
     RegistrationObjectMismatch {
+        exact_type: PersistentExactTypeId,
+    },
+    ITableDirectoryProofMismatch {
         exact_type: PersistentExactTypeId,
     },
     MissingObject(SlibMemberId),

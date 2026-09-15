@@ -21,20 +21,48 @@ const TYPE_DESCRIPTOR_SEMANTIC_KIND: u32 = 1;
 pub(super) fn descriptor_fingerprint(
     descriptor_bytes: &[u8],
     diagnostic_bytes: &[u8],
+    itable_directory: TypeDescriptorITableDirectoryFingerprintInputV1<'_>,
     plan: &StrongTypeRegistrationPlanV1,
 ) -> Result<ObjectDefinitionFingerprintV1, HashError> {
-    let relocations = [CanonicalObjectRelocationV1::owning_associated_atom_offset(
+    let mut relocations = Vec::with_capacity(2);
+    if let TypeDescriptorITableDirectoryFingerprintInputV1::Defined { atom, .. } = itable_directory
+    {
+        relocations.push(CanonicalObjectRelocationV1::owning_associated_atom_offset(
+            96,
+            atom,
+            DefinitionAtomRole::RuntimeRecord,
+            0,
+        ));
+    }
+    relocations.push(CanonicalObjectRelocationV1::owning_associated_atom_offset(
         112,
         plan.diagnostic_atom(),
         DefinitionAtomRole::AddressTakenConstant,
         0,
-    )];
-    let associated_atoms = [CanonicalAssociatedObjectAtomV1 {
+    ));
+    let directory_relocations = canonical_itable_directory_relocations(plan);
+    let diagnostic_atom = CanonicalAssociatedObjectAtomV1 {
         atom: plan.diagnostic_atom(),
         role: DefinitionAtomRole::AddressTakenConstant,
         bytes: diagnostic_bytes,
         relocations: &[],
-    }];
+    };
+    let directory_atom = match itable_directory {
+        TypeDescriptorITableDirectoryFingerprintInputV1::Null => None,
+        TypeDescriptorITableDirectoryFingerprintInputV1::Defined { atom, bytes } => {
+            Some(CanonicalAssociatedObjectAtomV1 {
+                atom,
+                role: DefinitionAtomRole::RuntimeRecord,
+                bytes,
+                relocations: &directory_relocations,
+            })
+        }
+    };
+    let mut associated_atoms = Vec::with_capacity(2);
+    if let Some(directory_atom) = directory_atom {
+        associated_atoms.push(directory_atom);
+    }
+    associated_atoms.push(diagnostic_atom);
     domain_separated_runtime_hash(
         OBJECT_DEFINITION_DOMAIN,
         &TypeDescriptorObjectFingerprintInputV1 {
@@ -50,6 +78,39 @@ pub(super) fn descriptor_fingerprint(
         },
     )
     .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum TypeDescriptorITableDirectoryFingerprintInputV1<'a> {
+    Null,
+    Defined {
+        atom: scoop_identity::ObjectDefinitionAtomId,
+        bytes: &'a [u8],
+    },
+}
+
+fn canonical_itable_directory_relocations(
+    plan: &StrongTypeRegistrationPlanV1,
+) -> Vec<CanonicalObjectRelocationV1> {
+    let mut relocations = Vec::new();
+    for (index, itable) in plan.semantic().itables().iter().enumerate() {
+        let base = u64::try_from(index).expect("itable index fits u64") * 16;
+        relocations.push(match itable.interface() {
+            StrongTypeDescriptorRefV1::Local(exact_type) => {
+                CanonicalObjectRelocationV1::intra_cone_type_descriptor(base, exact_type)
+            }
+            StrongTypeDescriptorRefV1::CoreExternal(exact_type) => {
+                CanonicalObjectRelocationV1::core_type_descriptor(base, exact_type)
+            }
+        });
+        if !itable.slots().is_empty() {
+            relocations.push(CanonicalObjectRelocationV1::dispatch_table(
+                base + 8,
+                itable.table(),
+            ));
+        }
+    }
+    relocations
 }
 
 struct TypeDescriptorObjectFingerprintInputV1<'a> {

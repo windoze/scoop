@@ -78,6 +78,22 @@ pub enum TypeDescriptorDiagnosticRelocationFailureV1 {
     TargetValue,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TypeDescriptorITableDirectoryFailureV1 {
+    UnexpectedPlanBranch,
+    MissingAtom,
+    AtomFileRange,
+    SectionRole,
+    Size,
+    NonzeroByte,
+    DescriptorRelocation,
+    RelocationSet,
+    RelocationShape,
+    InterfaceTarget,
+    SlotsTarget,
+    DispatchDefinitionIdentity,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongTypeRegistrationValidationError {
     DigestPatchProducerMismatch,
@@ -184,6 +200,11 @@ pub enum StrongTypeRegistrationValidationError {
     DescriptorDiagnosticRelocationMismatch {
         exact_type: PersistentExactTypeId,
         kind: TypeDescriptorDiagnosticRelocationFailureV1,
+    },
+    DescriptorITableDirectoryMismatch {
+        exact_type: PersistentExactTypeId,
+        entry: Option<usize>,
+        kind: TypeDescriptorITableDirectoryFailureV1,
     },
     DescriptorRelocationMismatch {
         exact_type: PersistentExactTypeId,

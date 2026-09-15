@@ -469,6 +469,13 @@ fn validate_and_assign_zero_padding(
                     role: sections.roles()[index],
                     segment_name: section.segment_name().to_vec(),
                     section_name: section.section_name().to_vec(),
+                    symbols: sections
+                        .envelope()
+                        .symbols()
+                        .iter()
+                        .filter(|symbol| symbol.section_ordinal() == Some(ordinal))
+                        .map(|symbol| (symbol.name().to_vec(), symbol.value()))
+                        .collect(),
                 });
             }
             continue;
@@ -612,6 +619,7 @@ pub enum StrongObjectDefinitionValidationError {
         role: BuiltinObjectSectionRoleV1,
         segment_name: Vec<u8>,
         section_name: Vec<u8>,
+        symbols: Vec<(Vec<u8>, u64)>,
     },
     UnownedSectionPrefix {
         section: NonZeroU8,

@@ -435,11 +435,12 @@ pub struct DecodedStrongTypeRegistrationPlanV1 {
     pub(super) vtable: DecodedStrongTypeVtableSemanticPlanV1,
     pub(super) itables: Vec<DecodedStrongTypeItableSemanticPlanV1>,
     pub(super) inline_scan: DecodedTypeDescriptorInlineScanV1,
+    itable_directory: DecodedTypeDescriptorITableDirectoryV1,
 }
 
 impl WireEncode for DecodedStrongTypeRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(27)?;
+        encoder.map(28)?;
         encode_field(encoder, 1, &self.exact_type)?;
         encode_unsigned_field(encoder, 2, self.runtime_type)?;
         encode_field(encoder, 3, &self.symbol)?;
@@ -467,13 +468,14 @@ impl WireEncode for DecodedStrongTypeRegistrationPlanV1 {
         encode_field(encoder, 24, &self.vtable)?;
         encode_array_field(encoder, 25, &self.itables)?;
         encode_field(encoder, 26, &self.diagnostic_atom)?;
-        encode_field(encoder, 27, &self.inline_scan)
+        encode_field(encoder, 27, &self.inline_scan)?;
+        encode_field(encoder, 28, &self.itable_directory)
     }
 }
 
 impl WireDecode for DecodedStrongTypeRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(27)?;
+        decoder.expect_map(28)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
             runtime_type: decoder.field(2, Decoder::unsigned)?,
@@ -506,7 +508,48 @@ impl WireDecode for DecodedStrongTypeRegistrationPlanV1 {
             )?,
             diagnostic_atom: decoder.field(26, DecodedPersistentId::decode)?,
             inline_scan: decoder.field(27, DecodedTypeDescriptorInlineScanV1::decode)?,
+            itable_directory: decoder.field(28, DecodedTypeDescriptorITableDirectoryV1::decode)?,
         })
+    }
+}
+
+#[derive(Debug)]
+enum DecodedTypeDescriptorITableDirectoryV1 {
+    Null,
+    Defined(DecodedPersistentId<ObjectDefinitionAtomId>),
+}
+
+impl WireEncode for DecodedTypeDescriptorITableDirectoryV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Null => {
+                encoder.map(2)?;
+                encode_unsigned_field(encoder, 0, 1)?;
+                encode_unsigned_field(encoder, 1, 0)
+            }
+            Self::Defined(atom) => encode_value_sum(encoder, 2, atom),
+        }
+    }
+}
+
+impl WireDecode for DecodedTypeDescriptorITableDirectoryV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        match tag {
+            1 => {
+                let marker = decoder.field(1, Decoder::unsigned)?;
+                if marker == 0 {
+                    Ok(Self::Null)
+                } else {
+                    Err(unknown_tag(decoder, marker))
+                }
+            }
+            2 => Ok(Self::Defined(
+                decoder.field(1, DecodedPersistentId::decode)?,
+            )),
+            _ => Err(unknown_tag(decoder, tag)),
+        }
     }
 }
 

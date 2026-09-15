@@ -106,6 +106,72 @@ fn wire_reader_reconstructs_the_complete_type_descriptor_semantics() {
 }
 
 #[test]
+fn wire_reader_rejects_the_old_27_field_type_registration_plan() {
+    let fixture = Fixture::new(Options::default());
+    let plans = fixture.build().unwrap();
+    let plan = &plans.registrations()[0];
+    let mut encoded = encode(plan).unwrap();
+    assert_eq!(&encoded[..2], &[0xb8, 0x1c]);
+    assert_eq!(
+        &encoded[encoded.len() - 7..],
+        &[0x18, 0x1c, 0xa2, 0, 1, 1, 0]
+    );
+    encoded[1] = 0x1b;
+    encoded.truncate(encoded.len() - 7);
+
+    assert!(
+        decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded, DecodeLimits::default(),)
+            .is_err()
+    );
+}
+
+#[test]
+fn records_and_round_trips_the_exact_typed_itable_directory() {
+    let fixture = Fixture::new(Options {
+        first_type_has_itable: true,
+        ..Options::default()
+    });
+    let plans = fixture.build().unwrap();
+    let plan = &plans.registrations()[0];
+    let expected = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+        plan.descriptor_definition_plan(),
+        DefinitionAtomRole::RuntimeRecord,
+        DefinitionAtomSubkey::ExactType(plan.exact_type()),
+    ))
+    .unwrap();
+    assert_eq!(
+        plan.itable_directory(),
+        TypeDescriptorITableDirectoryV1::Defined(expected.id())
+    );
+
+    let decoded = plans
+        .registrations()
+        .iter()
+        .map(|plan| {
+            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(
+                &encode(plan).unwrap(),
+                DecodeLimits::default(),
+            )
+            .unwrap()
+        })
+        .collect();
+    let external_bridges =
+        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap();
+    assert_eq!(
+        crate::validate_types(
+            decoded,
+            crate::LirTargetProfile::DARWIN_AARCH64,
+            &fixture.foundation,
+            &fixture.identities,
+            &external_bridges,
+            &fixture.digests,
+        )
+        .unwrap(),
+        fixture.semantics
+    );
+}
+
+#[test]
 fn requires_complete_type_registration_coverage() {
     let fixture = Fixture::new(Options {
         omit_last_registration: true,
@@ -190,6 +256,23 @@ fn requires_the_exact_descriptor_diagnostic_atom() {
 }
 
 #[test]
+fn requires_the_exact_itable_directory_atom_for_nonempty_itables() {
+    assert!(matches!(
+        Fixture::new(Options {
+            first_type_has_itable: true,
+            omit_itable_directory: true,
+            ..Options::default()
+        })
+        .build(),
+        Err(StrongTypeRegistrationPlanBuildError::DescriptorAssociatedAtomSet {
+            expected,
+            actual,
+            ..
+        }) if expected.len() == 2 && actual.len() == 1
+    ));
+}
+
+#[test]
 fn requires_a_leaf_registration_object_definition() {
     assert!(matches!(
         Fixture::new(Options {
@@ -261,6 +344,8 @@ struct Options {
     omit_layout_patch: bool,
     omit_descriptor_diagnostic: bool,
     extra_descriptor_atom: bool,
+    first_type_has_itable: bool,
+    omit_itable_directory: bool,
 }
 
 struct TypeArtifacts {
@@ -294,6 +379,11 @@ struct Fixture {
 impl Fixture {
     fn new(options: Options) -> Self {
         let types = [type_artifacts(1), type_artifacts(2)];
+        let first_itable = CborIdentityRecord::from_key(DispatchTableKey::itable(
+            types[0].exact_type,
+            types[1].exact_type,
+        ))
+        .unwrap();
         let mut canonical = CanonicalLirFoundation::empty();
         canonical
             .set_layouts(
@@ -318,6 +408,11 @@ impl Fixture {
                 types
                     .iter()
                     .map(|artifacts| artifacts.vtable.clone())
+                    .chain(
+                        options
+                            .first_type_has_itable
+                            .then_some(first_itable.clone()),
+                    )
                     .collect(),
             )
             .unwrap();
@@ -378,6 +473,16 @@ impl Fixture {
                 .unwrap(),
             );
         }
+        if options.first_type_has_itable && !options.omit_itable_directory {
+            atoms.push(
+                CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+                    types[0].descriptor_definition.id(),
+                    DefinitionAtomRole::RuntimeRecord,
+                    DefinitionAtomSubkey::ExactType(types[0].exact_type),
+                ))
+                .unwrap(),
+            );
+        }
         canonical.set_definition_atoms(atoms).unwrap();
         let symbols = types
             .iter()
@@ -423,7 +528,17 @@ impl Fixture {
             crate::LirTargetProfile::DARWIN_AARCH64.wire_id(),
             types
                 .iter()
-                .map(|artifacts| {
+                .enumerate()
+                .map(|(index, artifacts)| {
+                    let itables = if index == 0 && options.first_type_has_itable {
+                        vec![StrongTypeItableSemanticPlanV1::from_artifact(
+                            first_itable.id(),
+                            StrongTypeDescriptorRefV1::Local(types[1].exact_type),
+                            Vec::new(),
+                        )]
+                    } else {
+                        Vec::new()
+                    };
                     StrongTypeDescriptorSemanticPlanV1::from_artifact(
                         artifacts.exact_type,
                         format!("type-{}", artifacts.exact_type),
@@ -442,7 +557,7 @@ impl Fixture {
                             artifacts.vtable.id(),
                             Vec::new(),
                         ),
-                        Vec::new(),
+                        itables,
                     )
                 })
                 .collect(),

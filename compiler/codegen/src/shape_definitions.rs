@@ -516,6 +516,29 @@ pub(super) fn descriptor_diagnostic_atom(
     Ok(atom)
 }
 
+pub(super) fn descriptor_itable_directory_atom(
+    surface: &StrongObjectSymbolSurfaceV1,
+    exact: scoop_lir::PersistentExactTypeId,
+) -> Result<ObjectDefinitionAtomId, CodegenError> {
+    let definition = descriptor_definition(surface, exact)?;
+    let mut atoms = definition
+        .atom_boundaries()
+        .iter()
+        .filter(|atom| atom.atom_role() == DefinitionAtomRole::RuntimeRecord)
+        .map(|atom| atom.atom());
+    let atom = atoms.next().ok_or_else(|| {
+        CodegenError(format!(
+            "TypeDescriptor {exact} has no itable-directory associated atom"
+        ))
+    })?;
+    if atoms.next().is_some() {
+        return Err(CodegenError(format!(
+            "TypeDescriptor {exact} has multiple itable-directory associated atoms"
+        )));
+    }
+    Ok(atom)
+}
+
 pub(super) fn descriptor_definition(
     surface: &StrongObjectSymbolSurfaceV1,
     exact: scoop_lir::PersistentExactTypeId,

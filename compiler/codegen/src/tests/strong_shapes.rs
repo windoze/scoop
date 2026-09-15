@@ -1,13 +1,14 @@
 use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::targets::TargetData;
+use scoop_identity::DefinitionAtomRole;
 use scoop_lir::{StrongDefinitionRole, StrongObjectSymbolSurfaceV1};
 
 use super::*;
 
 #[test]
 fn emits_every_canonical_global_shape_atom_and_boundary() {
-    let module = heap_module();
+    let module = super::objects::classes_module();
     let foundation = scoop_lir::OdrFreeLirFoundation::from_module(&module)
         .expect("test module has a strong foundation");
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
@@ -94,6 +95,17 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
             }
         }
     }
+    assert_eq!(
+        surface
+            .plans()
+            .iter()
+            .filter(|plan| plan.definition_role() == StrongDefinitionRole::TypeDescriptor)
+            .flat_map(|plan| plan.atom_boundaries())
+            .filter(|boundary| boundary.atom_role() == DefinitionAtomRole::RuntimeRecord)
+            .count(),
+        1,
+        "the one nonempty itable directory must have a typed atom boundary"
+    );
     assert!(!ir.contains(".object_scan = private"), "{ir}");
     assert!(!ir.contains(".vtable = private"), "{ir}");
 }

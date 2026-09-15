@@ -424,6 +424,16 @@ impl CanonicalLirFoundation {
 
         for (_, descriptor) in module.meta.type_descriptors.iter() {
             let exact = descriptor.identity.exact_type();
+            let mut associated = vec![(
+                DefinitionAtomRole::AddressTakenConstant,
+                DefinitionAtomSubkey::ExactType(exact),
+            )];
+            if !descriptor.itables.is_empty() {
+                associated.push((
+                    DefinitionAtomRole::RuntimeRecord,
+                    DefinitionAtomSubkey::ExactType(exact),
+                ));
+            }
             insert_strong_definition(
                 &mut plans,
                 &mut atoms,
@@ -431,10 +441,7 @@ impl CanonicalLirFoundation {
                 producer,
                 StrongDefinitionEntity::exact_type(exact),
                 StrongDefinitionRole::TypeDescriptor,
-                vec![(
-                    DefinitionAtomRole::AddressTakenConstant,
-                    DefinitionAtomSubkey::ExactType(exact),
-                )],
+                associated,
             )?;
             insert_strong_definition(
                 &mut plans,

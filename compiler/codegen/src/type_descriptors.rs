@@ -1,7 +1,7 @@
 use super::*;
 use crate::shape_definitions::{
     EmittedStrongShapeDefinitionsV1, descriptor_definition, descriptor_diagnostic_atom,
-    emit_dispatch_definition_v1,
+    descriptor_itable_directory_atom, emit_dispatch_definition_v1,
 };
 
 /// Emit one function-local recursive GC scan program. Persistent layout
@@ -221,12 +221,26 @@ fn emit_type_descriptor<'ctx>(
             entries.push(context.const_struct(&[interface.into(), slots.into()], false));
         }
         let array = entry_ty.const_array(&entries);
-        let itable_global = private_const_global(
-            llvm,
-            &format!("{}.itables", descriptor.identity.symbol()),
-            array.into(),
+        let directory_name = format!("{}.itables", descriptor.identity.symbol());
+        if llvm.get_global(&directory_name).is_some()
+            || llvm.get_function(&directory_name).is_some()
+        {
+            return Err(CodegenError(format!(
+                "TypeDescriptor itable directory `{directory_name}` collides with an LLVM value"
+            )));
+        }
+        let itable_global = llvm.add_global(array.get_type(), None, &directory_name);
+        itable_global.set_linkage(inkwell::module::Linkage::Private);
+        itable_global.set_constant(true);
+        itable_global.set_initializer(&array);
+        shapes.record_atom(
+            descriptor_itable_directory_atom(emission.surface, descriptor.identity.exact_type())?,
+            itable_global,
         );
-        (itable_global.into(), descriptor.itables.len() as u64)
+        (
+            itable_global.as_pointer_value().into(),
+            descriptor.itables.len() as u64,
+        )
     };
     let diagnostic_name = format!("{}.diagnostic", descriptor.identity.symbol());
     if llvm.get_global(&diagnostic_name).is_some() || llvm.get_function(&diagnostic_name).is_some()

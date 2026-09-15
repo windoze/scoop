@@ -276,7 +276,7 @@ impl WireEncode for StrongCallableRegistrationPlanV1 {
 impl WireEncode for StrongTypeRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(27)?;
+        encoder.map(28)?;
         encode_field(encoder, 1, &self.exact_type())?;
         encode_field(encoder, 2, &self.runtime_type())?;
         encode_field(encoder, 3, &self.symbol())?;
@@ -312,7 +312,25 @@ impl WireEncode for StrongTypeRegistrationPlanV1 {
         }
         encode_field(encoder, 26, &self.diagnostic_atom())?;
         encoder.field(27)?;
-        encode_type_descriptor_inline_scan(encoder, semantic.inline_scan())
+        encode_type_descriptor_inline_scan(encoder, semantic.inline_scan())?;
+        encoder.field(28)?;
+        encode_type_descriptor_itable_directory(encoder, self.itable_directory())
+    }
+}
+
+fn encode_type_descriptor_itable_directory(
+    encoder: &mut Encoder,
+    directory: crate::TypeDescriptorITableDirectoryV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    match directory {
+        crate::TypeDescriptorITableDirectoryV1::Null => {
+            encoder.map(2)?;
+            encode_unsigned_field(encoder, 0, 1)?;
+            encode_unsigned_field(encoder, 1, 0)
+        }
+        crate::TypeDescriptorITableDirectoryV1::Defined(atom) => {
+            encode_value_sum(encoder, 2, &atom)
+        }
     }
 }
 

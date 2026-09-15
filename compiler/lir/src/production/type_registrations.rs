@@ -50,6 +50,23 @@ impl StrongTypeDescriptorInlineScanPlanV1 {
     }
 }
 
+/// Exact associated atom, if any, that owns the descriptor's physical itable
+/// directory.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TypeDescriptorITableDirectoryV1 {
+    Null,
+    Defined(ObjectDefinitionAtomId),
+}
+
+impl TypeDescriptorITableDirectoryV1 {
+    pub const fn atom(self) -> Option<ObjectDefinitionAtomId> {
+        match self {
+            Self::Null => None,
+            Self::Defined(atom) => Some(atom),
+        }
+    }
+}
+
 /// All semantic identities and graph writers required to emit one strong
 /// type-registration record.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -63,6 +80,7 @@ pub struct StrongTypeRegistrationPlanV1 {
     descriptor_definition_plan: ObjectDefinitionPlanId,
     descriptor_primary_atom: ObjectDefinitionAtomId,
     diagnostic_atom: ObjectDefinitionAtomId,
+    itable_directory: TypeDescriptorITableDirectoryV1,
     layout_symbol: PersistentSymbolRequest,
     layout_definition_plan: ObjectDefinitionPlanId,
     layout_primary_atom: ObjectDefinitionAtomId,
@@ -115,6 +133,10 @@ impl StrongTypeRegistrationPlanV1 {
 
     pub const fn diagnostic_atom(&self) -> ObjectDefinitionAtomId {
         self.diagnostic_atom
+    }
+
+    pub const fn itable_directory(&self) -> TypeDescriptorITableDirectoryV1 {
+        self.itable_directory
     }
 
     pub const fn layout(&self) -> PersistentLayoutId {
@@ -304,8 +326,12 @@ fn build_registration(
         StrongDefinitionRole::TypeDescriptor,
     )?;
     let descriptor_primary_atom = require_primary_atom(foundation, descriptor_definition.id())?;
-    let diagnostic_atom =
-        require_descriptor_diagnostic_atom(foundation, descriptor_definition.id(), exact_type)?;
+    let (diagnostic_atom, itable_directory) = require_descriptor_associated_atoms(
+        foundation,
+        descriptor_definition.id(),
+        exact_type,
+        !semantic.itables().is_empty(),
+    )?;
     let descriptor_symbol =
         require_symbol(foundation, PersistentSymbolKey::TypeDescriptor(exact_type))?;
 
@@ -494,6 +520,7 @@ fn build_registration(
         descriptor_definition_plan: descriptor_definition.id(),
         descriptor_primary_atom,
         diagnostic_atom,
+        itable_directory,
         layout_symbol,
         layout_definition_plan: layout_definition.id(),
         layout_primary_atom,
@@ -508,14 +535,23 @@ fn build_registration(
     })
 }
 
-fn require_descriptor_diagnostic_atom(
+fn require_descriptor_associated_atoms(
     foundation: &OdrFreeLirFoundation,
     plan: ObjectDefinitionPlanId,
     exact_type: PersistentExactTypeId,
-) -> Result<ObjectDefinitionAtomId, StrongTypeRegistrationPlanBuildError> {
-    let expected = ObjectDefinitionAtomKey::new(
+    has_itable_directory: bool,
+) -> Result<
+    (ObjectDefinitionAtomId, TypeDescriptorITableDirectoryV1),
+    StrongTypeRegistrationPlanBuildError,
+> {
+    let diagnostic = ObjectDefinitionAtomKey::new(
         plan,
         DefinitionAtomRole::AddressTakenConstant,
+        DefinitionAtomSubkey::ExactType(exact_type),
+    );
+    let directory = ObjectDefinitionAtomKey::new(
+        plan,
+        DefinitionAtomRole::RuntimeRecord,
         DefinitionAtomSubkey::ExactType(exact_type),
     );
     let associated = foundation
@@ -525,16 +561,42 @@ fn require_descriptor_diagnostic_atom(
             atom.key().plan() == plan && atom.key().role() != DefinitionAtomRole::Primary
         })
         .collect::<Vec<_>>();
-    match associated.as_slice() {
-        [atom] if atom.key() == &expected => Ok(atom.id()),
-        _ => Err(
+    let expected = if has_itable_directory {
+        vec![diagnostic.clone(), directory.clone()]
+    } else {
+        vec![diagnostic.clone()]
+    };
+    let diagnostic_atom = associated.iter().find(|record| record.key() == &diagnostic);
+    let directory_atom = associated.iter().find(|record| record.key() == &directory);
+    if associated.len() != expected.len() {
+        return Err(
             StrongTypeRegistrationPlanBuildError::DescriptorAssociatedAtomSet {
                 exact_type,
-                expected: Box::new(expected),
+                expected,
                 actual: associated.iter().map(|atom| atom.id()).collect(),
             },
-        ),
+        );
     }
+    let (diagnostic_atom, itable_directory) =
+        match (diagnostic_atom, directory_atom, has_itable_directory) {
+            (Some(diagnostic), Some(directory), true) => (
+                diagnostic.id(),
+                TypeDescriptorITableDirectoryV1::Defined(directory.id()),
+            ),
+            (Some(diagnostic), None, false) => {
+                (diagnostic.id(), TypeDescriptorITableDirectoryV1::Null)
+            }
+            _ => {
+                return Err(
+                    StrongTypeRegistrationPlanBuildError::DescriptorAssociatedAtomSet {
+                        exact_type,
+                        expected,
+                        actual: associated.iter().map(|atom| atom.id()).collect(),
+                    },
+                );
+            }
+        };
+    Ok((diagnostic_atom, itable_directory))
 }
 
 fn require_definition(
@@ -658,7 +720,7 @@ pub enum StrongTypeRegistrationPlanBuildError {
     },
     DescriptorAssociatedAtomSet {
         exact_type: PersistentExactTypeId,
-        expected: Box<ObjectDefinitionAtomKey>,
+        expected: Vec<ObjectDefinitionAtomKey>,
         actual: Vec<ObjectDefinitionAtomId>,
     },
     MissingSymbol(PersistentSymbolRequest),
