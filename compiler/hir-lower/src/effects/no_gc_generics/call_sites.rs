@@ -592,6 +592,11 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
+            ExprKind::ImportedCoreCall { args, .. } => {
+                for arg in args {
+                    self.collect_generic_calls_in_expr(arg, out);
+                }
+            }
             ExprKind::LocalFunctionCall {
                 callee,
                 captures,

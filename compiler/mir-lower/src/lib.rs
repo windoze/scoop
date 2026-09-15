@@ -144,6 +144,91 @@ use types::{
 
 /// Lower one output-sealed LocalConcrete HIR graph to MIR.
 pub fn lower(output: &scoop_hir::LocalConcreteHirOutput) -> mir::Module {
+    assert!(
+        output.module().imported_core_callables.is_empty(),
+        "an imported-core HIR graph requires lower_ordinary"
+    );
+    lower_with_imported_core(output, Arena::new(), HashMap::new())
+}
+
+/// Lower one ordinary HIR product together with the exact MIR projection of
+/// its selected trusted-core callables.
+pub fn lower_ordinary<'core>(
+    output: &scoop_hir::OrdinaryHirOutput<'core>,
+    imported: mir::SelectedImportedMirSet<'core>,
+) -> Result<mir::OrdinaryMirOutput<'core>, ImportedCoreMirLoweringError> {
+    let hir = output.output().local.module();
+    let selected = output.imported_core();
+    let mut callables = Arena::new();
+    let mut mapping = HashMap::new();
+    for (source_id, source) in hir.imported_core_callables.iter() {
+        let selected_target = selected.resolve_callable(source.reference()).ok_or(
+            ImportedCoreMirLoweringError::ForeignHirCallable {
+                index: source_id.into_raw().into_u32(),
+            },
+        )?;
+        let scoop_hir::ImportedCorePreludeTarget::Callable(target) = selected_target.target()
+        else {
+            return Err(ImportedCoreMirLoweringError::HirTargetIsNotCallable {
+                index: source_id.into_raw().into_u32(),
+            });
+        };
+        let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) =
+            target.capability()
+        else {
+            return Err(ImportedCoreMirLoweringError::HirCapabilityMismatch {
+                index: source_id.into_raw().into_u32(),
+            });
+        };
+        if signature.effect() != scoop_hir::concrete::Effect::Ordinary {
+            return Err(ImportedCoreMirLoweringError::SuspendCallableUnavailable {
+                index: source_id.into_raw().into_u32(),
+            });
+        }
+        if signature.receiver().is_present() {
+            return Err(ImportedCoreMirLoweringError::ReceiverCallableUnavailable {
+                index: source_id.into_raw().into_u32(),
+            });
+        }
+        let id = imported
+            .callable_for_binding(selected_target.binding().persistent())
+            .ok_or(ImportedCoreMirLoweringError::MissingMirCallable {
+                index: source_id.into_raw().into_u32(),
+            })?;
+        let mir_target = imported
+            .callable(id)
+            .expect("a binding lookup returns an in-bounds MIR callable");
+        if mir_target.signature() != signature {
+            return Err(ImportedCoreMirLoweringError::SignatureMismatch {
+                index: source_id.into_raw().into_u32(),
+            });
+        }
+        let target = callables.alloc(
+            imported
+                .callable_use(id)
+                .expect("a selected MIR callable mints one branded use"),
+        );
+        mapping.insert(source_id, target);
+    }
+    if callables.len() != imported.len() {
+        return Err(ImportedCoreMirLoweringError::UnusedMirCallable {
+            selected: imported.len(),
+            used: callables.len(),
+        });
+    }
+    let module = lower_with_imported_core(&output.output().local, callables, mapping);
+    mir::OrdinaryMirOutput::try_new(module, imported)
+        .map_err(ImportedCoreMirLoweringError::InvalidOutput)
+}
+
+fn lower_with_imported_core(
+    output: &scoop_hir::LocalConcreteHirOutput,
+    imported_core_callables: Arena<mir::ImportedCoreCallableUse>,
+    imported_core_callable_map: HashMap<
+        hir::ImportedCoreCallableUseId,
+        mir::ImportedCoreCallableUseId,
+    >,
+) -> mir::Module {
     let module = output.module();
     let core_shape_support = match output.materialization() {
         scoop_hir::LocalConcreteMaterializationContract::Ordinary => &[][..],
@@ -219,8 +304,41 @@ pub fn lower(output: &scoop_hir::LocalConcreteHirOutput) -> mir::Module {
         function_bridge_targets: Vec::new(),
         finalized_function_bridges: HashSet::new(),
         boxing_adjusts: Vec::new(),
+        imported_core_callables,
+        imported_core_callable_map,
     }
     .run(module, core_shape_support)
+}
+
+#[derive(Debug)]
+pub enum ImportedCoreMirLoweringError {
+    ForeignHirCallable { index: u32 },
+    HirTargetIsNotCallable { index: u32 },
+    HirCapabilityMismatch { index: u32 },
+    SuspendCallableUnavailable { index: u32 },
+    ReceiverCallableUnavailable { index: u32 },
+    MissingMirCallable { index: u32 },
+    SignatureMismatch { index: u32 },
+    UnusedMirCallable { selected: usize, used: usize },
+    InvalidOutput(mir::OrdinaryMirOutputError),
+}
+
+impl std::fmt::Display for ImportedCoreMirLoweringError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "cannot lower imported core HIR callables: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for ImportedCoreMirLoweringError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidOutput(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 struct Lowerer {
@@ -306,6 +424,9 @@ struct Lowerer {
     /// Persistent identity and exact physical itable location of every box
     /// adjust thunk.
     boxing_adjusts: Vec<mir::BoxingAdjust>,
+    imported_core_callables: Arena<mir::ImportedCoreCallableUse>,
+    imported_core_callable_map:
+        HashMap<hir::ImportedCoreCallableUseId, mir::ImportedCoreCallableUseId>,
 }
 
 #[derive(Clone, Copy)]

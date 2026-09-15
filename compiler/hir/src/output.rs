@@ -1,5 +1,6 @@
 //! Closed HIR products for one current Cone.
 
+use std::collections::HashSet;
 use std::fmt;
 use std::ops::Deref;
 
@@ -379,6 +380,108 @@ impl crate::Output {
         self.export.output_kind()
     }
 }
+
+/// Closed ordinary HIR product whose imported-core uses are bound to the
+/// exact selected set that admitted them.
+///
+/// This wrapper is the only ordinary product accepted by the imported-core
+/// MIR path. Keeping the sidecar here prevents a caller from pairing the HIR
+/// graph with a selection projected from another trusted artifact.
+pub struct OrdinaryHirOutput<'a> {
+    output: crate::Output,
+    imported_core: crate::SelectedImportedCoreSet<'a>,
+}
+
+impl<'a> OrdinaryHirOutput<'a> {
+    pub fn try_new(
+        output: crate::Output,
+        imported_core: crate::SelectedImportedCoreSet<'a>,
+    ) -> Result<Self, OrdinaryHirOutputError> {
+        if output.export.module().cone == scoop_identity::ConeIdentity::CORE {
+            return Err(OrdinaryHirOutputError::CurrentConeIsCore);
+        }
+        if !matches!(
+            output.local.materialization(),
+            LocalConcreteMaterializationContract::Ordinary
+        ) {
+            return Err(OrdinaryHirOutputError::CoreShapeSupportMaterialization);
+        }
+
+        let export = &output.export.module().imported_core_callables;
+        let local = &output.local.module().imported_core_callables;
+        if export.len() != local.len() {
+            return Err(OrdinaryHirOutputError::ProjectionCountMismatch {
+                export: export.len(),
+                local: local.len(),
+            });
+        }
+        if export.len() != imported_core.callable_count() {
+            return Err(OrdinaryHirOutputError::SelectionCountMismatch {
+                hir: export.len(),
+                selected: imported_core.callable_count(),
+            });
+        }
+        let mut bindings = HashSet::with_capacity(export.len());
+        for ((export_id, export_use), (local_id, local_use)) in export.iter().zip(local.iter()) {
+            if export_id.into_raw().into_u32() != local_id.into_raw().into_u32()
+                || export_use.reference() != local_use.reference()
+            {
+                return Err(OrdinaryHirOutputError::ProjectionMismatch {
+                    index: export_id.into_raw().into_u32(),
+                });
+            }
+            let Some(selected) = imported_core.resolve_callable(export_use.reference()) else {
+                return Err(OrdinaryHirOutputError::ForeignImportedCallable {
+                    index: export_id.into_raw().into_u32(),
+                });
+            };
+            if !bindings.insert(selected.binding().persistent()) {
+                return Err(OrdinaryHirOutputError::DuplicateImportedCallable {
+                    index: export_id.into_raw().into_u32(),
+                });
+            }
+        }
+
+        Ok(Self {
+            output,
+            imported_core,
+        })
+    }
+
+    pub const fn output(&self) -> &crate::Output {
+        &self.output
+    }
+
+    pub const fn imported_core(&self) -> &crate::SelectedImportedCoreSet<'a> {
+        &self.imported_core
+    }
+
+    pub fn into_parts(self) -> (crate::Output, crate::SelectedImportedCoreSet<'a>) {
+        (self.output, self.imported_core)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OrdinaryHirOutputError {
+    CurrentConeIsCore,
+    CoreShapeSupportMaterialization,
+    ProjectionCountMismatch { export: usize, local: usize },
+    SelectionCountMismatch { hir: usize, selected: usize },
+    ProjectionMismatch { index: u32 },
+    ForeignImportedCallable { index: u32 },
+    DuplicateImportedCallable { index: u32 },
+}
+
+impl fmt::Display for OrdinaryHirOutputError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "cannot seal ordinary imported-core HIR: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for OrdinaryHirOutputError {}
 
 fn validate_concrete_entry(
     module: &LocalConcreteHir,

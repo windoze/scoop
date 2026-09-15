@@ -336,6 +336,7 @@ impl Lowerer {
             option_core,
             output,
             meta: mir::MirMeta {
+                imported_core_callables: self.imported_core_callables,
                 source_exact_types: self.source_exact_types.finish(),
                 generated_exact_types,
                 source_callable_materializations: self.source_callables.finish(),

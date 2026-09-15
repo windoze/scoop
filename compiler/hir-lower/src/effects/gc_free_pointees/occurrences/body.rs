@@ -643,6 +643,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
+        ExprKind::ImportedCoreCall { args, .. } => {
+            for argument in args {
+                collect_expr_type_occurrences(lowerer, argument, out);
+            }
+        }
         ExprKind::LocalFunctionCall {
             callee,
             captures,

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use scoop_identity::{
     CallableOwner, ConeIdentity, ExactCallableSignature, ImportedIdentityId, ImportedIdentityMap,
@@ -170,6 +171,33 @@ pub struct SelectedImportedMirCallable<'a> {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ImportedCoreMirCallableId(u32);
 
+/// One MIR callable reference branded by the selected-set world that proved
+/// its core implementation bridge.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ImportedCoreMirCallableRef {
+    selection: ImportedCoreMirSelectionId,
+    callable: ImportedCoreMirCallableId,
+}
+
+impl ImportedCoreMirCallableRef {
+    pub const fn callable(self) -> ImportedCoreMirCallableId {
+        self.callable
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ImportedCoreMirSelectionId(u64);
+
+fn next_imported_core_mir_selection() -> ImportedCoreMirSelectionId {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    let selection = NEXT
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            current.checked_add(1)
+        })
+        .expect("the imported core MIR selection id space is exhausted");
+    ImportedCoreMirSelectionId(selection)
+}
+
 /// The complete imported callable set for one ordinary MIR lowering.
 ///
 /// Construction is bound to one imported foundation and production section;
@@ -178,6 +206,7 @@ pub struct ImportedCoreMirCallableId(u32);
 pub struct SelectedImportedMirSet<'a> {
     foundation: &'a ImportedMirFoundation,
     production: &'a crate::CoreBootstrapBridgeSectionV1,
+    selection: ImportedCoreMirSelectionId,
     by_binding: BTreeMap<PersistentExportBindingId, ImportedCoreMirCallableId>,
     callables: Vec<SelectedImportedMirCallable<'a>>,
 }
@@ -191,6 +220,7 @@ impl<'a> SelectedImportedMirSet<'a> {
         Self {
             foundation,
             production,
+            selection: next_imported_core_mir_selection(),
             by_binding: BTreeMap::new(),
             callables: Vec::new(),
         }
@@ -232,6 +262,33 @@ impl<'a> SelectedImportedMirSet<'a> {
         id: ImportedCoreMirCallableId,
     ) -> Option<&SelectedImportedMirCallable<'a>> {
         self.callables.get(id.0 as usize)
+    }
+
+    pub fn callable_ref(
+        &self,
+        id: ImportedCoreMirCallableId,
+    ) -> Option<ImportedCoreMirCallableRef> {
+        self.callable(id).map(|_| ImportedCoreMirCallableRef {
+            selection: self.selection,
+            callable: id,
+        })
+    }
+
+    pub fn callable_use(
+        &self,
+        id: ImportedCoreMirCallableId,
+    ) -> Option<crate::ImportedCoreCallableUse> {
+        self.callable_ref(id)
+            .map(crate::ImportedCoreCallableUse::new)
+    }
+
+    pub fn resolve_callable(
+        &self,
+        reference: ImportedCoreMirCallableRef,
+    ) -> Option<&SelectedImportedMirCallable<'a>> {
+        (reference.selection == self.selection)
+            .then(|| self.callable(reference.callable))
+            .flatten()
     }
 
     pub fn callable_for_binding(
@@ -346,6 +403,7 @@ impl std::error::Error for ImportedMirCallableProjectionError {}
 
 #[cfg(test)]
 mod tests {
+    use la_arena::Arena;
     use scoop_identity::{
         BindingTarget, CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, Effect,
         ExactTypeKey, ExportBindingKey, PackagePath, PendingIdentityValidation,
@@ -355,10 +413,22 @@ mod tests {
 
     use super::*;
     use crate::{
-        CallableSignatureRecord, CallableSignatureSubject, CoreBootstrapBridgeSectionV1,
-        CoreMirBridgeBranchV1, CoreMirBridgeV1, CoreMirCallableBridgeV1, EntryMirBridgeBranchV1,
-        StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1,
+        BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, CallableSignatureRecord,
+        CallableSignatureSubject, Callee, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
+        CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreShapeSupportSourceInput,
+        CoroutinePendingContext, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
+        Module, OdrFreeMirFoundation, OrdinaryMirOutput, OrdinaryMirOutputError,
+        SingleConeStrongMirInput, SingleConeStrongMirInputError, SourceSpan, Statement,
+        StatementKind, StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1, Terminator, Type,
     };
+
+    #[test]
+    fn selected_imported_mir_worlds_have_distinct_process_local_brands() {
+        assert_ne!(
+            next_imported_core_mir_selection(),
+            next_imported_core_mir_selection()
+        );
+    }
 
     #[test]
     fn selected_callable_derives_the_only_strong_implementation() {
@@ -448,6 +518,111 @@ mod tests {
             Err(ImportedMirSelectionError::ForeignSelection(binding))
         );
         assert_eq!(selections.len(), 1);
+
+        let callable_use = selections.callable_use(first).unwrap();
+        let mut foreign_selections = SelectedImportedMirSet::new(&foundation, &production);
+        let foreign_id = foreign_selections
+            .insert(
+                foundation
+                    .project_core_callable(&production, binding, definition, signature)
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(foreign_id, first);
+        assert!(matches!(
+            OrdinaryMirOutput::try_new(ordinary_module(callable_use), foreign_selections),
+            Err(OrdinaryMirOutputError::ForeignImportedCallable { index: 0 })
+        ));
+
+        let ordinary = OrdinaryMirOutput::try_new(ordinary_module(callable_use), selections)
+            .expect("the ordinary MIR graph and selected sidecar share one brand");
+        let (module, selections) = ordinary.into_parts();
+        let retained = module.meta.imported_core_callables.iter().next().unwrap().1;
+        assert!(selections.resolve_callable(retained.reference()).is_some());
+
+        let strong_foundation = OdrFreeMirFoundation::from_module(&module).unwrap();
+        let ordinary_production = CoreBootstrapBridgeSectionV1::try_new(
+            ConeIdentity::SINGLE_FILE,
+            CoreMirBridgeBranchV1::NotCore,
+            EntryMirBridgeBranchV1::Library,
+            StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap(),
+        )
+        .unwrap();
+        assert!(matches!(
+            SingleConeStrongMirInput::try_new(
+                module,
+                strong_foundation,
+                ordinary_production,
+                CoreShapeSupportSourceInput::NotCore,
+            ),
+            Err(SingleConeStrongMirInputError::ImportedCoreCallablesRequireOrdinaryInput)
+        ));
+    }
+
+    fn ordinary_module(callable: crate::ImportedCoreCallableUse) -> Module {
+        let mut imported_core_callables = Arena::new();
+        let callable = imported_core_callables.alloc(callable);
+        let mut blocks = Arena::new();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            statements: vec![Statement {
+                kind: StatementKind::Call(CallEffect::Unit(Call {
+                    target: CallTarget {
+                        kind: CallKind::Direct,
+                        callee: Callee::CoreExternal(callable),
+                    },
+                    args: Vec::new(),
+                    pending: CoroutinePendingContext::Root,
+                })),
+                span: SourceSpan::new(0, 0).unwrap(),
+            }],
+            terminator: Terminator::Return { value: None },
+            unwind: None,
+        });
+        let mut functions = Arena::new();
+        functions.alloc(Function {
+            gc_effect: GcEffect::Managed,
+            name: "ordinary".to_string(),
+            params: Vec::new(),
+            return_ty: Type::Unit,
+            body: Body {
+                locals: Arena::new(),
+                blocks,
+                entry,
+                loop_header_polls: Vec::new(),
+            },
+        });
+        Module {
+            cone: ConeIdentity::SINGLE_FILE,
+            functions,
+            extern_functions: Arena::new(),
+            globals: Arena::new(),
+            initialization_units: Arena::new(),
+            initialization_failure_roots: Arena::new(),
+            objects: Arena::new(),
+            object_types: Arena::new(),
+            singleton_values: Arena::new(),
+            singleton_published_roots: Arena::new(),
+            callback_bridges: Arena::new(),
+            foreign_callback_adapters: Arena::new(),
+            foreign_callback_families: Arena::new(),
+            foreign_callback_bridges: Arena::new(),
+            function_types: Arena::new(),
+            closure_classes: Arena::new(),
+            closure_invoke_functions: Arena::new(),
+            top_level: Vec::new(),
+            strings: Arena::new(),
+            structs: Arena::new(),
+            enums: Arena::new(),
+            classes: Arena::new(),
+            interfaces: Arena::new(),
+            option_core: Vec::new(),
+            output: MirOutput::Library,
+            meta: MirMeta {
+                imported_core_callables,
+                ..MirMeta::default()
+            },
+        }
     }
 
     fn imported_foundation(canonical: CanonicalMirFoundation) -> ImportedMirFoundation {

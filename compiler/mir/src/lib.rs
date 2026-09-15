@@ -39,6 +39,9 @@ pub use source_exact_types::*;
 mod strong_input;
 pub use strong_input::*;
 
+mod ordinary_output;
+pub use ordinary_output::*;
+
 mod generated_exact_types;
 pub use generated_exact_types::*;
 

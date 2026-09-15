@@ -180,7 +180,8 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::StructInit { args: elements, .. }
         | hir::ExprKind::ClassInit { args: elements, .. }
         | hir::ExprKind::VariantConstruct { args: elements, .. }
-        | hir::ExprKind::Call { args: elements, .. } => {
+        | hir::ExprKind::Call { args: elements, .. }
+        | hir::ExprKind::ImportedCoreCall { args: elements, .. } => {
             for element in elements {
                 patch_local_function_call_expr(element, target, target_captures);
             }

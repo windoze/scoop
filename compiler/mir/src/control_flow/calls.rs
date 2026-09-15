@@ -195,6 +195,10 @@ pub enum Callee {
     Monomorphized(MonomorphizedFunctionId),
     /// A bodyless native declaration in the independent extern arena.
     Extern(ExternFunctionId),
+    /// A direct call through the trusted-core external bridge. The id belongs
+    /// to this MIR module's imported-callable arena, not to a local function
+    /// or extern declaration arena.
+    CoreExternal(ImportedCoreCallableUseId),
     /// Typed marker used only between CFG construction and the coroutine
     /// state-machine pass. The final MIR handed to LIR contains no such
     /// callee; `register` identifies the concrete protocol method shell.

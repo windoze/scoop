@@ -634,6 +634,10 @@ pub enum MirAnnotationValue {
 #[derive(Debug, Default)]
 pub struct MirMeta {
     pub dispatch_tables: Vec<DispatchTable>,
+    /// Imported core call targets selected for this ordinary MIR graph. Call
+    /// sites name this arena; each entry retains the brand of the exact MIR
+    /// selection set that proved it.
+    pub imported_core_callables: Arena<ImportedCoreCallableUse>,
     /// Complete identity relation for every LocalConcrete HIR type transposed
     /// into this MIR module. These records remain HIR-owned and are not
     /// re-emitted as MIR-first identity-foundation entries.
@@ -694,6 +698,21 @@ pub struct MirMeta {
     pub boxed_types: Vec<BoxedType>,
     /// Exact generated callable materialization for every boxed itable slot.
     pub boxing_adjusts: Vec<BoxingAdjust>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedCoreCallableUse {
+    reference: ImportedCoreMirCallableRef,
+}
+
+impl ImportedCoreCallableUse {
+    pub(crate) fn new(reference: ImportedCoreMirCallableRef) -> Self {
+        Self { reference }
+    }
+
+    pub const fn reference(self) -> ImportedCoreMirCallableRef {
+        self.reference
+    }
 }
 
 impl MirMeta {

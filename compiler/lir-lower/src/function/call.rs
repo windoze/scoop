@@ -114,6 +114,11 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 self.finish_indirect(destination, args, &call_signature)
             }
+            mir::Callee::CoreExternal(_) => {
+                unreachable!(
+                    "SingleConeStrongMirInput rejects imported-core calls before LIR lowering"
+                )
+            }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
                 let mut parameter_types = Vec::with_capacity(call.args.len());
@@ -149,6 +154,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::Closure(_) | mir::Callee::FunctionBridge(_) => {
                         unreachable!("handled above")
                     }
+                    mir::Callee::CoreExternal(_) => unreachable!("handled above"),
                     mir::Callee::Extern(_) => unreachable!("handled above"),
                 };
                 let callee = &self.module.functions[id];

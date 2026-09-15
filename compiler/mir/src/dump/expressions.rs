@@ -458,6 +458,9 @@ pub(super) fn dump_call(
             id.into_raw(),
             module.extern_functions[*id].native_symbol
         ),
+        Callee::CoreExternal(id) => {
+            format!("core-external{}", id.into_raw().into_u32())
+        }
         Callee::CoroutineSuspend { register } => format!(
             "@coroutine_suspend[register={}]",
             function_ref(module.meta.instances[*register].function)

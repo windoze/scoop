@@ -404,6 +404,13 @@ pub enum ExprKind {
         callee: Callable,
         args: Vec<Expr>,
     },
+    /// Direct call to a param-free strong callable selected from the trusted
+    /// core artifact. The target belongs to this module's imported-callable
+    /// arena and cannot be represented as a local source declaration.
+    ImportedCoreCall {
+        callee: ImportedCoreCallableUseId,
+        args: Vec<Expr>,
+    },
     /// Direct call of a lifted local function. Hidden capture arguments are
     /// explicit and precede source arguments in the lowered ABI.
     LocalFunctionCall {

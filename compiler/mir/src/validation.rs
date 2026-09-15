@@ -90,6 +90,10 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     NonRootCoroutinePendingContext,
+    InvalidImportedCoreCallableReference {
+        callable: ImportedCoreCallableUseId,
+    },
+    ImportedCoreCallableRequiresDirect,
     InvalidForeignCallbackFamily {
         reason: &'static str,
     },
@@ -478,6 +482,14 @@ impl std::fmt::Display for MirValidationError {
             MirValidationErrorKind::NonRootCoroutinePendingContext => formatter.write_str(
                 "transient coroutine pending context remains after state-machine conversion",
             ),
+            MirValidationErrorKind::InvalidImportedCoreCallableReference { callable } => write!(
+                formatter,
+                "core-external call references unknown imported callable {}",
+                callable.into_raw().into_u32()
+            ),
+            MirValidationErrorKind::ImportedCoreCallableRequiresDirect => {
+                formatter.write_str("core-external callable requires a direct call target")
+            }
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
             | MirValidationErrorKind::InvalidCallbackBridge { reason }
@@ -732,6 +744,25 @@ fn validate_body(
                     location: MirValidationLocation::FunctionBlock { function, block },
                     kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
                 });
+            }
+            if let Some(call) = call
+                && let Callee::CoreExternal(callable) = call.target.callee
+            {
+                if !matches!(call.target.kind, CallKind::Direct) {
+                    return Err(MirValidationError {
+                        location: MirValidationLocation::FunctionBlock { function, block },
+                        kind: MirValidationErrorKind::ImportedCoreCallableRequiresDirect,
+                    });
+                }
+                let index = callable.into_raw().into_u32() as usize;
+                if index >= module.meta.imported_core_callables.len() {
+                    return Err(MirValidationError {
+                        location: MirValidationLocation::FunctionBlock { function, block },
+                        kind: MirValidationErrorKind::InvalidImportedCoreCallableReference {
+                            callable,
+                        },
+                    });
+                }
             }
         }
         try_visit_block_exprs(definition, &mut |expr| {

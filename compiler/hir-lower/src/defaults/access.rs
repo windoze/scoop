@@ -481,6 +481,7 @@ impl ReferenceCollector<'_> {
                 self.callable(hir::ExportDefaultCallableTarget::Callable(*callee), origin);
                 self.expressions(args);
             }
+            hir::ExprKind::ImportedCoreCall { args, .. } => self.expressions(args),
             hir::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

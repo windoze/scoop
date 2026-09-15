@@ -78,6 +78,10 @@ pub struct Module {
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
+    /// Imported core call targets selected for this ordinary HIR graph. Each
+    /// entry retains the brand of the selected-set world that admitted it;
+    /// expressions reference this arena instead of a core declaration id.
+    pub imported_core_callables: Arena<ImportedCoreCallableUse>,
     /// Template-only calls through an interface upper bound. Each entry
     /// names the exact receiver parameter, bound application and declaring
     /// interface method; local-concrete HIR has no corresponding arena.
@@ -801,6 +805,24 @@ pub enum Callable {
     Generic(ResolvedGenericFunctionId),
     Method(MethodApplicationId),
     GenericMethod(GenericMethodApplicationId),
+}
+
+/// Export-HIR use of one callable selected from the trusted core artifact.
+/// The wrapper gives this arena its own id domain; LocalConcrete HIR defines
+/// a distinct wrapper and therefore cannot reuse its indices accidentally.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedCoreCallableUse {
+    reference: ImportedCoreCallableRef,
+}
+
+impl ImportedCoreCallableUse {
+    pub fn new(reference: ImportedCoreCallableRef) -> Self {
+        Self { reference }
+    }
+
+    pub const fn reference(self) -> ImportedCoreCallableRef {
+        self.reference
+    }
 }
 
 pub(crate) fn callable_function(module: &Module, callable: Callable) -> FunctionId {

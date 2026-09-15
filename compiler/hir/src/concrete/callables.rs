@@ -120,3 +120,22 @@ pub struct FunctionCoercion {
 pub enum Callable {
     Function(FunctionId),
 }
+
+/// LocalConcrete-HIR use of one callable selected from trusted core. This is
+/// deliberately a different arena element from the Export-HIR wrapper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedCoreCallableUse {
+    reference: crate::ImportedCoreCallableRef,
+}
+
+impl ImportedCoreCallableUse {
+    pub fn from_export(source: crate::ImportedCoreCallableUse) -> Self {
+        Self {
+            reference: source.reference(),
+        }
+    }
+
+    pub const fn reference(self) -> crate::ImportedCoreCallableRef {
+        self.reference
+    }
+}

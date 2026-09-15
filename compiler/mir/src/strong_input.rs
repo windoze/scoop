@@ -180,6 +180,9 @@ impl SingleConeStrongMirInput {
         production: CoreBootstrapBridgeSectionV1,
         core_shape_support_sources: CoreShapeSupportSourceInput,
     ) -> Result<Self, SingleConeStrongMirInputError> {
+        if !module.meta.imported_core_callables.is_empty() {
+            return Err(SingleConeStrongMirInputError::ImportedCoreCallablesRequireOrdinaryInput);
+        }
         let expected_foundation = CanonicalMirFoundation::from_module(&module)
             .map_err(SingleConeStrongMirInputError::Foundation)?;
         if &expected_foundation != foundation.as_canonical() {
@@ -464,6 +467,7 @@ fn validate_output(
 
 #[derive(Debug)]
 pub enum SingleConeStrongMirInputError {
+    ImportedCoreCallablesRequireOrdinaryInput,
     Foundation(MirFoundationBuildError),
     FoundationMismatch,
     StrongCallableSurfaceMismatch,
@@ -533,7 +537,8 @@ impl std::error::Error for SingleConeStrongMirInputError {
             Self::Foundation(source) => Some(source),
             Self::CoreShapeSupportSourceIdentity { error, .. } => Some(error),
             Self::CoreShapeSupportExactIdentity { error, .. } => Some(error),
-            Self::FoundationMismatch
+            Self::ImportedCoreCallablesRequireOrdinaryInput
+            | Self::FoundationMismatch
             | Self::StrongCallableSurfaceMismatch
             | Self::CoreBranchMismatch
             | Self::CoreShapeSupportSourceBranchMismatch

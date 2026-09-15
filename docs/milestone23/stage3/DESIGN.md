@@ -690,16 +690,29 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena。callable id进入
   HIR表达式前还必须由其selected set绑定成`ImportedCoreCallableRef { selection-world, callable-id }`；
   `selection-world`是不可序列化、不可由调用方构造的进程内品牌，因此两个请求即使都分配了callable index 0也不能
-  互换引用，sidecar只解析由自身品牌化的ref。selected set与
+  互换引用，sidecar只解析由自身品牌化的ref。Export HIR与LocalConcrete HIR分别持有不同element type的
+  imported-callable arena，call expression只保存本层arena id；concretization逐项转置并保留品牌化ref。
+  `OrdinaryHirOutput<'core>`构造时要求两张arena逐项相等且全部可由同一selected set解析，同时拒绝reserved core与
+  core shape-support materialization；未原子绑定该sidecar的裸`Output`不能进入ordinary MIR入口。selected set与
   其中的target只借用artifact拥有的foundation/interface/strong-binding surface，不借用临时
   `ImportedHirSet<CorePreludeOnly>`包装或其候选Vec；lowering结束后包装可以销毁，而sidecar必须继续由原artifact
   lifetime约束并随HIR stage product进入后续投影；
+- M23-3的selected HIR callable contract尚不携带可独立验证的跨Cone `@NoGC` authority，因此普通/managed函数可
+  调用上述target，`@NoGC`函数中的imported core call在HIR阶段稳定拒绝；不得把缺失的effect proof猜成NoGC。后续若
+  开放该能力，必须先把GC effect加入HIR/MIR canonical foundation和strong bridge并做双层重放，不能只信源码属性；
+- 本阶段跨Cone callable只接受无receiver的`Effect::Ordinary`精确签名；suspend callable与带receiver的member
+  callable在MIR投影边界稳定拒绝。前者需要先把跨Cone coroutine hidden ABI与其shape-support closure纳入strong
+  bridge，后者需要先定义receiver dispatch/ownership proof，均不得借本地call lowering的结构猜测；
 - driver一次消费整份HIR callable selection，通过同一core proof逐项投影后产生唯一
   `SelectedImportedMirSet<'core>`。该set自身绑定同artifact的MIR foundation与production，使用独立
   `ImportedCoreMirCallableId`，并在任一项失败时不返回部分集合；不存在接受裸binding/definition/
   signature的第二构造路径。selected MIR target再以同样方式投影成绑定同一LIR
   foundation与strong-definition surface的`SelectedImportedLirSet<'core>`，并使用与前两层都不
   相容的`ImportedCoreLirCallableId`。LIR集合项同时保留body、definition plan和唯一symbol request；
+- `mir-lower`只返回拥有上述MIR selected set的`OrdinaryMirOutput<'core>`；构造时验证每个arena entry的品牌、
+  binding唯一性、每项至少被一个direct call引用以及整图MIR合法性。未绑定sidecar的裸`Module`不能进入ordinary
+  strong LIR入口；在LIR external bridge尚未从同一artifact提供canonical Scoop ABI与effect/root-plan前，现有
+  `SingleConeStrongMirInput`显式拒绝任何imported-core arena，而不是选择一个猜测的调用协议；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
 

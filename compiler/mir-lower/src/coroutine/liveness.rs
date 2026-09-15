@@ -186,7 +186,10 @@ fn suspend_effect(
                 )
             });
         }
-        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Extern(_) | mir::Callee::Runtime(_) => {
+        mir::Callee::CoroutineSuspend { .. }
+        | mir::Callee::Extern(_)
+        | mir::Callee::CoreExternal(_)
+        | mir::Callee::Runtime(_) => {
             return None;
         }
     };
