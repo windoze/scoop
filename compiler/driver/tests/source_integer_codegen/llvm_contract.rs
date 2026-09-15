@@ -3,13 +3,16 @@ use std::collections::HashMap;
 use super::IntegerCase;
 
 fn function_text<'a>(llvm: &'a str, symbol: &str) -> &'a str {
-    let symbol_at = llvm
-        .find(&format!("@\"{symbol}\"("))
-        .or_else(|| llvm.find(&format!("@{symbol}(")))
-        .unwrap_or_else(|| panic!("LLVM function `{symbol}` is missing"));
-    let start = llvm[..symbol_at]
-        .rfind("define ")
-        .expect("function definition starts before its symbol");
+    let quoted = format!("@\"{symbol}\"(");
+    let plain = format!("@{symbol}(");
+    let start = llvm
+        .match_indices("define ")
+        .map(|(start, _)| start)
+        .find(|start| {
+            let declaration = llvm[*start..].lines().next().unwrap_or_default();
+            declaration.contains(&quoted) || declaration.contains(&plain)
+        })
+        .unwrap_or_else(|| panic!("LLVM function `{symbol}` definition is missing"));
     let end = llvm[start..]
         .find("\n}\n")
         .map(|offset| start + offset + 2)

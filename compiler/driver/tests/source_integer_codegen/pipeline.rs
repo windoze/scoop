@@ -1,5 +1,11 @@
 use std::path::{Path, PathBuf};
 
+struct CompilerInput {
+    name: String,
+    source: String,
+    identity: scoop_identity::SourceIdentity,
+}
+
 struct TemporarySource(PathBuf);
 
 impl TemporarySource {
@@ -31,7 +37,7 @@ pub(super) fn lower_program(
     String,
 ) {
     let temporary = TemporarySource::new(source);
-    let inputs = scoopc::load_inputs(temporary.path()).expect("load compiler inputs");
+    let inputs = load_inputs(temporary.path());
     let user_index = inputs.len() - 1;
     let mut files = Vec::with_capacity(inputs.len());
     let mut diagnostics = Vec::new();
@@ -49,7 +55,7 @@ pub(super) fn lower_program(
     assert!(
         diagnostics.is_empty(),
         "source must parse:\n{}",
-        scoopc::render_diagnostics(&diagnostics, &inputs, "<integer-test>", source)
+        render_diagnostics(&diagnostics, &inputs)
     );
 
     let core_provider = scoop_hir::IntrinsicProviderId::from_raw(0);
@@ -93,7 +99,7 @@ pub(super) fn lower_program(
     .unwrap_or_else(|errors| {
         panic!(
             "source must lower to HIR:\n{}",
-            scoopc::render_diagnostics(&errors, &inputs, "<integer-test>", source)
+            render_diagnostics(&errors, &inputs)
         )
     });
     let hir_production = scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
@@ -135,4 +141,43 @@ pub(super) fn lower_program(
     .join("\n");
     let lir = lir.into_module();
     (mir, lir, llvm)
+}
+
+fn load_inputs(user_path: &Path) -> Vec<CompilerInput> {
+    let core_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/lib/scoop.core");
+    let manifest = scoop_manifest::load_trusted_core_manifest(
+        &scoop_manifest::ManifestRootLocator::cone_directory(core_root),
+    )
+    .expect("load trusted core manifest");
+    let discovered = scoop_manifest::discover_manifest_sources(&manifest)
+        .expect("discover trusted core sources");
+    let mut inputs = discovered
+        .iter()
+        .map(|source| CompilerInput {
+            name: source.display_locator().as_path().display().to_string(),
+            source: source.source_text().to_owned(),
+            identity: source.identity().clone(),
+        })
+        .collect::<Vec<_>>();
+    inputs.push(CompilerInput {
+        name: user_path.display().to_string(),
+        source: std::fs::read_to_string(user_path).expect("read temporary Scoop source"),
+        identity: scoop_identity::SourceIdentity::single_file(),
+    });
+    inputs
+}
+
+fn render_diagnostics(diagnostics: &[scoop_ast::Diagnostic], inputs: &[CompilerInput]) -> String {
+    diagnostics
+        .iter()
+        .flat_map(|diagnostic| {
+            let input = &inputs[diagnostic.file];
+            let primary = diagnostic.render(&input.name, &input.source);
+            std::iter::once(primary).chain(diagnostic.notes.iter().map(|note| {
+                let input = &inputs[note.file];
+                note.render(&input.name, &input.source)
+            }))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

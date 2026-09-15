@@ -559,7 +559,6 @@ dependencies = [
 name = "scoopc"
 version = "0.0.0"
 dependencies = [
- "cc",
  "clap",
  "insta",
  "scoop-ast",
@@ -577,7 +576,6 @@ dependencies = [
  "scoop-slib",
  "scoop-wire",
  "tempfile",
- "toml",
 ]
 
 [[package]]

@@ -1,6 +1,4 @@
-//! Compiler CLI: `scoopc`.
-//!
-//! See `docs/specs/SCOOP-IMPL-SPEC.md` sections 2.7-2.8.
+//! Single-Cone artifact compiler CLI.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -16,19 +14,22 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Compile a `.scoop` source file into an executable.
+    /// Compile one Cone into a validated `.slib` artifact.
     Build {
-        /// The `.scoop` source file to compile.
-        file: PathBuf,
-        /// Directory for the object file and the linked executable.
-        #[arg(short = 'o', default_value = "./target/scoopc-out")]
-        out_dir: PathBuf,
+        /// Cone directory, exact `Cone.toml`, or one `.scoop` file.
+        input: PathBuf,
+        /// Direct dependency artifact; may be repeated.
+        #[arg(long = "direct-slib")]
+        direct_slibs: Vec<PathBuf>,
+        /// Transitive support dependency artifact; may be repeated.
+        #[arg(long = "support-slib")]
+        support_slibs: Vec<PathBuf>,
+        /// Required destination for the validated current-Cone artifact.
+        #[arg(long = "out-slib")]
+        out_slib: PathBuf,
         /// Print the text dump of one pipeline stage to stdout.
         #[arg(long, value_enum)]
         emit: Option<Emit>,
-        /// Native library search path; may be repeated.
-        #[arg(short = 'L', long = "library-path")]
-        library_paths: Vec<PathBuf>,
     },
 }
 
@@ -44,52 +45,121 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
         Command::Build {
-            file,
-            out_dir,
+            input,
+            direct_slibs,
+            support_slibs,
+            out_slib,
             emit,
-            library_paths,
-        } => match scoopc::compile_file_with_options(
-            &file,
-            &out_dir,
-            &scoopc::CompileOptions {
-                library_paths,
-                ..Default::default()
-            },
-        ) {
-            Ok(success) => {
-                if !success.warnings.is_empty() {
-                    let inputs = scoopc::load_inputs(&file).unwrap_or_default();
-                    let name = file.display().to_string();
-                    let source = std::fs::read_to_string(&file).unwrap_or_default();
-                    eprintln!(
-                        "{}",
-                        scoopc::render_diagnostics(&success.warnings, &inputs, &name, &source)
-                    );
-                }
-                if let Some(emit) = emit {
-                    let dump = match emit {
-                        Emit::Ast => success.dumps.ast,
-                        Emit::Hir => success.dumps.hir,
-                        Emit::Mir => success.dumps.mir,
-                        Emit::Lir => success.dumps.lir,
-                    };
-                    println!("{dump}");
-                }
-                ExitCode::SUCCESS
+        } => build(input, direct_slibs, support_slibs, out_slib, emit),
+    }
+}
+
+fn build(
+    input: PathBuf,
+    direct_slibs: Vec<PathBuf>,
+    support_slibs: Vec<PathBuf>,
+    out_slib: PathBuf,
+    emit: Option<Emit>,
+) -> ExitCode {
+    let emit = match emit {
+        None => scoopc::StageDumpPolicy::None,
+        Some(emit) => scoopc::StageDumpPolicy::Stage(match emit {
+            Emit::Ast => scoopc::StageDumpKind::Ast,
+            Emit::Hir => scoopc::StageDumpKind::Hir,
+            Emit::Mir => scoopc::StageDumpKind::Mir,
+            Emit::Lir => scoopc::StageDumpKind::Lir,
+        }),
+    };
+    let request = match scoopc::normalize_direct_build_request(
+        input,
+        direct_slibs,
+        support_slibs,
+        out_slib,
+        scoopc::DiagnosticOutputPolicy::Human,
+        emit,
+    ) {
+        Ok(request) => request,
+        Err(error) => {
+            eprintln!("error: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    match request.build_and_publish(scoop_wire::DecodeLimits::default()) {
+        Ok(success) => {
+            if !success.warnings().is_empty() {
+                eprintln!("{}", success.warnings().render_human());
             }
-            Err(diagnostics) => {
-                // Map each diagnostic's file index back to its input;
-                // diagnostics raised before loading finished (bad
-                // sysroot, unreadable file) fall back to the user file.
-                let inputs = scoopc::load_inputs(&file).unwrap_or_default();
-                let name = file.display().to_string();
-                let source = std::fs::read_to_string(&file).unwrap_or_default();
-                eprintln!(
-                    "{}",
-                    scoopc::render_diagnostics(&diagnostics, &inputs, &name, &source)
-                );
-                ExitCode::FAILURE
+            if let Some(dump) = success.emitted_dump() {
+                println!("{}", dump.text());
             }
-        },
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formal_build_arguments_are_accepted() {
+        let cli = Cli::try_parse_from([
+            "scoopc",
+            "build",
+            "Cone.toml",
+            "--direct-slib",
+            "direct.slib",
+            "--support-slib",
+            "support.slib",
+            "--out-slib",
+            "current.slib",
+            "--emit",
+            "lir",
+        ])
+        .unwrap();
+        let Command::Build {
+            input,
+            direct_slibs,
+            support_slibs,
+            out_slib,
+            emit,
+        } = cli.command;
+        assert_eq!(input, PathBuf::from("Cone.toml"));
+        assert_eq!(direct_slibs, [PathBuf::from("direct.slib")]);
+        assert_eq!(support_slibs, [PathBuf::from("support.slib")]);
+        assert_eq!(out_slib, PathBuf::from("current.slib"));
+        assert!(matches!(emit, Some(Emit::Lir)));
+    }
+
+    #[test]
+    fn executable_runner_flags_are_rejected() {
+        assert!(
+            Cli::try_parse_from([
+                "scoopc",
+                "build",
+                "main.scoop",
+                "-o",
+                "out",
+                "--out-slib",
+                "main.slib",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "scoopc",
+                "build",
+                "main.scoop",
+                "-L",
+                "native",
+                "--out-slib",
+                "main.slib",
+            ])
+            .is_err()
+        );
     }
 }
