@@ -8,12 +8,17 @@
 use scoop_ast::{Diagnostic, DiagnosticSeverity};
 use std::path::{Path, PathBuf};
 
+mod artifact_production;
 mod inputs;
 mod linking;
 mod object_production;
 mod request;
 mod trusted_core;
 
+pub use artifact_production::{
+    AssembledStrongArtifactProductionV1, StrongArtifactMetadataInputV1,
+    StrongArtifactProductionError,
+};
 pub use inputs::{load_inputs, render_diagnostics};
 use linking::{LinkRequest, build_runtime, link};
 pub use object_production::{

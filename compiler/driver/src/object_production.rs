@@ -1256,6 +1256,24 @@ impl CodeFingerprintedObjectProductionV1 {
     pub const fn production_manifest(&self) -> &SingleConeProductionManifestV1 {
         &self.production_manifest
     }
+
+    pub(crate) fn into_archive_parts(
+        self,
+    ) -> (
+        ValidatedLirTargetSelection,
+        OdrFreeLirFoundation,
+        CBridgeToolchainProfileV1,
+        Vec<SlibMember>,
+        SingleConeProductionManifestV1,
+    ) {
+        (
+            self.target_selection,
+            self.lir_foundation,
+            self.c_bridge_profile,
+            self.members,
+            self.production_manifest,
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

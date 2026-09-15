@@ -1725,6 +1725,12 @@ code producer必须等于Cone identity。成功状态只暴露canonical final by
 target selection；不存在foundation writer升级、手工`BootstrapManifest`拼装或漏过Link closure的production
 分支。
 
+driver随后必须消费`CodeFingerprintedObjectProductionV1`与不可缺项的
+`StrongArtifactMetadataInputV1`形成`AssembledStrongArtifactProductionV1`；该状态内部保留archive、从同一
+code proof派生的external bridge surface及codegen保留的C-bridge profile，不公开final bytes的直接文件写入
+方法。其唯一文件系统终态`publish`调用`publish_single_cone_artifact`，并显式接收同请求已验证的core
+defined-owner authority；不能把assembly成功、ArtifactFingerprint存在或单一reader成功当作发布权限。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
