@@ -66,7 +66,7 @@ fn lower_fixture_with_extra_type(extra_type: bool) -> hir::Output {
     ))
     .unwrap();
     let core = core_file();
-    let input = crate::LegacyCombinedSources::try_new(
+    let input = crate::DefinedTestSources::try_new(
         vec![crate::ProviderSource {
             source: &core,
             identity: core_source_identity("src/core.scoop"),
@@ -82,7 +82,7 @@ fn lower_fixture_with_extra_type(extra_type: bool) -> hir::Output {
         },
     )
     .unwrap();
-    crate::lower_combined_sources(
+    crate::lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         crate::IntrinsicDeclarationPolicy::CoreOnly,

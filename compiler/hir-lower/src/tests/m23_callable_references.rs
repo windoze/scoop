@@ -60,7 +60,7 @@ fn lower_sources(
     core: ast::SourceFile,
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let parsed = identified_test_sources(sources);
-    let input = LegacyCombinedSources::try_new(
+    let input = DefinedTestSources::try_new(
         vec![ProviderSource {
             source: &core,
             identity: core_source_identity("src/core.scoop"),
@@ -76,7 +76,7 @@ fn lower_sources(
         },
     )
     .expect("explicit test source identities are valid");
-    lower_combined_sources(
+    lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,

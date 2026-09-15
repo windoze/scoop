@@ -27,7 +27,7 @@ fn lower_user_sources(
             .chain(remaining.iter().map(|(source, _)| (*source).clone()))
             .collect(),
     );
-    let input = LegacyCombinedSources::try_new(
+    let input = DefinedTestSources::try_new(
         vec![source(
             core,
             core_source_identity("src/core.scoop"),
@@ -42,7 +42,7 @@ fn lower_user_sources(
         },
     )
     .expect("explicit test source identities are valid");
-    lower_combined_sources(
+    lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,
@@ -255,7 +255,7 @@ fn combined_source_input_rejects_duplicate_semantic_identities() {
     let core = file(Vec::new());
     let duplicate = core_source_identity("src/duplicate.scoop");
     let parsed = identified_test_sources(vec![file(vec![fun("main", Vec::new())])]);
-    let error = LegacyCombinedSources::try_new(
+    let error = DefinedTestSources::try_new(
         vec![
             source(
                 &core,
@@ -282,7 +282,7 @@ fn combined_source_input_rejects_duplicate_semantic_identities() {
 
     assert_eq!(
         error,
-        LegacyCombinedSourcesError::DuplicateSourceIdentity {
+        DefinedTestSourcesError::DuplicateSourceIdentity {
             first_index: 0,
             duplicate_index: 1,
             identity: duplicate,
@@ -308,7 +308,7 @@ fn combined_source_input_rejects_multiple_current_cones() {
     let parsed =
         ast::AllParsedSources::try_new(ast::NonEmptyVec::new(first, vec![second])).unwrap();
 
-    let error = LegacyCombinedSources::try_new(
+    let error = DefinedTestSources::try_new(
         Vec::new(),
         hir::IntrinsicProviderId::from_raw(29),
         parsed,
@@ -322,7 +322,7 @@ fn combined_source_input_rejects_multiple_current_cones() {
 
     assert_eq!(
         error,
-        LegacyCombinedSourcesError::MixedCurrentCones {
+        DefinedTestSourcesError::MixedCurrentCones {
             first: first_cone,
             source_index: 1,
             actual: other_cone,
@@ -531,7 +531,7 @@ fn lower_sparse_sources(
     ordered: &[(u32, &ast::SourceFile)],
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let (&first, remaining) = ordered.split_first().expect("test sources are nonempty");
-    let input = LegacyCombinedSources::try_new(
+    let input = DefinedTestSources::try_new(
         vec![source(
             core,
             core_source_identity("src/core.scoop"),
@@ -546,7 +546,7 @@ fn lower_sparse_sources(
         },
     )
     .expect("explicit test source identities are valid");
-    lower_combined_sources(
+    lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,
@@ -720,7 +720,7 @@ fn validated_input_retains_source_identities_independently_of_dense_file_indices
             "/elsewhere/unrelated.scoop",
         ),
     ] {
-        let input = LegacyCombinedSources::try_new(
+        let input = DefinedTestSources::try_new(
             vec![source(
                 &core,
                 core_source_identity("src/core.scoop"),
@@ -735,7 +735,7 @@ fn validated_input_retains_source_identities_independently_of_dense_file_indices
             },
         )
         .expect("explicit test source identities are valid");
-        let output = lower_combined_sources(
+        let output = lower_defined_for_test(
             scoop_identity::RequestedConeKind::Library,
             &input,
             IntrinsicDeclarationPolicy::CoreOnly,
@@ -787,7 +787,7 @@ fn shared_display_locator_does_not_merge_distinct_private_sources() {
         "main",
         vec![stmt(call("privateHelper", Vec::new()))],
     )]);
-    let input = LegacyCombinedSources::try_new(
+    let input = DefinedTestSources::try_new(
         vec![source(
             &core,
             core_source_identity("src/core.scoop"),
@@ -803,7 +803,7 @@ fn shared_display_locator_does_not_merge_distinct_private_sources() {
     )
     .expect("explicit test source identities are valid");
 
-    let errors = lower_combined_sources(
+    let errors = lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,

@@ -135,7 +135,7 @@ fn lower(unrelated_prefix: bool) -> hir::Output {
         Vec::new(),
     ))
     .expect("export binding test source is valid");
-    let input = crate::LegacyCombinedSources::try_new(
+    let input = crate::DefinedTestSources::try_new(
         vec![crate::ProviderSource {
             source: &core,
             identity: core_source_identity("src/core.scoop"),
@@ -151,7 +151,7 @@ fn lower(unrelated_prefix: bool) -> hir::Output {
         },
     )
     .expect("export binding test sources are valid");
-    crate::lower_combined_sources(
+    crate::lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         crate::IntrinsicDeclarationPolicy::CoreOnly,

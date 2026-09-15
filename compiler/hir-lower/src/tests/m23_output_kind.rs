@@ -80,8 +80,8 @@ fn parsed_sources(sources: Vec<(u32, ast::SourceFile)>) -> ast::AllParsedSources
 fn combined_input<'a>(
     core: &'a ast::SourceFile,
     user_sources: ast::AllParsedSources,
-) -> LegacyCombinedSources<'a> {
-    LegacyCombinedSources::try_new(
+) -> DefinedTestSources<'a> {
+    DefinedTestSources::try_new(
         vec![ProviderSource {
             source: core,
             identity: core_source_identity("src/core.scoop"),
@@ -104,7 +104,7 @@ fn lower_sources(
     user_sources: Vec<(u32, ast::SourceFile)>,
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let input = combined_input(core, parsed_sources(user_sources));
-    lower_combined_sources(
+    lower_defined_for_test(
         scoop_identity::RequestedConeKind::Executable,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,
@@ -116,7 +116,7 @@ fn lower_frontend_sources(
     user_sources: Vec<(u32, ast::SourceFile)>,
 ) -> hir::Output {
     let input = combined_input(core, parsed_sources(user_sources));
-    lower_combined_sources(
+    lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,
@@ -131,7 +131,7 @@ fn frontend_lowering_does_not_require_main() {
         &core,
         parsed_sources(vec![(0, file(vec![fun("libraryFunction", Vec::new())]))]),
     );
-    let output = lower_combined_sources(
+    let output = lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,
@@ -236,7 +236,7 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
             (10, valid),
         ]),
     );
-    let output = lower_combined_sources(
+    let output = lower_defined_for_test(
         scoop_identity::RequestedConeKind::Executable,
         &input,
         IntrinsicDeclarationPolicy::AllowListedForTesting {
@@ -282,7 +282,7 @@ fn executable_output_seals_private_current_main_and_exact_signature() {
     let mut core = core_file();
     core.declarations.push(fun("main", Vec::new()));
     let input = combined_input(&core, parsed_sources(vec![(10, file(vec![declaration]))]));
-    let output = lower_combined_sources(
+    let output = lower_defined_for_test(
         scoop_identity::RequestedConeKind::Executable,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,

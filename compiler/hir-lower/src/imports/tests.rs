@@ -494,7 +494,7 @@ fn lower_sources_with_core(
     core: ast::SourceFile,
 ) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     let parsed = identified_test_sources(sources);
-    let input = crate::LegacyCombinedSources::try_new(
+    let input = crate::DefinedTestSources::try_new(
         vec![crate::ProviderSource {
             source: &core,
             identity: core_source_identity("src/core.scoop"),
@@ -510,7 +510,7 @@ fn lower_sources_with_core(
         },
     )
     .expect("explicit test source identities are valid");
-    crate::lower_combined_sources(
+    crate::lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,

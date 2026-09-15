@@ -157,14 +157,14 @@ fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<ast::Diagnostic>>
     ))
     .expect("the single-file test input has one source identity");
     let input =
-        LegacyCombinedSources::try_new(core, hir::IntrinsicProviderId::from_raw(1), parsed, |_| {
+        DefinedTestSources::try_new(core, hir::IntrinsicProviderId::from_raw(1), parsed, |_| {
             CurrentSourceDetails {
                 display_locator: "<user>",
                 source_text: "",
             }
         })
         .expect("explicit test source identities are valid");
-    lower_combined_sources(
+    lower_defined_for_test(
         scoop_identity::RequestedConeKind::Executable,
         &input,
         IntrinsicDeclarationPolicy::CoreOnly,
@@ -230,12 +230,12 @@ pub(crate) fn lower_test_sources(
     ))
     .expect("the test supplies one explicit user source identity");
     let input =
-        LegacyCombinedSources::try_new(core, user_provider, parsed, |_| CurrentSourceDetails {
+        DefinedTestSources::try_new(core, user_provider, parsed, |_| CurrentSourceDetails {
             display_locator: user_display_locator,
             source_text: user_source_text,
         })
         .expect("explicit test source identities are valid");
-    lower_combined_sources(
+    lower_defined_for_test(
         scoop_identity::RequestedConeKind::Executable,
         &input,
         policy,

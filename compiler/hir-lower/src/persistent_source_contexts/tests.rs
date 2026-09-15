@@ -94,7 +94,7 @@ fn lower(unrelated_prefix: bool, display_locator: &str) -> hir::Output {
         Vec::new(),
     ))
     .expect("source-context identity test source is valid");
-    let input = crate::LegacyCombinedSources::try_new(
+    let input = crate::DefinedTestSources::try_new(
         vec![crate::ProviderSource {
             source: &core,
             identity: core_source_identity("src/core.scoop"),
@@ -110,7 +110,7 @@ fn lower(unrelated_prefix: bool, display_locator: &str) -> hir::Output {
         },
     )
     .expect("source-context identity test inputs are valid");
-    crate::lower_combined_sources(
+    crate::lower_defined_for_test(
         scoop_identity::RequestedConeKind::Library,
         &input,
         crate::IntrinsicDeclarationPolicy::CoreOnly,

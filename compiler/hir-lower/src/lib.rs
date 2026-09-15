@@ -165,9 +165,10 @@ use hir::{
 use model::*;
 use scope::{LocalFunctionScopes, Scopes};
 
-/// One existing core source and its provider authority.
+/// One defined-world source used by lowerer unit tests.
+#[cfg(test)]
 #[derive(Clone)]
-pub struct ProviderSource<'a> {
+pub(crate) struct ProviderSource<'a> {
     pub source: &'a ast::SourceFile,
     pub identity: scoop_identity::SourceIdentity,
     pub provider: hir::IntrinsicProviderId,
@@ -175,9 +176,10 @@ pub struct ProviderSource<'a> {
     pub source_text: &'a str,
 }
 
-/// Temporary combined entry for existing core sources and current sources.
-/// This type cannot be used as a single-Cone foundation serialization input.
-pub struct LegacyCombinedSources<'a> {
+/// Test-only defined-world input. Production callers must use either
+/// `CoreBootstrapSources` or `OrdinaryCoreOnlySources`.
+#[cfg(test)]
+pub(crate) struct DefinedTestSources<'a> {
     core: Vec<ProviderSource<'a>>,
     user_provider: hir::IntrinsicProviderId,
     user_sources: ast::AllParsedSources,
@@ -185,8 +187,9 @@ pub struct LegacyCombinedSources<'a> {
 }
 
 /// Transient diagnostic and source-text data supplied separately from identity.
+#[cfg(test)]
 #[derive(Clone, Copy)]
-pub struct CurrentSourceDetails<'a> {
+pub(crate) struct CurrentSourceDetails<'a> {
     pub display_locator: &'a str,
     pub source_text: &'a str,
 }
@@ -311,8 +314,9 @@ enum CoreLoweringCompletion {
     Imported(hir::ImportedCoreSelectionPlan),
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LegacyCombinedSourcesError {
+pub(crate) enum DefinedTestSourcesError {
     DuplicateSourceIdentity {
         first_index: usize,
         duplicate_index: usize,
@@ -325,7 +329,8 @@ pub enum LegacyCombinedSourcesError {
     },
 }
 
-impl std::fmt::Display for LegacyCombinedSourcesError {
+#[cfg(test)]
+impl std::fmt::Display for DefinedTestSourcesError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::DuplicateSourceIdentity {
@@ -350,9 +355,11 @@ impl std::fmt::Display for LegacyCombinedSourcesError {
     }
 }
 
-impl std::error::Error for LegacyCombinedSourcesError {}
+#[cfg(test)]
+impl std::error::Error for DefinedTestSourcesError {}
 
-impl<'a> LegacyCombinedSources<'a> {
+#[cfg(test)]
+impl<'a> DefinedTestSources<'a> {
     /// Consume a validated parsed set. Details are requested by source identity,
     /// never matched by display locator or source container position.
     pub fn try_new(
@@ -360,12 +367,12 @@ impl<'a> LegacyCombinedSources<'a> {
         user_provider: hir::IntrinsicProviderId,
         user_sources: ast::AllParsedSources,
         mut source_details: impl FnMut(&scoop_identity::SourceIdentity) -> CurrentSourceDetails<'a>,
-    ) -> Result<Self, LegacyCombinedSourcesError> {
+    ) -> Result<Self, DefinedTestSourcesError> {
         let first_cone = user_sources.sources().first().identity().cone();
         for (source_index, source) in user_sources.sources().iter().enumerate().skip(1) {
             let actual = source.identity().cone();
             if actual != first_cone {
-                return Err(LegacyCombinedSourcesError::MixedCurrentCones {
+                return Err(DefinedTestSourcesError::MixedCurrentCones {
                     first: first_cone,
                     source_index,
                     actual,
@@ -388,7 +395,7 @@ impl<'a> LegacyCombinedSources<'a> {
                 .iter()
                 .position(|seen: &&scoop_identity::SourceIdentity| *seen == identity)
             {
-                return Err(LegacyCombinedSourcesError::DuplicateSourceIdentity {
+                return Err(DefinedTestSourcesError::DuplicateSourceIdentity {
                     first_index,
                     duplicate_index: index,
                     identity: identity.clone(),
@@ -408,14 +415,6 @@ impl<'a> LegacyCombinedSources<'a> {
             source_details,
         })
     }
-
-    pub fn user_provider(&self) -> hir::IntrinsicProviderId {
-        self.user_provider
-    }
-
-    pub fn user_sources(&self) -> &ast::AllParsedSources {
-        &self.user_sources
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -427,14 +426,15 @@ pub enum IntrinsicDeclarationPolicy {
     },
 }
 
-/// Lower an explicitly provided non-empty source set and seal its requested
-/// library/executable output branch after all source diagnostics have passed.
-pub fn lower_combined_sources(
+/// Lower a defined-world source set for unit tests. This is deliberately not
+/// compiled into the production crate API.
+#[cfg(test)]
+pub(crate) fn lower_defined_for_test(
     requested: scoop_identity::RequestedConeKind,
-    input: &LegacyCombinedSources<'_>,
+    input: &DefinedTestSources<'_>,
     policy: IntrinsicDeclarationPolicy,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let (files, sources) = materialize_combined_sources(input);
+    let (files, sources) = materialize_defined_test_sources(input);
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
         .run_defined(&files)?;
@@ -541,8 +541,9 @@ fn native_boundary_diagnostic(
     vec![Diagnostic::at(Span { start: 0, end: 0 }, error.to_string())]
 }
 
-fn materialize_combined_sources(
-    input: &LegacyCombinedSources<'_>,
+#[cfg(test)]
+fn materialize_defined_test_sources(
+    input: &DefinedTestSources<'_>,
 ) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
     let source_count = input.core.len() + input.user_sources.sources().len();
     let mut files = Vec::with_capacity(source_count);
