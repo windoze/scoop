@@ -84,15 +84,19 @@ fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
 }
 
 #[test]
-fn formal_pipeline_is_byte_reproducible_across_absolute_source_and_output_paths() {
+fn formal_pipeline_is_byte_reproducible_for_every_stage3_input_form() {
     let Some(target) = resolved_target() else {
         return;
     };
-    let sysroot = tempfile::tempdir().unwrap();
-    bootstrap_core(sysroot.path(), &target);
+    let workspace = tempfile::tempdir().unwrap();
+    let first_sysroot = workspace.path().join("checkout-a/sysroot");
+    let second_sysroot = workspace.path().join("checkout-b/sysroot");
+    let first_core = bootstrap_core(&first_sysroot, &target);
+    let second_core = bootstrap_core(&second_sysroot, &target);
+    assert_artifacts_equal(&first_core, &second_core);
 
-    let first_root = sysroot.path().join("checkout-a/library");
-    let second_root = sysroot.path().join("checkout-b/library");
+    let first_root = first_sysroot.join("cones/library");
+    let second_root = second_sysroot.join("other/cones/library");
     for root in [&first_root, &second_root] {
         write_manifest_cone(
             root,
@@ -102,27 +106,69 @@ fn formal_pipeline_is_byte_reproducible_across_absolute_source_and_output_paths(
             "fun answer(): Long = 42\n",
         );
     }
+    std::fs::write(first_root.join("src/z.scoop"), "fun last(): Long = 2\n").unwrap();
+    std::fs::write(first_root.join("src/a.scoop"), "fun first(): Long = 1\n").unwrap();
+    std::fs::write(second_root.join("src/a.scoop"), "fun first(): Long = 1\n").unwrap();
+    std::fs::write(second_root.join("src/z.scoop"), "fun last(): Long = 2\n").unwrap();
 
     let first = build_manifest(
-        sysroot.path(),
+        &first_sysroot,
         &target,
         &first_root,
-        &sysroot.path().join("output-a/result.slib"),
+        &first_sysroot.join("output-a/library.slib"),
     );
     let second = build_manifest(
-        sysroot.path(),
+        &second_sysroot,
         &target,
         &second_root,
-        &sysroot.path().join("output-b/result.slib"),
+        &second_sysroot.join("output-b/library.slib"),
     );
+    assert_artifacts_equal(&first, &second);
 
-    let first_bytes = std::fs::read(first.artifact().path()).unwrap();
-    let second_bytes = std::fs::read(second.artifact().path()).unwrap();
-    assert_eq!(first_bytes, second_bytes);
-    assert_eq!(
-        first.artifact().validation().artifact_fingerprint(),
-        second.artifact().validation().artifact_fingerprint()
+    let first_root = first_sysroot.join("cones/executable");
+    let second_root = second_sysroot.join("other/cones/executable");
+    for root in [&first_root, &second_root] {
+        write_manifest_cone(
+            root,
+            "dev.example",
+            "stage3.reproducible-executable",
+            "executable",
+            "fun main() { val message = \"stage3\" }\n",
+        );
+    }
+    let first = build_manifest(
+        &first_sysroot,
+        &target,
+        &first_root,
+        &first_sysroot.join("output-a/executable.slib"),
     );
+    let second = build_manifest(
+        &second_sysroot,
+        &target,
+        &second_root,
+        &second_sysroot.join("output-b/executable.slib"),
+    );
+    assert_artifacts_equal(&first, &second);
+
+    let first_source = first_sysroot.join("inputs/first-name.scoop");
+    let second_source = second_sysroot.join("other/inputs/second-name.scoop");
+    std::fs::create_dir_all(first_source.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(second_source.parent().unwrap()).unwrap();
+    std::fs::write(&first_source, "fun main() {}\n").unwrap();
+    std::fs::write(&second_source, "fun main() {}\n").unwrap();
+    let first = build_single_file(
+        &first_sysroot,
+        &target,
+        &first_source,
+        &first_sysroot.join("output-a/single-file.slib"),
+    );
+    let second = build_single_file(
+        &second_sysroot,
+        &target,
+        &second_source,
+        &second_sysroot.join("output-b/single-file.slib"),
+    );
+    assert_artifacts_equal(&first, &second);
 }
 
 #[test]
@@ -264,6 +310,22 @@ fn build_manifest(
     )
 }
 
+fn build_single_file(
+    sysroot: &Path,
+    target: &scoop_codegen::ResolvedTargetProfile,
+    source: &Path,
+    output: &Path,
+) -> SingleConeProductionSuccess {
+    build_ordinary(
+        sysroot,
+        target,
+        CurrentConeInput::SingleFile {
+            source: scoop_manifest::SingleFileLocator::from_path(source).unwrap(),
+        },
+        output,
+    )
+}
+
 fn build_ordinary(
     sysroot: &Path,
     target: &scoop_codegen::ResolvedTargetProfile,
@@ -309,6 +371,20 @@ fn assert_graph_dependencies(
             .map(scoop_slib::DependencyRecord::identity)
             .collect::<Vec<_>>(),
         expected
+    );
+}
+
+fn assert_artifacts_equal(
+    first: &SingleConeProductionSuccess,
+    second: &SingleConeProductionSuccess,
+) {
+    assert_eq!(
+        std::fs::read(first.artifact().path()).unwrap(),
+        std::fs::read(second.artifact().path()).unwrap()
+    );
+    assert_eq!(
+        first.artifact().validation().artifact_fingerprint(),
+        second.artifact().validation().artifact_fingerprint()
     );
 }
 
