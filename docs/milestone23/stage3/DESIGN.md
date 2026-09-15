@@ -611,6 +611,9 @@ artifact slot发布。调用方不能另传Cone、dependency、producer、output
 - 按persistent binding id排序的普通direct-public declaration surface；
 - typed prelude binding snapshot，至少覆盖现有普通prelude function/type及`Option` variant scope；
 - well-known compiler relation与`RuntimeCoreCapability::String`的source/exact identity；
+- closed `CoreCompilerProtocolSurfaceV1`：用kind-specific persistent identity和完整source/exact
+  signature发布基础类型、`Option`、iteration、exception construction、coroutine、FFI、managed callback、
+  source-location及compiler-recognized operator/intrinsic关系；
 - 每个binding的最终typed target、signature/parameter shape、visibility/export witness和definition origin；
 - 每个target在HIR层是否满足M23-3 param-free shape约束的checked capability；callable的最终
   `ParamFreeStrong`可用性必须再与MIR strong implementation bridge合取，不能由HIR单独授予；
@@ -620,7 +623,13 @@ artifact slot发布。调用方不能另传Cone、dependency、producer、output
 implementation的typed bridge；没有strong body的extern或intrinsic不会被伪造成bridge。
 `CoreLirBridgeV1`位于第9章strong production section，进一步给出每个可导入callable的canonical Scoop ABI、external calling convention、effect/root-plan、persistent symbol request和required callable-body definition；param-free shape-support definition继续由同一section的`core_shape_support`字段唯一承载，不在callable bridge中复制第二份authority。
 
-这些record由同一`ExportHir`/MIR/LIR正式投影产生，不通过扫描名字、文件顺序或旧core arena补造。`NotCore`分支编码为显式tag，不用缺section表示。
+这些record由同一`ExportHir`/MIR/LIR正式投影产生，不通过扫描名字、文件顺序或旧core arena补造。普通HIR
+把compiler protocol surface导入为`ImportedCoreProtocols`，core bootstrap则持有互斥的
+`DefinedCoreProtocols`；`hir::Module`只保存这一个closed sum。原先直接挂在module上的本地
+`option_core`/`iteration_core`/`exception_core`/`coroutine_core`/`ffi_core`/
+`foreign_callback_core`/`intrinsic_type_core`/`source_location_core`字段直接删除，不保留兼容getter或
+由普通Cone合成的本地占位声明。所有依赖core协议的HIR节点都必须在lowering时保存分支精化后的typed target；
+不能在MIR阶段再按名称恢复。`NotCore`分支编码为显式tag，不用缺section表示。
 
 ### 7.4 consumer core proof
 
@@ -880,21 +889,46 @@ CoreBootstrapInterfaceSectionV1 {
 3 = callable_targets: CoreCallableTargetSurfaceV1
 4 = type_targets: CoreTypeTargetSurfaceV1
 5 = value_targets: CoreValueTargetSurfaceV1
+6 = compiler_protocols: CoreCompilerProtocolSurfaceV1
 ```
 
-第7.3节所述shape-support obligation集合不是第六个wire字段。它必须从同一已验证
+第7.3节所述shape-support obligation集合不是独立wire字段。它必须从同一已验证
 `type_targets`中`definition=Type`且`capability=ParamFreeStrong`的source nominal按
 `PersistentTypeId`去重并以identity bytes排序后唯一派生；`TypeAlias`即使最终指向nominal也不重复
 产生obligation。reader必须用同一HIR foundation取回每个完整`SourceDeclarationKey`，LIR
 strong-production验证不得接收调用方另传的source列表，也不得从LIR payload自身枚举source来声称
 coverage完整。
 
-五个constituent必须针对同一个foundation和同一个`direct_public_surface`原子验证；三张target
+六个constituent必须针对同一个foundation和同一个`direct_public_surface`原子验证；三张target
 surface的binding并集必须逐byte等于direct surface且互不重叠，出现普通`EnumVariant` binding
 直接拒绝。prelude中的ordinary bindings也必须逐byte等于direct surface。String capability必须
-在type targets中存在唯一的同source type、同exact type `ParamFreeStrong`记录；不能把五段分别
+在type targets中存在唯一的同source type、同exact type `ParamFreeStrong`记录；不能把六段分别
 验证后拼接来自不同artifact的结果。reserved core Cone只允许`Core + Library`，其他Cone只允许
 `NotCore`；分支错误不能退化成空core interface或忽略多余payload。
+
+`CoreCompilerProtocolSurfaceV1`自身是closed product，field固定为：
+
+```text
+1 = fundamental_types
+2 = option_protocol
+3 = iteration_protocol
+4 = exception_protocol
+5 = coroutine_protocol
+6 = ffi_protocol
+7 = foreign_callback_protocol
+8 = source_location_protocol
+9 = compiler_operation_protocol
+```
+
+每个子协议只使用对应kind的persistent id和已在同一HIR foundation中验证的source/exact
+signature record；不得存arena id、source name、FQN、symbol或可空“未找到”项。producer必须从同一份已通过
+core contract检查的`ExportHir`逐项投影，reader用foundation的definition origin、source declaration key、exact
+type/callable signature及target surface交叉重放。`fundamental_types`覆盖Unit、Boolean、String及八种canonical
+integer owner；String必须与field 2逐值相等。`option_protocol`还必须与prelude的Some/None/Some.payload逐值相等。
+其余协议必须覆盖当前编译器构造HIR/MIR节点会直接引用的全部owner、variant、field、member、constructor和
+callable target；少一项、重复、kind错位、signature/effect/receiver不符或definition origin不属于reserved core
+都使整个Core interface无效。普通consumer只能从同一个`ValidatedTrustedCoreArtifact`一次性投影
+`ImportedCoreProtocols`和prelude selected-set，二者不能拆开与另一artifact重新配对。
 
 `output_contract`沿用第6节的output sum：`Library`编码为仅含`0=1`的map；
 `Executable`编码为`0=2, 1=ExecutableSourceEntryIdentity`。entry payload固定为closed
