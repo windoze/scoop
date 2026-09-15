@@ -24,6 +24,8 @@ use crate::{
     TrustedCoreBootstrapInput, ValidatedTrustedCoreArtifact,
 };
 
+#[cfg(test)]
+mod end_to_end_tests;
 mod ordinary;
 pub use ordinary::{
     OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput,
