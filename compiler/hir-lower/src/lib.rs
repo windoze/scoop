@@ -109,6 +109,7 @@ mod expr;
 mod ffi;
 mod generic_entities;
 mod globals;
+mod imported_core;
 mod imports;
 mod lowering_context;
 mod model;
@@ -294,6 +295,15 @@ enum CoreLoweringAuthority {
 struct ImportedCoreLoweringAuthority {
     protocols: hir::ImportedCoreProtocols,
     selection: hir::ImportedCoreSelectionPlan,
+    candidates: Vec<ImportedCoreLoweringCandidate>,
+}
+
+#[derive(Clone)]
+struct ImportedCoreLoweringCandidate {
+    reference: hir::ImportedCorePreludeRef,
+    namespace: scoop_identity::BindingNamespace,
+    name: String,
+    target: hir::CoreCallableTargetV1,
 }
 
 enum CoreLoweringCompletion {

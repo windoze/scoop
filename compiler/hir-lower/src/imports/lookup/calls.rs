@@ -7,6 +7,7 @@ use scoop_hir as hir;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NamedCallTarget {
     Function(hir::FunctionId),
+    ImportedCoreCallable(hir::ImportedCorePreludeRef),
     Type(TopLevelTypeTarget),
     Value(ValueTarget),
     ExtensionProperty(hir::PropertyId),
@@ -129,11 +130,11 @@ impl Lowerer {
                         property: Some(property),
                     }
                 }
-                NamedCallTarget::Function(_) | NamedCallTarget::Value(_) => {
-                    ExpressionQualifierCandidate::Value(ExpressionQualifierValueOrigin::Core(
-                        target,
-                    ))
-                }
+                NamedCallTarget::Function(_)
+                | NamedCallTarget::ImportedCoreCallable(_)
+                | NamedCallTarget::Value(_) => ExpressionQualifierCandidate::Value(
+                    ExpressionQualifierValueOrigin::Core(target),
+                ),
             })
             .collect()
     }
@@ -568,6 +569,11 @@ impl Lowerer {
                 .copied()
                 .map(|target| NamedCallTarget::Value(ValueTarget::Variant(target))),
         );
+        targets.extend(
+            self.imported_core_callable_candidates(name)
+                .into_iter()
+                .map(|candidate| NamedCallTarget::ImportedCoreCallable(candidate.reference)),
+        );
         (targets, suppressed_callables)
     }
 
@@ -578,6 +584,7 @@ impl Lowerer {
             }
             NamedCallOrigin::Core(target) => match target {
                 NamedCallTarget::Function(id) => self.function_is_accessible(id, None),
+                NamedCallTarget::ImportedCoreCallable(_) => true,
                 NamedCallTarget::Type(target) => self.top_level_type_target_is_accessible(target),
                 NamedCallTarget::Value(ValueTarget::Property(id))
                 | NamedCallTarget::ExtensionProperty(id) => {

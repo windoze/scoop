@@ -210,7 +210,9 @@ impl Lowerer {
                     {
                         properties.push((property, origin));
                     }
-                    NamedCallTarget::Function(_) | NamedCallTarget::Type(_) => {
+                    NamedCallTarget::Function(_)
+                    | NamedCallTarget::ImportedCoreCallable(_)
+                    | NamedCallTarget::Type(_) => {
                         blockers.push(origin);
                     }
                     NamedCallTarget::ExtensionProperty(_) => {}

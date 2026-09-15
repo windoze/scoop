@@ -13,6 +13,7 @@ use crate::imports::lookup::values::ValueTarget;
 use crate::namespace::TopLevelTypeTarget;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
+mod imported_core;
 mod nominals;
 
 struct NamedValueLayer {

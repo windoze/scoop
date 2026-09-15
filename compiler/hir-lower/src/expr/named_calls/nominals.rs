@@ -19,6 +19,21 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Result<Option<hir::Expr>, ()> {
+        let imported = targets
+            .iter()
+            .filter_map(|target| match target {
+                NamedCallTarget::ImportedCoreCallable(reference) => Some(*reference),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if !imported.is_empty() {
+            assert_eq!(
+                imported.len(),
+                targets.len(),
+                "an imported-core prelude layer cannot contain local core declarations"
+            );
+            return self.lower_imported_core_callable_partition(&imported, call, sink, expected);
+        }
         let mut plans = Vec::new();
         let diagnostics_before = self.diagnostics.len();
         let mut failures = Vec::new();

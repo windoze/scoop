@@ -10,7 +10,10 @@ use scoop_identity::{
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
-use super::{complete_core_file, file, fun, test_source_identity};
+use super::{
+    call, complete_core_file, file, fun, fun_expr, int_lit, make_core_public, stmt,
+    test_source_identity, ty_named,
+};
 use crate::{
     CoreBootstrapSources, OrdinaryCoreOnlySources, lower_core_bootstrap, lower_ordinary_core_only,
 };
@@ -77,17 +80,170 @@ fn ordinary_executable_selects_current_main_under_imported_core_authority() {
     );
 }
 
+#[test]
+fn ordinary_calls_select_one_strong_core_binding_and_reuse_its_typed_use() {
+    let core = trusted_core_with_answer();
+    let ordinary = parsed_ordinary(file(vec![fun(
+        "main",
+        vec![
+            stmt(call("coreAnswer", Vec::new())),
+            stmt(call("coreAnswer", Vec::new())),
+        ],
+    )]));
+    let core_inputs = core
+        .foundation
+        .import_core_inputs(&core.interface, &core.strong_callables)
+        .unwrap();
+    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+
+    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input)
+        .expect("a param-free strong core callable is available to ordinary HIR");
+
+    assert_eq!(output.imported_core().callable_count(), 1);
+    assert_eq!(output.output().export.imported_core_callables.len(), 1);
+    assert_eq!(output.output().local.imported_core_callables.len(), 1);
+    assert_eq!(
+        scoop_hir::dump(&output.output().export)
+            .matches("ImportedCoreCall #0")
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn ordinary_call_rejects_a_core_candidate_without_strong_implementation() {
+    let core = trusted_core_with_answer();
+    let ordinary = parsed_ordinary(file(vec![fun(
+        "main",
+        vec![stmt(call("coreAnswer", Vec::new()))],
+    )]));
+    let core_inputs = core
+        .foundation
+        .import_core_inputs(&core.interface, &[])
+        .unwrap();
+    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+
+    let diagnostics =
+        match lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input) {
+            Ok(_) => {
+                panic!("a raw HIR candidate cannot stand in for a strong implementation proof")
+            }
+            Err(diagnostics) => diagnostics,
+        };
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .message
+            .contains("SCOOPC_CAPABILITY_CORE_IMPLEMENTATION_UNAVAILABLE")
+    }));
+}
+
+#[test]
+fn ordinary_call_rejects_a_generic_core_candidate_with_the_stable_capability_code() {
+    let core = trusted_core();
+    let ordinary = parsed_ordinary(file(vec![fun(
+        "main",
+        vec![stmt(call("print", vec![int_lit(1)]))],
+    )]));
+    let core_inputs = core
+        .foundation
+        .import_core_inputs(&core.interface, &[])
+        .unwrap();
+    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+
+    let diagnostics =
+        match lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input) {
+            Ok(_) => panic!("generic core prelude candidates are unavailable in M23-3"),
+            Err(diagnostics) => diagnostics,
+        };
+
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .message
+            .contains("SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE")
+    }));
+}
+
+#[test]
+fn current_function_shadows_an_imported_core_prelude_callable() {
+    let core = trusted_core_with_answer();
+    let ordinary = parsed_ordinary(file(vec![
+        fun("coreAnswer", Vec::new()),
+        fun("main", vec![stmt(call("coreAnswer", Vec::new()))]),
+    ]));
+    let core_inputs = core
+        .foundation
+        .import_core_inputs(&core.interface, &core.strong_callables)
+        .unwrap();
+    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+
+    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input)
+        .expect("the current package layer wins before core prelude lookup");
+
+    assert_eq!(output.imported_core().callable_count(), 0);
+    assert!(output.output().export.imported_core_callables.is_empty());
+}
+
 struct TrustedCoreFixture {
     foundation: scoop_hir::ImportedHirFoundation,
     interface: scoop_hir::CoreHirInterfaceV1,
+    strong_callables: Vec<scoop_identity::PersistentExportBindingId>,
     _session: SemanticIdentitySession,
 }
 
 fn trusted_core() -> TrustedCoreFixture {
-    let parsed = parsed_core();
+    trusted_core_from_source(complete_core_file(), None)
+}
+
+fn trusted_core_with_answer() -> TrustedCoreFixture {
+    let mut source = complete_core_file();
+    source.declarations.push(fun_expr(
+        "coreAnswer",
+        Vec::new(),
+        Vec::new(),
+        Some(ty_named("Int")),
+        int_lit(42),
+    ));
+    make_core_public(&mut source);
+    trusted_core_from_source(source, Some("coreAnswer"))
+}
+
+fn trusted_core_from_source(
+    source: scoop_ast::SourceFile,
+    strong_callable: Option<&str>,
+) -> TrustedCoreFixture {
+    let parsed = parsed_core(source);
     let input = CoreBootstrapSources::try_new(&parsed).unwrap();
     let output = lower_core_bootstrap(&input).unwrap();
     let interface = scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+    let strong_callables = strong_callable
+        .map(|name| {
+            let function = output
+                .export
+                .top_level
+                .iter()
+                .copied()
+                .find(|function| output.export.functions[*function].name == name)
+                .unwrap();
+            let scoop_hir::HirFunctionIdentity::Source(
+                scoop_hir::HirSourceFunctionIdentity::Plain(identity),
+            ) = &output.export.function_identities[function]
+            else {
+                panic!("test strong callable has a plain source identity")
+            };
+            interface
+                .callable_targets()
+                .targets()
+                .iter()
+                .find(|target| {
+                    target.definition()
+                        == scoop_hir::CoreCallableDefinitionV1::Function(identity.id())
+                })
+                .unwrap()
+                .binding()
+        })
+        .into_iter()
+        .collect::<Vec<_>>();
     let canonical = scoop_hir::CanonicalHirFoundation::from_modules(
         &output.export,
         &output.local,
@@ -117,13 +273,14 @@ fn trusted_core() -> TrustedCoreFixture {
     TrustedCoreFixture {
         foundation,
         interface,
+        strong_callables,
         _session: session,
     }
 }
 
-fn parsed_core() -> CurrentConeParsedSources {
+fn parsed_core(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
     let identity = super::core_source_identity("src/core.scoop");
-    parsed_sources(identity, complete_core_file(), "<core>")
+    parsed_sources(identity, source, "<core>")
 }
 
 fn parsed_ordinary(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {

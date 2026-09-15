@@ -29,6 +29,7 @@ impl Lowerer {
                 if matches!(
                     lowered.kind,
                     hir::ExprKind::Call { .. }
+                        | hir::ExprKind::ImportedCoreCall { .. }
                         | hir::ExprKind::MethodCall { .. }
                         | hir::ExprKind::LocalFunctionCall { .. }
                         | hir::ExprKind::CallableCall { .. }

@@ -36,6 +36,7 @@ pub(crate) enum ValueOrigin {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NonValueTarget {
     Function(hir::FunctionId),
+    ImportedCoreCallable(hir::ImportedCorePreludeRef),
     Type(TopLevelTypeTarget),
     ExtensionProperty(hir::PropertyId),
     SourceExtensionProperty(crate::imports::SourcePropertyId),
@@ -112,6 +113,9 @@ impl Lowerer {
                 super::calls::NamedCallTarget::Function(id) => {
                     ValueOrigin::CoreNonValue(NonValueTarget::Function(id))
                 }
+                super::calls::NamedCallTarget::ImportedCoreCallable(reference) => {
+                    ValueOrigin::CoreNonValue(NonValueTarget::ImportedCoreCallable(reference))
+                }
                 super::calls::NamedCallTarget::Type(target) => {
                     ValueOrigin::CoreNonValue(NonValueTarget::Type(target))
                 }
@@ -175,6 +179,7 @@ impl Lowerer {
         if let ValueOrigin::CoreNonValue(target) = origin {
             return match target {
                 NonValueTarget::Function(id) => self.function_is_accessible(id, None),
+                NonValueTarget::ImportedCoreCallable(_) => true,
                 NonValueTarget::Type(target) => self.top_level_type_target_is_accessible(target),
                 NonValueTarget::ExtensionProperty(id) => {
                     self.access_domain_allows(&self.properties[id].access.lookup.0, None)
@@ -301,6 +306,9 @@ impl Lowerer {
         match origin {
             ValueOrigin::CoreNonValue(NonValueTarget::Function(id)) => {
                 (self.function_files[&id], self.functions[id].span)
+            }
+            ValueOrigin::CoreNonValue(NonValueTarget::ImportedCoreCallable(_)) => {
+                (self.current_file, ast::Span::new(0, 0))
             }
             ValueOrigin::CoreNonValue(NonValueTarget::Type(target)) => self
                 .type_candidate_location(super::TypeLookupCandidate {
@@ -452,7 +460,7 @@ impl Lowerer {
 
     fn non_value_message(name: &ast::Ident, target: NonValueTarget) -> String {
         match target {
-            NonValueTarget::Function(_) => format!(
+            NonValueTarget::Function(_) | NonValueTarget::ImportedCoreCallable(_) => format!(
                 "function `{}` is not a value; use `::{}` to create a callable reference",
                 name.text, name.text
             ),
