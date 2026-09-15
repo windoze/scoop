@@ -1,7 +1,8 @@
 use std::fmt;
 
+pub use scoop_identity::{ConeCoordinate, DigestPatchIntentId, ObjectDefinitionPlanId};
 use scoop_identity::{
-    ConeCoordinate, ConeCoordinateError, ConeIdentity, ConeImageSupportRole, DecodedConeCoordinate,
+    ConeCoordinateError, ConeIdentity, ConeImageSupportRole, DecodedConeCoordinate,
     DecodedPersistentId, DecodedPersistentSymbolRequest, DefinitionAtomRole, DefinitionAtomSubkey,
     DigestKind, DigestNodeId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
@@ -10,7 +11,6 @@ use scoop_identity::{
     PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
-pub use scoop_identity::{DigestPatchIntentId, ObjectDefinitionPlanId};
 use scoop_wire::{
     Decoder, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireDecode,
     WireEncode, WireError, encode,

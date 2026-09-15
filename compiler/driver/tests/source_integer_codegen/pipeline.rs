@@ -104,6 +104,7 @@ pub(super) fn lower_program(
     let production =
         scoop_mir_lower::lower_production_section(mir.cone, &hir_production, &foundation)
             .expect("integer test MIR has a complete production section");
+    let entry_source = scoop_lir_lower::lower_entry_production_source(production.entry_bridge());
     let mir = scoop_mir::SingleConeStrongMirInput::try_new(
         mir,
         foundation,
@@ -114,9 +115,14 @@ pub(super) fn lower_program(
     let profile =
         scoop_codegen::ResolvedTargetProfile::resolve_host().expect("supported host profile");
     let lir = scoop_lir_lower::lower(&mir, profile.lir_target())
-        .expect("integer test lowers to ODR-free LIR")
-        .into_module();
-    let llvm =
-        scoop_codegen::render_llvm_ir(&lir, profile.backend()).expect("render verified LLVM IR");
+        .expect("integer test lowers to ODR-free LIR");
+    let llvm = scoop_codegen::render_llvm_ir(
+        &lir,
+        &scoop_lir::ConeCoordinate::reserved_single_file(),
+        entry_source,
+        profile.backend(),
+    )
+    .expect("render verified LLVM IR");
+    let lir = lir.into_module();
     (mir, lir, llvm)
 }

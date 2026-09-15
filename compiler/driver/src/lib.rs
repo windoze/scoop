@@ -217,6 +217,8 @@ pub fn compile_file_with_options(
                     format!("MIR production projection failed: {error}"),
                 )]
             })?;
+    let entry_source =
+        scoop_lir_lower::lower_entry_production_source(mir_production.entry_bridge());
     let strong_mir = scoop_mir::SingleConeStrongMirInput::try_new(
         mir,
         mir_foundation,
@@ -248,8 +250,14 @@ pub fn compile_file_with_options(
         let object = out_dir.join(format!("{stem}.o"));
         let binary = out_dir.join(stem);
 
-        scoop_codegen::emit_object(lir.module(), &object, target_profile.backend())
-            .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
+        scoop_codegen::emit_object(
+            &lir,
+            &scoop_lir::ConeCoordinate::reserved_single_file(),
+            entry_source,
+            &object,
+            target_profile.backend(),
+        )
+        .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
 
         let bridge_object = match scoop_codegen::c_bridge_source(lir.module()).map_err(|e| {
             vec![no_span(

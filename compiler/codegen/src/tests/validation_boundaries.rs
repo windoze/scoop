@@ -73,8 +73,11 @@ fn assert_validation_error<T>(
     }
 }
 
-fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) {
-    let expected = resolve_function_markers(module, expected);
+fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
+    let expected = resolve_function_markers(&module, expected);
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new())
+        .expect("malformed validation fixture still has a complete strong foundation");
+    let module = input.module();
     let profile = host_profile();
     let output = std::env::temp_dir().join(format!(
         "scoop_codegen_{fixture}_preflight_test_{}.o",
@@ -83,7 +86,15 @@ fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) 
     std::fs::remove_file(&output).ok();
 
     assert_validation_error(
-        std::panic::catch_unwind(|| emit_object(module, &output, profile)),
+        std::panic::catch_unwind(|| {
+            emit_object(
+                &input,
+                &scoop_lir::ConeCoordinate::reserved_single_file(),
+                scoop_lir::EntryProductionSourceV1::Library,
+                &output,
+                profile,
+            )
+        }),
         &expected,
     );
     assert!(
@@ -91,7 +102,14 @@ fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) 
         "failed preflight must not write an object"
     );
     assert_validation_error(
-        std::panic::catch_unwind(|| render_llvm_ir(module, profile)),
+        std::panic::catch_unwind(|| {
+            render_llvm_ir(
+                &input,
+                &scoop_lir::ConeCoordinate::reserved_single_file(),
+                scoop_lir::EntryProductionSourceV1::Library,
+                profile,
+            )
+        }),
         &expected,
     );
     assert_validation_error(
@@ -129,7 +147,7 @@ fn resolve_function_markers(module: &Module, expected: &str) -> String {
 fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
     let module = module_with_invalid_invoke_unwind();
     assert_public_entries_reject(
-        &module,
+        module,
         "variant control-flow validation in {function:2} reached invalid block 99",
         "eh_edge",
     );
@@ -139,7 +157,7 @@ fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
 fn root_plan_validation_rejects_nonterminal_invoke_before_indexing_its_edges() {
     let module = module_with_nonterminal_invoke_and_invalid_edges();
     assert_public_entries_reject(
-        &module,
+        module,
         "invoke {function:2}: must be the last instruction of block entry",
         "nonterminal_invoke",
     );
@@ -329,14 +347,14 @@ fn malformed_callback_operation(corruption: CallbackOperationCorruption) -> Modu
 fn public_codegen_entries_reject_invalid_typed_instruction_ids_without_panicking() {
     let module = module_with_invalid_enum_wrap_output();
     assert_public_entries_reject(
-        &module,
+        module,
         "enum_wrap result references invalid temporary t99 in {function:0}",
         "enum_result_id",
     );
 
     let module = module_with_invalid_callback_state_output();
     assert_public_entries_reject(
-        &module,
+        module,
         "foreign callback state result references invalid temporary t99 in {function:0}",
         "callback_result_id",
     );

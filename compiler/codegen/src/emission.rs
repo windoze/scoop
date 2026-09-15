@@ -1,19 +1,60 @@
 use super::*;
 
-/// Translate `module` to LLVM IR and emit an object file at `output` using the
-/// validated backend projection selected by the driver.
+/// Verified strong object emission inputs retained for `.slib` packaging.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmittedStrongObjectV1 {
+    production: scoop_lir::StrongProductionSectionV1,
+    runtime_metadata: EmittedStrongRuntimeMetadataV1,
+}
+
+impl EmittedStrongObjectV1 {
+    pub const fn production(&self) -> &scoop_lir::StrongProductionSectionV1 {
+        &self.production
+    }
+
+    pub const fn runtime_metadata(&self) -> &EmittedStrongRuntimeMetadataV1 {
+        &self.runtime_metadata
+    }
+
+    pub fn into_parts(
+        self,
+    ) -> (
+        scoop_lir::StrongProductionSectionV1,
+        EmittedStrongRuntimeMetadataV1,
+    ) {
+        (self.production, self.runtime_metadata)
+    }
+}
+
+/// Translate one sealed strong LIR product to a provisional object and retain
+/// the exact production/patch authority required by `.slib` packaging.
 pub fn emit_object(
-    module: &Module,
+    input: &scoop_lir::SingleConeStrongLirOutput,
+    coordinate: &scoop_lir::ConeCoordinate,
+    entry_source: scoop_lir::EntryProductionSourceV1,
     output: &Path,
     profile: ValidatedBackendProfile,
-) -> Result<(), CodegenError> {
+) -> Result<EmittedStrongObjectV1, CodegenError> {
+    let module = input.module();
     validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
+    let production = input
+        .build_production_section(coordinate.clone(), entry_source)
+        .map_err(|error| {
+            CodegenError(format!("cannot build strong production section: {error}"))
+        })?;
     let expected_safepoints = statepoint::expectations(module)?;
     let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
     let context = Context::create();
-    let llvm = prepare_llvm_module(&context, module, &machine, profile, &expected_safepoints)?;
+    let (llvm, runtime_metadata) = prepare_strong_llvm_module(
+        &context,
+        module,
+        &production,
+        &machine,
+        profile,
+        &expected_safepoints,
+    )?;
 
     machine
         .write_to_file(&llvm, FileType::Object, output)
@@ -27,34 +68,53 @@ pub fn emit_object(
         }
         return Err(error);
     }
-    Ok(())
+    Ok(EmittedStrongObjectV1 {
+        production,
+        runtime_metadata,
+    })
 }
 
-/// Translate typed LIR to verified LLVM IR text without writing an artifact.
+/// Translate sealed strong LIR to verified LLVM IR text without writing an
+/// artifact. The rendered module includes the complete runtime metadata v1
+/// surface and still contains zeroed digest slots awaiting object finalization.
 ///
-/// This is the same mechanical target-specific translation and statepoint
-/// rewrite used by [`emit_object`]. Source-language and upstream IR semantics
-/// must already be explicit in `module`.
+/// This is the same translation and statepoint rewrite used by [`emit_object`].
 pub fn render_llvm_ir(
-    module: &Module,
+    input: &scoop_lir::SingleConeStrongLirOutput,
+    coordinate: &scoop_lir::ConeCoordinate,
+    entry_source: scoop_lir::EntryProductionSourceV1,
     profile: ValidatedBackendProfile,
 ) -> Result<String, CodegenError> {
+    let module = input.module();
     validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
+    let production = input
+        .build_production_section(coordinate.clone(), entry_source)
+        .map_err(|error| {
+            CodegenError(format!("cannot build strong production section: {error}"))
+        })?;
     let expected_safepoints = statepoint::expectations(module)?;
     let machine = profile.create_target_machine()?;
     let context = Context::create();
-    let llvm = prepare_llvm_module(&context, module, &machine, profile, &expected_safepoints)?;
+    let (llvm, _) = prepare_strong_llvm_module(
+        &context,
+        module,
+        &production,
+        &machine,
+        profile,
+        &expected_safepoints,
+    )?;
     Ok(llvm.print_to_string().to_string())
 }
 
-fn prepare_llvm_module<'ctx>(
+fn prepare_strong_llvm_module<'ctx>(
     context: &'ctx Context,
     module: &Module,
+    production: &scoop_lir::StrongProductionSectionV1,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
-) -> Result<LlvmModule<'ctx>, CodegenError> {
+) -> Result<(LlvmModule<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
     if let scoop_lir::LirOutput::Executable { entry } = module.output {
         validation::validate_executable_entry(module, entry)?;
     }
@@ -63,19 +123,29 @@ fn prepare_llvm_module<'ctx>(
         let builder = context.create_builder();
         emit_executable_entry_shim(context, &llvm, &builder, module, entry)?;
     }
+    let runtime_metadata =
+        emit_strong_runtime_metadata_v1(context, &llvm, &machine.get_target_data(), production)?;
 
+    verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
+    Ok((llvm, runtime_metadata))
+}
+
+fn verify_and_rewrite_module(
+    llvm: &LlvmModule<'_>,
+    machine: &TargetMachine,
+    profile: ValidatedBackendProfile,
+    expected_safepoints: &statepoint::ExpectedSafepoints,
+) -> Result<(), CodegenError> {
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
 
     // M9 (milestone9 DESIGN 3.1, M0 spike): rewrite every call and
     // invoke in the GC-strategy functions into a `gc.statepoint`; the
     // object file's `__llvm_stackmaps` section is produced from them.
-    // Both object emission and IR rendering consume this verified form.
-    statepoint::rewrite(&llvm, machine)?;
+    statepoint::rewrite(llvm, machine)?;
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
-    statepoint::verify_rewritten(&llvm, expected_safepoints, profile)?;
-    Ok(llvm)
+    statepoint::verify_rewritten(llvm, expected_safepoints, profile)
 }
 
 /// Test helper for constructing the one supported host profile. Production

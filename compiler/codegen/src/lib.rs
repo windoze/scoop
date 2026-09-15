@@ -88,7 +88,7 @@ pub(crate) use declarations::*;
 pub(crate) use emission::emit_llvm_module;
 #[cfg(test)]
 pub(crate) use emission::host_target_machine;
-pub use emission::{emit_object, render_llvm_ir};
+pub use emission::{EmittedStrongObjectV1, emit_object, render_llvm_ir};
 use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;

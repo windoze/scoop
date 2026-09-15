@@ -248,9 +248,7 @@ fn emits_m5_arrays() {
     );
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();

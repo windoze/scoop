@@ -231,12 +231,10 @@ fn emits_m8_exceptions() {
     assert!(ir.contains("resume { ptr, i32 }"));
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m8_test_{}.o", std::process::id()));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed. M9: this
-    // also proves invoke / landingpad and the GC strategy coexist
+    // Object verification proves invoke / landingpad and the GC strategy coexist
     // — every function carries `gc "statepoint-example"` and the
     // module goes through `rewrite-statepoints-for-gc`.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let bytes = std::fs::read(&output).expect("read object");
     assert!(!bytes.is_empty(), "object file is empty");
     std::fs::remove_file(&output).ok();

@@ -8,7 +8,7 @@ mod integers;
 fn emits_non_empty_object_file() {
     let module = values_module();
     let output = std::env::temp_dir().join(format!("scoop_codegen_test_{}.o", std::process::id()));
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -40,7 +40,7 @@ fn executable_entry_shim_calls_the_typed_persistent_body() {
         .declaration()
         .into_u32() as usize];
 
-    let ir = render_llvm_ir(&module, host_profile()).expect("render executable module");
+    let ir = entry_surface_ir_of(&module);
 
     assert!(ir.contains("define void @scoop_main()"), "{ir}");
     assert!(
@@ -54,7 +54,7 @@ fn library_does_not_emit_the_executable_entry_shim() {
     let mut module = values_module();
     module.output = scoop_lir::LirOutput::Library;
 
-    let ir = render_llvm_ir(&module, host_profile()).expect("render library module");
+    let ir = entry_surface_ir_of(&module);
 
     assert!(!ir.contains("@scoop_main"), "{ir}");
 }

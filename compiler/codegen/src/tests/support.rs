@@ -1039,3 +1039,40 @@ pub(super) fn rewritten_ir_of(module: &Module) -> String {
         .expect("rewritten manifest agrees with LIR");
     llvm.print_to_string().to_string()
 }
+
+pub(super) fn entry_surface_ir_of(module: &Module) -> String {
+    validation::validate_module(module).expect("valid test LIR");
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let llvm = emit_llvm_module(&context, module, &machine, host_profile()).expect("emit module");
+    if let scoop_lir::LirOutput::Executable { entry } = module.output {
+        validation::validate_executable_entry(module, entry).expect("valid executable entry");
+        let builder = context.create_builder();
+        emit_executable_entry_shim(&context, &llvm, &builder, module, entry)
+            .expect("emit executable entry shim");
+    }
+    llvm.verify().expect("valid LLVM module");
+    llvm.print_to_string().to_string()
+}
+
+pub(super) fn write_verified_test_object(module: &Module, output: &Path) {
+    validation::validate_module(module).expect("valid test LIR");
+    let profile = host_profile();
+    let expected_safepoints =
+        statepoint::expectations(module).expect("complete safepoint manifest");
+    let expected_eh = artifact::eh_expectations(module).expect("complete EH manifest");
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let llvm = emit_llvm_module(&context, module, &machine, profile).expect("emit module");
+    llvm.verify().expect("valid LLVM module");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite statepoints");
+    llvm.verify().expect("valid rewritten LLVM module");
+    statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)
+        .expect("rewritten manifest agrees with LIR");
+    machine
+        .write_to_file(&llvm, FileType::Object, output)
+        .expect("write object");
+    profile
+        .verify_object(output, &expected_safepoints, &expected_eh)
+        .expect("verified object");
+}

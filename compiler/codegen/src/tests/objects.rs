@@ -190,9 +190,7 @@ fn emits_m6_type_descriptors_and_call_indirect() {
     let module = classes_module();
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m6_test_{}.o", std::process::id()));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -500,9 +498,7 @@ fn emits_m6_heap_access_and_typed_descriptors() {
         "scoop_codegen_m6_heap_test_{}.o",
         std::process::id()
     ));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
