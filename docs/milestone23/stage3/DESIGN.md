@@ -398,13 +398,14 @@ SingleConeBuildRequest
   -> current source discovery / parser
 ```
 
-`load_preflight`只读取current `Cone.toml`和trusted-core artifact bytes，不读取`src/*.scoop`或single-file
-正文；它从manifest的canonical dependency map选择第一条dependency并保留原始declaration span，显式参数则保留
-`DirectArtifact(index, path)`或`SupportArtifact(index, path)`角色。只有manifest dependency与两组参数均为空才
-产生私有构造的`ValidatedExplicitDependencyInputSet`。随后`LoadedSingleConeBuildRequest::validate`必须为普通
-分支构造7.4节的`ValidatedTrustedCoreArtifact`，bootstrap分支则保留成组产生的self slot。raw request和loaded
-preflight不暴露current locator getter；只有最终proof能进入current source loader。不存在跳过core proof的兼容
-parser入口。
+`load_preflight`读取current `Cone.toml`、trusted-core artifact bytes以及全部显式dependency artifact bytes，但不读取
+`src/*.scoop`或single-file正文；显式输入在loaded状态中保留`DirectArtifact(index, path)`或
+`SupportArtifact(index, path)`角色。随后`LoadedSingleConeBuildRequest::validate`必须先为普通分支构造7.4节的
+`ValidatedTrustedCoreArtifact`，再把每个显式artifact独立重开为Compile/Link两种view并完成5.2节的闭包验证；
+bootstrap分支则保留成组产生的self slot且要求显式闭包为空。只有闭包完整有效且manifest dependency与两组参数均
+为空，才产生私有构造的`ValidatedExplicitDependencyInputSet`；闭包有效但非空时稳定返回本节的阶段能力诊断。raw
+request和loaded preflight不暴露current locator getter；只有最终proof能进入current source loader。不存在跳过core或
+dependency proof的兼容parser入口。
 
 ### 5.4 child protocol
 
