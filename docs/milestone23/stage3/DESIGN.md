@@ -676,6 +676,11 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   `select_param_free_strong`在同一`ValidatedCoreInterface`精化结果上产生；callable的
   `ParamFreeCandidate`本身不能进入selected set，`StructuralUnavailable`、`GenericUnavailable`和缺失MIR
   implementation分别返回上述稳定诊断，不能把raw target或persistent id直接提升；
+- HIR lowering在该proof的borrow期内构造唯一`SelectedImportedCoreSet<'core>` sidecar。它按
+  binding去重，并为callable/type/value分别分配`ImportedCoreCallableId`/
+  `ImportedCoreTypeId`/`ImportedCoreValueId`三种request-local typed id；三种id不是wire identity，
+  只能在同一sidecar内解引用到仍借用原artifact的`SelectedImportedCoreTarget`。HIR表达式与
+  type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena；
 - selected target只能通过同一core proof投影成`SelectedImportedMir`/`SelectedImportedLir`；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。

@@ -272,6 +272,43 @@ fn imported_core_prelude_exposes_only_the_checked_lookup_surface() {
 }
 
 #[test]
+fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
+    let fixture = fixture();
+    let imported = imported_foundation(&fixture.foundation);
+    let prelude = imported
+        .import_core_prelude(&fixture.interface, &[])
+        .unwrap();
+    let string = prelude
+        .candidates(BindingNamespace::Type, "String")
+        .next()
+        .unwrap();
+    let option = prelude
+        .candidates(BindingNamespace::Type, "Option")
+        .next()
+        .unwrap();
+    let mut selected = crate::SelectedImportedCoreSet::new();
+
+    let first = selected.select(string).unwrap();
+    let second = selected.select(string).unwrap();
+    assert_eq!(first, second);
+    assert_eq!(selected.callable_count(), 0);
+    assert_eq!(selected.type_count(), 1);
+    assert_eq!(selected.value_count(), 0);
+    let crate::SelectedImportedCoreId::Type(id) = first else {
+        panic!("String must enter the imported type id domain")
+    };
+    let retained = selected.ty(id).unwrap();
+    assert_eq!(retained.binding(), string.identity());
+    assert!(retained.belongs_to(&imported, &fixture.interface, &[]));
+
+    let error = selected.select(option).unwrap_err();
+    assert_eq!(error.required(), CorePreludeUnavailableCapability::Generic);
+    assert_eq!(selected.type_count(), 1);
+    assert_eq!(selected.callable_count(), 0);
+    assert_eq!(selected.value_count(), 0);
+}
+
+#[test]
 fn imported_core_prelude_rejects_an_interface_from_another_foundation() {
     let fixture = fixture();
     let first_binding = fixture.direct.bindings()[0];

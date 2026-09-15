@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -315,6 +316,124 @@ pub struct SelectedImportedCoreTarget<'a> {
     strong_callable_bindings: &'a [PersistentExportBindingId],
     binding: ImportedHirId<PersistentExportBindingId>,
     target: ImportedCorePreludeTarget<'a>,
+}
+
+/// Request-local id of one selected callable from the trusted core prelude.
+///
+/// This id is meaningful only inside the [`SelectedImportedCoreSet`] that
+/// minted it. It is deliberately distinct from source declarations,
+/// persistent function identities, and imported MIR/LIR identities.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ImportedCoreCallableId(u32);
+
+/// Request-local id of one selected type from the trusted core prelude.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ImportedCoreTypeId(u32);
+
+/// Request-local id of one selected value from the trusted core prelude.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ImportedCoreValueId(u32);
+
+/// Typed result of admitting one checked prelude binding into the current
+/// lowering session.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SelectedImportedCoreId {
+    Callable(ImportedCoreCallableId),
+    Type(ImportedCoreTypeId),
+    Value(ImportedCoreValueId),
+}
+
+/// The only selected imported HIR targets visible to one ordinary lowering.
+///
+/// Entries retain the borrowed selection proof minted by the trusted core
+/// artifact. The three id domains prevent a callable, type, or value from
+/// being substituted for another entity kind, while the private maps make
+/// repeated lookup of the same binding converge on one request-local id.
+pub struct SelectedImportedCoreSet<'a> {
+    by_binding: BTreeMap<PersistentExportBindingId, SelectedImportedCoreId>,
+    callables: Vec<SelectedImportedCoreTarget<'a>>,
+    types: Vec<SelectedImportedCoreTarget<'a>>,
+    values: Vec<SelectedImportedCoreTarget<'a>>,
+}
+
+impl<'a> SelectedImportedCoreSet<'a> {
+    pub const fn new() -> Self {
+        Self {
+            by_binding: BTreeMap::new(),
+            callables: Vec::new(),
+            types: Vec::new(),
+            values: Vec::new(),
+        }
+    }
+
+    /// Selects and interns one raw lookup candidate. Capability rejection
+    /// happens before the set changes, so failed selection cannot leave a
+    /// partial imported world.
+    pub fn select(
+        &mut self,
+        binding: &'a ImportedCorePreludeBinding<'a>,
+    ) -> Result<SelectedImportedCoreId, CorePreludeCapabilityError> {
+        if let Some(&selected) = self.by_binding.get(&binding.identity().persistent()) {
+            return Ok(selected);
+        }
+        let target = binding.select_param_free_strong()?;
+        let selected = match target.target() {
+            ImportedCorePreludeTarget::Callable(_) => {
+                let id = ImportedCoreCallableId(checked_selection_index(self.callables.len()));
+                self.callables.push(target);
+                SelectedImportedCoreId::Callable(id)
+            }
+            ImportedCorePreludeTarget::Type(_) => {
+                let id = ImportedCoreTypeId(checked_selection_index(self.types.len()));
+                self.types.push(target);
+                SelectedImportedCoreId::Type(id)
+            }
+            ImportedCorePreludeTarget::Value(_) => {
+                let id = ImportedCoreValueId(checked_selection_index(self.values.len()));
+                self.values.push(target);
+                SelectedImportedCoreId::Value(id)
+            }
+        };
+        let previous = self
+            .by_binding
+            .insert(binding.identity().persistent(), selected);
+        assert!(previous.is_none(), "a fresh imported binding is unique");
+        Ok(selected)
+    }
+
+    pub fn callable(&self, id: ImportedCoreCallableId) -> Option<SelectedImportedCoreTarget<'a>> {
+        self.callables.get(id.0 as usize).copied()
+    }
+
+    pub fn ty(&self, id: ImportedCoreTypeId) -> Option<SelectedImportedCoreTarget<'a>> {
+        self.types.get(id.0 as usize).copied()
+    }
+
+    pub fn value(&self, id: ImportedCoreValueId) -> Option<SelectedImportedCoreTarget<'a>> {
+        self.values.get(id.0 as usize).copied()
+    }
+
+    pub fn callable_count(&self) -> usize {
+        self.callables.len()
+    }
+
+    pub fn type_count(&self) -> usize {
+        self.types.len()
+    }
+
+    pub fn value_count(&self) -> usize {
+        self.values.len()
+    }
+}
+
+impl Default for SelectedImportedCoreSet<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn checked_selection_index(length: usize) -> u32 {
+    u32::try_from(length).expect("one HIR request cannot select more than u32::MAX core bindings")
 }
 
 impl<'a> SelectedImportedCoreTarget<'a> {
