@@ -187,12 +187,12 @@ pub struct ImportedHirSet<'a, Capability> {
     capability: PhantomData<fn() -> Capability>,
 }
 
-impl ImportedHirSet<'_, CorePreludeOnly> {
+impl<'a> ImportedHirSet<'a, CorePreludeOnly> {
     pub const fn origin(&self) -> ConeIdentity {
         self.foundation.origin()
     }
 
-    pub fn bindings(&self) -> &[ImportedCorePreludeBinding<'_>] {
+    pub fn bindings(&self) -> &[ImportedCorePreludeBinding<'a>] {
         &self.bindings
     }
 
@@ -200,7 +200,7 @@ impl ImportedHirSet<'_, CorePreludeOnly> {
         &'set self,
         namespace: BindingNamespace,
         name: &'set str,
-    ) -> impl Iterator<Item = &'set ImportedCorePreludeBinding<'set>> + 'set {
+    ) -> impl Iterator<Item = &'set ImportedCorePreludeBinding<'a>> + 'set {
         self.bindings.iter().filter(move |binding| {
             binding.key.namespace() == namespace && binding.key.name().as_str() == name
         })
@@ -229,7 +229,7 @@ impl ImportedHirSet<'_, CorePreludeOnly> {
     /// Starts the unique selected-target sidecar for this exact core
     /// projection. There is no detached constructor that could combine
     /// candidates from different artifacts.
-    pub fn selected_set(&self) -> SelectedImportedCoreSet<'_> {
+    pub fn selected_set(&self) -> SelectedImportedCoreSet<'a> {
         SelectedImportedCoreSet {
             foundation: self.foundation,
             interface: self.interface,
@@ -282,9 +282,9 @@ impl<'a> ImportedCorePreludeBinding<'a> {
     /// method can turn a candidate into a selected external target, and it
     /// rejects every capability that would require generic or structural
     /// materialization.
-    pub fn select_param_free_strong<'selected>(
-        &'selected self,
-    ) -> Result<SelectedImportedCoreTarget<'selected>, CorePreludeCapabilityError> {
+    pub fn select_param_free_strong(
+        &self,
+    ) -> Result<SelectedImportedCoreTarget<'a>, CorePreludeCapabilityError> {
         let unavailable = match self.target {
             ImportedCorePreludeTarget::Callable(target) => callable_unavailability(
                 target.capability(),
@@ -395,7 +395,7 @@ impl<'a> SelectedImportedCoreSet<'a> {
     /// partial imported world.
     pub fn select(
         &mut self,
-        binding: &'a ImportedCorePreludeBinding<'a>,
+        binding: &ImportedCorePreludeBinding<'a>,
     ) -> Result<SelectedImportedCoreId, CorePreludeSelectionError> {
         if !binding.belongs_to(
             self.foundation,

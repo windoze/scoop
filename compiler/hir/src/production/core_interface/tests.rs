@@ -313,6 +313,32 @@ fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
 }
 
 #[test]
+fn selected_imported_core_set_borrows_the_artifact_not_the_projection_wrapper() {
+    let fixture = fixture();
+    let imported = imported_foundation(&fixture.foundation);
+
+    let (selected, string_id) = {
+        let prelude = imported
+            .import_core_prelude(&fixture.interface, &[])
+            .unwrap();
+        let string = prelude
+            .candidates(BindingNamespace::Type, "String")
+            .next()
+            .unwrap();
+        let mut selected = prelude.selected_set();
+        let crate::SelectedImportedCoreId::Type(string_id) = selected.select(string).unwrap()
+        else {
+            panic!("String must enter the imported type id domain")
+        };
+        (selected, string_id)
+    };
+
+    let retained = selected.ty(string_id).unwrap();
+    assert!(retained.belongs_to(&imported, &fixture.interface, &[]));
+    assert_eq!(selected.type_count(), 1);
+}
+
+#[test]
 fn selected_imported_core_set_rejects_a_foreign_prelude_binding() {
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);

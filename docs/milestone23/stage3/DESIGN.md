@@ -680,7 +680,10 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   binding去重，并为callable/type/value分别分配`ImportedCoreCallableId`/
   `ImportedCoreTypeId`/`ImportedCoreValueId`三种request-local typed id；三种id不是wire identity，
   只能在同一sidecar内解引用到仍借用原artifact的`SelectedImportedCoreTarget`。HIR表达式与
-  type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena；
+  type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena。selected set与
+  其中的target只借用artifact拥有的foundation/interface/strong-binding surface，不借用临时
+  `ImportedHirSet<CorePreludeOnly>`包装或其候选Vec；lowering结束后包装可以销毁，而sidecar必须继续由原artifact
+  lifetime约束并随HIR stage product进入后续投影；
 - driver一次消费整份HIR callable selection，通过同一core proof逐项投影后产生唯一
   `SelectedImportedMirSet<'core>`。该set自身绑定同artifact的MIR foundation与production，使用独立
   `ImportedCoreMirCallableId`，并在任一项失败时不返回部分集合；不存在接受裸binding/definition/
