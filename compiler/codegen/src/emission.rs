@@ -164,9 +164,7 @@ fn verify_and_rewrite_module(
 /// code receives a profile selected by the driver.
 #[cfg(test)]
 pub(crate) fn host_target_machine() -> Result<TargetMachine, CodegenError> {
-    ResolvedTargetProfile::resolve_host()?
-        .backend()
-        .create_target_machine()
+    ValidatedBackendProfile::darwin_aarch64_for_test().create_target_machine()
 }
 
 /// Translate `module` to an (unverified) LLVM module: globals,

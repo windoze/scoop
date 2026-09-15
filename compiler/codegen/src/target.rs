@@ -444,6 +444,13 @@ impl ValidatedBackendProfile {
         self.managed_address_space
     }
 
+    /// Closed backend projection used by codegen tests that deliberately do
+    /// not require C-bridge, runtime-build, or final-link capabilities.
+    #[cfg(test)]
+    pub(crate) const fn darwin_aarch64_for_test() -> Self {
+        Self::DARWIN_AARCH64
+    }
+
     #[cfg(test)]
     pub(crate) fn eh_profile(self) -> EhProfile {
         self.eh

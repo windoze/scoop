@@ -545,9 +545,7 @@ pub(super) fn refresh_module_safepoints(module: &mut Module) {
 }
 
 pub(super) fn host_profile() -> ValidatedBackendProfile {
-    ResolvedTargetProfile::resolve_host()
-        .expect("supported host target")
-        .backend()
+    ValidatedBackendProfile::darwin_aarch64_for_test()
 }
 
 pub(super) fn host_managed_address_space() -> ManagedAddressSpace {

@@ -9,15 +9,13 @@ use super::{
     ExpectedRoot, ExpectedSafepoints, ExpectedSite, ExpectedStatepoint,
     TYPED_MANAGED_POINTER_BOUNDARY_METADATA, verify_rewritten as verify_rewritten_with_profile,
 };
-use crate::{CodegenError, ResolvedTargetProfile};
+use crate::{CodegenError, ValidatedBackendProfile};
 
 fn verify_rewritten(
     module: &Module<'_>,
     expected: &ExpectedSafepoints,
 ) -> Result<(), CodegenError> {
-    let profile = ResolvedTargetProfile::resolve_host()
-        .expect("supported host target")
-        .backend();
+    let profile = ValidatedBackendProfile::darwin_aarch64_for_test();
     verify_rewritten_with_profile(module, expected, profile)
 }
 
@@ -98,10 +96,7 @@ fn verifier_consumes_the_profile_managed_address_space() {
     let error = verify_rewritten_with_profile(
         &module,
         &manifest(Some((7, one_root()))),
-        ResolvedTargetProfile::resolve("aarch64-apple-darwin")
-            .expect("test profile")
-            .backend()
-            .with_managed_address_space_for_test(7),
+        ValidatedBackendProfile::darwin_aarch64_for_test().with_managed_address_space_for_test(7),
     )
     .expect_err("verifier must reject a root outside the profile address space");
     assert!(error.0.contains("not an AS7 managed pointer"), "{error}");

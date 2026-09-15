@@ -25,7 +25,7 @@ fn llvm_lowering_consumes_the_profile_managed_address_space() {
 fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
     let module = values_module();
     let string_symbol = type_descriptor_symbol(&module, "String");
-    let definition = format!("@{string_symbol} =");
+    let definition = format!("@\"{string_symbol}\" =");
     let ir = ir_of(&module);
     assert_eq!(
         ir.match_indices(&definition).count(),
@@ -75,7 +75,6 @@ fn empty_module_does_not_emit_legacy_image_sentinels() {
 fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
     let mut module = values_module();
     let identity = static_storage_identity("managedTls");
-    let symbol = identity.symbol().to_string();
     module.globals.alloc(Global {
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
@@ -95,11 +94,11 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("managed TLS requires per-thread image-root registration");
+        .expect_err("M23-3 strong static storage rejects thread-local definitions");
     assert!(
-        error.0.contains(&format!(
-            "thread-local global `@{symbol}` contains managed references"
-        )),
+        error
+            .0
+            .contains("invalid strong static-storage semantics: ThreadLocal"),
         "unexpected error: {error}"
     );
 }
