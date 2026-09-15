@@ -218,10 +218,7 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
         core.protocols().compiler_operations().len(),
         crate::intrinsic_function_kinds().len()
     );
-    assert!(core.protocols().belongs_to(&imported, &fixture.interface));
-    let other_interface = fixture.interface.clone();
-    assert!(!core.protocols().belongs_to(&imported, &other_interface));
-    let protocols = core.protocols();
+    let protocols = core.protocols().clone();
     assert_eq!(
         protocols.fundamental_types().unit().persistent(),
         CoreBuiltinNominal::Unit.identity_record().id()
@@ -316,6 +313,7 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
     ));
     let selected = string[0].select_param_free_strong().unwrap();
     let other_imported = imported_foundation(&fixture.foundation);
+    let other_interface = fixture.interface.clone();
     assert!(selected.belongs_to(&imported, &fixture.interface, &[]));
     assert!(!selected.belongs_to(&other_imported, &fixture.interface, &[]));
     assert!(!selected.belongs_to(&imported, &other_interface, &[]));

@@ -74,6 +74,7 @@ struct ImportedCoreProtocolProduct<const N: usize> {
 
 macro_rules! imported_protocol_product {
     ($name:ident, $count:ident) => {
+        #[derive(Clone, Debug)]
         pub struct $name(ImportedCoreProtocolProduct<$count>);
 
         impl $name {
@@ -451,9 +452,8 @@ impl ImportedCoreCompilerOperation {
 /// Complete imported compiler-protocol authority. Every persistent subject
 /// has already been resolved into the exact HIR identity session owned by the
 /// trusted artifact; no declaration is copied into the current Cone arenas.
-pub struct ImportedCoreProtocols<'a> {
-    foundation: &'a ImportedHirFoundation,
-    interface: &'a CoreHirInterfaceV1,
+#[derive(Clone, Debug)]
+pub struct ImportedCoreProtocols {
     fundamental_types: ImportedCoreFundamentalTypeProtocol,
     option_protocol: ImportedCoreOptionProtocol,
     iteration_protocol: ImportedCoreIterationProtocol,
@@ -465,10 +465,10 @@ pub struct ImportedCoreProtocols<'a> {
     compiler_operations: Vec<ImportedCoreCompilerOperation>,
 }
 
-impl<'a> ImportedCoreProtocols<'a> {
+impl ImportedCoreProtocols {
     fn import(
-        foundation: &'a ImportedHirFoundation,
-        interface: &'a CoreHirInterfaceV1,
+        foundation: &ImportedHirFoundation,
+        interface: &CoreHirInterfaceV1,
     ) -> Result<Self, CoreProtocolImportError> {
         if foundation.origin() != scoop_identity::ConeIdentity::CORE {
             return Err(CoreProtocolImportError::FoundationNotCore(
@@ -477,8 +477,6 @@ impl<'a> ImportedCoreProtocols<'a> {
         }
         let protocols = interface.compiler_protocols();
         Ok(Self {
-            foundation,
-            interface,
             fundamental_types: ImportedCoreFundamentalTypeProtocol(import_product(
                 foundation,
                 protocols.fundamental_types().entries(),
@@ -571,15 +569,6 @@ impl<'a> ImportedCoreProtocols<'a> {
             + self.foreign_callback_protocol.subject_count()
             + self.source_location_protocol.subject_count()
     }
-
-    #[doc(hidden)]
-    pub fn belongs_to(
-        &self,
-        foundation: &ImportedHirFoundation,
-        interface: &CoreHirInterfaceV1,
-    ) -> bool {
-        std::ptr::eq(self.foundation, foundation) && std::ptr::eq(self.interface, interface)
-    }
 }
 
 /// The only ordinary-Cone HIR import granted by a trusted core artifact.
@@ -587,7 +576,7 @@ impl<'a> ImportedCoreProtocols<'a> {
 /// cannot be paired independently with another artifact.
 pub struct ImportedCoreInputs<'a> {
     prelude: ImportedHirSet<'a, CorePreludeOnly>,
-    protocols: ImportedCoreProtocols<'a>,
+    protocols: ImportedCoreProtocols,
 }
 
 impl<'a> ImportedCoreInputs<'a> {
@@ -595,7 +584,7 @@ impl<'a> ImportedCoreInputs<'a> {
         &self.prelude
     }
 
-    pub const fn protocols(&self) -> &ImportedCoreProtocols<'a> {
+    pub const fn protocols(&self) -> &ImportedCoreProtocols {
         &self.protocols
     }
 }
