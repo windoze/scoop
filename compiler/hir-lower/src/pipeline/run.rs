@@ -1,10 +1,33 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn run(
-        mut self,
+    pub(crate) fn run_defined(
+        self,
         files: &[ast::SourceFile],
     ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
+        let (module, warnings, completion) = self.run(files)?;
+        let CoreLoweringCompletion::Defined = completion else {
+            panic!("defined HIR entry cannot complete with imported core authority")
+        };
+        Ok((module, warnings))
+    }
+
+    pub(crate) fn run_imported(
+        self,
+        files: &[ast::SourceFile],
+    ) -> Result<(hir::Module, Vec<Diagnostic>, hir::ImportedCoreSelectionPlan), Vec<Diagnostic>>
+    {
+        let (module, warnings, completion) = self.run(files)?;
+        let CoreLoweringCompletion::Imported(selection) = completion else {
+            panic!("ordinary HIR entry cannot complete with defined core authority")
+        };
+        Ok((module, warnings, selection))
+    }
+
+    fn run(
+        mut self,
+        files: &[ast::SourceFile],
+    ) -> Result<(hir::Module, Vec<Diagnostic>, CoreLoweringCompletion), Vec<Diagnostic>> {
         if files.is_empty() {
             return Err(vec![Diagnostic::without_span(
                 ast::DiagnosticSeverity::Error,
@@ -19,6 +42,7 @@ impl Lowerer {
         );
         let primary_output_file = self.primary_output_file();
         let current_cone = self.current_cone();
+        let defines_core = matches!(self.core, CoreLoweringAuthority::Defined);
         let core_diagnostic_file = self.core_diagnostic_file();
         self.top_level_namespaces.initialize_sources(
             self.intrinsic_sources.iter().map(|source| source.kind),
@@ -158,12 +182,14 @@ impl Lowerer {
         // pointer families. Establish those source identities before the
         // alias graph is expanded. Application bounds are checked again once
         // every nominal constraint is complete below.
-        self.ffi_ptr = self.require_core_struct("Ptr", files);
-        self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
-        self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
-        self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
-        self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
-        self.validate_option_enum(files);
+        if defines_core {
+            self.ffi_ptr = self.require_core_struct("Ptr", files);
+            self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
+            self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
+            self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
+            self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
+            self.validate_option_enum(files);
+        }
         self.resolve_all_type_aliases();
 
         // Type-parameter names and arities are declared in pass 1. Resolve
@@ -224,7 +250,11 @@ impl Lowerer {
         }
         self.current_owner = None;
         self.validate_nominal_type_parameter_constraints();
-        let intrinsic_type_core = self.validate_intrinsic_type_core(files);
+        let intrinsic_type_core = if defines_core {
+            self.validate_intrinsic_type_core(files)
+        } else {
+            None
+        };
         if let Some(core) = intrinsic_type_core {
             if self.ffi_ptr != Some(core.ptr) {
                 self.current_file = primary_output_file;
@@ -266,7 +296,9 @@ impl Lowerer {
         // The core library's `Throwable` is the root every `throw`
         // operand and catch parameter type is checked against (spec
         // 11.7).
-        self.validate_throwable(files);
+        if defines_core {
+            self.validate_throwable(files);
+        }
 
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
@@ -299,7 +331,9 @@ impl Lowerer {
             self.type_params_in_scope.clear();
             self.enums[id].interfaces = interfaces;
         }
-        self.validate_option_variants();
+        if defines_core {
+            self.validate_option_variants();
+        }
         for (id, decl, file_index) in &pending_classes {
             self.current_file = *file_index;
             self.current_owner = Some(Owner::Class(*id));
@@ -346,19 +380,41 @@ impl Lowerer {
         }
         self.current_owner = None;
 
-        self.validate_core_operator_intrinsics(files);
-        self.validate_array_conversion_intrinsics(files);
-        let source_location_core = self.validate_source_location_core(files);
-        let iteration_core = self.validate_iteration_core(files);
+        if defines_core {
+            self.validate_core_operator_intrinsics(files);
+            self.validate_array_conversion_intrinsics(files);
+        }
+        let source_location_core = if defines_core {
+            self.validate_source_location_core(files)
+        } else {
+            None
+        };
+        let iteration_core = if defines_core {
+            self.validate_iteration_core(files)
+        } else {
+            None
+        };
         self.iteration_core = iteration_core;
 
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
         // guessing entities from names after HIR.
-        let coroutine_core = self.validate_coroutine_core(files);
-        let ffi_core = self.validate_ffi_core(files);
+        let coroutine_core = if defines_core {
+            self.validate_coroutine_core(files)
+        } else {
+            None
+        };
+        let ffi_core = if defines_core {
+            self.validate_ffi_core(files)
+        } else {
+            None
+        };
         self.ffi_core = ffi_core;
-        let foreign_callback_core = self.validate_foreign_callback_core(files);
+        let foreign_callback_core = if defines_core {
+            self.validate_foreign_callback_core(files)
+        } else {
+            None
+        };
         self.foreign_callback_core = foreign_callback_core;
         self.resolve_globals(&pending_globals, &pending_objects);
         self.finalize_import_targets();
@@ -402,7 +458,11 @@ impl Lowerer {
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these
         // targets from names.
-        let exception_core = self.validate_exception_core(files);
+        let exception_core = if defines_core {
+            self.validate_exception_core(files)
+        } else {
+            None
+        };
         self.lower_runtime_top_level_initializers();
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
@@ -457,27 +517,46 @@ impl Lowerer {
             return Err(self.diagnostics);
         }
         let warnings = std::mem::take(&mut self.warnings);
-        // Invariant: empty diagnostics implies every mandatory core protocol
-        // validated above. Output-kind selection consumes this complete graph
-        // after the frontend run succeeds.
-        let option_core = self
-            .option_core
-            .expect("a missing or invalid core `Option` is always diagnosed");
-        let iteration_core = iteration_core
-            .expect("a missing or invalid core iteration protocol is always diagnosed");
-        let coroutine_core = coroutine_core
-            .expect("a missing or invalid coroutine core protocol is always diagnosed");
-        let exception_core = exception_core
-            .expect("a missing or invalid compiler exception core is always diagnosed");
-        let ffi_core =
-            ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
-        let intrinsic_type_core = intrinsic_type_core
-            .expect("missing or invalid intrinsic core types are always diagnosed");
-        let source_location_core = source_location_core
-            .expect("a missing or invalid source location core is always diagnosed");
-        let foreign_callback_core = foreign_callback_core
-            .expect("a missing or invalid foreign callback core protocol is always diagnosed");
-        let core_types = hir::HirCoreTypeIdentityAuthority::Defined(&intrinsic_type_core);
+        // A successful frontend run seals exactly one core authority. Defined
+        // modules publish the locally validated protocol graph; ordinary
+        // modules retain the imported graph and its detached selection plan.
+        let (core_protocols, completion) = match self.core.clone() {
+            CoreLoweringAuthority::Defined => (
+                hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
+                    option: self
+                        .option_core
+                        .expect("a missing or invalid core `Option` is always diagnosed"),
+                    iteration: iteration_core
+                        .expect("a missing or invalid core iteration protocol is always diagnosed"),
+                    exceptions: exception_core
+                        .expect("a missing or invalid compiler exception core is always diagnosed"),
+                    coroutines: coroutine_core
+                        .expect("a missing or invalid coroutine core protocol is always diagnosed"),
+                    ffi: ffi_core
+                        .expect("a missing or invalid FFI core protocol is always diagnosed"),
+                    foreign_callbacks: foreign_callback_core.expect(
+                        "a missing or invalid foreign callback core protocol is always diagnosed",
+                    ),
+                    fundamental_types: intrinsic_type_core
+                        .expect("missing or invalid intrinsic core types are always diagnosed"),
+                    source_location: source_location_core
+                        .expect("a missing or invalid source location core is always diagnosed"),
+                })),
+                CoreLoweringCompletion::Defined,
+            ),
+            CoreLoweringAuthority::Imported(authority) => (
+                hir::CoreProtocols::Imported(Box::new(authority.protocols)),
+                CoreLoweringCompletion::Imported(authority.selection),
+            ),
+        };
+        let core_types = match &core_protocols {
+            hir::CoreProtocols::Defined(protocols) => {
+                hir::HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)
+            }
+            hir::CoreProtocols::Imported(protocols) => {
+                hir::HirCoreTypeIdentityAuthority::Imported(protocols.fundamental_types())
+            }
+        };
         let public_surface = self.public_semantic_surface();
         let nominal_identities = match crate::persistent_nominals::build(&self) {
             Ok(identities) => identities,
@@ -595,42 +674,61 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
-        let callback_registration_identities = match crate::persistent_callbacks::build(
-            &self,
-            foreign_callback_core,
-            &nominal_identities,
-            &property_accessor_identities,
-            &constructor_identities,
-            &enum_member_identities,
-            &function_identities,
-            core_types,
-        ) {
-            Ok(identities) => identities,
-            Err(error) => {
-                let (file, span) =
-                    error
-                        .registration()
-                        .map_or((0, Span { start: 0, end: 0 }), |registration| {
-                            let registration = &self.foreign_callback_registrations[registration];
-                            let file = match registration.definition_root {
-                                hir::LexicalDefinitionRoot::Function(function) => {
-                                    self.function_files[&function]
-                                }
-                                hir::LexicalDefinitionRoot::ClassConstructor(constructor) => {
-                                    self.class_files[&self.class_constructors[constructor].owner]
-                                }
-                                hir::LexicalDefinitionRoot::StructConstructor(constructor) => {
-                                    self.struct_files[&self.struct_constructors[constructor].owner]
-                                }
-                                hir::LexicalDefinitionRoot::VariantConstructor(variant) => {
-                                    self.enum_files[&variant.enumeration()]
-                                }
-                            };
-                            (file, registration.span)
-                        });
-                let mut diagnostic = Diagnostic::at(span, error.to_string());
-                diagnostic.file = file;
-                return Err(vec![diagnostic]);
+        let callback_registration_identities = match &core_protocols {
+            hir::CoreProtocols::Defined(protocols) => {
+                match crate::persistent_callbacks::build(
+                    &self,
+                    protocols.foreign_callbacks,
+                    &nominal_identities,
+                    &property_accessor_identities,
+                    &constructor_identities,
+                    &enum_member_identities,
+                    &function_identities,
+                    core_types,
+                ) {
+                    Ok(identities) => identities,
+                    Err(error) => {
+                        let (file, span) = error.registration().map_or(
+                            (0, Span { start: 0, end: 0 }),
+                            |registration| {
+                                let registration =
+                                    &self.foreign_callback_registrations[registration];
+                                let file = match registration.definition_root {
+                                    hir::LexicalDefinitionRoot::Function(function) => {
+                                        self.function_files[&function]
+                                    }
+                                    hir::LexicalDefinitionRoot::ClassConstructor(constructor) => {
+                                        self.class_files
+                                            [&self.class_constructors[constructor].owner]
+                                    }
+                                    hir::LexicalDefinitionRoot::StructConstructor(constructor) => {
+                                        self.struct_files
+                                            [&self.struct_constructors[constructor].owner]
+                                    }
+                                    hir::LexicalDefinitionRoot::VariantConstructor(variant) => {
+                                        self.enum_files[&variant.enumeration()]
+                                    }
+                                };
+                                (file, registration.span)
+                            },
+                        );
+                        let mut diagnostic = Diagnostic::at(span, error.to_string());
+                        diagnostic.file = file;
+                        return Err(vec![diagnostic]);
+                    }
+                }
+            }
+            hir::CoreProtocols::Imported(_) => {
+                match hir::HirCallbackRegistrationIdentities::for_imported_core(
+                    &self.foreign_callback_registrations,
+                ) {
+                    Ok(identities) => identities,
+                    Err(error) => {
+                        let registration =
+                            &self.foreign_callback_registrations[error.registration()];
+                        return Err(vec![Diagnostic::at(registration.span, error.to_string())]);
+                    }
+                }
             }
         };
         let export_binding_identities = match crate::persistent_export_bindings::build(
@@ -784,9 +882,9 @@ impl Lowerer {
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
             callable_references: self.callable_references,
-            imported_core_callables: Arena::new(),
-            imported_core_types: Arena::new(),
-            imported_core_values: Arena::new(),
+            imported_core_callables: self.imported_core_callables,
+            imported_core_types: self.imported_core_types,
+            imported_core_values: self.imported_core_values,
             bound_callable_refs: self.bound_callable_refs,
             function_coercions: self.function_coercions,
             foreign_callback_registrations: self.foreign_callback_registrations,
@@ -833,18 +931,9 @@ impl Lowerer {
             unit: self.unit,
             boolean: self.boolean,
             string: self.string,
-            core_protocols: hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
-                option: option_core,
-                iteration: iteration_core,
-                exceptions: exception_core,
-                coroutines: coroutine_core,
-                ffi: ffi_core,
-                foreign_callbacks: foreign_callback_core,
-                fundamental_types: intrinsic_type_core,
-                source_location: source_location_core,
-            })),
+            core_protocols,
             instantiations: self.instantiations,
         };
-        Ok((module, warnings))
+        Ok((module, warnings, completion))
     }
 }

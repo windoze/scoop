@@ -261,6 +261,13 @@ impl<'a> OrdinaryCoreOnlySources<'a> {
     pub fn core_compiler_operation_count(&self) -> usize {
         self.core.protocols().compiler_operations().len()
     }
+
+    fn bind_core_selection(
+        &self,
+        selection: hir::ImportedCoreSelectionPlan,
+    ) -> Result<hir::SelectedImportedCoreSet<'a>, hir::CorePreludeSelectionBindError> {
+        self.core.prelude().bind_selection(selection)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -276,6 +283,23 @@ impl std::fmt::Display for OrdinaryCoreOnlySourceError {
 }
 
 impl std::error::Error for OrdinaryCoreOnlySourceError {}
+
+#[derive(Clone)]
+enum CoreLoweringAuthority {
+    Defined,
+    Imported(Box<ImportedCoreLoweringAuthority>),
+}
+
+#[derive(Clone)]
+struct ImportedCoreLoweringAuthority {
+    protocols: hir::ImportedCoreProtocols,
+    selection: hir::ImportedCoreSelectionPlan,
+}
+
+enum CoreLoweringCompletion {
+    Defined,
+    Imported(hir::ImportedCoreSelectionPlan),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LegacyCombinedSourcesError {
@@ -403,7 +427,7 @@ pub fn lower_combined_sources(
     let (files, sources) = materialize_combined_sources(input);
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
-        .run(&files)?;
+        .run_defined(&files)?;
     let output_kind = select_cone_output_kind(&export, requested)?;
     finish_output(export, output_kind, warnings)
 }
@@ -417,8 +441,51 @@ pub fn lower_core_bootstrap(
     let (files, sources) = materialize_core_bootstrap_sources(input.sources);
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
-        .run(&files)?;
+        .run_defined(&files)?;
     finish_output(export, hir::ConeOutputKind::Library, warnings)
+}
+
+/// Lowers one ordinary Cone against the imported protocol and prelude
+/// authority of its exact trusted-core artifact.
+pub fn lower_ordinary_core_only<'core>(
+    requested: scoop_identity::RequestedConeKind,
+    input: &OrdinaryCoreOnlySources<'core>,
+) -> Result<hir::OrdinaryHirOutput<'core>, Vec<Diagnostic>> {
+    let (files, sources) = materialize_ordinary_sources(input.sources);
+    let (module, warnings, selection) = Lowerer::new()
+        .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
+        .with_imported_core(&input.core)
+        .run_imported(&files)?;
+    let output_kind = select_cone_output_kind(&module, requested)?;
+    let export = hir::ExportHirOutput::try_new(module, output_kind).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal ordinary Export HIR output: {error}"),
+        )]
+    })?;
+    let local = concretize::lower_output(&export);
+    let native_boundary_types =
+        crate::persistent_native_boundary::build(export.module(), local.module())
+            .map_err(native_boundary_diagnostic)?;
+    let output =
+        hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to seal ordinary HIR output: {error}"),
+            )]
+        })?;
+    let selected = input.bind_core_selection(selection).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to bind ordinary core selection: {error}"),
+        )]
+    })?;
+    hir::OrdinaryHirOutput::try_new(output, selected).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal ordinary imported-core HIR: {error}"),
+        )]
+    })
 }
 
 fn finish_output(
@@ -516,6 +583,24 @@ fn materialize_core_bootstrap_sources(
     (files, sources)
 }
 
+fn materialize_ordinary_sources(
+    input: &ast::CurrentConeParsedSources,
+) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
+    let mut files = Vec::with_capacity(input.sources().sources().len());
+    let mut sources = Vec::with_capacity(input.sources().sources().len());
+    for source in input.iter() {
+        files.push(source.source().ast().clone());
+        sources.push(SourceProvider {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            kind: SourceKind::CurrentUnit,
+            identity: source.source().identity().clone(),
+            name: source.diagnostic().display_locator().display().to_string(),
+            source: source.text().text().to_owned(),
+        });
+    }
+    (files, sources)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SourceKind {
     Core,
@@ -553,6 +638,7 @@ pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHir
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    core: CoreLoweringAuthority,
     pub(crate) source_contexts: Arena<hir::SourceContext>,
     source_context_by_value: HashMap<hir::SourceContext, hir::SourceContextId>,
     file_source_contexts: Vec<hir::SourceContextId>,
@@ -594,6 +680,9 @@ pub(crate) struct Lowerer {
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
+    pub(crate) imported_core_callables: Arena<hir::ImportedCoreCallableUse>,
+    pub(crate) imported_core_types: Arena<hir::ImportedCoreTypeUse>,
+    pub(crate) imported_core_values: Arena<hir::ImportedCoreValueUse>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,

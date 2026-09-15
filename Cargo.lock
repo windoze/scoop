@@ -451,6 +451,7 @@ dependencies = [
  "scoop-ast",
  "scoop-hir",
  "scoop-identity",
+ "scoop-wire",
 ]
 
 [[package]]

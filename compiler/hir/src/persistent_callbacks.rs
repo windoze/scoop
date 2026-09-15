@@ -51,7 +51,44 @@ pub struct HirCallbackRegistrationIdentities {
     records: Vec<HirCallbackRegistrationIdentity>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ImportedCoreCallbackIdentityError {
+    registration: ForeignCallbackRegistrationId,
+}
+
+impl ImportedCoreCallbackIdentityError {
+    pub const fn registration(self) -> ForeignCallbackRegistrationId {
+        self.registration
+    }
+}
+
+impl std::fmt::Display for ImportedCoreCallbackIdentityError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(
+            "imported-core HIR cannot retain a local foreign callback registration target",
+        )
+    }
+}
+
+impl std::error::Error for ImportedCoreCallbackIdentityError {}
+
 impl HirCallbackRegistrationIdentities {
+    /// Construct the callback identity relation for an ordinary module whose
+    /// core authority is imported. Callback conversions in that domain must
+    /// already be represented by imported-core uses rather than by local
+    /// callback registrations.
+    pub fn for_imported_core(
+        registrations: &Arena<ForeignCallbackRegistration>,
+    ) -> Result<Self, ImportedCoreCallbackIdentityError> {
+        if let Some((registration, _)) = registrations.iter().next() {
+            return Err(ImportedCoreCallbackIdentityError { registration });
+        }
+        Ok(Self {
+            identities: Vec::new(),
+            records: Vec::new(),
+        })
+    }
+
     pub fn from_registrations(
         inputs: HirCallbackRegistrationIdentityInputs<'_>,
     ) -> Result<Self, HirCallbackRegistrationIdentityError> {

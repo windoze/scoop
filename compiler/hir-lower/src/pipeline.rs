@@ -179,6 +179,7 @@ impl Lowerer {
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
         Lowerer {
+            core: CoreLoweringAuthority::Defined,
             imports: crate::imports::CurrentUnitImports::default(),
             declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
             source_contexts: Arena::new(),
@@ -201,6 +202,9 @@ impl Lowerer {
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
+            imported_core_callables: Arena::new(),
+            imported_core_types: Arena::new(),
+            imported_core_values: Arena::new(),
             bound_callable_refs: Arena::new(),
             function_coercions: Arena::new(),
             foreign_callback_registrations: Arena::new(),
@@ -366,6 +370,14 @@ impl Lowerer {
             self.file_source_contexts.push(id);
         }
         self.current_source_context = self.file_source_contexts.first().copied();
+        self
+    }
+
+    pub(super) fn with_imported_core(mut self, core: &hir::ImportedCoreInputs<'_>) -> Self {
+        self.core = CoreLoweringAuthority::Imported(Box::new(ImportedCoreLoweringAuthority {
+            protocols: core.protocols().clone(),
+            selection: core.prelude().selection_plan(),
+        }));
         self
     }
 
