@@ -71,6 +71,40 @@ pub struct LoadedSingleConeBuildRequest {
 }
 
 impl SingleConeBuildRequest {
+    /// Executes the only single-Cone production path and atomically publishes
+    /// the resulting `.slib` artifact.
+    pub fn build_and_publish(
+        self,
+        limits: DecodeLimits,
+    ) -> Result<scoop_slib::PublishedSingleConeArtifact, SingleConeProductionError> {
+        let temporary_parent = self
+            .output
+            .as_path()
+            .parent()
+            .expect("an absolute output path always has a parent");
+        let temporary = tempfile::Builder::new()
+            .prefix(".scoopc-")
+            .tempdir_in(temporary_parent)
+            .map_err(SingleConeProductionError::TemporaryWorkspace)?;
+        let loaded = self
+            .load_preflight(limits)
+            .map_err(SingleConeProductionError::Preflight)?;
+        let validated = loaded
+            .validate()
+            .map_err(SingleConeProductionError::Validation)?;
+        let parsed = validated
+            .parse_current_sources()
+            .map_err(SingleConeProductionError::Sources)?;
+        match parsed {
+            ParsedSingleConeBuildRequest::Ordinary(parsed) => parsed
+                .build_and_publish(temporary.path(), limits)
+                .map_err(SingleConeProductionError::Ordinary),
+            ParsedSingleConeBuildRequest::TrustedCoreBootstrap(parsed) => parsed
+                .build_and_publish(temporary.path(), limits)
+                .map_err(SingleConeProductionError::CoreBootstrap),
+        }
+    }
+
     /// Loads only the current manifest and trusted artifact bytes. Current
     /// source discovery and parsing are deliberately unavailable before this
     /// method returns the core-only dependency proof.
@@ -107,6 +141,47 @@ impl SingleConeBuildRequest {
             output,
             diagnostics,
             emit,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum SingleConeProductionError {
+    TemporaryWorkspace(std::io::Error),
+    Preflight(SingleConePreflightError),
+    Validation(CoreOnlyRequestValidationError),
+    Sources(CurrentConeSourceStageError),
+    Ordinary(OrdinaryConeProductionError),
+    CoreBootstrap(CoreBootstrapProductionError),
+}
+
+impl fmt::Display for SingleConeProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TemporaryWorkspace(source) => {
+                write!(
+                    formatter,
+                    "cannot create temporary build workspace: {source}"
+                )
+            }
+            Self::Preflight(source) => source.fmt(formatter),
+            Self::Validation(source) => source.fmt(formatter),
+            Self::Sources(source) => source.fmt(formatter),
+            Self::Ordinary(source) => source.fmt(formatter),
+            Self::CoreBootstrap(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for SingleConeProductionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::TemporaryWorkspace(source) => source,
+            Self::Preflight(source) => source,
+            Self::Validation(source) => source,
+            Self::Sources(source) => source,
+            Self::Ordinary(source) => source,
+            Self::CoreBootstrap(source) => source,
         })
     }
 }

@@ -28,8 +28,8 @@ scoop-manifest.workspace = true
 scoop-protocol.workspace = true
 scoop-slib.workspace = true
 scoop-wire.workspace = true
+tempfile.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
-tempfile.workspace = true
