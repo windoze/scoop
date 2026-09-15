@@ -1,16 +1,20 @@
-//! Bind codegen-produced Scoop objects to canonical `.slib` member identities.
+//! Bind both built-in codegen object sets to canonical `.slib` member identities.
 
 use std::fmt;
 use std::path::PathBuf;
 
 use scoop_codegen::{
-    EmittedStrongObjectMemberKindV1, EmittedStrongObjectSetV1,
+    EmittedGeneratedCBridgeObjectSetV1, EmittedStrongObjectMemberKindV1, EmittedStrongObjectSetV1,
     ProvisionalStrongDigestPatchLocationV1,
 };
-use scoop_lir::{ObjectDefinitionPlanId, StrongProducerUnitPartitionV1, StrongProductionSectionV1};
+use scoop_lir::{
+    CBridgeProductionSetV1, CBridgeToolchainProfileV1, GeneratedBridgeUnitId,
+    ObjectDefinitionPlanId, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
+};
 use scoop_slib::{
     CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
-    LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedLinkObjectMemberSetV1,
+    GeneratedCBridgeObjectCandidateV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
+    PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
     PlannedScoopLirObjectMemberV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
     SlibMemberId,
 };
@@ -33,25 +37,51 @@ impl PlannedScoopLirObjectInputV1 {
     }
 }
 
-/// Complete codegen object set after member planning and typed digest-site
-/// member binding, ready for the `.slib` object verifiers.
+/// Immutable generated-C bytes after the exact singleton bridge unit has
+/// been bound to its stable `.slib` member identity.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PlannedScoopLirObjectProductionV1 {
+pub struct PlannedGeneratedCBridgeObjectInputV1 {
+    plan: PlannedGeneratedBridgeObjectMemberV1,
+    bytes: Vec<u8>,
+}
+
+impl PlannedGeneratedCBridgeObjectInputV1 {
+    pub const fn plan(&self) -> &PlannedGeneratedBridgeObjectMemberV1 {
+        &self.plan
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+/// Complete built-in object production after unified member planning and
+/// typed digest-site binding, ready for the `.slib` object verifiers.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlannedBuiltinObjectProductionV1 {
     production: StrongProductionSectionV1,
+    c_bridge_profile: CBridgeToolchainProfileV1,
+    c_bridge_production: CBridgeProductionSetV1,
     member_plan: PlannedLinkObjectMemberSetV1,
-    members: Vec<PlannedScoopLirObjectInputV1>,
+    scoop_lir_members: Vec<PlannedScoopLirObjectInputV1>,
+    generated_c_bridge_members: Vec<PlannedGeneratedCBridgeObjectInputV1>,
     digest_patches: Vec<ProvisionalDigestPatchSiteV1>,
 }
 
-impl PlannedScoopLirObjectProductionV1 {
+impl PlannedBuiltinObjectProductionV1 {
     pub fn from_codegen(
-        emitted: &EmittedStrongObjectSetV1,
-        generated_bridge_unit_sets: Vec<CanonicalGeneratedBridgeObjectUnitSetV1>,
-    ) -> Result<Self, ScoopLirObjectProductionError> {
-        let mut sources = Vec::with_capacity(emitted.members().len());
-        for member in emitted.members() {
+        scoop_lir: &EmittedStrongObjectSetV1,
+        generated_c_bridge: &EmittedGeneratedCBridgeObjectSetV1,
+    ) -> Result<Self, BuiltinObjectProductionError> {
+        if scoop_lir.production().generated_bridge_plan() != generated_c_bridge.sources().plan() {
+            return Err(BuiltinObjectProductionError::GeneratedBridgePlanMismatch);
+        }
+
+        let mut scoop_lir_sources = Vec::with_capacity(scoop_lir.members().len());
+        for member in scoop_lir.members() {
             let bytes = std::fs::read(member.path()).map_err(|source| {
-                ScoopLirObjectProductionError::ReadObject {
+                BuiltinObjectProductionError::ReadObject {
+                    producer: BuiltinObjectProducerV1::ScoopLir,
                     path: member.path().to_path_buf(),
                     source,
                 }
@@ -70,24 +100,48 @@ impl PlannedScoopLirObjectProductionV1 {
                 }
                 EmittedStrongObjectMemberKindV1::CallableBody { .. } => Vec::new(),
             };
-            sources.push(UnboundScoopLirObject {
+            scoop_lir_sources.push(UnboundScoopLirObject {
                 units: member.units().definition_plans().to_vec(),
                 bytes,
                 digest_patches,
             });
         }
+
+        let mut generated_c_bridge_sources = Vec::with_capacity(generated_c_bridge.members().len());
+        for member in generated_c_bridge.members() {
+            let bytes = std::fs::read(member.object_path()).map_err(|source| {
+                BuiltinObjectProductionError::ReadObject {
+                    producer: BuiltinObjectProducerV1::GeneratedCBridge,
+                    path: member.object_path().to_path_buf(),
+                    source,
+                }
+            })?;
+            generated_c_bridge_sources.push(UnboundGeneratedCBridgeObject {
+                unit: member.unit(),
+                bytes,
+            });
+        }
+
         let bindings = plan_objects(
-            emitted.partition().producer_units(),
-            sources,
-            generated_bridge_unit_sets,
+            scoop_lir.partition().producer_units(),
+            scoop_lir_sources,
+            generated_c_bridge_sources,
         )?;
         if bindings.digest_patches.is_empty() {
-            return Err(ScoopLirObjectProductionError::EmptyDigestMaterializationSet);
+            return Err(BuiltinObjectProductionError::EmptyDigestMaterializationSet);
         }
+        let c_bridge_profile = generated_c_bridge.profile().clone();
+        let c_bridge_production = CBridgeProductionSetV1::from_generated_bridge_plan(
+            generated_c_bridge.sources().plan(),
+            &c_bridge_profile,
+        );
         Ok(Self {
-            production: emitted.production().clone(),
+            production: scoop_lir.production().clone(),
+            c_bridge_profile,
+            c_bridge_production,
             member_plan: bindings.member_plan,
-            members: bindings.members,
+            scoop_lir_members: bindings.scoop_lir_members,
+            generated_c_bridge_members: bindings.generated_c_bridge_members,
             digest_patches: bindings.digest_patches,
         })
     }
@@ -96,24 +150,51 @@ impl PlannedScoopLirObjectProductionV1 {
         &self.production
     }
 
+    pub const fn c_bridge_profile(&self) -> &CBridgeToolchainProfileV1 {
+        &self.c_bridge_profile
+    }
+
+    pub const fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
+        &self.c_bridge_production
+    }
+
     pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
         &self.member_plan
     }
 
-    pub fn members(&self) -> &[PlannedScoopLirObjectInputV1] {
-        &self.members
+    pub fn scoop_lir_members(&self) -> &[PlannedScoopLirObjectInputV1] {
+        &self.scoop_lir_members
+    }
+
+    pub fn generated_c_bridge_members(&self) -> &[PlannedGeneratedCBridgeObjectInputV1] {
+        &self.generated_c_bridge_members
     }
 
     pub fn digest_patches(&self) -> &[ProvisionalDigestPatchSiteV1] {
         &self.digest_patches
     }
 
-    pub fn candidates(&self) -> Vec<ScoopLirObjectCandidateV1<'_>> {
-        self.members
+    pub fn scoop_lir_candidates(&self) -> Vec<ScoopLirObjectCandidateV1<'_>> {
+        self.scoop_lir_members
             .iter()
             .map(|member| ScoopLirObjectCandidateV1::new(member.plan.member_id(), &member.bytes))
             .collect()
     }
+
+    pub fn c_bridge_candidates(&self) -> Vec<GeneratedCBridgeObjectCandidateV1<'_>> {
+        self.generated_c_bridge_members
+            .iter()
+            .map(|member| {
+                GeneratedCBridgeObjectCandidateV1::new(member.plan.member_id(), &member.bytes)
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BuiltinObjectProducerV1 {
+    ScoopLir,
+    GeneratedCBridge,
 }
 
 #[derive(Clone, Debug)]
@@ -121,6 +202,12 @@ struct UnboundScoopLirObject {
     units: Vec<ObjectDefinitionPlanId>,
     bytes: Vec<u8>,
     digest_patches: Vec<UnboundDigestPatch>,
+}
+
+#[derive(Clone, Debug)]
+struct UnboundGeneratedCBridgeObject {
+    unit: GeneratedBridgeUnitId,
+    bytes: Vec<u8>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -145,34 +232,49 @@ impl UnboundDigestPatch {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PlannedObjectBindings {
     member_plan: PlannedLinkObjectMemberSetV1,
-    members: Vec<PlannedScoopLirObjectInputV1>,
+    scoop_lir_members: Vec<PlannedScoopLirObjectInputV1>,
+    generated_c_bridge_members: Vec<PlannedGeneratedCBridgeObjectInputV1>,
     digest_patches: Vec<ProvisionalDigestPatchSiteV1>,
 }
 
 fn plan_objects(
     producer_units: &StrongProducerUnitPartitionV1,
-    sources: Vec<UnboundScoopLirObject>,
-    generated_bridge_unit_sets: Vec<CanonicalGeneratedBridgeObjectUnitSetV1>,
-) -> Result<PlannedObjectBindings, ScoopLirObjectProductionError> {
-    let unit_sets = sources
+    scoop_lir_sources: Vec<UnboundScoopLirObject>,
+    generated_c_bridge_sources: Vec<UnboundGeneratedCBridgeObject>,
+) -> Result<PlannedObjectBindings, BuiltinObjectProductionError> {
+    let scoop_lir_unit_sets = scoop_lir_sources
         .iter()
         .map(|source| CanonicalScoopLirObjectUnitSetV1::new(source.units.clone()))
         .collect::<Result<Vec<_>, _>>()
-        .map_err(ScoopLirObjectProductionError::Units)?;
-    let member_plan =
-        PlannedLinkObjectMemberSetV1::new(producer_units, unit_sets, generated_bridge_unit_sets)
-            .map_err(ScoopLirObjectProductionError::MemberPlan)?;
+        .map_err(|source| BuiltinObjectProductionError::Units {
+            producer: BuiltinObjectProducerV1::ScoopLir,
+            source,
+        })?;
+    let generated_bridge_unit_sets = generated_c_bridge_sources
+        .iter()
+        .map(|source| CanonicalGeneratedBridgeObjectUnitSetV1::new(vec![source.unit]))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| BuiltinObjectProductionError::Units {
+            producer: BuiltinObjectProducerV1::GeneratedCBridge,
+            source,
+        })?;
+    let member_plan = PlannedLinkObjectMemberSetV1::new(
+        producer_units,
+        scoop_lir_unit_sets,
+        generated_bridge_unit_sets,
+    )
+    .map_err(BuiltinObjectProductionError::MemberPlan)?;
 
-    let mut members = Vec::with_capacity(sources.len());
+    let mut scoop_lir_members = Vec::with_capacity(scoop_lir_sources.len());
     let mut digest_patches = Vec::new();
-    for source in sources {
-        let member = member_for_units(&member_plan, &source.units)?;
+    for source in scoop_lir_sources {
+        let member = scoop_member_for_units(&member_plan, &source.units)?;
         for patch in source.digest_patches {
             let assigned = member_plan.member_for_definition(patch.definition).ok_or(
-                ScoopLirObjectProductionError::UnassignedPatchDefinition(patch.definition),
+                BuiltinObjectProductionError::UnassignedPatchDefinition(patch.definition),
             )?;
             if assigned != member.member_id() {
-                return Err(ScoopLirObjectProductionError::PatchMemberMismatch {
+                return Err(BuiltinObjectProductionError::PatchMemberMismatch {
                     definition: patch.definition,
                     expected: assigned,
                     actual: member.member_id(),
@@ -185,61 +287,93 @@ fn plan_objects(
                 patch.width_bytes,
             ));
         }
-        members.push(PlannedScoopLirObjectInputV1 {
+        scoop_lir_members.push(PlannedScoopLirObjectInputV1 {
             plan: member.clone(),
             bytes: source.bytes,
         });
     }
-    members.sort_unstable_by_key(|member| member.plan.member_id());
+    scoop_lir_members.sort_unstable_by_key(|member| member.plan.member_id());
+
+    let mut generated_c_bridge_members = Vec::with_capacity(generated_c_bridge_sources.len());
+    for source in generated_c_bridge_sources {
+        let member = generated_bridge_member_for_unit(&member_plan, source.unit)?;
+        generated_c_bridge_members.push(PlannedGeneratedCBridgeObjectInputV1 {
+            plan: member.clone(),
+            bytes: source.bytes,
+        });
+    }
+    generated_c_bridge_members.sort_unstable_by_key(|member| member.plan.member_id());
+
     digest_patches.sort_unstable_by_key(|patch| patch.intent());
     if let Some(pair) = digest_patches
         .windows(2)
         .find(|pair| pair[0].intent() == pair[1].intent())
     {
-        return Err(ScoopLirObjectProductionError::DuplicateDigestIntent(
+        return Err(BuiltinObjectProductionError::DuplicateDigestIntent(
             pair[0].intent(),
         ));
     }
     Ok(PlannedObjectBindings {
         member_plan,
-        members,
+        scoop_lir_members,
+        generated_c_bridge_members,
         digest_patches,
     })
 }
 
-fn member_for_units<'plan>(
+fn scoop_member_for_units<'plan>(
     member_plan: &'plan PlannedLinkObjectMemberSetV1,
     units: &[ObjectDefinitionPlanId],
-) -> Result<&'plan PlannedScoopLirObjectMemberV1, ScoopLirObjectProductionError> {
+) -> Result<&'plan PlannedScoopLirObjectMemberV1, BuiltinObjectProductionError> {
     let first = *units
         .first()
-        .ok_or(ScoopLirObjectProductionError::EmptyObjectUnits)?;
+        .ok_or(BuiltinObjectProductionError::EmptyObjectUnits)?;
     let member = member_plan.member_for_definition(first).ok_or(
-        ScoopLirObjectProductionError::UnassignedObjectDefinition(first),
+        BuiltinObjectProductionError::UnassignedObjectDefinition(first),
     )?;
     if units
         .iter()
         .any(|definition| member_plan.member_for_definition(*definition) != Some(member))
     {
-        return Err(ScoopLirObjectProductionError::SplitObjectUnits(member));
+        return Err(BuiltinObjectProductionError::SplitObjectUnits(member));
     }
     member_plan
         .scoop_lir_members()
         .iter()
         .find(|plan| plan.member_id() == member)
-        .ok_or(ScoopLirObjectProductionError::MissingPlannedMember(member))
+        .ok_or(BuiltinObjectProductionError::MissingPlannedMember(member))
+}
+
+fn generated_bridge_member_for_unit(
+    member_plan: &PlannedLinkObjectMemberSetV1,
+    unit: GeneratedBridgeUnitId,
+) -> Result<&PlannedGeneratedBridgeObjectMemberV1, BuiltinObjectProductionError> {
+    let member = member_plan.member_for_generated_bridge_unit(unit).ok_or(
+        BuiltinObjectProductionError::UnassignedGeneratedBridgeUnit(unit),
+    )?;
+    member_plan
+        .generated_bridge_members()
+        .iter()
+        .find(|plan| plan.member_id() == member)
+        .ok_or(BuiltinObjectProductionError::MissingPlannedMember(member))
 }
 
 #[derive(Debug)]
-pub enum ScoopLirObjectProductionError {
+pub enum BuiltinObjectProductionError {
     ReadObject {
+        producer: BuiltinObjectProducerV1,
         path: PathBuf,
         source: std::io::Error,
     },
-    Units(ObjectUnitSetError),
+    GeneratedBridgePlanMismatch,
+    Units {
+        producer: BuiltinObjectProducerV1,
+        source: ObjectUnitSetError,
+    },
     MemberPlan(LinkObjectMemberSetPlanError),
     EmptyObjectUnits,
     UnassignedObjectDefinition(ObjectDefinitionPlanId),
+    UnassignedGeneratedBridgeUnit(GeneratedBridgeUnitId),
     SplitObjectUnits(SlibMemberId),
     MissingPlannedMember(SlibMemberId),
     UnassignedPatchDefinition(ObjectDefinitionPlanId),
@@ -252,17 +386,17 @@ pub enum ScoopLirObjectProductionError {
     EmptyDigestMaterializationSet,
 }
 
-impl fmt::Display for ScoopLirObjectProductionError {
+impl fmt::Display for BuiltinObjectProductionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid Scoop LIR object production: {self:?}")
+        write!(formatter, "invalid built-in object production: {self:?}")
     }
 }
 
-impl std::error::Error for ScoopLirObjectProductionError {
+impl std::error::Error for BuiltinObjectProductionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ReadObject { source, .. } => Some(source),
-            Self::Units(source) => Some(source),
+            Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,
         }

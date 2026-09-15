@@ -1451,12 +1451,15 @@ alias直接发射，并在此门禁复核为同section的非空范围。
 接受第二个caller-supplied Cone identity。这样跨producer分片从类型结构上不可表达，而不是等后续
 symbol/object validator再比较失败。
 
-driver中的producer adapter必须从同一个`EmittedStrongObjectSetV1`原子地取得production、
-codegen选定的完整producer unit partition、每个物理对象的精确unit set与typed
-materialization。adapter在临时对象仍为只读且存活时复制其完整bytes，由该partition唯一
-派生member plan，再把materialization绑定到definition实际归属的member id。成功结果以
-私有字段同时拥有production、member plan、按member id排序的immutable bytes和全部typed patch
-site；后续verifier只能消费该结果，不得由caller重新配对其中任意部分。
+driver中的producer adapter必须在同一次构造中接收`EmittedStrongObjectSetV1`与
+`EmittedGeneratedCBridgeObjectSetV1`，并证明二者引用同一份完整generated bridge plan。它从前者原子地
+取得production、codegen选定的完整producer unit partition、每个Scoop物理对象的精确unit set与typed
+materialization，从后者取得每个generated-C物理对象的精确unit authority、toolchain profile及
+canonical C-bridge production。adapter在两份临时backing仍为只读且存活时复制全部bytes，由同一
+partition唯一派生两类member plan，再把materialization绑定到definition实际归属的member id。成功结果
+以私有字段同时拥有production、C-bridge profile/production、统一member plan、两类均按member id排序的
+immutable bytes和全部typed patch site；后续verifier只能消费该结果，不得由caller提供generated bridge
+unit set、重新配对其中任意部分或把两次独立adapter结果事后合并。
 
 这样typed patch site可带member id，同时不形成member hash自引用。改变object分片会改变member id和Code/Artifact fingerprint，但只要canonical LIR语义不变就不改变LIR semantic fingerprint。
 
