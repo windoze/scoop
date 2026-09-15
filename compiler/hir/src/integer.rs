@@ -301,7 +301,7 @@ impl<Owner: Copy + Eq> IntegerTypeCore<Owner> {
 }
 
 /// Integer operations whose declarations and call targets must be `@NoGC`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NoGcIntegerOperation {
     UnaryPlus,
     UnaryMinus,
@@ -386,7 +386,7 @@ impl NoGcIntegerOperation {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntegerDivRem {
     Div,
     Rem,
