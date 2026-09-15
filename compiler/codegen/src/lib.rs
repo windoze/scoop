@@ -68,6 +68,7 @@ impl std::error::Error for CodegenError {}
 
 mod abi;
 mod artifact;
+mod atom_boundaries;
 mod c_bridge;
 mod declarations;
 mod emission;

@@ -10,12 +10,14 @@ use scoop_lir::{
 };
 
 use super::{
-    EmittedEntryProductionV1, emit_cone_image_v1, emit_entry_production_v1,
+    EmittedEntryProductionV1, EmittedStaticStorageInitialStateV1,
+    EmittedStaticStorageRelocationTableV1, emit_cone_image_v1, emit_entry_production_v1,
     emit_strong_callable_registrations_v1, emit_strong_immortal_object_registrations_v1,
     emit_strong_initialization_unit_registrations_v1, emit_strong_safepoint_registrations_v1,
     emit_strong_static_storage_registrations_v1, emit_strong_type_registrations_v1,
 };
 use crate::CodegenError;
+use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
 
 /// Object-independent location of one provisional digest slot emitted by
 /// codegen. The packager resolves the typed owner symbol and offset against
@@ -210,10 +212,211 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
 
     patches.sort_unstable_by_key(|patch| patch.intent);
     validate_patch_coverage(production, &patches)?;
+    emit_global_atom_boundaries_v1(
+        llvm,
+        target_data,
+        production.canonical_definitions(),
+        runtime_global_atoms(
+            production,
+            &safepoints,
+            &callables,
+            &types,
+            &immortal_objects,
+            &static_storages,
+            &initialization_units,
+            entry,
+            image,
+        )?,
+    )?;
     Ok(EmittedStrongRuntimeMetadataV1 {
         producer,
         patch_locations: patches,
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn runtime_global_atoms<'ctx>(
+    production: &StrongProductionSectionV1,
+    safepoints: &super::EmittedStrongSafepointRegistrationSetV1<'ctx>,
+    callables: &super::EmittedStrongCallableRegistrationSetV1<'ctx>,
+    types: &super::EmittedStrongTypeRegistrationSetV1<'ctx>,
+    immortal_objects: &super::EmittedStrongImmortalObjectRegistrationSetV1<'ctx>,
+    static_storages: &super::EmittedStrongStaticStorageRegistrationSetV1<'ctx>,
+    initialization_units: &super::EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
+    entry: EmittedEntryProductionV1<'ctx>,
+    image: super::EmittedConeImageV1<'ctx>,
+) -> Result<Vec<GlobalAtomMaterializationV1<'ctx>>, CodegenError> {
+    let registrations = production.registration_production();
+    let mut atoms = Vec::new();
+    atoms.extend(safepoints.registrations().iter().map(|registration| {
+        GlobalAtomMaterializationV1::new(
+            registration.registration_definition_patch().atom(),
+            registration.descriptor(),
+        )
+    }));
+    atoms.extend(callables.registrations().iter().map(|registration| {
+        GlobalAtomMaterializationV1::new(
+            registration.registration_definition_patch().atom(),
+            registration.descriptor(),
+        )
+    }));
+    atoms.extend(types.registrations().iter().map(|registration| {
+        GlobalAtomMaterializationV1::new(
+            registration.registration_definition_patch().atom(),
+            registration.descriptor(),
+        )
+    }));
+
+    require_parallel_coverage(
+        "immortal-object registration",
+        immortal_objects.registrations().len(),
+        registrations.immortal_objects().registrations().len(),
+    )?;
+    for (emitted, plan) in immortal_objects
+        .registrations()
+        .iter()
+        .zip(registrations.immortal_objects().registrations())
+    {
+        if emitted.object() != plan.object() {
+            return Err(CodegenError(
+                "immortal-object emission order diverges from its closed plan".to_string(),
+            ));
+        }
+        atoms.push(GlobalAtomMaterializationV1::new(
+            plan.registration_primary_atom(),
+            emitted.descriptor(),
+        ));
+        atoms.push(GlobalAtomMaterializationV1::new(
+            plan.object_primary_atom(),
+            emitted.object_value(),
+        ));
+    }
+
+    require_parallel_coverage(
+        "static-storage registration",
+        static_storages.registrations().len(),
+        registrations.static_storages().registrations().len(),
+    )?;
+    for (emitted, plan) in static_storages
+        .registrations()
+        .iter()
+        .zip(registrations.static_storages().registrations())
+    {
+        if emitted.storage() != plan.semantic().storage() {
+            return Err(CodegenError(
+                "static-storage emission order diverges from its closed plan".to_string(),
+            ));
+        }
+        atoms.extend([
+            GlobalAtomMaterializationV1::new(
+                plan.registration_primary_atom(),
+                emitted.descriptor(),
+            ),
+            GlobalAtomMaterializationV1::new(plan.storage_primary_atom(), emitted.storage_value()),
+            GlobalAtomMaterializationV1::new(plan.scan_primary_atom(), emitted.scan_program()),
+        ]);
+        if let EmittedStaticStorageInitialStateV1::EncodedStaticValue {
+            template_atom,
+            template,
+            relocations,
+        } = emitted.initial_state()
+        {
+            atoms.push(GlobalAtomMaterializationV1::new(template_atom, template));
+            if let EmittedStaticStorageRelocationTableV1::Defined { atom, global } = relocations {
+                atoms.push(GlobalAtomMaterializationV1::new(atom, global));
+            }
+        }
+    }
+
+    require_parallel_coverage(
+        "initialization registration",
+        initialization_units.registrations().len(),
+        registrations.initialization_units().registrations().len(),
+    )?;
+    for (emitted, plan) in initialization_units
+        .registrations()
+        .iter()
+        .zip(registrations.initialization_units().registrations())
+    {
+        if emitted.unit() != plan.semantic().unit() {
+            return Err(CodegenError(
+                "initialization emission order diverges from its closed plan".to_string(),
+            ));
+        }
+        atoms.extend([
+            GlobalAtomMaterializationV1::new(
+                plan.registration_primary_atom(),
+                emitted.registration_descriptor(),
+            ),
+            GlobalAtomMaterializationV1::new(plan.cell_primary_atom(), emitted.cell()),
+            GlobalAtomMaterializationV1::new(
+                plan.descriptor_primary_atom(),
+                emitted.coordinator_descriptor(),
+            ),
+            GlobalAtomMaterializationV1::new(emitted.diagnostic_atom(), emitted.diagnostic()),
+        ]);
+    }
+
+    if let EmittedEntryProductionV1::Executable(emitted) = entry {
+        let plan = match production.entry_plan() {
+            scoop_lir::EntryProductionPlanV1::Executable(plan) => plan,
+            scoop_lir::EntryProductionPlanV1::Library => {
+                return Err(CodegenError(
+                    "executable entry emission has a library production plan".to_string(),
+                ));
+            }
+        };
+        let definition = production
+            .canonical_definitions()
+            .plan(plan.root_descriptor_definition())
+            .ok_or_else(|| {
+                CodegenError(
+                    "root entry definition is absent from canonical symbol authority".to_string(),
+                )
+            })?;
+        atoms.push(GlobalAtomMaterializationV1::new(
+            definition.primary_atom(),
+            emitted.descriptor(),
+        ));
+    }
+
+    atoms.push(GlobalAtomMaterializationV1::new(
+        image.primary_atom(),
+        image.image(),
+    ));
+    let support = image.support_atoms();
+    for support in [
+        support.coordinate_group(),
+        support.coordinate_name(),
+        support.coordinate_version(),
+        support.dependencies(),
+        support.static_storages(),
+        support.immortal_objects(),
+        support.initialization_units(),
+        support.type_registrations(),
+        support.safepoints(),
+        support.callables(),
+    ] {
+        atoms.push(GlobalAtomMaterializationV1::new(
+            support.atom(),
+            support.global(),
+        ));
+    }
+    Ok(atoms)
+}
+
+fn require_parallel_coverage(
+    kind: &str,
+    emitted: usize,
+    planned: usize,
+) -> Result<(), CodegenError> {
+    if emitted == planned {
+        Ok(())
+    } else {
+        Err(CodegenError(format!(
+            "{kind} emission coverage mismatch: planned {planned}, emitted {emitted}"
+        )))
+    }
 }
 
 #[derive(Clone, Copy)]

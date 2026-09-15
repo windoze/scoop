@@ -44,6 +44,26 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
             .get_initializer()
             .is_some()
     );
+    let llvm_ir = llvm.print_to_string().to_string();
+    let boundaries = production
+        .canonical_definitions()
+        .plans()
+        .iter()
+        .flat_map(|plan| plan.atom_boundaries());
+    let mut expected_aliases = 0;
+    for boundary in boundaries {
+        for request in [boundary.start(), boundary.end()] {
+            expected_aliases += 1;
+            assert!(
+                llvm_ir.lines().any(|line| {
+                    line.contains(request.symbol().as_str()) && line.contains(" = alias ")
+                }),
+                "missing strong atom boundary alias `{}` in:\n{llvm_ir}",
+                request.symbol()
+            );
+        }
+    }
+    assert_eq!(llvm_ir.matches(" = alias ").count(), expected_aliases);
     llvm.verify().unwrap();
 }
 
