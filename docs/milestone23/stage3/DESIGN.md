@@ -1395,6 +1395,12 @@ module-level backend section不会把多个callable atom混成需要事后猜测
 必须逐项等于`StrongProducerUnitPartitionV1`中的Scoop LIR definition集合且互不重叠；generated bridge
 definition只能由generated C producer分片，不得混入LLVM对象。
 
+Scoop LLVM producer在返回member前，必须把runtime-metadata emitter给出的每个typed
+`{intent, definition, atom, owner symbol, offset-within-owner, width}`定位到刚写出的同一Mach-O：owner必须是
+该对象中的真实definition，symbol范围与section file range都必须完整包含32-byte slot，初值必须全零，
+全部slot不得重复或相交。成功materialization保留上述typed位置和checked object file offset；packager只把
+随后确定的member id附加到该记录并由完整object verifier复核，不能重新扫描descriptor内容寻找零串。
+
 ### 11.2 member id在finalization前确定
 
 `SlibMemberId`只依赖Cone identity与stable key，不依赖payload hash。packager因此先：

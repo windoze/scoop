@@ -146,6 +146,49 @@ fn emitted_object_set_owns_verified_temporary_members() {
         std::fs::metadata(member.path())
             .is_ok_and(|metadata| metadata.len() > 0 && metadata.permissions().readonly())
     }));
+    let mut non_callable_members = 0;
+    for member in emitted.members() {
+        match member.kind() {
+            EmittedStrongObjectMemberKindV1::NonCallable {
+                runtime_metadata,
+                digest_patches,
+            } => {
+                non_callable_members += 1;
+                assert_eq!(
+                    digest_patches.len(),
+                    runtime_metadata.patch_locations().len()
+                );
+                assert!(!digest_patches.is_empty());
+                let bytes = std::fs::read(member.path()).unwrap();
+                for (materialization, location) in digest_patches
+                    .iter()
+                    .zip(runtime_metadata.patch_locations())
+                {
+                    assert_eq!(materialization.location(), *location);
+                    let start = usize::try_from(materialization.checked_object_offset()).unwrap();
+                    let end = start + usize::from(location.width_bytes());
+                    assert!(bytes[start..end].iter().all(|byte| *byte == 0));
+                }
+                let mut tampered = bytes;
+                let tampered_offset =
+                    usize::try_from(digest_patches[0].checked_object_offset()).unwrap();
+                tampered[tampered_offset] = 1;
+                let tampered_path = parent.path().join("tampered-patch.o");
+                std::fs::write(&tampered_path, tampered).unwrap();
+                let error =
+                    crate::object_materialization::resolve_digest_patch_materializations_v1(
+                        &tampered_path,
+                        input.module().meta.target_profile,
+                        emitted.production(),
+                        runtime_metadata,
+                    )
+                    .unwrap_err();
+                assert!(error.0.contains("not provisionally zero"), "{error}");
+            }
+            EmittedStrongObjectMemberKindV1::CallableBody { .. } => {}
+        }
+    }
+    assert_eq!(non_callable_members, 1);
     let backing = emitted.temporary_directory().to_path_buf();
     assert!(backing.starts_with(parent.path()));
     drop(emitted);

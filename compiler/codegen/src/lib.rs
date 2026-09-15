@@ -75,6 +75,7 @@ mod emission;
 mod function;
 mod llvm_types;
 mod module_context;
+mod object_materialization;
 mod object_partition;
 mod runtime_metadata_v1;
 mod shape_definitions;
@@ -96,6 +97,7 @@ pub use emission::{
 use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;
+pub use object_materialization::EmittedStrongDigestPatchMaterializationV1;
 pub use object_partition::{
     StrongScoopLirObjectKindV1, StrongScoopLirObjectPartitionError,
     StrongScoopLirObjectPartitionV1, StrongScoopLirObjectUnitSetV1,

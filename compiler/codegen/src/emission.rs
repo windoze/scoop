@@ -12,6 +12,7 @@ pub struct EmittedStrongObjectMemberV1 {
 enum EmittedStrongObjectMemberKind {
     NonCallable {
         runtime_metadata: EmittedStrongRuntimeMetadataV1,
+        digest_patches: Vec<EmittedStrongDigestPatchMaterializationV1>,
     },
     CallableBody {
         body: scoop_lir::PersistentCallableBodyId,
@@ -23,6 +24,7 @@ enum EmittedStrongObjectMemberKind {
 pub enum EmittedStrongObjectMemberKindV1<'a> {
     NonCallable {
         runtime_metadata: &'a EmittedStrongRuntimeMetadataV1,
+        digest_patches: &'a [EmittedStrongDigestPatchMaterializationV1],
     },
     CallableBody {
         body: scoop_lir::PersistentCallableBodyId,
@@ -38,11 +40,15 @@ impl EmittedStrongObjectMemberV1 {
         &self.path
     }
 
-    pub const fn kind(&self) -> EmittedStrongObjectMemberKindV1<'_> {
+    pub fn kind(&self) -> EmittedStrongObjectMemberKindV1<'_> {
         match &self.kind {
-            EmittedStrongObjectMemberKind::NonCallable { runtime_metadata } => {
-                EmittedStrongObjectMemberKindV1::NonCallable { runtime_metadata }
-            }
+            EmittedStrongObjectMemberKind::NonCallable {
+                runtime_metadata,
+                digest_patches,
+            } => EmittedStrongObjectMemberKindV1::NonCallable {
+                runtime_metadata,
+                digest_patches,
+            },
             EmittedStrongObjectMemberKind::CallableBody { body } => {
                 EmittedStrongObjectMemberKindV1::CallableBody { body: *body }
             }
@@ -155,10 +161,20 @@ pub fn emit_object_set(
                     &selected_safepoints,
                     &selected_eh,
                 )?;
+                let digest_patches =
+                    object_materialization::resolve_digest_patch_materializations_v1(
+                        &path,
+                        module.meta.target_profile,
+                        &production,
+                        &runtime_metadata,
+                    )?;
                 EmittedStrongObjectMemberV1 {
                     units: units.clone(),
                     path,
-                    kind: EmittedStrongObjectMemberKind::NonCallable { runtime_metadata },
+                    kind: EmittedStrongObjectMemberKind::NonCallable {
+                        runtime_metadata,
+                        digest_patches,
+                    },
                 }
             }
             StrongScoopLirObjectKindV1::CallableBody(body) => {
