@@ -195,7 +195,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - M23-2只持久化`ValidatedLirTargetSelection { lir_target, backend }`；请求级registry原子解析`ResolvedTargetProfile`的`lir_target/backend/c_bridge_toolchain/runtime_build/final_link`五个projection。canonical C signature只描述generated-C source storage，不持久化完整target C classifier；LLVM candidate绑定`ValidatedBackendProfile`，generated-C candidate绑定`ValidatedCBridgeToolchainProfile`。bridge recipe使用producer-independent `GeneratedBridgeUnitId`，实际定义使用producer-specific `GeneratedBridgeAtomId`，LIR/ODR relocation引用unit并由object verifier从atom规范化回unit。
 - member envelope从本阶段起允许任意数量、任意已登记producer的`LinkObject`以及opaque/required blob；成员用途不依赖文件名、扩展名、顺序或object数量。后续语义payload按独立section/capability version加入，不在尚无verifier时宣称最终Link view完成。
 
-### M23-3 single-Cone artifact与core分离
+### M23-3 single-Cone artifact与core分离 ✅（2026-09-16 完成）
 
 总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage3/DESIGN.md`。
 
