@@ -42,9 +42,12 @@ pub use imported::{
 };
 pub use imported_protocols::{
     CoreInterfaceImportError, CoreProtocolIdentityKind, CoreProtocolImportError,
-    ImportedCoreCompilerOperation, ImportedCoreInputs, ImportedCoreProtocolCallable,
+    ImportedCoreCompilerOperation, ImportedCoreCoroutineProtocol, ImportedCoreExceptionProtocol,
+    ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
+    ImportedCoreFundamentalTypeProtocol, ImportedCoreInputs, ImportedCoreIterationProtocol,
+    ImportedCoreOptionProtocol, ImportedCoreProtocolCallable,
     ImportedCoreProtocolCallableDefinition, ImportedCoreProtocolEntry, ImportedCoreProtocolNominal,
-    ImportedCoreProtocols,
+    ImportedCoreProtocols, ImportedCoreSourceLocationProtocol,
 };
 pub use strong_profile::{
     OdrFreeHirFoundation, OdrFreeHirFoundationError, OdrFreeHirFoundationProjectionError,

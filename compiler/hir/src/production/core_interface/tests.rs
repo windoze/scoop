@@ -221,6 +221,78 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
     assert!(core.protocols().belongs_to(&imported, &fixture.interface));
     let other_interface = fixture.interface.clone();
     assert!(!core.protocols().belongs_to(&imported, &other_interface));
+    let protocols = core.protocols();
+    assert_eq!(
+        protocols.fundamental_types().unit().persistent(),
+        CoreBuiltinNominal::Unit.identity_record().id()
+    );
+    assert_eq!(
+        protocols.fundamental_types().string().persistent(),
+        fixture.interface.string_capability().source_type()
+    );
+    let integers = crate::IntegerKind::ALL
+        .map(|kind| protocols.fundamental_types().integer(kind).persistent());
+    assert_eq!(
+        integers
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        integers.len()
+    );
+    assert_eq!(
+        protocols.option().some().persistent(),
+        fixture.interface.prelude_snapshot().option_some()
+    );
+    assert_eq!(
+        protocols.option().some_payload().persistent(),
+        fixture.interface.prelude_snapshot().option_some_payload()
+    );
+    assert_eq!(
+        protocols.option().none().persistent(),
+        fixture.interface.prelude_snapshot().option_none()
+    );
+    let operations = protocols.compiler_operations();
+    assert_eq!(
+        operations
+            .iter()
+            .map(|operation| operation.kind())
+            .collect::<Vec<_>>(),
+        crate::intrinsic_function_kinds()
+    );
+    let operation = |kind| {
+        operations
+            .iter()
+            .find(|operation| operation.kind() == kind)
+            .unwrap()
+            .callable()
+    };
+    assert_eq!(
+        protocols.ffi().ptr_to_ulong(),
+        operation(crate::IntrinsicFunctionKind::Pointer(
+            crate::PointerIntrinsic::ToULong,
+        ))
+    );
+    assert_eq!(
+        protocols.coroutines().start_coroutine(),
+        operation(crate::IntrinsicFunctionKind::CoroutineStart)
+    );
+    assert_eq!(
+        protocols.foreign_callbacks().register(),
+        operation(crate::IntrinsicFunctionKind::ForeignCallbackRegister)
+    );
+    assert_eq!(
+        protocols.source_location().current(),
+        operation(crate::IntrinsicFunctionKind::CurrentSourceLocation)
+    );
+    assert_ne!(
+        protocols.iteration().next().definition(),
+        protocols.exceptions().throwable_constructor().definition()
+    );
+    assert_ne!(
+        protocols.foreign_callbacks().reusable(),
+        protocols.foreign_callbacks().one_shot()
+    );
     let string = prelude
         .candidates(BindingNamespace::Type, "String")
         .collect::<Vec<_>>();
