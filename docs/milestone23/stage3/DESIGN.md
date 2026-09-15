@@ -1731,6 +1731,12 @@ code proof派生的external bridge surface及codegen保留的C-bridge profile，
 方法。其唯一文件系统终态`publish`调用`publish_single_cone_artifact`，并显式接收同请求已验证的core
 defined-owner authority；不能把assembly成功、ArtifactFingerprint存在或单一reader成功当作发布权限。
 
+driver的HIR成功状态必须在lowering的同一原子转换中持有完整`CanonicalHirFoundation`与HIR production
+section，不能把foundation推迟到packager临时重算。`OdrFreeHirFoundation`是进入
+`SingleConeStrongArtifactInputV1`前的profile收窄结果：canonical HIR含任一ODR group/member/application时该
+转换以稳定能力错误结束，不能删除foundation记录、改写成strong owner或保留一条跳过`RejectAll`的core
+bootstrap路径。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

@@ -449,11 +449,18 @@ impl<'a> TrustedCoreBootstrapHirInput<'a> {
     pub fn lower(&self) -> Result<TrustedCoreBootstrapHirOutput, CoreBootstrapHirStageError> {
         let hir = scoop_hir_lower::lower_core_bootstrap(&self.sources)
             .map_err(CoreBootstrapHirStageError::Lowering)?;
+        let foundation = scoop_hir::CanonicalHirFoundation::from_modules(
+            &hir.export,
+            &hir.local,
+            &hir.native_boundary_types,
+        )
+        .map_err(CoreBootstrapHirStageError::Foundation)?;
         let production_section =
             scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
                 .map_err(CoreBootstrapHirStageError::ProductionSection)?;
         Ok(TrustedCoreBootstrapHirOutput {
             hir,
+            foundation,
             production_section,
         })
     }
@@ -474,6 +481,7 @@ impl<'a> TrustedCoreBootstrapHirInput<'a> {
 /// and both are derived during the same successful stage.
 pub struct TrustedCoreBootstrapHirOutput {
     hir: scoop_hir::Output,
+    foundation: scoop_hir::CanonicalHirFoundation,
     production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
 }
 
@@ -484,6 +492,10 @@ impl TrustedCoreBootstrapHirOutput {
 
     pub const fn output_kind(&self) -> &scoop_hir::ConeOutputKind {
         self.hir.output_kind()
+    }
+
+    pub const fn foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
+        &self.foundation
     }
 
     pub const fn production_section(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
@@ -656,6 +668,7 @@ impl std::error::Error for CoreBootstrapMirStageError {
 #[derive(Debug)]
 pub enum CoreBootstrapHirStageError {
     Lowering(Vec<scoop_ast::Diagnostic>),
+    Foundation(scoop_hir::HirFoundationBuildError),
     ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
 }
 
@@ -667,6 +680,7 @@ impl fmt::Display for CoreBootstrapHirStageError {
                 "trusted core HIR lowering failed with {} diagnostic(s)",
                 diagnostics.len()
             ),
+            Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
         }
     }
@@ -676,6 +690,7 @@ impl std::error::Error for CoreBootstrapHirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Lowering(_) => None,
+            Self::Foundation(source) => Some(source),
             Self::ProductionSection(source) => Some(source),
         }
     }
@@ -1039,6 +1054,15 @@ mod tests {
             output.production_section().core_interface(),
             scoop_hir::CoreHirInterfaceBranchV1::Core(_)
         ));
+        assert_eq!(
+            output.foundation(),
+            &scoop_hir::CanonicalHirFoundation::from_modules(
+                &output.hir().export,
+                &output.hir().local,
+                &output.hir().native_boundary_types,
+            )
+            .unwrap()
+        );
         scoop_hir::CoreHirInterfaceV1::from_core_export(&output.hir().export).unwrap();
 
         let scoop_hir::CoreHirInterfaceBranchV1::Core(interface) =
