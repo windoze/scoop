@@ -1714,6 +1714,17 @@ requirement surface后计算唯一Code fingerprint。`CodeFingerprintedObjectPro
 LIR foundation、C-bridge profile、final members和拥有完整code proof的production manifest；provisional bytes、
 symbol plan及各中间proof全部被消费，不存在从临时路径或未finalize bytes直接打包的旧入口。
 
+最终archive只能由`SingleConeStrongArtifactInputV1`进入
+`AssembledSingleConeStrongArtifactV1::write`。该closed input一次性要求producer、typed Cone、精确direct
+dependency、三层`OdrFree*Foundation`、HIR/MIR production、上述production manifest与final LinkObject
+members；没有逐section追加或用裸payload替换的接口。writer从code proof内部派生target selection、strong
+production与Link identity closure，固定构造HIR两节、MIR两节、LIR三节和唯一manifest production section，
+再从同一section集合计算三层semantic fingerprint并以production manifest补齐Code/RuntimeImage fingerprint。
+输入LinkObject的数量、顺序、member id与link-member fingerprint必须逐项回等code proof，LIR foundation及
+code producer必须等于Cone identity。成功状态只暴露canonical final bytes、ArtifactFingerprint与用于发布的
+target selection；不存在foundation writer升级、手工`BootstrapManifest`拼装或漏过Link closure的production
+分支。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。

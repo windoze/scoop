@@ -12,7 +12,7 @@ use scoop_lir::{
     StrongExternalLirBridgeSurfaceV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
     StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
-use scoop_wire::{DecodeLimits, encode};
+use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -692,6 +692,42 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
         link_member
     };
 
+    if !corrupt_final_image_digest {
+        let hir_proof = scoop_hir::OdrFreeHirFoundation::try_new(hir_foundation).unwrap();
+        let mir_proof = scoop_mir::OdrFreeMirFoundation::try_new(mir_foundation).unwrap();
+        let hir_production = decode_canonical::<scoop_hir::DecodedCoreBootstrapInterfaceSectionV1>(
+            &empty_not_core_library_section(),
+            DecodeLimits::default(),
+        )
+        .unwrap()
+        .validate_against_strong_foundation(cone().identity(), &hir_proof)
+        .unwrap();
+        let mir_production = scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
+            cone().identity(),
+            scoop_mir::CoreMirBridgeBranchV1::NotCore,
+            scoop_mir::EntryMirBridgeBranchV1::Library,
+            scoop_mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&mir_proof),
+        )
+        .unwrap();
+        return crate::AssembledSingleConeStrongArtifactV1::write(
+            crate::SingleConeStrongArtifactInputV1::new(
+                ProducerRecord::new("test").unwrap(),
+                cone(),
+                dependencies,
+                &hir_proof,
+                &hir_production,
+                &mir_proof,
+                &mir_production,
+                &lir_proof,
+                production_manifest,
+                vec![link_member],
+            ),
+        )
+        .unwrap()
+        .as_bytes()
+        .to_vec();
+    }
+
     let hir_sections = vec![
         MetadataSection::new(
             MetadataLocation::Hir,
@@ -808,6 +844,11 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
         .unwrap()
         .as_bytes()
         .to_vec()
+}
+
+#[test]
+fn strong_artifact_writer_is_byte_reproducible() {
+    assert_eq!(complete_artifact(false), complete_artifact(false));
 }
 
 fn build_artifact(
