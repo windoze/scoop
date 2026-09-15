@@ -37,6 +37,111 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
             production_section,
         })
     }
+
+    /// Runs the only ordinary single-Cone production path and atomically
+    /// publishes its independently revalidated `.slib` artifact.
+    pub fn build_and_publish(
+        self,
+        temporary_parent: &Path,
+        limits: DecodeLimits,
+    ) -> Result<scoop_slib::PublishedSingleConeArtifact, OrdinaryConeProductionError> {
+        let cone = match self.request.current() {
+            ValidatedCurrentConeInput::Manifest { manifest, .. } => {
+                let semantic = manifest.parsed().semantic();
+                let kind = match semantic.requested_kind() {
+                    scoop_identity::RequestedConeKind::Library => scoop_slib::ConeKind::Library,
+                    scoop_identity::RequestedConeKind::Executable => {
+                        scoop_slib::ConeKind::Executable
+                    }
+                };
+                scoop_slib::ConeRecord::new(
+                    semantic.coordinate().clone(),
+                    kind,
+                    scoop_slib::ConeSourceForm::Manifest,
+                )
+                .map_err(OrdinaryConeProductionError::Cone)?
+            }
+            ValidatedCurrentConeInput::SingleFile { .. } => scoop_slib::ConeRecord::new(
+                ConeCoordinate::reserved_single_file(),
+                scoop_slib::ConeKind::Executable,
+                scoop_slib::ConeSourceForm::SingleFile,
+            )
+            .map_err(OrdinaryConeProductionError::Cone)?,
+            ValidatedCurrentConeInput::TrustedCoreBootstrap { .. } => {
+                panic!("an ordinary parsed request cannot contain trusted-core bootstrap input")
+            }
+        };
+        let producer =
+            scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
+                .map_err(OrdinaryConeProductionError::Producer)?;
+        let artifact = self
+            .lower_hir()
+            .map_err(OrdinaryConeProductionError::Hir)?
+            .lower_mir()
+            .map_err(OrdinaryConeProductionError::Mir)?
+            .lower_lir()
+            .map_err(OrdinaryConeProductionError::Lir)?
+            .seal_strong_profile()
+            .map_err(OrdinaryConeProductionError::StrongProfile)?
+            .produce_artifact(
+                producer,
+                cone,
+                Vec::new(),
+                temporary_parent,
+                self.request.target(),
+                self.trusted_core.defined_symbols(),
+            )
+            .map_err(OrdinaryConeProductionError::Artifact)?;
+        artifact
+            .publish(
+                self.request.output().as_path(),
+                limits,
+                self.trusted_core.defined_symbols(),
+            )
+            .map_err(OrdinaryConeProductionError::Publication)
+    }
+}
+
+#[derive(Debug)]
+pub enum OrdinaryConeProductionError {
+    Hir(OrdinaryConeHirStageError),
+    Mir(OrdinaryConeMirStageError),
+    Lir(OrdinaryConeLirStageError),
+    StrongProfile(OrdinaryConeStrongProfileError),
+    Producer(scoop_slib::ProducerRecordError),
+    Cone(scoop_slib::ConeRecordError),
+    Artifact(crate::StrongIrArtifactProductionError),
+    Publication(crate::StrongArtifactProductionError),
+}
+
+impl fmt::Display for OrdinaryConeProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Hir(source) => source.fmt(formatter),
+            Self::Mir(source) => source.fmt(formatter),
+            Self::Lir(source) => source.fmt(formatter),
+            Self::StrongProfile(source) => source.fmt(formatter),
+            Self::Producer(source) => source.fmt(formatter),
+            Self::Cone(source) => source.fmt(formatter),
+            Self::Artifact(source) => source.fmt(formatter),
+            Self::Publication(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for OrdinaryConeProductionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Hir(source) => source,
+            Self::Mir(source) => source,
+            Self::Lir(source) => source,
+            Self::StrongProfile(source) => source,
+            Self::Producer(source) => source,
+            Self::Cone(source) => source,
+            Self::Artifact(source) => source,
+            Self::Publication(source) => source,
+        })
+    }
 }
 
 /// Atomic ordinary HIR product whose imported uses remain borrowed from the

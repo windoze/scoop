@@ -26,7 +26,7 @@ mod ordinary;
 pub use ordinary::{
     OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput,
     OrdinaryConeLirStageError, OrdinaryConeMirOutput, OrdinaryConeMirStageError,
-    OrdinaryConeStrongProfileError,
+    OrdinaryConeProductionError, OrdinaryConeStrongProfileError,
 };
 
 /// The complete dependency input set supported by M23-3.
@@ -1631,6 +1631,7 @@ mod tests {
             target.lir_target_selection(),
         )
         .unwrap();
+        let ordinary_artifact_path = sysroot.path().join("ordinary.slib");
         let ordinary_request = SingleConeBuildRequest::new(
             CurrentConeInput::SingleFile {
                 source: SingleFileLocator::from_path(&ordinary_source).unwrap(),
@@ -1638,7 +1639,7 @@ mod tests {
             ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
             TrustedCoreInput::Artifact(core_slot.existing_artifact_input().unwrap()),
             target,
-            SlibOutputDestination::new(sysroot.path().join("ordinary.slib")).unwrap(),
+            SlibOutputDestination::new(&ordinary_artifact_path).unwrap(),
             DiagnosticOutputPolicy::Human,
             StageDumpPolicy::None,
         )
@@ -1651,35 +1652,25 @@ mod tests {
         let ParsedSingleConeBuildRequest::Ordinary(ordinary_parsed) = ordinary_parsed else {
             panic!("the single-file request retains its ordinary branch")
         };
-        let ordinary_strong = ordinary_parsed
-            .lower_hir()
-            .unwrap()
-            .lower_mir()
-            .unwrap()
-            .lower_lir()
-            .unwrap()
-            .seal_strong_profile()
+        let ordinary_published = ordinary_parsed
+            .build_and_publish(
+                &sysroot.path().join("ordinary-temporary"),
+                DecodeLimits::default(),
+            )
             .unwrap();
 
+        assert_eq!(ordinary_published.path(), ordinary_artifact_path);
         assert_eq!(
-            ordinary_strong.lir_output().module().cone,
-            scoop_identity::ConeIdentity::SINGLE_FILE
+            ordinary_published.validation().coordinate(),
+            &ConeCoordinate::reserved_single_file()
         );
-        assert!(matches!(
-            ordinary_strong.hir_production().core_interface(),
-            scoop_hir::CoreHirInterfaceBranchV1::NotCore
-        ));
-        assert!(matches!(
-            ordinary_strong.mir_production().core_bridge(),
-            scoop_mir::CoreMirBridgeBranchV1::NotCore
-        ));
-        assert!(
-            ordinary_strong
-                .lir_output()
-                .module()
-                .meta
-                .core_external_callables
-                .is_empty()
+        assert_eq!(
+            ordinary_published.validation().kind(),
+            scoop_slib::ConeKind::Executable
+        );
+        assert_eq!(
+            ordinary_published.validation().source_form(),
+            scoop_slib::ConeSourceForm::SingleFile
         );
     }
 
