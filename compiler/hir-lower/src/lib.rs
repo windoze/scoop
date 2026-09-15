@@ -444,9 +444,8 @@ fn finish_output(
             unreachable!("the core HIR production section carries its core interface")
         };
         concretize::lower_core_output(&export, &interface.shape_support_requirements())
-            .map_err(concretization_diagnostic)?
     } else {
-        concretize::lower_output(&export).map_err(concretization_diagnostic)?
+        concretize::lower_output(&export)
     };
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module())
@@ -462,10 +461,6 @@ fn finish_output(
 fn native_boundary_diagnostic(
     error: persistent_native_boundary::PersistentNativeBoundaryTypeError,
 ) -> Vec<Diagnostic> {
-    vec![Diagnostic::at(Span { start: 0, end: 0 }, error.to_string())]
-}
-
-fn concretization_diagnostic(error: concretize::DefinedCoreConcretizationError) -> Vec<Diagnostic> {
     vec![Diagnostic::at(Span { start: 0, end: 0 }, error.to_string())]
 }
 
@@ -546,21 +541,15 @@ pub(crate) struct SourceFunctionDeclaration {
 /// Convert an already checked export-side graph into the local concrete graph.
 /// Kept public so stage-boundary tests can feed handcrafted checked HIR through
 /// the same fixed-point pass as the production pipeline.
-pub fn concretize_export(
-    export: &hir::ExportHir,
-) -> Result<hir::LocalConcreteHir, DefinedCoreConcretizationError> {
+pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
     concretize::lower(export)
 }
 
 /// Concretize a checked, output-sealed Export HIR graph while translating the
 /// output branch into the LocalConcrete HIR id domain.
-pub fn concretize_output(
-    export: &hir::ExportHirOutput,
-) -> Result<hir::LocalConcreteHirOutput, DefinedCoreConcretizationError> {
+pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHirOutput {
     concretize::lower_output(export)
 }
-
-pub use concretize::DefinedCoreConcretizationError;
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {

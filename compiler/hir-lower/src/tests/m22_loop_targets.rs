@@ -211,8 +211,7 @@ fn concretization_rebinds_setup_and_body_jumps_to_its_fresh_target() {
         span: sp(),
     });
 
-    let concrete =
-        concretize_export(&export).expect("test Export HIR carries locally defined core protocols");
+    let concrete = concretize_export(&export);
     let hir::concrete::StatementKind::While {
         target,
         condition_setup,
@@ -270,8 +269,7 @@ fn concretization_rejects_a_non_innermost_loop_target() {
         span: sp(),
     });
 
-    let _ =
-        concretize_export(&export).expect("test Export HIR carries locally defined core protocols");
+    let _ = concretize_export(&export);
 }
 
 #[test]

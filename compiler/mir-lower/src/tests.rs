@@ -49,8 +49,7 @@ impl TestExecutableEntry for hir::LocalConcreteHirOutput {
 }
 
 fn lower(module: &hir::ExportHirOutput) -> mir::Module {
-    let concrete = scoop_hir_lower::concretize_output(module)
-        .expect("test Export HIR carries locally defined core protocols");
+    let concrete = scoop_hir_lower::concretize_output(module);
     let mut module = super::lower(&concrete)
         .expect("test LocalConcrete HIR carries locally defined core protocols");
     // Handcrafted unit modules use hidden, valid exception shells to satisfy

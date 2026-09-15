@@ -664,8 +664,7 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
         );
 
     let export = executable_output(export, entry);
-    let concrete = scoop_hir_lower::concretize_output(&export)
-        .expect("test Export HIR carries locally defined core protocols");
+    let concrete = scoop_hir_lower::concretize_output(&export);
     let concrete_refs = ["noneInt", "noneString"].map(|name| {
         let global = concrete
             .globals

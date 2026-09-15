@@ -29,48 +29,38 @@ use constructor_slots::{
 };
 use functions::PendingFunction;
 
-pub(crate) fn lower(
-    module: &export::Module,
-) -> Result<concrete::Module, DefinedCoreConcretizationError> {
-    let export::CoreProtocols::Defined(protocols) = &module.core_protocols else {
-        return Err(DefinedCoreConcretizationError::ImportedProtocols);
-    };
+pub(crate) fn lower(module: &export::Module) -> concrete::Module {
     export::validate_iteration_plans(module)
         .expect("Export HIR iteration plans must pass the complete reader boundary validator");
-    Ok(Concretizer::new(module, protocols).run())
+    Concretizer::new(module).run()
 }
 
-pub(crate) fn lower_output(
-    output: &export::ExportHirOutput,
-) -> Result<export::LocalConcreteHirOutput, DefinedCoreConcretizationError> {
+pub(crate) fn lower_output(output: &export::ExportHirOutput) -> export::LocalConcreteHirOutput {
     lower_output_with_contract(output, None)
 }
 
 pub(crate) fn lower_core_output(
     output: &export::ExportHirOutput,
     requirements: &export::CoreShapeSupportRequirementsV1,
-) -> Result<export::LocalConcreteHirOutput, DefinedCoreConcretizationError> {
+) -> export::LocalConcreteHirOutput {
     lower_output_with_contract(output, Some(requirements))
 }
 
 fn lower_output_with_contract(
     output: &export::ExportHirOutput,
     requirements: Option<&export::CoreShapeSupportRequirementsV1>,
-) -> Result<export::LocalConcreteHirOutput, DefinedCoreConcretizationError> {
+) -> export::LocalConcreteHirOutput {
     let module = output.module();
-    let export::CoreProtocols::Defined(protocols) = &module.core_protocols else {
-        return Err(DefinedCoreConcretizationError::ImportedProtocols);
-    };
     export::validate_iteration_plans(module)
         .expect("Export HIR iteration plans must pass the complete reader boundary validator");
     let (module, output_kind) = match output.output_kind() {
         export::ConeOutputKind::Library => (
-            Concretizer::new(module, protocols).run(),
+            Concretizer::new(module).run(),
             export::LocalConeOutputKind::Library,
         ),
         export::ConeOutputKind::Executable { local_entry } => {
-            let (module, entry) = Concretizer::new(module, protocols)
-                .run_with_entry(local_entry.local_function().function());
+            let (module, entry) =
+                Concretizer::new(module).run_with_entry(local_entry.local_function().function());
             let entry = export::ConcreteExecutableEntry::try_new(&module, local_entry, entry)
                 .expect("concretization preserves the validated executable entry");
             (
@@ -90,24 +80,24 @@ fn lower_output_with_contract(
             )
         },
     );
-    Ok(
-        export::LocalConcreteHirOutput::try_new(module, output_kind, materialization)
-            .expect("concretization produces a structurally valid closed output"),
-    )
+    export::LocalConcreteHirOutput::try_new(module, output_kind, materialization)
+        .expect("concretization produces a structurally valid closed output")
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefinedCoreConcretizationError {
-    ImportedProtocols,
+#[derive(Clone, Copy)]
+enum CoreConcretizationAuthority<'a> {
+    Defined(&'a export::DefinedCoreProtocols),
+    Imported(&'a export::ImportedCoreProtocols),
 }
 
-impl std::fmt::Display for DefinedCoreConcretizationError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("defined-core concretization cannot consume imported core protocols")
+impl<'a> CoreConcretizationAuthority<'a> {
+    fn from_module(module: &'a export::Module) -> Self {
+        match &module.core_protocols {
+            export::CoreProtocols::Defined(protocols) => Self::Defined(protocols),
+            export::CoreProtocols::Imported(protocols) => Self::Imported(protocols),
+        }
     }
 }
-
-impl std::error::Error for DefinedCoreConcretizationError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum FunctionKey {
@@ -147,7 +137,7 @@ impl FunctionKey {
 
 struct Concretizer<'a> {
     source: &'a export::Module,
-    protocols: &'a export::DefinedCoreProtocols,
+    core: CoreConcretizationAuthority<'a>,
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
@@ -285,7 +275,7 @@ impl<'a> Concretizer<'a> {
         format!("{prefix}.{name}")
     }
 
-    fn new(source: &'a export::Module, protocols: &'a export::DefinedCoreProtocols) -> Self {
+    fn new(source: &'a export::Module) -> Self {
         let object_by_backing_class = source
             .objects
             .iter()
@@ -313,7 +303,7 @@ impl<'a> Concretizer<'a> {
             .collect();
         Self {
             source,
-            protocols,
+            core: CoreConcretizationAuthority::from_module(source),
             types: Arena::new(),
             type_by_kind: HashMap::new(),
             function_types: Arena::new(),
@@ -395,12 +385,27 @@ impl<'a> Concretizer<'a> {
 
     fn run_with<Extra>(mut self, finish: impl FnOnce(&Self) -> Extra) -> (concrete::Module, Extra) {
         let unit = self.lower_type(self.source.unit, &[]);
-        for kind in export::IntegerKind::ALL {
-            let owner = self.protocols.fundamental_types.integers.owner(kind);
-            let source_type = self.source.struct_applications
-                [self.source.structs[owner].self_application]
-                .canonical_type;
-            self.lower_type(source_type, &[]);
+        match self.core {
+            CoreConcretizationAuthority::Defined(protocols) => {
+                for kind in export::IntegerKind::ALL {
+                    let owner = protocols.fundamental_types.integers.owner(kind);
+                    let source_type = self.source.struct_applications
+                        [self.source.structs[owner].self_application]
+                        .canonical_type;
+                    self.lower_type(source_type, &[]);
+                }
+            }
+            CoreConcretizationAuthority::Imported(_) => {
+                let integer_types = self
+                    .source
+                    .types
+                    .iter()
+                    .filter_map(|(id, ty)| matches!(ty, export::Type::Integer(_)).then_some(id))
+                    .collect::<Vec<_>>();
+                for ty in integer_types {
+                    self.lower_type(ty, &[]);
+                }
+            }
         }
         let boolean = self.lower_type(self.source.boolean, &[]);
         let string = self.lower_type(self.source.string, &[]);
@@ -526,56 +531,6 @@ impl<'a> Concretizer<'a> {
             self.request_function(function, arguments);
         }
         self.drain_pending_functions();
-        let coroutine_protocols = self.build_coroutine_protocols();
-        self.drain_pending_functions();
-        let source_callback_core = self.protocols.foreign_callbacks;
-        let callback_reusable =
-            self.lower_applied_enum_variant_ref(source_callback_core.modes.reusable(), &[]);
-        let callback_one_shot =
-            self.lower_applied_enum_variant_ref(source_callback_core.modes.one_shot(), &[]);
-        let callback_modes = concrete::ForeignCallbackModes::checked(
-            &self.enums,
-            callback_reusable,
-            callback_one_shot,
-        )
-        .expect("the validated foreign callback mode protocol survives concretization");
-        let callback_registered =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.registered(), &[]);
-        let callback_active =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.active(), &[]);
-        let callback_completed =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.completed(), &[]);
-        let callback_failed =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.failed(), &[]);
-        let callback_states = concrete::ForeignCallbackStates::checked(
-            &self.enums,
-            callback_registered,
-            callback_active,
-            callback_completed,
-            callback_failed,
-        )
-        .expect("the validated foreign callback state protocol survives concretization");
-        let callback_failure_some = self.lower_applied_enum_variant_field_ref(
-            source_callback_core.failure_result.some_payload(),
-            &[],
-        );
-        let callback_failure_none =
-            self.lower_applied_enum_variant_ref(source_callback_core.failure_result.none(), &[]);
-        let callback_failure_option = concrete::OptionCore::checked(
-            &self.enums,
-            callback_failure_some,
-            callback_failure_none,
-        )
-        .expect("the validated foreign callback failure protocol survives concretization");
-        let callback_throwable =
-            self.class_by_key[&(self.protocols.exceptions.throwable.class(), Vec::new())];
-        let callback_failure_result = concrete::ForeignCallbackFailureResult::checked(
-            &self.enums,
-            &self.types,
-            callback_failure_option,
-            callback_throwable,
-        )
-        .expect("foreign callback failure remains the exact Option<Throwable> specialization");
 
         for (source_id, source) in self.source.initialization_failure_roots.iter() {
             let id = self
@@ -640,64 +595,23 @@ impl<'a> Concretizer<'a> {
             assert_eq!(source_id.into_raw(), id.into_raw());
         }
 
-        let intrinsic_type_core = concrete::IntrinsicTypeCore {
-            integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
-                self.struct_by_key[&(
-                    self.protocols.fundamental_types.integers.owner(kind),
-                    Vec::new(),
-                )]
-            }))
-            .expect("validated integer owners remain distinct after concretization"),
-            boolean: self.struct_by_key[&(self.protocols.fundamental_types.boolean, Vec::new())],
-            string: self.class_by_key[&(self.protocols.fundamental_types.string, Vec::new())],
+        let core_protocols = match self.core {
+            CoreConcretizationAuthority::Defined(protocols) => {
+                self.lower_defined_core_protocols(protocols)
+            }
+            CoreConcretizationAuthority::Imported(protocols) => {
+                concrete::ConcreteCoreProtocols::Imported(Box::new(protocols.clone()))
+            }
         };
-
         let extra = finish(&self);
-        let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
-            constructor: {
-                let class = self.class_by_key[&(exception.class(), Vec::new())];
-                concrete::ZeroArgClassConstructor {
-                    class,
-                    callable: self.class_constructor_by_key[&(exception.callable(), class)],
-                }
-            },
+        let core_types = match &core_protocols {
+            concrete::ConcreteCoreProtocols::Defined(protocols) => {
+                concrete::ConcreteCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)
+            }
+            concrete::ConcreteCoreProtocols::Imported(protocols) => {
+                concrete::ConcreteCoreTypeIdentityAuthority::Imported(protocols.fundamental_types())
+            }
         };
-        let source_exception_core = self.protocols.exceptions;
-        let message_constructor = source_exception_core.illegal_state_message_constructor;
-        let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
-        let source_option_core = self.protocols.option;
-        let option_core = self
-            .enums
-            .iter()
-            .filter(|(enumeration, _)| {
-                self.enum_source[enumeration] == source_option_core.enumeration()
-            })
-            .map(|(enumeration, _)| {
-                let some = concrete::EnumVariantRef::checked(
-                    &self.enums,
-                    enumeration,
-                    concrete::VariantId::from_raw(
-                        source_option_core.some_payload().variant().local_index(),
-                    ),
-                )
-                .expect("a concrete Option specialization retains its Some variant");
-                let some_payload = concrete::EnumVariantFieldRef::checked(
-                    &self.enums,
-                    some,
-                    source_option_core.some_payload().local_index(),
-                )
-                .expect("a concrete Option specialization retains its Some payload identity");
-                let none = concrete::EnumVariantRef::checked(
-                    &self.enums,
-                    enumeration,
-                    concrete::VariantId::from_raw(source_option_core.none().local_index()),
-                )
-                .expect("a concrete Option specialization retains its None variant");
-                concrete::OptionCore::checked(&self.enums, some_payload, none)
-                    .expect("the validated Option shape survives concretization")
-            })
-            .collect();
-
         let exact_type_identities =
             concrete::ExactTypeIdentities::from_types(concrete::ExactTypeIdentityInputs {
                 types: &self.types,
@@ -707,9 +621,7 @@ impl<'a> Concretizer<'a> {
                 classes: &self.classes,
                 interfaces: &self.interfaces,
                 objects: &self.objects,
-                core_types: concrete::ConcreteCoreTypeIdentityAuthority::Defined(
-                    &intrinsic_type_core,
-                ),
+                core_types,
             })
             .expect("validated concretization produces a total exact-type identity relation");
         let dispatch_slot_identities = self.build_dispatch_slot_identities();
@@ -785,41 +697,148 @@ impl<'a> Concretizer<'a> {
             unit,
             boolean,
             string,
-            core_protocols: concrete::ConcreteCoreProtocols::Defined(Box::new(
-                concrete::DefinedConcreteCoreProtocols {
-                    option: option_core,
-                    exceptions: concrete::CompilerExceptionCore {
-                        throwable: lower_exception(source_exception_core.throwable),
-                        unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
-                        class_cast_exception: lower_exception(
-                            source_exception_core.class_cast_exception,
-                        ),
-                        arithmetic_exception: lower_exception(
-                            source_exception_core.arithmetic_exception,
-                        ),
-                        index_out_of_bounds_exception: lower_exception(
-                            source_exception_core.index_out_of_bounds_exception,
-                        ),
-                        illegal_state_exception: lower_exception(
-                            source_exception_core.illegal_state_exception,
-                        ),
-                        illegal_state_message_constructor: concrete::MessageClassConstructor {
-                            class: message_class,
-                            callable: self.class_constructor_by_key
-                                [&(message_constructor.constructor, message_class)],
-                        },
-                    },
-                    coroutines: coroutine_protocols,
-                    foreign_callbacks: concrete::ForeignCallbackCore {
-                        modes: callback_modes,
-                        states: callback_states,
-                        failure_result: callback_failure_result,
-                    },
-                    fundamental_types: intrinsic_type_core,
-                },
-            )),
+            core_protocols,
         };
         (module, extra)
+    }
+
+    fn lower_defined_core_protocols(
+        &mut self,
+        protocols: &export::DefinedCoreProtocols,
+    ) -> concrete::ConcreteCoreProtocols {
+        let coroutine_protocols = self.build_coroutine_protocols(protocols.coroutines);
+        self.drain_pending_functions();
+
+        let source_callback_core = protocols.foreign_callbacks;
+        let callback_reusable =
+            self.lower_applied_enum_variant_ref(source_callback_core.modes.reusable(), &[]);
+        let callback_one_shot =
+            self.lower_applied_enum_variant_ref(source_callback_core.modes.one_shot(), &[]);
+        let callback_modes = concrete::ForeignCallbackModes::checked(
+            &self.enums,
+            callback_reusable,
+            callback_one_shot,
+        )
+        .expect("the validated foreign callback mode protocol survives concretization");
+        let callback_registered =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.registered(), &[]);
+        let callback_active =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.active(), &[]);
+        let callback_completed =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.completed(), &[]);
+        let callback_failed =
+            self.lower_applied_enum_variant_ref(source_callback_core.states.failed(), &[]);
+        let callback_states = concrete::ForeignCallbackStates::checked(
+            &self.enums,
+            callback_registered,
+            callback_active,
+            callback_completed,
+            callback_failed,
+        )
+        .expect("the validated foreign callback state protocol survives concretization");
+        let callback_failure_some = self.lower_applied_enum_variant_field_ref(
+            source_callback_core.failure_result.some_payload(),
+            &[],
+        );
+        let callback_failure_none =
+            self.lower_applied_enum_variant_ref(source_callback_core.failure_result.none(), &[]);
+        let callback_failure_option = concrete::OptionCore::checked(
+            &self.enums,
+            callback_failure_some,
+            callback_failure_none,
+        )
+        .expect("the validated foreign callback failure protocol survives concretization");
+        let callback_throwable =
+            self.class_by_key[&(protocols.exceptions.throwable.class(), Vec::new())];
+        let callback_failure_result = concrete::ForeignCallbackFailureResult::checked(
+            &self.enums,
+            &self.types,
+            callback_failure_option,
+            callback_throwable,
+        )
+        .expect("foreign callback failure remains the exact Option<Throwable> specialization");
+
+        let fundamental_types = concrete::IntrinsicTypeCore {
+            integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
+                self.struct_by_key[&(protocols.fundamental_types.integers.owner(kind), Vec::new())]
+            }))
+            .expect("validated integer owners remain distinct after concretization"),
+            boolean: self.struct_by_key[&(protocols.fundamental_types.boolean, Vec::new())],
+            string: self.class_by_key[&(protocols.fundamental_types.string, Vec::new())],
+        };
+
+        let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
+            constructor: {
+                let class = self.class_by_key[&(exception.class(), Vec::new())];
+                concrete::ZeroArgClassConstructor {
+                    class,
+                    callable: self.class_constructor_by_key[&(exception.callable(), class)],
+                }
+            },
+        };
+        let source_exception_core = protocols.exceptions;
+        let message_constructor = source_exception_core.illegal_state_message_constructor;
+        let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
+        let source_option_core = protocols.option;
+        let option = self
+            .enums
+            .iter()
+            .filter(|(enumeration, _)| {
+                self.enum_source[enumeration] == source_option_core.enumeration()
+            })
+            .map(|(enumeration, _)| {
+                let some = concrete::EnumVariantRef::checked(
+                    &self.enums,
+                    enumeration,
+                    concrete::VariantId::from_raw(
+                        source_option_core.some_payload().variant().local_index(),
+                    ),
+                )
+                .expect("a concrete Option specialization retains its Some variant");
+                let some_payload = concrete::EnumVariantFieldRef::checked(
+                    &self.enums,
+                    some,
+                    source_option_core.some_payload().local_index(),
+                )
+                .expect("a concrete Option specialization retains its Some payload identity");
+                let none = concrete::EnumVariantRef::checked(
+                    &self.enums,
+                    enumeration,
+                    concrete::VariantId::from_raw(source_option_core.none().local_index()),
+                )
+                .expect("a concrete Option specialization retains its None variant");
+                concrete::OptionCore::checked(&self.enums, some_payload, none)
+                    .expect("the validated Option shape survives concretization")
+            })
+            .collect();
+
+        concrete::ConcreteCoreProtocols::Defined(Box::new(concrete::DefinedConcreteCoreProtocols {
+            option,
+            exceptions: concrete::CompilerExceptionCore {
+                throwable: lower_exception(source_exception_core.throwable),
+                unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
+                class_cast_exception: lower_exception(source_exception_core.class_cast_exception),
+                arithmetic_exception: lower_exception(source_exception_core.arithmetic_exception),
+                index_out_of_bounds_exception: lower_exception(
+                    source_exception_core.index_out_of_bounds_exception,
+                ),
+                illegal_state_exception: lower_exception(
+                    source_exception_core.illegal_state_exception,
+                ),
+                illegal_state_message_constructor: concrete::MessageClassConstructor {
+                    class: message_class,
+                    callable: self.class_constructor_by_key
+                        [&(message_constructor.constructor, message_class)],
+                },
+            },
+            coroutines: coroutine_protocols,
+            foreign_callbacks: concrete::ForeignCallbackCore {
+                modes: callback_modes,
+                states: callback_states,
+                failure_result: callback_failure_result,
+            },
+            fundamental_types,
+        }))
     }
 
     fn drain_pending_functions(&mut self) {
@@ -830,8 +849,10 @@ impl<'a> Concretizer<'a> {
         }
     }
 
-    fn build_coroutine_protocols(&mut self) -> Vec<concrete::CoroutineProtocol> {
-        let core = self.protocols.coroutines;
+    fn build_coroutine_protocols(
+        &mut self,
+        core: export::CoroutineCore,
+    ) -> Vec<concrete::CoroutineProtocol> {
         let mut protocols = Vec::new();
         loop {
             self.drain_pending_functions();

@@ -53,7 +53,12 @@ impl Concretizer<'_> {
                 concrete::StatementKind::Expr(self.lower_expr(expr, substitution, locals))
             }
             export::StatementKind::InitializationEnsure(unit) => {
-                let source = self.protocols.exceptions.illegal_state_message_constructor;
+                let CoreConcretizationAuthority::Defined(protocols) = self.core else {
+                    panic!(
+                        "imported-core HIR must encode initialization failure as an imported target"
+                    )
+                };
+                let source = protocols.exceptions.illegal_state_message_constructor;
                 let class = self.class_by_key[&(source.class, Vec::new())];
                 concrete::StatementKind::InitializationEnsure {
                     unit: concrete::InitializationUnitId::from_raw(unit.into_raw()),

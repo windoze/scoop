@@ -6,11 +6,18 @@ impl Concretizer<'_> {
         kind: export::IntegerKind,
         substitution: &[concrete::TypeId],
     ) -> concrete::TypeId {
-        let owner = self.protocols.fundamental_types.integers.owner(kind);
-        let source_type = self.source.struct_applications
-            [self.source.structs[owner].self_application]
-            .canonical_type;
-        self.lower_type(source_type, substitution)
+        match self.core {
+            CoreConcretizationAuthority::Defined(protocols) => {
+                let owner = protocols.fundamental_types.integers.owner(kind);
+                let source_type = self.source.struct_applications
+                    [self.source.structs[owner].self_application]
+                    .canonical_type;
+                self.lower_type(source_type, substitution)
+            }
+            CoreConcretizationAuthority::Imported(_) => {
+                self.intern_type(concrete::TypeKind::Integer(kind), true)
+            }
+        }
     }
 
     pub(super) fn lower_struct_application(
@@ -143,7 +150,11 @@ impl Concretizer<'_> {
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
             export::Type::Struct(application) => {
                 let value = self.source.struct_applications[application].clone();
-                if value.template == self.protocols.ffi.fun_ptr {
+                if matches!(
+                    self.core,
+                    CoreConcretizationAuthority::Defined(protocols)
+                        if value.template == protocols.ffi.fun_ptr
+                ) {
                     let [function] = value.arguments.as_slice() else {
                         panic!("validated deferred FunPtr has one argument")
                     };

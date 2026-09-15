@@ -38,21 +38,30 @@ impl Concretizer<'_> {
         let required_interface = self.lower_interface_application(interface_bound, substitution);
         match self.types[receiver].kind.clone() {
             concrete::TypeKind::Integer(kind) => {
-                let source = self.protocols.fundamental_types.integers.owner(kind);
+                let CoreConcretizationAuthority::Defined(protocols) = self.core else {
+                    panic!("imported-core HIR must encode core bound calls as imported uses")
+                };
+                let source = protocols.fundamental_types.integers.owner(kind);
                 let conformances = self.source.structs[source]
                     .interface_implementations
                     .clone();
                 self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
             }
             concrete::TypeKind::Boolean => {
-                let source = self.protocols.fundamental_types.boolean;
+                let CoreConcretizationAuthority::Defined(protocols) = self.core else {
+                    panic!("imported-core HIR must encode Boolean bound calls as imported uses")
+                };
+                let source = protocols.fundamental_types.boolean;
                 let conformances = self.source.structs[source]
                     .interface_implementations
                     .clone();
                 self.resolve_nominal_bound_target(&conformances, &[], member, required_interface)
             }
             concrete::TypeKind::String => {
-                let source = self.protocols.fundamental_types.string;
+                let CoreConcretizationAuthority::Defined(protocols) = self.core else {
+                    panic!("imported-core HIR must encode String bound calls as imported uses")
+                };
+                let source = protocols.fundamental_types.string;
                 let conformances = self.source.classes[source]
                     .interface_implementations
                     .clone();
