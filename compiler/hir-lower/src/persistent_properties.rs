@@ -13,12 +13,12 @@ use crate::{Lowerer, Owner, namespace::TopLevelLookupLayer};
 pub(crate) fn build(
     lowerer: &Lowerer,
     nominals: &hir::HirNominalIdentities,
-    intrinsic_core: &hir::IntrinsicTypeCore,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirPropertyIdentities, PersistentPropertyIdentityError> {
     PropertyIdentityBuilder {
         lowerer,
         nominals,
-        type_mapper: SignatureTypeMapper::new(lowerer, nominals, intrinsic_core),
+        type_mapper: SignatureTypeMapper::new(lowerer, nominals, core_types),
     }
     .build()
 }

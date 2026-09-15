@@ -477,6 +477,7 @@ impl Lowerer {
             .expect("a missing or invalid source location core is always diagnosed");
         let foreign_callback_core = foreign_callback_core
             .expect("a missing or invalid foreign callback core protocol is always diagnosed");
+        let core_types = hir::HirCoreTypeIdentityAuthority::Defined(&intrinsic_type_core);
         let public_surface = self.public_semantic_surface();
         let nominal_identities = match crate::persistent_nominals::build(&self) {
             Ok(identities) => identities,
@@ -489,7 +490,7 @@ impl Lowerer {
         let type_identities = match crate::persistent_type_identities::build(
             &self,
             &nominal_identities,
-            &intrinsic_type_core,
+            core_types,
         ) {
             Ok(identities) => identities,
             Err(error) => {
@@ -501,7 +502,7 @@ impl Lowerer {
         let constructor_identities = match crate::persistent_constructor_identities::build(
             &self,
             &nominal_identities,
-            &intrinsic_type_core,
+            core_types,
         ) {
             Ok(identities) => identities,
             Err(error) => {
@@ -510,18 +511,15 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
-        let property_identities = match crate::persistent_properties::build(
-            &self,
-            &nominal_identities,
-            &intrinsic_type_core,
-        ) {
-            Ok(identities) => identities,
-            Err(error) => {
-                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
-                diagnostic.file = error.file();
-                return Err(vec![diagnostic]);
-            }
-        };
+        let property_identities =
+            match crate::persistent_properties::build(&self, &nominal_identities, core_types) {
+                Ok(identities) => identities,
+                Err(error) => {
+                    let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                    diagnostic.file = error.file();
+                    return Err(vec![diagnostic]);
+                }
+            };
         let property_accessor_identities =
             match crate::persistent_accessors::build(&self, &property_identities) {
                 Ok(identities) => identities,
@@ -588,7 +586,7 @@ impl Lowerer {
             &type_identities,
             &constructor_identities,
             &enum_member_identities,
-            &intrinsic_type_core,
+            core_types,
         ) {
             Ok(identities) => identities,
             Err(error) => {
@@ -605,7 +603,7 @@ impl Lowerer {
             &constructor_identities,
             &enum_member_identities,
             &function_identities,
-            &intrinsic_type_core,
+            core_types,
         ) {
             Ok(identities) => identities,
             Err(error) => {
@@ -669,7 +667,7 @@ impl Lowerer {
             &nominal_identities,
             &function_identities,
             &property_identities,
-            &intrinsic_type_core,
+            core_types,
         ) {
             Ok(contracts) => contracts,
             Err(error) => {

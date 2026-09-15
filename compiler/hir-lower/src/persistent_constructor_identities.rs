@@ -9,12 +9,12 @@ use crate::persistent_types::identity_inputs;
 pub(crate) fn build(
     lowerer: &Lowerer,
     nominals: &hir::HirNominalIdentities,
-    intrinsic_core: &hir::IntrinsicTypeCore,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirConstructorIdentities, PersistentConstructorIdentityError> {
     ConstructorIdentityBuilder {
         lowerer,
         nominals,
-        type_inputs: identity_inputs(lowerer, nominals, intrinsic_core),
+        type_inputs: identity_inputs(lowerer, nominals, core_types),
         class_identities: vec![None; lowerer.class_constructors.len()],
         visiting: vec![false; lowerer.class_constructors.len()],
     }

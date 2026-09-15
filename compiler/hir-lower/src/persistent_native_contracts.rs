@@ -9,7 +9,7 @@ pub(crate) fn build(
     nominal_identities: &hir::HirNominalIdentities,
     function_identities: &hir::HirFunctionIdentities,
     property_identities: &hir::HirPropertyIdentities,
-    intrinsic_core: &hir::IntrinsicTypeCore,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirSourceNativeContracts, PersistentSourceNativeContractError> {
     hir::HirSourceNativeContracts::from_declarations(hir::HirSourceNativeContractInputs {
         functions: &lowerer.functions,
@@ -18,7 +18,7 @@ pub(crate) fn build(
         properties: &lowerer.properties,
         function_identities,
         property_identities,
-        type_inputs: identity_inputs(lowerer, nominal_identities, intrinsic_core),
+        type_inputs: identity_inputs(lowerer, nominal_identities, core_types),
         unit: lowerer.unit,
     })
     .map_err(PersistentSourceNativeContractError)

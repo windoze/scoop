@@ -8,7 +8,7 @@ use crate::Lowerer;
 pub(crate) fn build(
     lowerer: &Lowerer,
     nominal_identities: &hir::HirNominalIdentities,
-    intrinsic_core: &hir::IntrinsicTypeCore,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirTypeIdentities, PersistentTypeIdentityError> {
     hir::HirTypeIdentities::from_types(hir::HirTypeIdentityInputs {
         types: &lowerer.types,
@@ -22,7 +22,7 @@ pub(crate) fn build(
         interfaces: &lowerer.interfaces,
         interface_applications: &lowerer.interface_applications,
         objects: &lowerer.objects,
-        core_types: hir::HirCoreTypeIdentityAuthority::Defined(intrinsic_core),
+        core_types,
         nominal_identities,
     })
     .map_err(|error| PersistentTypeIdentityError { error })

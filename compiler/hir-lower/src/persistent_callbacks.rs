@@ -13,7 +13,7 @@ pub(crate) fn build(
     constructors: &hir::HirConstructorIdentities,
     enum_members: &hir::HirEnumMemberIdentities,
     functions: &hir::HirFunctionIdentities,
-    intrinsic_core: &hir::IntrinsicTypeCore,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirCallbackRegistrationIdentities, PersistentCallbackIdentityError> {
     hir::HirCallbackRegistrationIdentities::from_registrations(
         hir::HirCallbackRegistrationIdentityInputs {
@@ -29,7 +29,7 @@ pub(crate) fn build(
             constructor_identities: constructors,
             enum_member_identities: enum_members,
             callback_modes: callback_core.modes,
-            type_inputs: identity_inputs(lowerer, nominals, intrinsic_core),
+            type_inputs: identity_inputs(lowerer, nominals, core_types),
             unit: lowerer.unit,
         },
     )

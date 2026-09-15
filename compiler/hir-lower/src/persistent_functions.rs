@@ -26,7 +26,7 @@ pub(crate) fn build(
     types: &hir::HirTypeIdentities,
     constructors: &hir::HirConstructorIdentities,
     enum_members: &hir::HirEnumMemberIdentities,
-    intrinsic_core: &hir::IntrinsicTypeCore,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirFunctionIdentities, PersistentFunctionIdentityError> {
     FunctionIdentityBuilder {
         lowerer,
@@ -37,7 +37,7 @@ pub(crate) fn build(
         types,
         constructors,
         enum_members,
-        type_mapper: SignatureTypeMapper::new(lowerer, nominals, intrinsic_core),
+        type_mapper: SignatureTypeMapper::new(lowerer, nominals, core_types),
         identities: vec![None; lowerer.functions.len()],
         visiting: vec![false; lowerer.functions.len()],
     }

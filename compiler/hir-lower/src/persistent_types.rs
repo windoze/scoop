@@ -13,12 +13,10 @@ impl<'a> SignatureTypeMapper<'a> {
     pub(crate) fn new(
         lowerer: &'a Lowerer,
         nominals: &'a hir::HirNominalIdentities,
-        intrinsic_core: &'a hir::IntrinsicTypeCore,
+        core_types: hir::HirCoreTypeIdentityAuthority<'a>,
     ) -> Self {
         Self(hir::HirSignatureTypeMapper::new(identity_inputs(
-            lowerer,
-            nominals,
-            intrinsic_core,
+            lowerer, nominals, core_types,
         )))
     }
 
@@ -34,7 +32,7 @@ impl<'a> SignatureTypeMapper<'a> {
 pub(crate) fn identity_inputs<'a>(
     lowerer: &'a Lowerer,
     nominals: &'a hir::HirNominalIdentities,
-    intrinsic_core: &'a hir::IntrinsicTypeCore,
+    core_types: hir::HirCoreTypeIdentityAuthority<'a>,
 ) -> hir::HirTypeIdentityInputs<'a> {
     hir::HirTypeIdentityInputs {
         types: &lowerer.types,
@@ -48,7 +46,7 @@ pub(crate) fn identity_inputs<'a>(
         interfaces: &lowerer.interfaces,
         interface_applications: &lowerer.interface_applications,
         objects: &lowerer.objects,
-        core_types: hir::HirCoreTypeIdentityAuthority::Defined(intrinsic_core),
+        core_types,
         nominal_identities: nominals,
     }
 }
