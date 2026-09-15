@@ -1743,9 +1743,15 @@ defined-owner authority；不能把assembly成功、ArtifactFingerprint存在或
 
 driver的HIR成功状态必须在lowering的同一原子转换中持有完整`CanonicalHirFoundation`与HIR production
 section，不能把foundation推迟到packager临时重算。`OdrFreeHirFoundation`是进入
-`SingleConeStrongArtifactInputV1`前的profile收窄结果：canonical HIR含任一ODR group/member/application时该
+`SingleConeStrongArtifactInputV1`前的profile收窄结果：canonical HIR含任一ODR group/member/callable application时该
 转换以稳定能力错误结束，不能删除foundation记录、改写成strong owner或保留一条跳过`RejectAll`的core
 bootstrap路径。
+
+这里的`application`只指会产生body materialization的`CallableApplicationKey`，不包括仅作为完整签名类型出现的
+`ExactTypeKey::NominalApplication`。后者必须原样保留在exact-type表；若当前Cone没有为它选择layout、scan、
+TypeDescriptor、adapter或generated helper，canonical projection从一开始就不产生Nominal ODR group，而不是在
+profile收窄时删除记录。任何实际materialization仍须建立group/member并被本阶段拒绝；第7.6节所列
+`ContinuationShell`/`CoroutineStart`正因需要generic dependency物化而继续失败。
 
 三层lowering完成后，driver必须消费完整IR链调用`seal_strong_profile`。成功的
 `SingleConeStrongIrProductionV1`同时拥有从canonical HIR收窄出的`OdrFreeHirFoundation`以及原链中的

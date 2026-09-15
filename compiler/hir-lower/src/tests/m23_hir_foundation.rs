@@ -86,11 +86,13 @@ fn complete_hir_output_projects_one_canonical_foundation() {
     );
     assert_eq!(
         counts.odr_groups,
-        local
+        local.callable_applications.odr_group_records().len()
+    );
+    assert!(
+        !local
             .exact_type_identities
             .nominal_specialization_records()
-            .len()
-            + local.callable_applications.odr_group_records().len()
+            .is_empty()
     );
     assert_eq!(
         counts.odr_members,
@@ -135,18 +137,23 @@ fn complete_hir_output_projects_one_canonical_foundation() {
 }
 
 #[test]
-fn legacy_combined_core_cannot_pass_the_single_cone_strong_odr_gate() {
+fn exact_nominal_applications_do_not_mint_odr_materialization_groups() {
     let output = lower_user_output(file(vec![fun("main", Vec::new())]))
         .expect("the parameter-free HIR fixture must lower");
+    let export = output.export.module();
+    let local = output.local.module();
 
-    assert!(matches!(
-        hir::OdrFreeHirFoundation::from_modules(
-            output.export.module(),
-            output.local.module(),
-            &output.native_boundary_types,
-        ),
-        Err(hir::OdrFreeHirFoundationProjectionError::Odr(
-            hir::OdrFreeHirFoundationError::OdrGroup(_)
-        ))
-    ));
+    assert!(local.callable_applications.is_empty());
+    assert!(export.types.iter().any(|(ty, _)| matches!(
+            export.type_identities[ty]
+                .exact()
+                .map(|record| record.key()),
+            Some(scoop_identity::ExactTypeKey::NominalApplication { .. })
+        )));
+
+    let foundation =
+        hir::OdrFreeHirFoundation::from_modules(export, local, &output.native_boundary_types)
+            .expect("a signature-only nominal application does not require ODR materialization");
+    assert_eq!(foundation.as_canonical().counts().odr_groups, 0);
+    assert_eq!(foundation.as_canonical().counts().odr_members, 0);
 }

@@ -433,6 +433,8 @@ PersistentCallableBodyId =
 
 凡concrete exact type进入当前Cone LIR的layout/type closure，或作为param-free exported LIR bridge，就属于**runtime-materialized type**并必须生成TypeDescriptor registration；只存在于尚未替换的Export HIR template/binder中的type尚不materialize。tuple、managed function、raw/native pointer等非nominal exact type以其`PersistentExactTypeId`建立3.4的`StructuralType` ODR group，多个Cone重复materialize时整体coalesce。因而每个最终程序中materialized exact type恰有一个TypeDescriptor地址，而纯template type不会为了“可能未来使用”提前生成伪descriptor；是否materialize不改变语言type identity。
 
+`ExactTypeKey::NominalApplication`本身只证明一个完整替换后的语言类型身份，不等于该Cone已经选择物化它。HIR exact-type表可在export signature、局部签名或其他纯语义位置引用该identity，而不建立`SpecializationKey::Nominal` ODR group；只有layout、scan、TypeDescriptor、adapter、generated helper等具体materialization closure需要该root时，producer才同时产生group及其实际member。foundation projection不得把“见过generic exact type”升级为ODR能力，也不得产生没有任何materialization owner的预备group。这样`RejectAll` profile可以保留完整generic signature identity，同时仍对任何真实ODR物化fail closed。
+
 ### 3.2 session-local remap
 
 serialized table index只是wire压缩索引，不是semantic id。reader分两阶段：

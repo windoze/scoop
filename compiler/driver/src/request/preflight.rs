@@ -1436,10 +1436,11 @@ mod tests {
             production_shape_support.closures().len(),
             expected_shape_roots
         );
-        assert!(matches!(
-            real_lir.seal_strong_profile(),
-            Err(CoreBootstrapStrongProfileError::HirOdr(_))
-        ));
+        let strong = real_lir.seal_strong_profile().unwrap();
+        let hir_counts = strong.hir_foundation().as_canonical().counts();
+        assert_eq!(hir_counts.callable_applications, 0);
+        assert_eq!(hir_counts.odr_groups, 0);
+        assert_eq!(hir_counts.odr_members, 0);
     }
 
     #[test]

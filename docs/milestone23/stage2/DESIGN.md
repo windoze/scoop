@@ -951,6 +951,8 @@ role与discriminator允许矩阵也属于v1 schema：`CallableBody→CallableApp
 - `DelegatedProperty`组的initialization unit必须逐字段等于同一property与receiver arguments，storage/cell/descriptor、initializer/ensure与`InitializationStartupGateway` callable body及support只能沿该unit回溯；
 - `StructuralType`组的layout/scan/TD必须直接以group exact type为root。
 
+ODR group表记录实际materialization closure的root，不是exact-type表中所有潜在specialization的冗余索引。一个`ExactTypeKey::NominalApplication`可以只因export/local signature而进入exact-type表；在没有layout、scan、TypeDescriptor、adapter、generated helper或其他具体member需要物化它时，不得仅据此产生`SpecializationKey::Nominal` group。反之，一旦具体member选择该application为root，producer必须同时写出相应group，reader再按上述provenance逐字段验证。该边界不改变identity派生算法，只禁止从纯类型引用伪造尚未发生的ODR物化事实。
+
 为使generated key中的多个typed ref不会各自竞争owner，v1进一步冻结下列纯root函数。`MaterializationRoot(m)`按context取NoSubstitution source/unit Cone、Callable Application组或InitializationApplication unit root；`ExactOwnerRoot(t)`对source nominal取定义Cone、nominal application取Nominal组、结构exact取`StructuralType(t)`，对generated nominal递归使用第一张表；`StructuralRoot(t)`只接受经exact-type validator证明为非nominal的tuple/function/raw pointer/native function pointer，并取`StructuralType(t)`；`CallbackRoot(a)`按registration parent加NoSubstitution/Application/InitializationApplication求根。`FunctionShape(s)`要求adapter target signature无exact receiver，并以其effect/parameters/result构造已经存在的managed `ExactTypeKey::Function`；有receiver的adapter必须先形成独立的bound-receiver environment，不能把receiver悄悄丢掉。
 
 | `GeneratedNominalKey` variant | 唯一root | 只作dependency、不得竞争root的字段 |

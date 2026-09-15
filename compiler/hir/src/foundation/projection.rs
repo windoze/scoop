@@ -49,7 +49,7 @@ impl CanonicalHirFoundation {
                 .map(|contract| contract.record().clone())
                 .collect(),
         )?;
-        foundation.set_odr_groups(odr_group_records(export, local)?)?;
+        foundation.set_odr_groups(odr_group_records(local)?)?;
         foundation.set_odr_members(local.callable_applications.odr_member_records().to_vec())?;
 
         let definition_origins = definition_origin_records(export, local);
@@ -312,34 +312,11 @@ fn project_exact_types(
 }
 
 fn odr_group_records(
-    export: &ExportHir,
     local: &LocalConcreteHir,
 ) -> Result<Vec<OdrGroupRecord>, HirFoundationBuildError> {
     let mut records = BTreeMap::new();
-    for record in local
-        .exact_type_identities
-        .nominal_specialization_records()
-        .iter()
-        .chain(local.callable_applications.odr_group_records())
-    {
+    for record in local.callable_applications.odr_group_records() {
         insert_identity(&mut records, record, HirFoundationTable::OdrGroup)?;
-    }
-    for (ty, _) in export.types.iter() {
-        let Some(exact) = export.type_identities[ty].exact() else {
-            continue;
-        };
-        let ExactTypeKey::NominalApplication { origin, arguments } = exact.key() else {
-            continue;
-        };
-        let record = CborIdentityRecord::from_key(SpecializationKey::Nominal {
-            origin: *origin,
-            arguments: arguments.clone(),
-        })
-        .map_err(|error| HirFoundationBuildError::IdentityDerivation {
-            table: HirFoundationTable::OdrGroup,
-            reason: error.to_string(),
-        })?;
-        insert_identity(&mut records, &record, HirFoundationTable::OdrGroup)?;
     }
     Ok(records.into_values().collect())
 }
