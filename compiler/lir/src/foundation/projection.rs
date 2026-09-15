@@ -350,20 +350,24 @@ impl CanonicalLirFoundation {
 
         for function in &module.functions {
             let body = function.callable_body.id();
-            for role in [
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::callable_body(body),
                 StrongDefinitionRole::CallableBody,
+                callable_body_associated_atoms(function),
+            )?;
+            insert_strong_definition(
+                &mut plans,
+                &mut atoms,
+                &mut symbols,
+                producer,
+                StrongDefinitionEntity::callable_body(body),
                 StrongDefinitionRole::CallableRegistration,
-            ] {
-                insert_strong_definition(
-                    &mut plans,
-                    &mut atoms,
-                    &mut symbols,
-                    producer,
-                    StrongDefinitionEntity::callable_body(body),
-                    role,
-                    Vec::new(),
-                )?;
-            }
+                Vec::new(),
+            )?;
             for safepoint in function.safepoints.iter() {
                 insert_strong_definition(
                     &mut plans,
@@ -662,6 +666,27 @@ impl CanonicalLirFoundation {
     }
 }
 
+fn callable_body_associated_atoms(
+    function: &Function,
+) -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
+    let body = function.callable_body.id();
+    let subkey = || DefinitionAtomSubkey::CallableBody(body);
+    let mut associated = vec![(DefinitionAtomRole::CompactUnwind, subkey())];
+    if !function.safepoints.is_empty() {
+        associated.push((DefinitionAtomRole::Stackmap, subkey()));
+    }
+    if function.blocks.iter().any(|(_, block)| {
+        block
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, crate::Instruction::Invoke { .. }))
+    }) {
+        associated.push((DefinitionAtomRole::Lsda, subkey()));
+        associated.push((DefinitionAtomRole::EhFrame, subkey()));
+    }
+    associated
+}
+
 #[allow(clippy::too_many_arguments)]
 fn insert_strong_definition(
     plans: &mut BTreeMap<ObjectDefinitionPlanId, DefinitionPlanRecord>,
@@ -790,12 +815,14 @@ mod tests {
 
     use super::*;
     use crate::{
-        AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention, GcEffect,
-        Global, GlobalInit, ImmortalObjectIdentity, ItableRecord, LayoutIdentity,
-        LirStaticInitialState, LirTargetProfile, MANAGED_PTR, MaterializationRoot, PointerKind,
-        RefScan, RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity,
-        SafepointSiteRef, ScoopAbiSignature, StaticStorageIdentity, Terminator, TypeDescriptor,
-        TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord,
+        AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CallingConvention,
+        GcEffect, Global, GlobalInit, ImmortalObjectIdentity, Instruction, InvokeSite,
+        ItableRecord, LayoutIdentity, LirStaticInitialState, LirTargetProfile, MANAGED_PTR,
+        MaterializationRoot, NoGcCallDestination, NoGcInvokeSite, NoGcRuntimeFunction,
+        NoGcTypedCall, PointerKind, RefScan, RuntimeTypeMappingRecord, SafepointIdentities,
+        SafepointIdentity, SafepointSiteRef, ScoopAbiSignature, StaticStorageIdentity, Terminator,
+        TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1,
+        VoidCallSignature, VtableRecord,
     };
 
     #[test]
@@ -1156,6 +1183,83 @@ mod tests {
             assert_eq!(mapping.site(), identity.site_id());
             assert_eq!(mapping.safepoint(), identity.runtime_id());
         }
+    }
+
+    #[test]
+    fn projects_callable_backend_associated_atoms_from_complete_lir() {
+        let body = callable_body("physicalAtoms");
+        let site = SafepointIdentity::new(body.id(), SafepointSiteRole::ManagedPoll, 0).unwrap();
+        let mut function = function(
+            body.clone(),
+            SafepointIdentities::checked(vec![(SafepointSiteRef::from_u32(0), site)]).unwrap(),
+        );
+
+        assert_eq!(
+            callable_body_associated_atoms(&function),
+            vec![
+                (
+                    DefinitionAtomRole::CompactUnwind,
+                    DefinitionAtomSubkey::CallableBody(body.id()),
+                ),
+                (
+                    DefinitionAtomRole::Stackmap,
+                    DefinitionAtomSubkey::CallableBody(body.id()),
+                ),
+            ]
+        );
+
+        let signature = function
+            .call_targets
+            .void_signatures
+            .alloc(VoidCallSignature::new(Vec::new(), CallingConvention::Cdecl));
+        let target = function.call_targets.no_gc_targets.void.alloc(CallTarget {
+            destination: NoGcCallDestination::runtime(NoGcRuntimeFunction::Rethrow),
+            signature,
+        });
+        let normal = function.blocks.alloc(BasicBlock {
+            name: "normal".to_string(),
+            instructions: Vec::new(),
+            terminator: Terminator::Return { value: None },
+        });
+        let unwind = function.blocks.alloc(BasicBlock {
+            name: "unwind".to_string(),
+            instructions: Vec::new(),
+            terminator: Terminator::Return { value: None },
+        });
+        function.blocks[function.entry]
+            .instructions
+            .push(Instruction::Invoke {
+                site: InvokeSite::NoGc(NoGcInvokeSite {
+                    call: NoGcTypedCall::Void {
+                        target,
+                        args: Vec::new(),
+                    },
+                    normal,
+                    unwind,
+                }),
+            });
+
+        assert_eq!(
+            callable_body_associated_atoms(&function),
+            vec![
+                (
+                    DefinitionAtomRole::CompactUnwind,
+                    DefinitionAtomSubkey::CallableBody(body.id()),
+                ),
+                (
+                    DefinitionAtomRole::Stackmap,
+                    DefinitionAtomSubkey::CallableBody(body.id()),
+                ),
+                (
+                    DefinitionAtomRole::Lsda,
+                    DefinitionAtomSubkey::CallableBody(body.id()),
+                ),
+                (
+                    DefinitionAtomRole::EhFrame,
+                    DefinitionAtomSubkey::CallableBody(body.id()),
+                ),
+            ]
+        );
     }
 
     #[test]
