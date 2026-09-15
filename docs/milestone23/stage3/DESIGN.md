@@ -1629,6 +1629,12 @@ relocation shape/atom owner验证，最后在全部member的联合定义空间�
 该proof止于provisional strong-relocation closure；digest patch、stackmap leaf、requirement finalization与
 final bytes re-verification仍由后续typed阶段完成。
 
+driver中的`CBridgeEnvelopeVerifiedObjectProductionV1`必须被消耗后才能进入该统一入口：adapter从Scoop
+producer保留的精确`LirTargetProfile`、同一strong production的canonical symbol surface及统一member plan
+内部构造`PlannedStrongObjectSymbolSetV1`，再从私有immutable bytes生成两类candidate。成功状态必须同时
+拥有原planned production、完整symbol plan与`VerifiedBuiltinObjectStrongRelocationSetV1`；不得由caller传入
+target、symbol plan或任一类candidate，也不存在只验证Scoop member或只验证generated-C member的分支。
+
 发布后Link reader面对的是archive中的final bytes，不得把它直接冒充上述provisional输入。reader先以
 identity-closure中已经完成intent/member/coverage检查的完整32-byte site集合构造
 `VerifiedNormalizedProvisionalScoopLirObjectSetV1`：逐member复制final bytes，只归零这些互不重叠且边界合法的

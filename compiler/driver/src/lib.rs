@@ -19,6 +19,7 @@ use linking::{LinkRequest, build_runtime, link};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
     CBridgeEnvelopeVerifiedObjectProductionV1, PlannedBuiltinObjectProductionV1,
+    StrongRelocationVerifiedObjectProductionV1,
 };
 pub use request::{
     BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,

@@ -8,15 +8,18 @@ use scoop_codegen::{
     ProvisionalStrongDigestPatchLocationV1,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CBridgeToolchainProfileV1, GeneratedBridgeUnitId,
+    CBridgeProductionSetV1, CBridgeToolchainProfileV1, GeneratedBridgeUnitId, LirTargetProfile,
     ObjectDefinitionPlanId, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
 };
 use scoop_slib::{
-    CBridgeProductionEnvelopeValidationError, CanonicalGeneratedBridgeObjectUnitSetV1,
-    CanonicalScoopLirObjectUnitSetV1, GeneratedCBridgeObjectCandidateV1,
-    LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
-    PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, ProvisionalDigestPatchSiteV1,
-    SlibMemberId, VerifiedCBridgeProductionEnvelopeSetV1, verify_c_bridge_production_envelopes_v1,
+    BuiltinObjectSetValidationError, CBridgeProductionEnvelopeValidationError,
+    CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
+    GeneratedCBridgeObjectCandidateV1, LinkObjectMemberSetPlanError, ObjectUnitSetError,
+    PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
+    PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
+    ScoopLirObjectCandidateV1, SlibMemberId, StrongObjectSymbolPlanningError,
+    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedCBridgeProductionEnvelopeSetV1,
+    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -39,6 +42,7 @@ pub struct PlannedGeneratedCBridgeObjectInputV1 {
 /// typed digest-site binding, ready for the `.slib` object verifiers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedBuiltinObjectProductionV1 {
+    target: LirTargetProfile,
     production: StrongProductionSectionV1,
     c_bridge_profile: CBridgeToolchainProfileV1,
     c_bridge_production: CBridgeProductionSetV1,
@@ -113,6 +117,7 @@ impl PlannedBuiltinObjectProductionV1 {
         let c_bridge_profile = generated_c_bridge.profile().clone();
         let c_bridge_production = generated_c_bridge.production().clone();
         Ok(Self {
+            target: scoop_lir.target(),
             production: scoop_lir.production().clone(),
             c_bridge_profile,
             c_bridge_production,
@@ -125,6 +130,10 @@ impl PlannedBuiltinObjectProductionV1 {
 
     pub const fn production(&self) -> &StrongProductionSectionV1 {
         &self.production
+    }
+
+    pub const fn target(&self) -> LirTargetProfile {
+        self.target
     }
 
     pub const fn c_bridge_profile(&self) -> &CBridgeToolchainProfileV1 {
@@ -149,6 +158,13 @@ impl PlannedBuiltinObjectProductionV1 {
             .map(|member| {
                 GeneratedCBridgeObjectCandidateV1::new(member.plan.member_id(), &member.bytes)
             })
+            .collect()
+    }
+
+    fn scoop_lir_candidates(&self) -> Vec<ScoopLirObjectCandidateV1<'_>> {
+        self.scoop_lir_members
+            .iter()
+            .map(|member| ScoopLirObjectCandidateV1::new(member.plan.member_id(), &member.bytes))
             .collect()
     }
 
@@ -187,6 +203,61 @@ impl CBridgeEnvelopeVerifiedObjectProductionV1 {
     }
 
     pub const fn proof(&self) -> &VerifiedCBridgeProductionEnvelopeSetV1 {
+        &self.proof
+    }
+
+    pub fn verify_strong_relocations(
+        self,
+    ) -> Result<StrongRelocationVerifiedObjectProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            proof: c_bridge_proof,
+        } = self;
+        let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
+            production.target,
+            production.production.canonical_definitions(),
+            &production.member_plan,
+        )
+        .map_err(BuiltinObjectProductionError::StrongSymbolPlan)?;
+        let proof = {
+            let scoop_lir_candidates = production.scoop_lir_candidates();
+            let c_bridge_candidates = production.c_bridge_candidates();
+            verify_builtin_object_strong_relocations_v1(
+                &production.member_plan,
+                &symbol_plan,
+                &scoop_lir_candidates,
+                c_bridge_proof,
+                &c_bridge_candidates,
+            )
+            .map_err(BuiltinObjectProductionError::StrongRelocations)?
+        };
+        Ok(StrongRelocationVerifiedObjectProductionV1 {
+            production,
+            symbol_plan,
+            proof,
+        })
+    }
+}
+
+/// Unified proof that all provisional built-in members satisfy their exact
+/// strong symbol, atom-range, and relocation plans.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StrongRelocationVerifiedObjectProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    proof: VerifiedBuiltinObjectStrongRelocationSetV1,
+}
+
+impl StrongRelocationVerifiedObjectProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn proof(&self) -> &VerifiedBuiltinObjectStrongRelocationSetV1 {
         &self.proof
     }
 }
@@ -367,6 +438,8 @@ pub enum BuiltinObjectProductionError {
     },
     GeneratedBridgePlanMismatch,
     CBridgeEnvelopes(CBridgeProductionEnvelopeValidationError),
+    StrongSymbolPlan(StrongObjectSymbolPlanningError),
+    StrongRelocations(BuiltinObjectSetValidationError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -398,6 +471,8 @@ impl std::error::Error for BuiltinObjectProductionError {
         match self {
             Self::ReadObject { source, .. } => Some(source),
             Self::CBridgeEnvelopes(source) => Some(source),
+            Self::StrongSymbolPlan(source) => Some(source),
+            Self::StrongRelocations(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,

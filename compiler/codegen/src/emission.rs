@@ -61,6 +61,7 @@ impl EmittedStrongObjectMemberV1 {
 /// alive for exactly as long as this result.
 #[derive(Debug)]
 pub struct EmittedStrongObjectSetV1 {
+    target: scoop_lir::LirTargetProfile,
     production: scoop_lir::StrongProductionSectionV1,
     partition: StrongScoopLirObjectPartitionV1,
     members: Vec<EmittedStrongObjectMemberV1>,
@@ -68,6 +69,10 @@ pub struct EmittedStrongObjectSetV1 {
 }
 
 impl EmittedStrongObjectSetV1 {
+    pub const fn target(&self) -> scoop_lir::LirTargetProfile {
+        self.target
+    }
+
     pub const fn production(&self) -> &scoop_lir::StrongProductionSectionV1 {
         &self.production
     }
@@ -226,6 +231,7 @@ pub fn emit_object_set(
         members.push(member);
     }
     Ok(EmittedStrongObjectSetV1 {
+        target: module.meta.target_profile,
         production,
         partition,
         members,
