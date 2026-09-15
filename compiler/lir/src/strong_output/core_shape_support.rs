@@ -355,3 +355,6 @@ impl std::error::Error for StrongLirCoreShapeSupportError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
