@@ -312,7 +312,14 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
             if target.capability()
                 == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
     ));
-    let selected = string[0].select_param_free_strong().unwrap();
+    let mut plan = prelude.selection_plan();
+    let crate::SelectedImportedCoreId::Type(string_reference) =
+        plan.select(string[0].reference()).unwrap()
+    else {
+        panic!("String must enter the imported type id domain")
+    };
+    let selected_set = prelude.bind_selection(plan).unwrap();
+    let selected = selected_set.resolve_type(string_reference).unwrap();
     let other_imported = imported_foundation(&fixture.foundation);
     let other_interface = fixture.interface.clone();
     assert!(selected.belongs_to(&imported, &fixture.interface, &[]));
@@ -330,7 +337,12 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
         .candidates(BindingNamespace::Type, "Option")
         .next()
         .unwrap();
-    let error = option.select_param_free_strong().unwrap_err();
+    let mut plan = prelude.selection_plan();
+    let crate::CorePreludeSelectionError::Capability(error) =
+        plan.select(option.reference()).unwrap_err()
+    else {
+        panic!("Option must fail because generic materialization is unavailable")
+    };
     assert_eq!(error.required(), CorePreludeUnavailableCapability::Generic);
     assert_eq!(error.binding(), option.identity());
     assert_eq!(error.code(), "SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE");
@@ -488,11 +500,13 @@ fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
         .candidates(BindingNamespace::Type, "Option")
         .next()
         .unwrap();
-    let mut selected = prelude.selected_set();
+    let string_identity = string.identity();
+    let mut plan = prelude.selection_plan();
 
-    let first = selected.select(string).unwrap();
-    let second = selected.select(string).unwrap();
+    let first = plan.select(string.reference()).unwrap();
+    let second = plan.select(string.reference()).unwrap();
     assert_eq!(first, second);
+    let selected = prelude.bind_selection(plan).unwrap();
     assert_eq!(selected.callable_count(), 0);
     assert_eq!(selected.type_count(), 1);
     assert_eq!(selected.value_count(), 0);
@@ -500,28 +514,57 @@ fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
         panic!("String must enter the imported type id domain")
     };
     let retained = selected.resolve_type(reference).unwrap();
-    assert_eq!(retained.binding(), string.identity());
+    assert_eq!(retained.binding(), string_identity);
     assert!(retained.belongs_to(&imported, &fixture.interface, &[]));
 
-    let mut other_selected = prelude.selected_set();
+    let mut other_plan = prelude.selection_plan();
     let crate::SelectedImportedCoreId::Type(other_reference) =
-        other_selected.select(string).unwrap()
+        other_plan.select(string.reference()).unwrap()
     else {
         panic!("String must enter the imported type reference domain")
     };
+    let other_selected = prelude.bind_selection(other_plan).unwrap();
     assert!(selected.resolve_type(other_reference).is_none());
     assert!(other_selected.resolve_type(reference).is_none());
     assert!(other_selected.resolve_type(other_reference).is_some());
 
-    let error = selected.select(option).unwrap_err();
+    let mut rejected_plan = prelude.selection_plan();
+    let error = rejected_plan.select(option.reference()).unwrap_err();
     assert!(matches!(
         error,
         crate::CorePreludeSelectionError::Capability(error)
             if error.required() == CorePreludeUnavailableCapability::Generic
     ));
-    assert_eq!(selected.type_count(), 1);
-    assert_eq!(selected.callable_count(), 0);
-    assert_eq!(selected.value_count(), 0);
+    let rejected = prelude.bind_selection(rejected_plan).unwrap();
+    assert_eq!(rejected.type_count(), 0);
+    assert_eq!(rejected.callable_count(), 0);
+    assert_eq!(rejected.value_count(), 0);
+}
+
+#[test]
+fn cloned_imported_core_selection_plans_remain_transactional() {
+    let fixture = fixture();
+    let imported = imported_foundation(&fixture.foundation);
+    let core = imported
+        .import_core_inputs(&fixture.interface, &[])
+        .unwrap();
+    let prelude = core.prelude();
+    let string = prelude
+        .candidates(BindingNamespace::Type, "String")
+        .next()
+        .unwrap();
+    let empty_plan = prelude.selection_plan();
+    let mut selected_plan = empty_plan.clone();
+    let crate::SelectedImportedCoreId::Type(string_reference) =
+        selected_plan.select(string.reference()).unwrap()
+    else {
+        panic!("String must enter the imported type id domain")
+    };
+
+    let empty = prelude.bind_selection(empty_plan).unwrap();
+    let selected = prelude.bind_selection(selected_plan).unwrap();
+    assert!(empty.resolve_type(string_reference).is_none());
+    assert!(selected.resolve_type(string_reference).is_some());
 }
 
 #[test]
@@ -538,12 +581,13 @@ fn selected_imported_core_set_borrows_the_artifact_not_the_projection_wrapper() 
             .candidates(BindingNamespace::Type, "String")
             .next()
             .unwrap();
-        let mut selected = prelude.selected_set();
+        let mut plan = prelude.selection_plan();
         let crate::SelectedImportedCoreId::Type(string_reference) =
-            selected.select(string).unwrap()
+            plan.select(string.reference()).unwrap()
         else {
             panic!("String must enter the imported type id domain")
         };
+        let selected = prelude.bind_selection(plan).unwrap();
         (selected, string_reference)
     };
 
@@ -553,7 +597,7 @@ fn selected_imported_core_set_borrows_the_artifact_not_the_projection_wrapper() 
 }
 
 #[test]
-fn selected_imported_core_set_rejects_a_foreign_prelude_binding() {
+fn imported_core_selection_rejects_a_foreign_prelude_projection() {
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);
     let other_imported = imported_foundation(&fixture.foundation);
@@ -569,14 +613,16 @@ fn selected_imported_core_set_rejects_a_foreign_prelude_binding() {
         .candidates(BindingNamespace::Type, "String")
         .next()
         .unwrap();
-    let mut selected = prelude.selected_set();
+    let mut plan = prelude.selection_plan();
 
     assert!(matches!(
-        selected.select(foreign),
-        Err(crate::CorePreludeSelectionError::ForeignBinding(binding))
-            if binding == foreign.identity().persistent()
+        plan.select(foreign.reference()),
+        Err(crate::CorePreludeSelectionError::ForeignProjection)
     ));
-    assert_eq!(selected.type_count(), 0);
+    assert!(matches!(
+        other_prelude.bind_selection(plan),
+        Err(crate::CorePreludeSelectionBindError::ForeignProjection)
+    ));
 }
 
 #[test]

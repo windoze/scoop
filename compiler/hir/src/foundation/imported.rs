@@ -92,6 +92,7 @@ impl ImportedHirFoundation {
         }
         validate_strong_callable_bindings(interface, strong_callable_bindings)?;
 
+        let projection = next_imported_core_prelude_projection();
         let mut bindings = Vec::with_capacity(
             interface
                 .prelude_snapshot()
@@ -99,7 +100,13 @@ impl ImportedHirFoundation {
                 .bindings()
                 .len(),
         );
-        for &binding in interface.prelude_snapshot().ordinary_bindings().bindings() {
+        for (index, &binding) in interface
+            .prelude_snapshot()
+            .ordinary_bindings()
+            .bindings()
+            .iter()
+            .enumerate()
+        {
             let key = self
                 .canonical
                 .export_binding_key(binding)
@@ -115,9 +122,10 @@ impl ImportedHirFoundation {
                 .ok_or(CorePreludeImportError::MissingBindingIdentity(binding))?;
             let target = core_prelude_target(interface, binding)?;
             bindings.push(ImportedCorePreludeBinding {
-                foundation: self,
-                interface,
-                strong_callable_bindings,
+                reference: ImportedCorePreludeRef {
+                    projection,
+                    binding: checked_selection_index(index),
+                },
                 identity,
                 key,
                 target,
@@ -146,6 +154,7 @@ impl ImportedHirFoundation {
             foundation: self,
             interface,
             strong_callable_bindings,
+            projection,
             bindings,
             option_some,
             option_some_payload,
@@ -179,6 +188,7 @@ pub struct ImportedHirSet<'a, Capability> {
     foundation: &'a ImportedHirFoundation,
     interface: &'a CoreHirInterfaceV1,
     strong_callable_bindings: &'a [PersistentExportBindingId],
+    projection: ImportedCorePreludeProjectionId,
     bindings: Vec<ImportedCorePreludeBinding<'a>>,
     option_some: ImportedHirId<PersistentEnumVariantId>,
     option_some_payload: ImportedHirId<PersistentEnumVariantFieldId>,
@@ -227,33 +237,91 @@ impl<'a> ImportedHirSet<'a, CorePreludeOnly> {
         self.string_exact
     }
 
-    /// Starts the unique selected-target sidecar for this exact core
-    /// projection. There is no detached constructor that could combine
-    /// candidates from different artifacts.
-    pub fn selected_set(&self) -> SelectedImportedCoreSet<'a> {
-        SelectedImportedCoreSet {
-            foundation: self.foundation,
-            interface: self.interface,
-            strong_callable_bindings: self.strong_callable_bindings,
+    /// Starts a cloneable, lifetime-free selection transaction for this
+    /// exact prelude projection. Candidate probing may clone and discard this
+    /// plan without retaining a borrow of the artifact; only `bind_selection`
+    /// can turn the committed plan into the artifact-borrowing sidecar.
+    pub fn selection_plan(&self) -> ImportedCoreSelectionPlan {
+        ImportedCoreSelectionPlan {
+            projection: self.projection,
             selection: next_imported_core_selection(),
+            entries: self
+                .bindings
+                .iter()
+                .map(|binding| ImportedCoreSelectionPlanEntry {
+                    identity: binding.identity,
+                    target: binding.target.into(),
+                    has_strong_callable_implementation: self
+                        .strong_callable_bindings
+                        .binary_search(&binding.identity.persistent())
+                        .is_ok(),
+                })
+                .collect(),
             by_binding: BTreeMap::new(),
             callables: Vec::new(),
             types: Vec::new(),
             values: Vec::new(),
         }
     }
+
+    /// Binds one committed selection transaction back to the exact imported
+    /// artifact that minted its unforgeable prelude references.
+    pub fn bind_selection(
+        &self,
+        plan: ImportedCoreSelectionPlan,
+    ) -> Result<SelectedImportedCoreSet<'a>, CorePreludeSelectionBindError> {
+        if plan.projection != self.projection {
+            return Err(CorePreludeSelectionBindError::ForeignProjection);
+        }
+        let target = |index: u32| {
+            let binding = self
+                .bindings
+                .get(index as usize)
+                .expect("a selection plan only contains bindings from its prelude projection");
+            SelectedImportedCoreTarget {
+                foundation: self.foundation,
+                interface: self.interface,
+                strong_callable_bindings: self.strong_callable_bindings,
+                binding: binding.identity,
+                target: binding.target,
+            }
+        };
+        Ok(SelectedImportedCoreSet {
+            foundation: self.foundation,
+            interface: self.interface,
+            strong_callable_bindings: self.strong_callable_bindings,
+            selection: plan.selection,
+            callables: plan
+                .callables
+                .into_iter()
+                .map(|index| (ImportedCoreCallableId(index), target(index)))
+                .collect(),
+            types: plan
+                .types
+                .into_iter()
+                .map(|index| (ImportedCoreTypeId(index), target(index)))
+                .collect(),
+            values: plan
+                .values
+                .into_iter()
+                .map(|index| (ImportedCoreValueId(index), target(index)))
+                .collect(),
+        })
+    }
 }
 
 pub struct ImportedCorePreludeBinding<'a> {
-    foundation: &'a ImportedHirFoundation,
-    interface: &'a CoreHirInterfaceV1,
-    strong_callable_bindings: &'a [PersistentExportBindingId],
+    reference: ImportedCorePreludeRef,
     identity: ImportedHirId<PersistentExportBindingId>,
     key: &'a ExportBindingKey,
     target: ImportedCorePreludeTarget<'a>,
 }
 
 impl<'a> ImportedCorePreludeBinding<'a> {
+    pub const fn reference(&self) -> ImportedCorePreludeRef {
+        self.reference
+    }
+
     pub const fn identity(&self) -> ImportedHirId<PersistentExportBindingId> {
         self.identity
     }
@@ -265,36 +333,99 @@ impl<'a> ImportedCorePreludeBinding<'a> {
     pub const fn target(&self) -> ImportedCorePreludeTarget<'a> {
         self.target
     }
+}
 
-    fn belongs_to(
-        &self,
-        foundation: &ImportedHirFoundation,
-        interface: &CoreHirInterfaceV1,
-        strong_callable_bindings: &[PersistentExportBindingId],
-    ) -> bool {
-        std::ptr::eq(self.foundation, foundation)
-            && std::ptr::eq(self.interface, interface)
-            && std::ptr::eq(self.strong_callable_bindings, strong_callable_bindings)
+#[derive(Clone, Copy, Debug)]
+pub enum ImportedCorePreludeTarget<'a> {
+    Callable(&'a CoreCallableTargetV1),
+    Type(&'a CoreTypeTargetV1),
+    Value(&'a CoreValueTargetV1),
+}
+
+#[derive(Clone, Debug)]
+enum OwnedImportedCorePreludeTarget {
+    Callable(CoreCallableTargetV1),
+    Type(CoreTypeTargetV1),
+    Value(CoreValueTargetV1),
+}
+
+impl From<ImportedCorePreludeTarget<'_>> for OwnedImportedCorePreludeTarget {
+    fn from(target: ImportedCorePreludeTarget<'_>) -> Self {
+        match target {
+            ImportedCorePreludeTarget::Callable(target) => Self::Callable(target.clone()),
+            ImportedCorePreludeTarget::Type(target) => Self::Type(target.clone()),
+            ImportedCorePreludeTarget::Value(target) => Self::Value(target.clone()),
+        }
     }
+}
 
-    /// Selects this lookup candidate for M23-3 lowering.
-    ///
-    /// Lookup deliberately exposes every checked prelude declaration so an
-    /// unavailable declaration can participate in diagnostics. Only this
-    /// method can turn a candidate into a selected external target, and it
-    /// rejects every capability that would require generic or structural
-    /// materialization.
-    pub fn select_param_free_strong(
-        &self,
-    ) -> Result<SelectedImportedCoreTarget<'a>, CorePreludeCapabilityError> {
-        let unavailable = match self.target {
-            ImportedCorePreludeTarget::Callable(target) => callable_unavailability(
+/// Unforgeable, lifetime-free reference to one candidate in an imported core
+/// prelude projection. It is safe to retain in cloneable frontend probe state;
+/// another projection cannot resolve it even when the numeric index matches.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ImportedCorePreludeRef {
+    projection: ImportedCorePreludeProjectionId,
+    binding: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ImportedCorePreludeProjectionId(u64);
+
+fn next_imported_core_prelude_projection() -> ImportedCorePreludeProjectionId {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    let projection = NEXT
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            current.checked_add(1)
+        })
+        .expect("the imported core prelude projection id space is exhausted");
+    ImportedCorePreludeProjectionId(projection)
+}
+
+#[derive(Clone, Debug)]
+struct ImportedCoreSelectionPlanEntry {
+    identity: ImportedHirId<PersistentExportBindingId>,
+    target: OwnedImportedCorePreludeTarget,
+    has_strong_callable_implementation: bool,
+}
+
+/// Cloneable frontend transaction for imported-core selection.
+///
+/// It deliberately owns only validated candidate snapshots and process-local
+/// brands. Artifact-borrowing target proofs appear only after the winning
+/// transaction is bound through `ImportedHirSet::bind_selection`.
+#[derive(Clone, Debug)]
+pub struct ImportedCoreSelectionPlan {
+    projection: ImportedCorePreludeProjectionId,
+    selection: ImportedCoreSelectionId,
+    entries: Vec<ImportedCoreSelectionPlanEntry>,
+    by_binding: BTreeMap<PersistentExportBindingId, SelectedImportedCoreIndex>,
+    callables: Vec<u32>,
+    types: Vec<u32>,
+    values: Vec<u32>,
+}
+
+impl ImportedCoreSelectionPlan {
+    pub fn select(
+        &mut self,
+        reference: ImportedCorePreludeRef,
+    ) -> Result<SelectedImportedCoreId, CorePreludeSelectionError> {
+        if reference.projection != self.projection {
+            return Err(CorePreludeSelectionError::ForeignProjection);
+        }
+        let entry = self
+            .entries
+            .get(reference.binding as usize)
+            .cloned()
+            .expect("a prelude reference is minted with an in-range binding index");
+        if let Some(&selected) = self.by_binding.get(&entry.identity.persistent()) {
+            return Ok(self.reference(selected));
+        }
+        let unavailable = match &entry.target {
+            OwnedImportedCorePreludeTarget::Callable(target) => callable_unavailability(
                 target.capability(),
-                self.strong_callable_bindings
-                    .binary_search(&self.identity.persistent())
-                    .is_ok(),
+                entry.has_strong_callable_implementation,
             ),
-            ImportedCorePreludeTarget::Type(target) => match target.capability() {
+            OwnedImportedCorePreludeTarget::Type(target) => match target.capability() {
                 crate::CoreHirTypeCapabilityV1::ParamFreeStrong(_) => None,
                 crate::CoreHirTypeCapabilityV1::StructuralUnavailable(_) => {
                     Some(CorePreludeUnavailableCapability::Structural)
@@ -303,7 +434,7 @@ impl<'a> ImportedCorePreludeBinding<'a> {
                     Some(CorePreludeUnavailableCapability::Generic)
                 }
             },
-            ImportedCorePreludeTarget::Value(target) => match target.capability() {
+            OwnedImportedCorePreludeTarget::Value(target) => match target.capability() {
                 crate::CoreHirValueCapabilityV1::ParamFreeStrong(_) => None,
                 crate::CoreHirValueCapabilityV1::StructuralUnavailable(_) => {
                     Some(CorePreludeUnavailableCapability::Structural)
@@ -313,27 +444,60 @@ impl<'a> ImportedCorePreludeBinding<'a> {
                 }
             },
         };
-        match unavailable {
-            Some(required) => Err(CorePreludeCapabilityError {
-                binding: self.identity,
-                required,
-            }),
-            None => Ok(SelectedImportedCoreTarget {
-                foundation: self.foundation,
-                interface: self.interface,
-                strong_callable_bindings: self.strong_callable_bindings,
-                binding: self.identity,
-                target: self.target,
-            }),
+        if let Some(required) = unavailable {
+            return Err(CorePreludeSelectionError::Capability(
+                CorePreludeCapabilityError {
+                    binding: entry.identity,
+                    required,
+                },
+            ));
+        }
+        let selected = match entry.target {
+            OwnedImportedCorePreludeTarget::Callable(_) => {
+                let id = ImportedCoreCallableId(reference.binding);
+                self.callables.push(reference.binding);
+                SelectedImportedCoreIndex::Callable(id)
+            }
+            OwnedImportedCorePreludeTarget::Type(_) => {
+                let id = ImportedCoreTypeId(reference.binding);
+                self.types.push(reference.binding);
+                SelectedImportedCoreIndex::Type(id)
+            }
+            OwnedImportedCorePreludeTarget::Value(_) => {
+                let id = ImportedCoreValueId(reference.binding);
+                self.values.push(reference.binding);
+                SelectedImportedCoreIndex::Value(id)
+            }
+        };
+        let previous = self
+            .by_binding
+            .insert(entry.identity.persistent(), selected);
+        assert!(previous.is_none(), "a fresh imported binding is unique");
+        Ok(self.reference(selected))
+    }
+
+    fn reference(&self, selected: SelectedImportedCoreIndex) -> SelectedImportedCoreId {
+        match selected {
+            SelectedImportedCoreIndex::Callable(callable) => {
+                SelectedImportedCoreId::Callable(ImportedCoreCallableRef {
+                    selection: self.selection,
+                    callable,
+                })
+            }
+            SelectedImportedCoreIndex::Type(ty) => {
+                SelectedImportedCoreId::Type(ImportedCoreTypeRef {
+                    selection: self.selection,
+                    ty,
+                })
+            }
+            SelectedImportedCoreIndex::Value(value) => {
+                SelectedImportedCoreId::Value(ImportedCoreValueRef {
+                    selection: self.selection,
+                    value,
+                })
+            }
         }
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ImportedCorePreludeTarget<'a> {
-    Callable(&'a CoreCallableTargetV1),
-    Type(&'a CoreTypeTargetV1),
-    Value(&'a CoreValueTargetV1),
 }
 
 /// A core prelude target proven usable by the M23-3 param-free strong path.
@@ -421,100 +585,27 @@ enum SelectedImportedCoreIndex {
 ///
 /// Entries retain the borrowed selection proof minted by the trusted core
 /// artifact. The three id domains prevent a callable, type, or value from
-/// being substituted for another entity kind, while the private maps make
-/// repeated lookup of the same binding converge on one request-local id.
+/// being substituted for another entity kind. Their private indices are the
+/// stable positions in the exact prelude projection, so cloned transactions
+/// cannot alias different targets by selecting them in a different order.
 pub struct SelectedImportedCoreSet<'a> {
     foundation: &'a ImportedHirFoundation,
     interface: &'a CoreHirInterfaceV1,
     strong_callable_bindings: &'a [PersistentExportBindingId],
     selection: ImportedCoreSelectionId,
-    by_binding: BTreeMap<PersistentExportBindingId, SelectedImportedCoreIndex>,
-    callables: Vec<SelectedImportedCoreTarget<'a>>,
-    types: Vec<SelectedImportedCoreTarget<'a>>,
-    values: Vec<SelectedImportedCoreTarget<'a>>,
+    callables: BTreeMap<ImportedCoreCallableId, SelectedImportedCoreTarget<'a>>,
+    types: BTreeMap<ImportedCoreTypeId, SelectedImportedCoreTarget<'a>>,
+    values: BTreeMap<ImportedCoreValueId, SelectedImportedCoreTarget<'a>>,
 }
 
 impl<'a> SelectedImportedCoreSet<'a> {
-    /// Selects and interns one raw lookup candidate. Capability rejection
-    /// happens before the set changes, so failed selection cannot leave a
-    /// partial imported world.
-    pub fn select(
-        &mut self,
-        binding: &ImportedCorePreludeBinding<'a>,
-    ) -> Result<SelectedImportedCoreId, CorePreludeSelectionError> {
-        if !binding.belongs_to(
-            self.foundation,
-            self.interface,
-            self.strong_callable_bindings,
-        ) {
-            return Err(CorePreludeSelectionError::ForeignBinding(
-                binding.identity().persistent(),
-            ));
-        }
-        if let Some(&selected) = self.by_binding.get(&binding.identity().persistent()) {
-            return Ok(self.reference(selected));
-        }
-        let target = binding
-            .select_param_free_strong()
-            .map_err(CorePreludeSelectionError::Capability)?;
-        let selected = match target.target() {
-            ImportedCorePreludeTarget::Callable(_) => {
-                let id = ImportedCoreCallableId(checked_selection_index(self.callables.len()));
-                self.callables.push(target);
-                SelectedImportedCoreIndex::Callable(id)
-            }
-            ImportedCorePreludeTarget::Type(_) => {
-                let id = ImportedCoreTypeId(checked_selection_index(self.types.len()));
-                self.types.push(target);
-                SelectedImportedCoreIndex::Type(id)
-            }
-            ImportedCorePreludeTarget::Value(_) => {
-                let id = ImportedCoreValueId(checked_selection_index(self.values.len()));
-                self.values.push(target);
-                SelectedImportedCoreIndex::Value(id)
-            }
-        };
-        let previous = self
-            .by_binding
-            .insert(binding.identity().persistent(), selected);
-        assert!(previous.is_none(), "a fresh imported binding is unique");
-        Ok(self.reference(selected))
-    }
-
-    fn reference(&self, selected: SelectedImportedCoreIndex) -> SelectedImportedCoreId {
-        match selected {
-            SelectedImportedCoreIndex::Callable(callable) => {
-                SelectedImportedCoreId::Callable(ImportedCoreCallableRef {
-                    selection: self.selection,
-                    callable,
-                })
-            }
-            SelectedImportedCoreIndex::Type(ty) => {
-                SelectedImportedCoreId::Type(ImportedCoreTypeRef {
-                    selection: self.selection,
-                    ty,
-                })
-            }
-            SelectedImportedCoreIndex::Value(value) => {
-                SelectedImportedCoreId::Value(ImportedCoreValueRef {
-                    selection: self.selection,
-                    value,
-                })
-            }
-        }
-    }
-
-    fn callable(&self, id: ImportedCoreCallableId) -> Option<SelectedImportedCoreTarget<'a>> {
-        self.callables.get(id.0 as usize).copied()
-    }
-
     /// Resolves a branded callable only when it was minted by this exact set.
     pub fn resolve_callable(
         &self,
         reference: ImportedCoreCallableRef,
     ) -> Option<SelectedImportedCoreTarget<'a>> {
         (reference.selection == self.selection)
-            .then(|| self.callable(reference.callable))
+            .then(|| self.callables.get(&reference.callable).copied())
             .flatten()
     }
 
@@ -523,7 +614,7 @@ impl<'a> SelectedImportedCoreSet<'a> {
         reference: ImportedCoreTypeRef,
     ) -> Option<SelectedImportedCoreTarget<'a>> {
         (reference.selection == self.selection)
-            .then(|| self.types.get(reference.ty.0 as usize).copied())
+            .then(|| self.types.get(&reference.ty).copied())
             .flatten()
     }
 
@@ -532,7 +623,7 @@ impl<'a> SelectedImportedCoreSet<'a> {
         reference: ImportedCoreValueRef,
     ) -> Option<SelectedImportedCoreTarget<'a>> {
         (reference.selection == self.selection)
-            .then(|| self.values.get(reference.value.0 as usize).copied())
+            .then(|| self.values.get(&reference.value).copied())
             .flatten()
     }
 
@@ -562,7 +653,7 @@ impl<'a> SelectedImportedCoreSet<'a> {
 
     #[doc(hidden)]
     pub fn callable_selections(&self) -> impl Iterator<Item = SelectedImportedCoreTarget<'a>> + '_ {
-        self.callables.iter().copied()
+        self.callables.values().copied()
     }
 }
 
@@ -572,17 +663,16 @@ fn checked_selection_index(length: usize) -> u32 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CorePreludeSelectionError {
-    ForeignBinding(PersistentExportBindingId),
+    ForeignProjection,
     Capability(CorePreludeCapabilityError),
 }
 
 impl fmt::Display for CorePreludeSelectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ForeignBinding(binding) => write!(
-                formatter,
-                "imported core binding {binding} belongs to another prelude projection"
-            ),
+            Self::ForeignProjection => {
+                formatter.write_str("imported core reference belongs to another prelude projection")
+            }
             Self::Capability(error) => error.fmt(formatter),
         }
     }
@@ -591,11 +681,28 @@ impl fmt::Display for CorePreludeSelectionError {
 impl std::error::Error for CorePreludeSelectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::ForeignBinding(_) => None,
+            Self::ForeignProjection => None,
             Self::Capability(error) => Some(error),
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CorePreludeSelectionBindError {
+    ForeignProjection,
+}
+
+impl fmt::Display for CorePreludeSelectionBindError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ForeignProjection => {
+                formatter.write_str("imported core selection belongs to another prelude projection")
+            }
+        }
+    }
+}
+
+impl std::error::Error for CorePreludeSelectionBindError {}
 
 impl<'a> SelectedImportedCoreTarget<'a> {
     pub const fn binding(self) -> ImportedHirId<PersistentExportBindingId> {
