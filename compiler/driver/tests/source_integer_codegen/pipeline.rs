@@ -110,12 +110,17 @@ pub(super) fn lower_program(
         foundation,
         production,
         scoop_mir::CoreShapeSupportSourceInput::NotCore,
+        scoop_mir::StrongImportedCoreInput::Unused,
     )
     .expect("integer test MIR seals as one strong input");
     let profile =
         scoop_codegen::ResolvedTargetProfile::resolve_host().expect("supported host profile");
-    let lir = scoop_lir_lower::lower(&mir, profile.lir_target())
-        .expect("integer test lowers to ODR-free LIR");
+    let lir = scoop_lir_lower::lower(
+        &mir,
+        scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+        profile.lir_target(),
+    )
+    .expect("integer test lowers to ODR-free LIR");
     let llvm = scoop_codegen::render_llvm_ir_members(
         &lir,
         &scoop_lir::ConeCoordinate::reserved_single_file(),

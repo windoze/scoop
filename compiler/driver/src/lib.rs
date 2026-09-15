@@ -243,6 +243,7 @@ pub fn compile_file_with_options(
         mir_foundation,
         mir_production,
         scoop_mir::CoreShapeSupportSourceInput::NotCore,
+        scoop_mir::StrongImportedCoreInput::Unused,
     )
     .map_err(|error| {
         vec![no_span(
@@ -251,8 +252,12 @@ pub fn compile_file_with_options(
         )]
     })?;
 
-    let lir = scoop_lir_lower::lower(&strong_mir, target_profile.lir_target())
-        .map_err(|error| vec![no_span(user_index, format!("LIR lowering failed: {error}"))])?;
+    let lir = scoop_lir_lower::lower(
+        &strong_mir,
+        scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+        target_profile.lir_target(),
+    )
+    .map_err(|error| vec![no_span(user_index, format!("LIR lowering failed: {error}"))])?;
     let lir_dump = scoop_lir::dump(lir.module());
 
     let build = (|| -> Result<(StageDumps, PathBuf), Vec<Diagnostic>> {

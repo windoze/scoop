@@ -65,10 +65,16 @@ fn core_lowering_publishes_callable_abi_authority() {
         foundation,
         production,
         mir::CoreShapeSupportSourceInput::Core(Vec::new()),
+        mir::StrongImportedCoreInput::Unused,
     )
     .unwrap();
 
-    let output = super::super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64).unwrap();
+    let output = super::super::lower(
+        &input,
+        super::super::StrongImportedCoreLirInput::Unused,
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
     let lir::CoreLirBridgeBranchV1::Core(core) = output.core_lir_bridge() else {
         panic!("core lowering must publish the core LIR branch")
     };
@@ -85,6 +91,236 @@ fn core_lowering_publishes_callable_abi_authority() {
         callable.expected_symbol(),
         output.module().functions[0].callable_body.symbol_request()
     );
+}
+
+#[test]
+fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
+    let mut core_builder = Builder::new();
+    let core_function = core_builder.user_fn("exported", Arena::new(), Vec::new());
+    let mut core_module = core_builder.finish(core_function);
+    core_module.cone = ConeIdentity::CORE;
+    core_module.output = mir::MirOutput::Library;
+    let mir::CallableSignatureSubject::Strong(implementation) = core_module
+        .meta
+        .callable_signature_subject(core_function)
+        .unwrap()
+    else {
+        panic!("test core callable must have strong ownership")
+    };
+    let scoop_identity::CallableOwner::Function(definition) = implementation else {
+        panic!("test core callable must be a source function")
+    };
+    let declaration = SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("exported").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let binding = scoop_identity::PersistentExportBindingId::from_key(
+        &scoop_identity::ExportBindingKey::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            CanonicalIdentifier::new("exported").unwrap(),
+            scoop_identity::BindingTarget::function(&declaration).unwrap(),
+        ),
+    )
+    .unwrap();
+    let core_foundation = mir::OdrFreeMirFoundation::from_module(&core_module).unwrap();
+    let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&core_foundation);
+    let exact = strong.bridges()[0].signature().clone();
+    let core_production = mir::CoreBootstrapBridgeSectionV1::try_new(
+        ConeIdentity::CORE,
+        mir::CoreMirBridgeBranchV1::Core(
+            mir::CoreMirBridgeV1::try_new(
+                vec![
+                    mir::CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap(),
+                ],
+                Vec::new(),
+            )
+            .unwrap(),
+        ),
+        mir::EntryMirBridgeBranchV1::Library,
+        strong,
+    )
+    .unwrap();
+    let core_input = mir::SingleConeStrongMirInput::try_new(
+        core_module,
+        core_foundation.clone(),
+        core_production,
+        mir::CoreShapeSupportSourceInput::Core(Vec::new()),
+        mir::StrongImportedCoreInput::Unused,
+    )
+    .unwrap();
+    let core_lir = super::super::lower(
+        &core_input,
+        super::super::StrongImportedCoreLirInput::Unused,
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
+
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    let identities = pending.finish().unwrap();
+    let mut session = SemanticIdentitySession::new();
+    let (_, imported_mir_identities, _) = session
+        .import(
+            ConeIdentity::CORE,
+            SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
+            &identities,
+        )
+        .unwrap()
+        .into_parts();
+    let imported_mir =
+        mir::ImportedMirFoundation::from_odr_free(core_foundation, imported_mir_identities);
+    let mir_callable = imported_mir
+        .project_core_callable(core_input.production(), binding, definition, exact.clone())
+        .unwrap();
+    let mut selected_mir = mir::SelectedImportedMirSet::new(&imported_mir, core_input.production());
+    let mir_selection = selected_mir.insert(mir_callable).unwrap();
+
+    let mut ordinary_builder = Builder::new();
+    let caller = ordinary_builder.user_fn("caller", Arena::new(), Vec::new());
+    let mut ordinary_module = ordinary_builder.finish(caller);
+    ordinary_module.output = mir::MirOutput::Library;
+    let imported_use = ordinary_module.meta.imported_core_callables.alloc(
+        selected_mir
+            .callable_use(mir_selection)
+            .expect("selected MIR callable mints one use"),
+    );
+    let entry = ordinary_module.functions[caller].body.entry;
+    ordinary_module.functions[caller].body.blocks[entry]
+        .statements
+        .push(call_stmt(mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Direct,
+                callee: mir::Callee::CoreExternal(imported_use),
+            },
+            args: Vec::new(),
+            pending: mir::CoroutinePendingContext::Root,
+        }));
+    let ordinary_foundation = mir::OdrFreeMirFoundation::from_module(&ordinary_module).unwrap();
+    let ordinary_production = mir::CoreBootstrapBridgeSectionV1::try_new(
+        ConeIdentity::SINGLE_FILE,
+        mir::CoreMirBridgeBranchV1::NotCore,
+        mir::EntryMirBridgeBranchV1::Library,
+        mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&ordinary_foundation),
+    )
+    .unwrap();
+    let ordinary_input = mir::SingleConeStrongMirInput::try_new(
+        ordinary_module,
+        ordinary_foundation,
+        ordinary_production,
+        mir::CoreShapeSupportSourceInput::NotCore,
+        mir::StrongImportedCoreInput::Selected(&selected_mir),
+    )
+    .unwrap();
+
+    let canonical_lir = core_lir.foundation().as_canonical().clone();
+    let decoded_lir = scoop_wire::decode_canonical::<lir::DecodedLirFoundation>(
+        &scoop_wire::encode(&canonical_lir).unwrap(),
+        scoop_wire::DecodeLimits::default(),
+    )
+    .unwrap();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register_authority(definition).unwrap();
+    for identity in core_input.module().meta.source_exact_types.iter() {
+        match identity.identity_record().key() {
+            scoop_identity::ExactTypeKey::Nominal(owner) => {
+                pending.register_authority(*owner).unwrap();
+            }
+            scoop_identity::ExactTypeKey::NominalApplication { origin, .. } => {
+                pending.register_authority(*origin).unwrap();
+            }
+            scoop_identity::ExactTypeKey::Tuple(_)
+            | scoop_identity::ExactTypeKey::Function { .. }
+            | scoop_identity::ExactTypeKey::RawPointer(_)
+            | scoop_identity::ExactTypeKey::NativeFunctionPointer { .. } => {}
+        }
+    }
+    decoded_lir.register_identities(&mut pending).unwrap();
+    decoded_lir.resolve_identities(&mut pending).unwrap();
+    let identities = pending.finish().unwrap();
+    let mut session = SemanticIdentitySession::new();
+    let (_, _, imported_lir_identities) = session
+        .import(
+            ConeIdentity::CORE,
+            SemanticOriginFingerprint::new([4; 32], [5; 32], [6; 32]),
+            &identities,
+        )
+        .unwrap()
+        .into_parts();
+    let imported_lir = lir::ImportedLirFoundation::from_odr_free(
+        core_lir.foundation().clone(),
+        imported_lir_identities,
+    );
+    let definitions =
+        lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(core_lir.foundation()).unwrap();
+    let core_bridge = core_lir.core_lir_bridge().core().unwrap();
+    let lir_callable = imported_lir
+        .project_core_callable(
+            core_bridge,
+            &definitions,
+            binding,
+            scoop_identity::StrongCallableDefinitionOwner::Function(definition),
+            exact,
+        )
+        .unwrap();
+    let mut selected_lir =
+        lir::SelectedImportedLirSet::new(&imported_lir, &definitions, core_bridge);
+    selected_lir.insert(lir_callable).unwrap();
+
+    assert!(matches!(
+        super::super::lower(
+            &ordinary_input,
+            super::super::StrongImportedCoreLirInput::Unused,
+            lir::LirTargetProfile::DARWIN_AARCH64,
+        ),
+        Err(super::super::StrongLirLoweringError::MissingImportedCoreLirAuthority)
+    ));
+    let output = super::super::lower(
+        &ordinary_input,
+        super::super::StrongImportedCoreLirInput::Selected(&selected_lir),
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
+    let module = output.module();
+    assert_eq!(module.meta.core_external_callables.len(), 1);
+    let external = &module.meta.core_external_callables.iter().next().unwrap().1;
+    assert_eq!(
+        external.target(),
+        scoop_identity::StrongCallableDefinitionOwner::Function(definition)
+    );
+    assert_eq!(
+        external.root_plan(),
+        lir::CoreExternalCallableRootPlan::ManagedStatepoint
+    );
+    let call = module.functions[0].blocks[module.functions[0].entry]
+        .instructions
+        .iter()
+        .find_map(|instruction| match instruction {
+            lir::Instruction::Call { site } => Some(site),
+            _ => None,
+        })
+        .expect("ordinary caller emits the imported core call");
+    assert!(matches!(
+        call.destination(&module.functions[0].call_targets),
+        lir::CallDestination::CoreExternal(_)
+    ));
+    let production = output
+        .build_production_section(
+            scoop_identity::ConeCoordinate::reserved_single_file(),
+            lir::EntryProductionSourceV1::Library,
+        )
+        .unwrap();
+    assert_eq!(production.external_bridges().bridges().len(), 1);
 }
 
 #[test]

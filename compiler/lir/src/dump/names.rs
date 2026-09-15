@@ -88,6 +88,9 @@ pub(super) fn callable_ref_name(reference: CallableRef) -> String {
 pub(super) fn call_destination_name(function: &Function, destination: CallDestination) -> String {
     match destination {
         CallDestination::Local(id) => format!("local-fn{}", id.into_u32()),
+        CallDestination::CoreExternal(id) => {
+            format!("core-external-fn{}", id.into_raw())
+        }
         CallDestination::Runtime(runtime) => format!("runtime @{}", runtime.symbol()),
         CallDestination::Extern(id) => format!("extern{}", id.into_raw()),
         CallDestination::Dispatch { table, slot } => {

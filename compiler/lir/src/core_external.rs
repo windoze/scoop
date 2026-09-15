@@ -71,7 +71,7 @@ pub struct CoreExternalCallable {
 }
 
 impl CoreExternalCallable {
-    pub fn new(
+    pub(crate) fn new(
         target: StrongCallableDefinitionOwner,
         canonical_signature: CanonicalScoopAbiFunctionSignature,
         signature: ScoopAbiSignature,

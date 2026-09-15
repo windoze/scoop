@@ -101,6 +101,11 @@ pub(super) fn lower_function<'a>(
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    core_external_callables: &'a Arena<lir::CoreExternalCallable>,
+    core_external_callable_map: &'a HashMap<
+        mir::ImportedCoreCallableUseId,
+        lir::CoreExternalCallableId,
+    >,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
 ) -> LoweredFunction {
@@ -189,6 +194,8 @@ pub(super) fn lower_function<'a>(
         type_descriptors,
         local_function_map,
         function_signatures,
+        core_external_callables,
+        core_external_callable_map,
         extern_functions,
         extern_function_refs,
         pending_safepoints: &mut pending_safepoints,
@@ -289,6 +296,9 @@ struct FunctionLowerer<'a> {
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    core_external_callables: &'a Arena<lir::CoreExternalCallable>,
+    core_external_callable_map:
+        &'a HashMap<mir::ImportedCoreCallableUseId, lir::CoreExternalCallableId>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     pending_safepoints: &'a mut safepoints::PendingSafepointSites,

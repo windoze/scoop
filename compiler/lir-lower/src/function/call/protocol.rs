@@ -27,6 +27,18 @@ impl LoweredCallDestination {
             }
         }
     }
+
+    pub(in crate::function) fn core_external(
+        function: lir::CoreExternalCallableId,
+        effect: lir::GcEffect,
+    ) -> Self {
+        match effect {
+            lir::GcEffect::Managed => {
+                Self::Managed(lir::ManagedCallDestination::core_external(function))
+            }
+            lir::GcEffect::NoGc => Self::NoGc(lir::NoGcCallDestination::core_external(function)),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]

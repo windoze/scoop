@@ -11,14 +11,15 @@ use scoop_identity::{
     DefinitionOwnerChain, Effect, ExactCallableSignature, ExactOrdinaryNoArgUnitSignature,
     ExactTypeKey, ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey,
     InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
-    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFieldId,
-    PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId, PersistentTypeId,
-    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
-    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
-    SourceNativeExternalContract, SourceNativeExternalContractKey,
-    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
-    SourceNominalKind, SourceScoopAbiFunctionSignature, SpecializationKey,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    PendingIdentityValidation, PersistentCallbackApplicationId, PersistentExactTypeId,
+    PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId,
+    PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint, SignatureCallableShape,
+    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
+    SourceDeclarationSite, SourceExternFunctionAbi, SourceNativeExternalContract,
+    SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
+    SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
+    SourceScoopAbiFunctionSignature, SpecializationKey, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 fn test_field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {
@@ -199,6 +200,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
         foundation,
         production,
         mir::CoreShapeSupportSourceInput::NotCore,
+        mir::StrongImportedCoreInput::Unused,
     )
     .unwrap()
 }
@@ -207,7 +209,11 @@ fn try_lower(
     module: mir::Module,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let input = seal_strong_input(module);
-    super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64)
+    super::lower(
+        &input,
+        super::StrongImportedCoreLirInput::Unused,
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
 }
 
 fn lower(module: mir::Module) -> lir::Module {
@@ -217,7 +223,12 @@ fn lower(module: mir::Module) -> lir::Module {
 fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
     let input = seal_strong_input(module);
     let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
-    let output = super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64).unwrap();
+    let output = super::lower(
+        &input,
+        super::StrongImportedCoreLirInput::Unused,
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
     output
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_single_file(),
@@ -553,7 +564,12 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
     let class_exact = exact(&mir::Type::Class(class));
     let interface_exact = exact(&mir::Type::Interface(interface));
     let c_struct_exact = exact(&mir::Type::Struct(c_struct));
-    let output = super::lower(&input, lir::LirTargetProfile::DARWIN_AARCH64).unwrap();
+    let output = super::lower(
+        &input,
+        super::StrongImportedCoreLirInput::Unused,
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
 
     assert_eq!(output.module().meta.exact_types, expected);
     assert_eq!(

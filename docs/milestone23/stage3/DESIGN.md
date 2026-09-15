@@ -710,9 +710,16 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   foundation与strong-definition surface的`SelectedImportedLirSet<'core>`，并使用与前两层都不
   相容的`ImportedCoreLirCallableId`。LIR集合项同时保留body、definition plan和唯一symbol request；
 - `mir-lower`只返回拥有上述MIR selected set的`OrdinaryMirOutput<'core>`；构造时验证每个arena entry的品牌、
-  binding唯一性、每项至少被一个direct call引用以及整图MIR合法性。未绑定sidecar的裸`Module`不能进入ordinary
-  strong LIR入口；在LIR external bridge尚未从同一artifact提供canonical Scoop ABI与effect/root-plan前，现有
-  `SingleConeStrongMirInput`显式拒绝任何imported-core arena，而不是选择一个猜测的调用协议；
+  binding唯一性、每项至少被一个direct call引用以及整图MIR合法性。strong sealer必须显式接收
+  `StrongImportedCoreInput::{Unused, Selected}`：有imported-core arena时只允许`Selected`，逐项通过该set解析品牌后，
+  在`SingleConeStrongMaterializationPlan`中保存自有的`StrongImportedCoreCallableRoot { use-id, binding,
+  implementation, exact-signature }`；不能把sidecar生命周期泄漏到sealed MIR，也不能从裸arena entry复制id；
+- `lir-lower`对应接收`StrongImportedCoreLirInput::{Unused, Selected}`。存在上述MIR root时必须给出同artifact投影的
+  LIR selected set，并逐项核对binding、strong owner和exact signature；随后用本模块exact type relation及target
+  profile生成物理`ScoopAbiSignature`，再由selected LIR项独占的materialize入口与canonical ABI、calling convention、
+  effect/root-plan做一致性检查。成功项按MIR use-id建立到`CoreExternalCallableId`的全映射；direct call只产生
+  effect-refined的`ManagedCallDestination::CoreExternal`或`NoGcCallDestination::CoreExternal`，不存在symbol-only、
+  普通extern或本地callable回退。`CoreExternalCallable`的裸构造器不是跨crate API；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
 

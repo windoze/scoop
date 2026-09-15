@@ -265,6 +265,11 @@ impl<'a> SelectedImportedLirSet<'a> {
     pub fn is_empty(&self) -> bool {
         self.callables.is_empty()
     }
+
+    #[doc(hidden)]
+    pub fn callable_selections(&self) -> impl Iterator<Item = &SelectedImportedLirCallable<'a>> {
+        self.callables.iter()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -325,6 +330,21 @@ impl SelectedImportedLirCallable<'_> {
 
     pub const fn required_definition(&self) -> ImportedLirId<ObjectDefinitionPlanId> {
         self.required_definition
+    }
+
+    /// Materializes the transient LIR declaration only from this exact
+    /// imported authority. The constructor itself is crate-private so a
+    /// caller cannot fabricate a core external from persistent ids.
+    pub fn materialize(
+        &self,
+        signature: crate::ScoopAbiSignature,
+    ) -> Result<crate::CoreExternalCallable, crate::CoreExternalBuildError> {
+        crate::CoreExternalCallable::new(
+            self.target,
+            self.abi_signature.clone(),
+            signature,
+            self.root_plan,
+        )
     }
 
     #[doc(hidden)]

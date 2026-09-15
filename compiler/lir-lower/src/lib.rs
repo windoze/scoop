@@ -142,9 +142,14 @@ mod capability;
 use capability::validate_strong_materialization;
 pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequirement};
 
+mod imported_core;
+pub use imported_core::StrongImportedCoreLirInput;
+use imported_core::lower_imported_core_callables;
+
 /// Lower one sealed single-Cone strong MIR product to ODR-free LIR.
 pub fn lower(
     input: &mir::SingleConeStrongMirInput,
+    imported_core: StrongImportedCoreLirInput<'_>,
     target_profile: lir::LirTargetProfile,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let module = input.module();
@@ -182,6 +187,8 @@ pub fn lower(
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums);
+    let (core_external_callables, core_external_callable_map) =
+        lower_imported_core_callables(&context, input, imported_core, &structs, &enums)?;
     let native_abi = native_abi::lower(&context, module, &structs, &enums);
     // Classify every final MIR function before any body is lowered. Callee
     // definitions and all statically selected call sites reuse these exact
@@ -318,6 +325,8 @@ pub fn lower(
                 &type_descriptor_refs,
                 &local_function_map,
                 &function_signatures,
+                &core_external_callables,
+                &core_external_callable_map,
                 &extern_functions,
                 &extern_function_refs,
             )
@@ -370,7 +379,7 @@ pub fn lower(
             layouts,
             type_descriptors,
             core_external_type_descriptors: Arena::new(),
-            core_external_callables: Arena::new(),
+            core_external_callables,
         },
     };
     lir::SingleConeStrongLirOutput::try_new(
@@ -546,6 +555,25 @@ fn callable_body_identity(owner: mir::CallableOwner) -> lir::CallableBodyIdentit
 #[derive(Debug)]
 pub enum StrongLirLoweringError {
     Capability(StrongLirCapabilityError),
+    MissingImportedCoreLirAuthority,
+    CoreCannotImportCore,
+    ImportedCoreLirCountMismatch {
+        mir: usize,
+        lir: usize,
+    },
+    MissingImportedCoreLirCallable {
+        index: usize,
+        binding: scoop_identity::PersistentExportBindingId,
+    },
+    ImportedCoreLirCallableMismatch {
+        index: usize,
+        binding: scoop_identity::PersistentExportBindingId,
+    },
+    MissingImportedCoreResultType {
+        index: usize,
+        exact: scoop_identity::PersistentExactTypeId,
+    },
+    ImportedCoreCallable(lir::CoreExternalBuildError),
     MissingCoreCallableMaterialization(scoop_identity::CallableOwner),
     MissingCoreCallableSignature(scoop_identity::CallableOwner),
     UnsupportedCoreCallableEffect(scoop_identity::CallableOwner),
@@ -559,7 +587,29 @@ impl fmt::Display for StrongLirLoweringError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Capability(source) => source.fmt(formatter),
+            Self::ImportedCoreCallable(source) => source.fmt(formatter),
             Self::CoreLirBridge(source) => source.fmt(formatter),
+            Self::MissingImportedCoreLirAuthority => formatter
+                .write_str("imported-core MIR roots require the exact selected LIR authority"),
+            Self::CoreCannotImportCore => {
+                formatter.write_str("the core bootstrap Cone cannot import core callables")
+            }
+            Self::ImportedCoreLirCountMismatch { mir, lir } => write!(
+                formatter,
+                "imported-core selection count mismatch: MIR has {mir}, LIR authority has {lir}"
+            ),
+            Self::MissingImportedCoreLirCallable { index, binding } => write!(
+                formatter,
+                "imported-core MIR callable {index} binding {binding} has no LIR authority"
+            ),
+            Self::ImportedCoreLirCallableMismatch { index, binding } => write!(
+                formatter,
+                "imported-core MIR callable {index} binding {binding} disagrees with its LIR authority"
+            ),
+            Self::MissingImportedCoreResultType { index, exact } => write!(
+                formatter,
+                "imported-core MIR callable {index} result {exact} has no exact MIR type relation"
+            ),
             Self::MissingCoreCallableMaterialization(owner) => {
                 write!(
                     formatter,
@@ -590,9 +640,16 @@ impl std::error::Error for StrongLirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Capability(source) => Some(source),
+            Self::ImportedCoreCallable(source) => Some(source),
             Self::CoreLirBridge(source) => Some(source),
             Self::Output(source) => Some(source),
             Self::MissingCoreCallableMaterialization(_)
+            | Self::MissingImportedCoreLirAuthority
+            | Self::CoreCannotImportCore
+            | Self::ImportedCoreLirCountMismatch { .. }
+            | Self::MissingImportedCoreLirCallable { .. }
+            | Self::ImportedCoreLirCallableMismatch { .. }
+            | Self::MissingImportedCoreResultType { .. }
             | Self::MissingCoreCallableSignature(_)
             | Self::UnsupportedCoreCallableEffect(_)
             | Self::UnsupportedCoreCallableReceiver(_)

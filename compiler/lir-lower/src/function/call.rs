@@ -114,9 +114,24 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 self.finish_indirect(destination, args, &call_signature)
             }
-            mir::Callee::CoreExternal(_) => {
-                unreachable!(
-                    "SingleConeStrongMirInput rejects imported-core calls before LIR lowering"
+            mir::Callee::CoreExternal(source) => {
+                assert!(matches!(call.target.kind, mir::CallKind::Direct));
+                let id = self.core_external_callable_map[&source];
+                let callable = &self.core_external_callables[id];
+                assert_eq!(
+                    call.args.len(),
+                    callable.signature().logical_argument_count(),
+                    "imported core call arity"
+                );
+                let args = call
+                    .args
+                    .iter()
+                    .map(|argument| self.lower_expr(argument))
+                    .collect();
+                self.emit_non_native_call_with_signature(
+                    LoweredCallDestination::core_external(id, callable.gc_effect()),
+                    callable.signature(),
+                    args,
                 )
             }
             mir::Callee::Closure(function_type) => {

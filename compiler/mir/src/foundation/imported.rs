@@ -418,8 +418,8 @@ mod tests {
         CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreShapeSupportSourceInput,
         CoroutinePendingContext, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
         Module, OdrFreeMirFoundation, OrdinaryMirOutput, OrdinaryMirOutputError,
-        SingleConeStrongMirInput, SingleConeStrongMirInputError, SourceSpan, Statement,
-        StatementKind, StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1, Terminator, Type,
+        SingleConeStrongMirInput, SourceSpan, Statement, StatementKind,
+        StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1, Terminator, Type,
     };
 
     #[test]
@@ -548,15 +548,41 @@ mod tests {
             StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap(),
         )
         .unwrap();
+        let missing_authority_module = ordinary_module(callable_use);
+        let missing_authority_foundation =
+            OdrFreeMirFoundation::from_module(&missing_authority_module).unwrap();
+        let missing_authority_production = CoreBootstrapBridgeSectionV1::try_new(
+            ConeIdentity::SINGLE_FILE,
+            CoreMirBridgeBranchV1::NotCore,
+            EntryMirBridgeBranchV1::Library,
+            StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&missing_authority_foundation),
+        )
+        .unwrap();
         assert!(matches!(
             SingleConeStrongMirInput::try_new(
-                module,
-                strong_foundation,
-                ordinary_production,
+                missing_authority_module,
+                missing_authority_foundation,
+                missing_authority_production,
                 CoreShapeSupportSourceInput::NotCore,
+                crate::StrongImportedCoreInput::Unused,
             ),
-            Err(SingleConeStrongMirInputError::ImportedCoreCallablesRequireOrdinaryInput)
+            Err(crate::SingleConeStrongMirInputError::MissingImportedCoreAuthority)
         ));
+        let strong = SingleConeStrongMirInput::try_new(
+            module,
+            strong_foundation,
+            ordinary_production,
+            CoreShapeSupportSourceInput::NotCore,
+            crate::StrongImportedCoreInput::Selected(&selections),
+        )
+        .expect("the strong sealer resolves the exact imported MIR selected set");
+        let roots = strong.materialization().imported_core_callable_roots();
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].binding(), binding);
+        assert_eq!(
+            roots[0].implementation(),
+            StrongCallableDefinitionOwner::Function(definition)
+        );
     }
 
     fn ordinary_module(callable: crate::ImportedCoreCallableUse) -> Module {

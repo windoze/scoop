@@ -624,6 +624,7 @@ impl TrustedCoreBootstrapHirOutput {
             foundation,
             production_section,
             shape_sources,
+            scoop_mir::StrongImportedCoreInput::Unused,
         )
         .map_err(CoreBootstrapMirStageError::Sealing)?;
         Ok(TrustedCoreBootstrapMirOutput { hir: self, strong })
@@ -668,8 +669,12 @@ impl TrustedCoreBootstrapMirOutput {
         self,
         target_profile: scoop_lir::LirTargetProfile,
     ) -> Result<TrustedCoreBootstrapLirOutput, CoreBootstrapLirStageError> {
-        let lir = scoop_lir_lower::lower(&self.strong, target_profile)
-            .map_err(CoreBootstrapLirStageError::Lowering)?;
+        let lir = scoop_lir_lower::lower(
+            &self.strong,
+            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+            target_profile,
+        )
+        .map_err(CoreBootstrapLirStageError::Lowering)?;
         Ok(TrustedCoreBootstrapLirOutput { mir: self, lir })
     }
 }
@@ -1367,6 +1372,7 @@ mod tests {
                 missing_source_foundation,
                 missing_source_production,
                 scoop_mir::CoreShapeSupportSourceInput::NotCore,
+                scoop_mir::StrongImportedCoreInput::Unused,
             ),
             Err(scoop_mir::SingleConeStrongMirInputError::CoreShapeSupportSourceBranchMismatch)
         ));

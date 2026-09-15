@@ -114,6 +114,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 return Ok(function);
             }
             scoop_lir::CallDestination::Runtime(function) => function.symbol(),
+            scoop_lir::CallDestination::CoreExternal(id) => {
+                let declaration = &self.core_external_callables[id];
+                let symbol = declaration.expected_symbol().symbol();
+                let function = self.llvm.get_function(symbol.as_str()).ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed core external target `{symbol}` was not declared in the module pass"
+                    ))
+                })?;
+                if function.get_type() != fn_ty {
+                    return Err(CodegenError(format!(
+                        "typed target `{symbol}` disagrees with its existing declaration"
+                    )));
+                }
+                return Ok(function);
+            }
             scoop_lir::CallDestination::Extern(id) => match &self.extern_functions[id].kind {
                 ExternFunctionKind::C { bridge, .. } => bridge.symbol(),
                 ExternFunctionKind::Scoop { .. } => &self.extern_functions[id].native_symbol,
