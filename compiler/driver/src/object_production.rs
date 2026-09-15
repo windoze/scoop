@@ -18,19 +18,22 @@ use scoop_slib::{
     BuiltinObjectSetValidationError, CBridgeProductionEnvelopeValidationError,
     CBridgeTargetSupportRequirementValidationError, CanonicalDefinedLinkSymbolOwnerSetV1,
     CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
-    CanonicalUndefinedSymbolRequirementSetV1, ConeImageValidationError,
+    CanonicalUndefinedSymbolRequirementSetV1, CodeFingerprintError,
+    CodeLinkObjectMemberValidationError, ConeImageValidationError, ConeRecord,
     CoreStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
-    DefinedLinkSymbolOwnerBuildError, DigestPatchSiteValidationError, EntryPatchError,
-    EntryProductionValidationError, GeneratedCBridgeObjectCandidateV1,
+    DefinedLinkSymbolOwnerBuildError, DependencyRecord, DigestPatchSiteValidationError,
+    EntryPatchError, EntryProductionValidationError, GeneratedCBridgeObjectCandidateV1,
     GeneratedCBridgeSemanticValidationError, LinkObjectMemberSetPlanError, ObjectUnitSetError,
     PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
-    PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
-    RuntimeAndEhRequirementValidationError, RuntimeImageFingerprintError, RuntimeImagePatchError,
-    ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError, SlibMemberId,
-    SourceExternalRequirementValidationError, StrongCallableBodyFingerprintError,
-    StrongCallableFingerprintError, StrongCallableRegistrationObjectFingerprintError,
-    StrongCallableRegistrationValidationError, StrongImmortalObjectDefinitionFingerprintError,
-    StrongImmortalObjectFingerprintError, StrongImmortalObjectRegistrationObjectFingerprintError,
+    PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1, ProductionCodeProjectionError,
+    ProvisionalDigestPatchSiteV1, RuntimeAndEhRequirementValidationError,
+    RuntimeImageFingerprintError, RuntimeImagePatchError, ScoopLirObjectCandidateV1,
+    ScoopLirStackmapValidationError, SingleConeProductionManifestV1, SlibMember, SlibMemberId,
+    SlibMemberRecordError, SourceExternalRequirementValidationError,
+    StrongCallableBodyFingerprintError, StrongCallableFingerprintError,
+    StrongCallableRegistrationObjectFingerprintError, StrongCallableRegistrationValidationError,
+    StrongImmortalObjectDefinitionFingerprintError, StrongImmortalObjectFingerprintError,
+    StrongImmortalObjectRegistrationObjectFingerprintError,
     StrongImmortalObjectRegistrationValidationError,
     StrongInitializationDefinitionFingerprintError, StrongInitializationFingerprintError,
     StrongInitializationRegistrationObjectFingerprintError,
@@ -55,8 +58,8 @@ use scoop_slib::{
     VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
     VerifiedStrongStaticStorageRegistrationSetV1, VerifiedStrongTypeFingerprintSetV1,
     VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
-    compute_runtime_image_fingerprint_v1, compute_strong_callable_body_object_fingerprints_v1,
-    compute_strong_callable_fingerprints_v1,
+    compute_code_fingerprint_v1, compute_runtime_image_fingerprint_v1,
+    compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
     compute_strong_callable_registration_object_fingerprints_v1,
     compute_strong_immortal_object_definition_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1,
@@ -75,14 +78,14 @@ use scoop_slib::{
     patch_runtime_image_fingerprint_v1, patch_strong_registration_fingerprints_v1,
     seal_builtin_object_external_requirements_v1, verify_builtin_object_strong_relocations_v1,
     verify_c_bridge_production_envelopes_v1, verify_c_bridge_target_support_requirements_v1,
-    verify_cone_image_v1, verify_core_strong_requirements_v1,
+    verify_code_link_object_members_v1, verify_cone_image_v1, verify_core_strong_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_entry_production_v1,
     verify_generated_c_bridge_semantics_v1, verify_runtime_and_eh_requirements_v1,
     verify_scoop_lir_digest_patch_sites_v1, verify_scoop_lir_stackmaps_v1,
-    verify_source_external_requirements_v1, verify_strong_callable_registrations_v1,
-    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
-    verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
-    verify_strong_type_registrations_v1,
+    verify_single_cone_production_code_projection_v1, verify_source_external_requirements_v1,
+    verify_strong_callable_registrations_v1, verify_strong_immortal_object_registrations_v1,
+    verify_strong_initialization_registrations_v1, verify_strong_safepoint_registrations_v1,
+    verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -1113,6 +1116,146 @@ impl FinalizedStrongObjectProductionV1 {
     pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV1 {
         &self.final_objects
     }
+
+    pub fn fingerprint_code(
+        self,
+        cone: &ConeRecord,
+        direct_dependencies: &[DependencyRecord],
+        source_count: usize,
+    ) -> Result<CodeFingerprintedObjectProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan: _,
+            defined_symbols,
+            undefined_symbols,
+            final_objects,
+        } = self;
+        let members = final_link_object_members(&production, &final_objects)?;
+        let directory = members
+            .iter()
+            .map(|member| member.record().clone())
+            .collect::<Vec<_>>();
+        let link_objects = verify_code_link_object_members_v1(final_objects, &directory)
+            .map_err(BuiltinObjectProductionError::CodeLinkObjects)?;
+        let code_projection = verify_single_cone_production_code_projection_v1(
+            cone,
+            direct_dependencies,
+            source_count,
+            production.production.clone(),
+            link_objects,
+        )
+        .map_err(BuiltinObjectProductionError::ProductionCodeProjection)?;
+        let native_requirements =
+            scoop_lir::CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
+                production.target(),
+                &production.foundation,
+            )
+            .map_err(BuiltinObjectProductionError::NativeRequirementSurface)?;
+        let code = compute_code_fingerprint_v1(
+            code_projection,
+            native_requirements,
+            defined_symbols,
+            undefined_symbols,
+        )
+        .map_err(BuiltinObjectProductionError::CodeFingerprint)?;
+        let production_manifest = SingleConeProductionManifestV1::from_verified_code(code);
+
+        Ok(CodeFingerprintedObjectProductionV1 {
+            target_selection: production.target_selection,
+            lir_foundation: production.foundation,
+            c_bridge_profile: production.c_bridge_profile,
+            members,
+            production_manifest,
+        })
+    }
+}
+
+fn final_link_object_members(
+    production: &PlannedBuiltinObjectProductionV1,
+    final_objects: &VerifiedEntryPatchSetV1,
+) -> Result<Vec<SlibMember>, BuiltinObjectProductionError> {
+    let producer = production.member_plan.producer();
+    let mut members = Vec::with_capacity(
+        final_objects.objects().len() + production.generated_c_bridge_members.len(),
+    );
+    for object in final_objects.objects() {
+        let plan = production
+            .member_plan
+            .scoop_lir_members()
+            .iter()
+            .find(|plan| plan.member_id() == object.member())
+            .ok_or(BuiltinObjectProductionError::MissingFinalMemberPlan(
+                object.member(),
+            ))?;
+        let member = SlibMember::new(
+            producer,
+            plan.stable_key().clone(),
+            plan.role().clone(),
+            object.bytes().to_vec(),
+        )
+        .map_err(BuiltinObjectProductionError::FinalMember)?;
+        require_final_member_id(&member, object.member())?;
+        members.push(member);
+    }
+    for object in &production.generated_c_bridge_members {
+        let member = SlibMember::new(
+            producer,
+            object.plan.stable_key().clone(),
+            object.plan.role().clone(),
+            object.bytes.clone(),
+        )
+        .map_err(BuiltinObjectProductionError::FinalMember)?;
+        require_final_member_id(&member, object.plan.member_id())?;
+        members.push(member);
+    }
+    members.sort_unstable_by_key(|member| member.record().id());
+    Ok(members)
+}
+
+fn require_final_member_id(
+    member: &SlibMember,
+    expected: SlibMemberId,
+) -> Result<(), BuiltinObjectProductionError> {
+    let actual = member.record().id();
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(BuiltinObjectProductionError::FinalMemberIdMismatch { expected, actual })
+    }
+}
+
+/// Final LinkObject members plus the unique Code/production-manifest proof.
+/// Provisional object bytes and their earlier state-machine proofs are no
+/// longer retained.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CodeFingerprintedObjectProductionV1 {
+    target_selection: ValidatedLirTargetSelection,
+    lir_foundation: OdrFreeLirFoundation,
+    c_bridge_profile: CBridgeToolchainProfileV1,
+    members: Vec<SlibMember>,
+    production_manifest: SingleConeProductionManifestV1,
+}
+
+impl CodeFingerprintedObjectProductionV1 {
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target_selection
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn c_bridge_profile(&self) -> &CBridgeToolchainProfileV1 {
+        &self.c_bridge_profile
+    }
+
+    pub fn members(&self) -> &[SlibMember] {
+        &self.members
+    }
+
+    pub const fn production_manifest(&self) -> &SingleConeProductionManifestV1 {
+        &self.production_manifest
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1341,6 +1484,15 @@ pub enum BuiltinObjectProductionError {
     RuntimeImageFingerprint(RuntimeImageFingerprintError),
     RuntimeImagePatch(RuntimeImagePatchError),
     EntryPatch(EntryPatchError),
+    MissingFinalMemberPlan(SlibMemberId),
+    FinalMember(SlibMemberRecordError),
+    FinalMemberIdMismatch {
+        expected: SlibMemberId,
+        actual: SlibMemberId,
+    },
+    CodeLinkObjects(CodeLinkObjectMemberValidationError),
+    ProductionCodeProjection(ProductionCodeProjectionError),
+    CodeFingerprint(CodeFingerprintError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -1416,6 +1568,10 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::RuntimeImageFingerprint(source) => Some(source),
             Self::RuntimeImagePatch(source) => Some(source),
             Self::EntryPatch(source) => Some(source),
+            Self::FinalMember(source) => Some(source),
+            Self::CodeLinkObjects(source) => Some(source),
+            Self::ProductionCodeProjection(source) => Some(source),
+            Self::CodeFingerprint(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,

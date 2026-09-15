@@ -1705,6 +1705,15 @@ compatibility必须在adapter内部由retained `ValidatedLirTargetSelection`与�
 proof、defined/undefined集合及原production/symbol plan，所有可写中间状态均已被消费，不保留旧的裸bytes
 patch入口或未验证final object分支。
 
+Code阶段消耗final-object状态并直接构造正式`SlibMember`集合：Scoop payload只取
+`VerifiedEntryPatchSetV1`的final bytes，generated-C payload只取同一planned production中已通过完整envelope
+与relocation closure的immutable bytes；两类stable key与role都只取统一member plan。构造出的member id必须
+逐项回等plan，完整directory再由`verify_code_link_object_members_v1`与final proof反向互证。随后以调用请求中
+的typed Cone/dependency/source-count投影重建production code projection，并从retained foundation重建native
+requirement surface后计算唯一Code fingerprint。`CodeFingerprintedObjectProductionV1`只保留target selection、
+LIR foundation、C-bridge profile、final members和拥有完整code proof的production manifest；provisional bytes、
+symbol plan及各中间proof全部被消费，不存在从临时路径或未finalize bytes直接打包的旧入口。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
