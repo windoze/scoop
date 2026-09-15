@@ -260,7 +260,10 @@ impl BodyLowerer<'_> {
             ),
         );
         let throw = self.throw_builtin(
-            self.module.exception_core.index_out_of_bounds_exception,
+            self.module
+                .core_protocols
+                .exceptions
+                .index_out_of_bounds_exception,
             span,
         );
         self.prelude.push(smir::StatementKind::If {

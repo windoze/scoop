@@ -56,23 +56,34 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    pub option_core: Vec<OptionCore>,
-    pub exception_core: CompilerExceptionCore,
-    pub coroutine_protocols: Vec<CoroutineProtocol>,
-    pub foreign_callback_core: ForeignCallbackCore,
-    /// Nominal owners of the fixed compiler-represented types. Generic
-    /// intrinsic families are represented by each concrete class instance,
-    /// so no parameterized template can leak into this local graph.
-    pub intrinsic_type_core: IntrinsicTypeCore,
+    /// Complete compiler protocol authority defined by declarations
+    /// materialized in this LocalConcrete HIR graph.
+    pub core_protocols: DefinedConcreteCoreProtocols,
 }
 
 impl Module {
     pub fn option_core(&self, enumeration: EnumId) -> Option<OptionCore> {
-        self.option_core
+        self.core_protocols
+            .option
             .iter()
             .copied()
             .find(|option| option.enumeration() == enumeration)
     }
+}
+
+/// Closed local-concrete compiler protocol product. Its fields are kept
+/// together so a defining graph cannot replace or omit one protocol family
+/// independently of the others.
+#[derive(Debug, Clone)]
+pub struct DefinedConcreteCoreProtocols {
+    pub option: Vec<OptionCore>,
+    pub exceptions: CompilerExceptionCore,
+    pub coroutines: Vec<CoroutineProtocol>,
+    pub foreign_callbacks: ForeignCallbackCore,
+    /// Nominal owners of the fixed compiler-represented types. Generic
+    /// intrinsic families are represented by each concrete class instance,
+    /// so no parameterized template can leak into this local graph.
+    pub fundamental_types: IntrinsicTypeCore,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -390,7 +401,7 @@ impl Module {
         &self,
         function: FunctionId,
     ) -> Option<&CoroutineProtocol> {
-        self.coroutine_protocols.iter().find(|protocol| {
+        self.core_protocols.coroutines.iter().find(|protocol| {
             protocol.start_coroutine == function || protocol.suspend_coroutine == function
         })
     }

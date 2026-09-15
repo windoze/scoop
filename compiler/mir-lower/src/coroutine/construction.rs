@@ -154,8 +154,16 @@ pub(super) fn protocol_error_block(
     blocks: &mut Arena<mir::BasicBlock>,
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
-    let class = module.exception_core.illegal_state_exception.class();
-    let constructor = module.exception_core.illegal_state_exception.callable();
+    let class = module
+        .core_protocols
+        .exceptions
+        .illegal_state_exception
+        .class();
+    let constructor = module
+        .core_protocols
+        .exceptions
+        .illegal_state_exception
+        .callable();
     let mir_class = lowerer.class_map[&class];
     let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
     blocks.alloc(mir::BasicBlock {

@@ -147,7 +147,7 @@ impl Lowerer {
         module: &hir::Module,
         result: &mir::Type,
     ) -> hir::CoroutineProtocol {
-        for protocol in module.coroutine_protocols.iter().copied() {
+        for protocol in module.core_protocols.coroutines.iter().copied() {
             let lowered = Types {
                 module,
                 struct_map: &self.struct_map,
@@ -166,7 +166,8 @@ impl Lowerer {
             }
         }
         let protocols = module
-            .coroutine_protocols
+            .core_protocols
+            .coroutines
             .iter()
             .map(|protocol| format!("{:?}", module.types[protocol.result_type].kind))
             .collect::<Vec<_>>();

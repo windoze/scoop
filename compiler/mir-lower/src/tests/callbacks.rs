@@ -309,7 +309,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
             .collect(),
         concrete.module().exact_type_identities[reference_function_type.return_type].id(),
     );
-    let callback_core = concrete.module().foreign_callback_core;
+    let callback_core = concrete.module().core_protocols.foreign_callbacks;
     let expected_callback_protocol_exact_types = [
         callback_core.modes.enumeration(),
         callback_core.states.enumeration(),

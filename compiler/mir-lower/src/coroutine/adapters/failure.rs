@@ -22,7 +22,8 @@ pub(super) fn generate_failure_method(
         .coroutines
         .step_metadata_for_type(outer_step)
         .completed();
-    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
+    let throwable =
+        mir::Type::Class(lowerer.class_map[&module.core_protocols.exceptions.throwable.class()]);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));

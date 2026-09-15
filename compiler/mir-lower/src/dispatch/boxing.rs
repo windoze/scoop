@@ -393,11 +393,12 @@ impl Lowerer {
         match payload {
             mir::Type::Integer(kind) => Some(
                 module
-                    .intrinsic_type_core
+                    .core_protocols
+                    .fundamental_types
                     .integers
                     .owner(raise_integer_kind(*kind)),
             ),
-            mir::Type::Boolean => Some(module.intrinsic_type_core.boolean),
+            mir::Type::Boolean => Some(module.core_protocols.fundamental_types.boolean),
             mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
             _ => None,
         }

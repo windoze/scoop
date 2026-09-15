@@ -14,7 +14,7 @@ impl BodyLowerer<'_> {
             struct_map: self.struct_map,
             class_map: self.class_map,
         };
-        let core = self.module.foreign_callback_core;
+        let core = self.module.core_protocols.foreign_callbacks;
         for enumeration in [
             core.modes.enumeration(),
             core.states.enumeration(),
@@ -244,17 +244,27 @@ impl BodyLowerer<'_> {
             self.foreign_callback_families[family].modes.contains(mode),
             "a callback registration mode belongs to the validated core protocol"
         );
-        let callback_mode =
-            if registration.mode == self.module.foreign_callback_core.modes.reusable() {
-                hir::CallbackMode::Reusable
-            } else {
-                assert_eq!(
-                    registration.mode,
-                    self.module.foreign_callback_core.modes.one_shot(),
-                    "a callback registration mode belongs to the validated core protocol"
-                );
-                hir::CallbackMode::OneShot
-            };
+        let callback_mode = if registration.mode
+            == self
+                .module
+                .core_protocols
+                .foreign_callbacks
+                .modes
+                .reusable()
+        {
+            hir::CallbackMode::Reusable
+        } else {
+            assert_eq!(
+                registration.mode,
+                self.module
+                    .core_protocols
+                    .foreign_callbacks
+                    .modes
+                    .one_shot(),
+                "a callback registration mode belongs to the validated core protocol"
+            );
+            hir::CallbackMode::OneShot
+        };
         let signature = self.shell.function_types[managed_signature].clone();
         debug_assert!(!signature.is_suspend);
 
@@ -278,8 +288,9 @@ impl BodyLowerer<'_> {
             ty: arguments_pointer_ty.clone(),
             mutable: false,
         });
-        let throwable =
-            mir::Type::Class(self.class_map[&self.module.exception_core.throwable.class()]);
+        let throwable = mir::Type::Class(
+            self.class_map[&self.module.core_protocols.exceptions.throwable.class()],
+        );
         let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
         let exception_out = locals.alloc(mir::Local {
             name: "$exception".to_string(),

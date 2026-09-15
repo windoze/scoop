@@ -10,7 +10,8 @@ impl Lowerer {
         let declaration = &self.initialization_units[unit];
         let initializer = declaration.initializer;
         let cycle = declaration.cycle_exception.clone();
-        let throwable = mir::Type::Class(self.class_map[&module.exception_core.throwable.class()]);
+        let throwable =
+            mir::Type::Class(self.class_map[&module.core_protocols.exceptions.throwable.class()]);
         let mut locals = Arena::new();
         let state = locals.alloc(mir::Local {
             name: "$init.state".to_string(),

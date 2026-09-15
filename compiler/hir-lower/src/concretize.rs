@@ -759,31 +759,37 @@ impl<'a> Concretizer<'a> {
             unit,
             boolean,
             string,
-            option_core,
-            exception_core: concrete::CompilerExceptionCore {
-                throwable: lower_exception(source_exception_core.throwable),
-                unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
-                class_cast_exception: lower_exception(source_exception_core.class_cast_exception),
-                arithmetic_exception: lower_exception(source_exception_core.arithmetic_exception),
-                index_out_of_bounds_exception: lower_exception(
-                    source_exception_core.index_out_of_bounds_exception,
-                ),
-                illegal_state_exception: lower_exception(
-                    source_exception_core.illegal_state_exception,
-                ),
-                illegal_state_message_constructor: concrete::MessageClassConstructor {
-                    class: message_class,
-                    callable: self.class_constructor_by_key
-                        [&(message_constructor.constructor, message_class)],
+            core_protocols: concrete::DefinedConcreteCoreProtocols {
+                option: option_core,
+                exceptions: concrete::CompilerExceptionCore {
+                    throwable: lower_exception(source_exception_core.throwable),
+                    unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
+                    class_cast_exception: lower_exception(
+                        source_exception_core.class_cast_exception,
+                    ),
+                    arithmetic_exception: lower_exception(
+                        source_exception_core.arithmetic_exception,
+                    ),
+                    index_out_of_bounds_exception: lower_exception(
+                        source_exception_core.index_out_of_bounds_exception,
+                    ),
+                    illegal_state_exception: lower_exception(
+                        source_exception_core.illegal_state_exception,
+                    ),
+                    illegal_state_message_constructor: concrete::MessageClassConstructor {
+                        class: message_class,
+                        callable: self.class_constructor_by_key
+                            [&(message_constructor.constructor, message_class)],
+                    },
                 },
+                coroutines: coroutine_protocols,
+                foreign_callbacks: concrete::ForeignCallbackCore {
+                    modes: callback_modes,
+                    states: callback_states,
+                    failure_result: callback_failure_result,
+                },
+                fundamental_types: intrinsic_type_core,
             },
-            coroutine_protocols,
-            foreign_callback_core: concrete::ForeignCallbackCore {
-                modes: callback_modes,
-                states: callback_states,
-                failure_result: callback_failure_result,
-            },
-            intrinsic_type_core,
         };
         (module, extra)
     }
