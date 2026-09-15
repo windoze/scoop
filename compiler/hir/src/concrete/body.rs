@@ -10,10 +10,7 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
-    InitializationEnsure {
-        unit: InitializationUnitId,
-        cycle_exception: MessageClassConstructor,
-    },
+    InitializationEnsure(InitializationUnitId),
     LocalFunction(LocalFunctionId),
     Return {
         /// Absent in `Unit` functions (bare `return`). If substitution makes

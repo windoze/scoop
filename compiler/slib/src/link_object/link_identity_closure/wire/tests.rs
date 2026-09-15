@@ -102,12 +102,11 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
 
 #[test]
 fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
-    let (canonical, production) = crate::link_decode::strong_production_fixture_for_test(
-        scoop_identity::ConeCoordinate::reserved_core(),
-    );
-    let foundation =
-        scoop_lir::OdrFreeLirFoundation::try_new(scoop_identity::ConeIdentity::CORE, canonical)
-            .unwrap();
+    let coordinate = wire_fixture_coordinate();
+    let producer = coordinate.identity().unwrap();
+    let (canonical, production) =
+        crate::link_decode::strong_production_fixture_for_test(coordinate);
+    let foundation = scoop_lir::OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
     let partition =
         scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let units =
@@ -310,12 +309,10 @@ fn materialization_plan() -> (
     scoop_lir::StrongProducerUnitPartitionV1,
     PlannedLinkObjectMemberSetV1,
 ) {
-    let (canonical, _) = crate::link_decode::strong_production_fixture_for_test(
-        scoop_identity::ConeCoordinate::reserved_core(),
-    );
-    let foundation =
-        scoop_lir::OdrFreeLirFoundation::try_new(scoop_identity::ConeIdentity::CORE, canonical)
-            .unwrap();
+    let coordinate = wire_fixture_coordinate();
+    let producer = coordinate.identity().unwrap();
+    let (canonical, _) = crate::link_decode::strong_production_fixture_for_test(coordinate);
+    let foundation = scoop_lir::OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
     let partition =
         scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let units =
@@ -323,4 +320,8 @@ fn materialization_plan() -> (
             .unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap();
     (partition, plan)
+}
+
+fn wire_fixture_coordinate() -> scoop_identity::ConeCoordinate {
+    scoop_identity::ConeCoordinate::new("test", "link-identity-closure-wire", "0.0.0").unwrap()
 }

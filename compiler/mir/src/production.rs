@@ -17,6 +17,15 @@ use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, OdrFreeMirFoundation, ValidatedMirFoundation,
 };
 
+/// Fixed exact identity of core `Unit`, shared by bridge projections without
+/// exposing identity-construction details to a lowering implementation.
+pub fn core_unit_exact_type() -> PersistentExactTypeId {
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))
+    .expect("the fixed core Unit exact-type identity is hashable")
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongCallableBridgeV1 {
     implementation: CallableOwner,
@@ -317,6 +326,77 @@ impl WireDecode for DecodedCoreMirCallableBridgeV1 {
     }
 }
 
+/// Required strong implementation of the core-internal initialization cycle
+/// service. It has no public export binding and therefore cannot enter source
+/// prelude lookup.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CoreMirInitializationCycleThrowerV1 {
+    definition: PersistentFunctionId,
+    implementation: CallableOwner,
+}
+
+impl CoreMirInitializationCycleThrowerV1 {
+    pub fn new(
+        definition: PersistentFunctionId,
+        implementation: CallableOwner,
+    ) -> Result<Self, MirProductionBuildError> {
+        if implementation != CallableOwner::Function(definition) {
+            return Err(MirProductionBuildError::CoreImplementationMismatch {
+                definition,
+                implementation,
+            });
+        }
+        Ok(Self {
+            definition,
+            implementation,
+        })
+    }
+
+    pub const fn definition(self) -> PersistentFunctionId {
+        self.definition
+    }
+
+    pub const fn implementation(self) -> CallableOwner {
+        self.implementation
+    }
+}
+
+impl WireEncode for CoreMirInitializationCycleThrowerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.definition.encode(encoder)?;
+        encoder.field(2)?;
+        self.implementation.encode(encoder)
+    }
+}
+
+#[derive(Debug)]
+struct DecodedCoreMirInitializationCycleThrowerV1 {
+    definition: DecodedPersistentId<PersistentFunctionId>,
+    implementation: DecodedCallableOwner,
+}
+
+impl WireEncode for DecodedCoreMirInitializationCycleThrowerV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.definition.encode(encoder)?;
+        encoder.field(2)?;
+        self.implementation.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedCoreMirInitializationCycleThrowerV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            definition: decoder.field(1, DecodedPersistentId::decode)?,
+            implementation: decoder.field(2, DecodedCallableOwner::decode)?,
+        })
+    }
+}
+
 /// One source-nominal root whose finite strong shape-support closure must be
 /// materialized by the trusted core producer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -421,12 +501,14 @@ impl WireDecode for DecodedCoreMirShapeSupportRootV1 {
 pub struct CoreMirBridgeV1 {
     callable_targets: Vec<CoreMirCallableBridgeV1>,
     shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
+    initialization_cycle_thrower: CoreMirInitializationCycleThrowerV1,
 }
 
 impl CoreMirBridgeV1 {
     pub fn try_new(
         mut callable_targets: Vec<CoreMirCallableBridgeV1>,
         mut shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
+        initialization_cycle_thrower: CoreMirInitializationCycleThrowerV1,
     ) -> Result<Self, MirProductionBuildError> {
         callable_targets.sort_unstable_by_key(|bridge| bridge.binding);
         if let Some(pair) = callable_targets
@@ -449,6 +531,15 @@ impl CoreMirBridgeV1 {
                 implementation: bridge.implementation,
             });
         }
+        if let Some(index) = callable_targets
+            .iter()
+            .position(|bridge| bridge.implementation == initialization_cycle_thrower.implementation)
+        {
+            return Err(MirProductionBuildError::DuplicateCoreImplementation {
+                index,
+                implementation: initialization_cycle_thrower.implementation,
+            });
+        }
         shape_support_roots.sort_unstable_by_key(|root| root.source);
         if let Some(pair) = shape_support_roots
             .windows(2)
@@ -461,6 +552,7 @@ impl CoreMirBridgeV1 {
         Ok(Self {
             callable_targets,
             shape_support_roots,
+            initialization_cycle_thrower,
         })
     }
 
@@ -471,11 +563,15 @@ impl CoreMirBridgeV1 {
     pub fn shape_support_roots(&self) -> &[CoreMirShapeSupportRootV1] {
         &self.shape_support_roots
     }
+
+    pub const fn initialization_cycle_thrower(&self) -> CoreMirInitializationCycleThrowerV1 {
+        self.initialization_cycle_thrower
+    }
 }
 
 impl WireEncode for CoreMirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         encoder.array(self.callable_targets.len() as u64)?;
         for bridge in &self.callable_targets {
@@ -486,7 +582,8 @@ impl WireEncode for CoreMirBridgeV1 {
         for root in &self.shape_support_roots {
             root.encode(encoder)?;
         }
-        Ok(())
+        encoder.field(3)?;
+        self.initialization_cycle_thrower.encode(encoder)
     }
 }
 
@@ -494,6 +591,7 @@ impl WireEncode for CoreMirBridgeV1 {
 struct DecodedCoreMirBridgeV1 {
     callable_targets: Vec<DecodedCoreMirCallableBridgeV1>,
     shape_support_roots: Vec<DecodedCoreMirShapeSupportRootV1>,
+    initialization_cycle_thrower: DecodedCoreMirInitializationCycleThrowerV1,
 }
 
 impl DecodedCoreMirBridgeV1 {
@@ -575,16 +673,37 @@ impl DecodedCoreMirBridgeV1 {
             }
             shape_support_roots.push(root);
         }
+        let definition = identities
+            .resolve(self.initialization_cycle_thrower.definition)
+            .map_err(MirProductionValidationError::Identity)?;
+        let implementation = self
+            .initialization_cycle_thrower
+            .implementation
+            .resolve(identities)
+            .map_err(MirProductionValidationError::Identity)?;
+        let initialization_cycle_thrower =
+            CoreMirInitializationCycleThrowerV1::new(definition, implementation)
+                .map_err(MirProductionValidationError::Relation)?;
+        if let Some(index) = callable_targets
+            .iter()
+            .position(|bridge| bridge.implementation == implementation)
+        {
+            return Err(MirProductionValidationError::DuplicateCoreImplementation {
+                index,
+                implementation,
+            });
+        }
         Ok(CoreMirBridgeV1 {
             callable_targets,
             shape_support_roots,
+            initialization_cycle_thrower,
         })
     }
 }
 
 impl WireEncode for DecodedCoreMirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         encoder.array(self.callable_targets.len() as u64)?;
         for bridge in &self.callable_targets {
@@ -595,13 +714,14 @@ impl WireEncode for DecodedCoreMirBridgeV1 {
         for root in &self.shape_support_roots {
             root.encode(encoder)?;
         }
-        Ok(())
+        encoder.field(3)?;
+        self.initialization_cycle_thrower.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCoreMirBridgeV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
+        decoder.expect_map(3)?;
         Ok(Self {
             callable_targets: decoder.field(1, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedCoreMirCallableBridgeV1::decode(decoder))
@@ -609,6 +729,8 @@ impl WireDecode for DecodedCoreMirBridgeV1 {
             shape_support_roots: decoder.field(2, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedCoreMirShapeSupportRootV1::decode(decoder))
             })?,
+            initialization_cycle_thrower: decoder
+                .field(3, DecodedCoreMirInitializationCycleThrowerV1::decode)?,
         })
     }
 }
@@ -987,6 +1109,12 @@ fn validate_section_relations(
                     bridge.implementation,
                 ));
             }
+        }
+        let cycle = core.initialization_cycle_thrower;
+        if strong_callable_bridges.get(cycle.implementation).is_none() {
+            return Err(MirProductionBuildError::MissingStrongCoreImplementation(
+                cycle.implementation,
+            ));
         }
     }
     if let EntryMirBridgeBranchV1::Executable(entry) = entry_bridge

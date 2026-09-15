@@ -102,7 +102,6 @@ impl Harness {
             boolean,
             string,
             option_enum,
-            needs_initialization_core: false,
             write: None,
             long_to_string: None,
             bool_to_string: None,

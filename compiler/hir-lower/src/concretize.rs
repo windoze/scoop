@@ -563,6 +563,21 @@ impl<'a> Concretizer<'a> {
                     arguments: Vec::new(),
                 }]
             };
+            let cycle_thrower = match self.core {
+                CoreConcretizationAuthority::Defined(protocols) => {
+                    concrete::InitializationCycleThrower::Local(function(
+                        protocols.exceptions.initialization_cycle_thrower,
+                    ))
+                }
+                CoreConcretizationAuthority::Imported(protocols) => {
+                    concrete::InitializationCycleThrower::Imported(
+                        protocols
+                            .exceptions()
+                            .initialization_cycle_thrower()
+                            .clone(),
+                    )
+                }
+            };
             let id = self
                 .initialization_units
                 .alloc(concrete::InitializationUnit {
@@ -591,6 +606,7 @@ impl<'a> Concretizer<'a> {
                             ),
                         })
                         .collect(),
+                    cycle_thrower,
                 });
             assert_eq!(source_id.into_raw(), id.into_raw());
         }
@@ -777,8 +793,6 @@ impl<'a> Concretizer<'a> {
             },
         };
         let source_exception_core = protocols.exceptions;
-        let message_constructor = source_exception_core.illegal_state_message_constructor;
-        let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
         let source_option_core = protocols.option;
         let option = self
             .enums
@@ -825,11 +839,10 @@ impl<'a> Concretizer<'a> {
                 illegal_state_exception: lower_exception(
                     source_exception_core.illegal_state_exception,
                 ),
-                illegal_state_message_constructor: concrete::MessageClassConstructor {
-                    class: message_class,
-                    callable: self.class_constructor_by_key
-                        [&(message_constructor.constructor, message_class)],
-                },
+                initialization_cycle_thrower: self.function_by_key[&FunctionKey::Free {
+                    source: source_exception_core.initialization_cycle_thrower,
+                    arguments: Vec::new(),
+                }],
             },
             coroutines: coroutine_protocols,
             foreign_callbacks: concrete::ForeignCallbackCore {

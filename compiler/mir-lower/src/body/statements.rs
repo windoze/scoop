@@ -20,10 +20,7 @@ impl BodyLowerer<'_> {
         let span = statement.span;
         let kind = match &statement.kind {
             hir::StatementKind::LocalFunction(_) => return,
-            hir::StatementKind::InitializationEnsure {
-                unit,
-                cycle_exception: _,
-            } => {
+            hir::StatementKind::InitializationEnsure(unit) => {
                 let function = self.module.initialization_units[*unit].ensure;
                 smir::StatementKind::Expr(smir::Expr::new(
                     mir::Type::Unit,

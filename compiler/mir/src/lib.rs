@@ -13,9 +13,9 @@
 use la_arena::{Arena, Idx};
 
 pub use scoop_identity::{
-    CallableOwner, ConeIdentity, ImmortalObjectKey, ImmortalObjectOwner, OdrGroupId,
-    PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId, PropertyOwner,
-    SourceNativeExternalContractRecord, SourceSpan, StructuralDefinitionPath,
+    CallableOwner, ConeIdentity, CoreImportedCallableKind, ImmortalObjectKey, ImmortalObjectOwner,
+    OdrGroupId, PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId,
+    PropertyOwner, SourceNativeExternalContractRecord, SourceSpan, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 

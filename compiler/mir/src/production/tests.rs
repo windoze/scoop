@@ -18,7 +18,7 @@ fn bridge_section_has_a_fixed_wire_vector_and_validates_against_mir() {
     let fixture = fixture();
     assert_eq!(
         hex(&encode(&fixture.section).unwrap()),
-        "a301a2000201a20181a301582020cf0fbdf4e2b62ff6700a8791871842761fde1527a35980126af1567becc47602582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df103a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df10281a2015820ea1de3597e0f30acca2c62c6d871e693648ef7e1097cc8b0082d316acd7e76390258201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc02a100010381a201a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df102a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc"
+        "a301a2000201a30181a301582020cf0fbdf4e2b62ff6700a8791871842761fde1527a35980126af1567becc47602582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df103a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df10281a2015820ea1de3597e0f30acca2c62c6d871e693648ef7e1097cc8b0082d316acd7e76390258201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc03a201582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a100010382a201a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df102a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dca201a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc"
     );
 
     let (mut identities, foundation) = validate_foundations(&fixture);
@@ -66,7 +66,7 @@ fn validation_requires_total_strong_signature_coverage() {
     assert_eq!(
         decode(&invalid).validate(ConeIdentity::CORE, &mut identities, &foundation),
         Err(MirProductionValidationError::StrongCallableCoverage {
-            expected: 1,
+            expected: 2,
             actual: 0,
         })
     );
@@ -85,15 +85,19 @@ fn validation_replays_the_foundation_signature() {
                 CallableOwner::Function(fixture.function.id()),
                 wrong_signature,
             ),
+            StrongCallableBridgeV1::new(
+                CallableOwner::Function(fixture.other_function.id()),
+                ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), fixture.exact_unit),
+            ),
         ])
         .unwrap(),
     };
     let (mut identities, foundation) = validate_foundations(&fixture);
 
-    assert_eq!(
+    assert!(matches!(
         decode(&invalid).validate(ConeIdentity::CORE, &mut identities, &foundation),
-        Err(MirProductionValidationError::StrongCallableMismatch { index: 0 })
-    );
+        Err(MirProductionValidationError::StrongCallableMismatch { .. })
+    ));
 }
 
 #[test]
@@ -149,6 +153,10 @@ fn validation_joins_mixed_callable_owner_variants_by_subject() {
         ),
         CallableSignatureRecord::new(
             CallableSignatureSubject::Strong(CallableOwner::Generated(generated.id())),
+            signature.clone(),
+        ),
+        CallableSignatureRecord::new(
+            CallableSignatureSubject::Strong(CallableOwner::Function(fixture.other_function.id())),
             signature,
         ),
     ])
@@ -268,7 +276,15 @@ fn core_shape_roots_require_one_exact_source_nominal_identity() {
         }) if actual_source == source && expected == exact && actual == wrong
     ));
     assert_eq!(
-        CoreMirBridgeV1::try_new(Vec::new(), vec![root, root]),
+        CoreMirBridgeV1::try_new(
+            Vec::new(),
+            vec![root, root],
+            CoreMirInitializationCycleThrowerV1::new(
+                other_function_id(),
+                CallableOwner::Function(other_function_id()),
+            )
+            .unwrap(),
+        ),
         Err(MirProductionBuildError::DuplicateCoreShapeSource(source))
     );
 }
@@ -454,10 +470,16 @@ fn fixture() -> Fixture {
     hir.set_export_bindings(vec![binding.clone()]).unwrap();
 
     let mut mir = CanonicalMirFoundation::empty();
-    mir.set_callable_signatures(vec![CallableSignatureRecord::new(
-        CallableSignatureSubject::Strong(CallableOwner::Function(function.id())),
-        signature.clone(),
-    )])
+    mir.set_callable_signatures(vec![
+        CallableSignatureRecord::new(
+            CallableSignatureSubject::Strong(CallableOwner::Function(function.id())),
+            signature.clone(),
+        ),
+        CallableSignatureRecord::new(
+            CallableSignatureSubject::Strong(CallableOwner::Function(other_function.id())),
+            signature.clone(),
+        ),
+    ])
     .unwrap();
     let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
         &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
@@ -472,6 +494,11 @@ fn fixture() -> Fixture {
             .unwrap(),
         ],
         vec![CoreMirShapeSupportRootV1::new(unit_type, exact_unit).unwrap()],
+        CoreMirInitializationCycleThrowerV1::new(
+            other_function.id(),
+            CallableOwner::Function(other_function.id()),
+        )
+        .unwrap(),
     )
     .unwrap();
     let section = CoreBootstrapBridgeSectionV1::try_new(

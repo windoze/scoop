@@ -221,11 +221,7 @@ impl CoreCompilerProtocolSurfaceV1 {
                 protocols,
                 exceptions.illegal_state_exception.callable(),
             )?,
-            constructor(
-                export,
-                protocols,
-                exceptions.illegal_state_message_constructor.constructor,
-            )?,
+            callable(export, protocols, exceptions.initialization_cycle_thrower)?,
         ]));
 
         let coroutine = protocols.coroutines;
@@ -360,6 +356,12 @@ impl CoreCompilerProtocolSurfaceV1 {
         &self.compiler_operation_protocol
     }
 
+    /// Core-internal compiler service used only by generated initialization
+    /// cycle edges. It is deliberately independent of the public prelude.
+    pub fn initialization_cycle_thrower(&self) -> &CoreProtocolCallableV1 {
+        callable_entry_ref(self.exception_protocol.entries(), 12)
+    }
+
     pub(crate) fn string_source_type(&self) -> PersistentTypeId {
         concrete_entry(self.fundamental_types.entries(), 10)
     }
@@ -404,7 +406,12 @@ impl CoreCompilerProtocolSurfaceV1 {
         require_constructor_callables(
             CoreProtocolProductKindV1::Exception,
             self.exception_protocol.entries(),
-            &[1, 3, 5, 7, 9, 11, 12],
+            &[1, 3, 5, 7, 9, 11],
+        )?;
+        require_source_callables(
+            CoreProtocolProductKindV1::Exception,
+            self.exception_protocol.entries(),
+            &[12],
         )?;
         require_source_callables(
             CoreProtocolProductKindV1::Coroutine,

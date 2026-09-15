@@ -378,10 +378,9 @@ impl Harness {
     }
 
     pub(super) fn finish_with_initialization_core(
-        mut self,
+        self,
         entry: hir::FunctionId,
     ) -> hir::ExportHirOutput {
-        self.needs_initialization_core = true;
         self.finish(entry)
     }
 

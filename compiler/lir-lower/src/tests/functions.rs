@@ -4,6 +4,8 @@ use super::*;
 fn core_lowering_publishes_callable_abi_authority() {
     let mut builder = Builder::new();
     let function = builder.user_fn("exported", Arena::new(), Vec::new());
+    let cycle_function =
+        builder.user_fn("__scoopThrowInitializationCycle", Arena::new(), Vec::new());
     let mut module = builder.finish(function);
     module.cone = scoop_identity::ConeIdentity::CORE;
     module.output = mir::MirOutput::Library;
@@ -16,6 +18,16 @@ fn core_lowering_publishes_callable_abi_authority() {
     };
     let scoop_identity::CallableOwner::Function(definition) = implementation else {
         panic!("test source function has a function owner")
+    };
+    let mir::CallableSignatureSubject::Strong(cycle_implementation) = module
+        .meta
+        .callable_signature_subject(cycle_function)
+        .expect("test cycle function has a strong callable subject")
+    else {
+        panic!("test cycle function cannot have ODR ownership")
+    };
+    let scoop_identity::CallableOwner::Function(cycle_definition) = cycle_implementation else {
+        panic!("test cycle function has a function owner")
     };
     let declaration = SourceDeclarationKey::function(
         SourceDeclarationSite::new(
@@ -51,6 +63,8 @@ fn core_lowering_publishes_callable_abi_authority() {
     let core = mir::CoreMirBridgeV1::try_new(
         vec![mir::CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap()],
         Vec::new(),
+        mir::CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
+            .unwrap(),
     )
     .unwrap();
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
@@ -109,6 +123,8 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
         core_locals,
         Vec::new(),
     );
+    let cycle_function =
+        core_builder.user_fn("__scoopThrowInitializationCycle", Arena::new(), Vec::new());
     let mut core_module = core_builder.finish(core_function);
     core_module.cone = ConeIdentity::CORE;
     core_module.output = mir::MirOutput::Library;
@@ -121,6 +137,16 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
     };
     let scoop_identity::CallableOwner::Function(definition) = implementation else {
         panic!("test core callable must be a source function")
+    };
+    let mir::CallableSignatureSubject::Strong(cycle_implementation) = core_module
+        .meta
+        .callable_signature_subject(cycle_function)
+        .expect("test cycle function has a strong callable subject")
+    else {
+        panic!("test cycle function cannot have ODR ownership")
+    };
+    let scoop_identity::CallableOwner::Function(cycle_definition) = cycle_implementation else {
+        panic!("test cycle function has a function owner")
     };
     let declaration = SourceDeclarationKey::function(
         SourceDeclarationSite::new(
@@ -146,7 +172,13 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
     .unwrap();
     let core_foundation = mir::OdrFreeMirFoundation::from_module(&core_module).unwrap();
     let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&core_foundation);
-    let exact = strong.bridges()[0].signature().clone();
+    let exact = strong
+        .bridges()
+        .iter()
+        .find(|bridge| bridge.implementation() == implementation)
+        .unwrap()
+        .signature()
+        .clone();
     let core_production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         mir::CoreMirBridgeBranchV1::Core(
@@ -155,6 +187,11 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
                     mir::CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap(),
                 ],
                 Vec::new(),
+                mir::CoreMirInitializationCycleThrowerV1::new(
+                    cycle_definition,
+                    cycle_implementation,
+                )
+                .unwrap(),
             )
             .unwrap(),
         ),
@@ -243,6 +280,7 @@ fn ordinary_lowering_materializes_and_calls_the_selected_core_callable() {
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending.register_authority(definition).unwrap();
+    pending.register_authority(cycle_definition).unwrap();
     let decoded_exact_types = core_input
         .module()
         .meta

@@ -387,6 +387,7 @@ pub struct ValidatedBackendProfile {
     object_format: ObjectFormat,
     writable_storage_section: &'static str,
     zero_fill_storage_section: &'static str,
+    c_string_section: &'static str,
     eh: EhProfile,
     llvm_target_backend: LlvmTargetBackend,
     machine_pipeline: MachinePipeline,
@@ -409,6 +410,7 @@ impl ValidatedBackendProfile {
         object_format: ObjectFormat::MachO64,
         writable_storage_section: "__DATA,__data",
         zero_fill_storage_section: "__DATA,__bss",
+        c_string_section: "__TEXT,__cstring,cstring_literals",
         eh: EhProfile::DARWIN_AARCH64,
         llvm_target_backend: LlvmTargetBackend::Aarch64,
         machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
@@ -458,6 +460,10 @@ impl ValidatedBackendProfile {
 
     pub(crate) const fn zero_fill_storage_section(self) -> &'static str {
         self.zero_fill_storage_section
+    }
+
+    pub(crate) const fn c_string_section(self) -> &'static str {
+        self.c_string_section
     }
 
     /// Closed backend projection used by codegen tests that deliberately do

@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, ExactCallableSignature, ImportedIdentityId, ImportedIdentityMap,
-    LirIdentityLayer, ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentExactTypeId,
-    PersistentExportBindingId, PersistentId, PersistentSymbolRequest,
+    ConeIdentity, CoreImportedCallableKind, ExactCallableSignature, ImportedIdentityId,
+    ImportedIdentityMap, LirIdentityLayer, ObjectDefinitionPlanId, PersistentCallableBodyId,
+    PersistentExactTypeId, PersistentExportBindingId, PersistentId, PersistentSymbolRequest,
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::WireEncode;
@@ -32,6 +32,14 @@ impl<I: PersistentId> ImportedLirId<I> {
 pub struct ImportedLirFoundation {
     canonical: CanonicalLirFoundation,
     identities: ImportedIdentityMap<LirIdentityLayer>,
+}
+
+struct CheckedImportedCoreCallable {
+    target: StrongCallableDefinitionOwner,
+    signature: ExactCallableSignature,
+    abi_signature: scoop_identity::CanonicalScoopAbiFunctionSignature,
+    calling_convention: crate::CallingConvention,
+    root_plan: crate::CoreExternalCallableRootPlan,
 }
 
 impl ImportedLirFoundation {
@@ -84,6 +92,7 @@ impl ImportedLirFoundation {
         target: StrongCallableDefinitionOwner,
         signature: ExactCallableSignature,
     ) -> Result<SelectedImportedLirCallable<'a>, ImportedLirCallableProjectionError> {
+        let kind = CoreImportedCallableKind::Prelude(binding);
         if self.origin() != ConeIdentity::CORE {
             return Err(ImportedLirCallableProjectionError::FoundationNotCore(
                 self.origin(),
@@ -91,25 +100,89 @@ impl ImportedLirFoundation {
         }
         let bridge = core_bridge
             .callable(binding)
-            .ok_or(ImportedLirCallableProjectionError::MissingBinding(binding))?;
+            .ok_or(ImportedLirCallableProjectionError::MissingCallable(kind))?;
         if bridge.target() != target {
-            return Err(ImportedLirCallableProjectionError::TargetMismatch(binding));
+            return Err(ImportedLirCallableProjectionError::TargetMismatch(kind));
         }
         if bridge.abi_signature().signature() != &signature {
-            return Err(ImportedLirCallableProjectionError::SignatureMismatch(
-                binding,
-            ));
+            return Err(ImportedLirCallableProjectionError::SignatureMismatch(kind));
         }
-        let (body, expected_symbol, required_definition) =
-            crate::core_callable_link_contract(target)
-                .map_err(ImportedLirCallableProjectionError::Contract)?;
+        let (_, expected_symbol, required_definition) = crate::core_callable_link_contract(target)
+            .map_err(ImportedLirCallableProjectionError::Contract)?;
         if bridge.expected_symbol() != expected_symbol
             || bridge.required_definition() != required_definition
         {
             return Err(ImportedLirCallableProjectionError::BridgeContractMismatch(
-                binding,
+                kind,
             ));
         }
+        self.project_checked_callable(
+            definitions,
+            core_bridge,
+            kind,
+            CheckedImportedCoreCallable {
+                target,
+                signature,
+                abi_signature: bridge.abi_signature().clone(),
+                calling_convention: bridge.calling_convention(),
+                root_plan: bridge.root_plan(),
+            },
+        )
+    }
+
+    pub fn project_initialization_cycle_thrower<'a>(
+        &'a self,
+        core_bridge: &'a crate::CoreLirBridgeV1,
+        definitions: &'a crate::StrongObjectSymbolSurfaceV1,
+        target: StrongCallableDefinitionOwner,
+        signature: ExactCallableSignature,
+    ) -> Result<SelectedImportedLirCallable<'a>, ImportedLirCallableProjectionError> {
+        let kind = CoreImportedCallableKind::InitializationCycleThrower;
+        if self.origin() != ConeIdentity::CORE {
+            return Err(ImportedLirCallableProjectionError::FoundationNotCore(
+                self.origin(),
+            ));
+        }
+        let bridge = core_bridge.initialization_cycle_thrower();
+        if bridge.target() != target {
+            return Err(ImportedLirCallableProjectionError::TargetMismatch(kind));
+        }
+        if bridge.abi_signature().signature() != &signature {
+            return Err(ImportedLirCallableProjectionError::SignatureMismatch(kind));
+        }
+        let (_, expected_symbol, required_definition) = crate::core_callable_link_contract(target)
+            .map_err(ImportedLirCallableProjectionError::Contract)?;
+        if bridge.expected_symbol() != expected_symbol
+            || bridge.required_definition() != required_definition
+        {
+            return Err(ImportedLirCallableProjectionError::BridgeContractMismatch(
+                kind,
+            ));
+        }
+        self.project_checked_callable(
+            definitions,
+            core_bridge,
+            kind,
+            CheckedImportedCoreCallable {
+                target,
+                signature,
+                abi_signature: bridge.abi_signature().clone(),
+                calling_convention: bridge.calling_convention(),
+                root_plan: bridge.root_plan(),
+            },
+        )
+    }
+
+    fn project_checked_callable<'a>(
+        &'a self,
+        definitions: &'a crate::StrongObjectSymbolSurfaceV1,
+        core_bridge: &'a crate::CoreLirBridgeV1,
+        kind: CoreImportedCallableKind,
+        contract: CheckedImportedCoreCallable,
+    ) -> Result<SelectedImportedLirCallable<'a>, ImportedLirCallableProjectionError> {
+        let (body, expected_symbol, required_definition) =
+            crate::core_callable_link_contract(contract.target)
+                .map_err(ImportedLirCallableProjectionError::Contract)?;
         let body = self
             .identity(body)
             .ok_or(ImportedLirCallableProjectionError::MissingBody(body))?;
@@ -131,12 +204,12 @@ impl ImportedLirFoundation {
             foundation: self,
             definitions,
             core_bridge,
-            binding,
-            target,
-            signature,
-            abi_signature: bridge.abi_signature().clone(),
-            calling_convention: bridge.calling_convention(),
-            root_plan: bridge.root_plan(),
+            kind,
+            target: contract.target,
+            signature: contract.signature,
+            abi_signature: contract.abi_signature,
+            calling_convention: contract.calling_convention,
+            root_plan: contract.root_plan,
             body,
             expected_symbol,
             required_definition,
@@ -219,7 +292,7 @@ pub struct SelectedImportedLirCallable<'a> {
     foundation: &'a ImportedLirFoundation,
     definitions: &'a crate::StrongObjectSymbolSurfaceV1,
     core_bridge: &'a crate::CoreLirBridgeV1,
-    binding: PersistentExportBindingId,
+    kind: CoreImportedCallableKind,
     target: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
     abi_signature: scoop_identity::CanonicalScoopAbiFunctionSignature,
@@ -256,7 +329,7 @@ pub struct SelectedImportedLirSet<'a> {
     foundation: &'a ImportedLirFoundation,
     definitions: &'a crate::StrongObjectSymbolSurfaceV1,
     core_bridge: &'a crate::CoreLirBridgeV1,
-    by_binding: BTreeMap<PersistentExportBindingId, ImportedCoreLirCallableId>,
+    by_kind: BTreeMap<CoreImportedCallableKind, ImportedCoreLirCallableId>,
     callables: Vec<SelectedImportedLirCallable<'a>>,
     runtime_string: SelectedImportedLirTypeDescriptor<'a>,
 }
@@ -276,7 +349,7 @@ impl<'a> SelectedImportedLirSet<'a> {
             foundation,
             definitions,
             core_bridge,
-            by_binding: BTreeMap::new(),
+            by_kind: BTreeMap::new(),
             callables: Vec::new(),
             runtime_string,
         })
@@ -288,11 +361,9 @@ impl<'a> SelectedImportedLirSet<'a> {
         selected: SelectedImportedLirCallable<'a>,
     ) -> Result<ImportedCoreLirCallableId, ImportedLirSelectionError> {
         if !selected.belongs_to(self.foundation, self.definitions, self.core_bridge) {
-            return Err(ImportedLirSelectionError::ForeignSelection(
-                selected.binding(),
-            ));
+            return Err(ImportedLirSelectionError::ForeignSelection(selected.kind()));
         }
-        if let Some(&id) = self.by_binding.get(&selected.binding()) {
+        if let Some(&id) = self.by_kind.get(&selected.kind()) {
             let retained = &self.callables[id.0 as usize];
             if retained.target() != selected.target()
                 || retained.signature() != selected.signature()
@@ -304,7 +375,7 @@ impl<'a> SelectedImportedLirSet<'a> {
                 || retained.required_definition() != selected.required_definition()
             {
                 return Err(ImportedLirSelectionError::ConflictingSelection(
-                    selected.binding(),
+                    selected.kind(),
                 ));
             }
             return Ok(id);
@@ -313,7 +384,7 @@ impl<'a> SelectedImportedLirSet<'a> {
             u32::try_from(self.callables.len())
                 .expect("one LIR request cannot select more than u32::MAX core callables"),
         );
-        self.by_binding.insert(selected.binding(), id);
+        self.by_kind.insert(selected.kind(), id);
         self.callables.push(selected);
         Ok(id)
     }
@@ -325,11 +396,11 @@ impl<'a> SelectedImportedLirSet<'a> {
         self.callables.get(id.0 as usize)
     }
 
-    pub fn callable_for_binding(
+    pub fn callable_for_kind(
         &self,
-        binding: PersistentExportBindingId,
+        kind: CoreImportedCallableKind,
     ) -> Option<ImportedCoreLirCallableId> {
-        self.by_binding.get(&binding).copied()
+        self.by_kind.get(&kind).copied()
     }
 
     pub fn len(&self) -> usize {
@@ -353,8 +424,8 @@ impl<'a> SelectedImportedLirSet<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportedLirSelectionError {
     ForeignRuntimeString,
-    ForeignSelection(PersistentExportBindingId),
-    ConflictingSelection(PersistentExportBindingId),
+    ForeignSelection(CoreImportedCallableKind),
+    ConflictingSelection(CoreImportedCallableKind),
 }
 
 impl fmt::Display for ImportedLirSelectionError {
@@ -363,13 +434,13 @@ impl fmt::Display for ImportedLirSelectionError {
             Self::ForeignRuntimeString => formatter.write_str(
                 "imported LIR runtime String belongs to another core artifact projection",
             ),
-            Self::ForeignSelection(binding) => write!(
+            Self::ForeignSelection(kind) => write!(
                 formatter,
-                "imported LIR binding {binding} belongs to another core artifact projection"
+                "imported LIR callable {kind:?} belongs to another core artifact projection"
             ),
-            Self::ConflictingSelection(binding) => write!(
+            Self::ConflictingSelection(kind) => write!(
                 formatter,
-                "imported LIR binding {binding} has conflicting selected definitions"
+                "imported LIR callable {kind:?} has conflicting selected definitions"
             ),
         }
     }
@@ -378,8 +449,8 @@ impl fmt::Display for ImportedLirSelectionError {
 impl std::error::Error for ImportedLirSelectionError {}
 
 impl SelectedImportedLirCallable<'_> {
-    pub const fn binding(&self) -> PersistentExportBindingId {
-        self.binding
+    pub const fn kind(&self) -> CoreImportedCallableKind {
+        self.kind
     }
 
     pub const fn target(&self) -> StrongCallableDefinitionOwner {
@@ -486,7 +557,7 @@ impl fmt::Debug for SelectedImportedLirCallable<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("SelectedImportedLirCallable")
-            .field("binding", &self.binding)
+            .field("kind", &self.kind)
             .field("target", &self.target)
             .field("signature", &self.signature)
             .field("abi_signature", &self.abi_signature)
@@ -502,10 +573,10 @@ impl fmt::Debug for SelectedImportedLirCallable<'_> {
 #[derive(Debug)]
 pub enum ImportedLirCallableProjectionError {
     FoundationNotCore(ConeIdentity),
-    MissingBinding(PersistentExportBindingId),
-    TargetMismatch(PersistentExportBindingId),
-    SignatureMismatch(PersistentExportBindingId),
-    BridgeContractMismatch(PersistentExportBindingId),
+    MissingCallable(CoreImportedCallableKind),
+    TargetMismatch(CoreImportedCallableKind),
+    SignatureMismatch(CoreImportedCallableKind),
+    BridgeContractMismatch(CoreImportedCallableKind),
     Contract(crate::CoreExternalBuildError),
     MissingBody(PersistentCallableBodyId),
     MissingDefinition(ObjectDefinitionPlanId),
@@ -676,16 +747,19 @@ mod tests {
             CanonicalGcEffect::NoGc,
         )
         .unwrap();
-        let core_bridge = crate::CoreLirBridgeV1::try_new(vec![
-            crate::CoreLirCallableBridgeV1::new(
-                binding,
-                target,
-                abi_signature,
-                crate::CallingConvention::Cdecl,
-                crate::CoreExternalCallableRootPlan::NoGc,
-            )
-            .unwrap(),
-        ])
+        let core_bridge = crate::CoreLirBridgeV1::try_new(
+            vec![
+                crate::CoreLirCallableBridgeV1::new(
+                    binding,
+                    target,
+                    abi_signature,
+                    crate::CallingConvention::Cdecl,
+                    crate::CoreExternalCallableRootPlan::NoGc,
+                )
+                .unwrap(),
+            ],
+            crate::core_lir_cycle_thrower_for_test(),
+        )
         .unwrap();
 
         let selected = foundation
@@ -709,7 +783,7 @@ mod tests {
 
         assert!(selected.belongs_to(&foundation, &definitions, &core_bridge));
         assert!(!selected.belongs_to(&other_foundation, &definitions, &core_bridge));
-        assert_eq!(selected.binding(), binding);
+        assert_eq!(selected.kind(), CoreImportedCallableKind::Prelude(binding));
         assert_eq!(selected.target(), target);
         assert_eq!(selected.signature(), &signature);
         assert_eq!(selected.body().persistent(), body.id());
@@ -728,12 +802,18 @@ mod tests {
         .unwrap();
         let id = selected_set.insert(selected.clone()).unwrap();
         assert_eq!(selected_set.insert(selected).unwrap(), id);
-        assert_eq!(selected_set.callable_for_binding(binding), Some(id));
-        assert_eq!(selected_set.callable(id).unwrap().binding(), binding);
+        assert_eq!(
+            selected_set.callable_for_kind(CoreImportedCallableKind::Prelude(binding)),
+            Some(id)
+        );
+        assert_eq!(
+            selected_set.callable(id).unwrap().kind(),
+            CoreImportedCallableKind::Prelude(binding)
+        );
         assert_eq!(selected_set.len(), 1);
         assert_eq!(
             selected_set.insert(foreign).unwrap_err(),
-            ImportedLirSelectionError::ForeignSelection(binding)
+            ImportedLirSelectionError::ForeignSelection(CoreImportedCallableKind::Prelude(binding))
         );
         assert_eq!(selected_set.len(), 1);
     }

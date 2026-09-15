@@ -6,26 +6,61 @@ use crate::{
 };
 
 impl Lowerer {
-    fn illegal_state_message_constructor(
-        &mut self,
-        class: ClassId,
-    ) -> Option<hir::MessageClassConstructor> {
-        let constructor = self.classes[class]
-            .constructors
+    fn initialization_cycle_thrower(&mut self, files: &[ast::SourceFile]) -> Option<FunctionId> {
+        const NAME: &str = "__scoopThrowInitializationCycle";
+
+        let candidates = self
+            .top_level
             .iter()
             .copied()
-            .find(|constructor| {
-                let parameters = &self.class_constructors[*constructor].parameters;
-                parameters.len() == 1 && self.as_option(parameters[0].ty) == Some(self.string)
-            });
-        if constructor.is_none() {
+            .filter(|function| {
+                self.source_function_declarations
+                    .get(function)
+                    .is_some_and(|source| source.name == NAME)
+            })
+            .collect::<Vec<_>>();
+        let [function] = candidates.as_slice() else {
+            let file = candidates
+                .first()
+                .and_then(|function| self.function_files.get(function))
+                .copied()
+                .unwrap_or_else(|| self.core_diagnostic_file());
+            self.current_file = file;
+            let span = candidates
+                .first()
+                .map(|function| self.functions[*function].span)
+                .unwrap_or(files[file].span);
             self.error(
-                self.classes[class].span,
-                "class `IllegalStateException` in scoop.core must provide a constructor whose parameter is `String?`"
-                    .to_string(),
+                span,
+                format!(
+                    "scoop.core must define exactly one internal function `{NAME}(message: String): Unit`"
+                ),
             );
+            return None;
+        };
+        let function = *function;
+        self.current_file = self.function_files[&function];
+        let declaration = &self.functions[function];
+        let signature = &self.signatures[&function];
+        let valid = declaration.access.declared == hir::DeclaredVisibility::Internal
+            && matches!(declaration.genericity, hir::FunctionGenericity::Plain)
+            && !declaration.is_suspend
+            && declaration.method.is_none()
+            && signature.params.len() == 1
+            && signature.params[0].ty == self.string
+            && signature.return_ty == self.unit
+            && signature.attributes.gc_effect == hir::GcEffect::Managed
+            && matches!(declaration.kind, hir::FunctionKind::User(_));
+        if !valid {
+            self.error(
+                declaration.span,
+                format!(
+                    "function `{NAME}` in scoop.core must be internal, non-generic, non-suspend, managed, and have signature `(String) -> Unit`"
+                ),
+            );
+            return None;
         }
-        constructor.map(|constructor| hir::MessageClassConstructor { class, constructor })
+        Some(function)
     }
 
     fn zero_source_argument_constructor(&self, class: ClassId) -> Option<hir::ClassConstructorId> {
@@ -210,8 +245,7 @@ impl Lowerer {
         };
         let illegal_state =
             self.compiler_exception("IllegalStateException", files, throwable.class())?;
-        let illegal_state_message_constructor =
-            self.illegal_state_message_constructor(illegal_state.class())?;
+        let initialization_cycle_thrower = self.initialization_cycle_thrower(files)?;
         Some(hir::CompilerExceptionCore {
             throwable,
             unwrap_exception: self.compiler_exception(
@@ -235,7 +269,7 @@ impl Lowerer {
                 throwable.class(),
             )?,
             illegal_state_exception: illegal_state,
-            illegal_state_message_constructor,
+            initialization_cycle_thrower,
         })
     }
 

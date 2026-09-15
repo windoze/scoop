@@ -731,11 +731,7 @@ fn initialization_display_name_survives_lir_lowering() {
         ensure: main,
         failure_root,
         dependencies: Vec::new(),
-        cycle_exception: mir::MessageClassConstructor {
-            class: mir::ClassId::from_raw(0_u32.into()),
-            initializer: main,
-            message_type: mir::Type::String,
-        },
+        cycle_thrower: mir::InitializationCycleThrower::Local(main),
     });
     assert_eq!(unit, unit_id);
     let expected_unit_identity = source.initialization_units[unit].identity.clone();
@@ -792,6 +788,32 @@ fn initialization_display_name_survives_lir_lowering() {
     assert_eq!(
         failure_layout.scan_record().key().layout(),
         failure_layout.layout_record().id()
+    );
+    let gateway_body =
+        lir::CallableBodyIdentity::for_initialization_startup_gateway(expected_unit_identity.id())
+            .unwrap()
+            .id();
+    let gateway = module
+        .functions
+        .iter()
+        .find(|function| function.callable_body.id() == gateway_body)
+        .expect("an eager initialization unit emits one startup gateway");
+    assert_eq!(gateway.gc_effect, lir::GcEffect::Managed);
+    assert!(matches!(
+        gateway.signature.result(),
+        lir::AbiReturn::Direct(_)
+    ));
+    let site = gateway.blocks[gateway.entry]
+        .instructions
+        .iter()
+        .find_map(|instruction| match instruction {
+            lir::Instruction::Invoke { site } => Some(site),
+            _ => None,
+        })
+        .expect("the no-throw startup gateway invokes the unit ensure function");
+    assert_eq!(
+        site.destination(&gateway.call_targets),
+        lir::CallDestination::Local(lowered_unit.ensure.declaration())
     );
 }
 

@@ -164,13 +164,36 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
 
     let hir = scoop_hir::CoreHirInterfaceBranchV1::NotCore;
     let mir = scoop_mir::CoreMirBridgeBranchV1::Core(
-        scoop_mir::CoreMirBridgeV1::try_new(Vec::new(), Vec::new()).unwrap(),
+        scoop_mir::CoreMirBridgeV1::try_new(Vec::new(), Vec::new(), test_cycle_thrower()).unwrap(),
     );
     let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap();
     assert_eq!(
         validate_core_relation(&hir, &mir, &strong),
         Err(StrongProfileRelationError::CoreBranchMismatch)
     );
+}
+
+fn test_cycle_thrower() -> scoop_mir::CoreMirInitializationCycleThrowerV1 {
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        scoop_identity::SourceDeclarationSite::new(
+            scoop_identity::ConeIdentity::CORE,
+            scoop_identity::PackagePath::root(),
+            scoop_identity::DefinitionOwnerChain::top_level(),
+            scoop_identity::DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        scoop_identity::CanonicalIdentifier::new("__scoopThrowInitializationCycle").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let definition =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    scoop_mir::CoreMirInitializationCycleThrowerV1::new(
+        definition,
+        scoop_identity::CallableOwner::Function(definition),
+    )
+    .unwrap()
 }
 
 #[test]

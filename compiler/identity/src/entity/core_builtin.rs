@@ -1,7 +1,16 @@
 use crate::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
-    PackagePath, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    PackagePath, PersistentExportBindingId, PersistentTypeId, SourceDeclarationKey,
+    SourceDeclarationSite, SourceNominalKind,
 };
+
+/// Closed origin of a callable that an ordinary Cone may import from trusted
+/// core during the currently supported bridge phase.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CoreImportedCallableKind {
+    Prelude(PersistentExportBindingId),
+    InitializationCycleThrower,
+}
 
 /// Compiler-owned nominal types that have no ordinary source declaration
 /// arena entry. Their source-shaped keys are fixed by trusted core authority.

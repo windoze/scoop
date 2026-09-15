@@ -43,7 +43,7 @@ impl<'a> OrdinaryMirOutput<'a> {
                     index: id.into_raw().into_u32(),
                 });
             };
-            if !resolved.insert(selected.binding()) {
+            if !resolved.insert(selected.kind()) {
                 return Err(OrdinaryMirOutputError::DuplicateImportedCallable {
                     index: id.into_raw().into_u32(),
                 });

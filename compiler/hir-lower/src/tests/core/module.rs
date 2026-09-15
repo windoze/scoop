@@ -241,7 +241,10 @@ fn make_object_public(declaration: &mut ast::ObjectDecl) {
 fn make_declaration_public(declaration: &mut Decl) {
     match declaration {
         Decl::Global(property) => make_property_public(property),
-        Decl::Function(function) => make_function_public(function),
+        Decl::Function(function) if function.name.text != "__scoopThrowInitializationCycle" => {
+            make_function_public(function)
+        }
+        Decl::Function(_) => {}
         Decl::TypeAlias(declaration) => declaration.visibility = public_visibility(),
         Decl::Struct(declaration) => make_struct_public(declaration),
         Decl::Enum(declaration) => make_enum_public(declaration),

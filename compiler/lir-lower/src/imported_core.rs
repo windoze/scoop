@@ -129,20 +129,20 @@ pub(super) fn lower_imported_core_callables(
     let mut callables = Arena::new();
     let mut mapping = HashMap::with_capacity(roots.len());
     for (index, root) in roots.iter().enumerate() {
-        let id = selected.callable_for_binding(root.binding()).ok_or(
+        let id = selected.callable_for_kind(root.kind()).ok_or(
             StrongLirLoweringError::MissingImportedCoreLirCallable {
                 index,
-                binding: root.binding(),
+                kind: root.kind(),
             },
         )?;
         let authority = selected
             .callable(id)
-            .expect("a selected binding maps to an in-bounds LIR authority");
+            .expect("a selected callable kind maps to an in-bounds LIR authority");
         if authority.target() != root.implementation() || authority.signature() != root.signature()
         {
             return Err(StrongLirLoweringError::ImportedCoreLirCallableMismatch {
                 index,
-                binding: root.binding(),
+                kind: root.kind(),
             });
         }
         let parameters = root

@@ -50,6 +50,20 @@ impl TestExecutableEntry for hir::LocalConcreteHirOutput {
 
 fn lower(module: &hir::ExportHirOutput) -> mir::Module {
     let concrete = scoop_hir_lower::concretize_output(module);
+    let output_kind = concrete.output_kind().clone();
+    let materialization = concrete.materialization().clone();
+    let mut concrete_module = concrete.into_module();
+    if concrete_module.initialization_units.is_empty() {
+        let cycle_thrower = defined_concrete_core(&concrete_module)
+            .exceptions
+            .initialization_cycle_thrower;
+        concrete_module
+            .top_level
+            .retain(|&function| function != cycle_thrower);
+    }
+    let concrete =
+        hir::LocalConcreteHirOutput::try_new(concrete_module, output_kind, materialization)
+            .expect("the filtered MIR fixture remains a valid LocalConcrete HIR output");
     let mut module = super::lower(&concrete)
         .expect("test LocalConcrete HIR carries locally defined core protocols");
     // Handcrafted unit modules use hidden, valid exception shells to satisfy
@@ -400,7 +414,6 @@ struct Harness {
     boolean: hir::TypeId,
     string: hir::TypeId,
     option_enum: hir::EnumId,
-    needs_initialization_core: bool,
     write: Option<hir::FunctionId>,
     long_to_string: Option<hir::FunctionId>,
     bool_to_string: Option<hir::FunctionId>,

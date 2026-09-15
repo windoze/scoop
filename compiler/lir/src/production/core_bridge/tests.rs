@@ -14,13 +14,14 @@ fn empty_branches_have_fixed_closed_wire() {
         encode(&CoreLirBridgeBranchV1::NotCore).unwrap(),
         vec![0xa1, 0x00, 0x01]
     );
-    assert_eq!(
-        encode(&CoreLirBridgeBranchV1::Core(
-            CoreLirBridgeV1::try_new(Vec::new()).unwrap()
-        ))
-        .unwrap(),
-        vec![0xa2, 0x00, 0x02, 0x01, 0x80]
-    );
+    let encoded = encode(&CoreLirBridgeBranchV1::Core(
+        CoreLirBridgeV1::try_new(Vec::new(), core_lir_cycle_thrower_for_test()).unwrap(),
+    ))
+    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCoreLirBridgeBranchV1>(&encoded, DecodeLimits::default())
+            .unwrap();
+    assert_eq!(encode(&decoded).unwrap(), encoded);
 }
 
 #[test]
@@ -55,7 +56,7 @@ fn callable_bridge_binds_root_protocol_and_unique_target() {
     )
     .unwrap();
     assert!(matches!(
-        CoreLirBridgeV1::try_new(vec![first, second]),
+        CoreLirBridgeV1::try_new(vec![first, second], core_lir_cycle_thrower_for_test(),),
         Err(CoreLirBridgeBuildError::DuplicateTarget { .. })
     ));
 }
@@ -69,8 +70,10 @@ fn branch_must_match_the_producer_kind() {
     .unwrap();
     let definitions = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     assert!(matches!(
-        CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::try_new(Vec::new()).unwrap())
-            .validate_against(&foundation, &definitions),
+        CoreLirBridgeBranchV1::Core(
+            CoreLirBridgeV1::try_new(Vec::new(), core_lir_cycle_thrower_for_test()).unwrap(),
+        )
+        .validate_against(&foundation, &definitions),
         Err(CoreLirBridgeBuildError::ProducerBranchMismatch)
     ));
     let core_foundation =

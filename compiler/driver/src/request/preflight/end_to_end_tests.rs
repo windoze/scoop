@@ -168,6 +168,53 @@ fun main() {
     assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);
 }
 
+#[test]
+fn formal_pipeline_preserves_combined_stage3_language_features() {
+    let Some(target) = resolved_target() else {
+        return;
+    };
+    let sysroot = tempfile::tempdir().unwrap();
+    bootstrap_core(sysroot.path(), &target);
+
+    let executable_root = sysroot.path().join("combined");
+    write_manifest_cone(
+        &executable_root,
+        "dev.example",
+        "stage3.combined",
+        "executable",
+        r#"val initializedMessage: String = makeMessage()
+
+fun makeMessage(): String = "stage3"
+
+fun apply(operation: () -> String): String = operation()
+
+fun main() {
+    val render: () -> String = { initializedMessage }
+    val rendered = apply(render)
+    val answer = stage3CoreAnswer()
+    stage3CoreFailure()
+}
+"#,
+    );
+    let artifact = build_manifest(
+        sysroot.path(),
+        &target,
+        &executable_root,
+        &sysroot.path().join("output/combined.slib"),
+    );
+
+    assert!(artifact.artifact().path().is_file());
+    assert_eq!(
+        artifact.artifact().validation().kind(),
+        ConeKind::Executable
+    );
+    assert!(matches!(
+        artifact.artifact().validation().link_summary().output(),
+        SingleConeProductionOutputV1::Executable(_)
+    ));
+    assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);
+}
+
 fn resolved_target() -> Option<scoop_codegen::ResolvedTargetProfile> {
     // The target resolver owns host Apple-toolchain qualification. A machine
     // blocked by the Xcode license gate cannot enter object production.
@@ -293,7 +340,8 @@ fn copy_trusted_core_sources(sysroot: &Path) {
     }
     std::fs::write(
         destination.join("src/stage3_test.scoop"),
-        "public fun stage3CoreAnswer(): Long = 42\n",
+        "public fun stage3CoreAnswer(): Long = 42\n\
+         public fun stage3CoreFailure() { throw ArithmeticException() }\n",
     )
     .unwrap();
 }

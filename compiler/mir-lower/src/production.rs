@@ -6,8 +6,9 @@ use scoop_hir::{
 };
 use scoop_mir::{
     CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
-    CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreMirShapeSupportRootV1, MirProductionBuildError,
-    OdrFreeMirFoundation, StrongCallableBridgeSurfaceV1,
+    CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreMirInitializationCycleThrowerV1,
+    CoreMirShapeSupportRootV1, MirProductionBuildError, OdrFreeMirFoundation,
+    StrongCallableBridgeSurfaceV1,
 };
 
 /// Projects one checked HIR production section and the complete strong MIR
@@ -90,7 +91,34 @@ fn lower_core_bridge(
         .collect::<Result<Vec<_>, _>>()
         .map_err(MirProductionLoweringError::Production)?;
 
-    CoreMirBridgeV1::try_new(callable_targets, shape_support_roots)
+    let cycle = interface
+        .compiler_protocols()
+        .initialization_cycle_thrower();
+    let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) =
+        cycle.definition()
+    else {
+        return Err(MirProductionLoweringError::InvalidInitializationCycleThrower);
+    };
+    let cycle_implementation = CallableOwner::Function(cycle_definition);
+    let cycle_signature = strong
+        .bridges()
+        .iter()
+        .find(|bridge| bridge.implementation() == cycle_implementation)
+        .ok_or(MirProductionLoweringError::MissingInitializationCycleThrower)?
+        .signature();
+    let expected_cycle_signature = scoop_hir::concrete::ExactCallableSignature::new(
+        scoop_hir::concrete::Effect::Ordinary,
+        None,
+        vec![interface.string_capability().exact_type()],
+        scoop_mir::core_unit_exact_type(),
+    );
+    if cycle_signature != &expected_cycle_signature {
+        return Err(MirProductionLoweringError::InitializationCycleSignatureMismatch);
+    }
+    let cycle = CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
+        .map_err(MirProductionLoweringError::Production)?;
+
+    CoreMirBridgeV1::try_new(callable_targets, shape_support_roots, cycle)
         .map(CoreMirBridgeBranchV1::Core)
         .map_err(MirProductionLoweringError::Production)
 }
@@ -120,6 +148,9 @@ pub enum MirProductionLoweringError {
         index: usize,
         implementation: CallableOwner,
     },
+    InvalidInitializationCycleThrower,
+    MissingInitializationCycleThrower,
+    InitializationCycleSignatureMismatch,
     Production(MirProductionBuildError),
 }
 
@@ -134,7 +165,10 @@ impl std::error::Error for MirProductionLoweringError {
         match self {
             Self::Production(source) => Some(source),
             Self::InvalidCoreCallableCandidateDefinition { .. }
-            | Self::CoreCallableSignatureMismatch { .. } => None,
+            | Self::CoreCallableSignatureMismatch { .. }
+            | Self::InvalidInitializationCycleThrower
+            | Self::MissingInitializationCycleThrower
+            | Self::InitializationCycleSignatureMismatch => None,
         }
     }
 }

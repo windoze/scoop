@@ -52,6 +52,115 @@ pub(super) fn lower_root_artifacts(
     root_gateway(producer, source.main(), main, failure_root)
 }
 
+pub(super) fn lower_initialization_startup_gateway(
+    unit: scoop_identity::PersistentInitializationUnitId,
+    ensure: scoop_lir::ManagedLocalFunctionRef,
+) -> LoweredFunction {
+    let callable_body = scoop_lir::CallableBodyIdentity::for_initialization_startup_gateway(unit)
+        .expect("a validated eager initialization unit derives one startup-gateway identity");
+    let mut call_targets = scoop_lir::CallTargets::default();
+    let signature = call_targets
+        .void_signatures
+        .alloc(scoop_lir::VoidCallSignature::new(
+            Vec::new(),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
+    let target = call_targets
+        .managed_targets
+        .void
+        .alloc(scoop_lir::CallTarget {
+            destination: scoop_lir::ManagedCallDestination::local(ensure),
+            signature,
+        });
+    let mut pending_safepoints = PendingSafepointSites::default();
+    let mut blocks = Arena::new();
+    let entry = blocks.alloc(scoop_lir::BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: scoop_lir::Terminator::Unreachable,
+    });
+    let success = blocks.alloc(scoop_lir::BasicBlock {
+        name: "success".to_string(),
+        instructions: Vec::new(),
+        terminator: scoop_lir::Terminator::Return {
+            value: Some(scoop_lir::Value::IntegerConst(
+                scoop_lir::LirIntegerConstant::Unsigned32(0),
+            )),
+        },
+    });
+    let failure = blocks.alloc(scoop_lir::BasicBlock {
+        name: "failure".to_string(),
+        instructions: Vec::new(),
+        terminator: scoop_lir::Terminator::Return {
+            value: Some(scoop_lir::Value::IntegerConst(
+                scoop_lir::LirIntegerConstant::Unsigned32(1),
+            )),
+        },
+    });
+    blocks[entry]
+        .instructions
+        .push(scoop_lir::Instruction::Invoke {
+            site: scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
+                call: scoop_lir::ManagedTypedCall::Void {
+                    target,
+                    args: Vec::new(),
+                },
+                safepoint: pending_safepoints.allocate(scoop_lir::SafepointSiteRole::ManagedInvoke),
+                roots: scoop_lir::ExceptionalRootSet::default(),
+                normal: success,
+                unwind: failure,
+            }),
+        });
+    blocks[entry].terminator = scoop_lir::Terminator::Br(success);
+    let mut temps = Arena::new();
+    let exception_record = temps.alloc(scoop_lir::Temp {
+        ty: scoop_lir::LirType::ExceptionRecord,
+    });
+    let raw_exception = temps.alloc(scoop_lir::Temp {
+        ty: scoop_lir::RAW_PTR,
+    });
+    let managed_exception = temps.alloc(scoop_lir::Temp {
+        ty: scoop_lir::MANAGED_PTR,
+    });
+    blocks[failure].instructions.extend([
+        scoop_lir::Instruction::LandingPad {
+            record: exception_record,
+            raw: raw_exception,
+        },
+        scoop_lir::Instruction::BeginCatch {
+            out: managed_exception,
+            raw: scoop_lir::Value::Temp(raw_exception),
+        },
+        scoop_lir::Instruction::EndCatch,
+    ]);
+    let result = scoop_lir::AbiValue::new(
+        scoop_lir::LirType::I32,
+        scoop_lir::AbiNonZeroLayout::new(4, 4)
+            .expect("the startup-gateway result has a valid uint32 layout"),
+        scoop_lir::RefScan::None,
+    )
+    .expect("the startup-gateway result layout matches uint32 storage");
+    LoweredFunction {
+        function: scoop_lir::Function {
+            callable_body,
+            gc_effect: scoop_lir::GcEffect::Managed,
+            signature: scoop_lir::ScoopAbiSignature::new(
+                Vec::new(),
+                scoop_lir::AbiReturn::Direct(result),
+                scoop_lir::CallingConvention::Cdecl,
+            ),
+            call_targets,
+            safepoints: scoop_lir::SafepointIdentities::default(),
+            locals: Arena::new(),
+            temps,
+            blocks,
+            entry,
+        },
+        loop_header_polls: Vec::new(),
+        pending_safepoints,
+    }
+}
+
 fn root_gateway(
     producer: scoop_identity::ConeIdentity,
     main_body: scoop_identity::MainCallableBodyId,

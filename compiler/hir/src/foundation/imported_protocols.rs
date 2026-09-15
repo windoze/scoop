@@ -220,7 +220,7 @@ impl ImportedCoreExceptionProtocol {
         callable(&self.0, 11)
     }
 
-    pub fn illegal_state_message_constructor(&self) -> &ImportedCoreProtocolCallable {
+    pub fn initialization_cycle_thrower(&self) -> &ImportedCoreProtocolCallable {
         callable(&self.0, 12)
     }
 }

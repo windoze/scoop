@@ -622,7 +622,7 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         arithmetic_exception,
         index_out_of_bounds_exception,
         illegal_state_exception,
-        illegal_state_message_constructor: _,
+        initialization_cycle_thrower: _,
     } = defined_export_core(&module).exceptions;
     for compiler_owned in [
         throwable.class(),

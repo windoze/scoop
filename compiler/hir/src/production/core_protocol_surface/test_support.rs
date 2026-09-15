@@ -140,13 +140,17 @@ pub(crate) fn install(
     let exception_classes: [PersistentTypeId; 6] = std::array::from_fn(|_| builder.concrete_type());
     let exception_constructors =
         exception_classes.map(|class| builder.constructor(class, Vec::new()));
-    let message_constructor = builder.constructor(
-        exception_classes[5],
-        vec![signature_application(
-            option_type,
-            SignatureTypeKey::Nominal(string_type),
-        )],
-    );
+    let initialization_cycle_thrower = builder
+        .function_with_owner_signature(
+            None,
+            SignatureCallableShape::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                vec![SignatureTypeKey::Nominal(string_type)],
+                SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+            ),
+        )
+        .0;
     let exception_protocol = CoreExceptionProtocolV1(product([
         concrete_entry(exception_classes[0]),
         exception_constructors[0].clone(),
@@ -160,7 +164,7 @@ pub(crate) fn install(
         exception_constructors[4].clone(),
         concrete_entry(exception_classes[5]),
         exception_constructors[5].clone(),
-        message_constructor,
+        initialization_cycle_thrower,
     ]));
 
     let continuation = builder.generic_nominal(SourceNominalKind::Interface);

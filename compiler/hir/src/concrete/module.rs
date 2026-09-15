@@ -1,4 +1,5 @@
 use super::*;
+use crate::ImportedCoreProtocolCallable;
 
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -114,14 +115,6 @@ pub struct ZeroArgClassConstructor {
     pub callable: ClassConstructorId,
 }
 
-/// A constructor whose only physical parameter is the exact core
-/// `Option<String>` application used for initialization-cycle messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MessageClassConstructor {
-    pub class: ClassId,
-    pub callable: ClassConstructorId,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CompilerException {
     pub constructor: ZeroArgClassConstructor,
@@ -147,7 +140,7 @@ pub struct CompilerExceptionCore {
     pub arithmetic_exception: CompilerException,
     pub index_out_of_bounds_exception: CompilerException,
     pub illegal_state_exception: CompilerException,
-    pub illegal_state_message_constructor: MessageClassConstructor,
+    pub initialization_cycle_thrower: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -160,6 +153,16 @@ pub struct InitializationUnit {
     pub ensure: FunctionId,
     pub failure_root: InitializationFailureRootId,
     pub dependencies: Vec<InitializationDependency>,
+    pub cycle_thrower: InitializationCycleThrower,
+}
+
+/// Fully selected cycle-error exit for one concrete initialization unit.
+/// Defined-core lowering calls a local function; ordinary lowering retains
+/// the trusted artifact's imported compiler-protocol callable proof.
+#[derive(Debug, Clone)]
+pub enum InitializationCycleThrower {
+    Local(FunctionId),
+    Imported(ImportedCoreProtocolCallable),
 }
 
 pub type InitializationUnitIdentityRecord =

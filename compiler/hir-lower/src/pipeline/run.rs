@@ -463,6 +463,9 @@ impl Lowerer {
         } else {
             None
         };
+        if defines_core && (self.option_core.is_none() || exception_core.is_none()) {
+            return Err(self.diagnostics);
+        }
         self.lower_runtime_top_level_initializers();
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the

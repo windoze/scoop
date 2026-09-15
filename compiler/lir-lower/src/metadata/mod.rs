@@ -12,12 +12,25 @@ pub(super) use representation::*;
 pub(super) use scans::*;
 pub(super) use types::*;
 
+static CORE_ANY_EXACT_TYPE: std::sync::LazyLock<mir::SourceExactTypeRecord> =
+    std::sync::LazyLock::new(|| {
+        scoop_identity::CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Nominal(
+            scoop_identity::CoreBuiltinNominal::Any
+                .identity_record()
+                .id(),
+        ))
+        .expect("the fixed core Any exact-type identity is hashable")
+    });
+
 pub(super) fn exact_type_record<'module>(
     module: &'module mir::Module,
     ty: &mir::Type,
 ) -> &'module mir::SourceExactTypeRecord {
     if let Some(identity) = module.meta.source_exact_types.get(ty) {
         return identity.identity_record();
+    }
+    if matches!(ty, mir::Type::Any) {
+        return &CORE_ANY_EXACT_TYPE;
     }
     let location = match ty {
         mir::Type::Class(id) => mir::GeneratedExactTypeLocation::Class(*id),

@@ -38,8 +38,8 @@ pub struct Statement {
 pub enum StatementKind {
     Expr(Expr),
     /// Enter the exactly-once gate before a runtime-backed accessor touches
-    /// its storage. LocalConcrete HIR enriches this with the exact cycle
-    /// exception constructor.
+    /// its storage. LocalConcrete's unit declaration carries the exact cycle
+    /// throw target selected for the current core-authority branch.
     InitializationEnsure(InitializationUnitId),
     /// Compile-time declaration marker. The lifted body lives in
     /// `Module::local_functions`; executing this statement has no effect.

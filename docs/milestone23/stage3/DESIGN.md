@@ -88,7 +88,7 @@ M23-3 的“core-only”描述依赖关系，不等于恢复 core 专用的名�
 
 - 当前输入是trusted core bootstrap、只隐式依赖trusted core的manifest Cone，或固定的single-file Cone；
 - current Cone和其实际lowering/materialization没有产生任何ODR-owned实体；
-- 所有跨Cone semantic target都来自本次已验证的trusted core capability，并属于M23-3明确允许的param-free/prelude strong子集；
+- 所有跨Cone semantic target都来自本次已验证的trusted core capability，并属于M23-3明确允许的param-free/prelude strong子集；唯一额外的param-bearing target是compiler protocol固定的初始化cycle thrower `(String) -> Unit`，它不进入public prelude、不能由源码lookup选择，也不能推广为一般跨Cone参数调用能力；
 - 当前LIR的每个linker-visible definition、undefined use、digest patch、registration和image relation都能落入本阶段封闭sum；
 - 至少有一个已知capability的`LinkObject`，且全部object联合产生唯一image；
 - Compile view和Link view均从最终输出bytes独立重建成功。

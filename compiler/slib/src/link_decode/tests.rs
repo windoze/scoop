@@ -1106,13 +1106,12 @@ pub(crate) fn strong_production_fixture(
         &digests,
     )
     .unwrap();
-    let core_lir_bridge = if producer == ConeIdentity::CORE {
-        scoop_lir::CoreLirBridgeBranchV1::Core(
-            scoop_lir::CoreLirBridgeV1::try_new(Vec::new()).unwrap(),
-        )
-    } else {
-        scoop_lir::CoreLirBridgeBranchV1::NotCore
-    };
+    assert_ne!(
+        producer,
+        ConeIdentity::CORE,
+        "the link fixture models an ordinary Cone, not the core protocol surface"
+    );
+    let core_lir_bridge = scoop_lir::CoreLirBridgeBranchV1::NotCore;
     let production = StrongProductionSectionV1::new(
         coordinate,
         &foundation,

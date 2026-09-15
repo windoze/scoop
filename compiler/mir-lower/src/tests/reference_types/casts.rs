@@ -139,7 +139,7 @@ Module
   fun init.ClassCastException.$c0 @fn1(this: ClassCastException) -> Unit
     bb0 entry
       return
-  fun ctor.S.$c0 @fn8(x: Int) -> S <no-gc>
+  fun ctor.S.$c0 @fn7(x: Int) -> S <no-gc>
     bb0 entry
       return
         Type S

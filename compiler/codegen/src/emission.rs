@@ -339,6 +339,7 @@ fn prepare_non_callable_strong_llvm_module<'ctx>(
                 context,
                 llvm,
                 target_data,
+                profile,
                 production,
                 bounds_message,
                 array_size_message,

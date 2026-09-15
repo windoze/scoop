@@ -1,5 +1,5 @@
 use scoop_identity::{
-    CborIdentityRecord, ConeCoordinate, ConeIdentity, ConeImageSupportRole, DefinitionAtomRole,
+    CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, DefinitionAtomRole,
     DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
     DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PendingIdentityValidation,
@@ -9,14 +9,15 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::{CoreLirBridgeV1, DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
+use crate::{DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
 
 #[test]
 fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
-    let coordinate = ConeCoordinate::reserved_core();
+    let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
     let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::CORE, Vec::new()).unwrap();
+        StrongExternalLirBridgeSurfaceV1::try_new(coordinate.identity().unwrap(), Vec::new())
+            .unwrap();
     let registrations = StrongRegistrationProductionSurfaceV1::empty(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
@@ -31,7 +32,7 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::try_new(Vec::new()).unwrap()),
+        CoreLirBridgeBranchV1::NotCore,
     )
     .unwrap();
     let encoded = encode(&section).unwrap();

@@ -490,7 +490,7 @@ pub struct InitializationUnit {
     pub ensure: FunctionId,
     pub failure_root: InitializationFailureRootId,
     pub dependencies: Vec<InitializationUnitId>,
-    pub cycle_exception: MessageClassConstructor,
+    pub cycle_thrower: InitializationCycleThrower,
 }
 
 impl InitializationUnit {
@@ -516,11 +516,10 @@ pub enum InitializationSchedule {
     LazyAccess,
 }
 
-#[derive(Debug, Clone)]
-pub struct MessageClassConstructor {
-    pub class: ClassId,
-    pub initializer: FunctionId,
-    pub message_type: Type,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializationCycleThrower {
+    Local(FunctionId),
+    CoreExternal(ImportedCoreCallableUseId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -33,7 +33,7 @@ pub(super) fn validate_imported_core_callables(
         );
     }
 
-    let mut bindings = HashSet::with_capacity(selected.len());
+    let mut kinds = HashSet::with_capacity(selected.len());
     let mut roots = Vec::with_capacity(selected.len());
     for (callable, imported) in module.meta.imported_core_callables.iter() {
         let selected = selected.resolve_callable(imported.reference()).ok_or(
@@ -41,7 +41,7 @@ pub(super) fn validate_imported_core_callables(
                 index: callable.into_raw().into_u32(),
             },
         )?;
-        if !bindings.insert(selected.binding()) {
+        if !kinds.insert(selected.kind()) {
             return Err(
                 SingleConeStrongMirInputError::DuplicateImportedCoreCallable {
                     index: callable.into_raw().into_u32(),
@@ -59,7 +59,7 @@ pub(super) fn validate_imported_core_callables(
         }
         roots.push(StrongImportedCoreCallableRoot {
             callable,
-            binding: selected.binding(),
+            kind: selected.kind(),
             implementation: selected.implementation(),
             signature: selected.signature().clone(),
         });

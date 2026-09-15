@@ -19,7 +19,13 @@ fn emits_distinct_cell_coordinator_and_registration_definitions() {
     let llvm = context.create_module("initialization-registration");
     declare_prerequisites(&context, &llvm, expected);
 
-    let emitted = emit_strong_initialization_unit_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_initialization_unit_registrations_v1(
+        &context,
+        &llvm,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        &plan,
+    )
+    .unwrap();
 
     assert_eq!(emitted.producer(), plan.producer());
     assert_eq!(emitted.registrations().len(), 1);
@@ -27,6 +33,10 @@ fn emits_distinct_cell_coordinator_and_registration_definitions() {
     assert_eq!(registration.unit(), expected.semantic().unit());
     assert_eq!(registration.cell().get_linkage(), Linkage::External);
     assert!(!registration.cell().is_constant());
+    assert_eq!(
+        registration.cell().get_section().unwrap().to_str().unwrap(),
+        "__DATA,__data"
+    );
     assert!(
         registration
             .cell()
@@ -58,6 +68,15 @@ fn emits_distinct_cell_coordinator_and_registration_definitions() {
     assert!(registration.coordinator_descriptor().is_constant());
     assert_eq!(registration.diagnostic_atom(), expected.diagnostic_atom());
     assert!(registration.diagnostic().is_constant());
+    assert_eq!(
+        registration
+            .diagnostic()
+            .get_section()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "__TEXT,__cstring,cstring_literals"
+    );
     assert!(registration.registration_descriptor().is_constant());
 
     let coordinator = registration
@@ -207,7 +226,13 @@ fn lazy_registration_has_no_gateway_or_gateway_patch() {
     let llvm = context.create_module("lazy-initialization-registration");
     declare_prerequisites(&context, &llvm, expected);
 
-    let emitted = emit_strong_initialization_unit_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_initialization_unit_registrations_v1(
+        &context,
+        &llvm,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        &plan,
+    )
+    .unwrap();
     let registration = emitted.registrations()[0];
 
     assert!(registration.gateway_definition_patch().is_none());
@@ -262,8 +287,13 @@ fn validates_all_prerequisites_before_emitting_owned_definitions() {
         CallableKind::Managed,
     );
 
-    let error =
-        emit_strong_initialization_unit_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_initialization_unit_registrations_v1(
+        &context,
+        &llvm,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        &plan,
+    )
+    .unwrap_err();
 
     assert!(error.0.contains("is not declared"), "{error}");
     assert_owned_definitions_absent(&llvm, expected);
@@ -289,16 +319,32 @@ fn rejects_incompatible_prerequisites_and_owned_redefinition() {
         *expected.schedule().gateway().unwrap(),
         CallableKind::Gateway,
     );
-    let error =
-        emit_strong_initialization_unit_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_initialization_unit_registrations_v1(
+        &context,
+        &llvm,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        &plan,
+    )
+    .unwrap_err();
     assert!(error.0.contains("incompatible strong entry"), "{error}");
     assert_owned_definitions_absent(&llvm, expected);
 
     let llvm = context.create_module("initialization-owned-redefinition");
     declare_prerequisites(&context, &llvm, expected);
-    emit_strong_initialization_unit_registrations_v1(&context, &llvm, &plan).unwrap();
-    let error =
-        emit_strong_initialization_unit_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    emit_strong_initialization_unit_registrations_v1(
+        &context,
+        &llvm,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        &plan,
+    )
+    .unwrap();
+    let error = emit_strong_initialization_unit_registrations_v1(
+        &context,
+        &llvm,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        &plan,
+    )
+    .unwrap_err();
     assert!(error.0.contains("already defined"), "{error}");
 }
 

@@ -378,6 +378,19 @@ fn trusted_core_from_source(
             (target.binding(), definition, signature.clone())
         })
         .collect::<Vec<_>>();
+    let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) = interface
+        .compiler_protocols()
+        .initialization_cycle_thrower()
+        .definition()
+    else {
+        panic!("test initialization-cycle protocol is a source function")
+    };
+    let cycle_signature = scoop_identity::ExactCallableSignature::new(
+        scoop_identity::Effect::Ordinary,
+        None,
+        vec![interface.string_capability().exact_type()],
+        scoop_mir::core_unit_exact_type(),
+    );
     let mut mir_canonical = scoop_mir::CanonicalMirFoundation::empty();
     mir_canonical
         .set_callable_signatures(
@@ -391,6 +404,12 @@ fn trusted_core_from_source(
                         signature.clone(),
                     )
                 })
+                .chain(std::iter::once(scoop_mir::CallableSignatureRecord::new(
+                    scoop_mir::CallableSignatureSubject::Strong(
+                        scoop_identity::CallableOwner::Function(cycle_definition),
+                    ),
+                    cycle_signature.clone(),
+                )))
                 .collect(),
         )
         .unwrap();
@@ -414,6 +433,11 @@ fn trusted_core_from_source(
                     })
                     .collect(),
                 Vec::new(),
+                scoop_mir::CoreMirInitializationCycleThrowerV1::new(
+                    cycle_definition,
+                    scoop_identity::CallableOwner::Function(cycle_definition),
+                )
+                .unwrap(),
             )
             .unwrap(),
         ),
@@ -427,6 +451,10 @@ fn trusted_core_from_source(
                         signature.clone(),
                     )
                 })
+                .chain(std::iter::once(scoop_mir::StrongCallableBridgeV1::new(
+                    scoop_identity::CallableOwner::Function(cycle_definition),
+                    cycle_signature,
+                )))
                 .collect(),
         )
         .unwrap(),

@@ -96,27 +96,34 @@ impl<'a> CfgLowerer<'a> {
             mir::StatementKind::Eh(mir::EhStatement::BeginCatch),
             synthetic_span(),
         );
+        let mut unmatched_reachable = true;
         for catch in &try_.catches {
             let handler_target = handler_target
                 .as_ref()
                 .expect("a catch has a handler cleanup")
                 .clone();
             let catch_block = self.new_block_with("try.catch", Some(handler_target.pad));
-            let next = self.new_block_with("try.next", None);
-            self.seal(mir::Terminator::Branch {
-                cond: mir::Expr::new(
-                    mir::Type::Boolean,
-                    mir::ExprKind::IsInstance {
-                        operand: Box::new(mir::Expr::new(
-                            mir::Type::Any,
-                            mir::ExprKind::CaughtException,
-                        )),
-                        check_ty: catch.ty.clone(),
-                    },
-                ),
-                then_block: catch_block,
-                else_block: next,
-            });
+            let next = if matches!(catch.ty.as_ref(), mir::Type::Any) {
+                self.seal(mir::Terminator::Goto(catch_block));
+                None
+            } else {
+                let next = self.new_block_with("try.next", None);
+                self.seal(mir::Terminator::Branch {
+                    cond: mir::Expr::new(
+                        mir::Type::Boolean,
+                        mir::ExprKind::IsInstance {
+                            operand: Box::new(mir::Expr::new(
+                                mir::Type::Any,
+                                mir::ExprKind::CaughtException,
+                            )),
+                            check_ty: catch.ty.clone(),
+                        },
+                    ),
+                    then_block: catch_block,
+                    else_block: next,
+                });
+                Some(next)
+            };
             self.enter(catch_block);
             self.push(
                 mir::StatementKind::ValDecl {
@@ -156,29 +163,35 @@ impl<'a> CfgLowerer<'a> {
                 Some(handler_target.owner),
                 "catch body unwind scopes are lexically nested"
             );
+            let Some(next) = next else {
+                unmatched_reachable = false;
+                break;
+            };
             self.enter(next);
         }
 
-        self.try_stack.push(exit_target.clone());
-        let unmatched_cleanup_base = self.cleanup_depth();
-        self.normal_cleanups.push(NormalCleanup::EndCatch {
-            owner: exit_target.owner,
-        });
-        if let Some(finally) = finally {
-            self.lower_statements(finally);
-        }
-        self.normal_cleanups.truncate(unmatched_cleanup_base.0);
-        if !self.current_sealed {
-            self.seal(mir::Terminator::Rethrow {
-                unwind: Some(exit_target.pad),
+        if unmatched_reachable {
+            self.try_stack.push(exit_target.clone());
+            let unmatched_cleanup_base = self.cleanup_depth();
+            self.normal_cleanups.push(NormalCleanup::EndCatch {
+                owner: exit_target.owner,
             });
+            if let Some(finally) = finally {
+                self.lower_statements(finally);
+            }
+            self.normal_cleanups.truncate(unmatched_cleanup_base.0);
+            if !self.current_sealed {
+                self.seal(mir::Terminator::Rethrow {
+                    unwind: Some(exit_target.pad),
+                });
+            }
+            let active = self.try_stack.pop();
+            assert_eq!(
+                active.map(|target| target.owner),
+                Some(exit_target.owner),
+                "unmatched catch cleanup scopes are lexically nested"
+            );
         }
-        let active = self.try_stack.pop();
-        assert_eq!(
-            active.map(|target| target.owner),
-            Some(exit_target.owner),
-            "unmatched catch cleanup scopes are lexically nested"
-        );
 
         if let Some(handler_target) = handler_target {
             self.enter(handler_target.pad);
@@ -299,24 +312,31 @@ impl<'a> CfgLowerer<'a> {
         self.materialize_unwind_target(&own_target);
         self.enter(dispatch);
         let caught = self.managed_exception_expr(&own_target);
+        let mut unmatched_reachable = true;
         for catch in &try_.catches {
             let handler_target = handler_target
                 .as_ref()
                 .expect("a catch has a handler cleanup")
                 .clone();
             let catch_block = self.new_block_with("try.catch", Some(handler_target.pad));
-            let next = self.new_block_with("try.next", None);
-            self.seal(mir::Terminator::Branch {
-                cond: mir::Expr::new(
-                    mir::Type::Boolean,
-                    mir::ExprKind::IsInstance {
-                        operand: Box::new(caught.clone()),
-                        check_ty: catch.ty.clone(),
-                    },
-                ),
-                then_block: catch_block,
-                else_block: next,
-            });
+            let next = if matches!(catch.ty.as_ref(), mir::Type::Any) {
+                self.seal(mir::Terminator::Goto(catch_block));
+                None
+            } else {
+                let next = self.new_block_with("try.next", None);
+                self.seal(mir::Terminator::Branch {
+                    cond: mir::Expr::new(
+                        mir::Type::Boolean,
+                        mir::ExprKind::IsInstance {
+                            operand: Box::new(caught.clone()),
+                            check_ty: catch.ty.clone(),
+                        },
+                    ),
+                    then_block: catch_block,
+                    else_block: next,
+                });
+                Some(next)
+            };
             self.enter(catch_block);
             self.push(
                 mir::StatementKind::ValDecl {
@@ -350,21 +370,27 @@ impl<'a> CfgLowerer<'a> {
                 Some(handler_target.owner),
                 "catch body unwind scopes are lexically nested"
             );
+            let Some(next) = next else {
+                unmatched_reachable = false;
+                break;
+            };
             self.enter(next);
         }
 
-        if let Some(finally) = finally {
-            self.normal_cleanups.push(NormalCleanup::Finally {
-                owner: own_target.owner,
-                body: finally,
-            });
+        if unmatched_reachable {
+            if let Some(finally) = finally {
+                self.normal_cleanups.push(NormalCleanup::Finally {
+                    owner: own_target.owner,
+                    body: finally,
+                });
+            }
+            self.route_transfer(PendingTransfer::ManagedThrow(ManagedThrowPayload {
+                exception: caught,
+                unwind: enclosing.clone(),
+                cleanup_depth: cleanup_base,
+            }));
+            self.normal_cleanups.truncate(cleanup_base.0);
         }
-        self.route_transfer(PendingTransfer::ManagedThrow(ManagedThrowPayload {
-            exception: caught,
-            unwind: enclosing.clone(),
-            cleanup_depth: cleanup_base,
-        }));
-        self.normal_cleanups.truncate(cleanup_base.0);
 
         if let Some(handler_target) = handler_target {
             self.materialize_unwind_target(&handler_target);

@@ -3,9 +3,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableOwner, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId,
-    PersistentExportBindingId, PersistentTypeId, SourceDeclarationIdentityError,
-    SourceDeclarationKey, StrongCallableDefinitionOwner,
+    CallableOwner, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId, PersistentTypeId,
+    SourceDeclarationIdentityError, SourceDeclarationKey, StrongCallableDefinitionOwner,
 };
 use scoop_wire::HashError;
 
@@ -75,7 +74,7 @@ pub struct StrongGeneratedNominalShapeRoot {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongImportedCoreCallableRoot {
     callable: ImportedCoreCallableUseId,
-    binding: PersistentExportBindingId,
+    kind: scoop_identity::CoreImportedCallableKind,
     implementation: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
 }
@@ -85,8 +84,8 @@ impl StrongImportedCoreCallableRoot {
         self.callable
     }
 
-    pub const fn binding(&self) -> PersistentExportBindingId {
-        self.binding
+    pub const fn kind(&self) -> scoop_identity::CoreImportedCallableKind {
+        self.kind
     }
 
     pub const fn implementation(&self) -> StrongCallableDefinitionOwner {

@@ -6,9 +6,6 @@ impl Lowerer {
             assert!(module.initialization_failure_roots.is_empty());
             return;
         }
-        let throwable_ty = mir::Type::Class(
-            self.class_map[&self.core_protocols.defined().exceptions.throwable.class()],
-        );
         for (source_id, source) in module.initialization_failure_roots.iter() {
             let raw = source_id.into_raw().into_u32();
             let global = self.globals.alloc(mir::Global {
@@ -16,7 +13,7 @@ impl Lowerer {
                 storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(
                     module.initialization_units[source.unit].identity.id(),
                 ),
-                ty: throwable_ty.clone(),
+                ty: mir::Type::Any,
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {
                     initial_state: mir::MirStaticInitialState::ZeroedForRuntimeUnit,
@@ -28,32 +25,34 @@ impl Lowerer {
             assert_eq!(source_id.into_raw(), id.into_raw());
         }
 
-        let cycle_source = self
-            .core_protocols
-            .defined()
-            .exceptions
-            .illegal_state_message_constructor;
-        let message_type = {
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            };
-            types.lower(
-                module.class_constructors[cycle_source.callable].parameters[0].ty,
-                &mut self.source_exact_types,
-                &mut self.enums,
-                &mut self.structs,
-                &mut self.interfaces,
-                &mut self.shell,
-            )
-        };
-        let cycle_exception = mir::MessageClassConstructor {
-            class: self.class_map[&cycle_source.class],
-            initializer: self.ctors[&cycle_source.callable],
-            message_type,
-        };
         for (source_id, source) in module.initialization_units.iter() {
+            let cycle_thrower = match (&source.cycle_thrower, self.initialization_cycle) {
+                (
+                    hir::InitializationCycleThrower::Local(function),
+                    InitializationCycleLoweringAuthority::Local,
+                ) => mir::InitializationCycleThrower::Local(self.function_map[function]),
+                (
+                    hir::InitializationCycleThrower::Imported(protocol),
+                    InitializationCycleLoweringAuthority::Imported {
+                        definition,
+                        callable,
+                    },
+                ) => {
+                    let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(
+                        source_definition,
+                    ) = protocol.definition()
+                    else {
+                        unreachable!(
+                            "the initialization-cycle protocol was validated as a source function"
+                        )
+                    };
+                    assert_eq!(source_definition.persistent(), definition);
+                    mir::InitializationCycleThrower::CoreExternal(callable)
+                }
+                _ => unreachable!(
+                    "initialization units and their cycle-thrower authority are branch-aligned"
+                ),
+            };
             let kind = match source.kind {
                 hir::InitializationUnitKind::EagerTopLevel { storage } => {
                     mir::InitializationUnitKind::EagerTopLevel {
@@ -92,7 +91,7 @@ impl Lowerer {
                         mir::InitializationUnitId::from_raw(dependency.unit.into_raw())
                     })
                     .collect(),
-                cycle_exception: cycle_exception.clone(),
+                cycle_thrower,
             });
             assert_eq!(source_id.into_raw(), id.into_raw());
         }

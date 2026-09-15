@@ -72,7 +72,7 @@ pub use callback::{
     CallbackParameterIndex, CallbackRegistrationKey, DecodedCallbackApplicationKey,
     DecodedCallbackRegistrationKey, DecodedSignatureCallableShape, SignatureCallableShape,
 };
-pub use core_builtin::CoreBuiltinNominal;
+pub use core_builtin::{CoreBuiltinNominal, CoreImportedCallableKind};
 pub use core_native::CoreNativeBoundaryNominal;
 pub use digest::{
     DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DecodedDigestPatchIntentKey, DigestKind,

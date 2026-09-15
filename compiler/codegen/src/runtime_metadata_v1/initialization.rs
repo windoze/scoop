@@ -12,6 +12,7 @@ use scoop_lir::{
 
 use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
+use crate::target::ValidatedBackendProfile;
 
 const METADATA_ABI_VERSION: u64 = 1;
 const INITIALIZATION_UNIT_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
@@ -127,6 +128,7 @@ impl<'ctx> EmittedStrongInitializationUnitRegistrationSetV1<'ctx> {
 pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
+    profile: ValidatedBackendProfile,
     plan: &StrongInitializationUnitRegistrationPlanSetV1,
 ) -> Result<EmittedStrongInitializationUnitRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
@@ -140,7 +142,9 @@ pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx>(
         .collect::<Result<Vec<_>, _>>()?;
     let registrations = prepared
         .into_iter()
-        .map(|prepared| emit_registration(context, llvm, &types, coordinator_type, prepared))
+        .map(|prepared| {
+            emit_registration(context, llvm, profile, &types, coordinator_type, prepared)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(EmittedStrongInitializationUnitRegistrationSetV1 {
         producer: plan.producer(),
@@ -259,6 +263,7 @@ fn prepare_registration<'ctx>(
 fn emit_registration<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
+    profile: ValidatedBackendProfile,
     types: &RuntimeMetadataV1Types<'ctx>,
     coordinator_type: StructType<'ctx>,
     prepared: PreparedInitializationRegistrationV1<'ctx>,
@@ -273,6 +278,10 @@ fn emit_registration<'ctx>(
         false,
         types.initialization_cell.const_zero().into(),
     );
+    // The mutable coordinator cell is also a primary definition atom. Keep
+    // its zero initializer file-backed so object verification and definition
+    // fingerprinting observe canonical bytes rather than a virtual BSS range.
+    cell.set_section(Some(profile.writable_storage_section()));
     let storage_registration = declare_global(
         llvm,
         plan.storage().registration_symbol(),
@@ -294,6 +303,7 @@ fn emit_registration<'ctx>(
     diagnostic.set_linkage(Linkage::Private);
     diagnostic.set_constant(true);
     diagnostic.set_initializer(&diagnostic_initializer);
+    diagnostic.set_section(Some(profile.c_string_section()));
 
     let coordinator_schedule = match plan.schedule() {
         StrongInitializationRegistrationSchedulePlanV1::EagerStartup { .. } => 0,

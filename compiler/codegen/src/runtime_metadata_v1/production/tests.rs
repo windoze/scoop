@@ -54,6 +54,7 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
         &context,
         &llvm,
         &target_data,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
         &production,
         bounds_message,
         array_size_message,

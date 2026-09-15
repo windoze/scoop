@@ -261,6 +261,19 @@ pub fn lower(
             Some(local_function_identities.alloc_managed())
         }
     };
+    let startup_gateways = module
+        .initialization_units
+        .iter()
+        .filter(|(_, unit)| matches!(unit.schedule, mir::InitializationSchedule::EagerStartup))
+        .map(|(_, unit)| {
+            let lir::LocalFunctionRef::Managed(ensure) = local_function_map[&unit.ensure] else {
+                unreachable!("initialization ensure functions are always managed")
+            };
+            let reference = local_function_identities.alloc_managed();
+            let gateway = lower_initialization_startup_gateway(unit.identity.id(), ensure);
+            (reference, gateway)
+        })
+        .collect::<Vec<_>>();
     let root_artifacts = match input.production().entry_bridge() {
         mir::EntryMirBridgeBranchV1::Library => None,
         mir::EntryMirBridgeBranchV1::Executable(bridge) => {
@@ -341,6 +354,14 @@ pub fn lower(
             reference.declaration().into_u32() as usize,
             lowered_functions.len(),
             "the root gateway reference must address its appended LIR function"
+        );
+        lowered_functions.push(gateway);
+    }
+    for (reference, gateway) in startup_gateways {
+        assert_eq!(
+            reference.declaration().into_u32() as usize,
+            lowered_functions.len(),
+            "an initialization startup-gateway reference must address its appended LIR function"
         );
         lowered_functions.push(gateway);
     }
@@ -484,7 +505,68 @@ fn lower_core_lir_bridge(
             .map_err(StrongLirLoweringError::CoreLirBridge)?,
         );
     }
-    lir::CoreLirBridgeV1::try_new(callables)
+    let cycle = core.initialization_cycle_thrower();
+    let cycle_implementation = cycle.implementation();
+    let cycle_root = input
+        .materialization()
+        .callable_roots()
+        .iter()
+        .find(|root| root.implementation() == cycle_implementation)
+        .ok_or(StrongLirLoweringError::MissingCoreCallableMaterialization(
+            cycle_implementation,
+        ))?;
+    let cycle_exact = input
+        .production()
+        .strong_callable_bridges()
+        .bridges()
+        .iter()
+        .find(|bridge| bridge.implementation() == cycle_implementation)
+        .ok_or(StrongLirLoweringError::MissingCoreCallableSignature(
+            cycle_implementation,
+        ))?
+        .signature();
+    if cycle_exact.effect() != scoop_identity::Effect::Ordinary {
+        return Err(StrongLirLoweringError::UnsupportedCoreCallableEffect(
+            cycle_implementation,
+        ));
+    }
+    if cycle_exact.receiver().is_present() {
+        return Err(StrongLirLoweringError::UnsupportedCoreCallableReceiver(
+            cycle_implementation,
+        ));
+    }
+    let cycle_function = &module.functions[cycle_root.function()];
+    let cycle_lowered = &functions[local_function_map[&cycle_root.function()]
+        .declaration()
+        .into_u32() as usize];
+    let cycle_owner = strong_callable_owner(cycle_implementation).ok_or(
+        StrongLirLoweringError::UnsupportedCoreCallableOwner(cycle_implementation),
+    )?;
+    let cycle_abi_signature = native_abi::canonical_scoop_signature(
+        module,
+        enums,
+        cycle_exact.clone(),
+        &cycle_function
+            .params
+            .iter()
+            .map(|parameter| parameter.ty.clone())
+            .collect::<Vec<_>>(),
+        &cycle_function.return_ty,
+        cycle_function.gc_effect,
+        &cycle_lowered.signature,
+    );
+    let cycle_root_plan = match cycle_function.gc_effect {
+        mir::GcEffect::Managed => lir::CoreExternalCallableRootPlan::ManagedStatepoint,
+        mir::GcEffect::NoGc => lir::CoreExternalCallableRootPlan::NoGc,
+    };
+    let cycle = lir::CoreLirInitializationCycleThrowerV1::new(
+        cycle_owner,
+        cycle_abi_signature,
+        cycle_lowered.signature.calling_convention(),
+        cycle_root_plan,
+    )
+    .map_err(StrongLirLoweringError::CoreLirBridge)?;
+    lir::CoreLirBridgeV1::try_new(callables, cycle)
         .map(lir::CoreLirBridgeBranchV1::Core)
         .map_err(StrongLirLoweringError::CoreLirBridge)
 }
@@ -578,11 +660,11 @@ pub enum StrongLirLoweringError {
     },
     MissingImportedCoreLirCallable {
         index: usize,
-        binding: scoop_identity::PersistentExportBindingId,
+        kind: scoop_identity::CoreImportedCallableKind,
     },
     ImportedCoreLirCallableMismatch {
         index: usize,
-        binding: scoop_identity::PersistentExportBindingId,
+        kind: scoop_identity::CoreImportedCallableKind,
     },
     MissingImportedCoreParameterType {
         index: usize,
@@ -630,13 +712,13 @@ impl fmt::Display for StrongLirLoweringError {
                 formatter,
                 "imported-core selection count mismatch: MIR has {mir}, LIR authority has {lir}"
             ),
-            Self::MissingImportedCoreLirCallable { index, binding } => write!(
+            Self::MissingImportedCoreLirCallable { index, kind } => write!(
                 formatter,
-                "imported-core MIR callable {index} binding {binding} has no LIR authority"
+                "imported-core MIR callable {index} kind {kind:?} has no LIR authority"
             ),
-            Self::ImportedCoreLirCallableMismatch { index, binding } => write!(
+            Self::ImportedCoreLirCallableMismatch { index, kind } => write!(
                 formatter,
-                "imported-core MIR callable {index} binding {binding} disagrees with its LIR authority"
+                "imported-core MIR callable {index} kind {kind:?} disagrees with its LIR authority"
             ),
             Self::MissingImportedCoreParameterType {
                 index,
@@ -737,7 +819,7 @@ use runtime::*;
 use target::*;
 
 pub use production::lower_entry_production_source;
-use production::lower_root_artifacts;
+use production::{lower_initialization_startup_gateway, lower_root_artifacts};
 
 mod function;
 use function::lower_function;

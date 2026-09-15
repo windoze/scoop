@@ -200,7 +200,16 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
     ) -> Result<OrdinaryConeMirOutput<'stage, 'artifact>, OrdinaryConeMirStageError> {
         let selected = self
             .trusted_core
-            .project_core_callables_to_mir(self.hir.imported_core())
+            .project_core_callables_to_mir(
+                self.hir.imported_core(),
+                !self
+                    .hir
+                    .output()
+                    .local
+                    .module()
+                    .initialization_units
+                    .is_empty(),
+            )
             .map_err(OrdinaryConeMirStageError::Projection)?;
         let mir = scoop_mir_lower::lower_ordinary(&self.hir, selected)
             .map_err(OrdinaryConeMirStageError::Lowering)?;

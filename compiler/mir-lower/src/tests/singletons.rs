@@ -121,13 +121,14 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         module.globals[root.global].storage_owner,
         mir::StaticStorageOwner::SingletonPublishedRoot(expected_singleton_owner)
     );
+    let failure_global = &module.globals[module.initialization_failure_roots
+        [module.initialization_units[singleton.initialization].failure_root]
+        .global];
     assert_eq!(
-        module.globals[module.initialization_failure_roots
-            [module.initialization_units[singleton.initialization].failure_root]
-            .global]
-            .storage_owner,
+        failure_global.storage_owner,
         mir::StaticStorageOwner::InitializationFailureRoot(expected_identity.id())
     );
+    assert_eq!(failure_global.ty, mir::Type::Any);
     assert!(matches!(
         module.initialization_units[singleton.initialization].kind,
         mir::InitializationUnitKind::LazySingleton {
@@ -148,6 +149,24 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         state.ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::InitializationOutcome)
     );
+    for name in ["$init.caught", "$init.materialized", "$init.failure"] {
+        let local = ensure
+            .body
+            .locals
+            .iter()
+            .find_map(|(_, local)| (local.name == name).then_some(local))
+            .unwrap_or_else(|| panic!("generated ensure function is missing {name}"));
+        assert_eq!(local.ty, mir::Type::Any);
+    }
+    let mir::InitializationCycleThrower::Local(cycle_thrower) =
+        module.initialization_units[singleton.initialization].cycle_thrower
+    else {
+        panic!("a core-defining fixture must use its local cycle thrower")
+    };
+    assert_eq!(
+        module.functions[cycle_thrower].name,
+        "__scoopThrowInitializationCycle"
+    );
 
     let dump = mir::dump(&module);
     assert!(dump.contains("$init.state: machine<initialization-outcome>"));
@@ -156,4 +175,6 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     assert!(dump.contains("MachineScalarLiteral InitializationOutcome(Ready)"));
     assert!(dump.contains("MachineScalarLiteral InitializationOutcome(Failed)"));
     assert!(!dump.contains("$init.state: Int"));
+    assert!(dump.contains("$init.failure: Any"));
+    assert!(!dump.contains("IsInstance Any"));
 }

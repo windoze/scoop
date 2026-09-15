@@ -19,6 +19,7 @@ use super::{
 };
 use crate::CodegenError;
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
+use crate::target::ValidatedBackendProfile;
 
 /// Object-independent location of one provisional digest slot emitted by
 /// codegen. The packager resolves the typed owner symbol and offset against
@@ -117,6 +118,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
+    profile: ValidatedBackendProfile,
     production: &StrongProductionSectionV1,
     array_bounds_message: GlobalValue<'ctx>,
     array_size_overflow_message: GlobalValue<'ctx>,
@@ -141,6 +143,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
     let initialization_units = emit_strong_initialization_unit_registrations_v1(
         context,
         llvm,
+        profile,
         registrations.initialization_units(),
     )?;
     let entry = emit_entry_production_v1(context, llvm, production.entry_plan())?;

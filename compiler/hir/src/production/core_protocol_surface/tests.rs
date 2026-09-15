@@ -180,7 +180,7 @@ fn compiler_protocol_surface_rejects_fixed_callable_signature_tampering() {
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::FixedCallableSignatureMismatch {
+            CoreCompilerProtocolSurfaceRelationError::RoleCallableKindMismatch {
                 product: CoreProtocolProductKindV1::Exception,
                 index: 11,
             }

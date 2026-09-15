@@ -959,7 +959,7 @@ fn validate_protocol_callable_owners(
             foundation,
         )?;
     }
-    for (callable, owner) in [(1, 0), (3, 2), (5, 4), (7, 6), (9, 8), (11, 10), (12, 10)] {
+    for (callable, owner) in [(1, 0), (3, 2), (5, 4), (7, 6), (9, 8), (11, 10)] {
         validate_callable_owner(
             CoreProtocolProductKindV1::Exception,
             surface.exception_protocol.entries(),
@@ -971,7 +971,41 @@ fn validate_protocol_callable_owners(
             foundation,
         )?;
     }
+    validate_top_level_callable(
+        CoreProtocolProductKindV1::Exception,
+        surface.exception_protocol.entries(),
+        12,
+        foundation,
+    )?;
     Ok(())
+}
+
+fn validate_top_level_callable<const N: usize>(
+    product: CoreProtocolProductKindV1,
+    entries: &[CoreProtocolEntryV1; N],
+    callable_index: usize,
+    foundation: &CanonicalHirFoundation,
+) -> Result<(), CoreCompilerProtocolSurfaceValidationError> {
+    let source = protocol_callable_source(
+        foundation,
+        callable_entry_ref(entries, callable_index).definition(),
+    )
+    .ok_or(
+        CoreCompilerProtocolSurfaceValidationError::RoleCallableOwnerMismatch {
+            product,
+            index: callable_index,
+        },
+    )?;
+    if source.owners().owners().is_empty() {
+        Ok(())
+    } else {
+        Err(
+            CoreCompilerProtocolSurfaceValidationError::RoleCallableOwnerMismatch {
+                product,
+                index: callable_index,
+            },
+        )
+    }
 }
 
 fn validate_callable_owner<const N: usize>(

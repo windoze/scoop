@@ -3,9 +3,9 @@ use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use scoop_identity::{
-    CallableOwner, ConeIdentity, ExactCallableSignature, ImportedIdentityId, ImportedIdentityMap,
-    MirIdentityLayer, PersistentExportBindingId, PersistentFunctionId, PersistentId,
-    StrongCallableDefinitionOwner,
+    CallableOwner, ConeIdentity, CoreImportedCallableKind, ExactCallableSignature,
+    ImportedIdentityId, ImportedIdentityMap, MirIdentityLayer, PersistentExportBindingId,
+    PersistentFunctionId, PersistentId, StrongCallableDefinitionOwner,
 };
 use scoop_wire::WireEncode;
 
@@ -82,6 +82,7 @@ impl ImportedMirFoundation {
         definition: PersistentFunctionId,
         signature: ExactCallableSignature,
     ) -> Result<SelectedImportedMirCallable<'a>, ImportedMirCallableProjectionError> {
+        let kind = CoreImportedCallableKind::Prelude(binding);
         if self.origin() != ConeIdentity::CORE {
             return Err(ImportedMirCallableProjectionError::FoundationNotCore(
                 self.origin(),
@@ -94,13 +95,47 @@ impl ImportedMirFoundation {
             .callable_targets()
             .iter()
             .find(|bridge| bridge.binding() == binding)
-            .ok_or(ImportedMirCallableProjectionError::MissingCallable(binding))?;
+            .ok_or(ImportedMirCallableProjectionError::MissingCallable(kind))?;
         let implementation = CallableOwner::Function(definition);
         if bridge.definition() != definition || bridge.implementation() != implementation {
-            return Err(ImportedMirCallableProjectionError::CallableMismatch(
-                binding,
+            return Err(ImportedMirCallableProjectionError::CallableMismatch(kind));
+        }
+        self.project_checked_callable(production, kind, definition, implementation, signature)
+    }
+
+    /// Projects the required core-internal initialization cycle service. Its
+    /// typed role is disjoint from public prelude bindings.
+    pub fn project_initialization_cycle_thrower<'a>(
+        &'a self,
+        production: &'a crate::CoreBootstrapBridgeSectionV1,
+        definition: PersistentFunctionId,
+        signature: ExactCallableSignature,
+    ) -> Result<SelectedImportedMirCallable<'a>, ImportedMirCallableProjectionError> {
+        let kind = CoreImportedCallableKind::InitializationCycleThrower;
+        if self.origin() != ConeIdentity::CORE {
+            return Err(ImportedMirCallableProjectionError::FoundationNotCore(
+                self.origin(),
             ));
         }
+        let crate::CoreMirBridgeBranchV1::Core(core_bridge) = production.core_bridge() else {
+            return Err(ImportedMirCallableProjectionError::MissingCoreBridge);
+        };
+        let bridge = core_bridge.initialization_cycle_thrower();
+        let implementation = CallableOwner::Function(definition);
+        if bridge.definition() != definition || bridge.implementation() != implementation {
+            return Err(ImportedMirCallableProjectionError::CallableMismatch(kind));
+        }
+        self.project_checked_callable(production, kind, definition, implementation, signature)
+    }
+
+    fn project_checked_callable<'a>(
+        &'a self,
+        production: &'a crate::CoreBootstrapBridgeSectionV1,
+        kind: CoreImportedCallableKind,
+        definition: PersistentFunctionId,
+        implementation: CallableOwner,
+        signature: ExactCallableSignature,
+    ) -> Result<SelectedImportedMirCallable<'a>, ImportedMirCallableProjectionError> {
         let strong_bridge = production
             .strong_callable_bridges()
             .bridges()
@@ -132,7 +167,7 @@ impl ImportedMirFoundation {
         Ok(SelectedImportedMirCallable {
             foundation: self,
             production,
-            binding,
+            kind,
             definition,
             implementation: StrongCallableDefinitionOwner::Function(definition),
             signature,
@@ -149,8 +184,8 @@ impl WireEncode for ImportedMirFoundation {
     }
 }
 
-/// A param-free callable selected from the trusted core HIR surface and
-/// proven against that artifact's MIR bridge.
+/// A public prelude callable or compiler-protocol service selected from the
+/// trusted core HIR surface and proven against that artifact's MIR bridge.
 ///
 /// Private borrows retain the exact imported foundation and production
 /// surface that minted the value. The next stage can therefore reject a
@@ -160,7 +195,7 @@ impl WireEncode for ImportedMirFoundation {
 pub struct SelectedImportedMirCallable<'a> {
     foundation: &'a ImportedMirFoundation,
     production: &'a crate::CoreBootstrapBridgeSectionV1,
-    binding: PersistentExportBindingId,
+    kind: CoreImportedCallableKind,
     definition: PersistentFunctionId,
     implementation: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
@@ -207,7 +242,7 @@ pub struct SelectedImportedMirSet<'a> {
     foundation: &'a ImportedMirFoundation,
     production: &'a crate::CoreBootstrapBridgeSectionV1,
     selection: ImportedCoreMirSelectionId,
-    by_binding: BTreeMap<PersistentExportBindingId, ImportedCoreMirCallableId>,
+    by_kind: BTreeMap<CoreImportedCallableKind, ImportedCoreMirCallableId>,
     callables: Vec<SelectedImportedMirCallable<'a>>,
 }
 
@@ -221,7 +256,7 @@ impl<'a> SelectedImportedMirSet<'a> {
             foundation,
             production,
             selection: next_imported_core_mir_selection(),
-            by_binding: BTreeMap::new(),
+            by_kind: BTreeMap::new(),
             callables: Vec::new(),
         }
     }
@@ -232,18 +267,16 @@ impl<'a> SelectedImportedMirSet<'a> {
         selected: SelectedImportedMirCallable<'a>,
     ) -> Result<ImportedCoreMirCallableId, ImportedMirSelectionError> {
         if !selected.belongs_to(self.foundation, self.production) {
-            return Err(ImportedMirSelectionError::ForeignSelection(
-                selected.binding(),
-            ));
+            return Err(ImportedMirSelectionError::ForeignSelection(selected.kind()));
         }
-        if let Some(&id) = self.by_binding.get(&selected.binding()) {
+        if let Some(&id) = self.by_kind.get(&selected.kind()) {
             let retained = &self.callables[id.0 as usize];
             if retained.definition() != selected.definition()
                 || retained.implementation() != selected.implementation()
                 || retained.signature() != selected.signature()
             {
                 return Err(ImportedMirSelectionError::ConflictingSelection(
-                    selected.binding(),
+                    selected.kind(),
                 ));
             }
             return Ok(id);
@@ -252,7 +285,7 @@ impl<'a> SelectedImportedMirSet<'a> {
             u32::try_from(self.callables.len())
                 .expect("one MIR request cannot select more than u32::MAX core callables"),
         );
-        self.by_binding.insert(selected.binding(), id);
+        self.by_kind.insert(selected.kind(), id);
         self.callables.push(selected);
         Ok(id)
     }
@@ -291,11 +324,11 @@ impl<'a> SelectedImportedMirSet<'a> {
             .flatten()
     }
 
-    pub fn callable_for_binding(
+    pub fn callable_for_kind(
         &self,
-        binding: PersistentExportBindingId,
+        kind: CoreImportedCallableKind,
     ) -> Option<ImportedCoreMirCallableId> {
-        self.by_binding.get(&binding).copied()
+        self.by_kind.get(&kind).copied()
     }
 
     pub fn len(&self) -> usize {
@@ -323,20 +356,20 @@ impl<'a> SelectedImportedMirSet<'a> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportedMirSelectionError {
-    ForeignSelection(PersistentExportBindingId),
-    ConflictingSelection(PersistentExportBindingId),
+    ForeignSelection(CoreImportedCallableKind),
+    ConflictingSelection(CoreImportedCallableKind),
 }
 
 impl fmt::Display for ImportedMirSelectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ForeignSelection(binding) => write!(
+            Self::ForeignSelection(kind) => write!(
                 formatter,
-                "imported MIR binding {binding} belongs to another core artifact projection"
+                "imported MIR callable {kind:?} belongs to another core artifact projection"
             ),
-            Self::ConflictingSelection(binding) => write!(
+            Self::ConflictingSelection(kind) => write!(
                 formatter,
-                "imported MIR binding {binding} has conflicting selected definitions"
+                "imported MIR callable {kind:?} has conflicting selected definitions"
             ),
         }
     }
@@ -345,8 +378,8 @@ impl fmt::Display for ImportedMirSelectionError {
 impl std::error::Error for ImportedMirSelectionError {}
 
 impl SelectedImportedMirCallable<'_> {
-    pub const fn binding(&self) -> PersistentExportBindingId {
-        self.binding
+    pub const fn kind(&self) -> CoreImportedCallableKind {
+        self.kind
     }
 
     pub const fn definition(&self) -> PersistentFunctionId {
@@ -375,7 +408,7 @@ impl fmt::Debug for SelectedImportedMirCallable<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("SelectedImportedMirCallable")
-            .field("binding", &self.binding)
+            .field("kind", &self.kind)
             .field("definition", &self.definition)
             .field("implementation", &self.implementation)
             .field("signature", &self.signature)
@@ -387,8 +420,8 @@ impl fmt::Debug for SelectedImportedMirCallable<'_> {
 pub enum ImportedMirCallableProjectionError {
     FoundationNotCore(ConeIdentity),
     MissingCoreBridge,
-    MissingCallable(PersistentExportBindingId),
-    CallableMismatch(PersistentExportBindingId),
+    MissingCallable(CoreImportedCallableKind),
+    CallableMismatch(CoreImportedCallableKind),
     MissingStrongSignature(PersistentFunctionId),
     StrongSignatureMismatch(PersistentFunctionId),
 }
@@ -415,10 +448,10 @@ mod tests {
     use crate::{
         BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, CallableSignatureRecord,
         CallableSignatureSubject, Callee, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
-        CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreShapeSupportSourceInput,
-        CoroutinePendingContext, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
-        Module, OdrFreeMirFoundation, OrdinaryMirOutput, OrdinaryMirOutputError,
-        SingleConeStrongMirInput, SourceSpan, Statement, StatementKind,
+        CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreMirInitializationCycleThrowerV1,
+        CoreShapeSupportSourceInput, CoroutinePendingContext, EntryMirBridgeBranchV1, Function,
+        GcEffect, MirMeta, MirOutput, Module, OdrFreeMirFoundation, OrdinaryMirOutput,
+        OrdinaryMirOutputError, SingleConeStrongMirInput, SourceSpan, Statement, StatementKind,
         StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1, Terminator, Type,
     };
 
@@ -461,12 +494,34 @@ mod tests {
         .unwrap();
         let signature = ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit);
         let implementation = CallableOwner::Function(definition);
+        let cycle_declaration = SourceDeclarationKey::function(
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("__scoopThrowInitializationCycle").unwrap(),
+            0,
+            None,
+            Vec::new(),
+        );
+        let cycle_definition =
+            PersistentFunctionId::from_source_declaration(&cycle_declaration).unwrap();
+        let cycle_implementation = CallableOwner::Function(cycle_definition);
         let mut canonical = CanonicalMirFoundation::empty();
         canonical
-            .set_callable_signatures(vec![CallableSignatureRecord::new(
-                CallableSignatureSubject::Strong(implementation),
-                signature.clone(),
-            )])
+            .set_callable_signatures(vec![
+                CallableSignatureRecord::new(
+                    CallableSignatureSubject::Strong(implementation),
+                    signature.clone(),
+                ),
+                CallableSignatureRecord::new(
+                    CallableSignatureSubject::Strong(cycle_implementation),
+                    signature.clone(),
+                ),
+            ])
             .unwrap();
         let foundation = imported_foundation(canonical.clone());
         let other_foundation = imported_foundation(canonical);
@@ -478,14 +533,19 @@ mod tests {
                         CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap(),
                     ],
                     Vec::new(),
+                    CoreMirInitializationCycleThrowerV1::new(
+                        cycle_definition,
+                        cycle_implementation,
+                    )
+                    .unwrap(),
                 )
                 .unwrap(),
             ),
             EntryMirBridgeBranchV1::Library,
-            StrongCallableBridgeSurfaceV1::try_new(vec![StrongCallableBridgeV1::new(
-                implementation,
-                signature.clone(),
-            )])
+            StrongCallableBridgeSurfaceV1::try_new(vec![
+                StrongCallableBridgeV1::new(implementation, signature.clone()),
+                StrongCallableBridgeV1::new(cycle_implementation, signature.clone()),
+            ])
             .unwrap(),
         )
         .unwrap();
@@ -499,7 +559,7 @@ mod tests {
 
         assert!(selected.belongs_to(&foundation, &production));
         assert!(!selected.belongs_to(&other_foundation, &production));
-        assert_eq!(selected.binding(), binding);
+        assert_eq!(selected.kind(), CoreImportedCallableKind::Prelude(binding));
         assert_eq!(selected.definition(), definition);
         assert_eq!(
             selected.implementation(),
@@ -511,11 +571,16 @@ mod tests {
         let first = selections.insert(selected.clone()).unwrap();
         assert_eq!(selections.insert(selected).unwrap(), first);
         assert_eq!(selections.len(), 1);
-        assert_eq!(selections.callable_for_binding(binding), Some(first));
+        assert_eq!(
+            selections.callable_for_kind(CoreImportedCallableKind::Prelude(binding)),
+            Some(first)
+        );
         assert_eq!(selections.callable(first).unwrap().definition(), definition);
         assert_eq!(
             selections.insert(foreign),
-            Err(ImportedMirSelectionError::ForeignSelection(binding))
+            Err(ImportedMirSelectionError::ForeignSelection(
+                CoreImportedCallableKind::Prelude(binding)
+            ))
         );
         assert_eq!(selections.len(), 1);
 
@@ -578,7 +643,7 @@ mod tests {
         .expect("the strong sealer resolves the exact imported MIR selected set");
         let roots = strong.materialization().imported_core_callable_roots();
         assert_eq!(roots.len(), 1);
-        assert_eq!(roots[0].binding(), binding);
+        assert_eq!(roots[0].kind(), CoreImportedCallableKind::Prelude(binding));
         assert_eq!(
             roots[0].implementation(),
             StrongCallableDefinitionOwner::Function(definition)

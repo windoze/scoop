@@ -1390,25 +1390,60 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(!signatures.is_empty());
 
+        let cycle = interface
+            .compiler_protocols()
+            .initialization_cycle_thrower();
+        let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) =
+            cycle.definition()
+        else {
+            panic!("the initialization-cycle protocol has a source function definition")
+        };
+        let cycle_signature = scoop_mir::CallableSignatureRecord::new(
+            scoop_mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Function(
+                cycle_definition,
+            )),
+            scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                vec![interface.string_capability().exact_type()],
+                scoop_mir::core_unit_exact_type(),
+            ),
+        );
+
         let empty_mir_foundation =
             scoop_mir::OdrFreeMirFoundation::try_new(scoop_mir::CanonicalMirFoundation::empty())
                 .unwrap();
-        let empty_production = scoop_mir_lower::lower_production_section(
+        assert!(matches!(
+            scoop_mir_lower::lower_production_section(
+                scoop_identity::ConeIdentity::CORE,
+                output.production_section(),
+                &empty_mir_foundation,
+            ),
+            Err(scoop_mir_lower::MirProductionLoweringError::MissingInitializationCycleThrower)
+        ));
+
+        let mut minimal_foundation = scoop_mir::CanonicalMirFoundation::empty();
+        minimal_foundation
+            .set_callable_signatures(vec![cycle_signature.clone()])
+            .unwrap();
+        let minimal_foundation =
+            scoop_mir::OdrFreeMirFoundation::try_new(minimal_foundation).unwrap();
+        let minimal_production = scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::CORE,
             output.production_section(),
-            &empty_mir_foundation,
+            &minimal_foundation,
         )
         .unwrap();
-        let scoop_mir::CoreMirBridgeBranchV1::Core(empty_core_bridge) =
-            empty_production.core_bridge()
+        let scoop_mir::CoreMirBridgeBranchV1::Core(minimal_core_bridge) =
+            minimal_production.core_bridge()
         else {
             panic!("the trusted bootstrap MIR production has a core bridge")
         };
-        assert!(empty_core_bridge.callable_targets().is_empty());
+        assert!(minimal_core_bridge.callable_targets().is_empty());
 
         let mut partial_foundation = scoop_mir::CanonicalMirFoundation::empty();
         partial_foundation
-            .set_callable_signatures(vec![signatures[0].clone()])
+            .set_callable_signatures(vec![cycle_signature.clone(), signatures[0].clone()])
             .unwrap();
         let partial_foundation =
             scoop_mir::OdrFreeMirFoundation::try_new(partial_foundation).unwrap();
@@ -1440,6 +1475,7 @@ mod tests {
                 expected.result(),
             ),
         );
+        mismatched_signatures.push(cycle_signature.clone());
         let mut mismatched_foundation = scoop_mir::CanonicalMirFoundation::empty();
         mismatched_foundation
             .set_callable_signatures(mismatched_signatures)
@@ -1456,6 +1492,8 @@ mod tests {
         ));
 
         let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
+        let mut signatures = signatures;
+        signatures.push(cycle_signature);
         mir_foundation.set_callable_signatures(signatures).unwrap();
         let mir_foundation = scoop_mir::OdrFreeMirFoundation::try_new(mir_foundation).unwrap();
         assert!(matches!(

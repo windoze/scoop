@@ -158,6 +158,7 @@ pub fn lower(
     Ok(lower_with_core_authority(
         output,
         CoreMirLoweringAuthority::Defined(core_protocols.clone()),
+        InitializationCycleLoweringAuthority::Local,
         Arena::new(),
         HashMap::new(),
     ))
@@ -206,7 +207,9 @@ pub fn lower_ordinary<'core>(
             });
         }
         let id = imported
-            .callable_for_binding(selected_target.binding().persistent())
+            .callable_for_kind(mir::CoreImportedCallableKind::Prelude(
+                selected_target.binding().persistent(),
+            ))
             .ok_or(ImportedCoreMirLoweringError::MissingMirCallable {
                 index: source_id.into_raw().into_u32(),
             })?;
@@ -225,6 +228,39 @@ pub fn lower_ordinary<'core>(
         );
         mapping.insert(source_id, target);
     }
+    let cycle_authority = if hir.initialization_units.is_empty() {
+        InitializationCycleLoweringAuthority::ImportedUnused
+    } else {
+        let hir::ConcreteCoreProtocols::Imported(protocols) = &hir.core_protocols else {
+            unreachable!("ordinary HIR was checked to retain imported core protocols")
+        };
+        let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(definition) = protocols
+            .exceptions()
+            .initialization_cycle_thrower()
+            .definition()
+        else {
+            return Err(ImportedCoreMirLoweringError::InvalidInitializationCycleThrower);
+        };
+        let definition = definition.persistent();
+        let id = imported
+            .callable_for_kind(mir::CoreImportedCallableKind::InitializationCycleThrower)
+            .ok_or(ImportedCoreMirLoweringError::MissingInitializationCycleThrower)?;
+        let selected = imported
+            .callable(id)
+            .expect("a callable-kind lookup returns an in-bounds MIR callable");
+        if selected.definition() != definition {
+            return Err(ImportedCoreMirLoweringError::InitializationCycleThrowerMismatch);
+        }
+        let callable = callables.alloc(
+            imported
+                .callable_use(id)
+                .expect("a selected MIR callable mints one branded use"),
+        );
+        InitializationCycleLoweringAuthority::Imported {
+            definition,
+            callable,
+        }
+    };
     if callables.len() != imported.len() {
         return Err(ImportedCoreMirLoweringError::UnusedMirCallable {
             selected: imported.len(),
@@ -234,6 +270,7 @@ pub fn lower_ordinary<'core>(
     let module = lower_with_core_authority(
         &output.output().local,
         CoreMirLoweringAuthority::Imported,
+        cycle_authority,
         callables,
         mapping,
     );
@@ -244,6 +281,7 @@ pub fn lower_ordinary<'core>(
 fn lower_with_core_authority(
     output: &scoop_hir::LocalConcreteHirOutput,
     core_protocols: CoreMirLoweringAuthority,
+    initialization_cycle: InitializationCycleLoweringAuthority,
     imported_core_callables: Arena<mir::ImportedCoreCallableUse>,
     imported_core_callable_map: HashMap<
         hir::ImportedCoreCallableUseId,
@@ -264,6 +302,7 @@ fn lower_with_core_authority(
     Lowerer {
         output,
         core_protocols,
+        initialization_cycle,
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
@@ -355,6 +394,9 @@ pub enum ImportedCoreMirLoweringError {
     ReceiverCallableUnavailable { index: u32 },
     MissingMirCallable { index: u32 },
     SignatureMismatch { index: u32 },
+    InvalidInitializationCycleThrower,
+    MissingInitializationCycleThrower,
+    InitializationCycleThrowerMismatch,
     UnusedMirCallable { selected: usize, used: usize },
     InvalidOutput(mir::OrdinaryMirOutputError),
 }
@@ -388,6 +430,16 @@ enum CoreMirLoweringAuthority {
     Imported,
 }
 
+#[derive(Clone, Copy, Debug)]
+enum InitializationCycleLoweringAuthority {
+    Local,
+    ImportedUnused,
+    Imported {
+        definition: hir::PersistentFunctionId,
+        callable: mir::ImportedCoreCallableUseId,
+    },
+}
+
 impl CoreMirLoweringAuthority {
     fn defined(&self) -> &hir::DefinedConcreteCoreProtocols {
         let Self::Defined(protocols) = self else {
@@ -401,6 +453,7 @@ struct Lowerer {
     output: LoweringOutput,
     /// Branch-refined compiler protocols owned by this lowering run.
     core_protocols: CoreMirLoweringAuthority,
+    initialization_cycle: InitializationCycleLoweringAuthority,
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,

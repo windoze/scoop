@@ -1250,7 +1250,7 @@ Module
         FieldAccess 1
           Type (Int, String)
           Local $bind.1
-      call p: Point = @fn8 direct
+      call p: Point = @fn7 direct
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
         Type Int
@@ -1264,7 +1264,7 @@ Module
           Type Point
           Local $bind.2
       return
-  fun ctor.Point.$c0 @fn8(x: Int, y: Int) -> Point <no-gc>
+  fun ctor.Point.$c0 @fn7(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
         Type Point

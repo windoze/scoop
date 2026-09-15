@@ -58,6 +58,19 @@ fn generic_identity_infers_type_arguments() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -375,6 +388,19 @@ fn nested_generic_calls_record_param_instantiations() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -506,6 +532,19 @@ fn generic_option_roundtrip() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>

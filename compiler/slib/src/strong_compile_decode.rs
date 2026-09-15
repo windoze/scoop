@@ -102,7 +102,8 @@ pub struct LocallyValidatedSingleConeCompileProduction<'input> {
 }
 
 /// HIR and MIR production sections proven to describe the same manifest
-/// output and, for core, the same complete param-free callable bridge surface.
+/// output and, for core, the same complete public and compiler-protocol
+/// callable bridge surface.
 /// LIR production validation remains the next proof obligation.
 pub struct ValidatedSingleConeCompileSemanticFront<'input> {
     local: LocallyValidatedSingleConeCompileProduction<'input>,
@@ -1004,6 +1005,26 @@ fn validate_core_lir_relation(
             return Err(StrongProfileCoreLirRelationError::ExactSignatureMismatch { index });
         }
     }
+    let mir_cycle = mir.initialization_cycle_thrower();
+    let cycle_implementation = mir_cycle.implementation();
+    let cycle_target = match cycle_implementation {
+        scoop_identity::CallableOwner::Function(id) => {
+            scoop_identity::StrongCallableDefinitionOwner::Function(id)
+        }
+        _ => return Err(StrongProfileCoreLirRelationError::InvalidInitializationCycleOwner),
+    };
+    let lir_cycle = lir.initialization_cycle_thrower();
+    if lir_cycle.target() != cycle_target {
+        return Err(StrongProfileCoreLirRelationError::InitializationCycleMismatch);
+    }
+    let cycle_exact = strong
+        .bridges()
+        .iter()
+        .find(|bridge| bridge.implementation() == cycle_implementation)
+        .ok_or(StrongProfileCoreLirRelationError::MissingInitializationCycleSignature)?;
+    if lir_cycle.abi_signature().signature() != cycle_exact.signature() {
+        return Err(StrongProfileCoreLirRelationError::InitializationCycleSignatureMismatch);
+    }
     Ok(())
 }
 
@@ -1115,6 +1136,33 @@ fn validate_core_relation(
         if actual.source() != *expected_source || actual.exact() != *expected_exact {
             return Err(StrongProfileRelationError::CoreShapeRootMismatch { index });
         }
+    }
+    let cycle = hir.compiler_protocols().initialization_cycle_thrower();
+    let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) =
+        cycle.definition()
+    else {
+        return Err(StrongProfileRelationError::InvalidInitializationCycleDefinition);
+    };
+    let actual_cycle = mir.initialization_cycle_thrower();
+    let expected_implementation = scoop_identity::CallableOwner::Function(cycle_definition);
+    if actual_cycle.definition() != cycle_definition
+        || actual_cycle.implementation() != expected_implementation
+    {
+        return Err(StrongProfileRelationError::InitializationCycleMismatch);
+    }
+    let expected_signature = scoop_identity::ExactCallableSignature::new(
+        scoop_identity::Effect::Ordinary,
+        None,
+        vec![hir.string_capability().exact_type()],
+        scoop_mir::core_unit_exact_type(),
+    );
+    let actual_signature = strong
+        .bridges()
+        .iter()
+        .find(|bridge| bridge.implementation() == expected_implementation)
+        .ok_or(StrongProfileRelationError::MissingInitializationCycleSignature)?;
+    if actual_signature.signature() != &expected_signature {
+        return Err(StrongProfileRelationError::InitializationCycleSignatureMismatch);
     }
     Ok(())
 }
@@ -1256,6 +1304,10 @@ pub enum StrongProfileCoreLirRelationError {
     CallableMismatch { index: usize },
     MissingExactSignature { index: usize },
     ExactSignatureMismatch { index: usize },
+    InvalidInitializationCycleOwner,
+    InitializationCycleMismatch,
+    MissingInitializationCycleSignature,
+    InitializationCycleSignatureMismatch,
 }
 
 impl fmt::Display for StrongProfileCoreLirRelationError {
@@ -1279,6 +1331,10 @@ pub enum StrongProfileRelationError {
     CoreCallableSignatureMismatch { index: usize },
     CoreShapeRootCoverage { expected: usize, actual: usize },
     CoreShapeRootMismatch { index: usize },
+    InvalidInitializationCycleDefinition,
+    InitializationCycleMismatch,
+    MissingInitializationCycleSignature,
+    InitializationCycleSignatureMismatch,
 }
 
 impl fmt::Display for StrongProfileRelationError {

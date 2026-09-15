@@ -213,56 +213,23 @@ impl Harness {
         include: bool,
     ) -> hir::CompilerExceptionCore {
         let illegal_state_exception = self.exception_target("IllegalStateException", include);
-        let illegal_state_class = illegal_state_exception.constructor.class;
-        let zero_argument_constructor = illegal_state_exception.constructor.constructor;
-        // Focused lowering fixtures without initialization units never consume
-        // this capability. Keep their nominal graphs minimal; fixtures that
-        // exercise initialization use the exact core Option<String> contract.
-        let message_type = if self.needs_initialization_core {
-            self.option(self.string)
-        } else {
-            self.string
-        };
-        let parameter = hir::ConstructorParameter {
-            id: hir::ConstructorParamId::from_raw(self.next_constructor_param),
-            binding: hir::BindingId::from_raw(0x4000_0000 + self.next_constructor_param),
-            definition: definition_origin(),
-            name: "message".to_string(),
-            ty: message_type,
-        };
-        self.next_constructor_param += 1;
-        let owner = self.classes[illegal_state_class].self_application;
-        let target = self
-            .class_constructor_applications
-            .alloc(hir::ClassConstructorApplication {
-                constructor: zero_argument_constructor,
-                owner,
-            });
-        let message_constructor = self.class_constructors.alloc(hir::ClassConstructor {
-            owner: illegal_state_class,
-            identity_kind: hir::ClassConstructorIdentityKind::Source,
-            access: hir::DeclarationAccess::public(),
-            parameters: vec![parameter],
-            kind: hir::ClassConstructorKind::Secondary {
-                delegation: hir::ClassSecondaryDelegation::This {
-                    target,
-                    arguments: hir::ConstructorArguments {
-                        locals: Arena::new(),
-                        statements: Vec::new(),
-                        args: Vec::new(),
-                    },
-                },
-                body: hir::Body {
-                    locals: Arena::new(),
-                    statements: Vec::new(),
-                },
+        let mut locals = Arena::new();
+        let message = locals.alloc(local("message", self.string));
+        let initialization_cycle_thrower = self.user_fn_full(
+            "__scoopThrowInitializationCycle",
+            Vec::new(),
+            vec![hir::Param {
+                name: "message".to_string(),
+                ty: self.string,
+                local: message,
+            }],
+            self.unit,
+            hir::Body {
+                locals,
+                statements: Vec::new(),
             },
-            span: SPAN,
-            origin: definition_origin(),
-        });
-        self.classes[illegal_state_class]
-            .constructors
-            .push(message_constructor);
+        );
+        assert_eq!(self.top_level.pop(), Some(initialization_cycle_thrower));
         hir::CompilerExceptionCore {
             throwable: self.exception_target("Throwable", include),
             unwrap_exception: self.exception_target("UnwrapException", include),
@@ -271,10 +238,7 @@ impl Harness {
             index_out_of_bounds_exception: self
                 .exception_target("IndexOutOfBoundsException", include),
             illegal_state_exception,
-            illegal_state_message_constructor: hir::MessageClassConstructor {
-                class: illegal_state_class,
-                constructor: message_constructor,
-            },
+            initialization_cycle_thrower,
         }
     }
 }

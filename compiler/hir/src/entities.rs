@@ -639,14 +639,6 @@ pub struct ZeroArgClassConstructor {
     pub constructor: ClassConstructorId,
 }
 
-/// A constructor whose single source/physical parameter is the exact core
-/// `Option<String>` application used for compiler-generated messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MessageClassConstructor {
-    pub class: ClassId,
-    pub constructor: ClassConstructorId,
-}
-
 /// One compiler-known exception type together with its only construction
 /// target needed by compiler-generated control flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -674,7 +666,9 @@ pub struct CompilerExceptionCore {
     pub arithmetic_exception: CompilerException,
     pub index_out_of_bounds_exception: CompilerException,
     pub illegal_state_exception: CompilerException,
-    pub illegal_state_message_constructor: MessageClassConstructor,
+    /// Core-internal `(String) -> Unit` service that constructs and throws
+    /// the cycle `IllegalStateException` without exporting `Option<String>`.
+    pub initialization_cycle_thrower: FunctionId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

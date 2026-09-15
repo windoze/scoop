@@ -13,7 +13,7 @@ pub use scoop_identity::{
     InitializationUnitKey, LexicalCallableParent, LocalValueKey, LocalValueSelector, NonEmptyVec,
     OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
     OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    PersistentExactTypeId, PersistentFieldId, PersistentGeneratedCallableId,
+    PersistentExactTypeId, PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
     PersistentInitializationUnitId, PersistentLocalValueId, SourceNativeExternalContractRecord,
     SpecializationKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment, SyntheticLocalRole,
