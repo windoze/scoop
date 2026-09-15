@@ -204,7 +204,9 @@ fn rebuild_callback_identities(
                 interfaces: &module.interfaces,
                 interface_applications: &module.interface_applications,
                 objects: &module.objects,
-                intrinsic_core: &module.core_protocols.fundamental_types,
+                core_types: hir::HirCoreTypeIdentityAuthority::Defined(
+                    &module.core_protocols.fundamental_types,
+                ),
                 nominal_identities: &module.nominal_identities,
             },
             unit: module.unit,

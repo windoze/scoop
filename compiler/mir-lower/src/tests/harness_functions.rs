@@ -633,7 +633,7 @@ impl Harness {
             interfaces: &self.interfaces,
             interface_applications: &self.interface_applications,
             objects: &Arena::new(),
-            intrinsic_core: &intrinsic_type_core,
+            core_types: hir::HirCoreTypeIdentityAuthority::Defined(&intrinsic_type_core),
             nominal_identities: &nominal_identities,
         };
         let type_identities = hir::HirTypeIdentities::from_types(type_identity_inputs)

@@ -54,18 +54,30 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     .core_builtin(CoreBuiltinNominal::Unit)
                     .id(),
             ),
-            Type::Integer(kind) => self.map_struct(
-                self.inputs.intrinsic_core.integers.owner(*kind),
-                &[],
-                binders,
-                visiting,
-            )?,
-            Type::Boolean => {
-                self.map_struct(self.inputs.intrinsic_core.boolean, &[], binders, visiting)?
-            }
-            Type::String => {
-                self.map_class(self.inputs.intrinsic_core.string, &[], binders, visiting)?
-            }
+            Type::Integer(kind) => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    self.map_struct(core.integers.owner(*kind), &[], binders, visiting)?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    SignatureTypeKey::Nominal(core.integer(*kind).persistent())
+                }
+            },
+            Type::Boolean => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    self.map_struct(core.boolean, &[], binders, visiting)?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    SignatureTypeKey::Nominal(core.boolean().persistent())
+                }
+            },
+            Type::String => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    self.map_class(core.string, &[], binders, visiting)?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    SignatureTypeKey::Nominal(core.string().persistent())
+                }
+            },
             Type::Struct(application) => {
                 if local_index(*application) >= self.inputs.struct_applications.len() {
                     return Err(HirSignatureTypeMappingError::UnknownApplication(raw_index(

@@ -492,7 +492,9 @@ fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
         interfaces: &export.interfaces,
         interface_applications: &export.interface_applications,
         objects: &export.objects,
-        intrinsic_core: &export.core_protocols.fundamental_types,
+        core_types: crate::HirCoreTypeIdentityAuthority::Defined(
+            &export.core_protocols.fundamental_types,
+        ),
         nominal_identities: &export.nominal_identities,
     }
 }

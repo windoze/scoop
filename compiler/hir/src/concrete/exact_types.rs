@@ -31,7 +31,15 @@ pub struct ExactTypeIdentityInputs<'a> {
     pub classes: &'a Arena<ClassDef>,
     pub interfaces: &'a Arena<InterfaceDef>,
     pub objects: &'a Arena<ObjectDecl>,
-    pub intrinsic_core: &'a IntrinsicTypeCore,
+    pub core_types: ConcreteCoreTypeIdentityAuthority<'a>,
+}
+
+/// Origin-refined exact-type authority for fundamental types in LocalConcrete
+/// HIR. Imported owners never require a synthetic local nominal definition.
+#[derive(Clone, Copy)]
+pub enum ConcreteCoreTypeIdentityAuthority<'a> {
+    Defined(&'a IntrinsicTypeCore),
+    Imported(&'a crate::ImportedCoreFundamentalTypeProtocol),
 }
 
 /// Total persistent exact-type relation for LocalConcrete HIR.
@@ -189,42 +197,57 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             TypeKind::Unit => {
                 ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id())
             }
-            TypeKind::Integer(kind) => {
-                let owner = self.inputs.intrinsic_core.integers.owner(kind);
-                self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let declaration = &self.inputs.structs[owner];
-                self.require_canonical_nominal(
-                    ty,
-                    declaration.canonical_type,
-                    ExactTypeRelation::IntrinsicNominalOwner,
-                )?;
-                let identity = declaration.origin.clone();
-                self.nominal_key(ty, identity, &[])?
-            }
-            TypeKind::Boolean => {
-                let owner = self.inputs.intrinsic_core.boolean;
-                self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let declaration = &self.inputs.structs[owner];
-                self.require_canonical_nominal(
-                    ty,
-                    declaration.canonical_type,
-                    ExactTypeRelation::IntrinsicNominalOwner,
-                )?;
-                let identity = declaration.origin.clone();
-                self.nominal_key(ty, identity, &[])?
-            }
-            TypeKind::String => {
-                let owner = self.inputs.intrinsic_core.string;
-                self.require_class(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
-                let declaration = &self.inputs.classes[owner];
-                self.require_canonical_nominal(
-                    ty,
-                    declaration.canonical_type,
-                    ExactTypeRelation::IntrinsicNominalOwner,
-                )?;
-                let identity = declaration.origin.clone();
-                self.nominal_key(ty, identity, &[])?
-            }
+            TypeKind::Integer(kind) => match self.inputs.core_types {
+                ConcreteCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.integers.owner(kind);
+                    self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
+                    let declaration = &self.inputs.structs[owner];
+                    self.require_canonical_nominal(
+                        ty,
+                        declaration.canonical_type,
+                        ExactTypeRelation::IntrinsicNominalOwner,
+                    )?;
+                    let identity = declaration.origin.clone();
+                    self.nominal_key(ty, identity, &[])?
+                }
+                ConcreteCoreTypeIdentityAuthority::Imported(core) => {
+                    ExactTypeKey::Nominal(core.integer(kind).persistent())
+                }
+            },
+            TypeKind::Boolean => match self.inputs.core_types {
+                ConcreteCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.boolean;
+                    self.require_struct(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
+                    let declaration = &self.inputs.structs[owner];
+                    self.require_canonical_nominal(
+                        ty,
+                        declaration.canonical_type,
+                        ExactTypeRelation::IntrinsicNominalOwner,
+                    )?;
+                    let identity = declaration.origin.clone();
+                    self.nominal_key(ty, identity, &[])?
+                }
+                ConcreteCoreTypeIdentityAuthority::Imported(core) => {
+                    ExactTypeKey::Nominal(core.boolean().persistent())
+                }
+            },
+            TypeKind::String => match self.inputs.core_types {
+                ConcreteCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.string;
+                    self.require_class(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
+                    let declaration = &self.inputs.classes[owner];
+                    self.require_canonical_nominal(
+                        ty,
+                        declaration.canonical_type,
+                        ExactTypeRelation::IntrinsicNominalOwner,
+                    )?;
+                    let identity = declaration.origin.clone();
+                    self.nominal_key(ty, identity, &[])?
+                }
+                ConcreteCoreTypeIdentityAuthority::Imported(core) => {
+                    ExactTypeKey::Nominal(core.string().persistent())
+                }
+            },
             TypeKind::Any => ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
             TypeKind::Struct(id) => {
                 self.require_struct(Some(ty), ExactTypeRelation::Struct, id)?;

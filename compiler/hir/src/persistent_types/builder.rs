@@ -99,21 +99,36 @@ impl<'a> TypeIdentityBuilder<'a> {
                     .core_builtin(CoreBuiltinNominal::Unit)
                     .id(),
             )?,
-            Type::Integer(kind) => {
-                let owner = self.inputs.intrinsic_core.integers.owner(kind);
-                self.require_struct(ty, owner)?;
-                self.source_nominal_exact(ty, self.inputs.nominal_identities[owner].clone())?
-            }
-            Type::Boolean => {
-                let owner = self.inputs.intrinsic_core.boolean;
-                self.require_struct(ty, owner)?;
-                self.source_nominal_exact(ty, self.inputs.nominal_identities[owner].clone())?
-            }
-            Type::String => {
-                let owner = self.inputs.intrinsic_core.string;
-                self.require_class(ty, owner)?;
-                self.source_nominal_exact(ty, self.inputs.nominal_identities[owner].clone())?
-            }
+            Type::Integer(kind) => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.integers.owner(kind);
+                    self.require_struct(ty, owner)?;
+                    self.source_nominal_exact(ty, self.inputs.nominal_identities[owner].clone())?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    self.nominal_exact(ty, core.integer(kind).persistent())?
+                }
+            },
+            Type::Boolean => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.boolean;
+                    self.require_struct(ty, owner)?;
+                    self.source_nominal_exact(ty, self.inputs.nominal_identities[owner].clone())?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    self.nominal_exact(ty, core.boolean().persistent())?
+                }
+            },
+            Type::String => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.string;
+                    self.require_class(ty, owner)?;
+                    self.source_nominal_exact(ty, self.inputs.nominal_identities[owner].clone())?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    self.nominal_exact(ty, core.string().persistent())?
+                }
+            },
             Type::Any => self.nominal_exact(
                 ty,
                 self.inputs

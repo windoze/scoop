@@ -683,7 +683,9 @@ impl<'a> Concretizer<'a> {
                 classes: &self.classes,
                 interfaces: &self.interfaces,
                 objects: &self.objects,
-                intrinsic_core: &intrinsic_type_core,
+                core_types: concrete::ConcreteCoreTypeIdentityAuthority::Defined(
+                    &intrinsic_type_core,
+                ),
             })
             .expect("validated concretization produces a total exact-type identity relation");
         let dispatch_slot_identities = self.build_dispatch_slot_identities();

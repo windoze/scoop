@@ -33,7 +33,7 @@ fn empty_tuple_cannot_enter_the_exact_type_relation() {
         classes: &classes,
         interfaces: &interfaces,
         objects: &objects,
-        intrinsic_core: &intrinsic_core,
+        core_types: ConcreteCoreTypeIdentityAuthority::Defined(&intrinsic_core),
     })
     .expect_err("an empty tuple has no exact structural identity");
     assert!(matches!(

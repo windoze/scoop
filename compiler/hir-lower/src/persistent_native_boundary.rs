@@ -27,7 +27,9 @@ pub(crate) fn build(
             interfaces: &export.interfaces,
             interface_applications: &export.interface_applications,
             objects: &export.objects,
-            intrinsic_core: &export.core_protocols.fundamental_types,
+            core_types: hir::HirCoreTypeIdentityAuthority::Defined(
+                &export.core_protocols.fundamental_types,
+            ),
             nominal_identities: &export.nominal_identities,
         },
         source_native_contracts: &export.source_native_contracts,

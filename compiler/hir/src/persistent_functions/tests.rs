@@ -84,7 +84,7 @@ impl Fixture {
             interfaces: &interfaces,
             interface_applications: &interface_applications,
             objects: &objects,
-            intrinsic_core: &intrinsic_core,
+            core_types: crate::HirCoreTypeIdentityAuthority::Defined(&intrinsic_core),
             nominal_identities: &nominal_identities,
         };
         let type_identities = HirTypeIdentities::from_types(type_inputs).unwrap();

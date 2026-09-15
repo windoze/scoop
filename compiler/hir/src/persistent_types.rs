@@ -68,8 +68,17 @@ pub struct HirTypeIdentityInputs<'a> {
     pub interfaces: &'a Arena<InterfaceDecl>,
     pub interface_applications: &'a Arena<InterfaceApplication>,
     pub objects: &'a Arena<ObjectDecl>,
-    pub intrinsic_core: &'a crate::IntrinsicTypeCore,
+    pub core_types: HirCoreTypeIdentityAuthority<'a>,
     pub nominal_identities: &'a HirNominalIdentities,
+}
+
+/// Origin-refined identity authority for compiler-represented fundamental
+/// types. Ordinary HIR resolves these owners from the trusted core artifact;
+/// only the defining core graph may use local nominal declarations.
+#[derive(Clone, Copy)]
+pub enum HirCoreTypeIdentityAuthority<'a> {
+    Defined(&'a crate::IntrinsicTypeCore),
+    Imported(&'a crate::ImportedCoreFundamentalTypeProtocol),
 }
 
 /// Total identity relation aligned with the HIR type arena.

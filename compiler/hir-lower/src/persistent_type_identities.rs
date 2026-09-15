@@ -22,7 +22,7 @@ pub(crate) fn build(
         interfaces: &lowerer.interfaces,
         interface_applications: &lowerer.interface_applications,
         objects: &lowerer.objects,
-        intrinsic_core,
+        core_types: hir::HirCoreTypeIdentityAuthority::Defined(intrinsic_core),
         nominal_identities,
     })
     .map_err(|error| PersistentTypeIdentityError { error })

@@ -48,7 +48,7 @@ pub(crate) fn identity_inputs<'a>(
         interfaces: &lowerer.interfaces,
         interface_applications: &lowerer.interface_applications,
         objects: &lowerer.objects,
-        intrinsic_core,
+        core_types: hir::HirCoreTypeIdentityAuthority::Defined(intrinsic_core),
         nominal_identities: nominals,
     }
 }

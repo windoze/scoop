@@ -1,3 +1,4 @@
+use la_arena::Arena;
 use scoop_identity::{
     BindingNamespace, BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
     CoreBuiltinNominal, DeclarationName, DeclarationScope, DefinitionOwnerChain,
@@ -6,7 +7,7 @@ use scoop_identity::{
     PackagePath, PendingIdentityValidation, PersistentEnumVariantFieldId, PersistentEnumVariantId,
     PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
     PersistentGenericTypeId, PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -345,6 +346,129 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
     assert_eq!(
         prelude.option_none().persistent(),
         fixture.interface.prelude_snapshot().option_none()
+    );
+}
+
+#[test]
+fn imported_fundamental_types_build_identities_without_local_core_nominals() {
+    let fixture = fixture();
+    let imported = imported_foundation(&fixture.foundation);
+    let core = imported
+        .import_core_inputs(&fixture.interface, &[])
+        .unwrap();
+    let fundamental = core.protocols().fundamental_types();
+
+    let mut types = Arena::new();
+    let unit = types.alloc(crate::Type::Unit);
+    let integer = types.alloc(crate::Type::Integer(crate::IntegerKind::SIGNED_32));
+    let boolean = types.alloc(crate::Type::Boolean);
+    let string = types.alloc(crate::Type::String);
+    let function_types = Arena::new();
+    let structs = Arena::new();
+    let struct_applications = Arena::new();
+    let enums = Arena::new();
+    let enum_applications = Arena::new();
+    let classes = Arena::new();
+    let class_applications = Arena::new();
+    let interfaces = Arena::new();
+    let interface_applications = Arena::new();
+    let objects = Arena::new();
+    let nominals = crate::HirNominalIdentities::checked(
+        &structs,
+        Vec::new(),
+        &enums,
+        Vec::new(),
+        &classes,
+        Vec::new(),
+        &interfaces,
+        Vec::new(),
+        &objects,
+        Vec::new(),
+    )
+    .unwrap();
+    let inputs = crate::HirTypeIdentityInputs {
+        types: &types,
+        function_types: &function_types,
+        structs: &structs,
+        struct_applications: &struct_applications,
+        enums: &enums,
+        enum_applications: &enum_applications,
+        classes: &classes,
+        class_applications: &class_applications,
+        interfaces: &interfaces,
+        interface_applications: &interface_applications,
+        objects: &objects,
+        core_types: crate::HirCoreTypeIdentityAuthority::Imported(fundamental),
+        nominal_identities: &nominals,
+    };
+    let identities = crate::HirTypeIdentities::from_types(inputs).unwrap();
+    assert_eq!(
+        identities[unit].exact().unwrap().key(),
+        &ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id())
+    );
+    assert_eq!(
+        identities[integer].exact().unwrap().key(),
+        &ExactTypeKey::Nominal(
+            fundamental
+                .integer(crate::IntegerKind::SIGNED_32)
+                .persistent()
+        )
+    );
+    assert_eq!(
+        identities[boolean].exact().unwrap().key(),
+        &ExactTypeKey::Nominal(fundamental.boolean().persistent())
+    );
+    assert_eq!(
+        identities[string].exact().unwrap().key(),
+        &ExactTypeKey::Nominal(fundamental.string().persistent())
+    );
+    let mapper = crate::HirSignatureTypeMapper::new(inputs);
+    assert_eq!(
+        mapper.map(string, &[]).unwrap(),
+        SignatureTypeKey::Nominal(fundamental.string().persistent())
+    );
+
+    let mut concrete_types = Arena::new();
+    let concrete_integer = concrete_types.alloc(crate::concrete::Type {
+        kind: crate::concrete::TypeKind::Integer(crate::IntegerKind::SIGNED_32),
+        gc_free: true,
+    });
+    let concrete_boolean = concrete_types.alloc(crate::concrete::Type {
+        kind: crate::concrete::TypeKind::Boolean,
+        gc_free: true,
+    });
+    let concrete_string = concrete_types.alloc(crate::concrete::Type {
+        kind: crate::concrete::TypeKind::String,
+        gc_free: false,
+    });
+    let concrete_identities = crate::concrete::ExactTypeIdentities::from_types(
+        crate::concrete::ExactTypeIdentityInputs {
+            types: &concrete_types,
+            function_types: &Arena::new(),
+            structs: &Arena::new(),
+            enums: &Arena::new(),
+            classes: &Arena::new(),
+            interfaces: &Arena::new(),
+            objects: &Arena::new(),
+            core_types: crate::concrete::ConcreteCoreTypeIdentityAuthority::Imported(fundamental),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        concrete_identities[concrete_integer].key(),
+        &ExactTypeKey::Nominal(
+            fundamental
+                .integer(crate::IntegerKind::SIGNED_32)
+                .persistent()
+        )
+    );
+    assert_eq!(
+        concrete_identities[concrete_boolean].key(),
+        &ExactTypeKey::Nominal(fundamental.boolean().persistent())
+    );
+    assert_eq!(
+        concrete_identities[concrete_string].key(),
+        &ExactTypeKey::Nominal(fundamental.string().persistent())
     );
 }
 
