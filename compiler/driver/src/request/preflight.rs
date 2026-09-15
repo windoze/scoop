@@ -1355,6 +1355,23 @@ mod tests {
                         || descriptor.diagnostic_name.starts_with("Iterator<")
                 )
         );
+
+        let production = real_lir
+            .lir
+            .build_production_section(
+                scoop_identity::ConeCoordinate::reserved_core(),
+                scoop_lir::EntryProductionSourceV1::Library,
+            )
+            .unwrap();
+        let scoop_lir::CoreShapeSupportPlanV1::Core(production_shape_support) =
+            production.core_shape_support()
+        else {
+            panic!("trusted core production retains its core shape-support branch")
+        };
+        assert_eq!(
+            production_shape_support.closures().len(),
+            expected_shape_roots
+        );
     }
 
     #[test]
