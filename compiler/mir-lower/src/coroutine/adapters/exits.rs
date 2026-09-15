@@ -11,7 +11,7 @@ pub(super) struct DriveExitBlocks {
 #[allow(clippy::too_many_arguments)]
 pub(super) fn drive_exit_blocks(
     lowerer: &Lowerer,
-    module: &hir::Module,
+    _module: &hir::Module,
     locals: &mut Arena<mir::Local>,
     blocks: &mut Arena<mir::BasicBlock>,
     this: mir::LocalId,
@@ -29,7 +29,7 @@ pub(super) fn drive_exit_blocks(
         .step_metadata_for_type(step_ty)
         .completed_payload();
     let throwable =
-        mir::Type::Class(lowerer.class_map[&module.core_protocols.exceptions.throwable.class()]);
+        mir::Type::Class(lowerer.class_map[&lowerer.core_protocols.exceptions.throwable.class()]);
     let exception = locals.alloc(local("$uncaught", throwable.clone()));
     let completion_ty = mir::Type::Interface(outer_continuation);
     let completed_value_ty = lowerer.functions[outer_resume].params[1].ty.clone();

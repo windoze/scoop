@@ -610,7 +610,8 @@ impl TrustedCoreBootstrapHirOutput {
                 .map(|root| root.declaration().clone())
                 .collect(),
         );
-        let mir = scoop_mir_lower::lower(&self.hir.local);
+        let mir = scoop_mir_lower::lower(&self.hir.local)
+            .map_err(CoreBootstrapMirStageError::Lowering)?;
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
             .map_err(CoreBootstrapMirStageError::Foundation)?;
         let production_section = scoop_mir_lower::lower_production_section(
@@ -771,6 +772,7 @@ impl std::error::Error for CoreBootstrapLirStageError {
 #[derive(Debug)]
 pub enum CoreBootstrapMirStageError {
     MissingCoreShapeSupportPlan,
+    Lowering(scoop_mir_lower::DefinedCoreMirLoweringError),
     Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
     ProductionSection(scoop_mir_lower::MirProductionLoweringError),
     Sealing(scoop_mir::SingleConeStrongMirInputError),
@@ -782,6 +784,7 @@ impl fmt::Display for CoreBootstrapMirStageError {
             Self::MissingCoreShapeSupportPlan => {
                 formatter.write_str("trusted core HIR output has no core shape-support plan")
             }
+            Self::Lowering(source) => source.fmt(formatter),
             Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
             Self::Sealing(source) => source.fmt(formatter),
@@ -793,6 +796,7 @@ impl std::error::Error for CoreBootstrapMirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::MissingCoreShapeSupportPlan => return None,
+            Self::Lowering(source) => source,
             Self::Foundation(source) => source,
             Self::ProductionSection(source) => source,
             Self::Sealing(source) => source,
@@ -1373,7 +1377,7 @@ mod tests {
                 )
             })
             .count();
-        let missing_source_module = scoop_mir_lower::lower(&output.hir().local);
+        let missing_source_module = scoop_mir_lower::lower(&output.hir().local).unwrap();
         let missing_source_foundation =
             scoop_mir::OdrFreeMirFoundation::from_module(&missing_source_module).unwrap();
         let missing_source_production = scoop_mir_lower::lower_production_section(

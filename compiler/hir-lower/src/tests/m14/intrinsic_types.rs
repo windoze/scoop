@@ -152,7 +152,8 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
     );
 
     let local = &output.local;
-    for (kind, id) in local.core_protocols.fundamental_types.integers.iter() {
+    let fundamental_types = &defined_concrete_core(local).fundamental_types;
+    for (kind, id) in fundamental_types.integers.iter() {
         assert!(matches!(
             &local.structs[id].representation,
             hir::concrete::StructRepresentation::Intrinsic { application, .. }
@@ -160,14 +161,14 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
         ));
     }
     assert!(matches!(
-        &local.structs[local.core_protocols.fundamental_types.boolean].representation,
+        &local.structs[fundamental_types.boolean].representation,
         hir::concrete::StructRepresentation::Intrinsic {
             application: hir::concrete::IntrinsicTypeRepresentation::Boolean,
             ..
         }
     ));
     assert!(matches!(
-        local.classes[local.core_protocols.fundamental_types.string].representation,
+        local.classes[fundamental_types.string].representation,
         hir::concrete::ClassRepresentation::Intrinsic {
             application: hir::concrete::IntrinsicTypeRepresentation::String,
             ..

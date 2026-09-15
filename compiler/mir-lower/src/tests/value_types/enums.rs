@@ -696,7 +696,8 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
     });
     assert_ne!(concrete_refs[0].0, concrete_refs[1].0);
 
-    let module = crate::lower(&concrete);
+    let module = crate::lower(&concrete)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     let mir_refs = ["noneInt", "noneString"].map(|name| {
         let global = module
             .globals

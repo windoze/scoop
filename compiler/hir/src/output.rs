@@ -11,8 +11,9 @@ use scoop_identity::{
 };
 
 use crate::{
-    ConeOutputKind, CoreShapeSupportRequirementsV1, ExportHir, HirNativeBoundaryTypeDefinitions,
-    LocalConcreteHir, LocalExecutableEntry, LocalExecutableEntryError, concrete,
+    ConeOutputKind, CoreProtocols, CoreShapeSupportRequirementsV1, ExportHir,
+    HirNativeBoundaryTypeDefinitions, LocalConcreteHir, LocalExecutableEntry,
+    LocalExecutableEntryError, concrete,
 };
 
 /// Export HIR paired with its validated library/executable contract.
@@ -309,6 +310,15 @@ impl LocalConcreteHirOutput {
         output_kind: LocalConeOutputKind,
         materialization: LocalConcreteMaterializationContract,
     ) -> Result<Self, LocalConcreteHirOutputError> {
+        if matches!(
+            (&module.core_protocols, &materialization),
+            (
+                concrete::ConcreteCoreProtocols::Imported(_),
+                LocalConcreteMaterializationContract::CoreShapeSupport(_)
+            )
+        ) {
+            return Err(LocalConcreteHirOutputError::ImportedCoreShapeSupport);
+        }
         if let LocalConeOutputKind::Executable { local_entry } = &output_kind {
             local_entry
                 .validate(&module)
@@ -353,6 +363,21 @@ impl crate::Output {
         native_boundary_types: HirNativeBoundaryTypeDefinitions,
         warnings: Vec<scoop_ast::Diagnostic>,
     ) -> Result<Self, HirOutputError> {
+        if !matches!(
+            (
+                &export.module().core_protocols,
+                &local.module().core_protocols
+            ),
+            (
+                CoreProtocols::Defined(_),
+                concrete::ConcreteCoreProtocols::Defined(_)
+            ) | (
+                CoreProtocols::Imported(_),
+                concrete::ConcreteCoreProtocols::Imported(_)
+            )
+        ) {
+            return Err(HirOutputError::CoreProtocolBranchMismatch);
+        }
         match (export.output_kind(), local.output_kind()) {
             (ConeOutputKind::Library, LocalConeOutputKind::Library) => {}
             (
@@ -399,6 +424,18 @@ impl<'a> OrdinaryHirOutput<'a> {
     ) -> Result<Self, OrdinaryHirOutputError> {
         if output.export.module().cone == scoop_identity::ConeIdentity::CORE {
             return Err(OrdinaryHirOutputError::CurrentConeIsCore);
+        }
+        if !matches!(
+            (
+                &output.export.module().core_protocols,
+                &output.local.module().core_protocols
+            ),
+            (
+                CoreProtocols::Imported(_),
+                concrete::ConcreteCoreProtocols::Imported(_)
+            )
+        ) {
+            return Err(OrdinaryHirOutputError::DefinedCoreProtocols);
         }
         if !matches!(
             output.local.materialization(),
@@ -464,6 +501,7 @@ impl<'a> OrdinaryHirOutput<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OrdinaryHirOutputError {
     CurrentConeIsCore,
+    DefinedCoreProtocols,
     CoreShapeSupportMaterialization,
     ProjectionCountMismatch { export: usize, local: usize },
     SelectionCountMismatch { hir: usize, selected: usize },
@@ -587,6 +625,7 @@ impl std::error::Error for ConcreteExecutableEntryError {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LocalConcreteHirOutputError {
     InvalidEntry(ConcreteExecutableEntryError),
+    ImportedCoreShapeSupport,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -616,6 +655,8 @@ impl fmt::Display for LocalConcreteHirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidEntry(error) => error.fmt(formatter),
+            Self::ImportedCoreShapeSupport => formatter
+                .write_str("imported-core LocalConcrete HIR cannot materialize core shape support"),
         }
     }
 }
@@ -626,6 +667,7 @@ impl std::error::Error for LocalConcreteHirOutputError {}
 pub enum HirOutputError {
     OutputKindMismatch,
     EntryMismatch,
+    CoreProtocolBranchMismatch,
 }
 
 impl fmt::Display for HirOutputError {
@@ -634,6 +676,9 @@ impl fmt::Display for HirOutputError {
             Self::OutputKindMismatch => "Export HIR and LocalConcrete HIR output kinds disagree",
             Self::EntryMismatch => {
                 "Export HIR and LocalConcrete HIR executable entry identities disagree"
+            }
+            Self::CoreProtocolBranchMismatch => {
+                "Export HIR and LocalConcrete HIR compiler-protocol branches disagree"
             }
         })
     }

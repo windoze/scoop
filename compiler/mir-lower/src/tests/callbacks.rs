@@ -46,7 +46,8 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
     let export = executable_output(source, entry);
     let concrete = scoop_hir_lower::concretize_output(&export)
         .expect("test Export HIR carries locally defined core protocols");
-    let module = crate::lower(&concrete);
+    let module = crate::lower(&concrete)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     let (_, bridge) = module
         .callback_bridges
         .iter()
@@ -317,7 +318,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
             .collect(),
         concrete.module().exact_type_identities[reference_function_type.return_type].id(),
     );
-    let callback_core = concrete.module().core_protocols.foreign_callbacks;
+    let callback_core = defined_concrete_core(concrete.module()).foreign_callbacks;
     let expected_callback_protocol_exact_types = [
         callback_core.modes.enumeration(),
         callback_core.states.enumeration(),
@@ -327,7 +328,8 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         concrete.module().exact_type_identities[concrete.module().enums[enumeration].canonical_type]
             .id()
     });
-    let module = crate::lower(&concrete);
+    let module = crate::lower(&concrete)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     let reference_invoke = module
         .functions
         .iter()

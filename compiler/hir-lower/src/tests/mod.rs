@@ -85,6 +85,15 @@ pub(crate) fn defined_export_core(module: &hir::Module) -> &hir::DefinedCoreProt
     protocols
 }
 
+pub(crate) fn defined_concrete_core(
+    module: &hir::concrete::Module,
+) -> &hir::concrete::DefinedConcreteCoreProtocols {
+    let hir::concrete::ConcreteCoreProtocols::Defined(protocols) = &module.core_protocols else {
+        panic!("test LocalConcrete HIR carries locally defined core protocols")
+    };
+    protocols
+}
+
 trait TestExecutableEntry {
     type FunctionId: Copy;
 

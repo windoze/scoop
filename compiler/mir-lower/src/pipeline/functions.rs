@@ -29,6 +29,7 @@ impl Lowerer {
         let current_closure = self.closure_by_function.get(&hir_id).copied();
         BodyLowerer {
             module,
+            core_protocols: &self.core_protocols,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
             current_function: mir_id,

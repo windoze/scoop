@@ -98,7 +98,8 @@ pub(super) fn lower_program(
     });
     let hir_production = scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
         .expect("integer test HIR has a complete production section");
-    let mir = scoop_mir_lower::lower(&hir.local);
+    let mir = scoop_mir_lower::lower(&hir.local)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
         .expect("integer test MIR satisfies the strong profile");
     let production =

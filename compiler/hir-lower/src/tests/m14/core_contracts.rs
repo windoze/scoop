@@ -114,7 +114,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
         ]
     );
 
-    let local = output.local.core_protocols.exceptions;
+    let local = defined_concrete_core(&output.local).exceptions;
     let local_exceptions = [
         local.throwable,
         local.unwrap_exception,

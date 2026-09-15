@@ -42,7 +42,8 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
     let target_exact = concrete.module().exact_type_identities
         [concrete.module().function_types[target_function].canonical_type]
         .id();
-    let mut module = super::super::lower(&concrete);
+    let mut module = super::super::lower(&concrete)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     let (adapter_id, adapter) = module
         .meta
         .closure_adapters
@@ -287,7 +288,8 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
     let export = executable_output(source, entry);
     let concrete = scoop_hir_lower::concretize_output(&export)
         .expect("test Export HIR carries locally defined core protocols");
-    let module = super::super::lower(&concrete);
+    let module = super::super::lower(&concrete)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     let bridge = module
         .meta
         .function_bridges

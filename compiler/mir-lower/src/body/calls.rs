@@ -72,8 +72,7 @@ impl BodyLowerer<'_> {
         let value = self.lower_expr(operand);
         let slot = self.new_hidden("opt", option_ty.clone(), false);
         let result = self.new_hidden("uw", payload_ty.clone(), false);
-        let throw =
-            self.throw_builtin(self.module.core_protocols.exceptions.unwrap_exception, span);
+        let throw = self.throw_builtin(self.core_protocols.exceptions.unwrap_exception, span);
         self.prelude.push(smir::StatementKind::ValDecl {
             local: slot,
             init: value,
@@ -173,9 +172,8 @@ impl BodyLowerer<'_> {
             .instances
             .get(protocol.continuation_resume_with_exception)
             .unwrap();
-        let throwable = mir::Type::Class(
-            self.class_map[&self.module.core_protocols.exceptions.throwable.class()],
-        );
+        let throwable =
+            mir::Type::Class(self.class_map[&self.core_protocols.exceptions.throwable.class()]);
         let helper = self.coroutines.start_helper(
             self.source_exact_types,
             &result,

@@ -149,17 +149,17 @@ pub(super) fn dispatch_block(
 
 pub(super) fn protocol_error_block(
     lowerer: &Lowerer,
-    module: &hir::Module,
+    _module: &hir::Module,
     locals: &mut Arena<mir::Local>,
     blocks: &mut Arena<mir::BasicBlock>,
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
-    let class = module
+    let class = lowerer
         .core_protocols
         .exceptions
         .illegal_state_exception
         .class();
-    let constructor = module
+    let constructor = lowerer
         .core_protocols
         .exceptions
         .illegal_state_exception

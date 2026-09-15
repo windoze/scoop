@@ -387,18 +387,17 @@ impl Lowerer {
     /// struct instances use the mandatory MIR→HIR provenance map.
     pub(crate) fn value_struct_source(
         &self,
-        module: &hir::Module,
+        _module: &hir::Module,
         payload: &mir::Type,
     ) -> Option<hir::StructId> {
         match payload {
             mir::Type::Integer(kind) => Some(
-                module
-                    .core_protocols
+                self.core_protocols
                     .fundamental_types
                     .integers
                     .owner(raise_integer_kind(*kind)),
             ),
-            mir::Type::Boolean => Some(module.core_protocols.fundamental_types.boolean),
+            mir::Type::Boolean => Some(self.core_protocols.fundamental_types.boolean),
             mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
             _ => None,
         }

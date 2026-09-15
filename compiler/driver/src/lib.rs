@@ -214,7 +214,12 @@ pub fn compile_file_with_options(
     let hir_dump = scoop_hir::dump(&hir.export);
     let warnings = hir.warnings;
 
-    let mir = scoop_mir_lower::lower(&hir.local);
+    let mir = scoop_mir_lower::lower(&hir.local).map_err(|error| {
+        vec![no_span(
+            user_index,
+            format!("MIR protocol refinement failed: {error}"),
+        )]
+    })?;
     mir.validate().map_err(|error| {
         vec![no_span(
             user_index,

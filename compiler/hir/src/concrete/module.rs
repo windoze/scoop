@@ -56,19 +56,35 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    /// Complete compiler protocol authority defined by declarations
-    /// materialized in this LocalConcrete HIR graph.
-    pub core_protocols: DefinedConcreteCoreProtocols,
+    /// The single compiler-protocol authority for this LocalConcrete graph.
+    ///
+    /// Bootstrap graphs define the complete protocol product locally;
+    /// ordinary graphs retain the imported authority without copying core
+    /// declarations into this Cone's arenas.
+    pub core_protocols: ConcreteCoreProtocols,
 }
 
 impl Module {
     pub fn option_core(&self, enumeration: EnumId) -> Option<OptionCore> {
-        self.core_protocols
+        let ConcreteCoreProtocols::Defined(protocols) = &self.core_protocols else {
+            return None;
+        };
+        protocols
             .option
             .iter()
             .copied()
             .find(|option| option.enumeration() == enumeration)
     }
+}
+
+/// Closed compiler-protocol authority carried by one LocalConcrete HIR graph.
+///
+/// The variants are intentionally disjoint: imported persistent subjects
+/// cannot be represented as declarations owned by the current Cone.
+#[derive(Debug, Clone)]
+pub enum ConcreteCoreProtocols {
+    Defined(Box<DefinedConcreteCoreProtocols>),
+    Imported(Box<crate::ImportedCoreProtocols>),
 }
 
 /// Closed local-concrete compiler protocol product. Its fields are kept
@@ -401,7 +417,10 @@ impl Module {
         &self,
         function: FunctionId,
     ) -> Option<&CoroutineProtocol> {
-        self.core_protocols.coroutines.iter().find(|protocol| {
+        let ConcreteCoreProtocols::Defined(protocols) = &self.core_protocols else {
+            return None;
+        };
+        protocols.coroutines.iter().find(|protocol| {
             protocol.start_coroutine == function || protocol.suspend_coroutine == function
         })
     }

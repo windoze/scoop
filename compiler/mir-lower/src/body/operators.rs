@@ -280,10 +280,7 @@ impl BodyLowerer<'_> {
             local: rhs_slot,
             init: rhs,
         });
-        let throw = self.throw_builtin(
-            self.module.core_protocols.exceptions.arithmetic_exception,
-            span,
-        );
+        let throw = self.throw_builtin(self.core_protocols.exceptions.arithmetic_exception, span);
         self.prelude.push(smir::StatementKind::If {
             cond: smir::Expr::integer_compare(
                 mir::IntegerComparisonOperation::new(kind, mir::IntegerComparisonOperator::Equal),

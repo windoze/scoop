@@ -142,8 +142,11 @@ use types::{
     lower_integer_kind, mir_type_gc_free, raise_integer_kind, remap_idx,
 };
 
-/// Lower one output-sealed LocalConcrete HIR graph to MIR.
-pub fn lower(output: &scoop_hir::LocalConcreteHirOutput) -> mir::Module {
+/// Lower one output-sealed LocalConcrete HIR graph whose compiler protocols
+/// are defined by declarations in that graph.
+pub fn lower(
+    output: &scoop_hir::LocalConcreteHirOutput,
+) -> Result<mir::Module, DefinedCoreMirLoweringError> {
     assert!(
         output.module().imported_core_callables.is_empty(),
         "an imported-core HIR graph requires lower_ordinary"
@@ -216,7 +219,8 @@ pub fn lower_ordinary<'core>(
             used: callables.len(),
         });
     }
-    let module = lower_with_imported_core(&output.output().local, callables, mapping);
+    let module = lower_with_imported_core(&output.output().local, callables, mapping)
+        .map_err(ImportedCoreMirLoweringError::DefinedCore)?;
     mir::OrdinaryMirOutput::try_new(module, imported)
         .map_err(ImportedCoreMirLoweringError::InvalidOutput)
 }
@@ -228,8 +232,11 @@ fn lower_with_imported_core(
         hir::ImportedCoreCallableUseId,
         mir::ImportedCoreCallableUseId,
     >,
-) -> mir::Module {
+) -> Result<mir::Module, DefinedCoreMirLoweringError> {
     let module = output.module();
+    let hir::ConcreteCoreProtocols::Defined(core_protocols) = &module.core_protocols else {
+        return Err(DefinedCoreMirLoweringError::ImportedProtocols);
+    };
     let core_shape_support = match output.materialization() {
         scoop_hir::LocalConcreteMaterializationContract::Ordinary => &[][..],
         scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) => plan.roots(),
@@ -240,8 +247,9 @@ fn lower_with_imported_core(
             LoweringOutput::Executable(local_entry.local_function().function())
         }
     };
-    Lowerer {
+    Ok(Lowerer {
         output,
+        core_protocols: (**core_protocols).clone(),
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
@@ -307,11 +315,25 @@ fn lower_with_imported_core(
         imported_core_callables,
         imported_core_callable_map,
     }
-    .run(module, core_shape_support)
+    .run(module, core_shape_support))
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DefinedCoreMirLoweringError {
+    ImportedProtocols,
+}
+
+impl std::fmt::Display for DefinedCoreMirLoweringError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("defined-core MIR lowering cannot consume imported core protocols")
+    }
+}
+
+impl std::error::Error for DefinedCoreMirLoweringError {}
 
 #[derive(Debug)]
 pub enum ImportedCoreMirLoweringError {
+    DefinedCore(DefinedCoreMirLoweringError),
     ForeignHirCallable { index: u32 },
     HirTargetIsNotCallable { index: u32 },
     HirCapabilityMismatch { index: u32 },
@@ -335,6 +357,7 @@ impl std::fmt::Display for ImportedCoreMirLoweringError {
 impl std::error::Error for ImportedCoreMirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::DefinedCore(error) => Some(error),
             Self::InvalidOutput(error) => Some(error),
             _ => None,
         }
@@ -343,6 +366,8 @@ impl std::error::Error for ImportedCoreMirLoweringError {
 
 struct Lowerer {
     output: LoweringOutput,
+    /// Branch-refined compiler protocols owned by this lowering run.
+    core_protocols: hir::DefinedConcreteCoreProtocols,
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,

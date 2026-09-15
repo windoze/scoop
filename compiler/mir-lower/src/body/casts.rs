@@ -140,10 +140,8 @@ impl BodyLowerer<'_> {
             ),
         };
         if !optional {
-            let throw = self.throw_builtin(
-                self.module.core_protocols.exceptions.class_cast_exception,
-                span,
-            );
+            let throw =
+                self.throw_builtin(self.core_protocols.exceptions.class_cast_exception, span);
             self.prelude.push(smir::StatementKind::If {
                 cond: smir::Expr::new(
                     mir::Type::Boolean,
