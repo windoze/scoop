@@ -3,8 +3,10 @@ use scoop_identity::{
     BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
     DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
     ExactOrdinaryNoArgUnitSignature, ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey,
-    PackagePath, PendingIdentityValidation, PersistentExactTypeId, PersistentExportBindingId,
-    PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite, ValidatedIdentityGraph,
+    GeneratedCallableKey, LexicalCallableParent, LexicalCallableRole, PackagePath,
+    PendingIdentityValidation, PersistentExactTypeId, PersistentExportBindingId,
+    PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment, ValidatedIdentityGraph,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
@@ -128,6 +130,53 @@ fn validation_rejects_noncanonical_strong_callable_order() {
     assert_eq!(
         decoded.validate(ConeIdentity::CORE, &mut identities, &foundation),
         Err(MirProductionValidationError::NonCanonicalStrongCallableOrder { index: 1 })
+    );
+}
+
+#[test]
+fn validation_joins_mixed_callable_owner_variants_by_subject() {
+    let fixture = fixture();
+    let generated = generated_callable_sorting_before(fixture.function.id());
+    let signature =
+        ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), fixture.exact_unit);
+    let mut mir = CanonicalMirFoundation::empty();
+    mir.set_generated_callables(vec![generated.clone()])
+        .unwrap();
+    mir.set_callable_signatures(vec![
+        CallableSignatureRecord::new(
+            CallableSignatureSubject::Strong(CallableOwner::Function(fixture.function.id())),
+            signature.clone(),
+        ),
+        CallableSignatureRecord::new(
+            CallableSignatureSubject::Strong(CallableOwner::Generated(generated.id())),
+            signature,
+        ),
+    ])
+    .unwrap();
+    assert!(matches!(
+        mir.callable_signatures()[0].subject(),
+        CallableSignatureSubject::Strong(CallableOwner::Generated(_))
+    ));
+
+    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
+        &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
+    );
+    assert!(matches!(
+        strong_callable_bridges.bridges()[0].implementation(),
+        CallableOwner::Function(_)
+    ));
+    let section = CoreBootstrapBridgeSectionV1::try_new(
+        ConeIdentity::CORE,
+        fixture.section.core_bridge.clone(),
+        EntryMirBridgeBranchV1::Library,
+        strong_callable_bridges,
+    )
+    .unwrap();
+    let (mut identities, foundation) = validate_mir(&fixture.hir, &mir);
+
+    assert_eq!(
+        decode(&section).validate(ConeIdentity::CORE, &mut identities, &foundation),
+        Ok(section)
     );
 }
 
@@ -446,6 +495,26 @@ fn fixture() -> Fixture {
 
 fn validate_foundations(fixture: &Fixture) -> (ValidatedIdentityGraph, ValidatedMirFoundation) {
     validate_mir(&fixture.hir, &fixture.mir)
+}
+
+fn generated_callable_sorting_before(
+    function: PersistentFunctionId,
+) -> CborIdentityRecord<scoop_identity::PersistentGeneratedCallableId, GeneratedCallableKey> {
+    for ordinal in 0..1_000 {
+        let record = CborIdentityRecord::from_key(GeneratedCallableKey::Lexical {
+            parent: LexicalCallableParent::function(function),
+            role: LexicalCallableRole::LambdaBody,
+            path: StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, ordinal),
+                [],
+            ),
+        })
+        .unwrap();
+        if record.id().as_array() < function.as_array() {
+            return record;
+        }
+    }
+    panic!("expected a generated callable sorting before the source function")
 }
 
 fn validate_mir(

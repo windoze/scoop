@@ -170,11 +170,22 @@ impl DecodedStrongCallableBridgeSurfaceV1 {
             }
             bridges.push(bridge);
         }
-        for (index, (bridge, expected)) in bridges
+        if foundation
+            .callable_signatures()
             .iter()
-            .zip(foundation.callable_signatures())
-            .enumerate()
+            .any(|record| matches!(record.subject(), CallableSignatureSubject::Odr(_)))
         {
+            return Err(MirProductionValidationError::FoundationOdrSubject);
+        }
+        for (index, bridge) in bridges.iter().enumerate() {
+            let subject = bridge.subject();
+            let Ok(expected_index) = foundation
+                .callable_signatures()
+                .binary_search_by(|record| record.subject().compare_sort_key(subject))
+            else {
+                return Err(MirProductionValidationError::StrongCallableMismatch { index });
+            };
+            let expected = &foundation.callable_signatures()[expected_index];
             let CallableSignatureSubject::Strong(expected_implementation) = expected.subject()
             else {
                 return Err(MirProductionValidationError::FoundationOdrSubject);

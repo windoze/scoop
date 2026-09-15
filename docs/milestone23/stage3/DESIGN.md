@@ -1092,7 +1092,9 @@ identity graph重建完整source proof并要求其root Cone等于artifact；旧�
 subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementation)`，wire中没有
 可伪造的第二份subject字段。`strong_callable_bridges`按`CallableOwner` canonical顺序完整覆盖
 同一MIR foundation的全部callable signature record；foundation出现ODR subject、缺项、多项、
-重复owner或signature不一致均拒绝，不能排序修复reader输入。
+重复owner或signature不一致均拒绝，不能排序修复reader输入。foundation signature relation有其独立的
+`subject kind + raw id` canonical顺序；reader必须由每个bridge重建strong subject并在foundation中按typed key
+查找，不能把两张顺序不同但各自canonical的表按index直接`zip`。
 
 每个callable bridge连接HIR persistent declaration identity、MIR
 `CallableSignatureSubjectV1::Strong`、exact signature与实现origin；subject必须递归回到当前Cone。
