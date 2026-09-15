@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 mod artifact_production;
 mod inputs;
+mod ir_production;
 mod linking;
 mod object_production;
 mod request;
@@ -20,6 +21,7 @@ pub use artifact_production::{
     StrongArtifactProductionError,
 };
 pub use inputs::{load_inputs, render_diagnostics};
+pub use ir_production::{SingleConeStrongIrProductionV1, StrongIrArtifactProductionError};
 use linking::{LinkRequest, build_runtime, link};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
@@ -42,8 +44,8 @@ pub use request::{
     SingleConeBuildRequest, SingleConeBuildRequestError, SingleConePreflightError,
     SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreBootstrapHirInput,
     TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapLirOutput, TrustedCoreBootstrapMirOutput,
-    TrustedCoreInput, TrustedCoreStrongIrProductionV1, ValidatedCoreOnlyBuildRequest,
-    ValidatedCurrentConeInput, ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
+    TrustedCoreInput, ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput,
+    ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
     normalize_direct_build_request, normalize_protocol_build_request,
 };
 pub use trusted_core::{

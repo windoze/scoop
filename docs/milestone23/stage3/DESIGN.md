@@ -1738,9 +1738,15 @@ section，不能把foundation推迟到packager临时重算。`OdrFreeHirFoundati
 bootstrap路径。
 
 三层lowering完成后，driver必须消费完整IR链调用`seal_strong_profile`。成功的
-`TrustedCoreStrongIrProductionV1`同时拥有从canonical HIR收窄出的`OdrFreeHirFoundation`以及原链中的
+`SingleConeStrongIrProductionV1`同时拥有从canonical HIR收窄出的`OdrFreeHirFoundation`以及原链中的
 `OdrFreeMirFoundation`、`OdrFreeLirFoundation`和三层production；只有该状态可以进入object producer。
 收窄失败不返回LIR或任一可单独送入codegen的部分结果，也不为trusted core设置豁免分支。
+
+该通用IR终态的`produce_artifact`是built-in production的唯一高层入口：它从MIR production派生entry
+source，以请求级完整target profile分别运行Scoop LLVM与generated-C producer，随后按本节冻结顺序消费
+全部object验证、registration叶子/依赖、symbol closure、final patch与Code fingerprint状态，最后直接进入
+archive adapter。调用者只能额外提供typed Cone/direct dependency、临时目录、producer record和已经验证的
+core owner authority，不能取得任一producer的裸路径后自行拼装另一条production链。
 
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 

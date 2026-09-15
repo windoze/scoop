@@ -17,9 +17,9 @@ use super::{
     SlibOutputDestination, StageDumpPolicy, TrustedCoreInput,
 };
 use crate::{
-    CoreBootstrapAuthority, LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError,
-    TrustedCoreArtifactSlot, TrustedCoreArtifactValidationError, TrustedCoreBootstrapInput,
-    ValidatedTrustedCoreArtifact,
+    CoreBootstrapAuthority, LoadedTrustedCoreArtifact, SingleConeStrongIrProductionV1,
+    TrustedCoreArtifactLoadError, TrustedCoreArtifactSlot, TrustedCoreArtifactValidationError,
+    TrustedCoreBootstrapInput, ValidatedTrustedCoreArtifact,
 };
 
 /// The complete dependency input set supported by M23-3.
@@ -615,45 +615,19 @@ impl TrustedCoreBootstrapLirOutput {
     /// policy before object production can observe this lowering result.
     pub fn seal_strong_profile(
         self,
-    ) -> Result<TrustedCoreStrongIrProductionV1, CoreBootstrapStrongProfileError> {
+    ) -> Result<SingleConeStrongIrProductionV1, CoreBootstrapStrongProfileError> {
         let hir_foundation =
             scoop_hir::OdrFreeHirFoundation::try_new(self.mir.hir.foundation.clone())
                 .map_err(CoreBootstrapStrongProfileError::HirOdr)?;
-        Ok(TrustedCoreStrongIrProductionV1 {
-            lir: self,
+        let Self { mir, lir } = self;
+        let TrustedCoreBootstrapMirOutput { hir, strong } = mir;
+        Ok(SingleConeStrongIrProductionV1::new(
             hir_foundation,
-        })
-    }
-}
-
-/// Trusted-core lowering chain proven admissible for strong object production.
-///
-/// The private fields keep the HIR `RejectAll` proof attached to the exact MIR
-/// and LIR proofs that descended from the same source graph.
-pub struct TrustedCoreStrongIrProductionV1 {
-    lir: TrustedCoreBootstrapLirOutput,
-    hir_foundation: scoop_hir::OdrFreeHirFoundation,
-}
-
-impl TrustedCoreStrongIrProductionV1 {
-    pub const fn lir_output(&self) -> &scoop_lir::SingleConeStrongLirOutput {
-        &self.lir.lir
-    }
-
-    pub const fn hir_foundation(&self) -> &scoop_hir::OdrFreeHirFoundation {
-        &self.hir_foundation
-    }
-
-    pub const fn hir_production(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
-        self.lir.mir.hir.production_section()
-    }
-
-    pub const fn mir_foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
-        self.lir.mir.foundation()
-    }
-
-    pub const fn mir_production(&self) -> &scoop_mir::CoreBootstrapBridgeSectionV1 {
-        self.lir.mir.production_section()
+            hir.production_section,
+            strong.foundation().clone(),
+            strong.production().clone(),
+            lir,
+        ))
     }
 }
 
