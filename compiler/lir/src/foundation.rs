@@ -7,16 +7,16 @@ use scoop_identity::{
     CanonicalCAbiLayoutFingerprintRecord, CanonicalCAbiSignatureFingerprintRecord,
     CborIdentityRecord, ConeImageSupportRole, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
     DefinitionAtomRole, DefinitionAtomSubkey, DispatchTableKey, ExactTypeKey,
-    GeneratedBridgeAtomId, GeneratedBridgeAtomKey, GeneratedBridgeUnitId, GeneratedBridgeUnitKey,
-    ImmortalObjectKey, LayoutKey, LinkageClass, NativeExternalContractRecord,
-    NativeLinkRequirementId, NativeLinkRequirementKey, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey, PersistentCallableBodyId,
-    PersistentDispatchTableId, PersistentExactTypeId, PersistentId, PersistentImmortalObjectId,
-    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
-    PersistentSymbolRequest, RuntimeIdentityRecord, SafepointSiteKey, ScanKey, SpecializationKey,
-    StableIdentityOrderError, StaticStorageKey, StrongDefinitionEntity, StrongDefinitionRole,
-    stable_topological_identity_delta_order,
+    GeneratedBridgeAtomId, GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey,
+    GeneratedBridgeUnitId, GeneratedBridgeUnitKey, ImmortalObjectKey, LayoutKey, LinkageClass,
+    NativeExternalContractRecord, NativeLinkRequirementId, NativeLinkRequirementKey,
+    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey,
+    PersistentCallableBodyId, PersistentDispatchTableId, PersistentExactTypeId, PersistentId,
+    PersistentImmortalObjectId, PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
+    PersistentStaticStorageId, PersistentSymbolRequest, RuntimeIdentityRecord, SafepointSiteKey,
+    ScanKey, SpecializationKey, StableIdentityOrderError, StaticStorageKey, StrongDefinitionEntity,
+    StrongDefinitionRole, stable_topological_identity_delta_order,
 };
 use scoop_wire::{Encoder, HashError, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -30,9 +30,12 @@ pub use wire::{
     ValidatedLirFoundation,
 };
 
+mod bridge_layouts;
 mod imported;
 mod projection;
 mod strong_profile;
+pub use bridge_layouts::GeneratedBridgeLayoutClosureError;
+pub(crate) use bridge_layouts::{bridge_unit_keys, required_generated_bridge_layouts};
 pub use imported::{
     ImportedLirCallableProjectionError, ImportedLirFoundation, ImportedLirId,
     SelectedImportedLirCallable,
@@ -539,6 +542,8 @@ pub enum LirFoundationBuildError {
         owner: [u8; 32],
         atom: [u8; 32],
     },
+    GeneratedBridgeLayouts(GeneratedBridgeLayoutClosureError),
+    GeneratedBridgeAtomHash(HashError),
     DefinitionIdentity(ObjectDefinitionIdentityError),
     DefinitionHash(HashError),
     StaticStorageSemantics(crate::StrongStaticStorageSemanticPlanBuildError),
@@ -611,6 +616,8 @@ impl fmt::Display for LirFoundationBuildError {
                 HexIdentity(atom),
                 HexIdentity(owner)
             ),
+            Self::GeneratedBridgeLayouts(error) => error.fmt(formatter),
+            Self::GeneratedBridgeAtomHash(error) => error.fmt(formatter),
             Self::DefinitionIdentity(error) => error.fmt(formatter),
             Self::DefinitionHash(error) => error.fmt(formatter),
             Self::StaticStorageSemantics(error) => error.fmt(formatter),

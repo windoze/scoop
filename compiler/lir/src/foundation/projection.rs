@@ -68,6 +68,8 @@ impl CanonicalLirFoundation {
                 .map(|(_, descriptor)| descriptor),
             module.globals.iter().map(|(_, global)| global),
         )?;
+        foundation.project_global_identities(&module.globals)?;
+        foundation.project_symbols(&module.meta.type_descriptors, &module.globals)?;
         foundation.set_dispatch_tables(
             module
                 .meta
@@ -83,8 +85,6 @@ impl CanonicalLirFoundation {
                 })
                 .collect(),
         )?;
-        foundation.project_global_identities(&module.globals)?;
-        foundation.project_symbols(&module.meta.type_descriptors, &module.globals)?;
         foundation.set_runtime_types(
             module
                 .meta
@@ -141,6 +141,23 @@ impl CanonicalLirFoundation {
                 bridge.trampoline.signature(),
                 bridge.trampoline.entry().unit(),
             ));
+        }
+        let required_layouts = required_generated_bridge_layouts(
+            units.iter().map(|(&unit, record)| (unit, *record.key())),
+            module.meta.native_externals.contracts(),
+            module.meta.canonical_c_abi.signatures(),
+            module.meta.canonical_c_abi.layouts(),
+        )
+        .map_err(LirFoundationBuildError::GeneratedBridgeLayouts)?;
+        for (unit, layouts) in required_layouts {
+            for layout in layouts {
+                let atom = CborIdentityRecord::from_key(GeneratedBridgeAtomKey::new(
+                    module.cone,
+                    GeneratedBridgeAtomRoleKey::StaticAssertSupport { unit, layout },
+                ))
+                .map_err(LirFoundationBuildError::GeneratedBridgeAtomHash)?;
+                insert_projected_identity(&mut atoms, Some(&atom), LirFoundationTable::BridgeAtom)?;
+            }
         }
 
         self.set_bridge_units(units.into_values().collect())?;

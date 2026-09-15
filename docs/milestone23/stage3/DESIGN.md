@@ -1149,6 +1149,14 @@ boundary或patch offset，不能提前决定object分片。
 primary、materializable atom缺plan、bridge plan引用非本集合atom、重复/错序/漏项或跨集合冒充
 均拒绝。
 
+`StaticAssertSupport`不是producer可任选附加的注释。LIR foundation必须从该unit引用的canonical
+C ABI contract独立重建其完整layout闭包：`OutboundFunction`从native function contract的C
+signature出发，三种global unit从data contract的storage出发，两种callback unit从其canonical
+signature出发；遇到by-value `Struct`即加入该layout并递归其field storage，pointer storage不展开
+pointee layout。每个闭包元素恰好派生一个当前producer、当前unit的`StaticAssertSupport` atom，闭包外
+atom、闭包内漏项和错误unit归属都在foundation构造/读取时失败。这样后续canonical per-unit C source
+只能发射plan承诺的layout assertion，不能把整Cone的assertion集合复制进每个translation unit。
+
 验证后的`GeneratedBridgePlanSetV1`必须同时保留外层`OdrFreeLirFoundation`已经证明的producer；
 producer不重复进入上述wire array，但reader验证后也不得把它丢弃或提供无producer的构造入口。
 同理，validated in-memory plan中的每个unit、primary/materialized/static-assert atom必须保留

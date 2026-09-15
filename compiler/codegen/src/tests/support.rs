@@ -38,25 +38,28 @@ pub(super) fn callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity {
 }
 
 pub(super) fn outbound_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntryIdentity {
+    let contract = native_function_contract(seed);
     scoop_lir::GeneratedBridgeEntryIdentity::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(native_contract(seed)),
+        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract.fingerprint()),
     )
     .unwrap()
 }
 
 pub(super) fn global_read_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntryIdentity {
+    let contract = native_global_contract(seed);
     scoop_lir::GeneratedBridgeEntryIdentity::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_identity::GeneratedBridgeUnitKey::GlobalRead(native_contract(seed)),
+        scoop_identity::GeneratedBridgeUnitKey::GlobalRead(contract.fingerprint()),
     )
     .unwrap()
 }
 
 pub(super) fn global_address_bridge(seed: u8) -> scoop_lir::GeneratedBridgeEntryIdentity {
+    let contract = native_global_contract(seed);
     scoop_lir::GeneratedBridgeEntryIdentity::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_identity::GeneratedBridgeUnitKey::GlobalAddress(native_contract(seed)),
+        scoop_identity::GeneratedBridgeUnitKey::GlobalAddress(contract.fingerprint()),
     )
     .unwrap()
 }
@@ -113,7 +116,7 @@ pub(super) fn static_callback_trampoline(seed: u8) -> scoop_lir::StaticCallbackT
     .unwrap()
 }
 
-fn native_contract(seed: u8) -> scoop_identity::NativeExternalContractFingerprint {
+fn native_function_contract(seed: u8) -> scoop_identity::NativeExternalContractRecord {
     let symbol = scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
         &scoop_identity::SourceNativeSymbol::new(&format!("test_bridge_{seed}")).unwrap(),
     )
@@ -122,11 +125,95 @@ fn native_contract(seed: u8) -> scoop_identity::NativeExternalContractFingerprin
         scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
         c_signature(seed).signature().clone(),
     );
-    scoop_identity::NativeExternalContractFingerprint::from_symbol_and_contract(
-        scoop_identity::PersistentNativeExternalSymbolId::from_key(&symbol).unwrap(),
-        &contract,
+    scoop_identity::NativeExternalContractRecord::new(
+        test_native_source_contract(seed, false),
+        symbol,
+        contract,
     )
     .unwrap()
+}
+
+fn native_global_contract(seed: u8) -> scoop_identity::NativeExternalContractRecord {
+    let symbol = scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+        &scoop_identity::SourceNativeSymbol::new(&format!("test_global_{seed}")).unwrap(),
+    )
+    .unwrap();
+    let exact_type = test_exact_type(&format!("bridgeGlobal{seed}"));
+    scoop_identity::NativeExternalContractRecord::new(
+        test_native_source_contract(seed, true),
+        symbol,
+        scoop_identity::NativeExternalContract::read_only_data(
+            scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+            scoop_identity::CanonicalCStorageType::Boolean { exact_type },
+        ),
+    )
+    .unwrap()
+}
+
+fn test_native_source_contract(
+    seed: u8,
+    global: bool,
+) -> scoop_identity::PersistentSourceNativeExternalContractId {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let name = CanonicalIdentifier::new(&format!("testNative{seed}")).unwrap();
+    let declaration = if global {
+        SourceDeclarationKey::property(site, name)
+    } else {
+        SourceDeclarationKey::function(site, name, 0, None, Vec::new())
+    };
+    let key = if global {
+        scoop_identity::SourceNativeExternalContractKey::property(&declaration)
+    } else {
+        scoop_identity::SourceNativeExternalContractKey::function(&declaration)
+    }
+    .unwrap();
+    scoop_identity::PersistentSourceNativeExternalContractId::from_key(&key).unwrap()
+}
+
+pub(super) fn install_test_native_function_contract(module: &mut Module, seed: u8) {
+    install_test_native_contract(module, native_function_contract(seed));
+}
+
+pub(super) fn install_test_native_global_contract(module: &mut Module, seed: u8) {
+    install_test_native_contract(module, native_global_contract(seed));
+}
+
+fn install_test_native_contract(
+    module: &mut Module,
+    record: scoop_identity::NativeExternalContractRecord,
+) {
+    if module
+        .meta
+        .native_externals
+        .contracts()
+        .iter()
+        .any(|existing| existing.fingerprint() == record.fingerprint())
+    {
+        return;
+    }
+    let mut contracts = module.meta.native_externals.contracts().to_vec();
+    contracts.push(record);
+    module.meta.native_externals = scoop_lir::NativeExternalMetadata::checked(
+        contracts,
+        module.meta.native_externals.link_requirements().to_vec(),
+    )
+    .unwrap();
+}
+
+pub(super) fn install_test_c_signature(module: &mut Module, seed: u8) {
+    let mut signatures = module.meta.canonical_c_abi.signatures().to_vec();
+    signatures.push(c_signature(seed));
+    module.meta.canonical_c_abi = scoop_lir::CanonicalCAbiMetadata::checked(
+        signatures,
+        module.meta.canonical_c_abi.layouts().to_vec(),
+    )
+    .unwrap();
 }
 
 fn c_signature(seed: u8) -> scoop_identity::CanonicalCAbiSignatureFingerprintRecord {

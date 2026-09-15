@@ -269,6 +269,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         },
         meta: string_metadata(),
     };
+    install_test_native_function_contract(&mut module, 1);
     refresh_module_safepoints(&mut module);
 
     let ir = ir_of(&module);

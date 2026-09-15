@@ -10,8 +10,8 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallbackBridgeResolutionError, LirFoundationBuildError, RuntimeTypeMappingResolutionError,
-    SafepointMappingResolutionError,
+    CallbackBridgeResolutionError, GeneratedBridgeLayoutClosureError, LirFoundationBuildError,
+    RuntimeTypeMappingResolutionError, SafepointMappingResolutionError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -194,6 +194,15 @@ pub enum BridgeRelationError {
         atom: GeneratedBridgeAtomId,
         layout: CanonicalCAbiLayoutFingerprint,
     },
+    StaticAssertLayoutClosure(GeneratedBridgeLayoutClosureError),
+    MissingStaticAssertLayout {
+        unit: GeneratedBridgeUnitId,
+        layout: CanonicalCAbiLayoutFingerprint,
+    },
+    UnexpectedStaticAssertLayout {
+        unit: GeneratedBridgeUnitId,
+        layout: CanonicalCAbiLayoutFingerprint,
+    },
 }
 
 impl fmt::Display for BridgeRelationError {
@@ -274,6 +283,15 @@ impl fmt::Display for BridgeRelationError {
             Self::MissingAtomLayout { atom, layout } => write!(
                 formatter,
                 "generated bridge atom {atom} refers to absent C ABI layout {layout}"
+            ),
+            Self::StaticAssertLayoutClosure(error) => error.fmt(formatter),
+            Self::MissingStaticAssertLayout { unit, layout } => write!(
+                formatter,
+                "generated bridge unit {unit} is missing static assertion for C ABI layout {layout}"
+            ),
+            Self::UnexpectedStaticAssertLayout { unit, layout } => write!(
+                formatter,
+                "generated bridge unit {unit} has an unrequired static assertion for C ABI layout {layout}"
             ),
         }
     }

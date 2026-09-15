@@ -642,7 +642,7 @@ fn duplicate_type_descriptor_identity_is_rejected() {
         )
         .unwrap(),
         parent: None,
-        vtable: vtable("DuplicateString", Vec::new()),
+        vtable: vtable("String", Vec::new()),
         itables: Vec::new(),
     });
 

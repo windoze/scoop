@@ -18,8 +18,6 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_core_external_metadata(module)?;
     validate_type_descriptor_symbols(module)?;
     validate_array_metadata(module)?;
-    scoop_lir::CanonicalLirFoundation::from_module(module)
-        .map_err(|error| CodegenError(format!("invalid LIR identity foundation: {error}")))?;
     validate_output(module)?;
     validate_niche_representations(module)?;
     validate_scoop_abi(module)?;
@@ -32,7 +30,10 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_c_abi(module)?;
     validate_foreign_callbacks(module)?;
     validate_safepoint_identities(module)?;
-    validate_call_root_plans(module)
+    validate_call_root_plans(module)?;
+    scoop_lir::CanonicalLirFoundation::from_module(module)
+        .map_err(|error| CodegenError(format!("invalid LIR identity foundation: {error}")))?;
+    Ok(())
 }
 
 fn validate_core_external_metadata(module: &Module) -> Result<(), CodegenError> {

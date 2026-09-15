@@ -255,6 +255,7 @@ fn add_foreign_callback_bridge(
     family: scoop_lir::ForeignCallbackFamilyId,
     fixture: ForeignCallbackBridgeFixture<'_>,
 ) {
+    install_test_c_signature(module, fixture.identity_seed);
     let ordinal =
         u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32");
     let application = callback_application(ordinal);
@@ -522,6 +523,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     std::fs::remove_file(&source).ok();
     assert!(status.success(), "generated C assertions must compile");
 
+    install_test_native_function_contract(&mut module, 1);
+    let outbound = outbound_bridge(1);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "swap".to_string(),
@@ -529,17 +532,19 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge: outbound_bridge(1),
+        bridge: outbound,
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Struct(outer)],
             return_type: c_value(scoop_lir::CType::Struct(outer)),
         },
     });
     let static_bridge = static_callback_bridge(&mut module, "scoop_callback_bridge_0");
+    install_test_c_signature(&mut module, 3);
+    let static_trampoline = static_callback_trampoline(3);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
         bridge: static_bridge,
-        trampoline: static_callback_trampoline(3),
+        trampoline: static_trampoline,
         params: vec![scoop_lir::CType::Struct(outer)],
         return_type: c_value(scoop_lir::CType::Struct(outer)),
     });
@@ -555,6 +560,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             callback_modes.one_shot(),
         ),
     ] {
+        install_test_c_signature(&mut module, 2);
         let application = callback_application(
             u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32"),
         );
@@ -689,6 +695,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
 #[test]
 fn c_extern_derives_physical_signature_from_exact_c_types() {
     let mut module = values_module();
+    install_test_native_function_contract(&mut module, 3);
     let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "machineSize".to_string(),
@@ -722,6 +729,7 @@ fn append_c_void_call(
     storage_type: LirType,
     argument: impl FnOnce(scoop_lir::LocalId) -> Value,
 ) {
+    install_test_native_function_contract(module, 4);
     let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "consume".to_string(),
@@ -865,6 +873,7 @@ fn exact_c_argument_storage_address_reaches_the_bridge_as_its_backing_alloca() {
 #[test]
 fn native_global_derives_physical_storage_from_exact_c_type() {
     let mut module = values_module();
+    install_test_native_global_contract(&mut module, 1);
     let get = module
         .native_global_bridges
         .gets
@@ -902,6 +911,7 @@ fn native_global_derives_physical_storage_from_exact_c_type() {
 #[test]
 fn equivalent_native_global_contracts_share_generated_bridge_definitions() {
     let mut module = values_module();
+    install_test_native_global_contract(&mut module, 9);
     let read_identity = global_read_bridge(9);
     let read_symbol = read_identity.symbol().to_string();
     let address_identity = global_address_bridge(9);
@@ -1242,6 +1252,8 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
             .collect(),
     );
     for (name, ty) in &pointer_types {
+        let function_seed = u8::try_from(module.extern_functions.iter().count() + 10).unwrap();
+        install_test_native_function_contract(&mut module, function_seed);
         module.extern_functions.alloc_c(scoop_lir::CExternFunction {
             identity: scoop_lir::ExternFunctionIdentity {
                 source_name: format!("roundtrip{name}"),
@@ -1249,30 +1261,26 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
                 library: "fixture".to_string(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
-            bridge: outbound_bridge(
-                u8::try_from(module.extern_functions.iter().count() + 10).unwrap(),
-            ),
+            bridge: outbound_bridge(function_seed),
             signature: scoop_lir::CFunctionType {
                 params: vec![ty.clone()],
                 return_type: c_value(ty.clone()),
             },
         });
+        let global_seed = u8::try_from(module.native_globals.len() + 40).unwrap();
+        install_test_native_global_contract(&mut module, global_seed);
         let get = module
             .native_global_bridges
             .gets
             .alloc(scoop_lir::NativeGlobalGetBridge {
-                identity: global_read_bridge(
-                    u8::try_from(module.native_globals.len() + 40).unwrap(),
-                ),
+                identity: global_read_bridge(global_seed),
             });
         let address =
             module
                 .native_global_bridges
                 .addresses
                 .alloc(scoop_lir::NativeGlobalAddressBridge {
-                    identity: global_address_bridge(
-                        u8::try_from(module.native_globals.len() + 40).unwrap(),
-                    ),
+                    identity: global_address_bridge(global_seed),
                 });
         module.native_globals.alloc(scoop_lir::NativeGlobal {
             source_name: format!("global{name}"),
@@ -1472,10 +1480,12 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
 fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     let mut module = values_module();
     let signed_bridge = static_callback_bridge(&mut module, "signed_narrow_bridge");
+    install_test_c_signature(&mut module, 10);
+    let signed_trampoline = static_callback_trampoline(10);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "signedNarrow".to_string(),
         bridge: signed_bridge,
-        trampoline: static_callback_trampoline(10),
+        trampoline: signed_trampoline,
         params: vec![
             scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
             scoop_lir::CType::Integer(IntegerKind::UNSIGNED_8),
@@ -1490,18 +1500,22 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_8)),
     });
     let unsigned_bridge = static_callback_bridge(&mut module, "unsigned_narrow_bridge");
+    install_test_c_signature(&mut module, 11);
+    let unsigned_trampoline = static_callback_trampoline(11);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "unsignedNarrow".to_string(),
         bridge: unsigned_bridge,
-        trampoline: static_callback_trampoline(11),
+        trampoline: unsigned_trampoline,
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::UNSIGNED_16)),
     });
     let bool_bridge = static_callback_bridge(&mut module, "bool_narrow_bridge");
+    install_test_c_signature(&mut module, 12);
+    let bool_trampoline = static_callback_trampoline(12);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "boolNarrow".to_string(),
         bridge: bool_bridge,
-        trampoline: static_callback_trampoline(12),
+        trampoline: bool_trampoline,
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Boolean),
     });

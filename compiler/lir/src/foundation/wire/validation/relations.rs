@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use scoop_identity::{
     CallbackApplicationKey, CallbackRegistrationKey, GeneratedBridgeAtomRoleKey,
@@ -397,6 +397,7 @@ pub(super) fn validate_bridges(
         return Err(BridgeRelationError::UnusedCallbackUnit { unit }.into());
     }
 
+    let mut actual_static_asserts = std::collections::BTreeMap::<_, BTreeSet<_>>::new();
     for atom in tables.atoms {
         let key = atom.key();
         if key.producer() != producer {
@@ -466,7 +467,36 @@ pub(super) fn validate_bridges(
                     }
                     .into());
                 }
+                actual_static_asserts
+                    .entry(unit)
+                    .or_default()
+                    .insert(layout);
             }
+        }
+    }
+    let required_static_asserts = required_generated_bridge_layouts(
+        bridge_unit_keys(tables.units),
+        tables.contracts,
+        tables.signatures,
+        tables.layouts,
+    )
+    .map_err(BridgeRelationError::StaticAssertLayoutClosure)?;
+    for (&unit, expected) in &required_static_asserts {
+        let actual = actual_static_asserts.get(&unit);
+        if let Some(&layout) = expected
+            .iter()
+            .find(|layout| actual.is_none_or(|actual| !actual.contains(layout)))
+        {
+            return Err(BridgeRelationError::MissingStaticAssertLayout { unit, layout }.into());
+        }
+    }
+    for (unit, actual) in actual_static_asserts {
+        let expected = required_static_asserts.get(&unit);
+        if let Some(layout) = actual
+            .into_iter()
+            .find(|layout| expected.is_none_or(|expected| !expected.contains(layout)))
+        {
+            return Err(BridgeRelationError::UnexpectedStaticAssertLayout { unit, layout }.into());
         }
     }
 

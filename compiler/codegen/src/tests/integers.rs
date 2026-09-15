@@ -141,6 +141,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
             )
             .collect(),
     );
+    install_test_native_function_contract(&mut module, 1);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "integerWidths".to_string(),
