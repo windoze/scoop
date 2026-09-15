@@ -18,11 +18,12 @@ use scoop_slib::{
     DigestPatchSiteValidationError, GeneratedCBridgeObjectCandidateV1,
     LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1,
     PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1,
-    ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, SlibMemberId,
-    StrongObjectSymbolPlanningError, VerifiedBuiltinObjectStrongRelocationSetV1,
+    ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError,
+    SlibMemberId, StrongObjectSymbolPlanningError, VerifiedBuiltinObjectStrongRelocationSetV1,
     VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
-    verify_scoop_lir_digest_patch_sites_v1,
+    VerifiedScoopLirStackmapSetV1, verify_builtin_object_strong_relocations_v1,
+    verify_c_bridge_production_envelopes_v1, verify_scoop_lir_digest_patch_sites_v1,
+    verify_scoop_lir_stackmaps_v1,
 };
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -314,6 +315,63 @@ impl DigestPatchVerifiedObjectProductionV1 {
     pub const fn proof(&self) -> &VerifiedScoopLirDigestPatchSiteSetV1 {
         &self.proof
     }
+
+    pub fn verify_stackmaps(
+        self,
+    ) -> Result<StackmapVerifiedObjectProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan,
+            proof: digest_patch_sites,
+        } = self;
+        let stackmaps = {
+            let candidates = production.scoop_lir_candidates();
+            let semantic_plan = production
+                .production
+                .registration_production()
+                .safepoint_semantics();
+            verify_scoop_lir_stackmaps_v1(
+                digest_patch_sites.builtins().clone(),
+                semantic_plan,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::Stackmaps)?
+        };
+        Ok(StackmapVerifiedObjectProductionV1 {
+            production,
+            symbol_plan,
+            digest_patch_sites,
+            stackmaps,
+        })
+    }
+}
+
+/// Complete normalized stackmap proof paired with the digest-site proof from
+/// the same provisional Scoop object bytes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StackmapVerifiedObjectProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    digest_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
+    stackmaps: VerifiedScoopLirStackmapSetV1,
+}
+
+impl StackmapVerifiedObjectProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn digest_patch_sites(&self) -> &VerifiedScoopLirDigestPatchSiteSetV1 {
+        &self.digest_patch_sites
+    }
+
+    pub const fn stackmaps(&self) -> &VerifiedScoopLirStackmapSetV1 {
+        &self.stackmaps
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -495,6 +553,7 @@ pub enum BuiltinObjectProductionError {
     StrongSymbolPlan(StrongObjectSymbolPlanningError),
     StrongRelocations(BuiltinObjectSetValidationError),
     DigestPatchSites(DigestPatchSiteValidationError),
+    Stackmaps(ScoopLirStackmapValidationError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -529,6 +588,7 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::StrongSymbolPlan(source) => Some(source),
             Self::StrongRelocations(source) => Some(source),
             Self::DigestPatchSites(source) => Some(source),
+            Self::Stackmaps(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,

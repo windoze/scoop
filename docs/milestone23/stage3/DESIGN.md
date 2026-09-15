@@ -1662,6 +1662,11 @@ sites原子调用上述入口。成功的`DigestPatchVerifiedObjectProductionV1`
 plan与`VerifiedScoopLirDigestPatchSiteSetV1`；不得公开provisional patch array或允许caller替换foundation、
 digest plan、candidate bytes。
 
+随后`DigestPatchVerifiedObjectProductionV1`必须以同一批私有Scoop bytes和strong production中重建的
+`StrongSafepointSemanticPlanSetV1`验证完整LLVM v3 stackmap集合；object proof只能从digest-site proof内部
+取得，caller不能传入另一份。成功状态同时保留digest-site proof与`VerifiedScoopLirStackmapSetV1`，供
+safepoint registration验证逐项交叉核对。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
