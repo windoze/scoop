@@ -25,33 +25,47 @@ use scoop_slib::{
     PlannedLinkObjectMemberSetV1, PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1,
     ProvisionalDigestPatchSiteV1, RuntimeAndEhRequirementValidationError,
     ScoopLirObjectCandidateV1, ScoopLirStackmapValidationError, SlibMemberId,
-    SourceExternalRequirementValidationError, StrongCallableRegistrationObjectFingerprintError,
-    StrongCallableRegistrationValidationError,
-    StrongImmortalObjectRegistrationObjectFingerprintError,
+    SourceExternalRequirementValidationError, StrongCallableBodyFingerprintError,
+    StrongCallableFingerprintError, StrongCallableRegistrationObjectFingerprintError,
+    StrongCallableRegistrationValidationError, StrongImmortalObjectDefinitionFingerprintError,
+    StrongImmortalObjectFingerprintError, StrongImmortalObjectRegistrationObjectFingerprintError,
     StrongImmortalObjectRegistrationValidationError,
+    StrongInitializationDefinitionFingerprintError, StrongInitializationFingerprintError,
     StrongInitializationRegistrationObjectFingerprintError,
     StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
     StrongSafepointFingerprintError, StrongSafepointRegistrationValidationError,
+    StrongStaticStorageDefinitionFingerprintError, StrongStaticStorageFingerprintError,
     StrongStaticStorageRegistrationObjectFingerprintError,
-    StrongStaticStorageRegistrationValidationError, StrongTypeRegistrationObjectFingerprintError,
-    StrongTypeRegistrationValidationError, UndefinedSymbolRequirementFinalizationError,
-    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedCBridgeProductionEnvelopeSetV1,
-    VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapSetV1,
+    StrongStaticStorageRegistrationValidationError, StrongStaticStorageShapeFingerprintError,
+    StrongTypeDependencyFingerprintError, StrongTypeFingerprintError,
+    StrongTypeRegistrationObjectFingerprintError, StrongTypeRegistrationValidationError,
+    UndefinedSymbolRequirementFinalizationError, VerifiedBuiltinObjectStrongRelocationSetV1,
+    VerifiedCBridgeProductionEnvelopeSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
-    VerifiedStrongCallableRegistrationSetV1,
+    VerifiedStrongCallableRegistrationSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
     VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
-    VerifiedStrongImmortalObjectRegistrationSetV1,
+    VerifiedStrongImmortalObjectRegistrationSetV1, VerifiedStrongInitializationFingerprintSetV1,
     VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
     VerifiedStrongInitializationRegistrationSetV1, VerifiedStrongSafepointFingerprintSetV1,
-    VerifiedStrongSafepointRegistrationSetV1,
+    VerifiedStrongSafepointRegistrationSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
     VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
-    VerifiedStrongStaticStorageRegistrationSetV1,
+    VerifiedStrongStaticStorageRegistrationSetV1, VerifiedStrongTypeFingerprintSetV1,
     VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
+    compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
     compute_strong_callable_registration_object_fingerprints_v1,
+    compute_strong_immortal_object_definition_fingerprints_v1,
+    compute_strong_immortal_object_fingerprints_v1,
     compute_strong_immortal_object_registration_object_fingerprints_v1,
+    compute_strong_initialization_definition_fingerprints_v1,
+    compute_strong_initialization_fingerprints_v1,
     compute_strong_initialization_registration_object_fingerprints_v1,
     compute_strong_safepoint_fingerprints_v1,
+    compute_strong_static_storage_definition_fingerprints_v1,
+    compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_registration_object_fingerprints_v1,
+    compute_strong_static_storage_shape_fingerprints_v1,
+    compute_strong_type_dependency_fingerprints_v1, compute_strong_type_fingerprints_v1,
     compute_strong_type_registration_object_fingerprints_v1,
     finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
     verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
@@ -843,6 +857,159 @@ impl LinkSymbolVerifiedObjectProductionV1 {
     ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
         &self.initialization_registration_objects
     }
+
+    pub fn fingerprint_registration_dependencies(
+        self,
+    ) -> Result<RegistrationDependencyFingerprintedProductionV1, BuiltinObjectProductionError> {
+        let Self {
+            production,
+            symbol_plan,
+            defined_symbols,
+            undefined_symbols,
+            safepoints,
+            callable_registration_objects,
+            type_registration_objects,
+            immortal_object_registration_objects,
+            static_storage_registration_objects,
+            initialization_registration_objects,
+        } = self;
+        let (callables, types, immortal_objects, static_storages, initializations) = {
+            let candidates = production.scoop_lir_candidates();
+            let stackmaps = safepoints.registrations().stackmaps().clone();
+            let callable_bodies = compute_strong_callable_body_object_fingerprints_v1(
+                callable_registration_objects,
+                stackmaps,
+                undefined_symbols.clone(),
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::CallableBodyFingerprints)?;
+            let callables = compute_strong_callable_fingerprints_v1(callable_bodies)
+                .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
+
+            let type_dependencies = compute_strong_type_dependency_fingerprints_v1(
+                type_registration_objects,
+                &candidates,
+            )
+            .map_err(BuiltinObjectProductionError::TypeDependencyFingerprints)?;
+            let types = compute_strong_type_fingerprints_v1(type_dependencies)
+                .map_err(BuiltinObjectProductionError::TypeFingerprints)?;
+
+            let immortal_object_definitions =
+                compute_strong_immortal_object_definition_fingerprints_v1(
+                    immortal_object_registration_objects,
+                    undefined_symbols.clone(),
+                    &candidates,
+                )
+                .map_err(BuiltinObjectProductionError::ImmortalObjectDefinitionFingerprints)?;
+            let immortal_objects =
+                compute_strong_immortal_object_fingerprints_v1(immortal_object_definitions)
+                    .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
+
+            let static_storage_definitions =
+                compute_strong_static_storage_definition_fingerprints_v1(
+                    static_storage_registration_objects,
+                    &candidates,
+                )
+                .map_err(BuiltinObjectProductionError::StaticStorageDefinitionFingerprints)?;
+            let static_storage_shapes =
+                compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
+                    .map_err(BuiltinObjectProductionError::StaticStorageShapeFingerprints)?;
+            let static_storages =
+                compute_strong_static_storage_fingerprints_v1(static_storage_shapes)
+                    .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
+
+            let initialization_definitions =
+                compute_strong_initialization_definition_fingerprints_v1(
+                    initialization_registration_objects,
+                    &candidates,
+                )
+                .map_err(BuiltinObjectProductionError::InitializationDefinitionFingerprints)?;
+            let initializations = compute_strong_initialization_fingerprints_v1(
+                initialization_definitions,
+                callables.body_objects(),
+            )
+            .map_err(BuiltinObjectProductionError::InitializationFingerprints)?;
+
+            (
+                callables,
+                types,
+                immortal_objects,
+                static_storages,
+                initializations,
+            )
+        };
+
+        Ok(RegistrationDependencyFingerprintedProductionV1 {
+            production,
+            symbol_plan,
+            defined_symbols,
+            undefined_symbols,
+            safepoints,
+            callables,
+            types,
+            immortal_objects,
+            static_storages,
+            initializations,
+        })
+    }
+}
+
+/// Complete strong-registration fingerprints after every object and semantic
+/// dependency leaf has been closed against the same object proof.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RegistrationDependencyFingerprintedProductionV1 {
+    production: PlannedBuiltinObjectProductionV1,
+    symbol_plan: PlannedStrongObjectSymbolSetV1,
+    defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
+    undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
+    safepoints: VerifiedStrongSafepointFingerprintSetV1,
+    callables: VerifiedStrongCallableFingerprintSetV1,
+    types: VerifiedStrongTypeFingerprintSetV1,
+    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
+    static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
+    initializations: VerifiedStrongInitializationFingerprintSetV1,
+}
+
+impl RegistrationDependencyFingerprintedProductionV1 {
+    pub const fn production(&self) -> &PlannedBuiltinObjectProductionV1 {
+        &self.production
+    }
+
+    pub const fn symbol_plan(&self) -> &PlannedStrongObjectSymbolSetV1 {
+        &self.symbol_plan
+    }
+
+    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        &self.defined_symbols
+    }
+
+    pub const fn undefined_symbols(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        &self.undefined_symbols
+    }
+
+    pub const fn safepoints(&self) -> &VerifiedStrongSafepointFingerprintSetV1 {
+        &self.safepoints
+    }
+
+    pub const fn callables(&self) -> &VerifiedStrongCallableFingerprintSetV1 {
+        &self.callables
+    }
+
+    pub const fn types(&self) -> &VerifiedStrongTypeFingerprintSetV1 {
+        &self.types
+    }
+
+    pub const fn immortal_objects(&self) -> &VerifiedStrongImmortalObjectFingerprintSetV1 {
+        &self.immortal_objects
+    }
+
+    pub const fn static_storages(&self) -> &VerifiedStrongStaticStorageFingerprintSetV1 {
+        &self.static_storages
+    }
+
+    pub const fn initializations(&self) -> &VerifiedStrongInitializationFingerprintSetV1 {
+        &self.initializations
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1053,6 +1220,17 @@ pub enum BuiltinObjectProductionError {
     CBridgeTargetSupportRequirements(CBridgeTargetSupportRequirementValidationError),
     UnclassifiedExternalRequirement(BuiltinObjectExternalRequirementClosureError),
     UndefinedSymbols(UndefinedSymbolRequirementFinalizationError),
+    CallableBodyFingerprints(StrongCallableBodyFingerprintError),
+    CallableFingerprints(StrongCallableFingerprintError),
+    TypeDependencyFingerprints(StrongTypeDependencyFingerprintError),
+    TypeFingerprints(StrongTypeFingerprintError),
+    ImmortalObjectDefinitionFingerprints(StrongImmortalObjectDefinitionFingerprintError),
+    ImmortalObjectFingerprints(StrongImmortalObjectFingerprintError),
+    StaticStorageDefinitionFingerprints(StrongStaticStorageDefinitionFingerprintError),
+    StaticStorageShapeFingerprints(StrongStaticStorageShapeFingerprintError),
+    StaticStorageFingerprints(StrongStaticStorageFingerprintError),
+    InitializationDefinitionFingerprints(StrongInitializationDefinitionFingerprintError),
+    InitializationFingerprints(StrongInitializationFingerprintError),
     Units {
         producer: BuiltinObjectProducerV1,
         source: ObjectUnitSetError,
@@ -1110,6 +1288,17 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::CBridgeTargetSupportRequirements(source) => Some(source),
             Self::UnclassifiedExternalRequirement(source) => Some(source),
             Self::UndefinedSymbols(source) => Some(source),
+            Self::CallableBodyFingerprints(source) => Some(source),
+            Self::CallableFingerprints(source) => Some(source),
+            Self::TypeDependencyFingerprints(source) => Some(source),
+            Self::TypeFingerprints(source) => Some(source),
+            Self::ImmortalObjectDefinitionFingerprints(source) => Some(source),
+            Self::ImmortalObjectFingerprints(source) => Some(source),
+            Self::StaticStorageDefinitionFingerprints(source) => Some(source),
+            Self::StaticStorageShapeFingerprints(source) => Some(source),
+            Self::StaticStorageFingerprints(source) => Some(source),
+            Self::InitializationDefinitionFingerprints(source) => Some(source),
+            Self::InitializationFingerprints(source) => Some(source),
             Self::Units { source, .. } => Some(source),
             Self::MemberPlan(source) => Some(source),
             _ => None,

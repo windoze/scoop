@@ -1690,6 +1690,13 @@ foundation、production、C-bridge profile和同一patch-site proof内部重建�
 集合、六份registration leaf proof、原production和symbol plan；不允许caller替换target、backend、bridge
 profile、native requirement surface或任一中间closure。
 
+`LinkSymbolVerifiedObjectProductionV1`再以一个原子转换计算全部registration依赖与最终strong指纹：callable
+body绑定同一stackmap及final undefined-requirement proof，type闭合descriptor/layout，immortal object闭合
+实际对象definition，static storage闭合storage/scan/layout，initialization闭合cell/descriptor/gateway并引用
+同一callable-body proof。输出`RegistrationDependencyFingerprintedProductionV1`只保留六类最终fingerprint
+proof、defined/undefined集合及原production/symbol plan；中间依赖proof不形成可重排或可跳过的公开状态，
+任一类失败不返回部分结果。
+
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
 generated object中的source extern、runtime callback/EH或其他native use仍产生typed requirement。编译器输出的额外全局、constructor、destructor、autolink或未计划helper失败；不能把“来自受信clang”当作跳过object检查的理由。
