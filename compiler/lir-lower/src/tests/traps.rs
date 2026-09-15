@@ -124,12 +124,41 @@ fn trap_calls_branch_to_a_shared_trap_block() {
     let main = b.main(Arena::new(), Vec::new());
     let module = lower(b.finish(main));
 
+    let trap_global = module
+        .globals
+        .iter()
+        .find_map(|(_, global)| match &global.init {
+            lir::GlobalInit::CString { identity, .. } => Some((global, identity)),
+            _ => None,
+        })
+        .expect("the trap body owns one C string support atom");
+    assert_eq!(
+        trap_global.1.owner(),
+        module.functions[0].callable_body.id()
+    );
+    assert_eq!(
+        trap_global.1.path().segments(),
+        &[StructuralPathSegment::new(
+            StructuralDefinitionSiteRole::StringConstant,
+            0,
+        )]
+    );
+    let foundation = lir::OdrFreeLirFoundation::from_module(&module).unwrap();
+    let surface = lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let boundary = surface
+        .plans()
+        .iter()
+        .flat_map(|plan| plan.atom_boundaries())
+        .find(|boundary| boundary.atom() == trap_global.1.atom_record().id())
+        .expect("the trap support atom has physical boundaries");
+    assert_eq!(boundary.start().symbol().as_str(), trap_global.0.symbol());
+
     // Both `!!` share the one trap block of the function.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "unwrap on None (function f)"
   global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
-  global @scoop.cstr.0 = c"unwrap on None (function f)"
+  global @scoop$1$bs$00437761c5a0d7252a5394267da8aa30509fe249acd6e8aff2304d37b1b16433 = c"unwrap on None (function f)"
   enum Option<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(indirect<enum0 size=16 align=8 scan=none>) -> i32
     local %0 $uw.1: i32

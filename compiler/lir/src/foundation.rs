@@ -532,6 +532,13 @@ pub enum LirFoundationBuildError {
         expected: [u8; 32],
         actual: [u8; 32],
     },
+    CallableCStringOwnerMissing {
+        owner: [u8; 32],
+    },
+    CallableCStringAtomMismatch {
+        owner: [u8; 32],
+        atom: [u8; 32],
+    },
     DefinitionIdentity(ObjectDefinitionIdentityError),
     DefinitionHash(HashError),
     StaticStorageSemantics(crate::StrongStaticStorageSemanticPlanBuildError),
@@ -592,6 +599,17 @@ impl fmt::Display for LirFoundationBuildError {
                 HexIdentity(site),
                 HexIdentity(actual),
                 HexIdentity(expected)
+            ),
+            Self::CallableCStringOwnerMissing { owner } => write!(
+                formatter,
+                "callable C string belongs to missing callable body {}",
+                HexIdentity(owner)
+            ),
+            Self::CallableCStringAtomMismatch { owner, atom } => write!(
+                formatter,
+                "callable C string atom {} does not match callable body {}",
+                HexIdentity(atom),
+                HexIdentity(owner)
             ),
             Self::DefinitionIdentity(error) => error.fmt(formatter),
             Self::DefinitionHash(error) => error.fmt(formatter),

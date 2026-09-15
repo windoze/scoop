@@ -1071,13 +1071,24 @@ impl<'a> FunctionLowerer<'a> {
         if let Some(&block) = self.trap_blocks.get(message) {
             return block;
         }
-        let symbol = format!("scoop.cstr.{}", *self.cstr_count);
-        *self.cstr_count += 1;
+        let path = scoop_identity::StructuralDefinitionPath::from_first(
+            scoop_identity::StructuralPathSegment::new(
+                scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                self.cstr_count,
+            ),
+            [],
+        );
+        self.cstr_count = self
+            .cstr_count
+            .checked_add(1)
+            .expect("one callable cannot contain more than u32::MAX trap strings");
+        let identity = lir::CallableCStringIdentity::new(self.producer, self.callable_owner, path)
+            .expect("a callable trap string has a canonical associated-atom identity");
         let global = self.globals.alloc(lir::Global {
             address_kind: lir::PointerKind::Raw,
             scan: lir::RefScan::None,
             init: lir::GlobalInit::CString {
-                symbol,
+                identity,
                 value: message.to_string(),
             },
         });

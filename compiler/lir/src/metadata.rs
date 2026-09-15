@@ -948,11 +948,87 @@ pub struct Global {
     pub init: GlobalInit,
 }
 
+/// Persistent owner and atom identity for one callable-local NUL-terminated
+/// diagnostic string.
+///
+/// The physical global uses the atom's start-boundary symbol directly. This
+/// keeps the support bytes attributable after object sharding and prevents a
+/// session-local global ordinal from becoming linker-visible authority.
+#[derive(Debug)]
+pub struct CallableCStringIdentity {
+    owner: scoop_identity::PersistentCallableBodyId,
+    path: scoop_identity::StructuralDefinitionPath,
+    atom: scoop_identity::CborIdentityRecord<
+        scoop_identity::ObjectDefinitionAtomId,
+        scoop_identity::ObjectDefinitionAtomKey,
+    >,
+    symbol: MaterializedSymbol,
+}
+
+impl CallableCStringIdentity {
+    pub fn new(
+        producer: scoop_identity::ConeIdentity,
+        owner: scoop_identity::PersistentCallableBodyId,
+        path: scoop_identity::StructuralDefinitionPath,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let plan_key = scoop_identity::ObjectDefinitionPlanKey::strong(
+            producer,
+            scoop_identity::StrongDefinitionEntity::callable_body(owner),
+            scoop_identity::StrongDefinitionRole::CallableBody,
+        )
+        .expect("a callable body has a valid strong definition plan");
+        let plan = scoop_identity::ObjectDefinitionPlanId::from_key(&plan_key)?;
+        let atom = scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::ObjectDefinitionAtomKey::new(
+                plan,
+                scoop_identity::DefinitionAtomRole::AddressTakenConstant,
+                scoop_identity::DefinitionAtomSubkey::StructuralPath(path.clone()),
+            ),
+        )?;
+        let symbol = MaterializedSymbol::new(
+            scoop_identity::PersistentSymbolKey::DefinitionBoundaryStart(atom.id()),
+            LinkageClass::ConeStrong,
+        )
+        .expect("a strong atom boundary accepts ConeStrong linkage");
+        Ok(Self {
+            owner,
+            path,
+            atom,
+            symbol,
+        })
+    }
+
+    pub const fn owner(&self) -> scoop_identity::PersistentCallableBodyId {
+        self.owner
+    }
+
+    pub const fn path(&self) -> &scoop_identity::StructuralDefinitionPath {
+        &self.path
+    }
+
+    pub const fn atom_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::ObjectDefinitionAtomId,
+        scoop_identity::ObjectDefinitionAtomKey,
+    > {
+        &self.atom
+    }
+
+    pub const fn symbol_request(&self) -> PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
+}
+
 impl Global {
     pub fn symbol(&self) -> &str {
         match &self.init {
             GlobalInit::StringConst { identity, .. } => identity.symbol(),
-            GlobalInit::CString { symbol, .. } => symbol,
+            GlobalInit::CString { identity, .. } => identity.symbol(),
             GlobalInit::Storage { identity, .. } => identity.symbol(),
         }
     }
@@ -1310,8 +1386,11 @@ pub enum GlobalInit {
         identity: ImmortalObjectIdentity,
         value: String,
     },
-    /// A NUL-terminated C string (e.g. trap messages).
-    CString { symbol: String, value: String },
+    /// A callable-owned NUL-terminated C string (e.g. trap messages).
+    CString {
+        identity: CallableCStringIdentity,
+        value: String,
+    },
     Storage {
         /// Persistent semantic identity of this compiler-owned writable
         /// storage. Native extern globals are represented separately and do

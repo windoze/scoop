@@ -291,14 +291,14 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
                 globals.push(Some(llvm_global));
             }
-            GlobalInit::CString { value, .. } => {
-                // [N+1 x i8] c"...\00" (e.g. trap messages); private,
-                // only referenced from within the module.
+            GlobalInit::CString { identity, value } => {
+                // [N+1 x i8] c"...\00" (e.g. trap messages), emitted as a
+                // callable-owned support atom with a stable boundary symbol.
                 let bytes = value.as_bytes();
                 let ty = i8_ty.array_type(bytes.len() as u32 + 1);
                 let llvm_global = llvm.add_global(ty, None, global.symbol());
                 llvm_global.set_constant(true);
-                llvm_global.set_linkage(inkwell::module::Linkage::Private);
+                apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
                 llvm_global.set_initializer(&context.const_string(bytes, true));
                 globals.push(Some(llvm_global));
             }
@@ -344,6 +344,23 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             }
         }
     }
+    atom_boundaries::emit_global_atom_boundaries_v1(
+        &llvm,
+        &target_data,
+        surface,
+        module.globals.iter().filter_map(|(_, global)| {
+            let GlobalInit::CString { identity, .. } = &global.init else {
+                return None;
+            };
+            let owner = llvm
+                .get_global(identity.symbol())
+                .expect("the callable C string was emitted above");
+            Some(atom_boundaries::GlobalAtomMaterializationV1::new(
+                identity.atom_record().id(),
+                owner,
+            ))
+        }),
+    )?;
     // Two passes: declare every function first so call sites never
     // create shadow extern declarations (a forward call would
     // otherwise declare the symbol as extern, and the later definition

@@ -1444,6 +1444,15 @@ generated C qualifier只接受`BuildVersion`，且minimum OS、SDK与tool/versio
 - 所有typed relocation与undefined requirement；
 - 每个digest intent的32-byte zero slot。
 
+函数内部为trap物化的NUL结尾C字符串不是可以靠`scoop.cstr.N`临时名保留的local
+support。LIR必须把每项表示为`CallableBody` owner下、由唯一
+`StructuralDefinitionPath(StringConstant, ordinal)`标识的
+`AddressTakenConstant` associated atom；path按该body的确定lowering顺序编号，相同消息
+在同一body内共享一项。该global的真实定义符号就是这个atom的stable start
+boundary，另行物化end boundary；不再产生或接受arena枚举顺序派生的旧符号。CString
+owner不在当前Cone的callable body全集、path重复、atom派生不一致或实际物理字节不等于
+`UTF-8 bytes + NUL`都必须在进入object proof前失败。
+
 object中多一个未计划的managed entry、registration、image descriptor、Scoop-mangled external/weak definition或受检relocation都失败。普通local machine support也必须由某个plan的associated closure认领；不能因symbol local就跳过。
 
 ### 11.5 generated C bridge verifier

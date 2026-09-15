@@ -7575,7 +7575,7 @@ Module
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
   global @scoop$1$io$402ae7dbd6e89b8157ddf5212866ece0ae0c1d4b009394195d70fe5f5b6e54bf = "circle"
-  global @scoop.cstr.0 = c"call to abstract method `Base.id`"
+  global @scoop$1$bs$765261ac6e1784753c9738d0c5236d52436ae8a0eef604a7c2146f0aec1ef2a3 = c"call to abstract method `Base.id`"
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

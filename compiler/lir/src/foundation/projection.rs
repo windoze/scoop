@@ -347,9 +347,20 @@ impl CanonicalLirFoundation {
         let mut plans = BTreeMap::new();
         let mut atoms = BTreeMap::new();
         let mut symbols = BTreeSet::new();
+        let mut cstrings_by_owner = BTreeMap::new();
+        for (_, global) in module.globals.iter() {
+            let crate::GlobalInit::CString { identity, .. } = &global.init else {
+                continue;
+            };
+            cstrings_by_owner
+                .entry(identity.owner())
+                .or_insert_with(Vec::new)
+                .push(identity);
+        }
 
         for function in &module.functions {
             let body = function.callable_body.id();
+            let cstrings = cstrings_by_owner.remove(&body).unwrap_or_default();
             insert_strong_definition(
                 &mut plans,
                 &mut atoms,
@@ -357,8 +368,16 @@ impl CanonicalLirFoundation {
                 producer,
                 StrongDefinitionEntity::callable_body(body),
                 StrongDefinitionRole::CallableBody,
-                callable_body_associated_atoms(function),
+                callable_body_associated_atoms(function, &cstrings),
             )?;
+            for identity in cstrings {
+                if atoms.get(&identity.atom_record().id()) != Some(identity.atom_record()) {
+                    return Err(LirFoundationBuildError::CallableCStringAtomMismatch {
+                        owner: *identity.owner().as_array(),
+                        atom: *identity.atom_record().id().as_array(),
+                    });
+                }
+            }
             insert_strong_definition(
                 &mut plans,
                 &mut atoms,
@@ -379,6 +398,11 @@ impl CanonicalLirFoundation {
                     Vec::new(),
                 )?;
             }
+        }
+        if let Some((owner, _)) = cstrings_by_owner.into_iter().next() {
+            return Err(LirFoundationBuildError::CallableCStringOwnerMissing {
+                owner: *owner.as_array(),
+            });
         }
 
         for (_, descriptor) in module.meta.type_descriptors.iter() {
@@ -668,6 +692,7 @@ impl CanonicalLirFoundation {
 
 fn callable_body_associated_atoms(
     function: &Function,
+    cstrings: &[&crate::CallableCStringIdentity],
 ) -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
     let body = function.callable_body.id();
     let subkey = || DefinitionAtomSubkey::CallableBody(body);
@@ -684,6 +709,12 @@ fn callable_body_associated_atoms(
         associated.push((DefinitionAtomRole::Lsda, subkey()));
         associated.push((DefinitionAtomRole::EhFrame, subkey()));
     }
+    associated.extend(cstrings.iter().map(|identity| {
+        (
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::StructuralPath(identity.path().clone()),
+        )
+    }));
     associated
 }
 
@@ -1195,7 +1226,7 @@ mod tests {
         );
 
         assert_eq!(
-            callable_body_associated_atoms(&function),
+            callable_body_associated_atoms(&function, &[]),
             vec![
                 (
                     DefinitionAtomRole::CompactUnwind,
@@ -1240,7 +1271,7 @@ mod tests {
             });
 
         assert_eq!(
-            callable_body_associated_atoms(&function),
+            callable_body_associated_atoms(&function, &[]),
             vec![
                 (
                     DefinitionAtomRole::CompactUnwind,

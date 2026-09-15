@@ -8394,7 +8394,7 @@ Module
   global @scoop$1$io$977fa2b908d80de820d7dbbb05b0d0113b34c135e9bb81cc07280dd809dd75be = "arithmetic error"
   global @scoop$1$io$4044bdda2124194b5d7639f633aa5b4f79fc9c8538a8ab0a5ec477692260248b = "array index out of bounds"
   global @scoop$1$io$f25c0e02fbb704381f6c4386a8f0f05c06dfae350c76c03bb3c3332a05a1fc7a = "illegal state"
-  global @scoop.cstr.0 = c"call to abstract method `Named.$get$name`"
+  global @scoop$1$bs$157d6cc4d54bb26c0bf38b62702b9e4b33438a037385b607c8425809acb3c2b4 = c"call to abstract method `Named.$get$name`"
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0

@@ -221,6 +221,7 @@ fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
 fn global_constant_preflight_rejects_referenced_global_provenance_mismatch() {
     let mut module = enum_module();
     let target = module.globals.iter().next().expect("trap message").0;
+    let target_symbol = module.globals[target].symbol().to_string();
     add_encoded_global(
         &mut module,
         "wrong_global_provenance",
@@ -235,8 +236,8 @@ fn global_constant_preflight_rejects_referenced_global_provenance_mismatch() {
     assert_eq!(
         error.0,
         format!(
-            "storage global `@{}` constant value: global pointer constant declares managed provenance but referenced global `@scoop.trap.0` has raw provenance",
-            encoded_global_symbol("wrong_global_provenance")
+            "storage global `@{}` constant value: global pointer constant declares managed provenance but referenced global `@{target_symbol}` has raw provenance",
+            encoded_global_symbol("wrong_global_provenance"),
         )
     );
 }

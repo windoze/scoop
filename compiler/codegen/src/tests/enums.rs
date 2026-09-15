@@ -18,11 +18,23 @@ fn enum_module_with(
     tagged_value_field: LirType,
 ) -> Module {
     let mut globals = Arena::default();
+    let trap_callable_body = callable_body_at(file!(), line!());
     let trap_message = globals.alloc(Global {
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::CString {
-            symbol: "scoop.trap.0".to_string(),
+            identity: scoop_lir::CallableCStringIdentity::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                trap_callable_body.id(),
+                scoop_identity::StructuralDefinitionPath::from_first(
+                    scoop_identity::StructuralPathSegment::new(
+                        scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                        0,
+                    ),
+                    [],
+                ),
+            )
+            .unwrap(),
             value: "unwrap on None".to_string(),
         },
     });
@@ -307,7 +319,7 @@ fn enum_module_with(
         terminator: Terminator::Unreachable,
     });
     let trap_on_none = Function {
-        callable_body: callable_body_at(file!(), line!()),
+        callable_body: trap_callable_body,
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![], LirType::Void),

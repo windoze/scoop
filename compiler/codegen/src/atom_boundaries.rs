@@ -97,13 +97,10 @@ fn emit_boundary_pair(
     };
     let mut indices = [one];
     let end = unsafe { LLVMConstGEP2(value_type, owner_ref, indices.as_mut_ptr(), 1) };
-    add_external_alias(
-        llvm,
-        boundary.start().symbol().as_str(),
-        value_type,
-        address_space,
-        owner_ref,
-    )?;
+    let start = boundary.start().symbol();
+    if owner.get_name().to_bytes() != start.as_str().as_bytes() {
+        add_external_alias(llvm, start.as_str(), value_type, address_space, owner_ref)?;
+    }
     add_external_alias(
         llvm,
         boundary.end().symbol().as_str(),

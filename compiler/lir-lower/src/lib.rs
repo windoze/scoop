@@ -298,14 +298,13 @@ pub fn lower(
         &type_descriptor_refs,
     );
 
-    // Trap message globals (`scoop.cstr.N`), numbered in creation order.
-    let mut cstr_count = 0usize;
     let mut lowered_functions = module
         .top_level
         .iter()
         .map(|&id| {
             lower_function(
                 &context,
+                module.cone,
                 module,
                 callable_body_identity(callable_owners[&id]),
                 &module.functions[id],
@@ -313,7 +312,6 @@ pub fn lower(
                 &string_global_map,
                 &storage_globals,
                 &mut globals,
-                &mut cstr_count,
                 &structs,
                 &enums,
                 &array_type_map,

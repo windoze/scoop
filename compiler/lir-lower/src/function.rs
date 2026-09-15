@@ -87,6 +87,7 @@ fn integer_shift_op(operation: mir::IntegerShiftOperation) -> lir::IntegerShiftO
 #[allow(clippy::too_many_arguments)]
 pub(super) fn lower_function<'a>(
     context: &'a LoweringContext,
+    producer: scoop_identity::ConeIdentity,
     module: &'a mir::Module,
     callable_body: lir::CallableBodyIdentity,
     function: &'a mir::Function,
@@ -94,7 +95,6 @@ pub(super) fn lower_function<'a>(
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
-    cstr_count: &mut usize,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
@@ -172,14 +172,17 @@ pub(super) fn lower_function<'a>(
         .map(|target| MappedLoopHeaderPollTarget::new(block_map[&target.header()]))
         .collect();
     let mut pending_safepoints = safepoints::PendingSafepointSites::default();
+    let callable_owner = callable_body.id();
     let mut lowerer = FunctionLowerer {
         context,
+        producer,
+        callable_owner,
         module,
         mir_locals: &function.body.locals,
         global_map,
         storage_globals,
         globals,
-        cstr_count,
+        cstr_count: 0,
         structs,
         enums,
         array_types,
@@ -264,6 +267,8 @@ enum LocalSlot {
 /// structured control flow does not seal it again with a branch.
 struct FunctionLowerer<'a> {
     context: &'a LoweringContext,
+    producer: scoop_identity::ConeIdentity,
+    callable_owner: scoop_identity::PersistentCallableBodyId,
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for local storage and parameters).
     mir_locals: &'a Arena<mir::Local>,
@@ -271,7 +276,7 @@ struct FunctionLowerer<'a> {
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for ordinary globals such as trap-message C strings.
     globals: &'a mut Arena<lir::Global>,
-    cstr_count: &'a mut usize,
+    cstr_count: u32,
     /// Complete value layouts used to classify return conventions and scans.
     structs: &'a lir::StructDefs,
     /// Enum definitions with fixed representations (enum value
