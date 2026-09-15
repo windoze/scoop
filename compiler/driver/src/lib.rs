@@ -34,10 +34,10 @@ pub use object_production::{
 };
 pub use request::{
     BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,
-    CoreBootstrapLirStageError, CoreBootstrapMirStageError, CoreBootstrapStrongProfileError,
-    CoreOnlyRequestValidationError, CurrentConeInput, CurrentConeOperandError,
-    CurrentConeOperandErrorKind, CurrentConeSourceStageError, DiagnosticOutputPolicy,
-    ExplicitDependencyInputs, HostArtifactLocator, LoadedCurrentConeInput,
+    CoreBootstrapLirStageError, CoreBootstrapMirStageError, CoreBootstrapProductionError,
+    CoreBootstrapStrongProfileError, CoreOnlyRequestValidationError, CurrentConeInput,
+    CurrentConeOperandError, CurrentConeOperandErrorKind, CurrentConeSourceStageError,
+    DiagnosticOutputPolicy, ExplicitDependencyInputs, HostArtifactLocator, LoadedCurrentConeInput,
     LoadedSingleConeBuildRequest, LoadedTrustedCoreInput, NonCoreDependencyInput,
     OrdinaryCoreOnlyHirInputError, OutputAliasRole, OutputIsolationErrorKind,
     ParsedCoreBootstrapBuildRequest, ParsedOrdinaryConeBuildRequest, ParsedSingleConeBuildRequest,

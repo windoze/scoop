@@ -595,6 +595,13 @@ driver只暴露消费上述sealed MIR product的`lower_lir(self, lir_target)`；
 `OdrFreeLirFoundation`。因此调用方不能把另一份MIR proof、materialization plan或foundation与LIR结果重新配对；
 capability失败或LIR foundation出现ODR record时均不产生partial stage成功值，也不存在接收裸MIR的driver入口。
 
+`ParsedCoreBootstrapBuildRequest::build_and_publish(self, temporary_parent, limits)`是bootstrap从parsed request到
+published artifact的唯一终态入口。它按上述顺序消费HIR、MIR、LIR与strong-profile状态，从请求自身唯一派生
+reserved core `ConeRecord { Library, Manifest }`、空dependency、固定compiler producer record、完整target以及
+`empty_core_bootstrap()` external-owner authority，再调用统一object/artifact pipeline并只向同一authority绑定的
+artifact slot发布。调用方不能另传Cone、dependency、producer、output或core owner，也不能在stage之间取得裸对象
+路径或assembled bytes；任一stage、object、双视图或publish失败都只返回分层错误且不覆盖slot中的旧artifact。
+
 ### 7.3 core Compile capability
 
 本阶段新增的HIR/MIR section都使用封闭`NotCore | Core`分支。writer只有持有`CoreBootstrapAuthority`，且current Cone为reserved core、source form为Manifest、output为Library、dependency table为空时，才可构造`Core`；普通writer只能构造`NotCore`，不能携带空的伪core表。raw reader只验证`Core`分支的结构与内容关系，不因看见reserved coordinate或该tag就授予authority；consumer仍须从trusted slot单独构造7.4节的`ValidatedTrustedCoreArtifact`。

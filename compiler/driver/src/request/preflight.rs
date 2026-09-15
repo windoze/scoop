@@ -1,5 +1,5 @@
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
 use scoop_hir::CorePreludeImportError;
@@ -406,6 +406,96 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
         &self,
     ) -> Result<TrustedCoreBootstrapHirInput<'_>, CoreBootstrapHirInputError> {
         TrustedCoreBootstrapHirInput::try_new(&self.sources, self.authority, self.artifact_slot)
+    }
+
+    /// Consumes the complete parsed bootstrap request through the shared
+    /// strong object pipeline and atomically publishes the independently
+    /// revalidated artifact to its trusted sysroot slot.
+    pub fn build_and_publish(
+        self,
+        temporary_parent: &Path,
+        limits: DecodeLimits,
+    ) -> Result<scoop_slib::PublishedSingleConeArtifact, CoreBootstrapProductionError> {
+        let lir = self
+            .hir_input()
+            .map_err(CoreBootstrapProductionError::HirInput)?
+            .lower()
+            .map_err(CoreBootstrapProductionError::Hir)?
+            .lower_mir()
+            .map_err(CoreBootstrapProductionError::Mir)?
+            .lower_lir(self.request.target().lir_target())
+            .map_err(CoreBootstrapProductionError::Lir)?;
+        let strong = lir
+            .seal_strong_profile()
+            .map_err(CoreBootstrapProductionError::StrongProfile)?;
+        let producer =
+            scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
+                .map_err(CoreBootstrapProductionError::Producer)?;
+        let cone = scoop_slib::ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            scoop_slib::ConeKind::Library,
+            scoop_slib::ConeSourceForm::Manifest,
+        )
+        .map_err(CoreBootstrapProductionError::Cone)?;
+        let core_owners = scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+        let artifact = strong
+            .produce_artifact(
+                producer,
+                cone,
+                Vec::new(),
+                temporary_parent,
+                self.request.target(),
+                &core_owners,
+            )
+            .map_err(CoreBootstrapProductionError::Artifact)?;
+        artifact
+            .publish(self.artifact_slot.path(), limits, &core_owners)
+            .map_err(CoreBootstrapProductionError::Publication)
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapProductionError {
+    HirInput(CoreBootstrapHirInputError),
+    Hir(CoreBootstrapHirStageError),
+    Mir(CoreBootstrapMirStageError),
+    Lir(CoreBootstrapLirStageError),
+    StrongProfile(CoreBootstrapStrongProfileError),
+    Producer(scoop_slib::ProducerRecordError),
+    Cone(scoop_slib::ConeRecordError),
+    Artifact(crate::StrongIrArtifactProductionError),
+    Publication(crate::StrongArtifactProductionError),
+}
+
+impl fmt::Display for CoreBootstrapProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::HirInput(source) => source.fmt(formatter),
+            Self::Hir(source) => source.fmt(formatter),
+            Self::Mir(source) => source.fmt(formatter),
+            Self::Lir(source) => source.fmt(formatter),
+            Self::StrongProfile(source) => source.fmt(formatter),
+            Self::Producer(source) => source.fmt(formatter),
+            Self::Cone(source) => source.fmt(formatter),
+            Self::Artifact(source) => source.fmt(formatter),
+            Self::Publication(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapProductionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::HirInput(source) => Some(source),
+            Self::Hir(source) => Some(source),
+            Self::Mir(source) => Some(source),
+            Self::Lir(source) => Some(source),
+            Self::StrongProfile(source) => Some(source),
+            Self::Producer(source) => Some(source),
+            Self::Cone(source) => Some(source),
+            Self::Artifact(source) => Some(source),
+            Self::Publication(source) => Some(source),
+        }
     }
 }
 
@@ -1444,6 +1534,64 @@ mod tests {
     }
 
     #[test]
+    fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
+        let sysroot = tempfile::tempdir().unwrap();
+        copy_trusted_core_sources(sysroot.path());
+        let Ok(target) = scoop_codegen::ResolvedTargetProfile::resolve_host() else {
+            // The target resolver owns host Apple-toolchain qualification.
+            // Environments blocked by the system Xcode license gate cannot
+            // enter object production, but still compile this closed path.
+            return;
+        };
+        let slot = crate::trusted_core::resolve_trusted_core_slot_at(
+            sysroot.path(),
+            target.lir_target_selection(),
+        )
+        .unwrap();
+        let artifact_path = slot.artifact().path().to_path_buf();
+        std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
+        let (bootstrap, artifact_slot) = slot.into_bootstrap_parts();
+        let request = SingleConeBuildRequest::new(
+            CurrentConeInput::TrustedCoreBootstrap {
+                input: Box::new(bootstrap),
+            },
+            ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+            TrustedCoreInput::BootstrapSelf { artifact_slot },
+            target,
+            SlibOutputDestination::new(&artifact_path).unwrap(),
+            DiagnosticOutputPolicy::Human,
+            StageDumpPolicy::None,
+        )
+        .unwrap();
+        let loaded = request.load_preflight(DecodeLimits::default()).unwrap();
+        let validated = loaded.validate().unwrap();
+        let parsed = validated.parse_current_sources().unwrap();
+        let ParsedSingleConeBuildRequest::TrustedCoreBootstrap(parsed) = parsed else {
+            panic!("the request retains its trusted bootstrap branch")
+        };
+
+        let published = parsed
+            .build_and_publish(&sysroot.path().join("temporary"), DecodeLimits::default())
+            .unwrap();
+
+        assert_eq!(published.path(), artifact_path);
+        assert_eq!(
+            published.validation().coordinate(),
+            &ConeCoordinate::reserved_core()
+        );
+        assert_eq!(
+            published.validation().identity(),
+            scoop_identity::ConeIdentity::CORE
+        );
+        assert_eq!(published.validation().kind(), scoop_slib::ConeKind::Library);
+        assert_eq!(
+            published.validation().source_form(),
+            scoop_slib::ConeSourceForm::Manifest
+        );
+        assert!(published.validation().link_summary().link_object_count() > 0);
+    }
+
+    #[test]
     fn bootstrap_hir_input_rejects_an_artifact_slot_from_another_sysroot() {
         let slot = crate::trusted_core::resolve_trusted_core_slot_at(
             &crate::workspace_root().join("sysroot"),
@@ -1487,5 +1635,21 @@ mod tests {
         )
         .unwrap();
         directory
+    }
+
+    fn copy_trusted_core_sources(sysroot: &Path) {
+        let source = crate::workspace_root().join("sysroot/lib/scoop.core");
+        let destination = sysroot.join("lib/scoop.core");
+        std::fs::create_dir_all(destination.join("src")).unwrap();
+        std::fs::copy(source.join("Cone.toml"), destination.join("Cone.toml")).unwrap();
+        for entry in std::fs::read_dir(source.join("src")).unwrap() {
+            let entry = entry.unwrap();
+            assert!(entry.file_type().unwrap().is_file());
+            std::fs::copy(
+                entry.path(),
+                destination.join("src").join(entry.file_name()),
+            )
+            .unwrap();
+        }
     }
 }
