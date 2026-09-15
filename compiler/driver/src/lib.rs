@@ -35,9 +35,10 @@ pub use object_production::{
 pub use request::{
     BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,
     CoreBootstrapLirStageError, CoreBootstrapMirStageError, CoreBootstrapProductionError,
-    CoreBootstrapStrongProfileError, CoreOnlyRequestValidationError, CurrentConeInput,
-    CurrentConeOperandError, CurrentConeOperandErrorKind, CurrentConeSourceStageError,
-    DiagnosticOutputPolicy, ExplicitDependencyInputs, HostArtifactLocator, LoadedCurrentConeInput,
+    CoreBootstrapStrongProfileError, CoreOnlyRequestValidationError, CurrentConeDiagnosticSet,
+    CurrentConeDiagnosticSetError, CurrentConeInput, CurrentConeOperandError,
+    CurrentConeOperandErrorKind, CurrentConeSourceStageError, DiagnosticOutputPolicy,
+    EmittedStageDump, ExplicitDependencyInputs, HostArtifactLocator, LoadedCurrentConeInput,
     LoadedSingleConeBuildRequest, LoadedTrustedCoreInput, NonCoreDependencyInput,
     OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput,
     OrdinaryConeLirStageError, OrdinaryConeMirOutput, OrdinaryConeMirStageError,
@@ -45,10 +46,10 @@ pub use request::{
     OutputAliasRole, OutputIsolationErrorKind, ParsedCoreBootstrapBuildRequest,
     ParsedOrdinaryConeBuildRequest, ParsedSingleConeBuildRequest, SingleConeBuildRequest,
     SingleConeBuildRequestError, SingleConePreflightError, SingleConeProductionError,
-    SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreBootstrapHirInput,
-    TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapLirOutput, TrustedCoreBootstrapMirOutput,
-    TrustedCoreInput, ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput,
-    ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
+    SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind, StageDumpPolicy,
+    TrustedCoreBootstrapHirInput, TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapLirOutput,
+    TrustedCoreBootstrapMirOutput, TrustedCoreInput, ValidatedCoreOnlyBuildRequest,
+    ValidatedCurrentConeInput, ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
     normalize_direct_build_request, normalize_protocol_build_request,
 };
 pub use trusted_core::{

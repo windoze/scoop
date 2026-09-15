@@ -3,9 +3,14 @@ use std::path::{Path, PathBuf};
 
 mod output;
 mod preflight;
+mod report;
 use output::validate_output_isolation;
 pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestination};
 pub use preflight::*;
+pub use report::{
+    CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, EmittedStageDump,
+    SingleConeProductionSuccess,
+};
 
 use scoop_codegen::{CodegenError, ResolvedTargetProfile};
 use scoop_manifest::{

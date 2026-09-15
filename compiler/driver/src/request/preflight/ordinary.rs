@@ -44,7 +44,7 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
         self,
         temporary_parent: &Path,
         limits: DecodeLimits,
-    ) -> Result<scoop_slib::PublishedSingleConeArtifact, OrdinaryConeProductionError> {
+    ) -> Result<SingleConeProductionSuccess, OrdinaryConeProductionError> {
         let cone = match self.request.current() {
             ValidatedCurrentConeInput::Manifest { manifest, .. } => {
                 let semantic = manifest.parsed().semantic();
@@ -74,13 +74,33 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
         let producer =
             scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
                 .map_err(OrdinaryConeProductionError::Producer)?;
-        let artifact = self
-            .lower_hir()
-            .map_err(OrdinaryConeProductionError::Hir)?
-            .lower_mir()
-            .map_err(OrdinaryConeProductionError::Mir)?
-            .lower_lir()
-            .map_err(OrdinaryConeProductionError::Lir)?
+        let emit = self.request.emit();
+        let mut emitted_dump = capture_stage_dump(emit, StageDumpKind::Ast, || {
+            self.sources
+                .sources()
+                .sources()
+                .iter()
+                .map(|source| scoop_ast::dump(source.ast()))
+                .collect()
+        });
+        let hir = self.lower_hir().map_err(OrdinaryConeProductionError::Hir)?;
+        let warnings =
+            CurrentConeDiagnosticSet::try_new(hir.hir().output().warnings.clone(), &self.sources)
+                .map_err(OrdinaryConeProductionError::Warnings)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Hir, || {
+                scoop_hir::dump(&hir.hir().output().export)
+            })
+        });
+        let mir = hir.lower_mir().map_err(OrdinaryConeProductionError::Mir)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Mir, || scoop_mir::dump(mir.mir()))
+        });
+        let lir = mir.lower_lir().map_err(OrdinaryConeProductionError::Lir)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Lir, || scoop_lir::dump(lir.lir()))
+        });
+        let artifact = lir
             .seal_strong_profile()
             .map_err(OrdinaryConeProductionError::StrongProfile)?
             .produce_artifact(
@@ -92,13 +112,18 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
                 self.trusted_core.defined_symbols(),
             )
             .map_err(OrdinaryConeProductionError::Artifact)?;
-        artifact
+        let artifact = artifact
             .publish(
                 self.request.output().as_path(),
                 limits,
                 self.trusted_core.defined_symbols(),
             )
-            .map_err(OrdinaryConeProductionError::Publication)
+            .map_err(OrdinaryConeProductionError::Publication)?;
+        Ok(SingleConeProductionSuccess::new(
+            artifact,
+            warnings,
+            emitted_dump,
+        ))
     }
 }
 
@@ -108,6 +133,7 @@ pub enum OrdinaryConeProductionError {
     Mir(OrdinaryConeMirStageError),
     Lir(OrdinaryConeLirStageError),
     StrongProfile(OrdinaryConeStrongProfileError),
+    Warnings(super::CurrentConeDiagnosticSetError),
     Producer(scoop_slib::ProducerRecordError),
     Cone(scoop_slib::ConeRecordError),
     Artifact(crate::StrongIrArtifactProductionError),
@@ -121,6 +147,7 @@ impl fmt::Display for OrdinaryConeProductionError {
             Self::Mir(source) => source.fmt(formatter),
             Self::Lir(source) => source.fmt(formatter),
             Self::StrongProfile(source) => source.fmt(formatter),
+            Self::Warnings(source) => source.fmt(formatter),
             Self::Producer(source) => source.fmt(formatter),
             Self::Cone(source) => source.fmt(formatter),
             Self::Artifact(source) => source.fmt(formatter),
@@ -136,6 +163,7 @@ impl std::error::Error for OrdinaryConeProductionError {
             Self::Mir(source) => source,
             Self::Lir(source) => source,
             Self::StrongProfile(source) => source,
+            Self::Warnings(source) => source,
             Self::Producer(source) => source,
             Self::Cone(source) => source,
             Self::Artifact(source) => source,

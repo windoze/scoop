@@ -13,8 +13,10 @@ use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_
 use scoop_wire::DecodeLimits;
 
 use super::{
-    CurrentConeInput, DiagnosticOutputPolicy, ExplicitDependencyInputs, SingleConeBuildRequest,
-    SlibOutputDestination, StageDumpPolicy, TrustedCoreInput,
+    CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, CurrentConeInput,
+    DiagnosticOutputPolicy, EmittedStageDump, ExplicitDependencyInputs, SingleConeBuildRequest,
+    SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind, StageDumpPolicy,
+    TrustedCoreInput,
 };
 use crate::{
     CoreBootstrapAuthority, LoadedTrustedCoreArtifact, SingleConeStrongIrProductionV1,
@@ -76,7 +78,7 @@ impl SingleConeBuildRequest {
     pub fn build_and_publish(
         self,
         limits: DecodeLimits,
-    ) -> Result<scoop_slib::PublishedSingleConeArtifact, SingleConeProductionError> {
+    ) -> Result<SingleConeProductionSuccess, SingleConeProductionError> {
         let temporary_parent = self
             .output
             .as_path()
@@ -142,6 +144,18 @@ impl SingleConeBuildRequest {
             diagnostics,
             emit,
         })
+    }
+}
+
+fn capture_stage_dump(
+    policy: StageDumpPolicy,
+    kind: StageDumpKind,
+    render: impl FnOnce() -> String,
+) -> Option<EmittedStageDump> {
+    if policy == StageDumpPolicy::Stage(kind) {
+        Some(EmittedStageDump::new(kind, render()))
+    } else {
+        None
     }
 }
 
@@ -497,16 +511,38 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
         self,
         temporary_parent: &Path,
         limits: DecodeLimits,
-    ) -> Result<scoop_slib::PublishedSingleConeArtifact, CoreBootstrapProductionError> {
-        let lir = self
+    ) -> Result<SingleConeProductionSuccess, CoreBootstrapProductionError> {
+        let emit = self.request.emit();
+        let mut emitted_dump = capture_stage_dump(emit, StageDumpKind::Ast, || {
+            self.sources
+                .sources()
+                .sources()
+                .iter()
+                .map(|source| scoop_ast::dump(source.ast()))
+                .collect()
+        });
+        let hir = self
             .hir_input()
             .map_err(CoreBootstrapProductionError::HirInput)?
             .lower()
-            .map_err(CoreBootstrapProductionError::Hir)?
-            .lower_mir()
-            .map_err(CoreBootstrapProductionError::Mir)?
+            .map_err(CoreBootstrapProductionError::Hir)?;
+        let warnings = CurrentConeDiagnosticSet::try_new(hir.hir().warnings.clone(), &self.sources)
+            .map_err(CoreBootstrapProductionError::Warnings)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Hir, || {
+                scoop_hir::dump(&hir.hir().export)
+            })
+        });
+        let mir = hir.lower_mir().map_err(CoreBootstrapProductionError::Mir)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Mir, || scoop_mir::dump(mir.mir()))
+        });
+        let lir = mir
             .lower_lir(self.request.target().lir_target())
             .map_err(CoreBootstrapProductionError::Lir)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Lir, || scoop_lir::dump(lir.lir()))
+        });
         let strong = lir
             .seal_strong_profile()
             .map_err(CoreBootstrapProductionError::StrongProfile)?;
@@ -530,9 +566,14 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
                 &core_owners,
             )
             .map_err(CoreBootstrapProductionError::Artifact)?;
-        artifact
+        let artifact = artifact
             .publish(self.artifact_slot.path(), limits, &core_owners)
-            .map_err(CoreBootstrapProductionError::Publication)
+            .map_err(CoreBootstrapProductionError::Publication)?;
+        Ok(SingleConeProductionSuccess::new(
+            artifact,
+            warnings,
+            emitted_dump,
+        ))
     }
 }
 
@@ -543,6 +584,7 @@ pub enum CoreBootstrapProductionError {
     Mir(CoreBootstrapMirStageError),
     Lir(CoreBootstrapLirStageError),
     StrongProfile(CoreBootstrapStrongProfileError),
+    Warnings(super::CurrentConeDiagnosticSetError),
     Producer(scoop_slib::ProducerRecordError),
     Cone(scoop_slib::ConeRecordError),
     Artifact(crate::StrongIrArtifactProductionError),
@@ -557,6 +599,7 @@ impl fmt::Display for CoreBootstrapProductionError {
             Self::Mir(source) => source.fmt(formatter),
             Self::Lir(source) => source.fmt(formatter),
             Self::StrongProfile(source) => source.fmt(formatter),
+            Self::Warnings(source) => source.fmt(formatter),
             Self::Producer(source) => source.fmt(formatter),
             Self::Cone(source) => source.fmt(formatter),
             Self::Artifact(source) => source.fmt(formatter),
@@ -573,6 +616,7 @@ impl std::error::Error for CoreBootstrapProductionError {
             Self::Mir(source) => Some(source),
             Self::Lir(source) => Some(source),
             Self::StrongProfile(source) => Some(source),
+            Self::Warnings(source) => Some(source),
             Self::Producer(source) => Some(source),
             Self::Cone(source) => Some(source),
             Self::Artifact(source) => Some(source),
@@ -1221,6 +1265,19 @@ mod tests {
                 .display_locator(),
             path
         );
+        let warnings = CurrentConeDiagnosticSet::try_new(
+            vec![scoop_ast::Diagnostic::warning_at(
+                scoop_ast::Span::new(4, 8),
+                "entry warning",
+            )],
+            &parsed,
+        )
+        .unwrap();
+        assert_eq!(warnings.diagnostics().len(), 1);
+        assert_eq!(
+            warnings.render_human(),
+            format!("{}:1:5: warning: entry warning", path.display())
+        );
     }
 
     #[test]
@@ -1682,21 +1739,31 @@ mod tests {
             .build_and_publish(&sysroot.path().join("temporary"), DecodeLimits::default())
             .unwrap();
 
-        assert_eq!(published.path(), artifact_path);
+        assert_eq!(published.artifact().path(), artifact_path);
         assert_eq!(
-            published.validation().coordinate(),
+            published.artifact().validation().coordinate(),
             &ConeCoordinate::reserved_core()
         );
         assert_eq!(
-            published.validation().identity(),
+            published.artifact().validation().identity(),
             scoop_identity::ConeIdentity::CORE
         );
-        assert_eq!(published.validation().kind(), scoop_slib::ConeKind::Library);
         assert_eq!(
-            published.validation().source_form(),
+            published.artifact().validation().kind(),
+            scoop_slib::ConeKind::Library
+        );
+        assert_eq!(
+            published.artifact().validation().source_form(),
             scoop_slib::ConeSourceForm::Manifest
         );
-        assert!(published.validation().link_summary().link_object_count() > 0);
+        assert!(
+            published
+                .artifact()
+                .validation()
+                .link_summary()
+                .link_object_count()
+                > 0
+        );
 
         let ordinary_source = sysroot.path().join("ordinary.scoop");
         std::fs::write(&ordinary_source, "fun main() {}\n").unwrap();
@@ -1734,17 +1801,17 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(ordinary_published.path(), ordinary_artifact_path);
+        assert_eq!(ordinary_published.artifact().path(), ordinary_artifact_path);
         assert_eq!(
-            ordinary_published.validation().coordinate(),
+            ordinary_published.artifact().validation().coordinate(),
             &ConeCoordinate::reserved_single_file()
         );
         assert_eq!(
-            ordinary_published.validation().kind(),
+            ordinary_published.artifact().validation().kind(),
             scoop_slib::ConeKind::Executable
         );
         assert_eq!(
-            ordinary_published.validation().source_form(),
+            ordinary_published.artifact().validation().source_form(),
             scoop_slib::ConeSourceForm::SingleFile
         );
     }
