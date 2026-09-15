@@ -13,8 +13,8 @@ use scoop_identity::{
     ConeCoordinate, ConeIdentity, PersistentExportBindingId, SemanticIdentitySession,
 };
 use scoop_lir::{
-    ImportedLirCallableProjectionError, SelectedImportedLirCallable,
-    StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
+    ImportedLirCallableProjectionError, ImportedLirSelectionError, SelectedImportedLirCallable,
+    SelectedImportedLirSet, StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
 };
 use scoop_mir::{
     CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, ImportedMirSelectionError,
@@ -506,6 +506,28 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .map_err(TrustedCoreCallableProjectionError::Lir)
     }
 
+    /// Atomically projects a MIR selection set into the exact LIR external
+    /// body/definition/symbol authority retained by this artifact.
+    pub fn project_core_callables_to_lir<'artifact>(
+        &'artifact self,
+        selected: &SelectedImportedMirSet<'_>,
+    ) -> Result<SelectedImportedLirSet<'artifact>, TrustedCoreLirSetProjectionError> {
+        if !selected.belongs_to(self.compile.mir(), self.compile.production().mir()) {
+            return Err(TrustedCoreLirSetProjectionError::ForeignMirSet);
+        }
+        let definitions = self.compile.production().lir().canonical_definitions();
+        let mut projected = SelectedImportedLirSet::new(self.compile.lir(), definitions);
+        for selected in selected.callable_selections() {
+            let callable = self
+                .project_core_callable_to_lir(selected)
+                .map_err(TrustedCoreLirSetProjectionError::Callable)?;
+            projected
+                .insert(callable)
+                .map_err(TrustedCoreLirSetProjectionError::LirSet)?;
+        }
+        Ok(projected)
+    }
+
     pub const fn publication(&self) -> &PublishableSingleConeArtifact {
         &self.publication
     }
@@ -540,6 +562,35 @@ impl std::error::Error for TrustedCoreCallableSetProjectionError {
             Self::ForeignHirSet => None,
             Self::Callable(error) => Some(error),
             Self::MirSet(error) => Some(error),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TrustedCoreLirSetProjectionError {
+    ForeignMirSet,
+    Callable(TrustedCoreCallableProjectionError),
+    LirSet(ImportedLirSelectionError),
+}
+
+impl fmt::Display for TrustedCoreLirSetProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ForeignMirSet => {
+                formatter.write_str("selected core MIR set belongs to another artifact projection")
+            }
+            Self::Callable(error) => error.fmt(formatter),
+            Self::LirSet(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for TrustedCoreLirSetProjectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ForeignMirSet => None,
+            Self::Callable(error) => Some(error),
+            Self::LirSet(error) => Some(error),
         }
     }
 }

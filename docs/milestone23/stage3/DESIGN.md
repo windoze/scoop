@@ -684,7 +684,9 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
 - driver一次消费整份HIR callable selection，通过同一core proof逐项投影后产生唯一
   `SelectedImportedMirSet<'core>`。该set自身绑定同artifact的MIR foundation与production，使用独立
   `ImportedCoreMirCallableId`，并在任一项失败时不返回部分集合；不存在接受裸binding/definition/
-  signature的第二构造路径。selected MIR target再以同样方式投影成`SelectedImportedLir`；
+  signature的第二构造路径。selected MIR target再以同样方式投影成绑定同一LIR
+  foundation与strong-definition surface的`SelectedImportedLirSet<'core>`，并使用与前两层都不
+  相容的`ImportedCoreLirCallableId`。LIR集合项同时保留body、definition plan和唯一symbol request；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
 

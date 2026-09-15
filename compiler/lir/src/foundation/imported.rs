@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
@@ -146,6 +147,115 @@ pub struct SelectedImportedLirCallable<'a> {
     expected_symbol: PersistentSymbolRequest,
     required_definition: ImportedLirId<ObjectDefinitionPlanId>,
 }
+
+/// Request-local LIR id for one callable selected from trusted core.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ImportedCoreLirCallableId(u32);
+
+/// Complete LIR external-callable authority for one ordinary lowering.
+///
+/// The set is inseparably bound to one imported LIR foundation and its
+/// strong-definition surface. It retains the exact body, definition plan,
+/// and symbol request proven for every selected callable.
+pub struct SelectedImportedLirSet<'a> {
+    foundation: &'a ImportedLirFoundation,
+    definitions: &'a crate::StrongObjectSymbolSurfaceV1,
+    by_binding: BTreeMap<PersistentExportBindingId, ImportedCoreLirCallableId>,
+    callables: Vec<SelectedImportedLirCallable<'a>>,
+}
+
+impl<'a> SelectedImportedLirSet<'a> {
+    #[doc(hidden)]
+    pub fn new(
+        foundation: &'a ImportedLirFoundation,
+        definitions: &'a crate::StrongObjectSymbolSurfaceV1,
+    ) -> Self {
+        Self {
+            foundation,
+            definitions,
+            by_binding: BTreeMap::new(),
+            callables: Vec::new(),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn insert(
+        &mut self,
+        selected: SelectedImportedLirCallable<'a>,
+    ) -> Result<ImportedCoreLirCallableId, ImportedLirSelectionError> {
+        if !selected.belongs_to(self.foundation, self.definitions) {
+            return Err(ImportedLirSelectionError::ForeignSelection(
+                selected.binding(),
+            ));
+        }
+        if let Some(&id) = self.by_binding.get(&selected.binding()) {
+            let retained = &self.callables[id.0 as usize];
+            if retained.target() != selected.target()
+                || retained.signature() != selected.signature()
+                || retained.body() != selected.body()
+                || retained.expected_symbol() != selected.expected_symbol()
+                || retained.required_definition() != selected.required_definition()
+            {
+                return Err(ImportedLirSelectionError::ConflictingSelection(
+                    selected.binding(),
+                ));
+            }
+            return Ok(id);
+        }
+        let id = ImportedCoreLirCallableId(
+            u32::try_from(self.callables.len())
+                .expect("one LIR request cannot select more than u32::MAX core callables"),
+        );
+        self.by_binding.insert(selected.binding(), id);
+        self.callables.push(selected);
+        Ok(id)
+    }
+
+    pub fn callable(
+        &self,
+        id: ImportedCoreLirCallableId,
+    ) -> Option<&SelectedImportedLirCallable<'a>> {
+        self.callables.get(id.0 as usize)
+    }
+
+    pub fn callable_for_binding(
+        &self,
+        binding: PersistentExportBindingId,
+    ) -> Option<ImportedCoreLirCallableId> {
+        self.by_binding.get(&binding).copied()
+    }
+
+    pub fn len(&self) -> usize {
+        self.callables.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.callables.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImportedLirSelectionError {
+    ForeignSelection(PersistentExportBindingId),
+    ConflictingSelection(PersistentExportBindingId),
+}
+
+impl fmt::Display for ImportedLirSelectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ForeignSelection(binding) => write!(
+                formatter,
+                "imported LIR binding {binding} belongs to another core artifact projection"
+            ),
+            Self::ConflictingSelection(binding) => write!(
+                formatter,
+                "imported LIR binding {binding} has conflicting selected definitions"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ImportedLirSelectionError {}
 
 impl SelectedImportedLirCallable<'_> {
     pub const fn binding(&self) -> PersistentExportBindingId {
@@ -315,6 +425,9 @@ mod tests {
         let selected = foundation
             .project_core_callable(&definitions, binding, target, signature.clone())
             .unwrap();
+        let foreign = other_foundation
+            .project_core_callable(&definitions, binding, target, signature.clone())
+            .unwrap();
 
         assert!(selected.belongs_to(&foundation, &definitions));
         assert!(!selected.belongs_to(&other_foundation, &definitions));
@@ -324,6 +437,18 @@ mod tests {
         assert_eq!(selected.body().persistent(), body.id());
         assert_eq!(selected.expected_symbol(), expected_symbol);
         assert_eq!(selected.required_definition().persistent(), definition.id());
+
+        let mut selected_set = SelectedImportedLirSet::new(&foundation, &definitions);
+        let id = selected_set.insert(selected.clone()).unwrap();
+        assert_eq!(selected_set.insert(selected).unwrap(), id);
+        assert_eq!(selected_set.callable_for_binding(binding), Some(id));
+        assert_eq!(selected_set.callable(id).unwrap().binding(), binding);
+        assert_eq!(selected_set.len(), 1);
+        assert_eq!(
+            selected_set.insert(foreign).unwrap_err(),
+            ImportedLirSelectionError::ForeignSelection(binding)
+        );
+        assert_eq!(selected_set.len(), 1);
     }
 
     fn imported_foundation(

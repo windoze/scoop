@@ -248,6 +248,20 @@ impl<'a> SelectedImportedMirSet<'a> {
     pub fn is_empty(&self) -> bool {
         self.callables.is_empty()
     }
+
+    #[doc(hidden)]
+    pub fn belongs_to(
+        &self,
+        foundation: &ImportedMirFoundation,
+        production: &crate::CoreBootstrapBridgeSectionV1,
+    ) -> bool {
+        std::ptr::eq(self.foundation, foundation) && std::ptr::eq(self.production, production)
+    }
+
+    #[doc(hidden)]
+    pub fn callable_selections(&self) -> impl Iterator<Item = &SelectedImportedMirCallable<'a>> {
+        self.callables.iter()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

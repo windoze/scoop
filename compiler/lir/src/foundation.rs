@@ -37,8 +37,8 @@ mod strong_profile;
 pub use bridge_layouts::GeneratedBridgeLayoutClosureError;
 pub(crate) use bridge_layouts::{bridge_unit_keys, required_generated_bridge_layouts};
 pub use imported::{
-    ImportedLirCallableProjectionError, ImportedLirFoundation, ImportedLirId,
-    SelectedImportedLirCallable,
+    ImportedCoreLirCallableId, ImportedLirCallableProjectionError, ImportedLirFoundation,
+    ImportedLirId, ImportedLirSelectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
 };
 pub use strong_profile::{
     DefinitionAtomResolutionError, OdrFreeLirFoundation, OdrFreeLirFoundationError,
