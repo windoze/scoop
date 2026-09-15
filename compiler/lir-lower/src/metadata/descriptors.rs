@@ -452,7 +452,8 @@ pub(crate) fn array_types(
                 continue;
             }
         };
-        let (element_size, element_align, _) = class_layout(context, module, enums, class);
+        let (element_size, element_align, element_scan) =
+            class_layout(context, module, enums, class);
         let id = arrays.alloc(lir::ArrayType {
             identity: lir::LayoutIdentity::managed_array(
                 exact_type_record(module, &ty).id(),
@@ -464,6 +465,7 @@ pub(crate) fn array_types(
             element: lir_type(element),
             element_size,
             element_align,
+            element_scan,
             type_descriptor: descriptors.classes[&class_id],
         });
         assert!(ids.insert(class_id, id).is_none());

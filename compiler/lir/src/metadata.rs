@@ -309,6 +309,9 @@ pub struct ArrayType {
     pub element: LirType,
     pub element_size: u64,
     pub element_align: u64,
+    /// Canonical scan of one inline element. Codegen consumes this closed
+    /// shape directly instead of reconstructing GC metadata from `LirType`.
+    pub element_scan: RefScan,
     /// The descriptor owns the recursive repeated-element scan program.
     pub type_descriptor: TypeDescriptorRef,
 }
@@ -736,6 +739,32 @@ impl LayoutIdentity {
                 == scoop_identity::RepresentationRole::ManagedObject
             && self.scan.key().layout() == self.layout.id()
             && self.scan.key().role() == scoop_identity::ScanRole::ManagedObject
+    }
+
+    pub fn is_managed_value_of(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> bool {
+        self.layout.key().exact_type() == exact_type
+            && self.layout.key().target_profile() == &target_profile.wire_id()
+            && self.layout.key().representation()
+                == scoop_identity::RepresentationRole::ManagedValue
+            && self.scan.key().layout() == self.layout.id()
+            && self.scan.key().role() == scoop_identity::ScanRole::InlineValue
+    }
+
+    pub fn is_managed_array_of(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> bool {
+        self.layout.key().exact_type() == exact_type
+            && self.layout.key().target_profile() == &target_profile.wire_id()
+            && self.layout.key().representation()
+                == scoop_identity::RepresentationRole::ManagedObject
+            && self.scan.key().layout() == self.layout.id()
+            && self.scan.key().role() == scoop_identity::ScanRole::ArrayElement
     }
 
     pub const fn layout_record(

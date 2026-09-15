@@ -1,47 +1,40 @@
 use super::*;
+use crate::shape_definitions::{
+    EmittedStrongShapeDefinitionsV1, descriptor_definition, descriptor_diagnostic_atom,
+    emit_dispatch_definition_v1,
+};
 
-/// Emit one recursive GC scan program. Child pointers are stored as
-/// u64 constants because the C runtime descriptor is a word stream.
-/// `None` has no global and is represented by a null pointer.
+/// Emit one function-local recursive GC scan program. Persistent layout
+/// scans use `shape_definitions`; this helper is reserved for ephemeral root
+/// descriptors attached to generated call frames.
 pub(super) fn emit_ref_scan<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     name: &str,
     scan: &RefScan,
 ) -> Option<PointerValue<'ctx>> {
-    let i64_ty = context.i64_type();
-    let pointer_word = |pointer: Option<PointerValue<'ctx>>| {
-        pointer.map_or_else(|| i64_ty.const_zero(), |value| value.const_to_int(i64_ty))
-    };
+    let i64 = context.i64_type();
     let words = match scan {
         RefScan::None => return None,
         RefScan::References(offsets) if offsets.is_empty() => return None,
-        RefScan::References(offsets) => {
-            let mut words = Vec::with_capacity(offsets.len() + 1);
-            words.push(i64_ty.const_int(offsets.len() as u64, false));
-            words.extend(
-                offsets
-                    .iter()
-                    .map(|offset| i64_ty.const_int(*offset, false)),
-            );
-            words
-        }
+        RefScan::References(offsets) => std::iter::once(i64.const_int(offsets.len() as u64, false))
+            .chain(offsets.iter().map(|offset| i64.const_int(*offset, false)))
+            .collect(),
         RefScan::Sequence(parts) => {
-            let children: Vec<_> = parts
+            let children = parts
                 .iter()
                 .enumerate()
                 .filter_map(|(index, part)| {
                     emit_ref_scan(context, llvm, &format!("{name}.part.{index}"), part)
                 })
-                .collect();
+                .collect::<Vec<_>>();
             if children.is_empty() {
                 return None;
             }
-            let mut words = Vec::with_capacity(children.len() + 2);
-            words.push(i64_ty.const_int(SCAN_SEQUENCE, false));
-            words.push(i64_ty.const_int(children.len() as u64, false));
-            words.extend(children.into_iter().map(|child| pointer_word(Some(child))));
-            words
+            std::iter::once(i64.const_int(SCAN_SEQUENCE, false))
+                .chain(std::iter::once(i64.const_int(children.len() as u64, false)))
+                .chain(children.into_iter().map(|child| child.const_to_int(i64)))
+                .collect()
         }
         RefScan::Array {
             length_offset,
@@ -49,7 +42,7 @@ pub(super) fn emit_ref_scan<'ctx>(
             stride,
             element,
         } => {
-            let element = emit_ref_scan(
+            let child = emit_ref_scan(
                 context,
                 llvm,
                 &format!("{name}.element"),
@@ -57,16 +50,16 @@ pub(super) fn emit_ref_scan<'ctx>(
             )
             .expect("a NonEmptyRefScan always emits a physical scan program");
             vec![
-                i64_ty.const_int(SCAN_ARRAY, false),
-                i64_ty.const_int(*length_offset, false),
-                i64_ty.const_int(*first_element_offset, false),
-                i64_ty.const_int(stride.get(), false),
-                element.const_to_int(i64_ty),
+                i64.const_int(SCAN_ARRAY, false),
+                i64.const_int(*length_offset, false),
+                i64.const_int(*first_element_offset, false),
+                i64.const_int(stride.get(), false),
+                child.const_to_int(i64),
             ]
         }
     };
-    let array = i64_ty.const_array(&words);
-    Some(private_const_global(llvm, name, array.into()))
+    let value = i64.const_array(&words);
+    Some(private_const_global(llvm, name, value.into()))
 }
 
 pub(super) fn type_descriptor_global<'ctx>(
@@ -89,12 +82,14 @@ pub(super) fn type_descriptor_global<'ctx>(
 /// Emit every local `ScoopTypeDescriptor` from its complete typed graph.
 /// Runs after function declaration so typed dispatch entries resolve to
 /// already-declared functions.
-pub(super) fn emit_type_descriptors<'ctx>(
+pub(super) fn emit_strong_type_descriptors_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
+    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
     type_globals: &[GlobalValue<'ctx>],
     external_type_globals: &[GlobalValue<'ctx>],
     module: &Module,
+    shapes: &mut EmittedStrongShapeDefinitionsV1<'ctx>,
 ) -> Result<(), CodegenError> {
     let types = runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
     // ScoopItableEntryV1: { ptr interface, ptr slots }.
@@ -107,9 +102,10 @@ pub(super) fn emit_type_descriptors<'ctx>(
         type_globals,
         external_type_globals,
         module,
+        surface,
     };
     for ((_, td), global) in module.meta.type_descriptors.iter().zip(type_globals) {
-        emit_type_descriptor(&emission, *global, td)?;
+        emit_type_descriptor(&emission, *global, td, shapes)?;
     }
     Ok(())
 }
@@ -123,12 +119,14 @@ struct TypeDescriptorEmission<'a, 'ctx> {
     type_globals: &'a [GlobalValue<'ctx>],
     external_type_globals: &'a [GlobalValue<'ctx>],
     module: &'a Module,
+    surface: &'a scoop_lir::StrongObjectSymbolSurfaceV1,
 }
 
 fn emit_type_descriptor<'ctx>(
     emission: &TypeDescriptorEmission<'_, 'ctx>,
     global: GlobalValue<'ctx>,
     descriptor: &TypeDescriptor,
+    shapes: &mut EmittedStrongShapeDefinitionsV1<'ctx>,
 ) -> Result<(), CodegenError> {
     let context = emission.context;
     let llvm = emission.llvm;
@@ -139,51 +137,72 @@ fn emit_type_descriptor<'ctx>(
     let i32_ty = context.i32_type();
     let i64_ty = context.i64_type();
     let ptr = ptr_ty(context);
-    let object_scan: BasicValueEnum = emit_ref_scan(
-        context,
-        llvm,
-        &format!("{}.object_scan", descriptor.identity.symbol()),
-        descriptor.instance_shape.object_scan(),
-    )
-    .map_or_else(|| ptr.const_null().into(), Into::into);
-    let inline_scan: BasicValueEnum = emit_ref_scan(
-        context,
-        llvm,
-        &format!("{}.inline_scan", descriptor.identity.symbol()),
-        descriptor.instance_shape.inline_scan(),
-    )
-    .map_or_else(|| ptr.const_null().into(), Into::into);
+    let definition = descriptor_definition(emission.surface, descriptor.identity.exact_type())?;
+    if global.get_name().to_bytes() != definition.primary_symbol().symbol().as_str().as_bytes()
+        || descriptor.identity.symbol_request() != definition.primary_symbol()
+    {
+        return Err(CodegenError(format!(
+            "TypeDescriptor {} declaration diverges from canonical strong symbol `{}`",
+            descriptor.identity.exact_type(),
+            definition.primary_symbol().symbol()
+        )));
+    }
+    let object_scan: BasicValueEnum = shapes
+        .scan(descriptor.instance_layout.scan_record().id())?
+        .runtime_pointer()
+        .map_or_else(|| ptr.const_null().into(), Into::into);
+    let inline_scan: BasicValueEnum = inline_scan_id(module, descriptor)?
+        .map(|scan| shapes.scan(scan))
+        .transpose()?
+        .and_then(|scan| scan.runtime_pointer())
+        .map_or_else(|| ptr.const_null().into(), Into::into);
     let parent: BasicValueEnum = match descriptor.parent {
         Some(reference) => type_descriptor_global(reference, type_globals, external_type_globals)?
             .as_pointer_value()
             .into(),
         None => ptr.const_null().into(),
     };
-    let vtable = emit_fn_table(
-        context,
+    let vtable_values = dispatch_values(
         llvm,
-        &format!("{}.vtable", descriptor.identity.symbol()),
         descriptor.vtable.slots(),
         &module.functions,
         &module.meta.core_external_callables,
     )?;
+    let vtable = emit_dispatch_definition_v1(
+        context,
+        llvm,
+        emission.surface,
+        descriptor.vtable.identity_record().id(),
+        &vtable_values,
+        shapes,
+    )?
+    .runtime_pointer()
+    .map_or_else(|| ptr.const_null().into(), Into::into);
     let (itables, itable_count): (BasicValueEnum, u64) = if descriptor.itables.is_empty() {
         (ptr.const_null().into(), 0)
     } else {
         let mut entries = Vec::with_capacity(descriptor.itables.len());
-        for (record_index, record) in descriptor.itables.iter().enumerate() {
+        for record in &descriptor.itables {
             let interface =
                 type_descriptor_global(record.interface(), type_globals, external_type_globals)?
                     .as_pointer_value();
-            let slots = emit_fn_table(
-                context,
+            let values = dispatch_values(
                 llvm,
-                &format!("{}.itables.{record_index}", descriptor.identity.symbol()),
                 record.slots(),
                 &module.functions,
                 &module.meta.core_external_callables,
             )?;
-            entries.push(context.const_struct(&[interface.into(), slots], false));
+            let slots = emit_dispatch_definition_v1(
+                context,
+                llvm,
+                emission.surface,
+                record.identity_record().id(),
+                &values,
+                shapes,
+            )?
+            .runtime_pointer()
+            .unwrap_or_else(|| ptr.const_null());
+            entries.push(context.const_struct(&[interface.into(), slots.into()], false));
         }
         let array = entry_ty.const_array(&entries);
         let itable_global = private_const_global(
@@ -193,12 +212,19 @@ fn emit_type_descriptor<'ctx>(
         );
         (itable_global.into(), descriptor.itables.len() as u64)
     };
-    let name = private_bytes(
-        context,
-        llvm,
-        &format!("{}.name", descriptor.identity.symbol()),
-        descriptor.diagnostic_name.as_bytes(),
-    );
+    let diagnostic_name = format!("{}.diagnostic", descriptor.identity.symbol());
+    if llvm.get_global(&diagnostic_name).is_some() || llvm.get_function(&diagnostic_name).is_some()
+    {
+        return Err(CodegenError(format!(
+            "TypeDescriptor diagnostic `{diagnostic_name}` collides with an LLVM value"
+        )));
+    }
+    let name_value = context.const_string(descriptor.diagnostic_name.as_bytes(), false);
+    let name_global = llvm.add_global(name_value.get_type(), None, &diagnostic_name);
+    name_global.set_linkage(inkwell::module::Linkage::Private);
+    name_global.set_constant(true);
+    name_global.set_initializer(&name_value);
+    let name = name_global.as_pointer_value();
     let shape = &descriptor.instance_shape;
     let instance_shape = emission.type_instance_shape_ty.const_named_struct(&[
         i32_ty
@@ -242,6 +268,11 @@ fn emit_type_descriptor<'ctx>(
             false,
         ),
     );
+    shapes.record_atom(definition.primary_atom(), global);
+    shapes.record_atom(
+        descriptor_diagnostic_atom(emission.surface, descriptor.identity.exact_type())?,
+        name_global,
+    );
     Ok(())
 }
 
@@ -258,31 +289,12 @@ pub(super) fn private_const_global<'ctx>(
     global.as_pointer_value()
 }
 
-/// A private exact byte sequence whose address is stable for the lifetime of
-/// the generated module.
-fn private_bytes<'ctx>(
-    context: &'ctx Context,
+fn dispatch_values<'ctx>(
     llvm: &LlvmModule<'ctx>,
-    name: &str,
-    value: &[u8],
-) -> PointerValue<'ctx> {
-    private_const_global(llvm, name, context.const_string(value, false).into())
-}
-
-/// A global `[N x ptr]` of function addresses (a vtable or one itable's
-/// slots), or null when the table is empty.
-fn emit_fn_table<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    name: &str,
     slots: &[DispatchEntry],
     functions: &[Function],
     external_callables: &Arena<scoop_lir::CoreExternalCallable>,
-) -> Result<BasicValueEnum<'ctx>, CodegenError> {
-    let ptr = ptr_ty(context);
-    if slots.is_empty() {
-        return Ok(ptr.const_null().into());
-    }
+) -> Result<Vec<PointerValue<'ctx>>, CodegenError> {
     let mut values = Vec::with_capacity(slots.len());
     for entry in slots {
         values.push(slot_fn_ptr(
@@ -292,8 +304,64 @@ fn emit_fn_table<'ctx>(
             external_callables,
         )?);
     }
-    let array = ptr.const_array(&values);
-    Ok(private_const_global(llvm, name, array.into()).into())
+    Ok(values)
+}
+
+fn inline_scan_id(
+    module: &Module,
+    descriptor: &TypeDescriptor,
+) -> Result<Option<scoop_lir::PersistentScanId>, CodegenError> {
+    use scoop_lir::TypeInstanceKindV1;
+
+    if !descriptor.instance_shape.inline_scan().contains_reference() {
+        return Ok(None);
+    }
+    let exact = descriptor.identity.exact_type();
+    let mut candidates = match descriptor.instance_shape.instance_kind() {
+        TypeInstanceKindV1::InlineArray => module
+            .meta
+            .arrays
+            .iter()
+            .filter(|(_, array)| {
+                array.identity.layout_record().key().exact_type() == exact
+                    && &array.element_scan == descriptor.instance_shape.inline_scan()
+            })
+            .map(|(_, array)| array.identity.scan_record().id())
+            .collect::<Vec<_>>(),
+        TypeInstanceKindV1::BoxedValue => module
+            .meta
+            .layouts
+            .iter()
+            .filter(|(_, layout)| {
+                layout.identity.layout_record().key().exact_type() == exact
+                    && layout
+                        .identity
+                        .is_managed_value_of(exact, module.meta.target_profile)
+                    && match &layout.kind {
+                        scoop_lir::LayoutKind::Plain { scan }
+                        | scoop_lir::LayoutKind::Enum { scan } => {
+                            scan == descriptor.instance_shape.inline_scan()
+                        }
+                        scoop_lir::LayoutKind::Intrinsic(_) => false,
+                    }
+            })
+            .map(|(_, layout)| layout.identity.scan_record().id())
+            .collect::<Vec<_>>(),
+        TypeInstanceKindV1::FixedObject
+        | TypeInstanceKindV1::InlineBytes
+        | TypeInstanceKindV1::AbstractRef => Vec::new(),
+    };
+    candidates.sort_unstable();
+    candidates.dedup();
+    match candidates.as_slice() {
+        [scan] => Ok(Some(*scan)),
+        [] => Err(CodegenError(format!(
+            "TypeDescriptor {exact} has a nonempty inline scan without one typed scan definition"
+        ))),
+        _ => Err(CodegenError(format!(
+            "TypeDescriptor {exact} has multiple typed inline scan definitions"
+        ))),
+    }
 }
 
 /// Address of the exact module function named by a vtable / itable slot.

@@ -11,10 +11,11 @@ use scoop_lir::{
 
 use super::{
     EmittedEntryProductionV1, EmittedStaticStorageInitialStateV1,
-    EmittedStaticStorageRelocationTableV1, emit_cone_image_v1, emit_entry_production_v1,
-    emit_strong_callable_registrations_v1, emit_strong_immortal_object_registrations_v1,
-    emit_strong_initialization_unit_registrations_v1, emit_strong_safepoint_registrations_v1,
-    emit_strong_static_storage_registrations_v1, emit_strong_type_registrations_v1,
+    EmittedStaticStorageRelocationTableV1, EmittedStrongInitializationUnitRegistrationSetV1,
+    emit_cone_image_v1, emit_entry_production_v1, emit_strong_callable_registrations_v1,
+    emit_strong_immortal_object_registrations_v1, emit_strong_initialization_unit_registrations_v1,
+    emit_strong_safepoint_registrations_v1, emit_strong_static_storage_registrations_v1,
+    emit_strong_type_registrations_v1,
 };
 use crate::CodegenError;
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
@@ -68,6 +69,35 @@ pub struct EmittedStrongRuntimeMetadataV1 {
     patch_locations: Vec<ProvisionalStrongDigestPatchLocationV1>,
 }
 
+/// LLVM-local emission proof used to connect generated function bodies to
+/// their canonical initialization coordinator descriptors. Only the
+/// packaging projection escapes codegen.
+pub(crate) struct EmittedStrongRuntimeMetadataModuleV1<'ctx> {
+    packaging: EmittedStrongRuntimeMetadataV1,
+    initialization_units: EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
+}
+
+impl<'ctx> EmittedStrongRuntimeMetadataModuleV1<'ctx> {
+    #[cfg(test)]
+    pub(crate) const fn producer(&self) -> ConeIdentity {
+        self.packaging.producer()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn patch_locations(&self) -> &[ProvisionalStrongDigestPatchLocationV1] {
+        self.packaging.patch_locations()
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        EmittedStrongRuntimeMetadataV1,
+        EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
+    ) {
+        (self.packaging, self.initialization_units)
+    }
+}
+
 impl EmittedStrongRuntimeMetadataV1 {
     pub const fn producer(&self) -> ConeIdentity {
         self.producer
@@ -88,7 +118,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
     production: &StrongProductionSectionV1,
-) -> Result<EmittedStrongRuntimeMetadataV1, CodegenError> {
+) -> Result<EmittedStrongRuntimeMetadataModuleV1<'ctx>, CodegenError> {
     let registrations = production.registration_production();
     let safepoints =
         emit_strong_safepoint_registrations_v1(context, llvm, registrations.safepoints())?;
@@ -228,9 +258,12 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
             image,
         )?,
     )?;
-    Ok(EmittedStrongRuntimeMetadataV1 {
-        producer,
-        patch_locations: patches,
+    Ok(EmittedStrongRuntimeMetadataModuleV1 {
+        packaging: EmittedStrongRuntimeMetadataV1 {
+            producer,
+            patch_locations: patches,
+        },
+        initialization_units,
     })
 }
 

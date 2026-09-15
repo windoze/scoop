@@ -259,6 +259,24 @@ pub(super) fn type_descriptor_symbol(module: &Module, name: &str) -> String {
     type_descriptor(module, name).identity.symbol().to_string()
 }
 
+pub(super) fn strong_scan_symbol(module: &Module, scan: scoop_lir::PersistentScanId) -> String {
+    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
+        .expect("test module has a strong foundation");
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
+        .expect("test module has a canonical symbol surface");
+    surface
+        .plans()
+        .iter()
+        .find(|plan| {
+            plan.owner() == scoop_lir::StrongDefinitionEntity::scan(scan)
+                && plan.definition_role() == scoop_lir::StrongDefinitionRole::ScanProgram
+        })
+        .unwrap_or_else(|| panic!("missing canonical strong scan definition {scan}"))
+        .primary_symbol()
+        .symbol()
+        .to_string()
+}
+
 pub(super) fn layout_identity(
     name: &str,
     role: scoop_identity::RepresentationRole,
@@ -799,6 +817,7 @@ pub(super) fn array_type(
     element_align: u64,
     scan: RefScan,
 ) -> ArrayTypeId {
+    let element_scan = scan.clone();
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: name.to_string(),
         identity: type_descriptor_identity(name),
@@ -823,6 +842,7 @@ pub(super) fn array_type(
         element,
         element_size,
         element_align,
+        element_scan,
         type_descriptor: TypeDescriptorRef::Local(type_descriptor),
     })
 }
@@ -1040,19 +1060,74 @@ pub(super) fn rewritten_ir_of(module: &Module) -> String {
     llvm.print_to_string().to_string()
 }
 
-pub(super) fn entry_surface_ir_of(module: &Module) -> String {
-    validation::validate_module(module).expect("valid test LIR");
-    let machine = host_target_machine().expect("target machine");
+/// The canonical persistent shape definitions of a module, without target
+/// machine creation or function-body emission.
+pub(super) fn strong_shape_ir_of(module: &Module) -> String {
+    try_strong_shape_ir_of(module).expect("emit canonical strong shape definitions")
+}
+
+pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenError> {
+    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
+        .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
+        .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, module, &machine, host_profile()).expect("emit module");
-    if let scoop_lir::LirOutput::Executable { entry } = module.output {
-        validation::validate_executable_entry(module, entry).expect("valid executable entry");
-        let builder = context.create_builder();
-        emit_executable_entry_shim(&context, &llvm, &builder, module, entry)
-            .expect("emit executable entry shim");
+    let llvm = context.create_module("strong-shape-test");
+    let target_data = inkwell::targets::TargetData::create(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout(),
+    );
+    let descriptor_type =
+        runtime_metadata_v1::RuntimeMetadataV1Types::new(&context).type_descriptor();
+    let type_globals = module
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|(_, descriptor)| {
+            let global = llvm.add_global(descriptor_type, None, descriptor.identity.symbol());
+            global.set_linkage(inkwell::module::Linkage::External);
+            global.set_constant(true);
+            global
+        })
+        .collect::<Vec<_>>();
+    let external_type_globals = module
+        .meta
+        .core_external_type_descriptors
+        .iter()
+        .map(|(_, descriptor)| {
+            let global = llvm.add_global(
+                descriptor_type,
+                None,
+                descriptor.expected_symbol().symbol().as_str(),
+            );
+            global.set_linkage(inkwell::module::Linkage::External);
+            global
+        })
+        .collect::<Vec<_>>();
+    let placeholder_function_type = context.void_type().fn_type(&[], false);
+    for function in &module.functions {
+        let function = llvm.add_function(function.symbol(), placeholder_function_type, None);
+        function.set_linkage(inkwell::module::Linkage::External);
     }
-    llvm.verify().expect("valid LLVM module");
-    llvm.print_to_string().to_string()
+    for (_, callable) in module.meta.core_external_callables.iter() {
+        let function = llvm.add_function(
+            callable.expected_symbol().symbol().as_str(),
+            placeholder_function_type,
+            None,
+        );
+        function.set_linkage(inkwell::module::Linkage::External);
+    }
+    shape_definitions::emit_strong_shape_definitions_v1(
+        &context,
+        &llvm,
+        &target_data,
+        &surface,
+        module,
+        &type_globals,
+        &external_type_globals,
+    )?;
+    llvm.verify()
+        .map_err(|error| CodegenError(format!("invalid strong shape LLVM module: {error}")))?;
+    Ok(llvm.print_to_string().to_string())
 }
 
 pub(super) fn write_verified_test_object(module: &Module, output: &Path) {

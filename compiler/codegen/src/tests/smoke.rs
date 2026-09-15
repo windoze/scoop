@@ -17,22 +17,22 @@ fn emits_non_empty_object_file() {
 }
 
 #[test]
-fn callable_identity_controls_function_symbol_and_linkage() {
+fn strong_codegen_rejects_odr_callable_bodies() {
     let mut module = values_module();
     module.functions[0].callable_body = odr_callable_body("shared_function");
     refresh_test_safepoints(&mut module.functions[0]);
-    let function = &module.functions[0];
-
-    let ir = ir_of(&module);
-
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("the M23-3 backend accepts strong callable bodies only");
     assert!(
-        ir.contains(&format!("define weak_odr void @\"{}\"", function.symbol())),
-        "{ir}"
+        error.0.contains("ODR") || error.0.contains("Odr"),
+        "{error}"
     );
 }
 
 #[test]
-fn executable_entry_shim_calls_the_typed_persistent_body() {
+fn executable_emits_only_the_typed_persistent_entry_body() {
     let module = values_module();
     let entry = &module.functions[module
         .executable_entry()
@@ -40,21 +40,21 @@ fn executable_entry_shim_calls_the_typed_persistent_body() {
         .declaration()
         .into_u32() as usize];
 
-    let ir = entry_surface_ir_of(&module);
+    let ir = ir_of(&module);
 
-    assert!(ir.contains("define void @scoop_main()"), "{ir}");
+    assert!(!ir.contains("define void @scoop_main()"), "{ir}");
     assert!(
-        ir.contains(&format!("musttail call void @\"{}\"()", entry.symbol())),
+        ir.contains(&format!("define void @\"{}\"()", entry.symbol())),
         "{ir}"
     );
 }
 
 #[test]
-fn library_does_not_emit_the_executable_entry_shim() {
+fn library_does_not_emit_a_fixed_entry_symbol() {
     let mut module = values_module();
     module.output = scoop_lir::LirOutput::Library;
 
-    let ir = entry_surface_ir_of(&module);
+    let ir = ir_of(&module);
 
     assert!(!ir.contains("@scoop_main"), "{ir}");
 }

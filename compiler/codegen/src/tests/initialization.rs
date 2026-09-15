@@ -1,7 +1,8 @@
 use super::*;
+use crate::emission::initialization_unit_globals_from_pairs;
 
 #[test]
-fn storage_global_linkage_follows_its_materialization_root() {
+fn strong_codegen_rejects_odr_storage_instead_of_emitting_weak_definitions() {
     let mut module = values_module();
     let cone_identity = static_storage_identity("coneStorage");
     let cone_symbol = cone_identity.symbol().to_string();
@@ -27,15 +28,16 @@ fn storage_global_linkage_follows_its_materialization_root() {
         });
     }
 
-    let ir = ir_of(&module);
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("the M23-3 backend accepts strong definitions only");
     assert!(
-        ir.contains(&format!("@\"{cone_symbol}\" = global i64 0")),
-        "Cone-owned storage must be a strong definition:\n{ir}"
+        error.0.contains("ODR") || error.0.contains("Odr"),
+        "{error}"
     );
-    assert!(
-        ir.contains(&format!("@\"{odr_symbol}\" = weak_odr global i64 0")),
-        "ODR-owned storage must be a coalescible definition:\n{ir}"
-    );
+    assert!(!error.0.contains(&cone_symbol), "{error}");
+    assert!(!error.0.contains(&odr_symbol), "{error}");
 }
 
 #[test]
@@ -67,7 +69,7 @@ fn zero_sized_storage_uses_one_addressable_byte() {
 }
 
 #[test]
-fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
+fn unsealed_initialization_units_have_no_codegen_path() {
     let mut module = values_module();
     let storage = module.globals.alloc(Global {
         address_kind: PointerKind::Raw,
@@ -97,48 +99,13 @@ fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
             thread_local: false,
         },
     });
-    let second_storage = module.globals.alloc(Global {
-        address_kind: PointerKind::Raw,
-        scan: RefScan::None,
-        init: GlobalInit::Storage {
-            identity: static_storage_identity("secondInitStorage"),
-            layout: layout_identity(
-                "secondInitStorage",
-                scoop_identity::RepresentationRole::ManagedValue,
-            ),
-            ty: LirType::I64,
-            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
-        },
-    });
-    let second_failure = module.globals.alloc(Global {
-        address_kind: PointerKind::Raw,
-        scan: RefScan::References(vec![0]),
-        init: GlobalInit::Storage {
-            identity: static_storage_identity("secondInitFailure"),
-            layout: layout_identity(
-                "secondInitFailure",
-                scoop_identity::RepresentationRole::ManagedValue,
-            ),
-            ty: MANAGED_PTR,
-            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
-        },
-    });
     let mut functions = scoop_lir::LocalFunctionIdentities::default();
     let entry = functions.alloc_managed();
-    let alpha = initialization_unit_identity(ConeIdentity::CORE, "alpha");
-    let zed = initialization_unit_identity(ConeIdentity::SINGLE_FILE, "zed");
-    let (higher_identity, higher_name, lower_identity, lower_name) = if alpha.id() > zed.id() {
-        (alpha, "alpha", zed, "zed")
-    } else {
-        (zed, "zed", alpha, "alpha")
-    };
     module
         .initialization_units
         .alloc(scoop_lir::InitializationUnit {
-            identity: higher_identity,
-            display_name: format!("top-level:{higher_name}"),
+            identity: initialization_unit_identity(ConeIdentity::SINGLE_FILE, "value"),
+            display_name: "top-level:value".to_string(),
             schedule: scoop_lir::InitializationSchedule::EagerStartup,
             kind: scoop_lir::InitializationUnitKind::EagerTopLevel { storage },
             failure_root: failure,
@@ -146,46 +113,80 @@ fn emits_typed_initialization_descriptors_in_persistent_identity_order() {
             ensure: entry,
             dependencies: Vec::new(),
         });
-    module
-        .initialization_units
-        .alloc(scoop_lir::InitializationUnit {
-            identity: lower_identity,
-            display_name: format!("top-level:{lower_name}"),
-            schedule: scoop_lir::InitializationSchedule::LazyAccess,
-            kind: scoop_lir::InitializationUnitKind::EagerTopLevel {
-                storage: second_storage,
-            },
-            failure_root: second_failure,
-            initializer: entry,
-            ensure: entry,
-            dependencies: Vec::new(),
-        });
-
-    let ir = ir_of(&module);
-    assert!(ir.contains("@scoop.init.cell.0 = private global { i64, ptr } zeroinitializer"));
-    assert!(ir.contains("@scoop.init.descriptor.1 = private constant"));
-    assert!(ir.contains("@scoop.init.display.0 = private constant"));
-    assert!(ir.contains("@scoop.init.display.1 = private constant"));
-    assert!(ir.contains(&format!("c\"top-level:{higher_name}\\00\"")));
-    assert!(ir.contains(&format!("c\"top-level:{lower_name}\\00\"")));
-    assert!(ir.contains("{ i64 0, [32 x i8] c\""));
-    assert!(ir.contains("{ i64 1, [32 x i8] c\""));
-    assert!(!ir.contains("scoop.init.key"));
-    let table = ir
-        .lines()
-        .find(|line| line.starts_with("@scoop_image_initialization_units ="))
-        .expect("initialization descriptor table");
-    let lower = table
-        .find("@scoop.init.display.1")
-        .expect("lower persistent identity in table");
-    let higher = table
-        .find("@scoop.init.display.0")
-        .expect("higher persistent identity in table");
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("initialization values require the closed production section");
     assert!(
-        lower < higher,
-        "descriptor table must be sorted by persistent identity, not arena order"
+        error
+            .0
+            .contains("initialization units require a sealed strong production section"),
+        "{error}"
     );
-    assert!(ir.contains("@scoop_image_initialization_unit_count = constant i64 2"));
+}
+
+#[test]
+fn initialization_values_follow_typed_unit_ids_in_lir_arena_order() {
+    let mut module = values_module();
+    let first_identity = initialization_unit_identity(ConeIdentity::CORE, "first");
+    let second_identity = initialization_unit_identity(ConeIdentity::SINGLE_FILE, "second");
+    let first_id = first_identity.id();
+    let second_id = second_identity.id();
+    let storage = module.globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::Storage {
+            identity: static_storage_identity("mappingStorage"),
+            layout: layout_identity(
+                "mappingStorage",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
+            ty: LirType::I64,
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
+            thread_local: false,
+        },
+    });
+    let failure_root = module.globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::References(vec![0]),
+        init: GlobalInit::Storage {
+            identity: static_storage_identity("mappingFailure"),
+            layout: layout_identity(
+                "mappingFailure",
+                scoop_identity::RepresentationRole::ManagedValue,
+            ),
+            ty: MANAGED_PTR,
+            initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
+            thread_local: false,
+        },
+    });
+    for (identity, display_name) in [
+        (first_identity, "top-level:first"),
+        (second_identity, "top-level:second"),
+    ] {
+        module
+            .initialization_units
+            .alloc(scoop_lir::InitializationUnit {
+                identity,
+                display_name: display_name.to_string(),
+                schedule: scoop_lir::InitializationSchedule::LazyAccess,
+                kind: scoop_lir::InitializationUnitKind::EagerTopLevel { storage },
+                failure_root,
+                initializer: managed_local_function_ref(0),
+                ensure: managed_local_function_ref(0),
+                dependencies: Vec::new(),
+            });
+    }
+
+    let context = Context::create();
+    let llvm = context.create_module("initialization-id-mapping");
+    let first = llvm.add_global(context.i8_type(), None, "first.coordinator");
+    let second = llvm.add_global(context.i8_type(), None, "second.coordinator");
+    let mapped =
+        initialization_unit_globals_from_pairs(&module, [(second_id, second), (first_id, first)])
+            .expect("typed coordinator ids cover the LIR arena");
+
+    assert_eq!(mapped, [first, second]);
 }
 
 #[test]

@@ -118,16 +118,24 @@ fn prepare_strong_llvm_module<'ctx>(
     if let scoop_lir::LirOutput::Executable { entry } = module.output {
         validation::validate_executable_entry(module, entry)?;
     }
-    let llvm = emit_llvm_module(context, module, machine, profile)?;
-    if let scoop_lir::LirOutput::Executable { entry } = module.output {
-        let builder = context.create_builder();
-        emit_executable_entry_shim(context, &llvm, &builder, module, entry)?;
-    }
-    let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
+    let (llvm, runtime_metadata) = emit_llvm_module_with_surface(
         context,
-        &llvm,
-        &machine.get_target_data(),
-        production,
+        module,
+        production.canonical_definitions(),
+        machine,
+        profile,
+        |context, llvm, target_data| {
+            let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
+                context,
+                llvm,
+                target_data,
+                production,
+            )?;
+            let (runtime_metadata, emitted_initialization_units) = runtime_metadata.into_parts();
+            let initialization_units =
+                initialization_unit_globals(module, &emitted_initialization_units)?;
+            Ok((runtime_metadata, initialization_units))
+        },
     )?;
 
     verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
@@ -163,12 +171,18 @@ pub(crate) fn host_target_machine() -> Result<TargetMachine, CodegenError> {
 
 /// Translate `module` to an (unverified) LLVM module: globals,
 /// TypeDescriptors, and every function.
-pub(crate) fn emit_llvm_module<'ctx>(
+fn emit_llvm_module_with_surface<'ctx, R>(
     context: &'ctx Context,
     module: &Module,
+    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
-) -> Result<LlvmModule<'ctx>, CodegenError> {
+    emit_runtime_metadata: impl FnOnce(
+        &'ctx Context,
+        &LlvmModule<'ctx>,
+        &inkwell::targets::TargetData,
+    ) -> Result<(R, Vec<GlobalValue<'ctx>>), CodegenError>,
+) -> Result<(LlvmModule<'ctx>, R), CodegenError> {
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     validation::validate_module(module)?;
     let managed_address_space = profile.managed_address_space_contract();
@@ -193,6 +207,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .map(|(_, descriptor)| {
             let global = llvm.add_global(td_ty, None, descriptor.identity.symbol());
             apply_persistent_linkage(&global, descriptor.identity.symbol_request())?;
+            global.set_constant(true);
             Ok(global)
         })
         .collect::<Result<_, CodegenError>>()?;
@@ -331,15 +346,6 @@ pub(crate) fn emit_llvm_module<'ctx>(
             }
         }
     }
-    image_roots::emit(
-        context,
-        &llvm,
-        &target_data,
-        &module.globals,
-        &globals,
-        string_td,
-    )?;
-
     // Two passes: declare every function first so call sites never
     // create shadow extern declarations (a forward call would
     // otherwise declare the symbol as extern, and the later definition
@@ -364,29 +370,6 @@ pub(crate) fn emit_llvm_module<'ctx>(
             callable,
         )?;
     }
-    let initialization_units = initialization::emit(context, &llvm, module, &globals)?;
-    let module_ctx = ModuleCtx {
-        managed_address_space,
-        functions: &module.functions,
-        structs: &module.structs,
-        enums: &module.enums,
-        extern_functions: &module.extern_functions,
-        native_globals: &module.native_globals,
-        native_global_bridges: &module.native_global_bridges,
-        callback_bridges: &module.callback_bridges,
-        foreign_callback_families: &module.foreign_callback_families,
-        foreign_callback_bridges: &module.foreign_callback_bridges,
-        globals_arena: &module.globals,
-        globals: &globals,
-        initialization_units: &initialization_units,
-        arrays: &module.meta.arrays,
-        array_tds: &array_tds,
-        type_tds: &type_tds,
-        external_type_tds: &external_type_tds,
-        target_data: &target_data,
-        bounds_message,
-        array_size_message,
-    };
     for (_, callback) in module.callback_bridges.iter() {
         declare_callback_trampoline(
             context,
@@ -417,13 +400,117 @@ pub(crate) fn emit_llvm_module<'ctx>(
         );
         descriptor.set_linkage(inkwell::module::Linkage::External);
     }
-    // Meta TypeDescriptors reference module functions (vtable / itable
-    // slots), so they are emitted after the declare pass.
-    emit_type_descriptors(context, &llvm, &type_tds, &external_type_tds, module)?;
+    // Runtime records require only declarations of callable bodies and type
+    // descriptors. Emitting them before function bodies exposes the exact
+    // typed initialization coordinator definitions used by LIR values.
+    let (runtime_metadata, initialization_units) =
+        emit_runtime_metadata(context, &llvm, &target_data)?;
+
+    shape_definitions::emit_strong_shape_definitions_v1(
+        context,
+        &llvm,
+        &target_data,
+        surface,
+        module,
+        &type_tds,
+        &external_type_tds,
+    )?;
+    let module_ctx = ModuleCtx {
+        managed_address_space,
+        functions: &module.functions,
+        structs: &module.structs,
+        enums: &module.enums,
+        extern_functions: &module.extern_functions,
+        native_globals: &module.native_globals,
+        native_global_bridges: &module.native_global_bridges,
+        callback_bridges: &module.callback_bridges,
+        foreign_callback_families: &module.foreign_callback_families,
+        foreign_callback_bridges: &module.foreign_callback_bridges,
+        globals_arena: &module.globals,
+        globals: &globals,
+        initialization_units: &initialization_units,
+        arrays: &module.meta.arrays,
+        array_tds: &array_tds,
+        type_tds: &type_tds,
+        external_type_tds: &external_type_tds,
+        target_data: &target_data,
+        bounds_message,
+        array_size_message,
+    };
     for function in &module.functions {
         emit_function(context, &llvm, &builder, &module_ctx, function)?;
     }
-    Ok(llvm)
+    Ok((llvm, runtime_metadata))
+}
+
+#[cfg(test)]
+pub(crate) fn emit_llvm_module<'ctx>(
+    context: &'ctx Context,
+    module: &Module,
+    machine: &TargetMachine,
+    profile: ValidatedBackendProfile,
+) -> Result<LlvmModule<'ctx>, CodegenError> {
+    validation::validate_module(module)?;
+    if !module.initialization_units.is_empty() {
+        return Err(CodegenError(
+            "initialization units require a sealed strong production section".to_string(),
+        ));
+    }
+    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
+        .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
+        .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
+    emit_llvm_module_with_surface(context, module, &surface, machine, profile, |_, _, _| {
+        Ok(((), Vec::new()))
+    })
+    .map(|(llvm, ())| llvm)
+}
+
+fn initialization_unit_globals<'ctx>(
+    module: &Module,
+    emitted: &EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
+) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+    initialization_unit_globals_from_pairs(
+        module,
+        emitted
+            .registrations()
+            .iter()
+            .map(|registration| (registration.unit(), registration.coordinator_descriptor())),
+    )
+}
+
+pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(
+    module: &Module,
+    emitted: impl IntoIterator<Item = (scoop_lir::PersistentInitializationUnitId, GlobalValue<'ctx>)>,
+) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+    let mut by_unit = std::collections::BTreeMap::new();
+    for (unit, descriptor) in emitted {
+        if by_unit.insert(unit, descriptor).is_some() {
+            return Err(CodegenError(
+                "strong initialization emission contains duplicate unit ids".to_string(),
+            ));
+        }
+    }
+    let globals = module
+        .initialization_units
+        .iter()
+        .map(|(_, unit)| {
+            by_unit.get(&unit.identity.id()).copied().ok_or_else(|| {
+                CodegenError(format!(
+                    "initialization unit {} has no emitted coordinator descriptor",
+                    unit.identity.id()
+                ))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if globals.len() != by_unit.len() {
+        return Err(CodegenError(format!(
+            "strong initialization coverage mismatch: LIR {}, emitted {}",
+            globals.len(),
+            by_unit.len()
+        )));
+    }
+    Ok(globals)
 }
 
 fn apply_persistent_linkage(

@@ -296,10 +296,15 @@ fn array_layouts_mark_reference_elements() {
 
     let array_layout = |name: &str| {
         let array = array_metadata(&module, name);
+        assert_eq!(
+            array.element_scan,
+            *array_scan(descriptor(&module, array.type_descriptor)),
+            "array metadata and its descriptor must carry one closed element scan"
+        );
         (
             array.element_size,
             array.element_align,
-            array_scan(descriptor(&module, array.type_descriptor)).clone(),
+            array.element_scan.clone(),
         )
     };
     // size / align are element-level: the element stride and

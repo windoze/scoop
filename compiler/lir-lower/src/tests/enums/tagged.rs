@@ -341,11 +341,13 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     );
 
     let array_scan = |name: &str| {
-        array_scan(descriptor(
-            &module,
-            array_metadata(&module, name).type_descriptor,
-        ))
-        .clone()
+        let array = array_metadata(&module, name);
+        assert_eq!(
+            array.element_scan,
+            *array_scan(descriptor(&module, array.type_descriptor)),
+            "array metadata and its descriptor must carry one closed element scan"
+        );
+        array.element_scan.clone()
     };
     assert_eq!(
         array_scan("Array<Msg>"),

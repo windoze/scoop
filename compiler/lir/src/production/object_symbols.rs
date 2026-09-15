@@ -5,9 +5,12 @@ use std::fmt;
 
 use scoop_identity::{
     DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongDefinitionEntity,
-    DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentSymbolError,
-    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
+    ObjectDefinitionPlanRole, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+};
+pub use scoop_identity::{
+    DefinitionAtomRole, PersistentDispatchTableId, PersistentLayoutId, StrongDefinitionEntity,
+    StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 

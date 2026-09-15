@@ -36,19 +36,9 @@ fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
 }
 
 #[test]
-fn emits_complete_image_root_and_immortal_tables() {
+fn low_level_codegen_does_not_emit_legacy_image_tables() {
     let mut module = values_module();
-    let string_symbol = type_descriptor_symbol(&module, "String");
     let storage_identity = static_storage_identity("managedGlobal");
-    let storage_symbol = storage_identity.symbol().to_string();
-    let immortal_symbols = module
-        .globals
-        .iter()
-        .filter_map(|(_, global)| match &global.init {
-            GlobalInit::StringConst { identity, .. } => Some(identity.symbol().to_string()),
-            GlobalInit::CString { .. } | GlobalInit::Storage { .. } => None,
-        })
-        .collect::<Vec<_>>();
     module.globals.alloc(Global {
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
@@ -67,56 +57,18 @@ fn emits_complete_image_root_and_immortal_tables() {
     });
 
     let ir = ir_of(&module);
-    assert!(
-        ir.contains(&format!(
-            "@\"{storage_symbol}.global_refs\" = private constant [2 x i64] [i64 1, i64 0]"
-        )),
-        "managed global scan is missing:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }]")
-            && ir.contains(&format!("ptr @\"{storage_symbol}\""))
-            && ir.contains(&format!("ptr @\"{storage_symbol}.global_refs\"")),
-        "managed global descriptor table is incomplete:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_managed_global_count = constant i64 1"),
-        "managed global count is wrong:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_immortal_objects = constant [2 x { ptr, i64, ptr }]")
-            && ir.contains(&format!(
-                "ptr addrspacecast (ptr addrspace(1) @\"{}\" to ptr)",
-                immortal_symbols[0]
-            ))
-            && ir.contains(&format!(
-                "ptr addrspacecast (ptr addrspace(1) @\"{}\" to ptr)",
-                immortal_symbols[1]
-            ))
-            && ir.contains(&format!("ptr @{string_symbol}")),
-        "immortal object descriptor table is incomplete:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_immortal_object_count = constant i64 2"),
-        "immortal object count is wrong:\n{ir}"
-    );
+    assert!(!ir.contains("@scoop_image_managed_globals"), "{ir}");
+    assert!(!ir.contains("@scoop_image_managed_global_count"), "{ir}");
+    assert!(!ir.contains("@scoop_image_immortal_objects"), "{ir}");
+    assert!(!ir.contains("@scoop_image_immortal_object_count"), "{ir}");
 }
 
 #[test]
-fn emits_addressable_zero_count_image_tables() {
+fn empty_module_does_not_emit_legacy_image_sentinels() {
     let module = enum_module();
     let ir = ir_of(&module);
-    assert!(
-        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }] zeroinitializer")
-            && ir.contains("@scoop_image_managed_global_count = constant i64 0"),
-        "empty managed-global table lacks its sentinel/count:\n{ir}"
-    );
-    assert!(
-        ir.contains(
-            "@scoop_image_immortal_objects = constant [1 x { ptr, i64, ptr }] zeroinitializer"
-        ) && ir.contains("@scoop_image_immortal_object_count = constant i64 0"),
-        "empty immortal table lacks its sentinel/count:\n{ir}"
-    );
+    assert!(!ir.contains("@scoop_image_managed_globals"), "{ir}");
+    assert!(!ir.contains("@scoop_image_immortal_objects"), "{ir}");
 }
 
 #[test]

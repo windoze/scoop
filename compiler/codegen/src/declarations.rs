@@ -66,46 +66,6 @@ pub(crate) fn declare_core_external_callable<'ctx>(
     Ok(())
 }
 
-pub(crate) fn emit_executable_entry_shim<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    builder: &inkwell::builder::Builder<'ctx>,
-    module: &Module,
-    entry: scoop_lir::LocalFunctionRef,
-) -> Result<(), CodegenError> {
-    const EXECUTABLE_ENTRY_SYMBOL: &str = "scoop_main";
-
-    let entry_index = entry.declaration().into_u32() as usize;
-    let entry = module.functions.get(entry_index).ok_or_else(|| {
-        CodegenError(format!(
-            "module has invalid executable entry function id {entry_index}"
-        ))
-    })?;
-    let target = llvm.get_function(entry.symbol()).ok_or_else(|| {
-        CodegenError(format!(
-            "typed executable entry @{} is not declared",
-            entry.symbol()
-        ))
-    })?;
-    if llvm.get_function(EXECUTABLE_ENTRY_SYMBOL).is_some() {
-        return Err(CodegenError(format!(
-            "fixed executable entry symbol @{EXECUTABLE_ENTRY_SYMBOL} collides with a module declaration"
-        )));
-    }
-    let shim = llvm.add_function(EXECUTABLE_ENTRY_SYMBOL, target.get_type(), None);
-    shim.set_linkage(inkwell::module::Linkage::External);
-    let block = context.append_basic_block(shim, "entry");
-    builder.position_at_end(block);
-    let call = builder
-        .build_call(target, &[], "")
-        .map_err(|error| CodegenError(format!("emit executable entry call: {error}")))?;
-    call.set_tail_call_kind(inkwell::values::LLVMTailCallKind::LLVMTailCallKindMustTail);
-    builder
-        .build_return(None)
-        .map_err(|error| CodegenError(format!("emit executable entry return: {error}")))?;
-    Ok(())
-}
-
 fn apply_persistent_function_linkage(
     function: inkwell::values::FunctionValue<'_>,
     request: scoop_lir::PersistentSymbolRequest,

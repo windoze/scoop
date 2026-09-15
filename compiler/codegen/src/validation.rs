@@ -17,6 +17,7 @@ use variants::validate_variant_primitives;
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_core_external_metadata(module)?;
     validate_type_descriptor_symbols(module)?;
+    validate_array_metadata(module)?;
     scoop_lir::CanonicalLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("invalid LIR identity foundation: {error}")))?;
     validate_output(module)?;
@@ -120,6 +121,69 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
         {
             return Err(CodegenError(format!(
                 "type descriptor `{}` carries an instance layout for another exact type, target, representation, or scan role",
+                descriptor.diagnostic_name
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_array_metadata(module: &Module) -> Result<(), CodegenError> {
+    for (_, array) in module.meta.arrays.iter() {
+        let TypeDescriptorRef::Local(descriptor_id) = array.type_descriptor else {
+            return Err(CodegenError(
+                "array metadata requires a complete local TypeDescriptor".to_string(),
+            ));
+        };
+        let descriptor_index = arena_index(descriptor_id);
+        if descriptor_index >= module.meta.type_descriptors.len() {
+            return Err(CodegenError(format!(
+                "array metadata has invalid local TypeDescriptor id {descriptor_index}"
+            )));
+        }
+        let descriptor = &module.meta.type_descriptors[descriptor_id];
+        let exact = descriptor.identity.exact_type();
+        if !array
+            .identity
+            .is_managed_array_of(exact, module.meta.target_profile)
+        {
+            return Err(CodegenError(format!(
+                "array TypeDescriptor `{}` and its element layout identify different exact types, targets, representations, or scan roles",
+                descriptor.diagnostic_name
+            )));
+        }
+        let storage = if array.element_size == 0 {
+            if array.element_scan.contains_reference() {
+                return Err(CodegenError(format!(
+                    "array TypeDescriptor `{}` has a reference-bearing zero-sized element scan",
+                    descriptor.diagnostic_name
+                )));
+            }
+            scoop_lir::ArrayElementStorageV1::zero_sized(array.element_align)
+        } else {
+            scoop_lir::ArrayElementStorageV1::inline(
+                array.element_size,
+                array.element_align,
+                array.element_scan.clone(),
+            )
+        }
+        .map_err(|error| {
+            CodegenError(format!(
+                "array TypeDescriptor `{}` has invalid element storage: {error:?}",
+                descriptor.diagnostic_name
+            ))
+        })?;
+        let expected =
+            scoop_lir::TypeInstanceShapeV1::inline_array(module.meta.target_profile, storage)
+                .map_err(|error| {
+                    CodegenError(format!(
+                        "array TypeDescriptor `{}` has invalid instance shape: {error:?}",
+                        descriptor.diagnostic_name
+                    ))
+                })?;
+        if descriptor.instance_shape != expected {
+            return Err(CodegenError(format!(
+                "array TypeDescriptor `{}` does not match its closed element size, alignment, and scan shape",
                 descriptor.diagnostic_name
             )));
         }
