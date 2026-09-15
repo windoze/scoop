@@ -496,12 +496,22 @@ fn selected_imported_core_set_is_typed_deduplicated_and_atomic() {
     assert_eq!(selected.callable_count(), 0);
     assert_eq!(selected.type_count(), 1);
     assert_eq!(selected.value_count(), 0);
-    let crate::SelectedImportedCoreId::Type(id) = first else {
+    let crate::SelectedImportedCoreId::Type(reference) = first else {
         panic!("String must enter the imported type id domain")
     };
-    let retained = selected.ty(id).unwrap();
+    let retained = selected.resolve_type(reference).unwrap();
     assert_eq!(retained.binding(), string.identity());
     assert!(retained.belongs_to(&imported, &fixture.interface, &[]));
+
+    let mut other_selected = prelude.selected_set();
+    let crate::SelectedImportedCoreId::Type(other_reference) =
+        other_selected.select(string).unwrap()
+    else {
+        panic!("String must enter the imported type reference domain")
+    };
+    assert!(selected.resolve_type(other_reference).is_none());
+    assert!(other_selected.resolve_type(reference).is_none());
+    assert!(other_selected.resolve_type(other_reference).is_some());
 
     let error = selected.select(option).unwrap_err();
     assert!(matches!(
@@ -519,7 +529,7 @@ fn selected_imported_core_set_borrows_the_artifact_not_the_projection_wrapper() 
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);
 
-    let (selected, string_id) = {
+    let (selected, string_reference) = {
         let core = imported
             .import_core_inputs(&fixture.interface, &[])
             .unwrap();
@@ -529,14 +539,15 @@ fn selected_imported_core_set_borrows_the_artifact_not_the_projection_wrapper() 
             .next()
             .unwrap();
         let mut selected = prelude.selected_set();
-        let crate::SelectedImportedCoreId::Type(string_id) = selected.select(string).unwrap()
+        let crate::SelectedImportedCoreId::Type(string_reference) =
+            selected.select(string).unwrap()
         else {
             panic!("String must enter the imported type id domain")
         };
-        (selected, string_id)
+        (selected, string_reference)
     };
 
-    let retained = selected.ty(string_id).unwrap();
+    let retained = selected.resolve_type(string_reference).unwrap();
     assert!(retained.belongs_to(&imported, &fixture.interface, &[]));
     assert_eq!(selected.type_count(), 1);
 }

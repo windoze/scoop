@@ -35,10 +35,10 @@ mod strong_profile;
 pub use counts::HirFoundationCounts;
 pub use imported::{
     CorePreludeCapabilityError, CorePreludeImportError, CorePreludeOnly, CorePreludeSelectionError,
-    CorePreludeUnavailableCapability, ImportedCoreCallableId, ImportedCoreCallableRef,
-    ImportedCorePreludeBinding, ImportedCorePreludeTarget, ImportedCoreTypeId, ImportedCoreValueId,
-    ImportedHirFoundation, ImportedHirId, ImportedHirSet, SelectedImportedCoreId,
-    SelectedImportedCoreSet, SelectedImportedCoreTarget,
+    CorePreludeUnavailableCapability, ImportedCoreCallableRef, ImportedCorePreludeBinding,
+    ImportedCorePreludeTarget, ImportedCoreTypeRef, ImportedCoreValueRef, ImportedHirFoundation,
+    ImportedHirId, ImportedHirSet, SelectedImportedCoreId, SelectedImportedCoreSet,
+    SelectedImportedCoreTarget,
 };
 pub use imported_protocols::{
     CoreInterfaceImportError, CoreProtocolIdentityKind, CoreProtocolImportError,

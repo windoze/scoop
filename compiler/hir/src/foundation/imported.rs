@@ -350,13 +350,8 @@ pub struct SelectedImportedCoreTarget<'a> {
     target: ImportedCorePreludeTarget<'a>,
 }
 
-/// Request-local id of one selected callable from the trusted core prelude.
-///
-/// This id is meaningful only inside the [`SelectedImportedCoreSet`] that
-/// minted it. It is deliberately distinct from source declarations,
-/// persistent function identities, and imported MIR/LIR identities.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ImportedCoreCallableId(u32);
+struct ImportedCoreCallableId(u32);
 
 /// One callable reference branded by the exact selected-set world that
 /// admitted it. Two lowering requests may both allocate callable index zero;
@@ -365,12 +360,6 @@ pub struct ImportedCoreCallableId(u32);
 pub struct ImportedCoreCallableRef {
     selection: ImportedCoreSelectionId,
     callable: ImportedCoreCallableId,
-}
-
-impl ImportedCoreCallableRef {
-    pub const fn callable(self) -> ImportedCoreCallableId {
-        self.callable
-    }
 }
 
 /// Process-local brand for one selected imported-core world.
@@ -390,18 +379,39 @@ fn next_imported_core_selection() -> ImportedCoreSelectionId {
     ImportedCoreSelectionId(selection)
 }
 
-/// Request-local id of one selected type from the trusted core prelude.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ImportedCoreTypeId(u32);
+struct ImportedCoreTypeId(u32);
 
-/// Request-local id of one selected value from the trusted core prelude.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ImportedCoreValueId(u32);
+struct ImportedCoreValueId(u32);
+
+/// One selected type branded by the exact request-local world that admitted
+/// it. The internal arena index is never exposed independently.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ImportedCoreTypeRef {
+    selection: ImportedCoreSelectionId,
+    ty: ImportedCoreTypeId,
+}
+
+/// One selected value branded by the exact request-local world that admitted
+/// it. The internal arena index is never exposed independently.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ImportedCoreValueRef {
+    selection: ImportedCoreSelectionId,
+    value: ImportedCoreValueId,
+}
 
 /// Typed result of admitting one checked prelude binding into the current
 /// lowering session.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectedImportedCoreId {
+    Callable(ImportedCoreCallableRef),
+    Type(ImportedCoreTypeRef),
+    Value(ImportedCoreValueRef),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SelectedImportedCoreIndex {
     Callable(ImportedCoreCallableId),
     Type(ImportedCoreTypeId),
     Value(ImportedCoreValueId),
@@ -418,7 +428,7 @@ pub struct SelectedImportedCoreSet<'a> {
     interface: &'a CoreHirInterfaceV1,
     strong_callable_bindings: &'a [PersistentExportBindingId],
     selection: ImportedCoreSelectionId,
-    by_binding: BTreeMap<PersistentExportBindingId, SelectedImportedCoreId>,
+    by_binding: BTreeMap<PersistentExportBindingId, SelectedImportedCoreIndex>,
     callables: Vec<SelectedImportedCoreTarget<'a>>,
     types: Vec<SelectedImportedCoreTarget<'a>>,
     values: Vec<SelectedImportedCoreTarget<'a>>,
@@ -442,7 +452,7 @@ impl<'a> SelectedImportedCoreSet<'a> {
             ));
         }
         if let Some(&selected) = self.by_binding.get(&binding.identity().persistent()) {
-            return Ok(selected);
+            return Ok(self.reference(selected));
         }
         let target = binding
             .select_param_free_strong()
@@ -451,38 +461,51 @@ impl<'a> SelectedImportedCoreSet<'a> {
             ImportedCorePreludeTarget::Callable(_) => {
                 let id = ImportedCoreCallableId(checked_selection_index(self.callables.len()));
                 self.callables.push(target);
-                SelectedImportedCoreId::Callable(id)
+                SelectedImportedCoreIndex::Callable(id)
             }
             ImportedCorePreludeTarget::Type(_) => {
                 let id = ImportedCoreTypeId(checked_selection_index(self.types.len()));
                 self.types.push(target);
-                SelectedImportedCoreId::Type(id)
+                SelectedImportedCoreIndex::Type(id)
             }
             ImportedCorePreludeTarget::Value(_) => {
                 let id = ImportedCoreValueId(checked_selection_index(self.values.len()));
                 self.values.push(target);
-                SelectedImportedCoreId::Value(id)
+                SelectedImportedCoreIndex::Value(id)
             }
         };
         let previous = self
             .by_binding
             .insert(binding.identity().persistent(), selected);
         assert!(previous.is_none(), "a fresh imported binding is unique");
-        Ok(selected)
+        Ok(self.reference(selected))
     }
 
-    pub fn callable(&self, id: ImportedCoreCallableId) -> Option<SelectedImportedCoreTarget<'a>> {
+    fn reference(&self, selected: SelectedImportedCoreIndex) -> SelectedImportedCoreId {
+        match selected {
+            SelectedImportedCoreIndex::Callable(callable) => {
+                SelectedImportedCoreId::Callable(ImportedCoreCallableRef {
+                    selection: self.selection,
+                    callable,
+                })
+            }
+            SelectedImportedCoreIndex::Type(ty) => {
+                SelectedImportedCoreId::Type(ImportedCoreTypeRef {
+                    selection: self.selection,
+                    ty,
+                })
+            }
+            SelectedImportedCoreIndex::Value(value) => {
+                SelectedImportedCoreId::Value(ImportedCoreValueRef {
+                    selection: self.selection,
+                    value,
+                })
+            }
+        }
+    }
+
+    fn callable(&self, id: ImportedCoreCallableId) -> Option<SelectedImportedCoreTarget<'a>> {
         self.callables.get(id.0 as usize).copied()
-    }
-
-    /// Binds one selected callable id to this exact request-local world.
-    /// The returned reference is the only imported callable form admitted by
-    /// HIR expressions.
-    pub fn callable_ref(&self, id: ImportedCoreCallableId) -> Option<ImportedCoreCallableRef> {
-        self.callable(id).map(|_| ImportedCoreCallableRef {
-            selection: self.selection,
-            callable: id,
-        })
     }
 
     /// Resolves a branded callable only when it was minted by this exact set.
@@ -495,12 +518,22 @@ impl<'a> SelectedImportedCoreSet<'a> {
             .flatten()
     }
 
-    pub fn ty(&self, id: ImportedCoreTypeId) -> Option<SelectedImportedCoreTarget<'a>> {
-        self.types.get(id.0 as usize).copied()
+    pub fn resolve_type(
+        &self,
+        reference: ImportedCoreTypeRef,
+    ) -> Option<SelectedImportedCoreTarget<'a>> {
+        (reference.selection == self.selection)
+            .then(|| self.types.get(reference.ty.0 as usize).copied())
+            .flatten()
     }
 
-    pub fn value(&self, id: ImportedCoreValueId) -> Option<SelectedImportedCoreTarget<'a>> {
-        self.values.get(id.0 as usize).copied()
+    pub fn resolve_value(
+        &self,
+        reference: ImportedCoreValueRef,
+    ) -> Option<SelectedImportedCoreTarget<'a>> {
+        (reference.selection == self.selection)
+            .then(|| self.values.get(reference.value.0 as usize).copied())
+            .flatten()
     }
 
     pub fn callable_count(&self) -> usize {
