@@ -139,3 +139,41 @@ impl ImportedCoreCallableUse {
         self.reference
     }
 }
+
+/// LocalConcrete-HIR use of one selected core type. This wrapper is distinct
+/// from both the Export-HIR element and the other imported entity kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedCoreTypeUse {
+    reference: crate::ImportedCoreTypeRef,
+}
+
+impl ImportedCoreTypeUse {
+    pub fn from_export(source: crate::ImportedCoreTypeUse) -> Self {
+        Self {
+            reference: source.reference(),
+        }
+    }
+
+    pub const fn reference(self) -> crate::ImportedCoreTypeRef {
+        self.reference
+    }
+}
+
+/// LocalConcrete-HIR use of one selected core value. This wrapper is distinct
+/// from both the Export-HIR element and the other imported entity kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedCoreValueUse {
+    reference: crate::ImportedCoreValueRef,
+}
+
+impl ImportedCoreValueUse {
+    pub fn from_export(source: crate::ImportedCoreValueUse) -> Self {
+        Self {
+            reference: source.reference(),
+        }
+    }
+
+    pub const fn reference(self) -> crate::ImportedCoreValueRef {
+        self.reference
+    }
+}

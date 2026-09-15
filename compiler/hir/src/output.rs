@@ -444,40 +444,54 @@ impl<'a> OrdinaryHirOutput<'a> {
             return Err(OrdinaryHirOutputError::CoreShapeSupportMaterialization);
         }
 
-        let export = &output.export.module().imported_core_callables;
-        let local = &output.local.module().imported_core_callables;
-        if export.len() != local.len() {
-            return Err(OrdinaryHirOutputError::ProjectionCountMismatch {
-                export: export.len(),
-                local: local.len(),
-            });
-        }
-        if export.len() != imported_core.callable_count() {
-            return Err(OrdinaryHirOutputError::SelectionCountMismatch {
-                hir: export.len(),
-                selected: imported_core.callable_count(),
-            });
-        }
-        let mut bindings = HashSet::with_capacity(export.len());
-        for ((export_id, export_use), (local_id, local_use)) in export.iter().zip(local.iter()) {
-            if export_id.into_raw().into_u32() != local_id.into_raw().into_u32()
-                || export_use.reference() != local_use.reference()
-            {
-                return Err(OrdinaryHirOutputError::ProjectionMismatch {
-                    index: export_id.into_raw().into_u32(),
-                });
-            }
-            let Some(selected) = imported_core.resolve_callable(export_use.reference()) else {
-                return Err(OrdinaryHirOutputError::ForeignImportedCallable {
-                    index: export_id.into_raw().into_u32(),
-                });
-            };
-            if !bindings.insert(selected.binding().persistent()) {
-                return Err(OrdinaryHirOutputError::DuplicateImportedCallable {
-                    index: export_id.into_raw().into_u32(),
-                });
-            }
-        }
+        let export = output.export.module();
+        let local = output.local.module();
+        let selected_count = imported_core.callable_count()
+            + imported_core.type_count()
+            + imported_core.value_count();
+        let mut bindings = HashSet::with_capacity(selected_count);
+        validate_imported_core_projection(
+            ImportedCoreUseKind::Callable,
+            export
+                .imported_core_callables
+                .iter()
+                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
+            local
+                .imported_core_callables
+                .iter()
+                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
+            imported_core.callable_count(),
+            |reference| imported_core.resolve_callable(reference),
+            &mut bindings,
+        )?;
+        validate_imported_core_projection(
+            ImportedCoreUseKind::Type,
+            export
+                .imported_core_types
+                .iter()
+                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
+            local
+                .imported_core_types
+                .iter()
+                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
+            imported_core.type_count(),
+            |reference| imported_core.resolve_type(reference),
+            &mut bindings,
+        )?;
+        validate_imported_core_projection(
+            ImportedCoreUseKind::Value,
+            export
+                .imported_core_values
+                .iter()
+                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
+            local
+                .imported_core_values
+                .iter()
+                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
+            imported_core.value_count(),
+            |reference| imported_core.resolve_value(reference),
+            &mut bindings,
+        )?;
 
         Ok(Self {
             output,
@@ -498,16 +512,87 @@ impl<'a> OrdinaryHirOutput<'a> {
     }
 }
 
+fn validate_imported_core_projection<'a, Reference: Copy + Eq>(
+    kind: ImportedCoreUseKind,
+    export: impl ExactSizeIterator<Item = (u32, Reference)>,
+    local: impl ExactSizeIterator<Item = (u32, Reference)>,
+    selected_count: usize,
+    mut resolve: impl FnMut(Reference) -> Option<crate::SelectedImportedCoreTarget<'a>>,
+    bindings: &mut HashSet<scoop_identity::PersistentExportBindingId>,
+) -> Result<(), OrdinaryHirOutputError> {
+    let export_count = export.len();
+    let local_count = local.len();
+    if export_count != local_count {
+        return Err(OrdinaryHirOutputError::ProjectionCountMismatch {
+            kind,
+            export: export_count,
+            local: local_count,
+        });
+    }
+    if export_count != selected_count {
+        return Err(OrdinaryHirOutputError::SelectionCountMismatch {
+            kind,
+            hir: export_count,
+            selected: selected_count,
+        });
+    }
+    for ((export_index, export_reference), (local_index, local_reference)) in export.zip(local) {
+        if export_index != local_index || export_reference != local_reference {
+            return Err(OrdinaryHirOutputError::ProjectionMismatch {
+                kind,
+                index: export_index,
+            });
+        }
+        let Some(selected) = resolve(export_reference) else {
+            return Err(OrdinaryHirOutputError::ForeignImportedCoreUse {
+                kind,
+                index: export_index,
+            });
+        };
+        if !bindings.insert(selected.binding().persistent()) {
+            return Err(OrdinaryHirOutputError::DuplicateImportedCoreBinding {
+                kind,
+                index: export_index,
+            });
+        }
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImportedCoreUseKind {
+    Callable,
+    Type,
+    Value,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OrdinaryHirOutputError {
     CurrentConeIsCore,
     DefinedCoreProtocols,
     CoreShapeSupportMaterialization,
-    ProjectionCountMismatch { export: usize, local: usize },
-    SelectionCountMismatch { hir: usize, selected: usize },
-    ProjectionMismatch { index: u32 },
-    ForeignImportedCallable { index: u32 },
-    DuplicateImportedCallable { index: u32 },
+    ProjectionCountMismatch {
+        kind: ImportedCoreUseKind,
+        export: usize,
+        local: usize,
+    },
+    SelectionCountMismatch {
+        kind: ImportedCoreUseKind,
+        hir: usize,
+        selected: usize,
+    },
+    ProjectionMismatch {
+        kind: ImportedCoreUseKind,
+        index: u32,
+    },
+    ForeignImportedCoreUse {
+        kind: ImportedCoreUseKind,
+        index: u32,
+    },
+    DuplicateImportedCoreBinding {
+        kind: ImportedCoreUseKind,
+        index: u32,
+    },
 }
 
 impl fmt::Display for OrdinaryHirOutputError {

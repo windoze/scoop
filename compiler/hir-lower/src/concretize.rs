@@ -219,6 +219,8 @@ struct Concretizer<'a> {
     imported_core_callables: Arena<concrete::ImportedCoreCallableUse>,
     imported_core_callable_map:
         HashMap<export::ImportedCoreCallableUseId, concrete::ImportedCoreCallableUseId>,
+    imported_core_types: Arena<concrete::ImportedCoreTypeUse>,
+    imported_core_values: Arena<concrete::ImportedCoreValueUse>,
     function_coercions: Arena<concrete::FunctionCoercion>,
     coercion_by_key:
         HashMap<(export::FunctionCoercionId, Vec<concrete::TypeId>), concrete::FunctionCoercionId>,
@@ -299,6 +301,16 @@ impl<'a> Concretizer<'a> {
                 (source_id, target)
             })
             .collect();
+        let imported_core_types = source
+            .imported_core_types
+            .iter()
+            .map(|(_, source)| concrete::ImportedCoreTypeUse::from_export(*source))
+            .collect();
+        let imported_core_values = source
+            .imported_core_values
+            .iter()
+            .map(|(_, source)| concrete::ImportedCoreValueUse::from_export(*source))
+            .collect();
         Self {
             source,
             protocols,
@@ -358,6 +370,8 @@ impl<'a> Concretizer<'a> {
             reference_by_key: HashMap::new(),
             imported_core_callables,
             imported_core_callable_map,
+            imported_core_types,
+            imported_core_values,
             function_coercions: Arena::new(),
             coercion_by_key: HashMap::new(),
             foreign_callback_slots: Vec::new(),
@@ -747,6 +761,8 @@ impl<'a> Concretizer<'a> {
             local_functions: self.local_functions,
             callable_references,
             imported_core_callables: self.imported_core_callables,
+            imported_core_types: self.imported_core_types,
+            imported_core_values: self.imported_core_values,
             function_coercions: self.function_coercions,
             foreign_callback_registrations,
             functions,

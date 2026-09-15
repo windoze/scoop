@@ -785,6 +785,8 @@ impl Lowerer {
             local_functions: self.local_functions,
             callable_references: self.callable_references,
             imported_core_callables: Arena::new(),
+            imported_core_types: Arena::new(),
+            imported_core_values: Arena::new(),
             bound_callable_refs: self.bound_callable_refs,
             function_coercions: self.function_coercions,
             foreign_callback_registrations: self.foreign_callback_registrations,

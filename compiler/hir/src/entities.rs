@@ -82,6 +82,12 @@ pub struct Module {
     /// entry retains the brand of the selected-set world that admitted it;
     /// expressions reference this arena instead of a core declaration id.
     pub imported_core_callables: Arena<ImportedCoreCallableUse>,
+    /// Imported core type targets selected for this ordinary HIR graph. The
+    /// arena is independent from callable and value uses, so their local ids
+    /// cannot be interchanged.
+    pub imported_core_types: Arena<ImportedCoreTypeUse>,
+    /// Imported core value targets selected for this ordinary HIR graph.
+    pub imported_core_values: Arena<ImportedCoreValueUse>,
     /// Template-only calls through an interface upper bound. Each entry
     /// names the exact receiver parameter, bound application and declaring
     /// interface method; local-concrete HIR has no corresponding arena.
@@ -832,6 +838,38 @@ impl ImportedCoreCallableUse {
     }
 
     pub const fn reference(self) -> ImportedCoreCallableRef {
+        self.reference
+    }
+}
+
+/// Export-HIR use of one type selected from the trusted core artifact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedCoreTypeUse {
+    reference: ImportedCoreTypeRef,
+}
+
+impl ImportedCoreTypeUse {
+    pub fn new(reference: ImportedCoreTypeRef) -> Self {
+        Self { reference }
+    }
+
+    pub const fn reference(self) -> ImportedCoreTypeRef {
+        self.reference
+    }
+}
+
+/// Export-HIR use of one value selected from the trusted core artifact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedCoreValueUse {
+    reference: ImportedCoreValueRef,
+}
+
+impl ImportedCoreValueUse {
+    pub fn new(reference: ImportedCoreValueRef) -> Self {
+        Self { reference }
+    }
+
+    pub const fn reference(self) -> ImportedCoreValueRef {
         self.reference
     }
 }

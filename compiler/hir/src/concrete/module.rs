@@ -29,6 +29,12 @@ pub struct Module {
     /// Imported core callable uses transposed one-to-one from Export HIR into
     /// this stage's distinct arena-id domain.
     pub imported_core_callables: Arena<ImportedCoreCallableUse>,
+    /// Imported core type uses transposed one-to-one from Export HIR into a
+    /// distinct LocalConcrete arena-id domain.
+    pub imported_core_types: Arena<ImportedCoreTypeUse>,
+    /// Imported core value uses transposed one-to-one from Export HIR into a
+    /// distinct LocalConcrete arena-id domain.
+    pub imported_core_values: Arena<ImportedCoreValueUse>,
     pub function_coercions: Arena<FunctionCoercion>,
     pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
     pub functions: Arena<Function>,
