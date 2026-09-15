@@ -11,6 +11,18 @@ fn text_is_accepted_by_both_builtin_profiles() {
         let inventory = validate_builtin_object_section_inventory_v1(envelope, profile).unwrap();
         assert_eq!(inventory.roles(), &[BuiltinObjectSectionRoleV1::Text]);
     }
+
+    let pure_only = object_with_section(
+        b"__TEXT",
+        b"__text",
+        macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS,
+    );
+    let pure_only = validate_builtin_object_section_inventory_v1(
+        validate_darwin_arm64_object_envelope_v1(&pure_only).unwrap(),
+        BuiltinLinkObjectSectionProfileV1::ScoopLir,
+    )
+    .unwrap();
+    assert_eq!(pure_only.roles(), &[BuiltinObjectSectionRoleV1::Text]);
 }
 
 #[test]

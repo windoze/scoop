@@ -108,7 +108,14 @@ pub(super) fn callable_plan() -> StrongCallableRegistrationPlanSetV1 {
     .unwrap();
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-    StrongCallableRegistrationPlanSetV1::new(&foundation, &identities, &digests).unwrap()
+    StrongCallableRegistrationPlanSetV1::new(
+        &foundation,
+        &identities,
+        scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(&foundation)
+            .unwrap(),
+        &digests,
+    )
+    .unwrap()
 }
 
 fn definition(

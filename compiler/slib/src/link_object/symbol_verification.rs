@@ -24,6 +24,7 @@ pub struct VerifiedStrongDefinitionSymbolV1 {
     section_ordinal: NonZeroU8,
     value: u64,
     no_dead_strip: bool,
+    private_external: bool,
 }
 
 impl VerifiedStrongDefinitionSymbolV1 {
@@ -49,6 +50,10 @@ impl VerifiedStrongDefinitionSymbolV1 {
 
     pub const fn no_dead_strip(&self) -> bool {
         self.no_dead_strip
+    }
+
+    pub const fn private_external(&self) -> bool {
+        self.private_external
     }
 }
 
@@ -233,6 +238,7 @@ pub fn verify_member_strong_object_definitions_v1(
             section_ordinal: location.section_ordinal,
             value: location.value,
             no_dead_strip: observed.no_dead_strip(),
+            private_external: observed.private_external(),
         });
     }
     symbols.sort_unstable_by_key(|symbol| symbol.role);

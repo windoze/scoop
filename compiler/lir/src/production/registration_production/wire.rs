@@ -20,24 +20,26 @@ pub struct DecodedStrongRegistrationProductionSurfaceV1 {
     pub(super) immortal_objects: Vec<DecodedStrongImmortalObjectRegistrationPlanV1>,
     pub(super) static_storages: Vec<DecodedStrongStaticStorageRegistrationPlanV1>,
     pub(super) initialization_units: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
+    pub(super) callable_runtime_scans: Vec<DecodedStrongCallableRuntimeScanPlanV1>,
 }
 
 impl WireEncode for DecodedStrongRegistrationProductionSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encode_field(encoder, 1, &self.identities)?;
         encode_array_field(encoder, 2, &self.safepoints)?;
         encode_array_field(encoder, 3, &self.callables)?;
         encode_array_field(encoder, 4, &self.types)?;
         encode_array_field(encoder, 5, &self.immortal_objects)?;
         encode_array_field(encoder, 6, &self.static_storages)?;
-        encode_array_field(encoder, 7, &self.initialization_units)
+        encode_array_field(encoder, 7, &self.initialization_units)?;
+        encode_array_field(encoder, 8, &self.callable_runtime_scans)
     }
 }
 
 impl WireDecode for DecodedStrongRegistrationProductionSurfaceV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(7)?;
+        decoder.expect_map(8)?;
         Ok(Self {
             identities: decoder.field(1, DecodedStrongRegistrationIdentitySurfaceV1::decode)?,
             safepoints: decode_array_field(
@@ -65,6 +67,11 @@ impl WireDecode for DecodedStrongRegistrationProductionSurfaceV1 {
                 decoder,
                 7,
                 DecodedStrongInitializationUnitRegistrationPlanV1::decode,
+            )?,
+            callable_runtime_scans: decode_array_field(
+                decoder,
+                8,
+                DecodedStrongCallableRuntimeScanPlanV1::decode,
             )?,
         })
     }
@@ -174,6 +181,54 @@ impl WireDecode for DecodedStrongCallableRegistrationPlanV1 {
             registration_fingerprint_node: decoder.field(10, DecodedPersistentId::decode)?,
             registration_definition_patch: decoder.field(11, DecodedPersistentId::decode)?,
             body_definition_patch: decoder.field(12, DecodedPersistentId::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct DecodedStrongCallableRuntimeScanAtomV1 {
+    pub(super) atom: DecodedPersistentId<ObjectDefinitionAtomId>,
+    pub(super) scan: DecodedRefScan,
+}
+
+impl WireEncode for DecodedStrongCallableRuntimeScanAtomV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encode_field(encoder, 1, &self.atom)?;
+        encode_field(encoder, 2, &self.scan)
+    }
+}
+
+impl WireDecode for DecodedStrongCallableRuntimeScanAtomV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            atom: decoder.field(1, DecodedPersistentId::decode)?,
+            scan: decoder.field(2, DecodedRefScan::decode)?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct DecodedStrongCallableRuntimeScanPlanV1 {
+    pub(super) body: DecodedPersistentId<PersistentCallableBodyId>,
+    pub(super) atoms: Vec<DecodedStrongCallableRuntimeScanAtomV1>,
+}
+
+impl WireEncode for DecodedStrongCallableRuntimeScanPlanV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encode_field(encoder, 1, &self.body)?;
+        encode_array_field(encoder, 2, &self.atoms)
+    }
+}
+
+impl WireDecode for DecodedStrongCallableRuntimeScanPlanV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(2)?;
+        Ok(Self {
+            body: decoder.field(1, DecodedPersistentId::decode)?,
+            atoms: decode_array_field(decoder, 2, DecodedStrongCallableRuntimeScanAtomV1::decode)?,
         })
     }
 }
@@ -1404,5 +1459,26 @@ fn require_sum_length(
             decoder.path().clone(),
             Some(decoder.position()),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_the_obsolete_seven_field_registration_surface() {
+        let error = scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
+            &[0xa7],
+            scoop_wire::DecodeLimits::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error.kind(),
+            scoop_wire::WireErrorKind::InvalidLength {
+                expected: 8,
+                actual: 7
+            }
+        ));
     }
 }

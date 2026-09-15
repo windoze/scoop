@@ -30,32 +30,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         let ptr = ptr_ty(context);
         let i64_ty = context.i64_type();
-        let call_index = self.native_call_index;
-        self.native_call_index += 1;
-
         let mut entries = Vec::with_capacity(roots.len() + usize::from(result_root.is_some()));
-        for (index, root) in roots.iter().enumerate() {
+        for root in roots {
             let storage = self.root_source_storage(root.source)?;
-            let descriptor = emit_ref_scan(
-                context,
-                self.llvm,
-                &format!(
-                    "{}.native.{call_index}.root.{index}",
-                    self.function.symbol()
-                ),
-                root.scan.as_ref_scan(),
-            )
-            .expect("LIR caller roots always carry a non-empty scan");
+            let descriptor = self
+                .runtime_scans
+                .emit(root.scan.as_ref_scan())?
+                .ok_or_else(|| CodegenError("caller root has an empty runtime scan".to_string()))?;
             entries.push((storage.pointer, descriptor));
         }
         if let Some((storage, scan)) = result_root {
-            let descriptor = emit_ref_scan(
-                context,
-                self.llvm,
-                &format!("{}.native.{call_index}.result", self.function.symbol()),
-                scan,
-            )
-            .expect("a native result root always carries a non-empty scan");
+            let descriptor = self.runtime_scans.emit(scan)?.ok_or_else(|| {
+                CodegenError("native result root has an empty runtime scan".to_string())
+            })?;
             entries.push((storage, descriptor));
         }
 

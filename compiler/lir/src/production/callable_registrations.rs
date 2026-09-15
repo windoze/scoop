@@ -16,6 +16,9 @@ use crate::{
     StrongRegistrationIdentitySurfaceV1,
 };
 
+mod runtime_scans;
+pub use runtime_scans::*;
+
 /// All semantic identities and graph writers required to emit one strong
 /// callable registration record.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -90,12 +93,14 @@ impl StrongCallableRegistrationPlanV1 {
 pub struct StrongCallableRegistrationPlanSetV1 {
     producer: ConeIdentity,
     registrations: Vec<StrongCallableRegistrationPlanV1>,
+    runtime_scans: StrongCallableRuntimeScanPlanSetV1,
 }
 
 impl StrongCallableRegistrationPlanSetV1 {
     pub fn new(
         foundation: &OdrFreeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
+        runtime_scans: StrongCallableRuntimeScanPlanSetV1,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, StrongCallableRegistrationPlanBuildError> {
         let expected = foundation
@@ -111,6 +116,52 @@ impl StrongCallableRegistrationPlanSetV1 {
         if expected != actual {
             return Err(StrongCallableRegistrationPlanBuildError::CallableSet { expected, actual });
         }
+        let actual_runtime_scan_bodies = runtime_scans
+            .callables()
+            .iter()
+            .map(StrongCallableRuntimeScanPlanV1::body)
+            .collect::<Vec<_>>();
+        if runtime_scans.producer() != foundation.producer()
+            || actual_runtime_scan_bodies != expected
+        {
+            return Err(
+                StrongCallableRegistrationPlanBuildError::RuntimeScanCallableSet {
+                    expected,
+                    actual: actual_runtime_scan_bodies,
+                },
+            );
+        }
+
+        for callable in runtime_scans.callables() {
+            let definition = require_definition(
+                foundation,
+                StrongDefinitionEntity::callable_body(callable.body()),
+                StrongDefinitionRole::CallableBody,
+            )?;
+            let actual = foundation
+                .definition_atoms()
+                .iter()
+                .filter(|atom| {
+                    atom.key().plan() == definition.id()
+                        && atom.key().role() == DefinitionAtomRole::RuntimeRecord
+                })
+                .map(|atom| atom.id())
+                .collect::<Vec<_>>();
+            let expected_atoms = callable
+                .atoms()
+                .iter()
+                .map(StrongCallableRuntimeScanAtomV1::atom)
+                .collect::<Vec<_>>();
+            if actual != expected_atoms {
+                return Err(
+                    StrongCallableRegistrationPlanBuildError::RuntimeScanAtomSet {
+                        body: callable.body(),
+                        expected: expected_atoms,
+                        actual,
+                    },
+                );
+            }
+        }
 
         let mut registrations = Vec::with_capacity(expected.len());
         for (body, identity) in expected.into_iter().zip(identities.callables()) {
@@ -125,6 +176,7 @@ impl StrongCallableRegistrationPlanSetV1 {
         Ok(Self {
             producer: foundation.producer(),
             registrations,
+            runtime_scans,
         })
     }
 
@@ -134,6 +186,10 @@ impl StrongCallableRegistrationPlanSetV1 {
 
     pub fn registrations(&self) -> &[StrongCallableRegistrationPlanV1] {
         &self.registrations
+    }
+
+    pub const fn runtime_scans(&self) -> &StrongCallableRuntimeScanPlanSetV1 {
+        &self.runtime_scans
     }
 }
 
@@ -354,6 +410,15 @@ pub enum StrongCallableRegistrationPlanBuildError {
     CallableSet {
         expected: Vec<PersistentCallableBodyId>,
         actual: Vec<PersistentCallableBodyId>,
+    },
+    RuntimeScanCallableSet {
+        expected: Vec<PersistentCallableBodyId>,
+        actual: Vec<PersistentCallableBodyId>,
+    },
+    RuntimeScanAtomSet {
+        body: PersistentCallableBodyId,
+        expected: Vec<ObjectDefinitionAtomId>,
+        actual: Vec<ObjectDefinitionAtomId>,
     },
     MissingDefinition(Box<ObjectDefinitionPlanKey>),
     RegistrationDefinitionMismatch {

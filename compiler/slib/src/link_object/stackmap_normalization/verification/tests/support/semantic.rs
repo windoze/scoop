@@ -121,10 +121,10 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
 }
 
 #[test]
-fn complete_registration_production_uses_the_closed_seven_field_shape() {
+fn complete_registration_production_uses_the_closed_eight_field_shape() {
     let inputs = inputs(Corruption::None);
     let encoded = scoop_wire::encode(&inputs.registration_production).unwrap();
-    assert_eq!(encoded[0], 0xa7);
+    assert_eq!(encoded[0], 0xa8);
     let decoded = scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
         &encoded,
         scoop_wire::DecodeLimits::default(),

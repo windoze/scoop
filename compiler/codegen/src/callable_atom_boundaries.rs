@@ -94,14 +94,16 @@ pub(crate) fn materialize_v1(
                     physical.checked_end()?,
                 ));
             }
-            DefinitionAtomRole::AddressTakenConstant => {
-                layout.require_existing_boundary_pair(&start_name, &end_name)?;
-            }
-            DefinitionAtomRole::RuntimeRecord => {
-                return Err(CodegenError(format!(
-                    "callable definition {} cannot own a RuntimeRecord atom",
-                    plan.definition_plan()
-                )));
+            DefinitionAtomRole::AddressTakenConstant | DefinitionAtomRole::RuntimeRecord => {
+                layout
+                    .require_existing_boundary_pair(&start_name, &end_name)
+                    .map_err(|error| {
+                        CodegenError(format!(
+                            "callable atom {} ({:?}) has invalid materialized boundaries: {error}",
+                            boundary.atom(),
+                            boundary.atom_role()
+                        ))
+                    })?;
             }
         }
     }

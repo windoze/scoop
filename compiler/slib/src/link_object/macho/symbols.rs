@@ -23,6 +23,7 @@ pub struct ObservedMachOSymbolV1 {
     section_ordinal: Option<NonZeroU8>,
     value: u64,
     no_dead_strip: bool,
+    private_external: bool,
 }
 
 impl ObservedMachOSymbolV1 {
@@ -48,6 +49,10 @@ impl ObservedMachOSymbolV1 {
 
     pub const fn no_dead_strip(&self) -> bool {
         self.no_dead_strip
+    }
+
+    pub const fn private_external(&self) -> bool {
+        self.private_external
     }
 }
 
@@ -95,16 +100,24 @@ fn classify_symbol(
     let symbol_type = symbol.n_type;
     let description = symbol.n_desc.get(endian);
     let value = symbol.n_value.get(endian);
-    let (kind, section_ordinal, no_dead_strip) = match symbol_type {
+    let (kind, section_ordinal, no_dead_strip, private_external) = match symbol_type {
         macho::N_SECT => (
             DarwinArm64SymbolKindV1::LocalSectionDefinition,
             validate_definition_location(table_index, symbol.n_sect, value, sections)?,
             validate_definition_description(table_index, description)?,
+            false,
         ),
         symbol_type if symbol_type == (macho::N_SECT | macho::N_EXT) => (
             DarwinArm64SymbolKindV1::ExternalStrongDefinition,
             validate_definition_location(table_index, symbol.n_sect, value, sections)?,
             validate_definition_description(table_index, description)?,
+            false,
+        ),
+        symbol_type if symbol_type == (macho::N_SECT | macho::N_EXT | macho::N_PEXT) => (
+            DarwinArm64SymbolKindV1::ExternalStrongDefinition,
+            validate_definition_location(table_index, symbol.n_sect, value, sections)?,
+            validate_definition_description(table_index, description)?,
+            true,
         ),
         symbol_type if symbol_type == (macho::N_UNDF | macho::N_EXT) => {
             if symbol.n_sect != macho::NO_SECT || value != 0 || description != 0 {
@@ -114,7 +127,12 @@ fn classify_symbol(
                     },
                 );
             }
-            (DarwinArm64SymbolKindV1::ExternalUndefined, None, false)
+            (
+                DarwinArm64SymbolKindV1::ExternalUndefined,
+                None,
+                false,
+                false,
+            )
         }
         _ => {
             return Err(
@@ -132,6 +150,7 @@ fn classify_symbol(
         section_ordinal,
         value,
         no_dead_strip,
+        private_external,
     })
 }
 
@@ -170,8 +189,9 @@ fn validate_definition_description(
     description: u16,
 ) -> Result<bool, DarwinArm64SymbolInventoryValidationError> {
     match description {
-        0 => Ok(false),
+        0 | macho::N_ALT_ENTRY => Ok(false),
         macho::N_NO_DEAD_STRIP => Ok(true),
+        description if description == macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY => Ok(true),
         actual => Err(
             DarwinArm64SymbolInventoryValidationError::UnsupportedSymbolDescription {
                 index,

@@ -793,9 +793,22 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         bounds_message,
         array_size_message,
     };
+    let runtime_scan_plans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(module)
+        .map_err(|error| CodegenError(format!("callable runtime scan planning failed: {error}")))?;
     for function in &module.functions {
         if selection.defines_callable(function.callable_body.id()) {
-            emit_function(context, &llvm, &builder, &module_ctx, function)?;
+            let runtime_scan_plan = runtime_scan_plans
+                .callable(function.callable_body.id())
+                .expect("runtime scan planning covers every function");
+            emit_function(
+                context,
+                &llvm,
+                &builder,
+                &module_ctx,
+                function,
+                surface,
+                runtime_scan_plan,
+            )?;
         }
     }
     Ok((llvm, runtime_metadata))

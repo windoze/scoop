@@ -5,14 +5,14 @@ use std::fmt;
 use std::num::NonZeroU64;
 
 use scoop_identity::{
-    DecodedPersistentId, LinkageClass, PersistentId, PersistentStaticStorageId,
+    DecodedPersistentId, DefinitionAtomRole, LinkageClass, PersistentId, PersistentStaticStorageId,
     PersistentSymbolKey, PersistentSymbolRequest, RepresentationRole, ScanRole, StaticStorageKey,
 };
 use scoop_wire::{WireEncode, encode};
 
 use super::wire::{
     DecodedImmortalObjectTypeRegistrationRefV1, DecodedOptionalStrongTypeDescriptorRefV1,
-    DecodedRefScan, DecodedStaticImmortalRelocationPlanV1,
+    DecodedRefScan, DecodedStaticImmortalRelocationPlanV1, DecodedStrongCallableRuntimeScanPlanV1,
     DecodedStrongInitializationSchedulePlanV1, DecodedStrongStaticStorageInitialStatePlanV1,
     DecodedStrongTypeDescriptorRefV1, DecodedStrongTypeDispatchCallableRefV1,
     DecodedStrongTypeItableSemanticPlanV1, DecodedStrongTypeRegistrationPlanV1,
@@ -29,8 +29,9 @@ use super::{
 use crate::{
     ArrayElementStorageV1, BackendScalarKind, ImmortalObjectTypeRegistrationRefV1,
     LirTargetProfile, NonEmptyRefScan, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeFunction,
-    StaticImmortalRelocationPlanV1, StaticStorageScanKindV1, StrongDigestFinalizationPlanV1,
-    StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
+    StaticImmortalRelocationPlanV1, StaticStorageScanKindV1, StrongCallableRuntimeScanAtomV1,
+    StrongCallableRuntimeScanPlanSetV1, StrongCallableRuntimeScanPlanV1,
+    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongImmortalObjectSemanticPlanSetV1, StrongImmortalObjectSemanticPlanV1,
     StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSetV1,
     StrongInitializationUnitSemanticPlanV1, StrongRegistrationIdentitySurfaceV1,
@@ -59,16 +60,23 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             .validate(foundation, digests)
             .map_err(StrongRegistrationProductionValidationError::Identities)?;
         let safepoint_semantics = validate_safepoints(self.safepoints, foundation, &identities)?;
+        let callable_runtime_scans =
+            validate_callable_runtime_scans(self.callable_runtime_scans, foundation)?;
         validate_derived_table(
             RegistrationProductionTableV1::Callable,
             &self.callables,
-            crate::StrongCallableRegistrationPlanSetV1::new(foundation, &identities, digests)
-                .map_err(|error| {
-                    StrongRegistrationProductionValidationError::Expected(Box::new(
-                        StrongRegistrationProductionBuildError::Callables(error),
-                    ))
-                })?
-                .registrations(),
+            crate::StrongCallableRegistrationPlanSetV1::new(
+                foundation,
+                &identities,
+                callable_runtime_scans.clone(),
+                digests,
+            )
+            .map_err(|error| {
+                StrongRegistrationProductionValidationError::Expected(Box::new(
+                    StrongRegistrationProductionBuildError::Callables(error),
+                ))
+            })?
+            .registrations(),
         )?;
         let type_semantics = validate_types(
             self.types,
@@ -99,6 +107,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             foundation,
             digests,
             identities,
+            callable_runtime_scans,
             type_semantics,
             safepoint_semantics,
             immortal_semantics,
@@ -111,6 +120,92 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             return Err(StrongRegistrationProductionValidationError::SurfaceMismatch);
         }
         Ok(expected)
+    }
+}
+
+fn validate_callable_runtime_scans(
+    decoded: Vec<DecodedStrongCallableRuntimeScanPlanV1>,
+    foundation: &OdrFreeLirFoundation,
+) -> Result<StrongCallableRuntimeScanPlanSetV1, StrongRegistrationProductionValidationError> {
+    let mut callables = Vec::with_capacity(decoded.len());
+    for (index, decoded) in decoded.into_iter().enumerate() {
+        let body = resolve_known(
+            decoded.body,
+            foundation
+                .callable_bodies()
+                .iter()
+                .map(|record| record.id()),
+            RegistrationProductionTableV1::Callable,
+            index,
+            "runtime_scan_body",
+        )?;
+        let mut atoms = Vec::with_capacity(decoded.atoms.len());
+        for decoded_atom in decoded.atoms {
+            let atom = resolve_known(
+                decoded_atom.atom,
+                foundation
+                    .definition_atoms()
+                    .iter()
+                    .filter(|record| record.key().role() == DefinitionAtomRole::RuntimeRecord)
+                    .map(|record| record.id()),
+                RegistrationProductionTableV1::Callable,
+                index,
+                "runtime_scan_atom",
+            )?;
+            let scan = validate_callable_ref_scan(decoded_atom.scan, index)?;
+            atoms.push(StrongCallableRuntimeScanAtomV1::from_artifact(atom, scan));
+        }
+        callables.push(StrongCallableRuntimeScanPlanV1::from_artifact(body, atoms));
+    }
+    StrongCallableRuntimeScanPlanSetV1::from_artifact(foundation.producer(), callables).map_err(
+        |error| {
+            StrongRegistrationProductionValidationError::Expected(Box::new(
+                StrongRegistrationProductionBuildError::CallableRuntimeScans(error),
+            ))
+        },
+    )
+}
+
+fn validate_callable_ref_scan(
+    decoded: DecodedRefScan,
+    index: usize,
+) -> Result<RefScan, StrongRegistrationProductionValidationError> {
+    match decoded {
+        DecodedRefScan::None => Ok(RefScan::None),
+        DecodedRefScan::References(offsets) => Ok(RefScan::References(offsets)),
+        DecodedRefScan::Sequence(parts) => parts
+            .into_iter()
+            .map(|part| validate_callable_ref_scan(part, index))
+            .collect::<Result<Vec<_>, _>>()
+            .map(RefScan::Sequence),
+        DecodedRefScan::Array {
+            length_offset,
+            first_element_offset,
+            stride,
+            element,
+        } => {
+            let stride = NonZeroU64::new(stride).ok_or_else(|| {
+                semantic_error(
+                    RegistrationProductionTableV1::Callable,
+                    index,
+                    "runtime_scan_stride",
+                )
+            })?;
+            let element = validate_callable_ref_scan(*element, index)?;
+            let element = NonEmptyRefScan::new(element).ok_or_else(|| {
+                semantic_error(
+                    RegistrationProductionTableV1::Callable,
+                    index,
+                    "runtime_scan_element",
+                )
+            })?;
+            Ok(RefScan::Array {
+                length_offset,
+                first_element_offset,
+                stride,
+                element: Box::new(element),
+            })
+        }
     }
 }
 

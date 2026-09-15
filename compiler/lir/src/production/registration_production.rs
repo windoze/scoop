@@ -8,6 +8,7 @@ use crate::{
     ImmortalObjectTypeRegistrationRefV1, Module, OdrFreeLirFoundation, RefScan,
     StaticStorageRelocationTableArtifactV1, StrongCallableRegistrationPlanBuildError,
     StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
+    StrongCallableRuntimeScanPlanError, StrongCallableRuntimeScanPlanSetV1,
     StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanBuildError,
     StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectRegistrationPlanV1,
     StrongImmortalObjectSemanticPlanBuildError, StrongImmortalObjectSemanticPlanSetV1,
@@ -61,11 +62,15 @@ impl StrongRegistrationProductionSurfaceV1 {
             target.wire_id(),
             Vec::new(),
         );
+        let callable_runtime_scans =
+            StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(foundation)
+                .map_err(StrongRegistrationProductionBuildError::CallableRuntimeScans)?;
         Self::from_semantics(
             target,
             foundation,
             digests,
             identities,
+            callable_runtime_scans,
             type_semantics,
             StrongSafepointSemanticPlanSetV1::from_artifact(foundation.producer(), Vec::new()),
             StrongImmortalObjectSemanticPlanSetV1::from_artifact(foundation.producer(), Vec::new()),
@@ -102,12 +107,15 @@ impl StrongRegistrationProductionSurfaceV1 {
         let initialization_semantics =
             StrongInitializationUnitSemanticPlanSetV1::from_module(module)
                 .map_err(StrongRegistrationProductionBuildError::InitializationSemantics)?;
+        let callable_runtime_scans = StrongCallableRuntimeScanPlanSetV1::from_module(module)
+            .map_err(StrongRegistrationProductionBuildError::CallableRuntimeScans)?;
 
         Self::from_semantics(
             module.meta.target_profile,
             foundation,
             digests,
             identities,
+            callable_runtime_scans,
             type_semantics,
             safepoint_semantics,
             immortal_semantics,
@@ -121,6 +129,7 @@ impl StrongRegistrationProductionSurfaceV1 {
         foundation: &OdrFreeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
         identities: StrongRegistrationIdentitySurfaceV1,
+        callable_runtime_scans: StrongCallableRuntimeScanPlanSetV1,
         type_semantics: StrongTypeDescriptorSemanticPlanSetV1,
         safepoint_semantics: StrongSafepointSemanticPlanSetV1,
         immortal_semantics: StrongImmortalObjectSemanticPlanSetV1,
@@ -133,8 +142,13 @@ impl StrongRegistrationProductionSurfaceV1 {
             digests,
         )
         .map_err(StrongRegistrationProductionBuildError::Safepoints)?;
-        let callables = StrongCallableRegistrationPlanSetV1::new(foundation, &identities, digests)
-            .map_err(StrongRegistrationProductionBuildError::Callables)?;
+        let callables = StrongCallableRegistrationPlanSetV1::new(
+            foundation,
+            &identities,
+            callable_runtime_scans,
+            digests,
+        )
+        .map_err(StrongRegistrationProductionBuildError::Callables)?;
         let types = StrongTypeRegistrationPlanSetV1::new(
             target,
             foundation,
@@ -226,14 +240,16 @@ impl StrongRegistrationProductionSurfaceV1 {
 
 impl WireEncode for StrongRegistrationProductionSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encode_field(encoder, 1, &self.identities)?;
         encode_array_field(encoder, 2, self.safepoints.registrations())?;
         encode_array_field(encoder, 3, self.callables.registrations())?;
         encode_array_field(encoder, 4, self.types.registrations())?;
         encode_array_field(encoder, 5, self.immortal_objects.registrations())?;
         encode_array_field(encoder, 6, self.static_storages.registrations())?;
-        encode_array_field(encoder, 7, self.initialization_units.registrations())
+        encode_array_field(encoder, 7, self.initialization_units.registrations())?;
+        encoder.field(8)?;
+        encode_callable_runtime_scans(encoder, self.callables.runtime_scans())
     }
 }
 
@@ -271,6 +287,26 @@ impl WireEncode for StrongCallableRegistrationPlanV1 {
         encode_field(encoder, 11, &self.registration_definition_patch())?;
         encode_field(encoder, 12, &self.body_definition_patch())
     }
+}
+
+fn encode_callable_runtime_scans(
+    encoder: &mut Encoder,
+    plans: &StrongCallableRuntimeScanPlanSetV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.array(plans.callables().len() as u64)?;
+    for callable in plans.callables() {
+        encoder.map(2)?;
+        encode_field(encoder, 1, &callable.body())?;
+        encoder.field(2)?;
+        encoder.array(callable.atoms().len() as u64)?;
+        for atom in callable.atoms() {
+            encoder.map(2)?;
+            encode_field(encoder, 1, &atom.atom())?;
+            encoder.field(2)?;
+            encode_ref_scan(encoder, atom.scan())?;
+        }
+    }
+    Ok(())
 }
 
 impl WireEncode for StrongTypeRegistrationPlanV1 {
@@ -772,6 +808,7 @@ pub enum StrongRegistrationProductionBuildError {
         foundation: scoop_identity::ConeIdentity,
     },
     Identities(StrongRegistrationIdentityBuildError),
+    CallableRuntimeScans(StrongCallableRuntimeScanPlanError),
     SafepointSemantics(StrongSafepointSemanticPlanError),
     TypeSemantics(StrongTypeDescriptorSemanticPlanBuildError),
     ImmortalSemantics(StrongImmortalObjectSemanticPlanBuildError),

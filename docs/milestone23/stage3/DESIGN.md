@@ -1524,7 +1524,12 @@ section-definition start/end symbol；不得使用`nlist` size、相邻symbol或
 table时必须保留local/extdef/undefined分区，并同步修正所有指向被后移undefined symbol的external
 relocation index。缺失/多余backend section、符号冲突、越界、scattered relocation或非canonical table
 布局都必须在改写前失败；callable-owned C string的`AddressTakenConstant`边界仍由LLVM global
-alias直接发射，并在此门禁复核为同section的非空范围。
+alias直接发射；callable-owned recursive scan的`RuntimeRecord`也必须已有同样的精确global boundary，两者均在
+此门禁复核为同section的非空范围，不能由section整体或临近local symbol代替。
+LLVM/Mach-O可把与相邻定义同地址的end alias标为`N_ALT_ENTRY`，也可把hidden primary或global alias标为
+`N_PEXT`；object envelope必须显式保留这两个属性，只允许它们出现在section definition，不能把weak/reference
+flags一并放宽。`__TEXT,__text`必须含`S_ATTR_PURE_INSTRUCTIONS`，`S_ATTR_SOME_INSTRUCTIONS`是LLVM可省略的
+冗余提示位；其余flag仍按封闭section矩阵精确匹配。
 
 ### 11.2 member id在finalization前确定
 
@@ -1602,6 +1607,17 @@ support。LIR必须把每项表示为`CallableBody` owner下、由唯一
 boundary，另行物化end boundary；不再产生或接受arena枚举顺序派生的旧符号。CString
 owner不在当前Cone的callable body全集、path重复、atom派生不一致或实际物理字节不等于
 `UTF-8 bytes + NUL`都必须在进入object proof前失败。
+
+callable中供`Value::RootScan`、native caller-root/result publication和managed-invoke exceptional-root使用的
+递归GC scan同样不是LLVM私有常量。writer必须按最终LIR中`root_scans` arena顺序、随后block/instruction顺序以及
+每个site的root/result顺序收集全部非空scan tree；`Sequence`与`Array`按child-first顺序展开，每个实际物化节点
+取得连续的`SyntheticValue` ordinal，并形成该`CallableBody` definition下唯一的
+`RuntimeRecord + StructuralPath(SyntheticValue, ordinal)` associated atom。完整callable registration plan必须逐项
+携带`{ atom, RefScan }`，要求ordinal从0连续、atom由body/ordinal重算且foundation associated-atom集合精确相等；
+该序列作为registration-production surface的第8字段序列化；旧的7-field surface直接拒绝，不提供兼容分支。
+codegen只能消费该序列发射scan global，以atom stable start
+boundary作为真实定义并物化end boundary；计划缺失、多余、错序、scan payload不一致或递归空Array child均原子失败，
+不得继续生成`function.native.*.result`、`root_scan.*`等无身份private global。
 
 后端固定的数组越界与数组大小溢出trapping message不属于任一callable的
 source-level constant集合，而是Cone image的固定associated support atoms：分别使用
@@ -2656,8 +2672,12 @@ normalized byte span、按atom offset排序的relocation sequence及canonical di
 relocation固定写offset、form tag及其optional explicit addend、原始checked encoded value、target count和
 按Single/Minuend/Subtrahend排序的target；target只允许由strong relocation closure与最终requirement proof
 提升为`IntraConeStrong/CoreStrong/GeneratedBridge/SourceExtern/RuntimeAbi/TargetEhSupport/CBridgeTargetSupport`
-封闭sum。member、section ordinal、symbol table index与raw symbol spelling均不进入hash；local/section-base
-target要等associated-record归一化器提供owner-relative语义后再开放，当前直接拒绝，不能退回hash物理索引。
+封闭sum，或在物理target精确落入同一body已计划associated atom时提升为
+`OwningAssociatedAtomOffset { atom, role, offset_within_atom }`。每个callable runtime-scan atom的bytes与其中指向
+child scan atom的canonical relocation按plan顺序作为associated-atom sequence进入同一个body ObjectDefinition
+fingerprint；body Primary指向top-level scan的Page/GOT/Unsigned relocation也使用同一owner-relative target。
+member、section ordinal、symbol table index与raw symbol spelling均不进入hash；未命中已计划associated atom的
+local/section-base target仍直接拒绝，不能退回hash物理索引。
 
 `compute_strong_safepoint_fingerprints_v1`只能消费上述完整proof与同一member全集的exact object bytes；
 入口先再次核对每个member的长度与content digest，再按site一次性产生typed

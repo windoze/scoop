@@ -4,64 +4,6 @@ use crate::shape_definitions::{
     descriptor_itable_directory_atom, emit_dispatch_definition_v1,
 };
 
-/// Emit one function-local recursive GC scan program. Persistent layout
-/// scans use `shape_definitions`; this helper is reserved for ephemeral root
-/// descriptors attached to generated call frames.
-pub(super) fn emit_ref_scan<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    name: &str,
-    scan: &RefScan,
-) -> Option<PointerValue<'ctx>> {
-    let i64 = context.i64_type();
-    let words = match scan {
-        RefScan::None => return None,
-        RefScan::References(offsets) if offsets.is_empty() => return None,
-        RefScan::References(offsets) => std::iter::once(i64.const_int(offsets.len() as u64, false))
-            .chain(offsets.iter().map(|offset| i64.const_int(*offset, false)))
-            .collect(),
-        RefScan::Sequence(parts) => {
-            let children = parts
-                .iter()
-                .enumerate()
-                .filter_map(|(index, part)| {
-                    emit_ref_scan(context, llvm, &format!("{name}.part.{index}"), part)
-                })
-                .collect::<Vec<_>>();
-            if children.is_empty() {
-                return None;
-            }
-            std::iter::once(i64.const_int(SCAN_SEQUENCE, false))
-                .chain(std::iter::once(i64.const_int(children.len() as u64, false)))
-                .chain(children.into_iter().map(|child| child.const_to_int(i64)))
-                .collect()
-        }
-        RefScan::Array {
-            length_offset,
-            first_element_offset,
-            stride,
-            element,
-        } => {
-            let child = emit_ref_scan(
-                context,
-                llvm,
-                &format!("{name}.element"),
-                element.as_ref_scan(),
-            )
-            .expect("a NonEmptyRefScan always emits a physical scan program");
-            vec![
-                i64.const_int(SCAN_ARRAY, false),
-                i64.const_int(*length_offset, false),
-                i64.const_int(*first_element_offset, false),
-                i64.const_int(stride.get(), false),
-                child.const_to_int(i64),
-            ]
-        }
-    };
-    let value = i64.const_array(&words);
-    Some(private_const_global(llvm, name, value.into()))
-}
-
 pub(super) fn type_descriptor_global<'ctx>(
     reference: TypeDescriptorRef,
     locals: &[GlobalValue<'ctx>],

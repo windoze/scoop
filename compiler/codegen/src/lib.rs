@@ -72,6 +72,7 @@ mod atom_boundaries;
 mod c_bridge;
 mod c_bridge_emission;
 mod callable_atom_boundaries;
+mod callable_runtime_scans;
 mod declarations;
 mod emission;
 mod function;
@@ -133,7 +134,7 @@ pub use target::{
     ValidatedCBridgeToolchainProfile, ValidatedFinalLinkProfile, ValidatedRuntimeBuildProfile,
     linked_llvm_version,
 };
-pub(crate) use type_descriptors::{emit_ref_scan, type_descriptor_global};
+pub(crate) use type_descriptors::type_descriptor_global;
 
 fn align_up(value: u64, align: u64) -> u64 {
     debug_assert!(align.is_power_of_two());

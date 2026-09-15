@@ -10,8 +10,8 @@ use crate::link_object::{
     FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     StrongDefinitionOwnerV1, StrongRelocationResolutionV1,
     VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedRelocationTargetV1,
+    VerifiedDarwinArm64RelocationShapeV1, VerifiedDefinitionAtomRangeV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedRelocationTargetV1,
 };
 
 const PRIMARY_ATOM_ROLE: u32 = 1;
@@ -261,6 +261,31 @@ impl CanonicalObjectRelocationV1 {
         }
         Ok(())
     }
+
+    pub(in crate::link_object) fn is_owning_associated_unsigned64(
+        &self,
+        offset_within_atom: u64,
+        atom: ObjectDefinitionAtomId,
+        role: DefinitionAtomRole,
+        target_offset_within_atom: u64,
+    ) -> bool {
+        self.offset_within_atom == offset_within_atom
+            && self.form == VerifiedDarwinArm64RelocationFormV1::Unsigned64
+            && self.encoded_value == 0
+            && matches!(
+                self.targets.as_slice(),
+                [CanonicalRelocationTargetV1 {
+                    slot: RelocationTargetSlotV1::Single,
+                    target: CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                        atom: actual_atom,
+                        role: actual_role,
+                        offset_within_atom: actual_offset,
+                    },
+                }] if *actual_atom == atom
+                    && *actual_role == role
+                    && *actual_offset == target_offset_within_atom
+            )
+    }
 }
 
 impl RuntimeEncode for CanonicalObjectRelocationV1 {
@@ -328,15 +353,23 @@ pub(in crate::link_object) fn canonicalize_relocations(
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     requirements: &CanonicalUndefinedSymbolRequirementSetV1,
 ) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
+    canonicalize_relocations_with_associated_atoms(bytes, member, atom, closure, requirements, &[])
+}
+
+pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
+    bytes: &[u8],
+    member: &VerifiedMemberObjectRelocationIndexV1,
+    atom: scoop_identity::ObjectDefinitionAtomId,
+    closure: &VerifiedCurrentConeStrongRelocationClosureV1,
+    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    associated_atoms: &[VerifiedDefinitionAtomRangeV1],
+) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
     let mut output = Vec::new();
     for relocation in member
         .relocations()
         .iter()
         .filter(|relocation| relocation.containing_atom() == atom)
     {
-        if shape_has_local_or_section_target(relocation.shape()) {
-            return Err(ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget);
-        }
         let bindings = closure
             .bindings()
             .iter()
@@ -346,46 +379,60 @@ pub(in crate::link_object) fn canonicalize_relocations(
                     && binding.offset_within_atom() == relocation.offset_within_atom()
             })
             .collect::<Vec<_>>();
-        let expected_count = usize::from(matches!(
-            relocation.shape().form(),
-            VerifiedDarwinArm64RelocationFormV1::Subtractor64
-        )) + 1;
-        if bindings.len() != expected_count {
+        let mut binding_count = 0;
+        let mut targets = Vec::new();
+        for (slot, target) in relocation_targets(relocation.shape()) {
+            let target = match target {
+                VerifiedRelocationTargetV1::LocalDefinition {
+                    owner_atom: Some(target_atom),
+                    section_ordinal,
+                    value,
+                    ..
+                } => {
+                    let range = associated_atoms
+                        .iter()
+                        .find(|range| range.atom() == *target_atom)
+                        .ok_or(
+                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
+                        )?;
+                    if range.section_ordinal() != *section_ordinal
+                        || *value < range.start()
+                        || *value >= range.end()
+                    {
+                        return Err(
+                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
+                        );
+                    }
+                    CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                        atom: *target_atom,
+                        role: range.atom_role(),
+                        offset_within_atom: *value - range.start(),
+                    }
+                }
+                VerifiedRelocationTargetV1::LocalDefinition { .. }
+                | VerifiedRelocationTargetV1::SectionBase { .. } => {
+                    return Err(
+                        ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
+                    );
+                }
+                VerifiedRelocationTargetV1::StrongDefinition { .. }
+                | VerifiedRelocationTargetV1::ExternalUndefined { .. } => {
+                    let binding = bindings
+                        .iter()
+                        .find(|binding| binding.target_slot() == slot)
+                        .ok_or(ObjectDefinitionRelocationFailureV1::BindingCount)?;
+                    binding_count += 1;
+                    CanonicalRelocationTargetKindV1::Requirement(canonical_requirement(
+                        binding,
+                        requirements,
+                    )?)
+                }
+            };
+            targets.push(CanonicalRelocationTargetV1 { slot, target });
+        }
+        if bindings.len() != binding_count {
             return Err(ObjectDefinitionRelocationFailureV1::BindingCount);
         }
-        let mut targets = bindings
-            .into_iter()
-            .map(|binding| {
-                let requirement = match binding.resolution() {
-                    StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. } => match owner {
-                        LinkDefinitionOwnerV1::StrongDefinition(owner) => {
-                            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner }
-                        }
-                        _ => {
-                            return Err(
-                                ObjectDefinitionRelocationFailureV1::UnsupportedObjectLocalOwner,
-                            );
-                        }
-                    },
-                    StrongRelocationResolutionV1::CurrentConeUndefinedStrong { .. }
-                    | StrongRelocationResolutionV1::ExternalCandidate { .. } => {
-                        let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
-                        requirements
-                            .requirements()
-                            .iter()
-                            .find(|requirement| requirement.use_site() == &use_site)
-                            .map(|requirement| requirement.requirement())
-                            .ok_or(
-                                ObjectDefinitionRelocationFailureV1::MissingUndefinedRequirement,
-                            )?
-                    }
-                };
-                Ok(CanonicalRelocationTargetV1 {
-                    slot: binding.target_slot(),
-                    target: CanonicalRelocationTargetKindV1::Requirement(requirement),
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
         targets.sort_unstable_by_key(|target| target.slot);
         output.push(CanonicalObjectRelocationV1 {
             offset_within_atom: relocation.offset_within_atom(),
@@ -410,7 +457,9 @@ pub(in crate::link_object) fn canonicalize_relocations(
     Ok(output)
 }
 
-fn shape_has_local_or_section_target(shape: &VerifiedDarwinArm64RelocationShapeV1) -> bool {
+fn relocation_targets(
+    shape: &VerifiedDarwinArm64RelocationShapeV1,
+) -> Vec<(RelocationTargetSlotV1, &VerifiedRelocationTargetV1)> {
     match shape {
         VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { target }
         | VerifiedDarwinArm64RelocationShapeV1::Branch26 { target }
@@ -421,21 +470,40 @@ fn shape_has_local_or_section_target(shape: &VerifiedDarwinArm64RelocationShapeV
         | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
         | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
         | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
-            is_local_or_section(target)
+            vec![(RelocationTargetSlotV1::Single, target)]
         }
         VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
             minuend,
             subtrahend,
-        } => is_local_or_section(minuend) || is_local_or_section(subtrahend),
+        } => vec![
+            (RelocationTargetSlotV1::Minuend, minuend),
+            (RelocationTargetSlotV1::Subtrahend, subtrahend),
+        ],
     }
 }
 
-fn is_local_or_section(target: &VerifiedRelocationTargetV1) -> bool {
-    matches!(
-        target,
-        VerifiedRelocationTargetV1::LocalDefinition { .. }
-            | VerifiedRelocationTargetV1::SectionBase { .. }
-    )
+fn canonical_requirement(
+    binding: &crate::link_object::StrongRelocationBindingV1,
+    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+) -> Result<FinalUndefinedSymbolRequirementV1, ObjectDefinitionRelocationFailureV1> {
+    match binding.resolution() {
+        StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. } => match owner {
+            LinkDefinitionOwnerV1::StrongDefinition(owner) => {
+                Ok(FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner })
+            }
+            _ => Err(ObjectDefinitionRelocationFailureV1::UnsupportedObjectLocalOwner),
+        },
+        StrongRelocationResolutionV1::CurrentConeUndefinedStrong { .. }
+        | StrongRelocationResolutionV1::ExternalCandidate { .. } => {
+            let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
+            requirements
+                .requirements()
+                .iter()
+                .find(|requirement| requirement.use_site() == &use_site)
+                .map(|requirement| requirement.requirement())
+                .ok_or(ObjectDefinitionRelocationFailureV1::MissingUndefinedRequirement)
+        }
+    }
 }
 
 fn normalize_u32(

@@ -374,7 +374,7 @@ fn computes_canonical_initialization_strong_fingerprints() {
     );
     assert_eq!(
         eager_actual.registration().to_string(),
-        "b484b45d8794d990f9af271fefe9ecf1134c96b1489776a52e15135b081e03a0"
+        "75e1759d7ce8eb8782ec97f3552150e2345b0a0294f070ca69c1273162c112ae"
     );
     let eager_patched =
         crate::link_object::strong_registration_finalization::patch_initializations_for_test(

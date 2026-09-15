@@ -190,8 +190,14 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
     );
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
-    let callable_plan =
-        StrongCallableRegistrationPlanSetV1::new(&foundation, &identities, &digest_plan).unwrap();
+    let callable_plan = StrongCallableRegistrationPlanSetV1::new(
+        &foundation,
+        &identities,
+        scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(&foundation)
+            .unwrap(),
+        &digest_plan,
+    )
+    .unwrap();
     let plan = StrongInitializationUnitRegistrationPlanSetV1::new(
         &foundation,
         &identities,

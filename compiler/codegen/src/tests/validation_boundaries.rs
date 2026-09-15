@@ -549,6 +549,59 @@ fn root_plan_test_module(
     module
 }
 
+#[test]
+fn callable_runtime_scan_trees_are_emitted_as_closed_strong_atoms() {
+    let mut module = managed_poll_test_module();
+    let element = scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![8])).unwrap();
+    module.functions[0]
+        .call_targets
+        .root_scans
+        .alloc(RefScan::Sequence(vec![
+            RefScan::None,
+            RefScan::References(vec![0, 16]),
+            RefScan::Array {
+                length_offset: 24,
+                first_element_offset: 32,
+                stride: std::num::NonZeroU64::new(8).unwrap(),
+                element: Box::new(element),
+            },
+        ]));
+    let plans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(&module).unwrap();
+    let callable = plans
+        .callable(module.functions[0].callable_body.id())
+        .unwrap();
+    assert_eq!(callable.atoms().len(), 4);
+
+    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(&module).unwrap();
+    let surface =
+        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let machine = host_target_machine().unwrap();
+    let context = inkwell::context::Context::create();
+    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();
+    let ir = llvm.print_to_string().to_string();
+    for atom in callable.atoms() {
+        let boundary = surface
+            .plans()
+            .iter()
+            .flat_map(|plan| plan.atom_boundaries())
+            .find(|boundary| boundary.atom() == atom.atom())
+            .unwrap();
+        assert!(
+            ir.contains(boundary.start().symbol().as_str()),
+            "missing runtime-scan start boundary for {}",
+            atom.atom()
+        );
+        assert!(
+            ir.contains(boundary.end().symbol().as_str()),
+            "missing runtime-scan end boundary for {}",
+            atom.atom()
+        );
+    }
+    assert!(!ir.contains(".root_scan."), "{ir}");
+    assert!(!ir.contains(".native."), "{ir}");
+    assert!(!ir.contains(".invoke."), "{ir}");
+}
+
 fn managed_poll_test_module() -> Module {
     let mut call_targets = CallTargets::default();
     let signature = call_targets.void_signatures.alloc(VoidCallSignature::new(

@@ -41,6 +41,7 @@ struct FnEmitter<'a, 'ctx> {
     type_tds: &'a [GlobalValue<'ctx>],
     external_type_tds: &'a [GlobalValue<'ctx>],
     root_scans: Vec<PointerValue<'ctx>>,
+    runtime_scans: crate::callable_runtime_scans::CallableRuntimeScanEmitter<'a, 'ctx>,
     target_data: &'a inkwell::targets::TargetData,
     /// Hidden result pointer for a physically indirect aggregate return.
     return_slot: Option<PointerValue<'ctx>>,
@@ -58,7 +59,6 @@ struct FnEmitter<'a, 'ctx> {
     /// Every landingpad reached by an invoke has one dynamic compiler frame;
     /// NoGc invokes publish an empty one so cleanup remains predecessor-free.
     compiler_unwind_blocks: HashSet<scoop_lir::BlockId>,
-    native_call_index: u32,
     compiler_invoke_index: u32,
     allocation_index: u32,
     /// Lazily-created shared bounds-check trap block of this function
@@ -177,6 +177,8 @@ pub(super) fn emit_function<'ctx>(
     builder: &inkwell::builder::Builder<'ctx>,
     module_ctx: &ModuleCtx<'_, 'ctx>,
     function: &Function,
+    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
+    runtime_scan_plan: &scoop_lir::StrongCallableRuntimeScanPlanV1,
 ) -> Result<(), CodegenError> {
     // Pre-declared in the first pass of the selected object member.
     let llvm_function = llvm
@@ -234,20 +236,28 @@ pub(super) fn emit_function<'ctx>(
         | scoop_lir::AbiReturn::Direct(_) => None,
     };
     let (unwind_root_sources, compiler_unwind_blocks) = compiler_unwind_plan(function);
-    let root_scans = function
-        .call_targets
-        .root_scans
-        .iter()
-        .map(|(id, scan)| {
-            emit_ref_scan(
-                context,
-                llvm,
-                &format!("{}.root_scan.{}", function.symbol(), id.into_raw()),
-                scan,
-            )
-            .unwrap_or_else(|| ptr_ty(context).const_null())
-        })
-        .collect();
+    if runtime_scan_plan.body() != function.callable_body.id() {
+        return Err(CodegenError(format!(
+            "runtime scan plan {} does not belong to callable {}",
+            runtime_scan_plan.body(),
+            function.callable_body.id()
+        )));
+    }
+    let mut runtime_scans = crate::callable_runtime_scans::CallableRuntimeScanEmitter::new(
+        context,
+        llvm,
+        module_ctx.target_data,
+        surface,
+        runtime_scan_plan,
+    );
+    let mut root_scans = Vec::with_capacity(function.call_targets.root_scans.len());
+    for (_, scan) in function.call_targets.root_scans.iter() {
+        root_scans.push(
+            runtime_scans
+                .emit(scan)?
+                .unwrap_or_else(|| crate::callable_runtime_scans::null_runtime_scan(context)),
+        );
+    }
 
     let mut emitter = FnEmitter {
         context,
@@ -277,6 +287,7 @@ pub(super) fn emit_function<'ctx>(
         type_tds: module_ctx.type_tds,
         external_type_tds: module_ctx.external_type_tds,
         root_scans,
+        runtime_scans,
         target_data: module_ctx.target_data,
         return_slot,
         allocas: Vec::with_capacity(function.locals.len()),
@@ -284,7 +295,6 @@ pub(super) fn emit_function<'ctx>(
         root_storage: HashMap::new(),
         unwind_root_sources,
         compiler_unwind_blocks,
-        native_call_index: 0,
         compiler_invoke_index: 0,
         allocation_index: 0,
         bounds_trap_block: None,
@@ -488,5 +498,5 @@ pub(super) fn emit_function<'ctx>(
             }
         }
     }
-    Ok(())
+    emitter.runtime_scans.finish()
 }

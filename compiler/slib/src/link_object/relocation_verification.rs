@@ -467,9 +467,23 @@ fn resolve_target(
                         Ok(VerifiedRelocationTargetV1::StrongDefinition { definition })
                     }
                     PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { atom, .. } => {
-                        Err(ObjectRelocationValidationError::BoundaryRelocationTarget {
-                            atom,
-                            boundary: VerifiedBoundaryRoleV1::Start,
+                        let symbol = definitions
+                            .sections()
+                            .envelope()
+                            .symbols()
+                            .get(table_index as usize)
+                            .ok_or(ObjectRelocationValidationError::InvalidSymbolTarget {
+                                table_index,
+                            })?;
+                        let section_ordinal = symbol.section_ordinal().ok_or(
+                            ObjectRelocationValidationError::InvalidSymbolTarget { table_index },
+                        )?;
+                        Ok(VerifiedRelocationTargetV1::LocalDefinition {
+                            table_index,
+                            name: symbol.name().to_vec(),
+                            owner_atom: Some(atom),
+                            section_ordinal,
+                            value: symbol.value(),
                         })
                     }
                     PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { atom, .. } => {

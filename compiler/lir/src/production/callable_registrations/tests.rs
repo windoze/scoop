@@ -317,7 +317,13 @@ impl Fixture {
     fn build(
         &self,
     ) -> Result<StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanBuildError> {
-        StrongCallableRegistrationPlanSetV1::new(&self.foundation, &self.identities, &self.digests)
+        StrongCallableRegistrationPlanSetV1::new(
+            &self.foundation,
+            &self.identities,
+            StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(&self.foundation)
+                .unwrap(),
+            &self.digests,
+        )
     }
 }
 

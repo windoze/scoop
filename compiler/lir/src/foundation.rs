@@ -16,7 +16,8 @@ use scoop_identity::{
     PersistentImmortalObjectId, PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
     PersistentStaticStorageId, PersistentSymbolRequest, RuntimeIdentityRecord, SafepointSiteKey,
     ScanKey, SpecializationKey, StableIdentityOrderError, StaticStorageKey, StrongDefinitionEntity,
-    StrongDefinitionRole, stable_topological_identity_delta_order,
+    StrongDefinitionRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment, stable_topological_identity_delta_order,
 };
 use scoop_wire::{Encoder, HashError, RuntimeDecodeError, WireEncode, decode_runtime};
 
@@ -542,6 +543,7 @@ pub enum LirFoundationBuildError {
         owner: [u8; 32],
         atom: [u8; 32],
     },
+    CallableRuntimeScans(crate::StrongCallableRuntimeScanPlanError),
     GeneratedBridgeLayouts(GeneratedBridgeLayoutClosureError),
     GeneratedBridgeAtomHash(HashError),
     DefinitionIdentity(ObjectDefinitionIdentityError),
@@ -616,6 +618,7 @@ impl fmt::Display for LirFoundationBuildError {
                 HexIdentity(atom),
                 HexIdentity(owner)
             ),
+            Self::CallableRuntimeScans(error) => error.fmt(formatter),
             Self::GeneratedBridgeLayouts(error) => error.fmt(formatter),
             Self::GeneratedBridgeAtomHash(error) => error.fmt(formatter),
             Self::DefinitionIdentity(error) => error.fmt(formatter),

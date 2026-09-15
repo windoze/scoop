@@ -81,7 +81,7 @@ pub(super) struct MachOSymbol {
 impl MachOSymbol {
     fn is_external_definition(&self) -> bool {
         self.symbol_type == (macho::N_SECT | macho::N_EXT)
-            && matches!(self.description, 0 | macho::N_NO_DEAD_STRIP)
+            && self.description & !(macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY) == 0
     }
 
     pub(super) const fn section_ordinal(&self) -> u8 {
@@ -215,8 +215,12 @@ impl MachOLayout {
             || usize::from(symbol.section_ordinal) > self.sections.len()
         {
             return Err(CodegenError(format!(
-                "callable object symbol `{}` is not an external section definition",
-                String::from_utf8_lossy(name)
+                "callable object symbol `{}` is not an external section definition (type={:#x}, section={}, description={:#x}, value={})",
+                String::from_utf8_lossy(name),
+                symbol.symbol_type,
+                symbol.section_ordinal,
+                symbol.description,
+                symbol.value
             )));
         }
         Ok(symbol)

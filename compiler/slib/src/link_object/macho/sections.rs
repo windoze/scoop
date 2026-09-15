@@ -64,7 +64,7 @@ pub fn validate_builtin_object_section_inventory_v1(
         let Some((role, expected_flags)) = classify_section(name.0, name.1) else {
             return Err(BuiltinObjectSectionValidationError::UnsupportedSectionName);
         };
-        if section.flags() != expected_flags {
+        if !section_flags_match(role, expected_flags, section.flags()) {
             return Err(BuiltinObjectSectionValidationError::SectionFlagsMismatch {
                 role,
                 expected: expected_flags,
@@ -88,6 +88,12 @@ pub fn validate_builtin_object_section_inventory_v1(
         profile,
         roles,
     })
+}
+
+fn section_flags_match(role: BuiltinObjectSectionRoleV1, expected: u32, actual: u32) -> bool {
+    actual == expected
+        || (role == BuiltinObjectSectionRoleV1::Text
+            && actual == macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS)
 }
 
 fn classify_section(segment: &[u8], section: &[u8]) -> Option<(BuiltinObjectSectionRoleV1, u32)> {

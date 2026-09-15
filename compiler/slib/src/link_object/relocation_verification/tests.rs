@@ -50,7 +50,7 @@ fn assigns_relocations_to_exact_atoms_and_resolves_primary_targets() {
 }
 
 #[test]
-fn rejects_boundary_targets_and_relocations_in_padding() {
+fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
     let fixture = fixture();
     let start = fixture
         .symbols
@@ -69,11 +69,40 @@ fn rejects_boundary_targets_and_relocations_in_padding() {
     let definitions =
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
             .unwrap();
+    let verified = verify_member_object_relocations_v1(definitions).unwrap();
+    assert!(matches!(
+        verified.relocations()[0].shape(),
+        VerifiedDarwinArm64RelocationShapeV1::Branch26 {
+            target: VerifiedRelocationTargetV1::LocalDefinition {
+                owner_atom: Some(atom),
+                value: 0,
+                ..
+            }
+        } if *atom == fixture.atom
+    ));
+
+    let end = fixture
+        .symbols
+        .symbols()
+        .iter()
+        .find_map(|symbol| match symbol.role() {
+            role @ PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => Some(role),
+            _ => None,
+        })
+        .unwrap();
+    let object =
+        object_for_plan_with_branch_relocation(&fixture.symbols, canonical_value, Some((0, end)));
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
+        .unwrap()
+        .into_sections();
+    let definitions =
+        verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
+            .unwrap();
     assert_eq!(
         verify_member_object_relocations_v1(definitions),
         Err(ObjectRelocationValidationError::BoundaryRelocationTarget {
             atom: fixture.atom,
-            boundary: VerifiedBoundaryRoleV1::Start,
+            boundary: VerifiedBoundaryRoleV1::End,
         })
     );
 

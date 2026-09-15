@@ -361,6 +361,8 @@ impl CanonicalLirFoundation {
         module: &Module,
     ) -> Result<(), LirFoundationBuildError> {
         let producer = module.cone;
+        let callable_runtime_scans = crate::StrongCallableRuntimeScanPlanSetV1::from_module(module)
+            .map_err(LirFoundationBuildError::CallableRuntimeScans)?;
         let mut plans = BTreeMap::new();
         let mut atoms = BTreeMap::new();
         let mut symbols = BTreeSet::new();
@@ -378,6 +380,9 @@ impl CanonicalLirFoundation {
         for function in &module.functions {
             let body = function.callable_body.id();
             let cstrings = cstrings_by_owner.remove(&body).unwrap_or_default();
+            let runtime_scans = callable_runtime_scans
+                .callable(body)
+                .expect("the runtime-scan plan was projected from every function");
             insert_strong_definition(
                 &mut plans,
                 &mut atoms,
@@ -385,7 +390,7 @@ impl CanonicalLirFoundation {
                 producer,
                 StrongDefinitionEntity::callable_body(body),
                 StrongDefinitionRole::CallableBody,
-                callable_body_associated_atoms(function, &cstrings),
+                callable_body_associated_atoms(function, &cstrings, runtime_scans.atoms()),
             )?;
             for identity in cstrings {
                 if atoms.get(&identity.atom_record().id()) != Some(identity.atom_record()) {
@@ -725,6 +730,7 @@ impl CanonicalLirFoundation {
 fn callable_body_associated_atoms(
     function: &Function,
     cstrings: &[&crate::CallableCStringIdentity],
+    runtime_scans: &[crate::StrongCallableRuntimeScanAtomV1],
 ) -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
     let body = function.callable_body.id();
     let subkey = || DefinitionAtomSubkey::CallableBody(body);
@@ -745,6 +751,19 @@ fn callable_body_associated_atoms(
         (
             DefinitionAtomRole::AddressTakenConstant,
             DefinitionAtomSubkey::StructuralPath(identity.path().clone()),
+        )
+    }));
+    associated.extend(runtime_scans.iter().enumerate().map(|(ordinal, _)| {
+        (
+            DefinitionAtomRole::RuntimeRecord,
+            DefinitionAtomSubkey::StructuralPath(StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(
+                    StructuralDefinitionSiteRole::SyntheticValue,
+                    u32::try_from(ordinal)
+                        .expect("runtime-scan planning already bounded every ordinal"),
+                ),
+                [],
+            )),
         )
     }));
     associated
@@ -1260,7 +1279,7 @@ mod tests {
         );
 
         assert_eq!(
-            callable_body_associated_atoms(&function, &[]),
+            callable_body_associated_atoms(&function, &[], &[]),
             vec![
                 (
                     DefinitionAtomRole::CompactUnwind,
@@ -1305,7 +1324,7 @@ mod tests {
             });
 
         assert_eq!(
-            callable_body_associated_atoms(&function, &[]),
+            callable_body_associated_atoms(&function, &[], &[]),
             vec![
                 (
                     DefinitionAtomRole::CompactUnwind,

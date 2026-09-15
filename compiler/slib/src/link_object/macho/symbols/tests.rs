@@ -19,11 +19,35 @@ fn normalizes_strong_definition_and_no_dead_strip() {
     assert_eq!(symbol.section_ordinal(), NonZeroU8::new(1));
     assert_eq!(symbol.value(), 0);
     assert!(!symbol.no_dead_strip());
+    assert!(!symbol.private_external());
 
     let mut retained = bytes;
     write_u16(&mut retained, SYMBOL_OFFSET + 6, macho::N_NO_DEAD_STRIP);
     let retained = validate_darwin_arm64_object_envelope_v1(&retained).unwrap();
     assert!(retained.symbols()[0].no_dead_strip());
+
+    let mut alternate = super::super::tests::object_with_text_section();
+    write_u16(&mut alternate, SYMBOL_OFFSET + 6, macho::N_ALT_ENTRY);
+    let alternate = validate_darwin_arm64_object_envelope_v1(&alternate).unwrap();
+    assert!(!alternate.symbols()[0].no_dead_strip());
+
+    let mut retained_alternate = super::super::tests::object_with_text_section();
+    write_u16(
+        &mut retained_alternate,
+        SYMBOL_OFFSET + 6,
+        macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY,
+    );
+    let retained_alternate = validate_darwin_arm64_object_envelope_v1(&retained_alternate).unwrap();
+    assert!(retained_alternate.symbols()[0].no_dead_strip());
+
+    let mut private_external = super::super::tests::object_with_text_section();
+    private_external[SYMBOL_OFFSET + 4] |= macho::N_PEXT;
+    let private_external = validate_darwin_arm64_object_envelope_v1(&private_external).unwrap();
+    assert_eq!(
+        private_external.symbols()[0].kind(),
+        DarwinArm64SymbolKindV1::ExternalStrongDefinition
+    );
+    assert!(private_external.symbols()[0].private_external());
 }
 
 #[test]

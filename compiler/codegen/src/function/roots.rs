@@ -377,22 +377,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let context = self.context;
         let ptr = ptr_ty(context);
         let i64_type = context.i64_type();
-        let index = self.compiler_invoke_index;
         self.compiler_invoke_index += 1;
         let mut entries = Vec::with_capacity(roots.len());
-        for (root_index, exceptional) in roots.iter().enumerate() {
+        for exceptional in roots {
             let root = &exceptional.root;
             let storage = self.root_source_storage(root.source)?;
-            let descriptor = emit_ref_scan(
-                context,
-                self.llvm,
-                &format!(
-                    "{}.invoke.{index}.root.{root_index}",
-                    self.function.symbol()
-                ),
-                root.scan.as_ref_scan(),
-            )
-            .expect("exceptional roots always carry a non-empty scan");
+            let descriptor = self
+                .runtime_scans
+                .emit(root.scan.as_ref_scan())?
+                .ok_or_else(|| {
+                    CodegenError("exceptional root has an empty runtime scan".to_string())
+                })?;
             entries.push((storage.pointer, descriptor));
         }
 
