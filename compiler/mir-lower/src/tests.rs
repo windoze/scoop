@@ -125,7 +125,7 @@ fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
         interfaces: &module.interfaces,
         interface_applications: &module.interface_applications,
         objects: &module.objects,
-        intrinsic_core: &module.intrinsic_type_core,
+        intrinsic_core: &module.core_protocols.fundamental_types,
         nominal_identities: &module.nominal_identities,
     })
     .expect("the MIR test keeps its HIR type identities structurally complete")
@@ -224,7 +224,7 @@ fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistra
             property_accessor_identities: &module.property_accessor_identities,
             constructor_identities: &module.constructor_identities,
             enum_member_identities: &module.enum_member_identities,
-            callback_modes: module.foreign_callback_core.modes,
+            callback_modes: module.core_protocols.foreign_callbacks.modes,
             type_inputs: hir::HirTypeIdentityInputs {
                 types: &module.types,
                 function_types: &module.function_types,
@@ -237,7 +237,7 @@ fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistra
                 interfaces: &module.interfaces,
                 interface_applications: &module.interface_applications,
                 objects: &module.objects,
-                intrinsic_core: &module.intrinsic_type_core,
+                intrinsic_core: &module.core_protocols.fundamental_types,
                 nominal_identities: &module.nominal_identities,
             },
             unit: module.unit,

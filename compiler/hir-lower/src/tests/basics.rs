@@ -30,7 +30,7 @@ fn lowers_hello_world() {
     assert_eq!(module.types[module.string], Type::String);
     // `Option` comes from the core library.
     assert_eq!(
-        module.enums[module.option_core.enumeration()].name,
+        module.enums[module.core_protocols.option.enumeration()].name,
         "Option"
     );
 

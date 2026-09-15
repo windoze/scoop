@@ -38,12 +38,12 @@ pub fn validate_iteration_plans(module: &Module) -> Check {
         &module.enums,
         &module.enum_applications,
         &module.types,
-        module.option_core,
-        module.iteration_core.iterator(),
-        module.iteration_core.next(),
+        module.core_protocols.option,
+        module.core_protocols.iteration.iterator(),
+        module.core_protocols.iteration.next(),
     )
     .ok_or_else(|| invalid("invalid canonical Iterator core relation"))?;
-    if checked_core != module.iteration_core {
+    if checked_core != module.core_protocols.iteration {
         return fail("iteration core does not match its checked identities");
     }
 
@@ -442,7 +442,7 @@ impl<'a> Validator<'a> {
         )?;
 
         let application = self.checked_interface_application(conformance.application())?;
-        if application.template != self.module.iteration_core.iterator()
+        if application.template != self.module.core_protocols.iteration.iterator()
             || application.arguments.len() != 1
             || conformance.iterator().ty != application.canonical_type
         {
@@ -450,7 +450,7 @@ impl<'a> Validator<'a> {
         }
         let exact = self.exact_interface_applications(
             conformance.source().ty,
-            self.module.iteration_core.iterator(),
+            self.module.core_protocols.iteration.iterator(),
         )?;
         if exact.as_slice() != [conformance.application()] {
             return fail("for conformance is not the unique exact Iterator application");
@@ -464,7 +464,7 @@ impl<'a> Validator<'a> {
             .ok_or_else(|| invalid("next plan has an invalid method application"))?;
         let next_function = checked_arena(
             &self.module.interface_methods,
-            self.module.iteration_core.next(),
+            self.module.core_protocols.iteration.next(),
         )
         .ok_or_else(|| invalid("iteration core has an invalid next member"))?
         .function;
@@ -479,7 +479,7 @@ impl<'a> Validator<'a> {
             &self.module.enums,
             &self.module.enum_applications,
             &self.module.types,
-            self.module.option_core,
+            self.module.core_protocols.option,
             element,
             next.option().some_payload(),
             next.option().none(),

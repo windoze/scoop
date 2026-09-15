@@ -92,7 +92,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
     )]))
     .expect("defaulted and explicit compiler exception construction must lower");
 
-    let export = output.export.exception_core;
+    let export = output.export.core_protocols.exceptions;
     let export_names = [
         export.throwable,
         export.unwrap_exception,

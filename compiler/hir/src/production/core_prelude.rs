@@ -28,10 +28,10 @@ impl CorePreludeSnapshotV1 {
         }
         let ordinary_bindings = CanonicalDirectPublicSurfaceV1::from_export_hir(export)
             .map_err(CorePreludeSnapshotBuildError::DirectSurface)?;
-        let option_some = export.enum_member_identities[export.option_core.some()].id();
+        let option_some = export.enum_member_identities[export.core_protocols.option.some()].id();
         let option_some_payload =
-            export.enum_member_identities[export.option_core.some_payload()].id();
-        let option_none = export.enum_member_identities[export.option_core.none()].id();
+            export.enum_member_identities[export.core_protocols.option.some_payload()].id();
+        let option_none = export.enum_member_identities[export.core_protocols.option.none()].id();
         Ok(Self {
             ordinary_bindings,
             option_some,

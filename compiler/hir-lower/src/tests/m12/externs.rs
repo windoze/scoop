@@ -79,7 +79,7 @@ fn rebuild_source_native_contracts(
             interfaces: &module.interfaces,
             interface_applications: &module.interface_applications,
             objects: &module.objects,
-            intrinsic_core: &module.intrinsic_type_core,
+            intrinsic_core: &module.core_protocols.fundamental_types,
             nominal_identities: &module.nominal_identities,
         },
         unit: module.unit,

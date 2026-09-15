@@ -227,7 +227,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     let executable = h.finish(main);
     let entry = executable.entry();
     let mut source = executable.into_module();
-    source.foreign_callback_core.callback = callback;
+    source.core_protocols.foreign_callbacks.callback = callback;
     let definition_path = scoop_identity::StructuralDefinitionPath::from_first(
         scoop_identity::StructuralPathSegment::new(
             scoop_identity::StructuralDefinitionSiteRole::CallableConversion,
@@ -245,7 +245,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         origin: definition_origin(),
         span: SPAN,
     });
-    let mode = source.foreign_callback_core.modes.reusable();
+    let mode = source.core_protocols.foreign_callbacks.modes.reusable();
     let registration =
         source
             .foreign_callback_registrations

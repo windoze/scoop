@@ -134,23 +134,23 @@ fn pointer_core_normalizes_construction_memory_ops_and_layout_queries() {
             if module.types[*pointee] == hir::Type::Integer(hir::IntegerKind::SIGNED_32)))
     );
     let top_level_intrinsics = [
-        module.ffi_core.address_of,
-        module.ffi_core.size_of,
-        module.ffi_core.align_of,
+        module.core_protocols.ffi.address_of,
+        module.core_protocols.ffi.size_of,
+        module.core_protocols.ffi.align_of,
     ];
     assert!(module.instantiations.iter().all(|(_, application)| {
         let function = module.generic_functions[application.generic].function;
         !top_level_intrinsics.contains(&function)
     }));
     let pointer_methods = [
-        module.ffi_core.ptr_to_ulong,
-        module.ffi_core.ptr_cast,
-        module.ffi_core.ptr_load,
-        module.ffi_core.ptr_load_offset,
-        module.ffi_core.ptr_store,
-        module.ffi_core.ptr_store_offset,
-        module.ffi_core.ptr_plus,
-        module.ffi_core.ptr_minus,
+        module.core_protocols.ffi.ptr_to_ulong,
+        module.core_protocols.ffi.ptr_cast,
+        module.core_protocols.ffi.ptr_load,
+        module.core_protocols.ffi.ptr_load_offset,
+        module.core_protocols.ffi.ptr_store,
+        module.core_protocols.ffi.ptr_store_offset,
+        module.core_protocols.ffi.ptr_plus,
+        module.core_protocols.ffi.ptr_minus,
     ];
     assert!(
         module

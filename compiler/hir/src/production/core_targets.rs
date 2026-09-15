@@ -562,7 +562,7 @@ pub(super) fn type_inputs(export: &ExportHir) -> HirTypeIdentityInputs<'_> {
         interfaces: &export.interfaces,
         interface_applications: &export.interface_applications,
         objects: &export.objects,
-        intrinsic_core: &export.intrinsic_type_core,
+        intrinsic_core: &export.core_protocols.fundamental_types,
         nominal_identities: &export.nominal_identities,
     }
 }

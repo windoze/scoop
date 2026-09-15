@@ -170,38 +170,36 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    /// The complete checked `Option` contract from `scoop.core` (the
-    /// desugar target of `T?`, spec 7.1). Guaranteed present: a core library
-    /// without the exact `Some(T)` / `None` shape is rejected before HIR.
-    pub option_core: OptionCore,
-    /// Compiler-owned source iteration protocol. Per-use exact applications
-    /// and conformance witnesses remain in `ForIterationPlan`.
-    pub iteration_core: IterationCore,
-    /// Compiler-generated exception construction targets. Every entry is a
-    /// validated, zero-argument class constructor; later stages never find
-    /// these entities by source or link name.
-    pub exception_core: CompilerExceptionCore,
-    /// Compiler-known coroutine protocol entities. HIR lowering validates
-    /// their exact declarations before constructing the module, so MIR never
-    /// falls back to textual lookup for protocol types or methods.
-    pub coroutine_core: CoroutineCore,
-    /// Compiler-known pointer/FFI core entities. HIR lowering validates the
-    /// unique source declarations and downstream stages use these typed ids,
-    /// never textual names.
-    pub ffi_core: FfiCore,
-    /// Compiler-validated managed callback protocol. Its ids are export-side
-    /// semantic identities and are concretized into a distinct local family.
-    pub foreign_callback_core: ForeignCallbackCore,
-    /// Source-validated nominal declarations for every compiler-represented
-    /// core type. These typed ids are the only bridge from primitive/family
-    /// semantics to source members and interfaces.
-    pub intrinsic_type_core: IntrinsicTypeCore,
-    /// Compiler-validated source-location value shape and its HIR intrinsic.
-    pub source_location_core: SourceLocationCore,
+    /// The single compiler-protocol authority defined by declarations in this
+    /// HIR graph. Protocol constituents cannot be replaced independently.
+    pub core_protocols: DefinedCoreProtocols,
     /// Resolved generic function applications, deduplicated in
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+/// Complete compiler-facing protocol authority defined by the current HIR
+/// declaration graph. Every constituent is mandatory and is validated before
+/// a `Module` can be returned.
+#[derive(Debug, Clone)]
+pub struct DefinedCoreProtocols {
+    /// Checked `Option<T>` source contract used by nullable syntax.
+    pub option: OptionCore,
+    /// Source iteration protocol and its dispatch target.
+    pub iteration: IterationCore,
+    /// Compiler-generated exception construction targets.
+    pub exceptions: CompilerExceptionCore,
+    /// Coroutine protocol declarations and intrinsic operations.
+    pub coroutines: CoroutineCore,
+    /// Pointer and FFI declarations and operations.
+    pub ffi: FfiCore,
+    /// Managed foreign-callback protocol.
+    pub foreign_callbacks: ForeignCallbackCore,
+    /// Source owners of compiler-represented fundamental types.
+    pub fundamental_types: IntrinsicTypeCore,
+    /// Source-location value shape and intrinsic operation.
+    pub source_location: SourceLocationCore,
 }
 
 #[derive(Debug, Clone, Copy)]

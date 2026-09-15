@@ -625,11 +625,11 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let mut source = executable.into_module();
     let preserved_functions = source.functions.len();
     let result = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
-    let suspend_registration = source.coroutine_core.suspend_registration;
+    let suspend_registration = source.core_protocols.coroutines.suspend_registration;
     let registration_ty =
         module_interface_application(&mut source, suspend_registration, vec![result]);
     let Some(suspend_generic) =
-        source.functions[source.coroutine_core.suspend_coroutine].generic_definition()
+        source.functions[source.core_protocols.coroutines.suspend_coroutine].generic_definition()
     else {
         panic!("suspendCoroutine is generic")
     };
@@ -758,15 +758,16 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let mut hir_module = executable.into_module();
     let preserved_functions = hir_module.functions.len();
     let result = module_integer_type(&hir_module, hir::IntegerKind::SIGNED_32);
-    let suspend_task = hir_module.coroutine_core.suspend_task;
-    let continuation = hir_module.coroutine_core.continuation;
+    let suspend_task = hir_module.core_protocols.coroutines.suspend_task;
+    let continuation = hir_module.core_protocols.coroutines.continuation;
     let task_ty = module_interface_application(&mut hir_module, suspend_task, vec![result]);
     let completion_ty = module_interface_application(&mut hir_module, continuation, vec![result]);
     let mut locals = Arena::new();
     let task = locals.alloc(local("task", task_ty));
     let completion = locals.alloc(local("completion", completion_ty));
-    let Some(start_generic) =
-        hir_module.functions[hir_module.coroutine_core.start_coroutine].generic_definition()
+    let Some(start_generic) = hir_module.functions
+        [hir_module.core_protocols.coroutines.start_coroutine]
+        .generic_definition()
     else {
         panic!("startCoroutine is generic")
     };

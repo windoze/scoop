@@ -142,18 +142,33 @@ impl CoreCompilerProtocolSurfaceV1 {
             concrete(integer(export, crate::IntegerKind::UNSIGNED_16)?)?,
             concrete(integer(export, crate::IntegerKind::UNSIGNED_32)?)?,
             concrete(integer(export, crate::IntegerKind::UNSIGNED_64)?)?,
-            concrete(struct_nominal(export, export.intrinsic_type_core.boolean)?)?,
-            concrete(class_nominal(export, export.intrinsic_type_core.string)?)?,
-            generic(class_nominal(export, export.intrinsic_type_core.array)?)?,
+            concrete(struct_nominal(
+                export,
+                export.core_protocols.fundamental_types.boolean,
+            )?)?,
+            concrete(class_nominal(
+                export,
+                export.core_protocols.fundamental_types.string,
+            )?)?,
             generic(class_nominal(
                 export,
-                export.intrinsic_type_core.mutable_array,
+                export.core_protocols.fundamental_types.array,
             )?)?,
-            generic(struct_nominal(export, export.intrinsic_type_core.ptr)?)?,
-            generic(struct_nominal(export, export.intrinsic_type_core.fun_ptr)?)?,
+            generic(class_nominal(
+                export,
+                export.core_protocols.fundamental_types.mutable_array,
+            )?)?,
+            generic(struct_nominal(
+                export,
+                export.core_protocols.fundamental_types.ptr,
+            )?)?,
+            generic(struct_nominal(
+                export,
+                export.core_protocols.fundamental_types.fun_ptr,
+            )?)?,
         ]));
 
-        let option = export.option_core;
+        let option = export.core_protocols.option;
         let option_protocol = CoreOptionProtocolV1(product([
             generic(enum_nominal(export, option.enumeration())?)?,
             variant(export, option.some()),
@@ -161,14 +176,14 @@ impl CoreCompilerProtocolSurfaceV1 {
             variant(export, option.none()),
         ]));
 
-        let iteration = export.iteration_core;
+        let iteration = export.core_protocols.iteration;
         let iteration_protocol = CoreIterationProtocolV1(product([
             generic(interface_nominal(export, iteration.iterator())?)?,
             callable(export, export.interface_methods[iteration.next()].function)?,
             dispatch_slot(export, iteration.next()),
         ]));
 
-        let exceptions = export.exception_core;
+        let exceptions = export.core_protocols.exceptions;
         let exception_protocol = CoreExceptionProtocolV1(product([
             concrete(class_nominal(export, exceptions.throwable.class())?)?,
             constructor(export, exceptions.throwable.callable())?,
@@ -200,7 +215,7 @@ impl CoreCompilerProtocolSurfaceV1 {
             )?,
         ]));
 
-        let coroutine = export.coroutine_core;
+        let coroutine = export.core_protocols.coroutines;
         let coroutine_protocol = CoreCoroutineProtocolV1(product([
             generic(interface_nominal(export, coroutine.continuation)?)?,
             callable(export, coroutine.continuation_resume)?,
@@ -217,7 +232,7 @@ impl CoreCompilerProtocolSurfaceV1 {
             callable(export, coroutine.suspend_coroutine)?,
         ]));
 
-        let ffi = export.ffi_core;
+        let ffi = export.core_protocols.ffi;
         let ffi_protocol = CoreFfiProtocolV1(product([
             generic(struct_nominal(export, ffi.ptr)?)?,
             generic(struct_nominal(export, ffi.fun_ptr)?)?,
@@ -240,7 +255,7 @@ impl CoreCompilerProtocolSurfaceV1 {
             callable(export, ffi.gc_release_handle_raw)?,
         ]));
 
-        let callback = export.foreign_callback_core;
+        let callback = export.core_protocols.foreign_callbacks;
         let callback_mode = callback.modes;
         let callback_state = callback.states;
         let failure_type =
@@ -263,7 +278,7 @@ impl CoreCompilerProtocolSurfaceV1 {
             callable(export, callback.failure)?,
         ]));
 
-        let location = export.source_location_core;
+        let location = export.core_protocols.source_location;
         let source_location_protocol = CoreSourceLocationProtocolV1(product([
             concrete(struct_nominal(export, location.location)?)?,
             callable(export, location.current)?,
@@ -748,7 +763,10 @@ fn integer(
     export: &ExportHir,
     kind: crate::IntegerKind,
 ) -> Result<CoreProtocolNominalV1, CoreCompilerProtocolSurfaceBuildError> {
-    struct_nominal(export, export.intrinsic_type_core.integers.owner(kind))
+    struct_nominal(
+        export,
+        export.core_protocols.fundamental_types.integers.owner(kind),
+    )
 }
 
 fn struct_nominal(

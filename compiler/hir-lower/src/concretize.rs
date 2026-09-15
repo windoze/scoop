@@ -355,7 +355,12 @@ impl<'a> Concretizer<'a> {
     fn run_with<Extra>(mut self, finish: impl FnOnce(&Self) -> Extra) -> (concrete::Module, Extra) {
         let unit = self.lower_type(self.source.unit, &[]);
         for kind in export::IntegerKind::ALL {
-            let owner = self.source.intrinsic_type_core.integers.owner(kind);
+            let owner = self
+                .source
+                .core_protocols
+                .fundamental_types
+                .integers
+                .owner(kind);
             let source_type = self.source.struct_applications
                 [self.source.structs[owner].self_application]
                 .canonical_type;
@@ -487,7 +492,7 @@ impl<'a> Concretizer<'a> {
         self.drain_pending_functions();
         let coroutine_protocols = self.build_coroutine_protocols();
         self.drain_pending_functions();
-        let source_callback_core = self.source.foreign_callback_core;
+        let source_callback_core = self.source.core_protocols.foreign_callbacks;
         let callback_reusable =
             self.lower_applied_enum_variant_ref(source_callback_core.modes.reusable(), &[]);
         let callback_one_shot =
@@ -526,8 +531,10 @@ impl<'a> Concretizer<'a> {
             callback_failure_none,
         )
         .expect("the validated foreign callback failure protocol survives concretization");
-        let callback_throwable =
-            self.class_by_key[&(self.source.exception_core.throwable.class(), Vec::new())];
+        let callback_throwable = self.class_by_key[&(
+            self.source.core_protocols.exceptions.throwable.class(),
+            Vec::new(),
+        )];
         let callback_failure_result = concrete::ForeignCallbackFailureResult::checked(
             &self.enums,
             &self.types,
@@ -602,13 +609,23 @@ impl<'a> Concretizer<'a> {
         let intrinsic_type_core = concrete::IntrinsicTypeCore {
             integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
                 self.struct_by_key[&(
-                    self.source.intrinsic_type_core.integers.owner(kind),
+                    self.source
+                        .core_protocols
+                        .fundamental_types
+                        .integers
+                        .owner(kind),
                     Vec::new(),
                 )]
             }))
             .expect("validated integer owners remain distinct after concretization"),
-            boolean: self.struct_by_key[&(self.source.intrinsic_type_core.boolean, Vec::new())],
-            string: self.class_by_key[&(self.source.intrinsic_type_core.string, Vec::new())],
+            boolean: self.struct_by_key[&(
+                self.source.core_protocols.fundamental_types.boolean,
+                Vec::new(),
+            )],
+            string: self.class_by_key[&(
+                self.source.core_protocols.fundamental_types.string,
+                Vec::new(),
+            )],
         };
 
         let extra = finish(&self);
@@ -621,10 +638,10 @@ impl<'a> Concretizer<'a> {
                 }
             },
         };
-        let source_exception_core = self.source.exception_core;
+        let source_exception_core = self.source.core_protocols.exceptions;
         let message_constructor = source_exception_core.illegal_state_message_constructor;
         let message_class = self.class_by_key[&(message_constructor.class, Vec::new())];
-        let source_option_core = self.source.option_core;
+        let source_option_core = self.source.core_protocols.option;
         let option_core = self
             .enums
             .iter()
@@ -778,7 +795,7 @@ impl<'a> Concretizer<'a> {
     }
 
     fn build_coroutine_protocols(&mut self) -> Vec<concrete::CoroutineProtocol> {
-        let core = self.source.coroutine_core;
+        let core = self.source.core_protocols.coroutines;
         let mut protocols = Vec::new();
         loop {
             self.drain_pending_functions();

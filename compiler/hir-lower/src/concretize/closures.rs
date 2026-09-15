@@ -244,7 +244,8 @@ impl Concretizer<'_> {
             self.lower_function_type(source.managed_function_type, substitution);
         assert!(
             self.source
-                .foreign_callback_core
+                .core_protocols
+                .foreign_callbacks
                 .modes
                 .contains(source.mode)
         );

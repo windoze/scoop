@@ -33,12 +33,12 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         ));
     }
     for (id, decl) in module.structs.iter() {
-        if id == module.ffi_core.ptr
-            || id == module.ffi_core.fun_ptr
-            || id == module.ffi_core.pinned_ptr
-            || id == module.ffi_core.gc_handle
-            || id == module.foreign_callback_core.callback
-            || id == module.source_location_core.location
+        if id == module.core_protocols.ffi.ptr
+            || id == module.core_protocols.ffi.fun_ptr
+            || id == module.core_protocols.ffi.pinned_ptr
+            || id == module.core_protocols.ffi.gc_handle
+            || id == module.core_protocols.foreign_callbacks.callback
+            || id == module.core_protocols.source_location.location
         {
             continue;
         }
@@ -71,8 +71,8 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         }
     }
     for (id, decl) in module.enums.iter() {
-        if id == module.foreign_callback_core.modes.enumeration()
-            || id == module.foreign_callback_core.states.enumeration()
+        if id == module.core_protocols.foreign_callbacks.modes.enumeration()
+            || id == module.core_protocols.foreign_callbacks.states.enumeration()
         {
             continue;
         }
@@ -335,19 +335,19 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
     }
     for &id in &module.top_level {
         if [
-            module.ffi_core.address_of,
-            module.ffi_core.size_of,
-            module.ffi_core.align_of,
-            module.ffi_core.gc_pin_raw,
-            module.ffi_core.gc_unpin_raw,
-            module.ffi_core.gc_get_handle_raw,
-            module.ffi_core.gc_release_handle_raw,
-            module.foreign_callback_core.register,
-            module.foreign_callback_core.retain,
-            module.foreign_callback_core.release,
-            module.foreign_callback_core.query_state,
-            module.foreign_callback_core.failure,
-            module.source_location_core.current,
+            module.core_protocols.ffi.address_of,
+            module.core_protocols.ffi.size_of,
+            module.core_protocols.ffi.align_of,
+            module.core_protocols.ffi.gc_pin_raw,
+            module.core_protocols.ffi.gc_unpin_raw,
+            module.core_protocols.ffi.gc_get_handle_raw,
+            module.core_protocols.ffi.gc_release_handle_raw,
+            module.core_protocols.foreign_callbacks.register,
+            module.core_protocols.foreign_callbacks.retain,
+            module.core_protocols.foreign_callbacks.release,
+            module.core_protocols.foreign_callbacks.query_state,
+            module.core_protocols.foreign_callbacks.failure,
+            module.core_protocols.source_location.current,
         ]
         .contains(&id)
         {
@@ -453,10 +453,10 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
     for (_, instantiation) in module.instantiations.iter() {
         let function = module.generic_functions[instantiation.generic].function;
         if [
-            module.ffi_core.gc_pin_raw,
-            module.ffi_core.gc_unpin_raw,
-            module.ffi_core.gc_get_handle_raw,
-            module.ffi_core.gc_release_handle_raw,
+            module.core_protocols.ffi.gc_pin_raw,
+            module.core_protocols.ffi.gc_unpin_raw,
+            module.core_protocols.ffi.gc_get_handle_raw,
+            module.core_protocols.ffi.gc_release_handle_raw,
         ]
         .contains(&function)
         {

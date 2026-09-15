@@ -273,7 +273,8 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
     let int = scoop_identity::SignatureTypeKey::Nominal(nominal(Owner::Struct(
         output
             .export
-            .intrinsic_type_core
+            .core_protocols
+            .fundamental_types
             .integers
             .owner(hir::IntegerKind::SIGNED_32),
     )));
@@ -283,7 +284,7 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
         (
             0,
             scoop_identity::SignatureTypeKey::Nominal(nominal(Owner::Struct(
-                output.export.intrinsic_type_core.boolean
+                output.export.core_protocols.fundamental_types.boolean
             )))
         )
     );
@@ -292,7 +293,7 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
         (
             0,
             scoop_identity::SignatureTypeKey::Nominal(nominal(Owner::Class(
-                output.export.intrinsic_type_core.string
+                output.export.core_protocols.fundamental_types.string
             )))
         )
     );

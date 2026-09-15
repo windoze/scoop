@@ -107,7 +107,7 @@ fn rebuild(module: &hir::Module) -> Result<hir::HirTypeIdentities, hir::HirTypeI
         interfaces: &module.interfaces,
         interface_applications: &module.interface_applications,
         objects: &module.objects,
-        intrinsic_core: &module.intrinsic_type_core,
+        intrinsic_core: &module.core_protocols.fundamental_types,
         nominal_identities: &module.nominal_identities,
     })
 }
@@ -259,7 +259,7 @@ fn type_identity_rejects_noncanonical_and_duplicate_type_entries() {
     ));
 
     let mut changed = output.export.module().clone();
-    changed.intrinsic_type_core.boolean = hir::StructId::from_raw(999_u32.into());
+    changed.core_protocols.fundamental_types.boolean = hir::StructId::from_raw(999_u32.into());
     assert!(matches!(
         rebuild(&changed),
         Err(hir::HirTypeIdentityError::UnknownReference {

@@ -25,7 +25,7 @@ impl RuntimeCoreCapabilityV1 {
         if export.cone != ConeIdentity::CORE {
             return Err(RuntimeCoreCapabilityBuildError::NotCore(export.cone));
         }
-        let class = export.intrinsic_type_core.string;
+        let class = export.core_protocols.fundamental_types.string;
         let HirNominalIdentity::Source(source_identity) = &export.nominal_identities[class] else {
             return Err(RuntimeCoreCapabilityBuildError::StringSourceNotSource);
         };

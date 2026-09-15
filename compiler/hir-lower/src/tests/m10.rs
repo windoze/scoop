@@ -37,19 +37,27 @@ fn validates_and_preserves_coroutine_core_contract() {
         Some("resumeWithException")
     );
     assert_eq!(
-        module.classes[module.exception_core.throwable.class()].name,
+        module.classes[module.core_protocols.exceptions.throwable.class()].name,
         "Throwable"
     );
     assert_eq!(
-        module.classes[module.exception_core.illegal_state_exception.class()].name,
+        module.classes[module
+            .core_protocols
+            .exceptions
+            .illegal_state_exception
+            .class()]
+        .name,
         "IllegalStateException"
     );
     assert_eq!(
-        module.coroutine_core.continuation_resume,
+        module.core_protocols.coroutines.continuation_resume,
         function_id(&module, "Continuation.resume")
     );
     assert_eq!(
-        module.coroutine_core.continuation_resume_with_exception,
+        module
+            .core_protocols
+            .coroutines
+            .continuation_resume_with_exception,
         function_id(&module, "Continuation.resumeWithException")
     );
 
@@ -62,14 +70,14 @@ fn validates_and_preserves_coroutine_core_contract() {
     assert!(module.functions[module.interface_methods[task.methods[0]].function].is_suspend);
 
     let start = function_id(&module, "startCoroutine");
-    assert_eq!(module.coroutine_core.start_coroutine, start);
+    assert_eq!(module.core_protocols.coroutines.start_coroutine, start);
     assert!(matches!(
         &module.functions[start].kind,
         hir::FunctionKind::Intrinsic(intrinsic)
             if intrinsic.kind == hir::IntrinsicFunctionKind::CoroutineStart
     ));
     let suspend = function_id(&module, "suspendCoroutine");
-    assert_eq!(module.coroutine_core.suspend_coroutine, suspend);
+    assert_eq!(module.core_protocols.coroutines.suspend_coroutine, suspend);
     assert!(module.functions[suspend].is_suspend);
     assert!(matches!(
         &module.functions[suspend].kind,
