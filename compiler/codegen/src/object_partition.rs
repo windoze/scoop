@@ -39,6 +39,7 @@ impl StrongScoopLirObjectUnitSetV1 {
 /// Complete, non-overlapping Scoop LIR object partition selected by codegen.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongScoopLirObjectPartitionV1 {
+    producer_units: StrongProducerUnitPartitionV1,
     objects: Vec<StrongScoopLirObjectUnitSetV1>,
 }
 
@@ -98,7 +99,14 @@ impl StrongScoopLirObjectPartitionV1 {
                 definition_plans: vec![definition],
             }
         }));
-        Ok(Self { objects })
+        Ok(Self {
+            producer_units,
+            objects,
+        })
+    }
+
+    pub const fn producer_units(&self) -> &StrongProducerUnitPartitionV1 {
+        &self.producer_units
     }
 
     pub fn objects(&self) -> &[StrongScoopLirObjectUnitSetV1] {

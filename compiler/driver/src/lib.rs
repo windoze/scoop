@@ -10,11 +10,15 @@ use std::path::{Path, PathBuf};
 
 mod inputs;
 mod linking;
+mod object_production;
 mod request;
 mod trusted_core;
 
 pub use inputs::{load_inputs, render_diagnostics};
 use linking::{LinkRequest, build_runtime, compile_c_bridge, link};
+pub use object_production::{
+    PlannedScoopLirObjectInputV1, PlannedScoopLirObjectProductionV1, ScoopLirObjectProductionError,
+};
 pub use request::{
     BuildRequestNormalizationError, CoreBootstrapHirInputError, CoreBootstrapHirStageError,
     CoreBootstrapLirStageError, CoreBootstrapMirStageError, CoreOnlyRequestValidationError,

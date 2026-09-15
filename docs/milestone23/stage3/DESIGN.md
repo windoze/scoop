@@ -1416,6 +1416,13 @@ Scoop LLVM producer在返回member前，必须把runtime-metadata emitter给出�
 接受第二个caller-supplied Cone identity。这样跨producer分片从类型结构上不可表达，而不是等后续
 symbol/object validator再比较失败。
 
+driver中的producer adapter必须从同一个`EmittedStrongObjectSetV1`原子地取得production、
+codegen选定的完整producer unit partition、每个物理对象的精确unit set与typed
+materialization。adapter在临时对象仍为只读且存活时复制其完整bytes，由该partition唯一
+派生member plan，再把materialization绑定到definition实际归属的member id。成功结果以
+私有字段同时拥有production、member plan、按member id排序的immutable bytes和全部typed patch
+site；后续verifier只能消费该结果，不得由caller重新配对其中任意部分。
+
 这样typed patch site可带member id，同时不形成member hash自引用。改变object分片会改变member id和Code/Artifact fingerprint，但只要canonical LIR语义不变就不改变LIR semantic fingerprint。
 
 ### 11.3 共同Mach-O门禁

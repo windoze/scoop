@@ -62,6 +62,7 @@ impl EmittedStrongObjectMemberV1 {
 #[derive(Debug)]
 pub struct EmittedStrongObjectSetV1 {
     production: scoop_lir::StrongProductionSectionV1,
+    partition: StrongScoopLirObjectPartitionV1,
     members: Vec<EmittedStrongObjectMemberV1>,
     backing: tempfile::TempDir,
 }
@@ -73,6 +74,10 @@ impl EmittedStrongObjectSetV1 {
 
     pub fn members(&self) -> &[EmittedStrongObjectMemberV1] {
         &self.members
+    }
+
+    pub const fn partition(&self) -> &StrongScoopLirObjectPartitionV1 {
+        &self.partition
     }
 
     pub fn temporary_directory(&self) -> &Path {
@@ -217,6 +222,7 @@ pub fn emit_object_set(
     }
     Ok(EmittedStrongObjectSetV1 {
         production,
+        partition,
         members,
         backing,
     })
