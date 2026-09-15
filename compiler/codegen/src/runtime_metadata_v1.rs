@@ -13,59 +13,62 @@ use inkwell::types::StructType;
 use crate::CodegenError;
 
 mod image;
+pub(crate) use image::emit_cone_image_v1;
 pub use image::{
     EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1, EmittedConeImageV1,
-    RuntimeImagePatchSiteV1, emit_cone_image_v1,
+    RuntimeImagePatchSiteV1,
 };
 
 mod entry;
-pub use entry::{
-    EmittedEntryProductionV1, EmittedRootEntryV1, RootEntryPatchSiteV1, emit_entry_production_v1,
-};
+pub(crate) use entry::emit_entry_production_v1;
+pub use entry::{EmittedEntryProductionV1, EmittedRootEntryV1, RootEntryPatchSiteV1};
 
 mod safepoint;
+pub(crate) use safepoint::emit_strong_safepoint_registrations_v1;
 pub use safepoint::{
     EmittedStrongSafepointRegistrationSetV1, EmittedStrongSafepointRegistrationV1,
-    SafepointRegistrationPatchSiteV1, emit_strong_safepoint_registrations_v1,
+    SafepointRegistrationPatchSiteV1,
 };
 
 mod callable;
+pub(crate) use callable::emit_strong_callable_registrations_v1;
 pub use callable::{
     CallableRegistrationPatchSiteV1, EmittedStrongCallableRegistrationSetV1,
-    EmittedStrongCallableRegistrationV1, emit_strong_callable_registrations_v1,
+    EmittedStrongCallableRegistrationV1,
 };
 
 mod type_registration;
+pub(crate) use type_registration::emit_strong_type_registrations_v1;
 pub use type_registration::{
     EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1,
-    TypeRegistrationPatchSiteV1, emit_strong_type_registrations_v1,
+    TypeRegistrationPatchSiteV1,
 };
 
 mod immortal_registration;
+pub(crate) use immortal_registration::emit_strong_immortal_object_registrations_v1;
 pub use immortal_registration::{
     EmittedStrongImmortalObjectRegistrationSetV1, EmittedStrongImmortalObjectRegistrationV1,
-    ImmortalObjectRegistrationPatchSiteV1, emit_strong_immortal_object_registrations_v1,
+    ImmortalObjectRegistrationPatchSiteV1,
 };
 
 mod initialization;
+pub(crate) use initialization::emit_strong_initialization_unit_registrations_v1;
 pub use initialization::{
     EmittedStrongInitializationUnitRegistrationSetV1,
     EmittedStrongInitializationUnitRegistrationV1, InitializationRegistrationPatchSiteV1,
-    emit_strong_initialization_unit_registrations_v1,
 };
 
 mod static_storage;
+pub(crate) use static_storage::emit_strong_static_storage_registrations_v1;
 pub use static_storage::{
     EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
     EmittedStrongStaticStorageRegistrationSetV1, EmittedStrongStaticStorageRegistrationV1,
-    StaticStorageRegistrationPatchSiteV1, emit_strong_static_storage_registrations_v1,
+    StaticStorageRegistrationPatchSiteV1,
 };
 
 mod production;
-pub use production::{
-    EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1,
-    emit_strong_runtime_metadata_v1,
-};
+pub(crate) use production::emit_strong_runtime_metadata_v1;
+pub use production::{EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1};
 
 #[derive(Clone, Copy)]
 struct ExpectedField {

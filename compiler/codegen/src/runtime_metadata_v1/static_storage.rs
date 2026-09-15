@@ -138,7 +138,7 @@ impl<'ctx> EmittedStrongStaticStorageRegistrationSetV1<'ctx> {
 
 /// Emit every strong static-storage registration from its closed LIR plan.
 /// All graph-managed digest fields remain zero until finalization.
-pub fn emit_strong_static_storage_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_static_storage_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,

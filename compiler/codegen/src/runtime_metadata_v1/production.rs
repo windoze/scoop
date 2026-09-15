@@ -81,7 +81,7 @@ impl EmittedStrongRuntimeMetadataV1 {
 ///
 /// The caller owns the LLVM module under construction. On failure that module
 /// must be discarded; no partially emitted module is a successful product.
-pub fn emit_strong_runtime_metadata_v1<'ctx>(
+pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,

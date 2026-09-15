@@ -124,7 +124,7 @@ impl<'ctx> EmittedStrongInitializationUnitRegistrationSetV1<'ctx> {
 /// Emit separate `ic`, coordinator `id`, and runtime-registration `nr`
 /// definitions for every initialization unit. Graph-managed digest slots stay
 /// zero until the object-backed finalizer patches them.
-pub fn emit_strong_initialization_unit_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &StrongInitializationUnitRegistrationPlanSetV1,

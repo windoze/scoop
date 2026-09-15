@@ -123,8 +123,12 @@ fn prepare_strong_llvm_module<'ctx>(
         let builder = context.create_builder();
         emit_executable_entry_shim(context, &llvm, &builder, module, entry)?;
     }
-    let runtime_metadata =
-        emit_strong_runtime_metadata_v1(context, &llvm, &machine.get_target_data(), production)?;
+    let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
+        context,
+        &llvm,
+        &machine.get_target_data(),
+        production,
+    )?;
 
     verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
     Ok((llvm, runtime_metadata))

@@ -106,11 +106,7 @@ pub use runtime_metadata_v1::{
     ImmortalObjectRegistrationPatchSiteV1, InitializationRegistrationPatchSiteV1,
     ProvisionalStrongDigestPatchLocationV1, RootEntryPatchSiteV1, RuntimeImagePatchSiteV1,
     SafepointRegistrationPatchSiteV1, StaticStorageRegistrationPatchSiteV1,
-    TypeRegistrationPatchSiteV1, emit_cone_image_v1, emit_entry_production_v1,
-    emit_strong_callable_registrations_v1, emit_strong_immortal_object_registrations_v1,
-    emit_strong_initialization_unit_registrations_v1, emit_strong_runtime_metadata_v1,
-    emit_strong_safepoint_registrations_v1, emit_strong_static_storage_registrations_v1,
-    emit_strong_type_registrations_v1,
+    TypeRegistrationPatchSiteV1,
 };
 use target::ManagedAddressSpace;
 pub use target::{

@@ -107,7 +107,7 @@ impl<'ctx> EmittedStrongImmortalObjectRegistrationSetV1<'ctx> {
 
 /// Emit every strong immortal-object registration from the closed LIR plan.
 /// The graph-managed definition fingerprint remains zero until finalization.
-pub fn emit_strong_immortal_object_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_immortal_object_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &StrongImmortalObjectRegistrationPlanSetV1,

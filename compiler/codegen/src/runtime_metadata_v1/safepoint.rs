@@ -100,7 +100,7 @@ impl<'ctx> EmittedStrongSafepointRegistrationSetV1<'ctx> {
 
 /// Emit all strong safepoint registrations from the closed LIR production
 /// plan. Every graph-managed digest field remains zero until finalization.
-pub fn emit_strong_safepoint_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_safepoint_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &StrongSafepointRegistrationPlanSetV1,

@@ -84,7 +84,7 @@ pub enum EmittedEntryProductionV1<'ctx> {
 /// finalization. The gateway body and failure-root registration may be
 /// defined before or after this call, but their declarations must have the
 /// exact ABI types and strong Cone linkage.
-pub fn emit_entry_production_v1<'ctx>(
+pub(crate) fn emit_entry_production_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &EntryProductionPlanV1,

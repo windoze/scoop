@@ -100,7 +100,7 @@ impl<'ctx> EmittedStrongCallableRegistrationSetV1<'ctx> {
 
 /// Emit every strong callable registration from the closed LIR production
 /// plan. Both graph-managed digest fields remain zero until finalization.
-pub fn emit_strong_callable_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_callable_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &StrongCallableRegistrationPlanSetV1,

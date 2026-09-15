@@ -157,7 +157,7 @@ impl<'ctx> EmittedConeImageV1<'ctx> {
 /// LLVM module. This routine declares their exact strong symbols and types;
 /// final object verification requires every declaration to resolve to a
 /// definition owned by the current Cone.
-pub fn emit_cone_image_v1<'ctx>(
+pub(crate) fn emit_cone_image_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &ConeImagePlanV1,

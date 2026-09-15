@@ -106,7 +106,7 @@ impl<'ctx> EmittedStrongTypeRegistrationSetV1<'ctx> {
 
 /// Emit every strong type registration from the closed LIR production plan.
 /// The three graph-managed digest fields remain zero until finalization.
-pub fn emit_strong_type_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_type_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &StrongTypeRegistrationPlanSetV1,
