@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
@@ -164,6 +165,114 @@ pub struct SelectedImportedMirCallable<'a> {
     signature: ExactCallableSignature,
 }
 
+/// Request-local MIR id for one callable selected from trusted core.
+/// It cannot be interchanged with its HIR or LIR counterpart.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ImportedCoreMirCallableId(u32);
+
+/// The complete imported callable set for one ordinary MIR lowering.
+///
+/// Construction is bound to one imported foundation and production section;
+/// every inserted selection must retain those exact proofs. The set cannot
+/// be assembled from bare persistent identities or signatures.
+pub struct SelectedImportedMirSet<'a> {
+    foundation: &'a ImportedMirFoundation,
+    production: &'a crate::CoreBootstrapBridgeSectionV1,
+    by_binding: BTreeMap<PersistentExportBindingId, ImportedCoreMirCallableId>,
+    callables: Vec<SelectedImportedMirCallable<'a>>,
+}
+
+impl<'a> SelectedImportedMirSet<'a> {
+    #[doc(hidden)]
+    pub fn new(
+        foundation: &'a ImportedMirFoundation,
+        production: &'a crate::CoreBootstrapBridgeSectionV1,
+    ) -> Self {
+        Self {
+            foundation,
+            production,
+            by_binding: BTreeMap::new(),
+            callables: Vec::new(),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn insert(
+        &mut self,
+        selected: SelectedImportedMirCallable<'a>,
+    ) -> Result<ImportedCoreMirCallableId, ImportedMirSelectionError> {
+        if !selected.belongs_to(self.foundation, self.production) {
+            return Err(ImportedMirSelectionError::ForeignSelection(
+                selected.binding(),
+            ));
+        }
+        if let Some(&id) = self.by_binding.get(&selected.binding()) {
+            let retained = &self.callables[id.0 as usize];
+            if retained.definition() != selected.definition()
+                || retained.implementation() != selected.implementation()
+                || retained.signature() != selected.signature()
+            {
+                return Err(ImportedMirSelectionError::ConflictingSelection(
+                    selected.binding(),
+                ));
+            }
+            return Ok(id);
+        }
+        let id = ImportedCoreMirCallableId(
+            u32::try_from(self.callables.len())
+                .expect("one MIR request cannot select more than u32::MAX core callables"),
+        );
+        self.by_binding.insert(selected.binding(), id);
+        self.callables.push(selected);
+        Ok(id)
+    }
+
+    pub fn callable(
+        &self,
+        id: ImportedCoreMirCallableId,
+    ) -> Option<&SelectedImportedMirCallable<'a>> {
+        self.callables.get(id.0 as usize)
+    }
+
+    pub fn callable_for_binding(
+        &self,
+        binding: PersistentExportBindingId,
+    ) -> Option<ImportedCoreMirCallableId> {
+        self.by_binding.get(&binding).copied()
+    }
+
+    pub fn len(&self) -> usize {
+        self.callables.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.callables.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImportedMirSelectionError {
+    ForeignSelection(PersistentExportBindingId),
+    ConflictingSelection(PersistentExportBindingId),
+}
+
+impl fmt::Display for ImportedMirSelectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ForeignSelection(binding) => write!(
+                formatter,
+                "imported MIR binding {binding} belongs to another core artifact projection"
+            ),
+            Self::ConflictingSelection(binding) => write!(
+                formatter,
+                "imported MIR binding {binding} has conflicting selected definitions"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ImportedMirSelectionError {}
+
 impl SelectedImportedMirCallable<'_> {
     pub const fn binding(&self) -> PersistentExportBindingId {
         self.binding
@@ -300,6 +409,9 @@ mod tests {
         let selected = foundation
             .project_core_callable(&production, binding, definition, signature.clone())
             .unwrap();
+        let foreign = other_foundation
+            .project_core_callable(&production, binding, definition, signature.clone())
+            .unwrap();
 
         assert!(selected.belongs_to(&foundation, &production));
         assert!(!selected.belongs_to(&other_foundation, &production));
@@ -310,6 +422,18 @@ mod tests {
             StrongCallableDefinitionOwner::Function(definition)
         );
         assert_eq!(selected.signature(), &signature);
+
+        let mut selections = SelectedImportedMirSet::new(&foundation, &production);
+        let first = selections.insert(selected.clone()).unwrap();
+        assert_eq!(selections.insert(selected).unwrap(), first);
+        assert_eq!(selections.len(), 1);
+        assert_eq!(selections.callable_for_binding(binding), Some(first));
+        assert_eq!(selections.callable(first).unwrap().definition(), definition);
+        assert_eq!(
+            selections.insert(foreign),
+            Err(ImportedMirSelectionError::ForeignSelection(binding))
+        );
+        assert_eq!(selections.len(), 1);
     }
 
     fn imported_foundation(canonical: CanonicalMirFoundation) -> ImportedMirFoundation {

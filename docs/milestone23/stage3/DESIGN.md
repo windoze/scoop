@@ -681,7 +681,10 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   `ImportedCoreTypeId`/`ImportedCoreValueId`三种request-local typed id；三种id不是wire identity，
   只能在同一sidecar内解引用到仍借用原artifact的`SelectedImportedCoreTarget`。HIR表达式与
   type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena；
-- selected target只能通过同一core proof投影成`SelectedImportedMir`/`SelectedImportedLir`；
+- driver一次消费整份HIR callable selection，通过同一core proof逐项投影后产生唯一
+  `SelectedImportedMirSet<'core>`。该set自身绑定同artifact的MIR foundation与production，使用独立
+  `ImportedCoreMirCallableId`，并在任一项失败时不返回部分集合；不存在接受裸binding/definition/
+  signature的第二构造路径。selected MIR target再以同样方式投影成`SelectedImportedLir`；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
 

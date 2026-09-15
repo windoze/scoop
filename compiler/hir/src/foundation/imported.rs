@@ -459,6 +459,23 @@ impl<'a> SelectedImportedCoreSet<'a> {
     pub fn value_count(&self) -> usize {
         self.values.len()
     }
+
+    #[doc(hidden)]
+    pub fn belongs_to(
+        &self,
+        foundation: &ImportedHirFoundation,
+        interface: &CoreHirInterfaceV1,
+        strong_callable_bindings: &[PersistentExportBindingId],
+    ) -> bool {
+        std::ptr::eq(self.foundation, foundation)
+            && std::ptr::eq(self.interface, interface)
+            && std::ptr::eq(self.strong_callable_bindings, strong_callable_bindings)
+    }
+
+    #[doc(hidden)]
+    pub fn callable_selections(&self) -> impl Iterator<Item = SelectedImportedCoreTarget<'a>> + '_ {
+        self.callables.iter().copied()
+    }
 }
 
 fn checked_selection_index(length: usize) -> u32 {

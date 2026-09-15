@@ -27,8 +27,8 @@ mod imported;
 mod projection;
 mod strong_profile;
 pub use imported::{
-    ImportedMirCallableProjectionError, ImportedMirFoundation, ImportedMirId,
-    SelectedImportedMirCallable,
+    ImportedCoreMirCallableId, ImportedMirCallableProjectionError, ImportedMirFoundation,
+    ImportedMirId, ImportedMirSelectionError, SelectedImportedMirCallable, SelectedImportedMirSet,
 };
 pub use strong_profile::{
     OdrFreeMirFoundation, OdrFreeMirFoundationError, OdrFreeMirFoundationProjectionError,

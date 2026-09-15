@@ -7,7 +7,7 @@ use scoop_codegen::ResolvedTargetProfile;
 use scoop_hir::{
     CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
     CoreHirInterfaceV1, CorePreludeImportError, CorePreludeOnly, ImportedCorePreludeTarget,
-    ImportedHirSet, SelectedImportedCoreTarget,
+    ImportedHirSet, SelectedImportedCoreSet, SelectedImportedCoreTarget,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, PersistentExportBindingId, SemanticIdentitySession,
@@ -17,7 +17,8 @@ use scoop_lir::{
     StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
 };
 use scoop_mir::{
-    CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, SelectedImportedMirCallable,
+    CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, ImportedMirSelectionError,
+    SelectedImportedMirCallable, SelectedImportedMirSet,
 };
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CompositeIdentityAbiFingerprint, ConeKind,
@@ -454,6 +455,33 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .map_err(TrustedCoreCallableProjectionError::Mir)
     }
 
+    /// Atomically projects every HIR-selected callable through this
+    /// artifact's MIR bridge. A foreign or partially projectable HIR set does
+    /// not yield a MIR sidecar.
+    pub fn project_core_callables_to_mir<'artifact>(
+        &'artifact self,
+        selected: &SelectedImportedCoreSet<'_>,
+    ) -> Result<SelectedImportedMirSet<'artifact>, TrustedCoreCallableSetProjectionError> {
+        if !selected.belongs_to(
+            self.compile.hir(),
+            &self.core_interface.interface,
+            &self.core_interface.strong_callable_bindings,
+        ) {
+            return Err(TrustedCoreCallableSetProjectionError::ForeignHirSet);
+        }
+        let mut projected =
+            SelectedImportedMirSet::new(self.compile.mir(), self.compile.production().mir());
+        for selected in selected.callable_selections() {
+            let callable = self
+                .project_core_callable_to_mir(selected)
+                .map_err(TrustedCoreCallableSetProjectionError::Callable)?;
+            projected
+                .insert(callable)
+                .map_err(TrustedCoreCallableSetProjectionError::MirSet)?;
+        }
+        Ok(projected)
+    }
+
     /// Projects an MIR selection from this artifact into the exact LIR body,
     /// symbol request, and strong definition authority supplied by the same
     /// artifact. A value borrowed from another proof is rejected before any
@@ -484,6 +512,35 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
 
     pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
         self.link.link_identity_closure().defined_symbols()
+    }
+}
+
+#[derive(Debug)]
+pub enum TrustedCoreCallableSetProjectionError {
+    ForeignHirSet,
+    Callable(TrustedCoreCallableProjectionError),
+    MirSet(ImportedMirSelectionError),
+}
+
+impl fmt::Display for TrustedCoreCallableSetProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ForeignHirSet => {
+                formatter.write_str("selected core HIR set belongs to another artifact projection")
+            }
+            Self::Callable(error) => error.fmt(formatter),
+            Self::MirSet(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for TrustedCoreCallableSetProjectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ForeignHirSet => None,
+            Self::Callable(error) => Some(error),
+            Self::MirSet(error) => Some(error),
+        }
     }
 }
 
