@@ -16,6 +16,12 @@ mod core_interface;
 pub use core_interface::*;
 mod core_prelude;
 pub use core_prelude::*;
+mod core_protocols;
+pub use core_protocols::*;
+mod core_protocol_surface;
+#[cfg(test)]
+pub(crate) use core_protocol_surface::test_support as core_protocol_test_support;
+pub use core_protocol_surface::*;
 mod core_targets;
 pub use core_targets::*;
 mod core_types;

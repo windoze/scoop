@@ -1198,6 +1198,22 @@ mod tests {
             )
             .unwrap()
         );
+        let production_bytes = scoop_wire::encode(output.production_section()).unwrap();
+        let decoded = scoop_wire::decode_canonical::<
+            scoop_hir::DecodedCoreBootstrapInterfaceSectionV1,
+        >(&production_bytes, scoop_wire::DecodeLimits::default())
+        .unwrap();
+        let odr_free_foundation =
+            scoop_hir::OdrFreeHirFoundation::try_new(output.foundation().clone()).unwrap();
+        assert_eq!(
+            decoded
+                .validate_against_strong_foundation(
+                    scoop_identity::ConeIdentity::CORE,
+                    &odr_free_foundation,
+                )
+                .unwrap(),
+            output.production_section().clone()
+        );
         scoop_hir::CoreHirInterfaceV1::from_core_export(&output.hir().export).unwrap();
 
         let scoop_hir::CoreHirInterfaceBranchV1::Core(interface) =

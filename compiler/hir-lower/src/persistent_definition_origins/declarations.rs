@@ -85,10 +85,14 @@ impl DefinitionOriginBuilder<'_> {
             self.append(subject, file, declaration.span)?;
         }
         for (id, declaration) in self.lowerer.class_constructors.iter() {
-            let hir::HirClassConstructorIdentity::Source(record) = &identities[id] else {
-                continue;
+            let subject = match &identities[id] {
+                hir::HirClassConstructorIdentity::Source(record) => {
+                    DefinitionOriginSubject::Constructor(record.id())
+                }
+                hir::HirClassConstructorIdentity::ZeroArgumentAdapter { record, .. } => {
+                    DefinitionOriginSubject::GeneratedCallable(record.id())
+                }
             };
-            let subject = DefinitionOriginSubject::Constructor(record.id());
             let file = self.source_file(
                 subject,
                 declaration.span,

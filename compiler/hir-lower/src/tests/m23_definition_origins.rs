@@ -291,10 +291,14 @@ fn expected_subjects(module: &hir::Module) -> Vec<DefinitionOriginSubject> {
         ));
     }
     for (id, _) in module.class_constructors.iter() {
-        if let hir::HirClassConstructorIdentity::Source(record) = &module.constructor_identities[id]
-        {
-            subjects.push(DefinitionOriginSubject::Constructor(record.id()));
-        }
+        subjects.push(match &module.constructor_identities[id] {
+            hir::HirClassConstructorIdentity::Source(record) => {
+                DefinitionOriginSubject::Constructor(record.id())
+            }
+            hir::HirClassConstructorIdentity::ZeroArgumentAdapter { record, .. } => {
+                DefinitionOriginSubject::GeneratedCallable(record.id())
+            }
+        });
     }
     for (id, property) in module.properties.iter() {
         subjects.push(match &module.property_identities[id] {

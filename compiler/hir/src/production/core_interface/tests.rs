@@ -1,14 +1,12 @@
 use scoop_identity::{
     BindingNamespace, BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
-    CoreBuiltinNominal, DeclarationName, DeclarationScope, DefinitionOrigin,
-    DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerChain, EnumVariantFieldKey,
-    EnumVariantFieldSelector, EnumVariantIdentityKey, ExactOrdinaryNoArgUnitSignature,
-    ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey, NormalizedSourcePath,
+    CoreBuiltinNominal, DeclarationName, DeclarationScope, DefinitionOwnerChain,
+    EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityKey,
+    ExactOrdinaryNoArgUnitSignature, ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey,
     PackagePath, PendingIdentityValidation, PersistentEnumVariantFieldId, PersistentEnumVariantId,
     PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
     PersistentGenericTypeId, PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint,
-    SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
-    SourceNominalKind, SourceSpan,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -22,9 +20,10 @@ use crate::{
 fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
     let fixture = fixture();
     let bytes = encode(&fixture.interface).unwrap();
+    assert_eq!(bytes.len(), 30_034);
     assert_eq!(
-        hex(&bytes),
-        "a501a4018258207f51ff5c92b58632d1c34a6bbb2a6a049b7f62f9346af2ff15bc634796879c745820e05985483f0ca519145c05813043883a14295cb251b64e08bc92875c8fa2951f025820faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e0360358204e898ae8df7bb1bf27b577557433460cd313549ac96a109058dd1499115b5e5b045820dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a3802a300010158200252c865acc9bf0786a7b7e2b1ca777f76ae038ab51bb159b9a6ad961aad6097025820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee86803800482a30158207f51ff5c92b58632d1c34a6bbb2a6a049b7f62f9346af2ff15bc634796879c7402a200020158207b55673b75f26171d5e7f0d0cc721d4721bd8cb8f96cf54c7df9bef4a95b520a03a200030101a3015820e05985483f0ca519145c05813043883a14295cb251b64e08bc92875c8fa2951f02a200010158200252c865acc9bf0786a7b7e2b1ca777f76ae038ab51bb159b9a6ad961aad609703a20001015820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee8680580"
+        scoop_wire::sha256(&bytes).to_string(),
+        "ecf9001c2ad6d494a105c2d5f5fb2714043bc2a41a89304b91fb67beee72a39b"
     );
 
     assert_eq!(
@@ -35,7 +34,7 @@ fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
 
 #[test]
 fn interface_and_section_readers_require_closed_products_and_sums() {
-    for bytes in [vec![0xa4], vec![0xa6], vec![0xa5, 0x06, 0x00]] {
+    for bytes in [vec![0xa5], vec![0xa7], vec![0xa6, 0x07, 0x00]] {
         assert!(
             decode_canonical::<DecodedCoreHirInterfaceV1>(&bytes, DecodeLimits::default()).is_err()
         );
@@ -455,6 +454,18 @@ fn fixture() -> Fixture {
         },
     ])
     .unwrap();
+    let mut foundation = CanonicalHirFoundation::empty();
+    let compiler_protocols = crate::production::core_protocol_test_support::install(
+        &mut foundation,
+        crate::production::core_protocol_test_support::ExistingProtocolFixture {
+            string: string.clone(),
+            option: option.clone(),
+            option_some: some.clone(),
+            option_some_payload: some_payload.clone(),
+            option_none: none.clone(),
+            exact_types: vec![string_exact_record.clone(), unit_exact_record()],
+        },
+    );
     let interface = CoreHirInterfaceV1 {
         prelude_snapshot: CorePreludeSnapshotV1 {
             ordinary_bindings: direct.clone(),
@@ -469,6 +480,7 @@ fn fixture() -> Fixture {
         callable_targets: CoreCallableTargetSurfaceV1::try_new(Vec::new()).unwrap(),
         type_targets,
         value_targets: CoreValueTargetSurfaceV1::try_new(Vec::new()).unwrap(),
+        compiler_protocols,
     };
     let section = CoreBootstrapInterfaceSectionV1 {
         core_interface: CoreHirInterfaceBranchV1::Core(Box::new(interface.clone())),
@@ -476,26 +488,8 @@ fn fixture() -> Fixture {
         direct_public_surface: direct.clone(),
     };
 
-    let mut foundation = CanonicalHirFoundation::empty();
-    foundation
-        .set_types(vec![CoreBuiltinNominal::Unit.identity_record(), string])
-        .unwrap();
-    foundation.set_generic_types(vec![option]).unwrap();
-    foundation.set_enum_variants(vec![some, none]).unwrap();
-    foundation
-        .set_enum_variant_fields(vec![some_payload])
-        .unwrap();
-    foundation
-        .set_exact_types(vec![string_exact_record.clone(), unit_exact_record()])
-        .unwrap();
     foundation
         .set_export_bindings(vec![string_binding, option_binding])
-        .unwrap();
-    foundation
-        .set_definition_origins(vec![
-            origin_record(DefinitionOriginSubject::Type(string_id)),
-            origin_record(DefinitionOriginSubject::GenericType(option_id)),
-        ])
         .unwrap();
 
     Fixture {
@@ -581,19 +575,6 @@ fn variant_field(
         EnumVariantFieldSelector::Positional { declaration_index },
     ))
     .unwrap()
-}
-
-fn origin_record(subject: DefinitionOriginSubject) -> DefinitionOriginRecord {
-    let source = SourceIdentity::new(
-        ConeIdentity::CORE,
-        NormalizedSourcePath::new("src/core.scoop").unwrap(),
-    )
-    .unwrap();
-    let context = SourceContextKey::File {
-        source: source.clone(),
-    };
-    let origin = DefinitionOrigin::new(source, SourceSpan::new(0, 0).unwrap(), &context).unwrap();
-    DefinitionOriginRecord::new(subject, origin)
 }
 
 fn site() -> SourceDeclarationSite {

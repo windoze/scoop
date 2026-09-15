@@ -1,7 +1,7 @@
 use super::super::*;
 use super::{
     capability_interfaces, coroutine_core_declarations, exception_core_declarations,
-    ffi_core_declarations, intrinsic_type_declarations,
+    ffi_core_declarations, gc_api_declarations, intrinsic_type_declarations,
 };
 
 /// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2),
@@ -83,6 +83,14 @@ pub(crate) fn core_file() -> SourceFile {
         println,
     ]);
     let mut source = file(declarations);
+    make_core_public(&mut source);
+    source
+}
+
+/// Complete trusted-core fixture used by the M23 production bootstrap path.
+pub(crate) fn complete_core_file() -> SourceFile {
+    let mut source = core_file();
+    source.declarations.extend(gc_api_declarations());
     make_core_public(&mut source);
     source
 }

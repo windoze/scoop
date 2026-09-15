@@ -234,6 +234,33 @@ impl CanonicalHirFoundation {
         })
     }
 
+    pub(crate) fn constructor_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentConstructorId, &SourceDeclarationKey)> {
+        self.constructors.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn generated_callable_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentGeneratedCallableId, &GeneratedCallableKey)> {
+        self.generated_callables.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
+    pub(crate) fn dispatch_slot_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentDispatchSlotId, &DispatchSlotKey)> {
+        self.dispatch_slots.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
     pub(crate) fn generic_function_by_bytes(
         &self,
         bytes: &[u8; 32],

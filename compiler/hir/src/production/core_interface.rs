@@ -7,13 +7,16 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentTypeId, Sour
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
-    CanonicalDirectPublicSurfaceV1, CoreCallableTargetSurfaceBuildError,
-    CoreCallableTargetSurfaceV1, CoreCallableTargetSurfaceValidationError, CoreHirTypeCapabilityV1,
+    CanonicalDirectPublicSurfaceV1, CoreCallableDefinitionV1, CoreCallableTargetSurfaceBuildError,
+    CoreCallableTargetSurfaceV1, CoreCallableTargetSurfaceValidationError,
+    CoreCompilerProtocolSurfaceBuildError, CoreCompilerProtocolSurfaceV1,
+    CoreCompilerProtocolSurfaceValidationError, CoreHirTypeCapabilityV1,
     CorePreludeSnapshotBuildError, CorePreludeSnapshotV1, CorePreludeSnapshotValidationError,
-    CoreTypeDefinitionV1, CoreTypeTargetSurfaceBuildError, CoreTypeTargetSurfaceV1,
-    CoreTypeTargetSurfaceValidationError, CoreValueTargetSurfaceBuildError,
-    CoreValueTargetSurfaceV1, CoreValueTargetSurfaceValidationError,
-    DecodedCanonicalDirectPublicSurfaceV1, DecodedCoreCallableTargetSurfaceV1,
+    CoreProtocolCallableDefinitionV1, CoreTypeDefinitionV1, CoreTypeTargetSurfaceBuildError,
+    CoreTypeTargetSurfaceV1, CoreTypeTargetSurfaceValidationError,
+    CoreValueTargetSurfaceBuildError, CoreValueTargetSurfaceV1,
+    CoreValueTargetSurfaceValidationError, DecodedCanonicalDirectPublicSurfaceV1,
+    DecodedCoreCallableTargetSurfaceV1, DecodedCoreCompilerProtocolSurfaceV1,
     DecodedCorePreludeSnapshotV1, DecodedCoreTypeTargetSurfaceV1, DecodedCoreValueTargetSurfaceV1,
     DecodedHirOutputContractV1, DecodedRuntimeCoreCapabilityV1, DirectPublicSurfaceBuildError,
     DirectPublicSurfaceValidationError, HirOutputContractV1, HirOutputContractValidationError,
@@ -31,6 +34,7 @@ pub struct CoreHirInterfaceV1 {
     callable_targets: CoreCallableTargetSurfaceV1,
     type_targets: CoreTypeTargetSurfaceV1,
     value_targets: CoreValueTargetSurfaceV1,
+    compiler_protocols: CoreCompilerProtocolSurfaceV1,
 }
 
 /// One parameter-free source nominal whose complete runtime shape is a
@@ -89,6 +93,8 @@ impl CoreHirInterfaceV1 {
                 .map_err(CoreHirInterfaceBuildError::TypeTargets)?,
             value_targets: CoreValueTargetSurfaceV1::from_core_export(export)
                 .map_err(CoreHirInterfaceBuildError::ValueTargets)?,
+            compiler_protocols: CoreCompilerProtocolSurfaceV1::from_core_export(export)
+                .map_err(CoreHirInterfaceBuildError::CompilerProtocols)?,
         };
         validate_relations(&interface, direct_surface)
             .map_err(CoreHirInterfaceBuildError::Relation)?;
@@ -113,6 +119,10 @@ impl CoreHirInterfaceV1 {
 
     pub const fn value_targets(&self) -> &CoreValueTargetSurfaceV1 {
         &self.value_targets
+    }
+
+    pub const fn compiler_protocols(&self) -> &CoreCompilerProtocolSurfaceV1 {
+        &self.compiler_protocols
     }
 
     /// Projects the authoritative source/exact pairs that every later stage
@@ -160,7 +170,7 @@ impl CoreHirInterfaceV1 {
 
 impl WireEncode for CoreHirInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.prelude_snapshot.encode(encoder)?;
         encoder.field(2)?;
@@ -170,7 +180,9 @@ impl WireEncode for CoreHirInterfaceV1 {
         encoder.field(4)?;
         self.type_targets.encode(encoder)?;
         encoder.field(5)?;
-        self.value_targets.encode(encoder)
+        self.value_targets.encode(encoder)?;
+        encoder.field(6)?;
+        self.compiler_protocols.encode(encoder)
     }
 }
 
@@ -181,6 +193,7 @@ pub struct DecodedCoreHirInterfaceV1 {
     callable_targets: DecodedCoreCallableTargetSurfaceV1,
     type_targets: DecodedCoreTypeTargetSurfaceV1,
     value_targets: DecodedCoreValueTargetSurfaceV1,
+    compiler_protocols: DecodedCoreCompilerProtocolSurfaceV1,
 }
 
 impl DecodedCoreHirInterfaceV1 {
@@ -210,6 +223,10 @@ impl DecodedCoreHirInterfaceV1 {
                 .value_targets
                 .validate_against(foundation, direct_surface)
                 .map_err(CoreHirInterfaceValidationError::ValueTargets)?,
+            compiler_protocols: self
+                .compiler_protocols
+                .validate_against(foundation)
+                .map_err(CoreHirInterfaceValidationError::CompilerProtocols)?,
         };
         validate_relations(&interface, direct_surface)
             .map_err(CoreHirInterfaceValidationError::Relation)?;
@@ -219,7 +236,7 @@ impl DecodedCoreHirInterfaceV1 {
 
 impl WireEncode for DecodedCoreHirInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.prelude_snapshot.encode(encoder)?;
         encoder.field(2)?;
@@ -229,19 +246,22 @@ impl WireEncode for DecodedCoreHirInterfaceV1 {
         encoder.field(4)?;
         self.type_targets.encode(encoder)?;
         encoder.field(5)?;
-        self.value_targets.encode(encoder)
+        self.value_targets.encode(encoder)?;
+        encoder.field(6)?;
+        self.compiler_protocols.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCoreHirInterfaceV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(5)?;
+        decoder.expect_map(6)?;
         Ok(Self {
             prelude_snapshot: decoder.field(1, DecodedCorePreludeSnapshotV1::decode)?,
             string_capability: decoder.field(2, DecodedRuntimeCoreCapabilityV1::decode)?,
             callable_targets: decoder.field(3, DecodedCoreCallableTargetSurfaceV1::decode)?,
             type_targets: decoder.field(4, DecodedCoreTypeTargetSurfaceV1::decode)?,
             value_targets: decoder.field(5, DecodedCoreValueTargetSurfaceV1::decode)?,
+            compiler_protocols: decoder.field(6, DecodedCoreCompilerProtocolSurfaceV1::decode)?,
         })
     }
 }
@@ -499,6 +519,51 @@ fn validate_relations(
     if matching.count() != 1 {
         return Err(CoreHirInterfaceRelationError::StringTypeTargetMismatch);
     }
+    if interface.compiler_protocols.string_source_type() != string_source {
+        return Err(CoreHirInterfaceRelationError::ProtocolStringMismatch);
+    }
+    if interface.compiler_protocols.option_some() != interface.prelude_snapshot.option_some()
+        || interface.compiler_protocols.option_some_payload()
+            != interface.prelude_snapshot.option_some_payload()
+        || interface.compiler_protocols.option_none() != interface.prelude_snapshot.option_none()
+    {
+        return Err(CoreHirInterfaceRelationError::ProtocolOptionMismatch);
+    }
+    for operation in interface
+        .compiler_protocols
+        .compiler_operation_protocol()
+        .operations()
+    {
+        let definition = match operation.callable().definition() {
+            CoreProtocolCallableDefinitionV1::Function(id) => {
+                CoreCallableDefinitionV1::Function(id)
+            }
+            CoreProtocolCallableDefinitionV1::GenericFunction(id) => {
+                CoreCallableDefinitionV1::GenericFunction(id)
+            }
+            CoreProtocolCallableDefinitionV1::Constructor(_)
+            | CoreProtocolCallableDefinitionV1::GeneratedCallable(_) => {
+                return Err(CoreHirInterfaceRelationError::ProtocolOperationDefinitionKind);
+            }
+        };
+        let mut matches = interface
+            .callable_targets
+            .targets()
+            .iter()
+            .filter(|target| target.definition() == definition);
+        if let Some(target) = matches.next() {
+            if matches.next().is_some() {
+                return Err(
+                    CoreHirInterfaceRelationError::DuplicateProtocolCallableTarget(definition),
+                );
+            }
+            if target.signature() != operation.callable().signature() {
+                return Err(
+                    CoreHirInterfaceRelationError::ProtocolCallableSignatureMismatch(definition),
+                );
+            }
+        }
+    }
     Ok(())
 }
 
@@ -511,6 +576,7 @@ pub enum CoreHirInterfaceBuildError {
     CallableTargets(CoreCallableTargetSurfaceBuildError),
     TypeTargets(CoreTypeTargetSurfaceBuildError),
     ValueTargets(CoreValueTargetSurfaceBuildError),
+    CompilerProtocols(CoreCompilerProtocolSurfaceBuildError),
     Relation(CoreHirInterfaceRelationError),
 }
 
@@ -545,6 +611,7 @@ pub enum CoreHirInterfaceValidationError {
     CallableTargets(CoreCallableTargetSurfaceValidationError),
     TypeTargets(CoreTypeTargetSurfaceValidationError),
     ValueTargets(CoreValueTargetSurfaceValidationError),
+    CompilerProtocols(CoreCompilerProtocolSurfaceValidationError),
     Relation(CoreHirInterfaceRelationError),
 }
 
@@ -562,6 +629,11 @@ pub enum CoreHirInterfaceRelationError {
     DuplicateConstituentBinding(scoop_identity::PersistentExportBindingId),
     ConstituentCoverage { expected: usize, actual: usize },
     StringTypeTargetMismatch,
+    ProtocolStringMismatch,
+    ProtocolOptionMismatch,
+    ProtocolOperationDefinitionKind,
+    DuplicateProtocolCallableTarget(CoreCallableDefinitionV1),
+    ProtocolCallableSignatureMismatch(CoreCallableDefinitionV1),
 }
 
 impl fmt::Display for CoreHirInterfaceRelationError {

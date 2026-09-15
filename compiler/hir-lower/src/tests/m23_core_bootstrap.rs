@@ -6,7 +6,7 @@ use scoop_ast::{
 };
 use scoop_identity::{ConeIdentity, NormalizedSourcePath, SourceIdentity};
 
-use super::core_file;
+use super::complete_core_file;
 use crate::{CoreBootstrapSourceError, CoreBootstrapSources, lower_core_bootstrap};
 
 #[test]
@@ -65,7 +65,7 @@ fn parsed_source(cone: ConeIdentity) -> CurrentConeParsedSources {
         SourceIdentity::new(cone, NormalizedSourcePath::new("src/core.scoop").unwrap()).unwrap();
     CurrentConeParsedSources::try_new(
         AllParsedSources::try_new(NonEmptyVec::new(
-            IdentifiedParsedSource::new(identity.clone(), core_file()),
+            IdentifiedParsedSource::new(identity.clone(), complete_core_file()),
             Vec::new(),
         ))
         .unwrap(),
