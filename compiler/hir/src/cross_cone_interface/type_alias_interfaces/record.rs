@@ -13,6 +13,13 @@ use crate::{
     SignatureTypeReferenceResolver,
 };
 
+mod semantics;
+
+pub use semantics::{
+    TypeAliasDeclarationSourceV1, TypeAliasInterfaceSemanticAuthority,
+    TypeAliasInterfaceSemanticValidationError,
+};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypeAliasInterfaceRecordV1 {
     alias: PersistentTypeAliasId,
