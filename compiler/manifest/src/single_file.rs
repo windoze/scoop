@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_identity::SourceIdentity;
 
+use crate::stable_file::StableFileObservation;
 use crate::{DiscoveredSource, SourceDisplayLocator};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -196,7 +197,8 @@ pub fn load_single_file_source_with_limit(
             SingleFileInputErrorKind::SourceChangedDuringRead,
         ));
     }
-    let expected_length = before.len();
+    let before = StableFileObservation::new(&before);
+    let expected_length = before.length();
     if expected_length > byte_limit {
         return Err(SingleFileInputError::new(
             locator.display_path.clone(),
@@ -261,7 +263,8 @@ pub fn load_single_file_source_with_limit(
     if locator.resolved_path != after_read
         || !after_read_metadata.is_file()
         || !after_file.is_file()
-        || after_file.len() != expected_length
+        || StableFileObservation::new(&after_file) != before
+        || StableFileObservation::new(&after_read_metadata) != before
         || u64::try_from(bytes.len()).ok() != Some(expected_length)
     {
         return Err(SingleFileInputError::new(

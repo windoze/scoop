@@ -10,6 +10,7 @@ use scoop_identity::{
 };
 
 use crate::LoadedConeManifest;
+use crate::stable_file::StableFileObservation;
 
 const MAX_SYMLINK_DEPTH: usize = 64;
 
@@ -64,6 +65,22 @@ impl DiscoveredSource {
     pub const fn content_digest(&self) -> SourceContentDigest {
         self.content_digest
     }
+
+    pub fn into_parts(
+        self,
+    ) -> (
+        SourceIdentity,
+        SourceDisplayLocator,
+        String,
+        SourceContentDigest,
+    ) {
+        (
+            self.identity,
+            self.display_locator,
+            self.source_text,
+            self.content_digest,
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -84,6 +101,16 @@ impl DiscoveredManifestSources {
 
     pub const fn usage(&self) -> SourceDiscoveryUsage {
         self.usage
+    }
+
+    pub fn into_parts(
+        self,
+    ) -> (
+        DiscoveredSource,
+        Vec<DiscoveredSource>,
+        SourceDiscoveryUsage,
+    ) {
+        (self.first, self.rest, self.usage)
     }
 }
 
@@ -397,7 +424,8 @@ fn read_discovered_source(
             SourceDiscoveryErrorKind::SourceChangedDuringDiscovery,
         ));
     }
-    let expected_length = before.len();
+    let before = StableFileObservation::new(&before);
+    let expected_length = before.length();
     budget.charge_bytes(expected_length, &candidate.display_path)?;
     let capacity = usize::try_from(expected_length).map_err(|_| {
         SourceDiscoveryError::new(
@@ -444,9 +472,18 @@ fn read_discovered_source(
             error,
         )
     })?;
+    let after_path = std::fs::metadata(&after_read).map_err(|error| {
+        SourceDiscoveryError::io(
+            DiscoveryIoOperation::Inspect,
+            candidate.display_path.clone(),
+            error,
+        )
+    })?;
     if after_read != candidate.physical_path
         || !after_file.is_file()
-        || after_file.len() != expected_length
+        || !after_path.is_file()
+        || StableFileObservation::new(&after_file) != before
+        || StableFileObservation::new(&after_path) != before
         || u64::try_from(bytes.len()).ok() != Some(expected_length)
     {
         return Err(SourceDiscoveryError::new(
