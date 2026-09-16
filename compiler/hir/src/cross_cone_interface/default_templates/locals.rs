@@ -11,11 +11,13 @@ use crate::{
 };
 
 mod errors;
+mod semantics;
 
 pub use errors::{
     TemplateLocalLookupError, TemplateLocalRecordBuildError, TemplateLocalRecordResolutionError,
     TemplateLocalTableBuildError, TemplateLocalTableValidationError,
 };
+pub use semantics::TemplateLocalScopeValidationError;
 
 /// Resolves one canonical wire-local table index to its semantic selector.
 pub trait TemplateLocalSelectorResolver {

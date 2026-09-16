@@ -18,7 +18,8 @@ pub use locals::{
     DecodedTemplateLocalDefinitionV1, DecodedTemplateLocalRecordV1, TemplateLocalDefinitionV1,
     TemplateLocalIndexResolver, TemplateLocalLookupError, TemplateLocalRecordBuildError,
     TemplateLocalRecordResolutionError, TemplateLocalRecordV1, TemplateLocalReferenceResolver,
-    TemplateLocalSelectorResolver, TemplateLocalTableBuildError, TemplateLocalTableValidationError,
+    TemplateLocalScopeValidationError, TemplateLocalSelectorResolver, TemplateLocalTableBuildError,
+    TemplateLocalTableValidationError,
 };
 pub use receiver::{
     DecodedOptionalTemplateReceiverV1, DecodedTemplateReceiverV1,
