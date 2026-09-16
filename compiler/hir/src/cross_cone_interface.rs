@@ -85,7 +85,10 @@ pub use declaration_references::{
     PropertyDeclarationIdResolver, PublicMemberRefBuildError, PublicMemberRefResolver,
     PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId, SourceNominalIdResolver,
 };
-pub use default_templates::{DecodedExportDefaultTemplateKeyV1, ExportDefaultTemplateKeyV1};
+pub use default_templates::{
+    DecodedExportDefaultTemplateKeyV1, DecodedPersistentLexicalRootV1, ExportDefaultTemplateKeyV1,
+    PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
+};
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceSetBuildError,

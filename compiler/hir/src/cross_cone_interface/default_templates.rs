@@ -3,6 +3,13 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::CallableDeclarationIdResolver;
 
+mod roots;
+
+pub use roots::{
+    DecodedPersistentLexicalRootV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,
+    PersistentLexicalRootV1,
+};
+
 /// Section-local identity of one exported default template.
 ///
 /// This key is stable because its owner is persistent and its parameter
