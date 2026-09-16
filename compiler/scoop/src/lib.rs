@@ -12,6 +12,7 @@ mod discovery;
 mod graph;
 mod locator;
 mod request;
+mod schedule;
 mod snapshot;
 
 pub use artifact::*;
@@ -22,4 +23,5 @@ pub use discovery::*;
 pub use graph::*;
 pub use locator::{DependencyLocatorError, LocatorIoOperation};
 pub use request::*;
+pub use schedule::*;
 pub use snapshot::*;

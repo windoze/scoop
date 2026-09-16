@@ -20,11 +20,27 @@ const COMPILER_FAILURE_EXIT_CODE: i32 = 1;
 #[derive(Debug, Default)]
 pub struct ProductionSingleConeCompilerRunner;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ChildIoPlan {
+    trusted_sysroot: PathBuf,
+}
+
+impl ChildIoPlan {
+    pub(crate) fn new(trusted_sysroot: PathBuf) -> Self {
+        Self { trusted_sysroot }
+    }
+
+    pub fn trusted_sysroot(&self) -> &std::path::Path {
+        &self.trusted_sysroot
+    }
+}
+
 pub trait SingleConeCompilerRunner {
     fn invoke(
         &mut self,
         tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
+        io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError>;
 }
 
@@ -33,6 +49,7 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         &mut self,
         tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
+        io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
         tool.revalidate_executable()
             .map_err(ChildTransportError::CompilerChanged)?;
@@ -46,6 +63,7 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
             .arg("__child-protocol")
             .arg(tool.protocol().protocol_version().to_string())
             .env_clear()
+            .env("SCOOP_SYSROOT", io.trusted_sysroot())
             .current_dir(working_directory)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

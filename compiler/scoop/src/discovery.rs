@@ -80,6 +80,13 @@ impl BuildGraphRequest {
             )),
             BuildRootInputKind::SingleFile(locator) => LoadedRootInput::SingleFile(locator),
         };
+        let sysroot_path = std::fs::canonicalize(sysroot.as_path()).map_err(|source| {
+            LoadBuildRootError::TrustedSysroot {
+                path: sysroot.as_path().to_path_buf(),
+                source,
+            }
+        })?;
+        let sysroot = TrustedSysrootRoot::from_canonical(sysroot_path);
         let core_layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
             sysroot.as_path(),
             target.lir_target_selection(),
@@ -879,6 +886,10 @@ fn identity_coordinate_conflict(
 #[derive(Debug)]
 pub enum LoadBuildRootError {
     RootManifest(ManifestRootError),
+    TrustedSysroot {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     TrustedCoreManifest(ManifestRootError),
     Resource(SlibClosureResourceErrorV1),
 }
@@ -887,6 +898,13 @@ impl fmt::Display for LoadBuildRootError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RootManifest(error) => write!(formatter, "invalid build root: {error}"),
+            Self::TrustedSysroot { path, source } => {
+                write!(
+                    formatter,
+                    "invalid trusted sysroot {}: {source}",
+                    path.display()
+                )
+            }
             Self::TrustedCoreManifest(error) => write!(formatter, "invalid trusted core: {error}"),
             Self::Resource(error) => error.fmt(formatter),
         }
@@ -897,6 +915,7 @@ impl std::error::Error for LoadBuildRootError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::RootManifest(error) | Self::TrustedCoreManifest(error) => Some(error),
+            Self::TrustedSysroot { source, .. } => Some(source),
             Self::Resource(error) => Some(error),
         }
     }

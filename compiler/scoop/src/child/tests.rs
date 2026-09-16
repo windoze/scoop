@@ -94,6 +94,7 @@ fn production_runner_accepts_only_matching_response_and_exit_pairs() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
+    let io = ChildIoPlan::new(directory.path().to_path_buf());
     fake_compiler(
         &compiler,
         &encode_response_frame(&success([8; 16])).unwrap(),
@@ -103,7 +104,7 @@ fn production_runner_accepts_only_matching_response_and_exit_pairs() {
     let tool = resolve_fake(&compiler);
 
     let response = ProductionSingleConeCompilerRunner
-        .invoke(&tool, &request)
+        .invoke(&tool, &request, &io)
         .unwrap();
     assert!(matches!(response, ScoopcResponseEnvelopeV1::Success { .. }));
 
@@ -115,7 +116,7 @@ fn production_runner_accepts_only_matching_response_and_exit_pairs() {
     );
     let tool = resolve_fake(&compiler);
     let response = ProductionSingleConeCompilerRunner
-        .invoke(&tool, &request)
+        .invoke(&tool, &request, &io)
         .unwrap();
     assert!(matches!(response, ScoopcResponseEnvelopeV1::Failure { .. }));
 }
@@ -125,6 +126,7 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
+    let io = ChildIoPlan::new(directory.path().to_path_buf());
 
     fake_compiler(
         &compiler,
@@ -134,7 +136,7 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
     );
     let tool = resolve_fake(&compiler);
     assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request),
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
         Err(ChildTransportError::RequestIdMismatch { .. })
     ));
 
@@ -146,7 +148,7 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
     );
     let tool = resolve_fake(&compiler);
     assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request),
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
         Err(ChildTransportError::ExitMismatch {
             response: ChildResponseKind::Success,
             ..
@@ -161,7 +163,7 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
     );
     let tool = resolve_fake(&compiler);
     assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request),
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
         Err(ChildTransportError::UnexpectedStderr(_))
     ));
 
@@ -170,7 +172,7 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
     fake_compiler(&compiler, &trailing, 0, "");
     let tool = resolve_fake(&compiler);
     assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request),
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
         Err(ChildTransportError::Response { .. })
     ));
 }

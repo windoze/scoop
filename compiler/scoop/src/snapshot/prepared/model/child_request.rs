@@ -10,13 +10,14 @@ use scoop_protocol::{
 };
 
 use super::{PreparedBuildGraph, PreparedGraphNode};
-use crate::{CompletedNode, CompletedNodeOrigin};
+use crate::{ChildIoPlan, CompletedNode, CompletedNodeOrigin};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChildInvocationPlanV1 {
     identity: ConeIdentity,
     request: ScoopcRequestEnvelopeV1,
     output_path: PathBuf,
+    io: ChildIoPlan,
 }
 
 impl ChildInvocationPlanV1 {
@@ -30,6 +31,10 @@ impl ChildInvocationPlanV1 {
 
     pub fn output_path(&self) -> &Path {
         &self.output_path
+    }
+
+    pub const fn io(&self) -> &ChildIoPlan {
+        &self.io
     }
 
     pub fn into_request(self) -> ScoopcRequestEnvelopeV1 {
@@ -119,6 +124,7 @@ impl PreparedBuildGraph {
             identity,
             request: ScoopcRequestEnvelopeV1::new(request_id, build),
             output_path,
+            io: ChildIoPlan::new(self.context.sysroot.as_path().to_path_buf()),
         })
     }
 

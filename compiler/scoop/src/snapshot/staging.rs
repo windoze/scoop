@@ -135,7 +135,10 @@ impl PreparedStaging {
         bytes: &[u8],
         digest: Digest256,
     ) -> Result<PathBuf, StagingError> {
-        let root = self.artifact_root.join(cone_directory);
+        let root = self
+            .output_root
+            .join("completed-artifacts")
+            .join(cone_directory);
         create_directory(&root)?;
         set_private_directory_permissions(&root)?;
         let path = root.join("cache.slib");

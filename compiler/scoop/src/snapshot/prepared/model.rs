@@ -553,6 +553,16 @@ impl PreparedBuildGraph {
             &mut self.meter,
         )
     }
+
+    pub(crate) fn require_trusted_core_bootstrap(&mut self, reason: CoreBootstrapReason) {
+        match self.nodes.get_mut(&ConeIdentity::CORE) {
+            Some(PreparedGraphNode::TrustedCore(node)) => {
+                node.preparation = TrustedCorePreparation::Bootstrap(reason);
+                node.receipt = None;
+            }
+            _ => unreachable!("resolved graph structurally contains trusted core"),
+        }
+    }
 }
 
 const fn cone_kind(kind: RequestedConeKind) -> ConeKind {

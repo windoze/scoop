@@ -49,7 +49,7 @@ impl PreparedBuildGraph {
             .charge_child_request()
             .map_err(CoreBootstrapExecutionError::Resource)?;
         let response = runner
-            .invoke(&self.compiler, invocation.request())
+            .invoke(&self.compiler, invocation.request(), invocation.io())
             .map_err(CoreBootstrapExecutionError::ChildTransport)?;
         let success = match response {
             ScoopcResponseEnvelopeV1::Success { result, .. } => result,

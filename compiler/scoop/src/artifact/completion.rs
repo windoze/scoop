@@ -19,8 +19,8 @@ use super::{
     ValidatedDualArtifactClosure,
 };
 use crate::{
-    CoreSourceSnapshotKeyV1, PairedCompilerFingerprintV1, PreparedArtifactCandidate,
-    TrustedCoreSlotReceiptV1,
+    CacheCompletionError, CoreSourceSnapshotKeyV1, PairedCompilerFingerprintV1,
+    PreparedArtifactCandidate, TrustedCoreSlotReceiptV1,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -92,6 +92,10 @@ impl CompletedNode {
         Arc::clone(&self.artifact)
     }
 
+    pub(crate) fn replace_warnings(&mut self, warnings: Vec<StructuredDiagnosticV1>) {
+        self.warnings = warnings;
+    }
+
     pub(crate) fn from_cache_hit(
         cone: ConeIdentity,
         artifact: Arc<DualValidatedArtifactHandle>,
@@ -128,6 +132,144 @@ impl CompletedNode {
             warnings,
         }
     }
+
+    fn from_compiled(
+        cone: ConeIdentity,
+        artifact: Arc<DualValidatedArtifactHandle>,
+        closures: ValidatedDualArtifactClosure,
+        materialized_child_path: PathBuf,
+        warnings: Vec<StructuredDiagnosticV1>,
+    ) -> Self {
+        let (compile_closure, link_closure) = closures.into_parts();
+        Self {
+            cone,
+            origin: CompletedNodeOrigin::Compiled,
+            artifact,
+            compile_closure,
+            link_closure,
+            materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
+            warnings,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CompiledCompletionError {
+    CurrentNodeAlreadyCompleted(ConeIdentity),
+    DuplicateCompletedNode(ConeIdentity),
+    MissingTrustedCore,
+    TrustedCoreReopen(DualValidatedArtifactReopenError),
+    Artifact(Box<DualValidatedArtifactError>),
+    Plan(Box<ArtifactClosureValidationError>),
+    Warnings(Box<CacheCompletionError>),
+}
+
+impl fmt::Display for CompiledCompletionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CurrentNodeAlreadyCompleted(identity) => {
+                write!(formatter, "compiled Cone {identity} is already completed")
+            }
+            Self::DuplicateCompletedNode(identity) => {
+                write!(formatter, "completed input repeats Cone {identity}")
+            }
+            Self::MissingTrustedCore => {
+                formatter.write_str("compiled artifact validation requires completed trusted core")
+            }
+            Self::TrustedCoreReopen(source) => write!(
+                formatter,
+                "cannot reopen completed trusted core Link view: {source}"
+            ),
+            Self::Artifact(source) => {
+                write!(
+                    formatter,
+                    "compiled artifact failed dual-view validation: {source}"
+                )
+            }
+            Self::Plan(source) => {
+                write!(
+                    formatter,
+                    "compiled artifact does not match the resolved graph: {source}"
+                )
+            }
+            Self::Warnings(source) => {
+                write!(formatter, "compiled warnings are not persistable: {source}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for CompiledCompletionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::TrustedCoreReopen(source) => source,
+            Self::Artifact(source) => source.as_ref(),
+            Self::Plan(source) => source.as_ref(),
+            Self::Warnings(source) => source.as_ref(),
+            Self::CurrentNodeAlreadyCompleted(_)
+            | Self::DuplicateCompletedNode(_)
+            | Self::MissingTrustedCore => return None,
+        })
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn complete_compiled_candidate(
+    plan: &ArtifactClosurePlan,
+    identity: ConeIdentity,
+    snapshot: Arc<scoop_slib::ArtifactSnapshot>,
+    materialized_path: PathBuf,
+    completed: &[&CompletedNode],
+    warnings: Vec<StructuredDiagnosticV1>,
+    limits: DecodeLimits,
+    target: ValidatedLirTargetSelection,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+    meter: &mut SlibClosureDecodeMeterV1,
+) -> Result<CompletedNode, CompiledCompletionError> {
+    let mut artifacts = BTreeMap::new();
+    for node in completed {
+        if node.cone == identity {
+            return Err(CompiledCompletionError::CurrentNodeAlreadyCompleted(
+                identity,
+            ));
+        }
+        if artifacts
+            .insert(node.cone, node.shared_artifact())
+            .is_some()
+        {
+            return Err(CompiledCompletionError::DuplicateCompletedNode(node.cone));
+        }
+    }
+    let core = artifacts
+        .get(&ConeIdentity::CORE)
+        .ok_or(CompiledCompletionError::MissingTrustedCore)?;
+    let core_owners: CanonicalDefinedLinkSymbolOwnerSetV1 = core
+        .with_link_view(|view| view.link_identity_closure().defined_symbols().clone())
+        .map_err(CompiledCompletionError::TrustedCoreReopen)?;
+    let artifact = Arc::new(
+        DualValidatedArtifactHandle::validate(
+            snapshot,
+            limits,
+            target,
+            &core_owners,
+            c_bridge_profile,
+            meter,
+        )
+        .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?,
+    );
+    artifacts.insert(identity, Arc::clone(&artifact));
+    let closures = plan
+        .validate(identity, &artifacts)
+        .map_err(|source| CompiledCompletionError::Plan(Box::new(source)))?;
+    crate::validate_warning_origins(&warnings, closures.compile().dependency_first())
+        .map_err(|source| CompiledCompletionError::Warnings(Box::new(source)))?;
+    Ok(CompletedNode::from_compiled(
+        identity,
+        artifact,
+        closures,
+        materialized_path,
+        warnings,
+    ))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

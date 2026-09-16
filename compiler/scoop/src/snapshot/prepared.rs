@@ -26,9 +26,11 @@ use crate::{ImmutableInputSnapshot, ResolvedBuildGraph, ResolvedPairedScoopc};
 mod core_execution;
 mod error;
 mod model;
+mod ordinary_execution;
 
 pub use core_execution::CoreBootstrapExecutionError;
 pub use error::{CoreLockOperation, PrepareBuildGraphError};
+pub use ordinary_execution::OrdinarySourceExecutionError;
 
 pub use model::{
     ChildInvocationPlanV1, ChildRequestPlanError, CompileCacheKeyError, CoreBootstrapReason,

@@ -22,10 +22,12 @@ use scoop_wire::{DecodeLimits, encode};
 
 use super::*;
 use crate::{
-    ArtifactCacheRoot, BuildGraphRequest, BuildLimitsProfileV1, BuildRootInput,
-    ChildTransportError, DiagnosticsPolicy, PairedScoopcLocator, ResolvedPairedScoopc,
-    SingleConeCompilerRunner, TrustedCoreCompletionError, TrustedCoreSlotReceiptBodyV1,
-    TrustedCoreSlotReceiptV1, TrustedSysrootRoot,
+    ArtifactCacheRoot, BuildGraphExecutionError, BuildGraphOutcome, BuildGraphRequest,
+    BuildLimitsProfileV1, BuildRootInput, ChildIoPlan, ChildTransportError, CompletedNodeOrigin,
+    DiagnosticsPolicy, OrdinarySourceExecutionError, PairedScoopcLocator,
+    ProductionSingleConeCompilerRunner, ResolvedPairedScoopc, SingleConeCompilerRunner,
+    TrustedCoreCompletionError, TrustedCoreSlotReceiptBodyV1, TrustedCoreSlotReceiptV1,
+    TrustedSysrootRoot,
 };
 
 struct FailureRunner;
@@ -35,6 +37,7 @@ impl SingleConeCompilerRunner for FailureRunner {
         &mut self,
         _tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
+        _io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
         let diagnostic = StructuredDiagnosticV1::new(
             DiagnosticSeverityV1::Error,
@@ -48,6 +51,23 @@ impl SingleConeCompilerRunner for FailureRunner {
     }
 }
 
+#[derive(Default)]
+struct RecordingFailureRunner {
+    current: Vec<CurrentConeRequestV1>,
+}
+
+impl SingleConeCompilerRunner for RecordingFailureRunner {
+    fn invoke(
+        &mut self,
+        _tool: &ResolvedPairedScoopc,
+        request: &ScoopcRequestEnvelopeV1,
+        io: &ChildIoPlan,
+    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
+        self.current.push(request.build().current().clone());
+        FailureRunner.invoke(_tool, request, io)
+    }
+}
+
 struct InvalidArtifactSuccessRunner;
 
 impl SingleConeCompilerRunner for InvalidArtifactSuccessRunner {
@@ -55,6 +75,7 @@ impl SingleConeCompilerRunner for InvalidArtifactSuccessRunner {
         &mut self,
         _tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
+        _io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
         std::fs::write(
             request.build().out_slib().to_path_buf().unwrap(),
@@ -69,11 +90,30 @@ struct SourceChangingSuccessRunner {
     source: std::path::PathBuf,
 }
 
+#[derive(Default)]
+struct RecordingProductionRunner {
+    current: Vec<CurrentConeRequestV1>,
+    production: ProductionSingleConeCompilerRunner,
+}
+
+impl SingleConeCompilerRunner for RecordingProductionRunner {
+    fn invoke(
+        &mut self,
+        tool: &ResolvedPairedScoopc,
+        request: &ScoopcRequestEnvelopeV1,
+        io: &ChildIoPlan,
+    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
+        self.current.push(request.build().current().clone());
+        self.production.invoke(tool, request, io)
+    }
+}
+
 impl SingleConeCompilerRunner for SourceChangingSuccessRunner {
     fn invoke(
         &mut self,
         _tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
+        _io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
         std::fs::write(&self.source, "class Any\nclass Unit\n").unwrap();
         Ok(test_success(request.request_id()))
@@ -99,15 +139,25 @@ fn test_success(request_id: RequestCorrelationId) -> ScoopcResponseEnvelopeV1 {
 }
 
 fn write_manifest(root: &Path, name: &str, dependencies: &str) {
+    write_manifest_source(
+        root,
+        name,
+        "library",
+        "fun value(): Int = 1\n",
+        dependencies,
+    );
+}
+
+fn write_manifest_source(root: &Path, name: &str, kind: &str, source: &str, dependencies: &str) {
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(
         root.join("Cone.toml"),
         format!(
-            "schema = 1\n[cone]\ngroup = \"test\"\nname = \"{name}\"\nversion = \"1.0.0\"\nkind = \"library\"\n{dependencies}"
+            "schema = 1\n[cone]\ngroup = \"test\"\nname = \"{name}\"\nversion = \"1.0.0\"\nkind = \"{kind}\"\n{dependencies}"
         ),
     )
     .unwrap();
-    std::fs::write(root.join("src/main.scoop"), "fun value(): Int = 1\n").unwrap();
+    std::fs::write(root.join("src/main.scoop"), source).unwrap();
 }
 
 fn write_core(sysroot: &Path) {
@@ -119,6 +169,26 @@ fn write_core(sysroot: &Path) {
     )
     .unwrap();
     std::fs::write(root.join("src/core.scoop"), "class Any\n").unwrap();
+}
+
+fn copy_real_core(sysroot: &Path) {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .unwrap();
+    let source = workspace.join("sysroot/lib/scoop.core");
+    let destination = sysroot.join("lib/scoop.core");
+    std::fs::create_dir_all(destination.join("src")).unwrap();
+    std::fs::copy(source.join("Cone.toml"), destination.join("Cone.toml")).unwrap();
+    for entry in std::fs::read_dir(source.join("src")).unwrap() {
+        let entry = entry.unwrap();
+        assert!(entry.file_type().unwrap().is_file());
+        std::fs::copy(
+            entry.path(),
+            destination.join("src").join(entry.file_name()),
+        )
+        .unwrap();
+    }
 }
 
 fn write_fake_compiler(path: &Path) {
@@ -138,6 +208,44 @@ fn request(root: &Path, workspace: &Path) -> BuildGraphRequest {
     let compiler = workspace.join("bin/scoopc");
     BuildGraphRequest::new(
         BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
+        vec![],
+        ArtifactCacheRoot::new(workspace.join("cache")).unwrap(),
+        TrustedSysrootRoot::new(sysroot).unwrap(),
+        TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+        PairedScoopcLocator::new(compiler).unwrap(),
+        DiagnosticsPolicy::Structured,
+        BuildLimitsProfileV1::M23_DEFAULT,
+    )
+    .unwrap()
+}
+
+fn real_manifest_request(
+    root: &Path,
+    workspace: &Path,
+    sysroot: &Path,
+    compiler: &Path,
+) -> BuildGraphRequest {
+    BuildGraphRequest::new(
+        BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
+        vec![],
+        ArtifactCacheRoot::new(workspace.join("cache")).unwrap(),
+        TrustedSysrootRoot::new(sysroot).unwrap(),
+        TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+        PairedScoopcLocator::new(compiler).unwrap(),
+        DiagnosticsPolicy::Structured,
+        BuildLimitsProfileV1::M23_DEFAULT,
+    )
+    .unwrap()
+}
+
+fn real_single_file_request(
+    source: &Path,
+    workspace: &Path,
+    sysroot: &Path,
+    compiler: &Path,
+) -> BuildGraphRequest {
+    BuildGraphRequest::new(
+        BuildRootInput::single_file(SingleFileLocator::from_path(source).unwrap()),
         vec![],
         ArtifactCacheRoot::new(workspace.join("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
@@ -571,6 +679,307 @@ fn core_bootstrap_child_failure_never_writes_a_receipt() {
             if diagnostics.len() == 1
     ));
     assert!(!layout.receipt().exists());
+}
+
+#[test]
+fn serial_scheduler_stops_before_dependent_after_core_failure() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let prepared = prepare(&root, workspace).unwrap();
+    let mut runner = RecordingFailureRunner::default();
+
+    assert!(matches!(
+        prepared.execute_with_runner(&mut runner),
+        Err(BuildGraphExecutionError::CoreBootstrap(source))
+            if matches!(source.as_ref(), CoreBootstrapExecutionError::ChildFailure(_))
+    ));
+    assert_eq!(
+        runner.current,
+        vec![CurrentConeRequestV1::TrustedCoreBootstrap]
+    );
+}
+
+#[test]
+fn real_process_bootstrap_then_reuses_core_and_source_cache() {
+    let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
+        return;
+    };
+    let compiler = std::path::PathBuf::from(compiler);
+    assert!(compiler.is_absolute());
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    copy_real_core(&sysroot);
+    write_manifest(&root, "root", "");
+
+    let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
+
+    let first = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute()
+        .unwrap();
+    let root_identity = ConeCoordinate::new("test", "root", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    assert_eq!(
+        first.observations().child_invocations(),
+        &[ConeIdentity::CORE, root_identity]
+    );
+    assert_eq!(
+        first.completed(ConeIdentity::CORE).unwrap().origin(),
+        CompletedNodeOrigin::TrustedCore
+    );
+    assert_eq!(
+        first.completed(root_identity).unwrap().origin(),
+        CompletedNodeOrigin::Compiled
+    );
+    assert!(matches!(
+        first.into_outcome(),
+        BuildGraphOutcome::Library { .. }
+    ));
+
+    let second = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute()
+        .unwrap();
+    assert!(second.observations().child_invocations().is_empty());
+    assert_eq!(
+        second.completed(ConeIdentity::CORE).unwrap().origin(),
+        CompletedNodeOrigin::TrustedCore
+    );
+    assert_eq!(
+        second.completed(root_identity).unwrap().origin(),
+        CompletedNodeOrigin::CacheHit
+    );
+}
+
+#[test]
+fn real_process_builds_and_reuses_manifest_executable() {
+    let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
+        return;
+    };
+    let compiler = std::path::PathBuf::from(compiler);
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    copy_real_core(&sysroot);
+    write_manifest_source(&root, "executable", "executable", "fun main() {}\n", "");
+    let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
+    let root_identity = ConeCoordinate::new("test", "executable", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+
+    let first = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute()
+        .unwrap();
+    assert_eq!(
+        first.observations().child_invocations(),
+        &[ConeIdentity::CORE, root_identity]
+    );
+    assert!(matches!(
+        first.into_outcome(),
+        BuildGraphOutcome::ExecutableArtifact { .. }
+    ));
+
+    let second = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute()
+        .unwrap();
+    assert!(second.observations().child_invocations().is_empty());
+    assert_eq!(
+        second.completed(root_identity).unwrap().origin(),
+        CompletedNodeOrigin::CacheHit
+    );
+}
+
+#[test]
+fn real_process_builds_and_reuses_single_file() {
+    let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
+        return;
+    };
+    let compiler = std::path::PathBuf::from(compiler);
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let source = workspace.join("input.scoop");
+    copy_real_core(&sysroot);
+    std::fs::write(&source, "fun main() {}\n").unwrap();
+    let build_request = || real_single_file_request(&source, workspace, &sysroot, &compiler);
+
+    let first = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute()
+        .unwrap();
+    assert_eq!(first.dependency_first().len(), 2);
+    assert_eq!(
+        first.observations().child_invocations(),
+        &[ConeIdentity::CORE, ConeIdentity::SINGLE_FILE]
+    );
+    assert!(matches!(
+        first.into_outcome(),
+        BuildGraphOutcome::ExecutableArtifact { .. }
+    ));
+
+    let second = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute()
+        .unwrap();
+    assert!(second.observations().child_invocations().is_empty());
+    assert_eq!(
+        second
+            .completed(ConeIdentity::SINGLE_FILE)
+            .unwrap()
+            .origin(),
+        CompletedNodeOrigin::CacheHit
+    );
+}
+
+#[test]
+fn real_process_caches_upstream_before_non_core_capability_failure() {
+    let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
+        return;
+    };
+    let compiler = std::path::PathBuf::from(compiler);
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let dependency = workspace.join("dependency");
+    let root = workspace.join("root");
+    copy_real_core(&sysroot);
+    write_manifest(&dependency, "dependency", "");
+    write_manifest(
+        &root,
+        "root",
+        "[dependencies]\n\"test:dependency\" = { version = \"1.0.0\", path = \"../dependency\" }\n",
+    );
+    let dependency_identity = ConeCoordinate::new("test", "dependency", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let root_identity = ConeCoordinate::new("test", "root", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
+
+    let mut first_runner = RecordingProductionRunner::default();
+    let first_error = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute_with_runner(&mut first_runner)
+        .unwrap_err();
+    assert_non_core_capability_failure(first_error, root_identity);
+    assert_eq!(first_runner.current.len(), 3);
+    assert_eq!(
+        first_runner.current[0],
+        CurrentConeRequestV1::TrustedCoreBootstrap
+    );
+    assert_manifest_current_identity(&first_runner.current[1], dependency_identity);
+    assert_manifest_current_identity(&first_runner.current[2], root_identity);
+
+    let mut second_runner = RecordingProductionRunner::default();
+    let second_error = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute_with_runner(&mut second_runner)
+        .unwrap_err();
+    assert_non_core_capability_failure(second_error, root_identity);
+    assert_eq!(second_runner.current.len(), 1);
+    assert!(matches!(
+        second_runner.current[0],
+        CurrentConeRequestV1::ManifestRoot { .. }
+    ));
+    assert_manifest_current_identity(&second_runner.current[0], root_identity);
+}
+
+fn assert_non_core_capability_failure(error: BuildGraphExecutionError, root: ConeIdentity) {
+    assert!(matches!(
+        error,
+        BuildGraphExecutionError::Ordinary(identity, source)
+            if identity == root
+                && matches!(
+                    source.as_ref(),
+                    OrdinarySourceExecutionError::ChildFailure(diagnostics)
+                        if diagnostics.iter().any(|diagnostic|
+                            diagnostic.code()
+                                == "SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE")
+                )
+    ));
+}
+
+fn assert_manifest_current_identity(current: &CurrentConeRequestV1, identity: ConeIdentity) {
+    let CurrentConeRequestV1::ManifestRoot { root } = current else {
+        panic!("expected manifest request, found {current:?}");
+    };
+    let expected = identity.to_string();
+    assert_eq!(
+        root.to_path_buf().unwrap().file_name().unwrap(),
+        std::ffi::OsStr::new(&expected)
+    );
 }
 
 #[test]

@@ -16,10 +16,12 @@ use scoop_slib::{
 };
 
 pub use completion::{
-    CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError, PrivateArtifactPath,
-    TrustedCoreCompletionError, TrustedCoreReceiptBindingField,
+    CompiledCompletionError, CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError,
+    PrivateArtifactPath, TrustedCoreCompletionError, TrustedCoreReceiptBindingField,
 };
-pub(crate) use completion::{complete_prebuilt_candidates, complete_trusted_core_candidate};
+pub(crate) use completion::{
+    complete_compiled_candidate, complete_prebuilt_candidates, complete_trusted_core_candidate,
+};
 pub use error::{ArtifactClosureValidationError, ArtifactPlanField};
 
 #[derive(Clone, Debug)]
