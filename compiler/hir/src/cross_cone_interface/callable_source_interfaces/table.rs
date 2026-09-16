@@ -14,6 +14,10 @@ use super::{
 };
 use crate::{CallableDeclarationId, CallableDeclarationIdResolver, SignatureTypeReferenceResolver};
 
+mod semantics;
+
+pub use semantics::CallableSourceInterfaceSetSemanticValidationError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalCallableSourceInterfacesV1 {
     records: Vec<CallableSourceInterfaceV1>,

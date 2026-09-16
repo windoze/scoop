@@ -16,6 +16,12 @@ use crate::{
     CallableDeclarationIdResolver, ExportDefaultTemplateKeyV1, SignatureTypeReferenceResolver,
 };
 
+mod semantics;
+
+pub use semantics::{
+    CallableSourceInterfaceSemanticAuthority, CallableSourceInterfaceSemanticValidationError,
+};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallableSourceInterfaceV1 {
     owner: CallableTemplateOrigin,
