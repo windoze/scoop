@@ -1453,7 +1453,8 @@ fixed vector锁定`ConeCompileCacheKeyV1`的domain、field tag与排序；分别
 - compiler executable digest；
 - language/runtime/identity/mangler/schema/profile；
 - lir target、backend、C bridge toolchain；
-- semantic option。
+
+M23-4没有自由`semantic option`字段，因此不构造一个虚假的option mutation；未来首次增加optimization或language mode时必须升级cache input schema，并同时新增该字段的独立miss测试。
 
 上述每项必须miss。只改变locator spelling、artifact optional attachment、artifact whole fingerprint而三层/所需code不变、cache/output/staging path、mtime、request id、diagnostic policy或runtime-build/final-link projection时，key必须不变。
 
