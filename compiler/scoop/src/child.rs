@@ -7,9 +7,11 @@ use std::process::{Command, ExitStatus, Stdio};
 
 use scoop_protocol::{
     ProtocolReadError, ProtocolWriteError, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1,
-    ScoopcSuccessV1, decode_response_frame, encode_request_frame,
+    ScoopcSuccessV1, decode_request_frame_with_usage, decode_response_frame,
+    decode_response_frame_with_usage, encode_request_frame, encode_response_frame,
 };
 use scoop_slib::{DualValidatedArtifactHandle, FingerprintAvailability};
+use scoop_wire::DecodeUsage;
 
 use crate::{PairedCompilerError, ResolvedPairedScoopc};
 
@@ -124,6 +126,81 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         }
         validate_exit(status, &response)?;
         Ok(response)
+    }
+}
+
+/// Canonically round-trips a request so the parent can account for the child
+/// decoder's work in the same build-wide closure meter.
+pub(crate) fn measure_child_request_decode(
+    request: &ScoopcRequestEnvelopeV1,
+) -> Result<DecodeUsage, ChildProtocolAccountingError> {
+    let frame =
+        encode_request_frame(request).map_err(ChildProtocolAccountingError::RequestEncode)?;
+    let (decoded, usage) = decode_request_frame_with_usage(&frame)
+        .map_err(ChildProtocolAccountingError::RequestDecode)?;
+    if decoded != *request {
+        return Err(ChildProtocolAccountingError::RequestRoundTripMismatch);
+    }
+    Ok(usage)
+}
+
+/// Canonically round-trips a response so fake and production runners receive
+/// identical build-wide protocol accounting.
+pub(crate) fn measure_child_response_decode(
+    response: &ScoopcResponseEnvelopeV1,
+) -> Result<DecodeUsage, ChildProtocolAccountingError> {
+    let frame =
+        encode_response_frame(response).map_err(ChildProtocolAccountingError::ResponseEncode)?;
+    let (decoded, usage) = decode_response_frame_with_usage(&frame)
+        .map_err(ChildProtocolAccountingError::ResponseDecode)?;
+    if decoded != *response {
+        return Err(ChildProtocolAccountingError::ResponseRoundTripMismatch);
+    }
+    Ok(usage)
+}
+
+#[derive(Debug)]
+pub enum ChildProtocolAccountingError {
+    RequestEncode(ProtocolWriteError),
+    RequestDecode(ProtocolReadError),
+    RequestRoundTripMismatch,
+    ResponseEncode(ProtocolWriteError),
+    ResponseDecode(ProtocolReadError),
+    ResponseRoundTripMismatch,
+}
+
+impl fmt::Display for ChildProtocolAccountingError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::RequestEncode(source) => {
+                write!(formatter, "cannot encode child request: {source}")
+            }
+            Self::RequestDecode(source) => {
+                write!(formatter, "cannot decode child request: {source}")
+            }
+            Self::RequestRoundTripMismatch => {
+                formatter.write_str("child request changed across its canonical round trip")
+            }
+            Self::ResponseEncode(source) => {
+                write!(formatter, "cannot encode child response: {source}")
+            }
+            Self::ResponseDecode(source) => {
+                write!(formatter, "cannot decode child response: {source}")
+            }
+            Self::ResponseRoundTripMismatch => {
+                formatter.write_str("child response changed across its canonical round trip")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ChildProtocolAccountingError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::RequestEncode(source) | Self::ResponseEncode(source) => Some(source),
+            Self::RequestDecode(source) | Self::ResponseDecode(source) => Some(source),
+            Self::RequestRoundTripMismatch | Self::ResponseRoundTripMismatch => None,
+        }
     }
 }
 

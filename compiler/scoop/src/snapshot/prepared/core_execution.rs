@@ -17,11 +17,12 @@ use super::model::{
 use super::{PrepareBuildGraphError, capture_manifest_source};
 use crate::artifact::{CompletedNode, TrustedCoreCompletionError, complete_trusted_core_candidate};
 use crate::{
-    CacheReceiptValidationError, ChildRequestPlanError, ChildSuccessArtifactMismatch,
-    ChildTransportError, CompileCacheKeyError, ImmutableInputSnapshot, SingleConeCompilerRunner,
-    SnapshotFileError, StagingError, TrustedCoreReceiptPublishError, TrustedCoreSlotReceiptBodyV1,
-    TrustedCoreSlotReceiptV1, publish_trusted_core_slot_receipt_v1,
-    validate_child_success_artifact,
+    CacheReceiptValidationError, ChildProtocolAccountingError, ChildRequestPlanError,
+    ChildSuccessArtifactMismatch, ChildTransportError, CompileCacheKeyError,
+    ImmutableInputSnapshot, SingleConeCompilerRunner, SnapshotFileError, StagingError,
+    TrustedCoreReceiptPublishError, TrustedCoreSlotReceiptBodyV1, TrustedCoreSlotReceiptV1,
+    measure_child_request_decode, measure_child_response_decode,
+    publish_trusted_core_slot_receipt_v1, validate_child_success_artifact,
 };
 
 impl PreparedBuildGraph {
@@ -45,12 +46,22 @@ impl PreparedBuildGraph {
         let invocation = self
             .child_invocation_plan(ConeIdentity::CORE, request_id, &[])
             .map_err(CoreBootstrapExecutionError::RequestPlan)?;
+        let request_usage = measure_child_request_decode(invocation.request())
+            .map_err(CoreBootstrapExecutionError::ChildProtocol)?;
+        self.meter
+            .charge_decode_usage(request_usage)
+            .map_err(CoreBootstrapExecutionError::Resource)?;
         self.meter
             .charge_child_request()
             .map_err(CoreBootstrapExecutionError::Resource)?;
         let response = runner
             .invoke(&self.compiler, invocation.request(), invocation.io())
             .map_err(CoreBootstrapExecutionError::ChildTransport)?;
+        let response_usage = measure_child_response_decode(&response)
+            .map_err(CoreBootstrapExecutionError::ChildProtocol)?;
+        self.meter
+            .charge_decode_usage(response_usage)
+            .map_err(CoreBootstrapExecutionError::Resource)?;
         let success = match response {
             ScoopcResponseEnvelopeV1::Success { result, .. } => result,
             ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
@@ -179,6 +190,7 @@ pub enum CoreBootstrapExecutionError {
     SlotAlreadyReusable,
     RequestPlan(ChildRequestPlanError),
     Resource(SlibClosureResourceErrorV1),
+    ChildProtocol(ChildProtocolAccountingError),
     ChildTransport(ChildTransportError),
     ChildFailure(Vec<StructuredDiagnosticV1>),
     ReloadSourceManifest(ManifestRootError),
@@ -207,6 +219,12 @@ impl fmt::Display for CoreBootstrapExecutionError {
             }
             Self::RequestPlan(source) => write!(formatter, "cannot plan core child: {source}"),
             Self::Resource(source) => source.fmt(formatter),
+            Self::ChildProtocol(source) => {
+                write!(
+                    formatter,
+                    "cannot account for core child protocol frame: {source}"
+                )
+            }
             Self::ChildTransport(source) => {
                 write!(formatter, "trusted core child transport failed: {source}")
             }
@@ -278,6 +296,7 @@ impl std::error::Error for CoreBootstrapExecutionError {
         match self {
             Self::RequestPlan(source) => Some(source),
             Self::Resource(source) => Some(source),
+            Self::ChildProtocol(source) => Some(source),
             Self::ChildTransport(source) => Some(source),
             Self::ReloadSourceManifest(source) => Some(source),
             Self::SourceSnapshot(source) => Some(source.as_ref()),

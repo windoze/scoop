@@ -413,6 +413,10 @@ impl BuildGraphExecutionError {
 impl ClassifyBuildFailure for CoreBootstrapExecutionError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
+            Self::ChildProtocol(_) => classified(
+                BuildFailurePhase::ChildTransport,
+                BuildDiagnosticCode::CHILD_PROTOCOL,
+            ),
             Self::ChildTransport(source) => source.classification(),
             Self::ChildFailure(_) => phase_only(BuildFailurePhase::ChildDiagnostic),
             Self::SourceSnapshot(source) => source.classification(),
@@ -459,6 +463,10 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
             Self::CacheCompletion(_) => classified(
                 BuildFailurePhase::Cache,
                 BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
+            ),
+            Self::ChildProtocol(_) => classified(
+                BuildFailurePhase::ChildTransport,
+                BuildDiagnosticCode::CHILD_PROTOCOL,
             ),
             Self::ChildTransport(source) => source.classification(),
             Self::ChildFailure(_) => phase_only(BuildFailurePhase::ChildDiagnostic),
