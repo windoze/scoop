@@ -11,10 +11,10 @@ scoop-protocol.workspace = true
 scoop-slib.workspace = true
 scoop-toolchain.workspace = true
 scoop-wire.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
 serde.workspace = true
 serde_json.workspace = true
 scoop-hir.workspace = true
 scoop-mir.workspace = true
-tempfile.workspace = true
