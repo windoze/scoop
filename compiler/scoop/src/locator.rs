@@ -52,6 +52,10 @@ impl PrebuiltArtifactCandidate {
     pub(crate) const fn summary(&self) -> &PrebuiltManifestSummaryV1 {
         &self.summary
     }
+
+    pub(crate) fn into_parts(self) -> (PathBuf, PrebuiltManifestSummaryV1) {
+        (self.resolved_path, *self.summary)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -86,6 +90,22 @@ impl PrebuiltArtifactProjection {
 
     pub(crate) fn candidate_iter(&self) -> impl Iterator<Item = &PrebuiltArtifactCandidate> {
         std::iter::once(&self.candidates.first).chain(&self.candidates.rest)
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        ConeCoordinate,
+        ArtifactFingerprint,
+        PrebuiltArtifactCandidate,
+        Vec<PrebuiltArtifactCandidate>,
+    ) {
+        (
+            self.coordinate,
+            self.artifact_fingerprint,
+            self.candidates.first,
+            self.candidates.rest,
+        )
     }
 
     pub(crate) fn merge_same_artifact(&mut self, other: Self) {

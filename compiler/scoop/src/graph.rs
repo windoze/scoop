@@ -128,6 +128,32 @@ impl ResolvedBuildGraph {
     pub const fn decode_usage(&self) -> SlibClosureDecodeUsageV1 {
         self.meter.usage()
     }
+
+    pub(crate) fn into_parts(self) -> ResolvedGraphParts {
+        ResolvedGraphParts {
+            root: self.root,
+            nodes: self.nodes,
+            edges: self.edges,
+            dependency_first: self.dependency_first,
+            source_inputs: self.source_inputs,
+            root_kind: self.root_kind,
+            target_selection: self.target_selection,
+            context: self.context,
+            meter: self.meter,
+        }
+    }
+}
+
+pub(crate) struct ResolvedGraphParts {
+    pub(crate) root: ConeIdentity,
+    pub(crate) nodes: BTreeMap<ConeIdentity, GraphNode>,
+    pub(crate) edges: BTreeMap<(ConeIdentity, ConeIdentity), ResolvedDependencyEdge>,
+    pub(crate) dependency_first: Vec<ConeIdentity>,
+    pub(crate) source_inputs: BTreeMap<ConeIdentity, ResolvedDependencyProjection>,
+    pub(crate) root_kind: RequestedConeKind,
+    pub(crate) target_selection: ValidatedLirTargetSelection,
+    pub(crate) context: BuildContext,
+    pub(crate) meter: SlibClosureDecodeMeterV1,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

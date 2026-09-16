@@ -5,6 +5,8 @@
 //! publication, or child-launch authority.
 
 mod io;
+mod prepared;
+mod staging;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -13,6 +15,8 @@ use std::sync::Arc;
 use scoop_wire::{Digest256, sha256};
 
 pub use io::{SnapshotFileError, SnapshotIoOperation};
+pub use prepared::*;
+pub use staging::{StagingError, StagingIoOperation};
 
 use io::read_stable_regular_file;
 
