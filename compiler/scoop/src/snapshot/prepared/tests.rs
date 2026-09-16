@@ -6,7 +6,10 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_mir::CanonicalMirFoundation;
-use scoop_protocol::{TargetSelectionRequestV1, encode_machine_capability_frame};
+use scoop_protocol::{
+    CurrentConeRequestV1, DiagnosticOutputPolicyV1, RequestCorrelationId, StageDumpPolicyV1,
+    TargetSelectionRequestV1, TrustedCoreRequestV1, encode_machine_capability_frame,
+};
 use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
     IdentityFoundationArtifactInput, ProducerRecord, probe_prebuilt_manifest_summary,
@@ -422,4 +425,73 @@ fn compile_cache_key_excludes_locator_and_manifest_presentation() {
     let changed_key = changed.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     assert_eq!(first_key, second_key);
     assert_ne!(first_key, changed_key);
+}
+
+#[test]
+fn trusted_core_child_plan_is_the_closed_bootstrap_request() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let prepared = prepare(&root, workspace).unwrap();
+    let request_id = RequestCorrelationId::from_array([4; 16]);
+
+    let plan = prepared
+        .child_invocation_plan(ConeIdentity::CORE, request_id, &[])
+        .unwrap();
+
+    assert_eq!(plan.identity(), ConeIdentity::CORE);
+    assert_eq!(plan.output_path(), prepared.trusted_core_artifact_slot());
+    assert_eq!(plan.request().request_id(), request_id);
+    assert!(matches!(
+        plan.request().build().current(),
+        CurrentConeRequestV1::TrustedCoreBootstrap
+    ));
+    assert!(plan.request().build().direct_slibs().is_empty());
+    assert!(plan.request().build().support_slibs().is_empty());
+    assert!(matches!(
+        plan.request().build().trusted_core(),
+        TrustedCoreRequestV1::Bootstrap
+    ));
+    assert_eq!(
+        plan.request().build().diagnostics(),
+        DiagnosticOutputPolicyV1::Structured
+    );
+    assert_eq!(plan.request().build().emit(), StageDumpPolicyV1::None);
+    assert_eq!(
+        plan.request().build().target().canonical_triple(),
+        "aarch64-apple-darwin"
+    );
+}
+
+#[test]
+fn ordinary_child_plan_cannot_precede_trusted_core_completion() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    write_core(&sysroot);
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let source = workspace.join("main.scoop");
+    std::fs::write(&source, "fun main() {}\n").unwrap();
+    let prepared = single_file_request(&source, workspace)
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap();
+
+    assert!(matches!(
+        prepared.child_invocation_plan(
+            ConeIdentity::SINGLE_FILE,
+            RequestCorrelationId::from_array([5; 16]),
+            &[],
+        ),
+        Err(ChildRequestPlanError::MissingTrustedCore)
+    ));
 }

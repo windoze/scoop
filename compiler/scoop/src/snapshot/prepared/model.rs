@@ -23,8 +23,10 @@ use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
 mod cache_completion;
 mod cache_key;
+mod child_request;
 
 pub use cache_key::CompileCacheKeyError;
+pub use child_request::{ChildInvocationPlanV1, ChildRequestPlanError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceSnapshot {
