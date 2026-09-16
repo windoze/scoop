@@ -10,7 +10,7 @@ fn installed_binary_reports_the_exact_shared_capability() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     assert_eq!(
-        scoop_protocol::decode_capability_frame(&output.stdout).unwrap(),
-        scoop_protocol::ScoopcProtocolCapabilityV1::current()
+        scoop_protocol::decode_machine_capability_frame(&output.stdout).unwrap(),
+        scoop_toolchain::paired_compiler_machine_capability().unwrap()
     );
 }

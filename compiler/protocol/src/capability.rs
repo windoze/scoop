@@ -4,6 +4,7 @@ use crate::framing::{ProtocolReadError, ProtocolWriteError, decode_frame_payload
 use crate::{PROTOCOL_VERSION, ProtocolValidationError};
 
 const CAPABILITY_MAGIC: &str = "scoopc-machine-capability";
+const MACHINE_IDENTITY_MAGIC: &str = "scoopc-machine-identity";
 const REQUEST_SCHEMA_V1: &[u8] =
     b"scoopc-request-envelope-v1:magic,version,request-id,build-request";
 const RESPONSE_SCHEMA_V1: &[u8] =
@@ -28,6 +29,62 @@ pub struct ScoopcProtocolCapabilityV1 {
     request_schema: Digest256,
     response_schema: Digest256,
     machine_transport: MachineTransportCapabilityV1,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ScoopcMachineCapabilityV1 {
+    protocol: ScoopcProtocolCapabilityV1,
+    toolchain_distribution_id: Digest256,
+    compiler_build_identity: Digest256,
+    identity_abi: Digest256,
+}
+
+impl ScoopcMachineCapabilityV1 {
+    pub const fn new(
+        protocol: ScoopcProtocolCapabilityV1,
+        toolchain_distribution_id: Digest256,
+        compiler_build_identity: Digest256,
+        identity_abi: Digest256,
+    ) -> Self {
+        Self {
+            protocol,
+            toolchain_distribution_id,
+            compiler_build_identity,
+            identity_abi,
+        }
+    }
+
+    pub const fn protocol(self) -> ScoopcProtocolCapabilityV1 {
+        self.protocol
+    }
+
+    pub const fn toolchain_distribution_id(self) -> Digest256 {
+        self.toolchain_distribution_id
+    }
+
+    pub const fn compiler_build_identity(self) -> Digest256 {
+        self.compiler_build_identity
+    }
+
+    pub const fn identity_abi(self) -> Digest256 {
+        self.identity_abi
+    }
+}
+
+impl WireEncode for ScoopcMachineCapabilityV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(5)?;
+        encoder.field(1)?;
+        encoder.text(MACHINE_IDENTITY_MAGIC)?;
+        encoder.field(2)?;
+        self.protocol.encode(encoder)?;
+        encoder.field(3)?;
+        self.toolchain_distribution_id.encode(encoder)?;
+        encoder.field(4)?;
+        self.compiler_build_identity.encode(encoder)?;
+        encoder.field(5)?;
+        self.identity_abi.encode(encoder)
+    }
 }
 
 impl ScoopcProtocolCapabilityV1 {
@@ -71,6 +128,50 @@ impl WireEncode for ScoopcProtocolCapabilityV1 {
         encoder.field(5)?;
         self.machine_transport.encode(encoder)
     }
+}
+
+impl WireDecode for ScoopcProtocolCapabilityV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+        DecodedScoopcProtocolCapabilityV1::decode(decoder)?
+            .validate()
+            .map_err(|error| validation_wire_error(decoder, error))
+    }
+}
+
+impl WireDecode for ScoopcMachineCapabilityV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+        decoder.expect_map(5)?;
+        let magic = decoder.field(1, Decoder::owned_text)?;
+        if magic != MACHINE_IDENTITY_MAGIC {
+            return Err(validation_wire_error(
+                decoder,
+                ProtocolValidationError::InvalidCapabilityMagic,
+            ));
+        }
+        let protocol = decoder.field(2, ScoopcProtocolCapabilityV1::decode)?;
+        let toolchain_distribution_id = decoder.field(3, Digest256::decode)?;
+        let compiler_build_identity = decoder.field(4, Digest256::decode)?;
+        let identity_abi = decoder.field(5, Digest256::decode)?;
+        Ok(Self {
+            protocol,
+            toolchain_distribution_id,
+            compiler_build_identity,
+            identity_abi,
+        })
+    }
+}
+
+fn validation_wire_error(
+    decoder: &Decoder<'_, '_>,
+    error: ProtocolValidationError,
+) -> scoop_wire::WireError {
+    let kind = match error {
+        ProtocolValidationError::UnsupportedVersion(_) => {
+            scoop_wire::WireErrorKind::IntegerOutOfRange
+        }
+        _ => scoop_wire::WireErrorKind::UnknownTag { tag: u64::MAX },
+    };
+    scoop_wire::WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
 struct DecodedScoopcProtocolCapabilityV1 {
@@ -174,6 +275,20 @@ pub fn decode_capability_frame(
     .map_err(ProtocolReadError::Validation)
 }
 
+pub fn encode_machine_capability_frame(
+    capability: &ScoopcMachineCapabilityV1,
+) -> Result<Vec<u8>, ProtocolWriteError> {
+    encode_frame(capability)
+}
+
+pub fn decode_machine_capability_frame(
+    frame: &[u8],
+) -> Result<ScoopcMachineCapabilityV1, ProtocolReadError> {
+    let payload = decode_frame_payload(frame).map_err(ProtocolReadError::Frame)?;
+    scoop_wire::decode_canonical::<ScoopcMachineCapabilityV1>(payload, capability_decode_limits())
+        .map_err(ProtocolReadError::Wire)
+}
+
 fn capability_decode_limits() -> DecodeLimits {
     DecodeLimits {
         cbor_nesting: 8,
@@ -211,5 +326,18 @@ mod tests {
                 ProtocolFrameError::LengthMismatch { .. }
             ))
         ));
+    }
+
+    #[test]
+    fn machine_identity_round_trips_all_pairing_dimensions() {
+        let identity = ScoopcMachineCapabilityV1::new(
+            ScoopcProtocolCapabilityV1::current(),
+            sha256(b"distribution"),
+            sha256(b"compiler"),
+            sha256(b"identity ABI"),
+        );
+        let frame = encode_machine_capability_frame(&identity).unwrap();
+        assert_eq!(decode_machine_capability_frame(&frame).unwrap(), identity);
+        assert!(frame.len() < 512);
     }
 }

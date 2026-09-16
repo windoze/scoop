@@ -60,8 +60,14 @@ fn main() -> ExitCode {
 }
 
 fn write_machine_capability() -> ExitCode {
-    let capability = scoop_protocol::ScoopcProtocolCapabilityV1::current();
-    let frame = match scoop_protocol::encode_capability_frame(&capability) {
+    let capability = match scoop_toolchain::paired_compiler_machine_capability() {
+        Ok(capability) => capability,
+        Err(error) => {
+            eprintln!("error: cannot construct scoopc machine capability: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let frame = match scoop_protocol::encode_machine_capability_frame(&capability) {
         Ok(frame) => frame,
         Err(error) => {
             eprintln!("error: cannot encode scoopc machine capability: {error}");

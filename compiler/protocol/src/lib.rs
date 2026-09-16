@@ -154,6 +154,7 @@ impl std::error::Error for ProtocolValidationError {
     }
 }
 pub use capability::{
-    MachineTransportCapabilityV1, ScoopcProtocolCapabilityV1, decode_capability_frame,
-    encode_capability_frame,
+    MachineTransportCapabilityV1, ScoopcMachineCapabilityV1, ScoopcProtocolCapabilityV1,
+    decode_capability_frame, decode_machine_capability_frame, encode_capability_frame,
+    encode_machine_capability_frame,
 };

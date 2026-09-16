@@ -8,6 +8,7 @@ use std::fmt;
 
 mod c_bridge;
 mod closure_limits;
+mod compiler;
 mod registry;
 mod trusted_core;
 
@@ -28,3 +29,4 @@ impl fmt::Display for ToolchainError {
 }
 
 impl std::error::Error for ToolchainError {}
+pub use compiler::paired_compiler_machine_capability;

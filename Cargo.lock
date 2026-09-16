@@ -578,7 +578,9 @@ version = "0.0.0"
 dependencies = [
  "object",
  "scoop-lir",
+ "scoop-protocol",
  "scoop-slib",
+ "scoop-wire",
  "tempfile",
 ]
 
