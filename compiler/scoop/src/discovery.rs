@@ -40,14 +40,14 @@ enum LoadedRootInput {
 }
 
 #[derive(Debug)]
-struct BuildContext {
-    artifact_search_roots: Vec<ArtifactSearchRoot>,
-    cache_root: ArtifactCacheRoot,
-    sysroot: TrustedSysrootRoot,
-    target: scoop_toolchain::ResolvedTargetProfile,
-    compiler: PairedScoopcLocator,
-    diagnostics: DiagnosticsPolicy,
-    limits: BuildLimitsProfileV1,
+pub(crate) struct BuildContext {
+    pub(crate) artifact_search_roots: Vec<ArtifactSearchRoot>,
+    pub(crate) cache_root: ArtifactCacheRoot,
+    pub(crate) sysroot: TrustedSysrootRoot,
+    pub(crate) target: scoop_toolchain::ResolvedTargetProfile,
+    pub(crate) compiler: PairedScoopcLocator,
+    pub(crate) diagnostics: DiagnosticsPolicy,
+    pub(crate) limits: BuildLimitsProfileV1,
 }
 
 impl BuildGraphRequest {
@@ -206,6 +206,24 @@ impl DiscoveredBuildGraph {
     pub const fn decode_usage(&self) -> SlibClosureDecodeUsageV1 {
         self.meter.usage()
     }
+
+    pub(crate) fn into_parts(self) -> DiscoveredGraphParts {
+        DiscoveredGraphParts {
+            root: self.root,
+            nodes: self.nodes,
+            edges: self.edges,
+            context: self.context,
+            meter: self.meter,
+        }
+    }
+}
+
+pub(crate) struct DiscoveredGraphParts {
+    pub(crate) root: ConeIdentity,
+    pub(crate) nodes: BTreeMap<ConeIdentity, GraphNode>,
+    pub(crate) edges: BTreeMap<(ConeIdentity, ConeIdentity), DiscoveredDependencyEdge>,
+    pub(crate) context: BuildContext,
+    pub(crate) meter: SlibClosureDecodeMeterV1,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -221,11 +239,27 @@ pub struct DiscoveredDependencyEdge {
     dependent: ConeIdentity,
     dependency: ConeIdentity,
     coordinate: ConeCoordinate,
-    origin: EdgeOrigin,
+    origins: Vec<EdgeOrigin>,
     expected_semantic: Option<DependencyRecord>,
 }
 
 impl DiscoveredDependencyEdge {
+    pub(crate) fn new(
+        dependent: ConeIdentity,
+        dependency: ConeIdentity,
+        coordinate: ConeCoordinate,
+        origin: EdgeOrigin,
+        expected_semantic: Option<DependencyRecord>,
+    ) -> Self {
+        Self {
+            dependent,
+            dependency,
+            coordinate,
+            origins: vec![origin],
+            expected_semantic,
+        }
+    }
+
     pub const fn dependent(&self) -> ConeIdentity {
         self.dependent
     }
@@ -238,8 +272,8 @@ impl DiscoveredDependencyEdge {
         &self.coordinate
     }
 
-    pub const fn origin(&self) -> &EdgeOrigin {
-        &self.origin
+    pub fn origins(&self) -> &[EdgeOrigin] {
+        &self.origins
     }
 
     pub const fn expected_semantic(&self) -> Option<&DependencyRecord> {
@@ -264,7 +298,69 @@ pub enum EdgeOrigin {
     SyntheticSingleFileCore,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+impl Ord for EdgeOrigin {
+    fn cmp(&self, other: &Self) -> Ordering {
+        edge_origin_rank(self)
+            .cmp(&edge_origin_rank(other))
+            .then_with(|| match (self, other) {
+                (
+                    Self::ManifestDeclaration {
+                        manifest: left_manifest,
+                        span: left_span,
+                        locator_kind: left_kind,
+                    },
+                    Self::ManifestDeclaration {
+                        manifest: right_manifest,
+                        span: right_span,
+                        locator_kind: right_kind,
+                    },
+                ) => left_manifest
+                    .cmp(right_manifest)
+                    .then_with(|| left_span.start.cmp(&right_span.start))
+                    .then_with(|| left_span.end.cmp(&right_span.end))
+                    .then_with(|| left_kind.cmp(right_kind)),
+                (
+                    Self::ArtifactDependencyRecord {
+                        artifact: left_artifact,
+                        record_index: left_index,
+                    },
+                    Self::ArtifactDependencyRecord {
+                        artifact: right_artifact,
+                        record_index: right_index,
+                    },
+                ) => left_artifact
+                    .cmp(right_artifact)
+                    .then_with(|| left_index.cmp(right_index)),
+                (
+                    Self::InjectedTrustedCore {
+                        dependent: left_dependent,
+                    },
+                    Self::InjectedTrustedCore {
+                        dependent: right_dependent,
+                    },
+                ) => left_dependent.cmp(right_dependent),
+                (Self::SyntheticSingleFileCore, Self::SyntheticSingleFileCore) => Ordering::Equal,
+                _ => Ordering::Equal,
+            })
+    }
+}
+
+impl PartialOrd for EdgeOrigin {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+const fn edge_origin_rank(origin: &EdgeOrigin) -> u8 {
+    match origin {
+        EdgeOrigin::ManifestDeclaration { .. } => 0,
+        EdgeOrigin::ArtifactDependencyRecord { .. } => 1,
+        EdgeOrigin::InjectedTrustedCore { .. } => 2,
+        EdgeOrigin::SyntheticSingleFileCore => 3,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ManifestLocatorKind {
     SourcePath,
     ArtifactPath,
@@ -272,7 +368,7 @@ pub enum ManifestLocatorKind {
 }
 
 #[derive(Debug)]
-enum GraphNode {
+pub(crate) enum GraphNode {
     ManifestSource(Box<LoadedConeManifest>),
     Prebuilt(Box<PrebuiltArtifactProjection>),
     TrustedCore(Box<LoadedConeManifest>),
@@ -280,7 +376,7 @@ enum GraphNode {
 }
 
 impl GraphNode {
-    fn coordinate(&self) -> &ConeCoordinate {
+    pub(crate) fn coordinate(&self) -> &ConeCoordinate {
         match self {
             Self::ManifestSource(manifest) | Self::TrustedCore(manifest) => manifest.coordinate(),
             Self::Prebuilt(prebuilt) => prebuilt.coordinate(),
@@ -291,7 +387,7 @@ impl GraphNode {
         }
     }
 
-    const fn representation(&self) -> DiscoveredNodeRepresentation {
+    pub(crate) const fn representation(&self) -> DiscoveredNodeRepresentation {
         match self {
             Self::ManifestSource(_) => DiscoveredNodeRepresentation::ManifestSource,
             Self::Prebuilt(_) => DiscoveredNodeRepresentation::PrebuiltArtifact,
@@ -348,13 +444,13 @@ impl DiscoveryBuilder {
             }
             LoadedRootInput::SingleFile(source) => {
                 builder.insert_node(root_identity, GraphNode::SingleFile(source))?;
-                builder.insert_edge(DiscoveredDependencyEdge {
-                    dependent: root_identity,
-                    dependency: ConeIdentity::CORE,
-                    coordinate: ConeCoordinate::reserved_core(),
-                    origin: EdgeOrigin::SyntheticSingleFileCore,
-                    expected_semantic: None,
-                })?;
+                builder.insert_edge(DiscoveredDependencyEdge::new(
+                    root_identity,
+                    ConeIdentity::CORE,
+                    ConeCoordinate::reserved_core(),
+                    EdgeOrigin::SyntheticSingleFileCore,
+                    None,
+                ))?;
             }
         }
         Ok(builder)
@@ -545,7 +641,7 @@ impl DiscoveryBuilder {
         edge: DiscoveredDependencyEdge,
     ) -> Result<(), BuildGraphDiscoveryError> {
         let key = (edge.dependent, edge.dependency);
-        if let Some(existing) = self.edges.get(&key) {
+        if let Some(existing) = self.edges.get_mut(&key) {
             if existing.coordinate != edge.coordinate
                 || existing.expected_semantic != edge.expected_semantic
             {
@@ -554,6 +650,12 @@ impl DiscoveryBuilder {
                     dependency: edge.dependency,
                 });
             }
+            for origin in edge.origins {
+                if !existing.origins.contains(&origin) {
+                    existing.origins.push(origin);
+                }
+            }
+            existing.origins.sort();
             return Ok(());
         }
         self.meter
@@ -570,15 +672,15 @@ impl DiscoveryBuilder {
             };
             manifest_dependency_plans(manifest)?
         };
-        self.insert_edge(DiscoveredDependencyEdge {
-            dependent: identity,
-            dependency: ConeIdentity::CORE,
-            coordinate: ConeCoordinate::reserved_core(),
-            origin: EdgeOrigin::InjectedTrustedCore {
+        self.insert_edge(DiscoveredDependencyEdge::new(
+            identity,
+            ConeIdentity::CORE,
+            ConeCoordinate::reserved_core(),
+            EdgeOrigin::InjectedTrustedCore {
                 dependent: identity,
             },
-            expected_semantic: None,
-        })?;
+            None,
+        ))?;
         for plan in plans {
             self.insert_edge(plan.edge)?;
             match plan.locator {
@@ -669,17 +771,17 @@ fn manifest_dependency_plans(
             Ok(ManifestDependencyPlan {
                 coordinate: coordinate.clone(),
                 locator: plan_locator,
-                edge: DiscoveredDependencyEdge {
+                edge: DiscoveredDependencyEdge::new(
                     dependent,
                     dependency,
-                    coordinate: coordinate.clone(),
-                    origin: EdgeOrigin::ManifestDeclaration {
+                    coordinate.clone(),
+                    EdgeOrigin::ManifestDeclaration {
                         manifest: manifest.manifest_path().to_path_buf(),
                         span,
                         locator_kind,
                     },
-                    expected_semantic: None,
-                },
+                    None,
+                ),
             })
         })
         .collect()
@@ -703,16 +805,16 @@ fn prebuilt_dependency_plans(
         .enumerate()
         .map(|(record_index, dependency)| PrebuiltDependencyPlan {
             coordinate: dependency.coordinate().clone(),
-            edge: DiscoveredDependencyEdge {
+            edge: DiscoveredDependencyEdge::new(
                 dependent,
-                dependency: dependency.identity(),
-                coordinate: dependency.coordinate().clone(),
-                origin: EdgeOrigin::ArtifactDependencyRecord {
+                dependency.identity(),
+                dependency.coordinate().clone(),
+                EdgeOrigin::ArtifactDependencyRecord {
                     artifact: artifact.clone(),
                     record_index,
                 },
-                expected_semantic: Some(dependency.clone()),
-            },
+                Some(dependency.clone()),
+            ),
         })
         .collect()
 }
@@ -751,7 +853,7 @@ fn pop_unlocated(
     Some(pending.swap_remove(index))
 }
 
-fn compare_coordinates(left: &ConeCoordinate, right: &ConeCoordinate) -> Ordering {
+pub(crate) fn compare_coordinates(left: &ConeCoordinate, right: &ConeCoordinate) -> Ordering {
     left.group()
         .as_bytes()
         .cmp(right.group().as_bytes())

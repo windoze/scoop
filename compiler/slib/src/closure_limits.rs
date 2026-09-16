@@ -209,6 +209,75 @@ impl SlibClosureDecodeMeterV1 {
         self.charge(SlibClosureResourceKindV1::ChildRequests, 1)
     }
 
+    /// Charges the deterministic M23 stable-Kahn cost before allocating the
+    /// ready set. The formula is independent of comparison count, allocator
+    /// behavior, and hash iteration order.
+    pub fn charge_stable_kahn(
+        &mut self,
+        node_count: u64,
+        edge_count: u64,
+    ) -> Result<(), SlibClosureResourceErrorV1> {
+        const READY_SET_ELEMENT_BYTES: u64 = 40;
+
+        let ready_bytes = node_count.checked_mul(READY_SET_ELEMENT_BYTES).ok_or(
+            SlibClosureResourceErrorV1::Overflow {
+                resource: SlibClosureResourceKindV1::LogicalHeapBytes,
+            },
+        )?;
+        let comparisons = node_count.checked_mul(ceil_log2(node_count.max(2))).ok_or(
+            SlibClosureResourceErrorV1::Overflow {
+                resource: SlibClosureResourceKindV1::ValidationWorkUnits,
+            },
+        )?;
+        let work =
+            comparisons
+                .checked_add(edge_count)
+                .ok_or(SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::ValidationWorkUnits,
+                })?;
+        self.charge(SlibClosureResourceKindV1::LogicalHeapBytes, ready_bytes)?;
+        self.charge(SlibClosureResourceKindV1::ValidationWorkUnits, work)
+    }
+
+    /// Reserves the deterministic upper bound for all per-source direct and
+    /// support projections. Each source can visit every node and edge once;
+    /// its persistent output, visited set, and pending set each contain at
+    /// most one entry per graph node.
+    pub fn charge_graph_projections(
+        &mut self,
+        source_count: u64,
+        node_count: u64,
+        edge_count: u64,
+    ) -> Result<(), SlibClosureResourceErrorV1> {
+        const PROJECTION_NODE_BYTES: u64 = 32 + 40 + 32;
+
+        let node_slots =
+            source_count
+                .checked_mul(node_count)
+                .ok_or(SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::LogicalHeapBytes,
+                })?;
+        let heap_bytes = node_slots.checked_mul(PROJECTION_NODE_BYTES).ok_or(
+            SlibClosureResourceErrorV1::Overflow {
+                resource: SlibClosureResourceKindV1::LogicalHeapBytes,
+            },
+        )?;
+        let traversal =
+            node_count
+                .checked_add(edge_count)
+                .ok_or(SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::ValidationWorkUnits,
+                })?;
+        let work =
+            source_count
+                .checked_mul(traversal)
+                .ok_or(SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::ValidationWorkUnits,
+                })?;
+        self.charge(SlibClosureResourceKindV1::LogicalHeapBytes, heap_bytes)?;
+        self.charge(SlibClosureResourceKindV1::ValidationWorkUnits, work)
+    }
+
     pub fn observe_artifact_snapshot(
         &mut self,
         summary: &crate::PrebuiltManifestSummaryV1,
@@ -304,6 +373,10 @@ impl SlibClosureDecodeMeterV1 {
         *usage_mut(&mut self.usage, resource) = observed;
         Ok(())
     }
+}
+
+fn ceil_log2(value: u64) -> u64 {
+    u64::from(u64::BITS - (value - 1).leading_zeros())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -418,6 +491,22 @@ mod tests {
         assert_eq!(values.artifact_snapshot_bytes, 17_179_869_184);
         assert_eq!(values.validation_work_units, 1_073_741_824);
         assert_eq!(values.child_requests, 4_096);
+    }
+
+    #[test]
+    fn stable_kahn_uses_the_fixed_logarithmic_cost() {
+        let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
+        meter.charge_stable_kahn(5, 7).unwrap();
+        assert_eq!(meter.usage().logical_heap_bytes, 5 * 40);
+        assert_eq!(meter.usage().validation_work_units, 5 * 3 + 7);
+    }
+
+    #[test]
+    fn graph_projection_reservation_uses_a_fixed_upper_bound() {
+        let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
+        meter.charge_graph_projections(3, 5, 7).unwrap();
+        assert_eq!(meter.usage().logical_heap_bytes, 3 * 5 * (32 + 40 + 32));
+        assert_eq!(meter.usage().validation_work_units, 3 * (5 + 7));
     }
 
     #[test]

@@ -5,9 +5,11 @@
 //! implementation pipeline.
 
 mod discovery;
+mod graph;
 mod locator;
 mod request;
 
 pub use discovery::*;
+pub use graph::*;
 pub use locator::{DependencyLocatorError, LocatorIoOperation};
 pub use request::*;
