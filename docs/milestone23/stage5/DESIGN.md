@@ -458,6 +458,91 @@ PropertyInterfaceRecordV1 {
 }
 ```
 
+callable record的参数列表只保存声明签名本身；default/vararg omission仍由5.4的独立source interface保存：
+
+```text
+SourceParameterShapeV1 {
+    name: CanonicalIdentifier,       // field 1
+    value_type: SignatureTypeKey,    // field 2
+}
+
+CallableSourceEffectsV1 {
+    execution: Effect,                         // field 1
+    safety: CallableSafetyV1,                  // field 2
+    gc_effect: GcEffect,                       // field 3
+    implementation: CallableImplementationV1, // field 4
+    operator_role: CallableOperatorRoleV1,     // field 5
+    infix: bool,                               // field 6
+}
+
+CallableSafetyV1 =
+    Safe    // unsigned 1
+  | Unsafe  // unsigned 2
+
+CallableImplementationV1 =
+    Scoop              // unsigned 1
+  | Intrinsic          // unsigned 2
+  | SourceExternScoop  // unsigned 3
+  | SourceExternC      // unsigned 4
+
+CallableOperatorRoleV1 =
+    None                                      // { 0: 1 }
+  | Language(CallableOperatorV1)              // { 0: 2, 1: operator }
+  | PropertyDelegate(PropertyDelegateOperatorV1) // { 0: 3, 1: operator }
+
+CallableOperatorV1 =
+    UnaryPlus   // { 0: 1 }
+  | UnaryMinus  // { 0: 2 }
+  | Not         // { 0: 3 }
+  | Inc         // { 0: 4 }
+  | Dec         // { 0: 5 }
+  | Plus        // { 0: 6 }
+  | Minus       // { 0: 7 }
+  | Times       // { 0: 8 }
+  | Div         // { 0: 9 }
+  | Rem         // { 0: 10 }
+  | RangeTo     // { 0: 11 }
+  | RangeUntil  // { 0: 12 }
+  | Contains    // { 0: 13 }
+  | Get         // { 0: 14 }
+  | Set         // { 0: 15 }
+  | Invoke      // { 0: 16 }
+  | PlusAssign  // { 0: 17 }
+  | MinusAssign // { 0: 18 }
+  | TimesAssign // { 0: 19 }
+  | DivAssign   // { 0: 20 }
+  | RemAssign   // { 0: 21 }
+  | CompareTo   // { 0: 22 }
+  | Equals      // { 0: 23 }
+  | Component { index: NonZeroU32 } // { 0: 24, 1: index }
+  | Iterator    // { 0: 25 }
+
+PropertyDelegateOperatorV1 =
+    ProvideDelegate // unsigned 1
+  | GetValue        // unsigned 2
+  | SetValue        // unsigned 3
+
+CallableModalityV1 =
+    Final            // unsigned 1
+  | Open             // unsigned 2
+  | Abstract         // unsigned 3
+  | InterfaceDefault // unsigned 4
+
+PublicLookupAccessV1 =
+    DirectOnly // unsigned 1
+  | PublicSlot // unsigned 2
+```
+
+`Effect`与`GcEffect`逐byte复用identity wire已经冻结的`Ordinary = 1 | Suspend = 2`和`Managed = 1 | NoGc = 2`，不得另分配近义tag。`SourceParameterShapeV1.value_type`是callee实际接收的完整参数type；对vararg它是`Array<element>`，element type及`Empty | Default` omission由5.4记录并与该array application交叉验证。参数列表保持声明顺序、长度必须可表示为`u32`且name在同一callable内唯一；reader以该顺序逐项核对canonical declaration key的parameter signature，不能排序或只比较数量。
+
+`CallableImplementationV1::Scoop`同时覆盖普通源码body、compiler生成但具有普通Scoop调用语义的derived body以及无body的abstract declaration；是否必须/禁止body由modality和定义方Export HIR交叉验证。`Intrinsic`必须命中typed intrinsic registry；两个`SourceExtern*`只保存名称解析与能力诊断所需的ABI类别，完整native contract仍来自M23-2独立typed contract，v1唯一calling convention `cdecl`不在这里重复编码。ordinary dependency的`Intrinsic`与`SourceExtern*`都不能取得本阶段的param-free executable capability。
+
+`CallableOperatorRoleV1`把ordinary language operator与M21 property-delegate protocol保持为不相交的typed role；`None`不是缺字段。`infix`独立保存，因为它与operator role正交。reader逐variant检查map长度，`Component.index`不能为0，也不能按source name恢复operator role。
+
+`PublicLookupAccessV1`只是一种已经收窄到foreign public surface的证明，不是通用visibility枚举：两种variant都要求declaration显式public且owner effective lookup domain为universal；`PublicSlot`额外声明该callable承担public slot contract，因而可区分普通final callable与final override。`Open`、`Abstract`和`InterfaceDefault`必须使用`PublicSlot`；top-level、extension、constructor及variant constructor必须是`Final + DirectOnly`。protected/internal/private没有variant，也不能用`PublicSlot`冒充M23-6 inheritance authority。
+
+callable closure validator必须从kind-specific canonical key重放declaration kind、generic/non-generic id分支、owner、type-parameter count、extension receiver和parameter type sequence；再用own binder为depth 0、nominal owner binder按规则位于depth 0或1的封闭scope验证receiver、parameter与result。constructor、variant constructor与property accessor不得声明own binder；extension必须恰有receiver且非extension不得伪造receiver。modality、implementation、slot access、operator/infix legality及source interface长度必须与定义方typed Export HIR逐项一致。
+
 其中两个公共闭合类型的wire固定为：
 
 ```text
