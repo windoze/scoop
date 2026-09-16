@@ -5,6 +5,7 @@ use crate::CallableDeclarationIdResolver;
 
 mod binder_uses;
 mod locals;
+mod receiver;
 mod roots;
 
 pub use binder_uses::{
@@ -14,9 +15,15 @@ pub use binder_uses::{
 pub use locals::{
     CanonicalTemplateLocalTableV1, DecodedCanonicalTemplateLocalTableV1,
     DecodedTemplateLocalDefinitionV1, DecodedTemplateLocalRecordV1, TemplateLocalDefinitionV1,
-    TemplateLocalRecordBuildError, TemplateLocalRecordResolutionError, TemplateLocalRecordV1,
-    TemplateLocalReferenceResolver, TemplateLocalTableBuildError,
-    TemplateLocalTableValidationError,
+    TemplateLocalIndexResolver, TemplateLocalLookupError, TemplateLocalRecordBuildError,
+    TemplateLocalRecordResolutionError, TemplateLocalRecordV1, TemplateLocalReferenceResolver,
+    TemplateLocalSelectorResolver, TemplateLocalTableBuildError, TemplateLocalTableValidationError,
+};
+pub use receiver::{
+    DecodedOptionalTemplateReceiverV1, DecodedTemplateReceiverV1,
+    IndexedOptionalTemplateReceiverV1, IndexedTemplateReceiverV1, OptionalTemplateReceiverV1,
+    TemplateReceiverBuildError, TemplateReceiverIndexError, TemplateReceiverResolutionError,
+    TemplateReceiverV1,
 };
 pub use roots::{
     DecodedPersistentLexicalRootV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,

@@ -75,6 +75,28 @@ impl fmt::Display for TemplateLocalTableBuildError {
 
 impl std::error::Error for TemplateLocalTableBuildError {}
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TemplateLocalLookupError {
+    IndexOutOfRange { index: u32, len: u32 },
+    MissingSelector(LocalValueSelector),
+}
+
+impl fmt::Display for TemplateLocalLookupError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IndexOutOfRange { index, len } => write!(
+                formatter,
+                "default-template local index {index} is out of range for length {len}"
+            ),
+            Self::MissingSelector(selector) => {
+                write!(formatter, "default-template local {selector:?} is absent")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TemplateLocalLookupError {}
+
 #[derive(Debug)]
 pub enum TemplateLocalTableValidationError<E> {
     TooMany,

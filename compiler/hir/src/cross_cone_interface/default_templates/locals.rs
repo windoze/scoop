@@ -13,9 +13,29 @@ use crate::{
 mod errors;
 
 pub use errors::{
-    TemplateLocalRecordBuildError, TemplateLocalRecordResolutionError,
+    TemplateLocalLookupError, TemplateLocalRecordBuildError, TemplateLocalRecordResolutionError,
     TemplateLocalTableBuildError, TemplateLocalTableValidationError,
 };
+
+/// Resolves one canonical wire-local table index to its semantic selector.
+pub trait TemplateLocalSelectorResolver {
+    type Error;
+
+    fn resolve_template_local_selector(
+        &mut self,
+        index: u32,
+    ) -> Result<LocalValueSelector, Self::Error>;
+}
+
+/// Maps one semantic local selector to its canonical wire table index.
+pub trait TemplateLocalIndexResolver {
+    type Error;
+
+    fn resolve_template_local_index(
+        &mut self,
+        selector: &LocalValueSelector,
+    ) -> Result<u32, Self::Error>;
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TemplateLocalDefinitionV1 {
@@ -267,6 +287,36 @@ impl WireEncode for CanonicalTemplateLocalTableV1 {
             record.encode(encoder)?;
         }
         Ok(())
+    }
+}
+
+impl TemplateLocalSelectorResolver for CanonicalTemplateLocalTableV1 {
+    type Error = TemplateLocalLookupError;
+
+    fn resolve_template_local_selector(
+        &mut self,
+        index: u32,
+    ) -> Result<LocalValueSelector, Self::Error> {
+        usize::try_from(index)
+            .ok()
+            .and_then(|index| self.records.get(index))
+            .map(|record| record.selector.clone())
+            .ok_or(TemplateLocalLookupError::IndexOutOfRange {
+                index,
+                len: self.len,
+            })
+    }
+}
+
+impl TemplateLocalIndexResolver for CanonicalTemplateLocalTableV1 {
+    type Error = TemplateLocalLookupError;
+
+    fn resolve_template_local_index(
+        &mut self,
+        selector: &LocalValueSelector,
+    ) -> Result<u32, Self::Error> {
+        self.index_of(selector)
+            .ok_or_else(|| TemplateLocalLookupError::MissingSelector(selector.clone()))
     }
 }
 

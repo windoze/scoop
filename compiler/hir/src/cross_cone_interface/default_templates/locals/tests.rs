@@ -52,6 +52,33 @@ fn producer_sorts_records_and_supports_typed_lookup() {
 }
 
 #[test]
+fn table_resolves_wire_indices_in_both_directions() {
+    let mut table = CanonicalTemplateLocalTableV1::try_new(vec![
+        source_local(LocalValueSelector::This, binder()),
+        synthetic_local(0),
+    ])
+    .unwrap();
+    let synthetic = synthetic_selector(0);
+
+    assert_eq!(
+        table.resolve_template_local_selector(0),
+        Ok(LocalValueSelector::This)
+    );
+    assert_eq!(table.resolve_template_local_index(&synthetic), Ok(1));
+    assert_eq!(
+        table.resolve_template_local_selector(2),
+        Err(TemplateLocalLookupError::IndexOutOfRange { index: 2, len: 2 })
+    );
+    let missing = LocalValueSelector::Parameter {
+        declaration_index: 4,
+    };
+    assert_eq!(
+        table.resolve_template_local_index(&missing),
+        Err(TemplateLocalLookupError::MissingSelector(missing))
+    );
+}
+
+#[test]
 fn producer_rejects_duplicate_and_invalid_definition_shapes() {
     let this = source_local(LocalValueSelector::This, binder());
     assert_eq!(
