@@ -56,18 +56,22 @@ pub struct DecodeLimits {
 
 impl Default for DecodeLimits {
     fn default() -> Self {
-        Self {
-            cbor_nesting: 128,
-            semantic_table_entries: 16_777_216,
-            semantic_leaf_bytes: 16_777_216,
-            semantic_recursion: 1_024,
-            logical_heap_bytes: 2_147_483_648,
-            decoded_nodes: 16_777_216,
-            decoded_edges: 67_108_864,
-            owned_bytes: 1_073_741_824,
-            validation_work_units: 268_435_456,
-        }
+        Self::M23_DEFAULT
     }
+}
+
+impl DecodeLimits {
+    pub const M23_DEFAULT: Self = Self {
+        cbor_nesting: 128,
+        semantic_table_entries: 16_777_216,
+        semantic_leaf_bytes: 16_777_216,
+        semantic_recursion: 1_024,
+        logical_heap_bytes: 2_147_483_648,
+        decoded_nodes: 16_777_216,
+        decoded_edges: 67_108_864,
+        owned_bytes: 1_073_741_824,
+        validation_work_units: 268_435_456,
+    };
 }
 
 /// Monotonic usage. No successful operation refunds budget.

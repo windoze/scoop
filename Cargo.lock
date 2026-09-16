@@ -423,10 +423,15 @@ dependencies = [
 name = "scoop"
 version = "0.0.0"
 dependencies = [
+ "scoop-hir",
+ "scoop-identity",
+ "scoop-lir",
  "scoop-manifest",
+ "scoop-mir",
  "scoop-protocol",
  "scoop-slib",
  "scoop-toolchain",
+ "scoop-wire",
  "serde",
  "serde_json",
  "tempfile",

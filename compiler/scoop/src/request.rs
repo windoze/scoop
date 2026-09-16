@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::TargetSelectionRequestV1;
 use scoop_toolchain::{ResolvedSlibClosureLimitsV1, ResolvedTargetProfile, ToolchainError};
+use scoop_wire::DecodeLimits;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactSearchRoot(PathBuf);
@@ -99,7 +100,7 @@ impl std::error::Error for HostLocatorError {}
 pub struct BuildRootInput(BuildRootInputKind);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum BuildRootInputKind {
+pub(crate) enum BuildRootInputKind {
     ManifestCone(ManifestRootLocator),
     SingleFile(SingleFileLocator),
 }
@@ -135,6 +136,10 @@ impl BuildRootInput {
             BuildRootInputKind::ManifestCone(_) => None,
             BuildRootInputKind::SingleFile(source) => Some(source),
         }
+    }
+
+    pub(crate) fn into_kind(self) -> BuildRootInputKind {
+        self.0
     }
 }
 
@@ -175,15 +180,21 @@ pub enum DiagnosticsPolicy {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BuildLimitsProfileV1 {
     slib_closure: ResolvedSlibClosureLimitsV1,
+    artifact_decode: DecodeLimits,
 }
 
 impl BuildLimitsProfileV1 {
     pub const M23_DEFAULT: Self = Self {
         slib_closure: ResolvedSlibClosureLimitsV1::M23_DEFAULT,
+        artifact_decode: DecodeLimits::M23_DEFAULT,
     };
 
     pub const fn slib_closure(self) -> ResolvedSlibClosureLimitsV1 {
         self.slib_closure
+    }
+
+    pub const fn artifact_decode(self) -> DecodeLimits {
+        self.artifact_decode
     }
 }
 
@@ -197,6 +208,17 @@ pub struct BuildGraphRequest {
     compiler: PairedScoopcLocator,
     diagnostics: DiagnosticsPolicy,
     limits: BuildLimitsProfileV1,
+}
+
+pub(crate) struct BuildGraphRequestParts {
+    pub(crate) root: BuildRootInput,
+    pub(crate) artifact_search_roots: Vec<ArtifactSearchRoot>,
+    pub(crate) cache_root: ArtifactCacheRoot,
+    pub(crate) sysroot: TrustedSysrootRoot,
+    pub(crate) target: ResolvedTargetProfile,
+    pub(crate) compiler: PairedScoopcLocator,
+    pub(crate) diagnostics: DiagnosticsPolicy,
+    pub(crate) limits: BuildLimitsProfileV1,
 }
 
 impl BuildGraphRequest {
@@ -276,6 +298,19 @@ impl BuildGraphRequest {
 
     pub const fn limits(&self) -> BuildLimitsProfileV1 {
         self.limits
+    }
+
+    pub(crate) fn into_parts(self) -> BuildGraphRequestParts {
+        BuildGraphRequestParts {
+            root: self.root,
+            artifact_search_roots: self.artifact_search_roots,
+            cache_root: self.cache_root,
+            sysroot: self.sysroot,
+            target: self.target,
+            compiler: self.compiler,
+            diagnostics: self.diagnostics,
+            limits: self.limits,
+        }
     }
 }
 

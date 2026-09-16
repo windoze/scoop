@@ -4,12 +4,17 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-identity.workspace = true
 scoop-manifest.workspace = true
+scoop-lir.workspace = true
 scoop-protocol.workspace = true
 scoop-slib.workspace = true
 scoop-toolchain.workspace = true
+scoop-wire.workspace = true
 
 [dev-dependencies]
 serde.workspace = true
 serde_json.workspace = true
+scoop-hir.workspace = true
+scoop-mir.workspace = true
 tempfile.workspace = true
