@@ -2,6 +2,13 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{ConstPropertyValue, HirIntegerConstant, IntegerKind};
 
+mod record;
+
+pub use record::{
+    DecodedExportConstValueV1, ExportConstValueResolutionError, ExportConstValueResolver,
+    ExportConstValueV1,
+};
+
 /// A width-exact integer constant in the cross-Cone interface.
 ///
 /// Signed payloads preserve their source-width two's-complement bits. Keeping
