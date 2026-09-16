@@ -67,17 +67,20 @@ impl SingleConeStrongIrProductionV1 {
         cone: ConeRecord,
         direct_dependencies: Vec<DependencyRecord>,
         temporary_parent: &Path,
-        target: &scoop_codegen::ResolvedTargetProfile,
+        target: &scoop_toolchain::ResolvedTargetProfile,
         core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
     ) -> Result<AssembledStrongArtifactProductionV1, StrongIrArtifactProductionError> {
         let entry_source =
             scoop_lir_lower::lower_entry_production_source(self.mir_production.entry_bridge());
+        let backend =
+            scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
+                .map_err(StrongIrArtifactProductionError::Codegen)?;
         let scoop_objects = scoop_codegen::emit_object_set(
             &self.lir,
             cone.coordinate(),
             entry_source,
             temporary_parent,
-            target.backend(),
+            backend,
         )
         .map_err(StrongIrArtifactProductionError::Codegen)?;
         let c_bridge_objects = scoop_codegen::emit_c_bridge_object_set(

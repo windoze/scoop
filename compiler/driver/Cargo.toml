@@ -26,6 +26,7 @@ scoop-parser.workspace = true
 scoop-manifest.workspace = true
 scoop-protocol.workspace = true
 scoop-slib.workspace = true
+scoop-toolchain.workspace = true
 scoop-wire.workspace = true
 tempfile.workspace = true
 

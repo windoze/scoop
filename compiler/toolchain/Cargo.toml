@@ -1,0 +1,9 @@
+[package]
+name = "scoop-toolchain"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+object.workspace = true
+scoop-lir.workspace = true
+tempfile.workspace = true

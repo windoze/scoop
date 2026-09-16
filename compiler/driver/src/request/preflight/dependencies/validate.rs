@@ -1,12 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_codegen::ResolvedTargetProfile;
 use scoop_identity::ConeIdentity;
 use scoop_manifest::LoadedConeManifest;
 use scoop_slib::{
     ConeKind, ConeSourceForm, DecodedSlibEnvelope, PublishableArtifactValidationError,
     PublishableSingleConeArtifact, validate_self_describing_publishable_single_cone_artifact,
 };
+use scoop_toolchain::ResolvedTargetProfile;
 
 use super::{
     DependencyValidationResult, ExplicitDependencyArtifactInput, ExplicitDependencyRole,

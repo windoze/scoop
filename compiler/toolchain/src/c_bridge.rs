@@ -6,82 +6,19 @@ use object::read::Object;
 use object::read::macho::MachOFile64;
 use object::{Architecture, ObjectKind, macho};
 use scoop_lir::{
-    AppleClangCompilerIdentityV1, CBridgeEnvironmentProjectionV1, CBridgeToolchainProfileV1,
-    CanonicalCBridgeFlagContractV1, CanonicalCBridgeFlagV1, DarwinBuildToolIdV1,
+    AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, DarwinBuildToolIdV1,
     DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    LirTargetProfile,
+    LirTargetProfile, ValidatedCBridgeToolchainInvocation,
 };
 
-use crate::CodegenError;
+use crate::ToolchainError;
 
 const XCRUN: &str = "/usr/bin/xcrun";
 const SW_VERS: &str = "/usr/bin/sw_vers";
 const MACHO_TOOL_LLD: u32 = 4;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ValidatedCBridgeToolchainProfile {
-    profile: CBridgeToolchainProfileV1,
-    compiler_driver: PathBuf,
-    sdk_root: PathBuf,
-}
-
-impl ValidatedCBridgeToolchainProfile {
-    pub const fn profile(&self) -> &CBridgeToolchainProfileV1 {
-        &self.profile
-    }
-
-    pub fn compiler_driver(&self) -> &Path {
-        &self.compiler_driver
-    }
-
-    pub fn sdk_root(&self) -> &Path {
-        &self.sdk_root
-    }
-
-    pub const fn environment(&self) -> CBridgeEnvironmentProjectionV1 {
-        self.profile.contract().environment()
-    }
-
-    pub fn object_compilation_command(&self, source: &Path, object: &Path) -> Command {
-        canonical_object_compilation_command(
-            &self.compiler_driver,
-            &self.sdk_root,
-            self.profile.contract().canonical_triple(),
-            self.profile.contract().deployment().minimum_os(),
-            self.profile.contract().environment(),
-            source,
-            object,
-        )
-    }
-
-    pub(crate) fn validate_lir_target_profile(
-        &self,
-        actual: LirTargetProfile,
-    ) -> Result<(), CodegenError> {
-        let contract = self.profile.contract();
-        let actual_fingerprint = actual.fingerprint().map_err(|error| {
-            CodegenError(format!(
-                "cannot fingerprint LIR target profile for generated-C production: {error}"
-            ))
-        })?;
-        if contract.target() == &actual.wire_id()
-            && contract.target_fingerprint() == actual_fingerprint
-        {
-            return Ok(());
-        }
-        let profile_id = self.profile.id().capability();
-        Err(CodegenError(format!(
-            "LIR target profile `{}` does not match generated-C toolchain profile `{}/{}/{}`",
-            actual.id().canonical_name(),
-            profile_id.namespace(),
-            profile_id.name(),
-            profile_id.major_version()
-        )))
-    }
-}
-
 pub(super) fn resolve_system_c_bridge_toolchain()
--> Result<ValidatedCBridgeToolchainProfile, CodegenError> {
+-> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
     let compiler_driver = canonical_existing_path(
         &command_text(XCRUN, &["--find", "clang"])?,
         "Apple Clang compiler",
@@ -120,23 +57,27 @@ struct CBridgeToolchainFacts {
 
 fn resolve_c_bridge_toolchain(
     facts: CBridgeToolchainFacts,
-) -> Result<ValidatedCBridgeToolchainProfile, CodegenError> {
+) -> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
     require_absolute(&facts.compiler_driver, "Apple Clang compiler")?;
     require_absolute(&facts.sdk_root, "macOS SDK root")?;
     let sdk = parse_darwin_version(&facts.sdk_version, "macOS SDK version")?;
     let minimum_os = parse_darwin_version(&facts.deployment_version, "macOS deployment version")?;
     let compiler = parse_apple_clang_identity(&facts.compiler_version)?;
-    let deployment = DarwinCBridgeDeploymentContractV1::new(minimum_os, sdk, facts.tools)
-        .map_err(|error| CodegenError(format!("invalid generated-C deployment facts: {error}")))?;
+    let deployment =
+        DarwinCBridgeDeploymentContractV1::new(minimum_os, sdk, facts.tools).map_err(|error| {
+            ToolchainError(format!("invalid generated-C deployment facts: {error}"))
+        })?;
     let profile = CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(deployment, compiler)
         .map_err(|error| {
-        CodegenError(format!("cannot fingerprint C bridge toolchain: {error}"))
+        ToolchainError(format!("cannot fingerprint C bridge toolchain: {error}"))
     })?;
-    Ok(ValidatedCBridgeToolchainProfile {
+    ValidatedCBridgeToolchainInvocation::new(
+        LirTargetProfile::DARWIN_AARCH64,
         profile,
-        compiler_driver: facts.compiler_driver,
-        sdk_root: facts.sdk_root,
-    })
+        facts.compiler_driver,
+        facts.sdk_root,
+    )
+    .map_err(|error| ToolchainError(format!("invalid generated-C invocation: {error}")))
 }
 
 fn probe_build_tools(
@@ -144,150 +85,101 @@ fn probe_build_tools(
     sdk_root: &Path,
     minimum_os: DarwinPackedVersionV1,
     sdk: DarwinPackedVersionV1,
-) -> Result<Vec<DarwinBuildToolVersionContractV1>, CodegenError> {
+) -> Result<Vec<DarwinBuildToolVersionContractV1>, ToolchainError> {
     let directory = tempfile::Builder::new()
         .prefix("scoop-c-bridge-probe-")
         .tempdir()
         .map_err(|error| {
-            CodegenError(format!("cannot create C bridge probe directory: {error}"))
+            ToolchainError(format!("cannot create C bridge probe directory: {error}"))
         })?;
     let source = directory.path().join("probe.c");
     let object = directory.path().join("probe.o");
     std::fs::write(&source, b"void scoop_c_bridge_probe(void) {}\n")
-        .map_err(|error| CodegenError(format!("cannot write C bridge probe source: {error}")))?;
-    let output = canonical_object_compilation_command(
-        compiler,
-        sdk_root,
-        LirTargetProfile::DARWIN_AARCH64
-            .contract()
-            .canonical_triple(),
-        minimum_os,
-        CBridgeEnvironmentProjectionV1::CLEAN_C_LOCALE_UTC,
-        &source,
-        &object,
+        .map_err(|error| ToolchainError(format!("cannot write C bridge probe source: {error}")))?;
+    let deployment = DarwinCBridgeDeploymentContractV1::new(minimum_os, sdk, Vec::new())
+        .map_err(|error| ToolchainError(format!("invalid C bridge probe deployment: {error}")))?;
+    let compiler_identity =
+        parse_apple_clang_identity(&command_text_from_path(compiler, &["--version"])?)?;
+    let profile =
+        CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(deployment, compiler_identity)
+            .map_err(|error| {
+                ToolchainError(format!("cannot fingerprint C bridge probe: {error}"))
+            })?;
+    let invocation = ValidatedCBridgeToolchainInvocation::new(
+        LirTargetProfile::DARWIN_AARCH64,
+        profile,
+        compiler.to_path_buf(),
+        sdk_root.to_path_buf(),
     )
-    .output()
-    .map_err(|error| CodegenError(format!("failed to run C bridge probe compiler: {error}")))?;
+    .map_err(|error| ToolchainError(format!("invalid C bridge probe invocation: {error}")))?;
+    let output = invocation
+        .object_compilation_command(&source, &object)
+        .output()
+        .map_err(|error| {
+            ToolchainError(format!("failed to run C bridge probe compiler: {error}"))
+        })?;
     if !output.status.success() {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "C bridge probe compilation failed (status {}): {}",
             output.status,
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
     let bytes = std::fs::read(&object)
-        .map_err(|error| CodegenError(format!("cannot read C bridge probe object: {error}")))?;
+        .map_err(|error| ToolchainError(format!("cannot read C bridge probe object: {error}")))?;
     parse_probe_deployment(&bytes, minimum_os, sdk)
-}
-
-fn canonical_object_compilation_command(
-    compiler: &Path,
-    sdk_root: &Path,
-    canonical_triple: &str,
-    minimum_os: DarwinPackedVersionV1,
-    environment: CBridgeEnvironmentProjectionV1,
-    source: &Path,
-    object: &Path,
-) -> Command {
-    let mut command = Command::new(compiler);
-    command
-        .env_clear()
-        .env("LC_ALL", environment.locale())
-        .env("LANG", environment.locale())
-        .env("TZ", environment.timezone());
-    for flag in CanonicalCBridgeFlagContractV1::CURRENT.flags() {
-        match flag {
-            CanonicalCBridgeFlagV1::ExplicitCanonicalTarget => {
-                command.args(["-target", canonical_triple]);
-            }
-            CanonicalCBridgeFlagV1::ExplicitResolvedSdkRoot => {
-                command.arg("-isysroot").arg(sdk_root);
-            }
-            CanonicalCBridgeFlagV1::ExplicitMinimumDeployment => {
-                command.arg(format!("-mmacosx-version-min={minimum_os}"));
-            }
-            CanonicalCBridgeFlagV1::C11 => {
-                command.arg("-std=c11");
-            }
-            CanonicalCBridgeFlagV1::RelocatableObject => {
-                command.arg("-c").arg(source).arg("-o").arg(object);
-            }
-            CanonicalCBridgeFlagV1::Unoptimized => {
-                command.arg("-O0");
-            }
-            CanonicalCBridgeFlagV1::NoDebugInformation => {
-                command.arg("-g0");
-            }
-            CanonicalCBridgeFlagV1::NoCommonSymbols => {
-                command.arg("-fno-common");
-            }
-            CanonicalCBridgeFlagV1::OmitCompilerIdentification => {
-                command.arg("-fno-ident");
-            }
-            CanonicalCBridgeFlagV1::NoStackProtector => {
-                command.arg("-fno-stack-protector");
-            }
-            CanonicalCBridgeFlagV1::NoUnwindTables => {
-                command.arg("-fno-unwind-tables");
-            }
-            CanonicalCBridgeFlagV1::NoAsynchronousUnwindTables => {
-                command.arg("-fno-asynchronous-unwind-tables");
-            }
-        }
-    }
-    command
 }
 
 fn parse_probe_deployment(
     bytes: &[u8],
     expected_minimum_os: DarwinPackedVersionV1,
     expected_sdk: DarwinPackedVersionV1,
-) -> Result<Vec<DarwinBuildToolVersionContractV1>, CodegenError> {
+) -> Result<Vec<DarwinBuildToolVersionContractV1>, ToolchainError> {
     let file: MachOFile64<'_> = MachOFile64::parse(bytes)
-        .map_err(|error| CodegenError(format!("invalid C bridge probe Mach-O: {error}")))?;
+        .map_err(|error| ToolchainError(format!("invalid C bridge probe Mach-O: {error}")))?;
     if file.architecture() != Architecture::Aarch64
         || file.kind() != ObjectKind::Relocatable
         || !file.endian().is_little_endian()
     {
-        return Err(CodegenError(
+        return Err(ToolchainError(
             "C bridge probe did not produce little-endian AArch64 MH_OBJECT".to_owned(),
         ));
     }
     let endian = file.endian();
     let mut deployment = None;
-    let mut commands = file
-        .macho_load_commands()
-        .map_err(|error| CodegenError(format!("invalid C bridge probe load commands: {error}")))?;
+    let mut commands = file.macho_load_commands().map_err(|error| {
+        ToolchainError(format!("invalid C bridge probe load commands: {error}"))
+    })?;
     while let Some(command) = commands
         .next()
-        .map_err(|error| CodegenError(format!("invalid C bridge probe load command: {error}")))?
+        .map_err(|error| ToolchainError(format!("invalid C bridge probe load command: {error}")))?
     {
         if command.cmd() != macho::LC_BUILD_VERSION {
             continue;
         }
         if deployment.is_some() {
-            return Err(CodegenError(
+            return Err(ToolchainError(
                 "C bridge probe contains multiple LC_BUILD_VERSION commands".to_owned(),
             ));
         }
         let build = command
             .build_version()
-            .map_err(|error| CodegenError(format!("invalid C bridge probe deployment: {error}")))?
+            .map_err(|error| ToolchainError(format!("invalid C bridge probe deployment: {error}")))?
             .ok_or_else(|| {
-                CodegenError("LC_BUILD_VERSION command did not decode as deployment".to_owned())
+                ToolchainError("LC_BUILD_VERSION command did not decode as deployment".to_owned())
             })?;
         if build.platform.get(endian) != macho::PLATFORM_MACOS {
-            return Err(CodegenError(format!(
+            return Err(ToolchainError(format!(
                 "C bridge probe selected platform {}, expected macOS",
                 build.platform.get(endian)
             )));
         }
         let minimum_os = DarwinPackedVersionV1::new(build.minos.get(endian))
-            .map_err(|error| CodegenError(format!("invalid probe minimum OS: {error}")))?;
+            .map_err(|error| ToolchainError(format!("invalid probe minimum OS: {error}")))?;
         let sdk = DarwinPackedVersionV1::new(build.sdk.get(endian))
-            .map_err(|error| CodegenError(format!("invalid probe SDK version: {error}")))?;
+            .map_err(|error| ToolchainError(format!("invalid probe SDK version: {error}")))?;
         if minimum_os != expected_minimum_os || sdk != expected_sdk {
-            return Err(CodegenError(format!(
+            return Err(ToolchainError(format!(
                 "C bridge probe deployment drift: expected min OS {expected_minimum_os} / SDK {expected_sdk}, found min OS {minimum_os} / SDK {sdk}"
             )));
         }
@@ -296,20 +188,21 @@ fn parse_probe_deployment(
             build.ntools.get(endian),
         )?);
     }
-    deployment.ok_or_else(|| CodegenError("C bridge probe is missing LC_BUILD_VERSION".to_owned()))
+    deployment
+        .ok_or_else(|| ToolchainError("C bridge probe is missing LC_BUILD_VERSION".to_owned()))
 }
 
 fn parse_probe_tools(
     command: &[u8],
     tool_count: u32,
-) -> Result<Vec<DarwinBuildToolVersionContractV1>, CodegenError> {
+) -> Result<Vec<DarwinBuildToolVersionContractV1>, ToolchainError> {
     let expected_length = usize::try_from(tool_count)
         .ok()
         .and_then(|count| count.checked_mul(8))
         .and_then(|size| size.checked_add(24))
-        .ok_or_else(|| CodegenError("C bridge probe tool table size overflow".to_owned()))?;
+        .ok_or_else(|| ToolchainError("C bridge probe tool table size overflow".to_owned()))?;
     if command.len() != expected_length {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "C bridge probe tool table length mismatch: expected {expected_length}, found {}",
             command.len()
         )));
@@ -324,14 +217,14 @@ fn parse_probe_tools(
                 macho::TOOL_LD => DarwinBuildToolIdV1::Ld,
                 MACHO_TOOL_LLD => DarwinBuildToolIdV1::Lld,
                 value => {
-                    return Err(CodegenError(format!(
+                    return Err(ToolchainError(format!(
                         "unsupported C bridge probe build tool {value} at index {index}"
                     )));
                 }
             };
             let version = u32::from_le_bytes([record[4], record[5], record[6], record[7]]);
             let version = DarwinPackedVersionV1::new(version).map_err(|error| {
-                CodegenError(format!(
+                ToolchainError(format!(
                     "invalid C bridge probe build tool version at index {index}: {error}"
                 ))
             })?;
@@ -340,11 +233,11 @@ fn parse_probe_tools(
         .collect()
 }
 
-fn command_text(program: &str, args: &[&str]) -> Result<String, CodegenError> {
+fn command_text(program: &str, args: &[&str]) -> Result<String, ToolchainError> {
     command_text_from_path(Path::new(program), args)
 }
 
-fn command_text_from_path(program: &Path, args: &[&str]) -> Result<String, CodegenError> {
+fn command_text_from_path(program: &Path, args: &[&str]) -> Result<String, ToolchainError> {
     let output = Command::new(program)
         .env_clear()
         .env("LC_ALL", "C")
@@ -353,13 +246,13 @@ fn command_text_from_path(program: &Path, args: &[&str]) -> Result<String, Codeg
         .args(args)
         .output()
         .map_err(|error| {
-            CodegenError(format!(
+            ToolchainError(format!(
                 "failed to query C bridge toolchain with `{}`: {error}",
                 program.display()
             ))
         })?;
     if !output.status.success() {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "C bridge toolchain query `{}` failed (status {}): {}",
             program.display(),
             output.status,
@@ -367,14 +260,14 @@ fn command_text_from_path(program: &Path, args: &[&str]) -> Result<String, Codeg
         )));
     }
     let value = std::str::from_utf8(&output.stdout).map_err(|error| {
-        CodegenError(format!(
+        ToolchainError(format!(
             "C bridge toolchain query `{}` returned non-UTF-8 output: {error}",
             program.display()
         ))
     })?;
     let value = value.trim();
     if value.is_empty() {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "C bridge toolchain query `{}` returned empty output",
             program.display()
         )));
@@ -386,11 +279,11 @@ fn canonical_existing_path(
     queried: &str,
     role: &'static str,
     require_file: bool,
-) -> Result<PathBuf, CodegenError> {
+) -> Result<PathBuf, ToolchainError> {
     let path = PathBuf::from(queried);
     require_absolute(&path, role)?;
     let path = std::fs::canonicalize(&path).map_err(|error| {
-        CodegenError(format!("cannot resolve {role} {}: {error}", path.display()))
+        ToolchainError(format!("cannot resolve {role} {}: {error}", path.display()))
     })?;
     let valid_kind = if require_file {
         path.is_file()
@@ -398,7 +291,7 @@ fn canonical_existing_path(
         path.is_dir()
     };
     if !valid_kind {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "{role} has the wrong file kind: {}",
             path.display()
         )));
@@ -406,9 +299,9 @@ fn canonical_existing_path(
     Ok(path)
 }
 
-fn require_absolute(path: &Path, role: &'static str) -> Result<(), CodegenError> {
+fn require_absolute(path: &Path, role: &'static str) -> Result<(), ToolchainError> {
     if !path.is_absolute() {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "{role} locator must be absolute, found {}",
             path.display()
         )));
@@ -416,16 +309,18 @@ fn require_absolute(path: &Path, role: &'static str) -> Result<(), CodegenError>
     Ok(())
 }
 
-fn parse_apple_clang_identity(output: &str) -> Result<AppleClangCompilerIdentityV1, CodegenError> {
+fn parse_apple_clang_identity(
+    output: &str,
+) -> Result<AppleClangCompilerIdentityV1, ToolchainError> {
     let first_line = output.lines().next().unwrap_or_default();
     let remainder = first_line
         .strip_prefix("Apple clang version ")
-        .ok_or_else(|| CodegenError(format!("unsupported C bridge compiler: {first_line:?}")))?;
+        .ok_or_else(|| ToolchainError(format!("unsupported C bridge compiler: {first_line:?}")))?;
     let mut fields = remainder.split_ascii_whitespace();
     let version = fields.next().unwrap_or_default();
     let build = fields.next().unwrap_or_default();
     if fields.next().is_some() || !build.starts_with('(') || !build.ends_with(')') {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "noncanonical Apple Clang identity: {first_line:?}"
         )));
     }
@@ -433,23 +328,23 @@ fn parse_apple_clang_identity(output: &str) -> Result<AppleClangCompilerIdentity
     let (major, minor, patch) = packed.components();
     let build = &build[1..build.len() - 1];
     let compiler = AppleClangCompilerIdentityV1::new(major, minor, patch, build)
-        .map_err(|error| CodegenError(format!("invalid Apple Clang identity: {error}")))?;
+        .map_err(|error| ToolchainError(format!("invalid Apple Clang identity: {error}")))?;
     Ok(compiler)
 }
 
 fn parse_darwin_version(
     spelling: &str,
     role: &'static str,
-) -> Result<DarwinPackedVersionV1, CodegenError> {
+) -> Result<DarwinPackedVersionV1, ToolchainError> {
     let components = spelling.split('.').collect::<Vec<_>>();
     if !(2..=3).contains(&components.len()) {
-        return Err(CodegenError(format!(
+        return Err(ToolchainError(format!(
             "invalid {role} {spelling:?}: expected major.minor[.patch]"
         )));
     }
     let parse = |component: &str| {
         component.parse::<u32>().map_err(|_| {
-            CodegenError(format!(
+            ToolchainError(format!(
                 "invalid {role} {spelling:?}: non-numeric component"
             ))
         })
@@ -462,7 +357,7 @@ fn parse_darwin_version(
         .transpose()?
         .unwrap_or(0);
     DarwinPackedVersionV1::from_components(major, minor, patch)
-        .map_err(|error| CodegenError(format!("invalid {role} {spelling:?}: {error}")))
+        .map_err(|error| ToolchainError(format!("invalid {role} {spelling:?}: {error}")))
 }
 
 #[cfg(test)]

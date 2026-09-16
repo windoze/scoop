@@ -130,11 +130,7 @@ pub use runtime_metadata_v1::{
     TypeRegistrationPatchSiteV1,
 };
 use target::ManagedAddressSpace;
-pub use target::{
-    LlvmVersion, ResolvedTargetProfile, TargetProfileId, ValidatedBackendProfile,
-    ValidatedCBridgeToolchainProfile, ValidatedFinalLinkProfile, ValidatedRuntimeBuildProfile,
-    linked_llvm_version,
-};
+pub use target::{LlvmVersion, TargetProfileId, ValidatedBackendProfile, linked_llvm_version};
 pub(crate) use type_descriptors::type_descriptor_global;
 
 fn align_up(value: u64, align: u64) -> u64 {

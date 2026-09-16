@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use scoop_codegen::ResolvedTargetProfile;
 use scoop_hir::{
     CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
     CoreHirInterfaceV1, CoreInterfaceImportError, ImportedCoreInputs, ImportedCorePreludeTarget,
@@ -31,6 +30,7 @@ use scoop_slib::{
     ValidatedCompileArtifact, ValidatedGraphArtifact, ValidatedSingleConeStrongLinkArtifact,
     validate_single_cone_strong_compile_artifact, validate_single_cone_strong_link_artifact,
 };
+use scoop_toolchain::ResolvedTargetProfile;
 use scoop_wire::DecodeLimits;
 
 use super::TrustedCoreArtifactInput;

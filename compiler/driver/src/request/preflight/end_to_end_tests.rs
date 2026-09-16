@@ -503,15 +503,17 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     assert!(!current.join("src").exists());
 }
 
-fn resolved_target() -> Option<scoop_codegen::ResolvedTargetProfile> {
+fn resolved_target() -> Option<scoop_toolchain::ResolvedTargetProfile> {
     // The target resolver owns host Apple-toolchain qualification. A machine
     // blocked by the Xcode license gate cannot enter object production.
-    scoop_codegen::ResolvedTargetProfile::resolve_host().ok()
+    let target = scoop_toolchain::ResolvedTargetProfile::resolve_host().ok()?;
+    scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection()).ok()?;
+    Some(target)
 }
 
 fn bootstrap_core(
     sysroot: &Path,
-    target: &scoop_codegen::ResolvedTargetProfile,
+    target: &scoop_toolchain::ResolvedTargetProfile,
 ) -> SingleConeProductionSuccess {
     copy_trusted_core_sources(sysroot);
     let slot =
@@ -538,7 +540,7 @@ fn bootstrap_core(
 
 fn build_manifest(
     sysroot: &Path,
-    target: &scoop_codegen::ResolvedTargetProfile,
+    target: &scoop_toolchain::ResolvedTargetProfile,
     root: &Path,
     output: &Path,
 ) -> SingleConeProductionSuccess {
@@ -554,7 +556,7 @@ fn build_manifest(
 
 fn build_single_file(
     sysroot: &Path,
-    target: &scoop_codegen::ResolvedTargetProfile,
+    target: &scoop_toolchain::ResolvedTargetProfile,
     source: &Path,
     output: &Path,
 ) -> SingleConeProductionSuccess {
@@ -570,7 +572,7 @@ fn build_single_file(
 
 fn build_ordinary(
     sysroot: &Path,
-    target: &scoop_codegen::ResolvedTargetProfile,
+    target: &scoop_toolchain::ResolvedTargetProfile,
     current: CurrentConeInput,
     output: &Path,
 ) -> SingleConeProductionSuccess {
@@ -594,7 +596,7 @@ fn build_ordinary(
 
 fn build_manifest_request(
     sysroot: &Path,
-    target: &scoop_codegen::ResolvedTargetProfile,
+    target: &scoop_toolchain::ResolvedTargetProfile,
     root: &Path,
     output: &Path,
     direct: Vec<std::path::PathBuf>,
@@ -632,7 +634,7 @@ fn build_manifest_request(
 
 fn assert_graph_dependencies(
     artifact: &SingleConeProductionSuccess,
-    target: &scoop_codegen::ResolvedTargetProfile,
+    target: &scoop_toolchain::ResolvedTargetProfile,
     expected: &[ConeIdentity],
 ) {
     let bytes = std::fs::read(artifact.artifact().path()).unwrap();

@@ -23,6 +23,9 @@ pub use runtime_abi::*;
 mod c_bridge_toolchain;
 pub use c_bridge_toolchain::*;
 
+mod c_bridge_invocation;
+pub use c_bridge_invocation::*;
+
 mod target_selection;
 pub use target_selection::*;
 

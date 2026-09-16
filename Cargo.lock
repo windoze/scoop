@@ -548,6 +548,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-toolchain"
+version = "0.0.0"
+dependencies = [
+ "object",
+ "scoop-lir",
+ "tempfile",
+]
+
+[[package]]
 name = "scoop-wire"
 version = "0.0.0"
 dependencies = [
@@ -574,6 +583,7 @@ dependencies = [
  "scoop-parser",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-toolchain",
  "scoop-wire",
  "tempfile",
 ]

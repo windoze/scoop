@@ -12,7 +12,7 @@ pub use report::{
     SingleConeProductionSuccess,
 };
 
-use scoop_codegen::{CodegenError, ResolvedTargetProfile};
+use scoop_codegen::CodegenError;
 use scoop_manifest::{
     ManifestRootError, ManifestRootLocator, SingleFileInputError, SingleFileLocator,
 };
@@ -20,6 +20,7 @@ use scoop_protocol::{
     CurrentConeRequestV1, HostPathError, ScoopcBuildRequestV1, StageDumpKindV1, StageDumpPolicyV1,
     TrustedCoreRequestV1,
 };
+use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 
 use crate::{
     TrustedCoreArtifactInput, TrustedCoreArtifactInputError, TrustedCoreArtifactSlot,
@@ -298,7 +299,8 @@ pub enum BuildRequestNormalizationError {
     ManifestRoot(ManifestRootError),
     SingleFile(SingleFileInputError),
     HostPath(HostPathError),
-    Target(CodegenError),
+    Target(ToolchainError),
+    Backend(CodegenError),
     TrustedCoreSlot(TrustedCoreSlotError),
     TrustedCoreArtifact(TrustedCoreArtifactInputError),
     Request(SingleConeBuildRequestError),
@@ -312,6 +314,7 @@ impl fmt::Display for BuildRequestNormalizationError {
             Self::SingleFile(error) => error.fmt(formatter),
             Self::HostPath(error) => error.fmt(formatter),
             Self::Target(error) => error.fmt(formatter),
+            Self::Backend(error) => error.fmt(formatter),
             Self::TrustedCoreSlot(error) => error.fmt(formatter),
             Self::TrustedCoreArtifact(error) => error.fmt(formatter),
             Self::Request(error) => error.fmt(formatter),
@@ -327,6 +330,7 @@ impl std::error::Error for BuildRequestNormalizationError {
             Self::SingleFile(error) => Some(error),
             Self::HostPath(error) => Some(error),
             Self::Target(error) => Some(error),
+            Self::Backend(error) => Some(error),
             Self::TrustedCoreSlot(error) => Some(error),
             Self::TrustedCoreArtifact(error) => Some(error),
             Self::Request(error) => Some(error),
@@ -390,6 +394,8 @@ pub fn normalize_direct_build_request(
         SlibOutputDestination::new(output).map_err(BuildRequestNormalizationError::Request)?;
     let target =
         ResolvedTargetProfile::resolve_host().map_err(BuildRequestNormalizationError::Target)?;
+    scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
+        .map_err(BuildRequestNormalizationError::Backend)?;
     let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
         .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
     let trusted_core = TrustedCoreInput::Artifact(
@@ -439,6 +445,8 @@ pub fn normalize_protocol_build_request(
         SlibOutputDestination::new(output_path).map_err(BuildRequestNormalizationError::Request)?;
     let target = ResolvedTargetProfile::resolve(build.target().canonical_triple())
         .map_err(BuildRequestNormalizationError::Target)?;
+    scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
+        .map_err(BuildRequestNormalizationError::Backend)?;
     let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
         .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
 

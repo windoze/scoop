@@ -20,10 +20,6 @@ use crate::{CodegenError, artifact};
 
 mod qualification;
 
-mod c_bridge_toolchain;
-pub use c_bridge_toolchain::ValidatedCBridgeToolchainProfile;
-use c_bridge_toolchain::resolve_system_c_bridge_toolchain;
-
 const REQUIRED_LLVM_MAJOR: u32 = 22;
 const REQUIRED_LLVM_MINOR: u32 = 1;
 
@@ -190,191 +186,11 @@ impl ManagedAddressSpace {
     }
 }
 
-/// Complete target selection resolved atomically by the driver registry.
-///
-/// Each consumer receives only the projection it needs; no stage can recover
-/// runtime-build or final-link policy from the LLVM backend projection.
-///
-/// ```compile_fail
-/// use scoop_codegen::{ValidatedBackendProfile, ValidatedRuntimeBuildProfile};
-///
-/// fn cannot_treat_backend_as_runtime(profile: ValidatedBackendProfile) {
-///     let _: ValidatedRuntimeBuildProfile = profile;
-/// }
-/// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ResolvedTargetProfile {
-    lir_target: ValidatedLirTargetSelection,
-    backend: ValidatedBackendProfile,
-    c_bridge_toolchain: ValidatedCBridgeToolchainProfile,
-    runtime_build: ValidatedRuntimeBuildProfile,
-    final_link: ValidatedFinalLinkProfile,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ValidatedRuntimeBuildProfile {
-    canonical_triple: &'static str,
-    runtime_sources: &'static [&'static str],
-    runtime_c_flags: &'static [&'static str],
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ValidatedFinalLinkProfile {
-    target: LirTargetProfile,
-    canonical_triple: &'static str,
-    linker_driver: &'static str,
-    linker_args: &'static [&'static str],
-}
-
-impl ResolvedTargetProfile {
-    fn darwin_aarch64(c_bridge_toolchain: ValidatedCBridgeToolchainProfile) -> Self {
-        Self {
-            lir_target: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            backend: ValidatedBackendProfile::DARWIN_AARCH64,
-            c_bridge_toolchain,
-            runtime_build: ValidatedRuntimeBuildProfile {
-                canonical_triple: "aarch64-apple-darwin",
-                runtime_sources: &[
-                    "runtime/src/rt.c",
-                    "runtime/src/eh.c",
-                    "runtime/src/eh_personality.c",
-                    "runtime/src/initialization.c",
-                    "runtime/src/gc.c",
-                    "runtime/src/gc/allocation.c",
-                    "runtime/src/gc/collector.c",
-                    "runtime/src/gc/evacuation.c",
-                    "runtime/src/gc/reclamation.c",
-                    "runtime/src/gc/heap.c",
-                    "runtime/src/gc/heap_objects.c",
-                    "runtime/src/gc/handles.c",
-                    "runtime/src/gc/root_frames.c",
-                    "runtime/src/gc/roots.c",
-                    "runtime/src/gc/stackmap.c",
-                    "runtime/src/gc/stack_roots.c",
-                    "runtime/src/thread.c",
-                    "runtime/src/thread/collection.c",
-                    "runtime/src/thread/debug.c",
-                    "runtime/src/thread/roots.c",
-                    "runtime/src/thread/transitions.c",
-                    "runtime/src/callback.c",
-                    "runtime/src/platform/profiles/darwin_aarch64.c",
-                    "runtime/src/platform/image/macho.c",
-                    "runtime/src/platform/arch/aarch64.c",
-                    "runtime/src/platform/arch/aarch64_anchor.S",
-                    "runtime/src/platform/os/darwin.c",
-                ],
-                runtime_c_flags: &[
-                    "-pthread",
-                    "-fno-omit-frame-pointer",
-                    "-fno-optimize-sibling-calls",
-                ],
-            },
-            final_link: ValidatedFinalLinkProfile {
-                target: LirTargetProfile::DARWIN_AARCH64,
-                canonical_triple: "aarch64-apple-darwin",
-                linker_driver: "cc",
-                linker_args: &["-pthread"],
-            },
-        }
-    }
-
-    /// Resolves all five mutually compatible projections as one value.
-    pub fn resolve(triple: &str) -> Result<Self, CodegenError> {
-        validate_linked_llvm()?;
-        let mut components = triple.split('-');
-        let arch = components.next().unwrap_or_default();
-        let vendor = components.next().unwrap_or_default();
-        let os = components.next().unwrap_or_default();
-        let has_extra_identity = components.any(|component| !component.is_empty());
-        let supported_arch = matches!(arch, "aarch64" | "arm64");
-        let supported_os = versioned_component(os, "darwin") || versioned_component(os, "macosx");
-
-        if supported_arch && vendor == "apple" && supported_os && !has_extra_identity {
-            Ok(Self::darwin_aarch64(resolve_system_c_bridge_toolchain()?))
-        } else {
-            Err(CodegenError(format!(
-                "unsupported target {triple:?}; M15 supports only macOS/AArch64 \
-                 (`aarch64-apple-darwin`, with `arm64` accepted as an alias)"
-            )))
-        }
-    }
-
-    /// Resolves LLVM's canonical host triple through the same closed registry
-    /// used for explicit triples.
-    pub fn resolve_host() -> Result<Self, CodegenError> {
-        let triple = TargetMachine::get_default_triple();
-        let triple = triple
-            .as_str()
-            .to_str()
-            .map_err(|error| CodegenError(format!("host target triple is not UTF-8: {error}")))?;
-        Self::resolve(triple)
-    }
-
-    pub const fn id(&self) -> TargetProfileId {
-        self.lir_target.target().id()
-    }
-
-    pub const fn lir_target(&self) -> LirTargetProfile {
-        self.lir_target.target()
-    }
-
-    pub const fn lir_target_selection(&self) -> ValidatedLirTargetSelection {
-        self.lir_target
-    }
-
-    pub const fn backend(&self) -> ValidatedBackendProfile {
-        self.backend
-    }
-
-    pub const fn c_bridge_toolchain(&self) -> &ValidatedCBridgeToolchainProfile {
-        &self.c_bridge_toolchain
-    }
-
-    pub const fn runtime_build(&self) -> ValidatedRuntimeBuildProfile {
-        self.runtime_build
-    }
-
-    pub const fn final_link(&self) -> ValidatedFinalLinkProfile {
-        self.final_link
-    }
-}
-
-impl ValidatedRuntimeBuildProfile {
-    pub const fn canonical_triple(self) -> &'static str {
-        self.canonical_triple
-    }
-
-    pub const fn runtime_sources(self) -> &'static [&'static str] {
-        self.runtime_sources
-    }
-
-    pub const fn runtime_c_flags(self) -> &'static [&'static str] {
-        self.runtime_c_flags
-    }
-}
-
-impl ValidatedFinalLinkProfile {
-    pub const fn id(self) -> TargetProfileId {
-        self.target.id()
-    }
-
-    pub const fn canonical_triple(self) -> &'static str {
-        self.canonical_triple
-    }
-
-    pub const fn linker_driver(self) -> &'static str {
-        self.linker_driver
-    }
-
-    pub const fn linker_args(self) -> &'static [&'static str] {
-        self.linker_args
-    }
-}
-
 /// A complete, immutable LIR-to-LLVM backend projection.
 ///
 /// Fields are private so callers cannot construct a contradictory partial
-/// profile. New targets are admitted only by [`ResolvedTargetProfile::resolve`].
+/// profile. New targets are admitted only by the shared toolchain registry and
+/// this module's closed selection-to-backend refinement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ValidatedBackendProfile {
     lir_target_selection: ValidatedLirTargetSelection,
@@ -420,6 +236,17 @@ impl ValidatedBackendProfile {
         frame_pointers: FramePointerPolicy::All,
         tail_calls: TailCallPolicy::Disabled,
     };
+
+    pub fn from_selection(selection: ValidatedLirTargetSelection) -> Result<Self, CodegenError> {
+        validate_linked_llvm()?;
+        if selection == ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1 {
+            Ok(Self::DARWIN_AARCH64)
+        } else {
+            Err(CodegenError(
+                "the selected LIR/backend profile is not qualified by this codegen".to_owned(),
+            ))
+        }
+    }
 
     pub fn id(self) -> TargetProfileId {
         self.lir_target_selection.target().id()
@@ -599,17 +426,6 @@ fn validate_llvm_version(version: LlvmVersion) -> Result<LlvmVersion, CodegenErr
              {REQUIRED_LLVM_MAJOR}.{REQUIRED_LLVM_MINOR}"
         )))
     }
-}
-
-fn versioned_component(component: &str, prefix: &str) -> bool {
-    let Some(suffix) = component.strip_prefix(prefix) else {
-        return false;
-    };
-    suffix.is_empty()
-        || suffix.starts_with(|character: char| character.is_ascii_digit())
-        || suffix.strip_prefix('.').is_some_and(|version| {
-            version.starts_with(|character: char| character.is_ascii_digit())
-        })
 }
 
 #[cfg(test)]

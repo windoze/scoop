@@ -68,9 +68,13 @@ impl EmittedGeneratedCBridgeObjectSetV1 {
 pub fn emit_c_bridge_object_set(
     input: &scoop_lir::SingleConeStrongLirOutput,
     temporary_parent: &Path,
-    profile: &ValidatedCBridgeToolchainProfile,
+    profile: &scoop_lir::ValidatedCBridgeToolchainInvocation,
 ) -> Result<EmittedGeneratedCBridgeObjectSetV1, CodegenError> {
-    profile.validate_lir_target_profile(input.module().meta.target_profile)?;
+    profile
+        .validate_target(input.module().meta.target_profile)
+        .map_err(|error| {
+            CodegenError(format!("invalid generated-C toolchain projection: {error}"))
+        })?;
     let target = input.module().meta.target_profile;
     let symbol_surface =
         scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(input.foundation())

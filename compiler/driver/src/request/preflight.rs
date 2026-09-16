@@ -71,7 +71,7 @@ pub struct LoadedSingleConeBuildRequest {
     current: LoadedCurrentConeInput,
     dependencies: LoadedExplicitDependencyInputs,
     trusted_core: LoadedTrustedCoreInput,
-    target: scoop_codegen::ResolvedTargetProfile,
+    target: scoop_toolchain::ResolvedTargetProfile,
     output: SlibOutputDestination,
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
@@ -370,7 +370,7 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
         self.dependencies
     }
 
-    pub const fn target(&self) -> &scoop_codegen::ResolvedTargetProfile {
+    pub const fn target(&self) -> &scoop_toolchain::ResolvedTargetProfile {
         &self.request.target
     }
 
@@ -1749,7 +1749,7 @@ mod tests {
     fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         let sysroot = tempfile::tempdir().unwrap();
         copy_trusted_core_sources(sysroot.path());
-        let Ok(target) = scoop_codegen::ResolvedTargetProfile::resolve_host() else {
+        let Ok(target) = scoop_toolchain::ResolvedTargetProfile::resolve_host() else {
             // The target resolver owns host Apple-toolchain qualification.
             // Environments blocked by the system Xcode license gate cannot
             // enter object production, but still compile this closed path.
@@ -1814,7 +1814,7 @@ mod tests {
 
         let ordinary_source = sysroot.path().join("ordinary.scoop");
         std::fs::write(&ordinary_source, "fun main() {}\n").unwrap();
-        let target = scoop_codegen::ResolvedTargetProfile::resolve_host().unwrap();
+        let target = scoop_toolchain::ResolvedTargetProfile::resolve_host().unwrap();
         let core_slot = crate::trusted_core::resolve_trusted_core_slot_at(
             sysroot.path(),
             target.lir_target_selection(),
