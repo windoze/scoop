@@ -1013,6 +1013,81 @@ fn real_process_caches_upstream_before_non_core_capability_failure() {
     assert_manifest_current_identity(&second_runner.current[0], root_identity);
 }
 
+#[test]
+fn real_process_diamond_invokes_shared_core_once_in_canonical_order() {
+    let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
+        return;
+    };
+    let compiler = std::path::PathBuf::from(compiler);
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let alpha = workspace.join("alpha");
+    let beta = workspace.join("beta");
+    let root = workspace.join("root");
+    copy_real_core(&sysroot);
+    write_manifest(&alpha, "alpha", "");
+    write_manifest(&beta, "beta", "");
+    write_manifest(
+        &root,
+        "root",
+        "[dependencies]\n\
+         \"test:beta\" = { version = \"1.0.0\", path = \"../beta\" }\n\
+         \"test:alpha\" = { version = \"1.0.0\", path = \"../alpha\" }\n",
+    );
+    let alpha_identity = ConeCoordinate::new("test", "alpha", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let beta_identity = ConeCoordinate::new("test", "beta", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let root_identity = ConeCoordinate::new("test", "root", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
+
+    let mut first_runner = RecordingProductionRunner::default();
+    let first_error = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute_with_runner(&mut first_runner)
+        .unwrap_err();
+    assert_non_core_capability_failure(first_error, root_identity);
+    assert_eq!(first_runner.current.len(), 4);
+    assert_eq!(
+        first_runner.current[0],
+        CurrentConeRequestV1::TrustedCoreBootstrap
+    );
+    assert_manifest_current_identity(&first_runner.current[1], alpha_identity);
+    assert_manifest_current_identity(&first_runner.current[2], beta_identity);
+    assert_manifest_current_identity(&first_runner.current[3], root_identity);
+
+    let mut second_runner = RecordingProductionRunner::default();
+    let second_error = build_request()
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap()
+        .execute_with_runner(&mut second_runner)
+        .unwrap_err();
+    assert_non_core_capability_failure(second_error, root_identity);
+    assert_eq!(second_runner.current.len(), 1);
+    assert_manifest_current_identity(&second_runner.current[0], root_identity);
+}
+
 fn assert_non_core_capability_failure(error: BuildGraphExecutionError, root: ConeIdentity) {
     assert!(matches!(
         error,
