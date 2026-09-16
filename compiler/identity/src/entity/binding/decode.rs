@@ -28,6 +28,22 @@ pub enum DecodedBindableEntity {
     EnumVariant(DecodedPersistentId<PersistentEnumVariantId>),
 }
 
+impl DecodedBindableEntity {
+    /// Resolves this untrusted target while rechecking the namespace/role
+    /// discriminator against the referenced declaration's canonical key.
+    pub fn resolve_target<R, E>(
+        self,
+        namespace: BindingNamespace,
+        role: BindingRole,
+        resolver: &mut R,
+    ) -> Result<BindingTarget, BindingIdentityResolutionError<E>>
+    where
+        R: BindingResolver<E>,
+    {
+        resolve_target(namespace, self, role, resolver)
+    }
+}
+
 impl WireEncode for DecodedBindableEntity {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
