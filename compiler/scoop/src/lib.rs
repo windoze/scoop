@@ -4,12 +4,14 @@
 //! paired `scoopc` process. It deliberately has no dependency on the compiler
 //! implementation pipeline.
 
+mod compiler;
 mod discovery;
 mod graph;
 mod locator;
 mod request;
 mod snapshot;
 
+pub use compiler::*;
 pub use discovery::*;
 pub use graph::*;
 pub use locator::{DependencyLocatorError, LocatorIoOperation};
