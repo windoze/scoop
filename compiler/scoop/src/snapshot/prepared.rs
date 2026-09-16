@@ -72,6 +72,14 @@ impl Preparer {
     }
 
     fn run(mut self) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
+        let topological_indices = self
+            .parts
+            .dependency_first
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, identity)| (identity, index))
+            .collect::<BTreeMap<_, _>>();
         let core_layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
             self.parts.context.sysroot.as_path(),
             self.parts.target_selection,
@@ -138,7 +146,10 @@ impl Preparer {
                     )?;
                     let input_root =
                         materialize_manifest_snapshot(&self.staging, identity, &snapshot)?;
-                    let output_path = self.staging.planned_output(&identity.to_string());
+                    let output_path = self
+                        .staging
+                        .plan_output(topological_indices[&identity], &identity.to_string())
+                        .map_err(PrepareBuildGraphError::Staging)?;
                     PreparedGraphNode::ManifestSource(Box::new(PreparedManifestSourceNode {
                         snapshot,
                         input_root,
@@ -196,7 +207,10 @@ impl Preparer {
                             digest_from_source(snapshot.source.content_digest()),
                         )
                         .map_err(PrepareBuildGraphError::Staging)?;
-                    let output_path = self.staging.planned_output(&identity.to_string());
+                    let output_path = self
+                        .staging
+                        .plan_output(topological_indices[&identity], &identity.to_string())
+                        .map_err(PrepareBuildGraphError::Staging)?;
                     PreparedGraphNode::SingleFile(Box::new(PreparedSingleFileNode {
                         snapshot,
                         input_path,

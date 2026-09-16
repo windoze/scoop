@@ -3,9 +3,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, RequestedConeKind};
+use scoop_identity::ConeIdentity;
 use scoop_protocol::{RequestCorrelationId, StructuredDiagnosticV1};
-use scoop_slib::{CompileArtifactPurpose, LinkArtifactPurpose};
+use scoop_slib::{CompileArtifactPurpose, ConeKind, LinkArtifactPurpose};
 
 use crate::{
     CompileCacheKeyError, ConeCompileCacheKeyV1, CoreBootstrapExecutionError, CoreBootstrapReason,
@@ -56,7 +56,6 @@ impl BuildObservations {
 pub struct ExecutedBuildGraph {
     _prepared: PreparedBuildGraph,
     root: ConeIdentity,
-    root_kind: RequestedConeKind,
     dependency_first: Vec<ConeIdentity>,
     completed: BTreeMap<ConeIdentity, CompletedNode>,
     observations: BuildObservations,
@@ -88,15 +87,15 @@ impl ExecutedBuildGraph {
             .iter()
             .flat_map(|identity| self.completed[identity].warnings().iter().cloned())
             .collect();
-        match self.root_kind {
-            RequestedConeKind::Library => BuildGraphOutcome::Library {
+        match root.artifact().publication().kind() {
+            ConeKind::Library => BuildGraphOutcome::Library {
                 root,
                 compile,
                 link,
                 warnings,
                 observations: self.observations,
             },
-            RequestedConeKind::Executable => BuildGraphOutcome::ExecutableArtifact {
+            ConeKind::Executable => BuildGraphOutcome::ExecutableArtifact {
                 root,
                 compile,
                 link,
@@ -274,11 +273,9 @@ impl PreparedBuildGraph {
         }
 
         let root = self.root_identity();
-        let root_kind = self.root_kind();
         Ok(ExecutedBuildGraph {
             _prepared: self,
             root,
-            root_kind,
             dependency_first: order,
             completed,
             observations: BuildObservations {

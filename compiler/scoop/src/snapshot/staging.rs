@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::fmt;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -63,8 +64,57 @@ impl PreparedStaging {
         &self.output_root
     }
 
-    pub(super) fn planned_output(&self, cone_directory: &str) -> PathBuf {
-        self.output_root.join(format!("{cone_directory}.slib"))
+    pub(super) fn plan_output(
+        &self,
+        topological_index: usize,
+        cone_directory: &str,
+    ) -> Result<PathBuf, StagingError> {
+        let root = self
+            .output_root
+            .join(format!("{topological_index:08}-{cone_directory}"));
+        create_new_directory(&root)?;
+        set_private_directory_permissions(&root)?;
+        Ok(root.join("candidate.slib"))
+    }
+
+    pub(super) fn require_empty_output(&self, output: &Path) -> Result<(), StagingError> {
+        let parent = output
+            .parent()
+            .ok_or_else(|| StagingError::InvalidInternalPath(output.to_path_buf()))?;
+        let names = directory_names(parent)?;
+        if names.is_empty() {
+            Ok(())
+        } else {
+            Err(StagingError::UnexpectedDirectoryContents {
+                path: parent.to_path_buf(),
+                names,
+            })
+        }
+    }
+
+    pub(super) fn validate_completed_output(&self, output: &Path) -> Result<(), StagingError> {
+        let parent = output
+            .parent()
+            .ok_or_else(|| StagingError::InvalidInternalPath(output.to_path_buf()))?;
+        let names = directory_names(parent)?;
+        let expected = output
+            .file_name()
+            .ok_or_else(|| StagingError::InvalidInternalPath(output.to_path_buf()))?;
+        if names != [expected.to_os_string()] {
+            return Err(StagingError::UnexpectedDirectoryContents {
+                path: parent.to_path_buf(),
+                names,
+            });
+        }
+        let metadata = std::fs::symlink_metadata(output).map_err(|source| StagingError::Io {
+            operation: StagingIoOperation::Inspect,
+            path: output.to_path_buf(),
+            source,
+        })?;
+        if !metadata.file_type().is_file() {
+            return Err(StagingError::UnexpectedFileType(output.to_path_buf()));
+        }
+        Ok(())
     }
 
     pub(super) fn materialize_manifest(
@@ -210,6 +260,35 @@ fn create_directory(path: &Path) -> Result<(), StagingError> {
         path: path.to_path_buf(),
         source,
     })
+}
+
+fn create_new_directory(path: &Path) -> Result<(), StagingError> {
+    std::fs::create_dir(path).map_err(|source| StagingError::Io {
+        operation: StagingIoOperation::CreateDirectory,
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+fn directory_names(path: &Path) -> Result<Vec<OsString>, StagingError> {
+    let mut names = std::fs::read_dir(path)
+        .map_err(|source| StagingError::Io {
+            operation: StagingIoOperation::ListDirectory,
+            path: path.to_path_buf(),
+            source,
+        })?
+        .map(|entry| {
+            entry
+                .map(|entry| entry.file_name())
+                .map_err(|source| StagingError::Io {
+                    operation: StagingIoOperation::ListDirectory,
+                    path: path.to_path_buf(),
+                    source,
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    names.sort();
+    Ok(names)
 }
 
 fn ensure_private_directory(path: &Path) -> Result<(), StagingError> {
@@ -421,6 +500,10 @@ pub enum StagingError {
     VerificationMismatch(PathBuf),
     InvalidInternalPath(PathBuf),
     UnexpectedFileType(PathBuf),
+    UnexpectedDirectoryContents {
+        path: PathBuf,
+        names: Vec<OsString>,
+    },
 }
 
 impl fmt::Display for StagingError {
@@ -444,6 +527,11 @@ impl fmt::Display for StagingError {
             Self::UnexpectedFileType(path) => write!(
                 formatter,
                 "private staging contains unexpected file type {}",
+                path.display()
+            ),
+            Self::UnexpectedDirectoryContents { path, names } => write!(
+                formatter,
+                "private output directory {} contains unexpected entries {names:?}",
                 path.display()
             ),
         }
@@ -479,6 +567,30 @@ mod tests {
             PreparedStaging::create(&ArtifactCacheRoot::new(cache_root).unwrap()),
             Err(StagingError::UnexpectedFileType(path))
                 if path.ends_with(COMPILE_CACHE_NAMESPACE)
+        ));
+    }
+
+    #[test]
+    fn planned_child_output_is_isolated_and_rejects_extra_entries() {
+        let temp = tempfile::tempdir().unwrap();
+        let staging =
+            PreparedStaging::create(&ArtifactCacheRoot::new(temp.path().join("cache")).unwrap())
+                .unwrap();
+        let output = staging.plan_output(3, "cone-id").unwrap();
+        staging.require_empty_output(&output).unwrap();
+
+        std::fs::write(&output, b"artifact").unwrap();
+        staging.validate_completed_output(&output).unwrap();
+
+        std::fs::write(output.parent().unwrap().join("unexpected"), b"extra").unwrap();
+        assert!(matches!(
+            staging.validate_completed_output(&output),
+            Err(StagingError::UnexpectedDirectoryContents { names, .. })
+                if names
+                    == [
+                        OsString::from("candidate.slib"),
+                        OsString::from("unexpected"),
+                    ]
         ));
     }
 }

@@ -65,6 +65,9 @@ impl PreparedBuildGraph {
         let invocation = self
             .child_invocation_plan(identity, request_id, completed)
             .map_err(OrdinarySourceExecutionError::RequestPlan)?;
+        self.staging
+            .require_empty_output(invocation.output_path())
+            .map_err(OrdinarySourceExecutionError::OutputLayout)?;
         self.meter
             .charge_child_request()
             .map_err(OrdinarySourceExecutionError::Resource)?;
@@ -77,6 +80,9 @@ impl PreparedBuildGraph {
                 return Err(OrdinarySourceExecutionError::ChildFailure(diagnostics));
             }
         };
+        self.staging
+            .validate_completed_output(invocation.output_path())
+            .map_err(OrdinarySourceExecutionError::OutputLayout)?;
         let output = ImmutableInputSnapshot::capture_no_follow(
             invocation.output_path(),
             self.context.limits.artifact_decode().owned_bytes,
@@ -145,6 +151,7 @@ pub enum OrdinarySourceExecutionError {
     Resource(scoop_slib::SlibClosureResourceErrorV1),
     ChildTransport(ChildTransportError),
     ChildFailure(Vec<StructuredDiagnosticV1>),
+    OutputLayout(crate::StagingError),
     OutputSnapshot(SnapshotFileError),
     Completion(CompiledCompletionError),
     ChildResult(ChildSuccessArtifactMismatch),
@@ -170,6 +177,9 @@ impl fmt::Display for OrdinarySourceExecutionError {
                 "compiler child reported {} diagnostic(s)",
                 diagnostics.len()
             ),
+            Self::OutputLayout(source) => {
+                write!(formatter, "invalid private child output layout: {source}")
+            }
             Self::OutputSnapshot(source) => {
                 write!(formatter, "cannot snapshot compiler child output: {source}")
             }
@@ -195,6 +205,7 @@ impl std::error::Error for OrdinarySourceExecutionError {
             Self::RequestPlan(source) => Some(source),
             Self::Resource(source) => Some(source),
             Self::ChildTransport(source) => Some(source),
+            Self::OutputLayout(source) => Some(source),
             Self::OutputSnapshot(source) => Some(source),
             Self::Completion(source) => Some(source),
             Self::ChildResult(source) => Some(source),
