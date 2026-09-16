@@ -744,16 +744,65 @@ ExportDefaultTemplateV1 {
     locals: CanonicalTemplateLocalTableV1,      // field 4
     body: ExportDefaultBodyV1,                  // field 5
     result: SignatureTypeKey,                   // field 6
-    allows_suspend: bool,                       // field 7
-    type_parameters: CanonicalBinderUseList,    // field 8
-    receiver: None | TemplateReceiverV1,        // field 9
-    value_parameters: CanonicalVec<TemplateValueParameterV1>, // field 10
+    allows_suspend: CanonicalBooleanV1,         // field 7
+    type_parameters: CanonicalBinderUseListV1,  // field 8
+    receiver: OptionalTemplateReceiverV1,       // field 9
+    value_parameters: CanonicalTemplateValueParametersV1, // field 10
     references: ExportDefaultReferenceSetV1,    // field 11
     definition_origin: ExportDefinitionSourceV1, // field 12
 }
 ```
 
 `default_templates`按`ExportDefaultTemplateKeyV1`的`(owner tag, owner raw id bytes, parameter position)`严格递增并拒绝重复。`ExportDefaultTemplateKeyV1`只是本section内排序和引用的canonical key，不产生新的persistent id，也不进入M23-2 identity foundation。wire内对template的引用使用上述经范围与key验证的table index；跨artifact稳定语义由owner persistent identity、parameter position与完整template payload共同确定。
+
+template envelope使用以下封闭结构：
+
+```text
+PersistentLexicalRootV1 =
+    Function { declaration: PersistentFunctionId }                    // tag 1
+  | GenericFunction { declaration: PersistentGenericFunctionId }      // tag 2
+  | Constructor { declaration: PersistentConstructorId }              // tag 3
+  | EnumVariantConstructor { declaration: PersistentEnumVariantId }    // tag 4
+
+CanonicalBinderUseListV1 = SourceOrderVec<SignatureTypeKey>
+
+TemplateLocalRecordV1 {
+    selector: LocalValueSelector,              // field 1，record primary key
+    value_type: SignatureTypeKey,               // field 2
+    mutable: CanonicalBooleanV1,                // field 3
+    definition: TemplateLocalDefinitionV1,      // field 4
+}
+
+TemplateLocalDefinitionV1 =
+    Source { origin: ExportDefinitionSourceV1 } // tag 1
+  | Synthetic                                   // tag 2
+
+TemplateReceiverV1 {
+    local: LocalValueSelector,                  // field 1，wire为local_index
+    value_type: SignatureTypeKey,               // field 2
+}
+
+OptionalTemplateReceiverV1 =
+    Absent                                      // tag 1
+  | Present { receiver: TemplateReceiverV1 }    // tag 2
+
+TemplateValueParameterV1 {
+    position: u32,                              // field 1
+    local: LocalValueSelector,                  // field 2，wire为local_index
+}
+```
+
+四种`PersistentLexicalRootV1`的wire分别是`{0:1,1:id}`、`{0:2,1:id}`、`{0:3,1:id}`与`{0:4,1:id}`；它刻意排除property accessor和generated callable。root必须解析为真实default provider的source declaration；`definition_path`必须非空、以该root为根且最后一段是`DefaultValue`。直接default的root就是key owner对应的source root；继承default允许二者不同，但必须由override/default-source relation证明其唯一provider，不得按方法名或相同payload猜测来源。
+
+`CanonicalBinderUseListV1`不是集合，也不排序去重；它是长度可表示为`u32`的declaration-order映射。provider root的binder按“nominal owner frame在前、callable own frame在后”，每个frame内部按声明顺序展平；第`i`项是在**key owner的封闭signature binder scope**中表示的、用于替换provider第`i`个binder的`SignatureTypeKey`。直接default保存identity mapping，继承default保存已经沿override chain组合完毕的mapping。template的locals、body、result与receiver中出现的`Binder { depth, index }`仍以definition root的provider scope解释；consumer先按本表替换到key owner scope，winner确定后再代入concrete arguments。列表必须精确覆盖provider全部binder，不能缺项、多项或仅保存body碰巧使用的子集。
+
+`CanonicalTemplateLocalTableV1`是`TemplateLocalRecordV1`按`LocalValueSelector`完整结构序严格递增的array，拒绝重复，长度必须可表示为`u32`。它不保存`LocalId`、`BindingId`或body-local display name。`LocalValueSelector`沿用M23-2固定的tag与wire；本表只接受`This`、`Parameter`、`LocalDeclaration`、`BoundReceiver`和`Synthetic`，拒绝只会在后续coroutine transform产生的`SuspensionResult`。`This`、`Parameter`、`LocalDeclaration`与`BoundReceiver`必须使用`Source` definition，`Synthetic`必须使用`Synthetic` definition；所有带path的selector必须位于本template的`definition_path`之下。每个`Source` origin都按本section统一规则验证并进入顶层`definition_sources`精确闭包。所有`value_type`以definition root binder scope解释。
+
+body、receiver、value-parameter和后续嵌套template-owned entity在wire中以canonical local table的zero-based unsigned `u32`下标引用local。decoded形态只暂存`local_index`；解析后语义形态必须保存对应的`LocalValueSelector`，writer再按selector反查canonical index。越界、selector/index不一致或同一selector映射到多条record均拒绝，任何raw `LocalId`/arena ordinal不得进入已解析HIR。
+
+`OptionalTemplateReceiverV1`的wire为`Absent={0:1}`、`Present={0:2,1:receiver}`；`TemplateReceiverV1`为`{1:local_index,2:value_type}`。若key owner没有receiver则必须Absent；若有receiver则必须Present，local必须命中唯一`This`、不可变且类型逐结构等于receiver的`value_type`，该type再逐结构等于owner callable interface的receiver type。
+
+`CanonicalTemplateValueParametersV1`是按`position`严格递增的array，record wire为`{1:position,2:local_index}`。对key中`parameter_position = p`的template，它必须精确包含`0..p`的全部前置参数且不含当前/后置参数；每条local必须命中不可变的`Parameter { declaration_index: position }`，其类型逐结构等于同owner source interface该位置的`value_type`。这张表按position建立hygienic替换，consumer绝不重新解析参数名。`mutable`、`allows_suspend`及本default wire中的其他布尔语义一律复用`CanonicalBooleanV1`的unsigned `False=1`、`True=2`编码，不接受CBOR native boolean。
 
 `ExportDefaultBodyV1`是M17已typed的statement/expression tree之canonical wire：节点按结构递归编码，statement和expression使用不同closed sum；local/type/callable/constructor/global/singleton/field引用分别使用不同typed ref；每个expression非可选地保存result type与definition origin。它覆盖当前语言已允许的完整default表达式，不把未解析name、import path、candidate set、arena index或调用方span写入wire。
 
