@@ -140,7 +140,7 @@ impl PreparedBuildGraph {
         )
         .map_err(OrdinarySourceExecutionError::ReceiptHash)?;
         completed_node.replace_warnings(receipt.body().structured_warnings().to_vec());
-        store
+        let cache_publication = store
             .publish(
                 &lock,
                 &output,
@@ -148,6 +148,11 @@ impl PreparedBuildGraph {
                 self.context.limits.artifact_decode(),
             )
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
+        for usage in cache_publication.receipt_decode_usages() {
+            self.meter
+                .charge_decode_usage(*usage)
+                .map_err(OrdinarySourceExecutionError::Resource)?;
+        }
         Ok(completed_node)
     }
 }

@@ -9,7 +9,7 @@ use scoop_protocol::{DiagnosticOriginV1, ProtocolConeIdentity, StructuredDiagnos
 use scoop_slib::{
     ArtifactFingerprint, ArtifactSnapshot, CanonicalDefinedLinkSymbolOwnerSetV1, ConeRecord,
     ConeRecordError, DependencyRecord, DualValidatedArtifactError, DualValidatedArtifactHandle,
-    DualValidatedArtifactReopenError, SlibClosureDecodeMeterV1,
+    DualValidatedArtifactReopenError, SlibClosureDecodeMeterV1, SlibClosureResourceErrorV1,
 };
 use scoop_wire::DecodeLimits;
 
@@ -255,6 +255,7 @@ impl std::error::Error for CacheReceiptBindingError {}
 pub enum CacheCompletionError {
     NotOrdinarySource(ConeIdentity),
     CacheKey(Box<CompileCacheKeyError>),
+    Resource(SlibClosureResourceErrorV1),
     EntryKeyMismatch {
         expected: ConeCompileCacheKeyV1,
         actual: ConeCompileCacheKeyV1,
@@ -287,6 +288,7 @@ impl fmt::Display for CacheCompletionError {
             Self::CacheKey(source) => {
                 write!(formatter, "cannot derive compile cache key: {source}")
             }
+            Self::Resource(source) => source.fmt(formatter),
             Self::EntryKeyMismatch { expected, actual } => write!(
                 formatter,
                 "cache entry key mismatch: expected {expected}, found {actual}"
@@ -352,6 +354,7 @@ impl std::error::Error for CacheCompletionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::CacheKey(source) => Some(source),
+            Self::Resource(source) => Some(source),
             Self::TrustedCoreReopen(source) => Some(source),
             Self::Artifact(source) => Some(source),
             Self::Plan(source) => Some(source),

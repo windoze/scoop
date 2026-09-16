@@ -90,6 +90,13 @@ fn cache_publishes_and_reads_one_exact_atomic_entry() {
         )
         .unwrap();
     assert!(matches!(published, CompileCachePublishV1::Published(_)));
+    assert_eq!(published.receipt_decode_usages().len(), 2);
+    assert!(
+        published
+            .receipt_decode_usages()
+            .iter()
+            .all(|usage| usage.decoded_nodes > 0)
+    );
 
     let path = store.entry_path(key);
     assert_eq!(path.file_name().unwrap().to_string_lossy().len(), 64);
@@ -102,6 +109,7 @@ fn cache_publishes_and_reads_one_exact_atomic_entry() {
     assert_eq!(hit.key(), key);
     assert_eq!(hit.artifact().as_bytes(), fixture.artifact.as_bytes());
     assert_eq!(hit.receipt(), &fixture.receipt);
+    assert_eq!(hit.receipt_decode_usages().len(), 1);
 }
 
 #[test]
@@ -121,17 +129,19 @@ fn cache_never_overwrites_an_existing_winner() {
         )
         .unwrap();
 
+    let equivalent = store
+        .publish(
+            &lock,
+            &first.artifact,
+            &first.receipt,
+            DecodeLimits::M23_DEFAULT,
+        )
+        .unwrap();
     assert!(matches!(
-        store
-            .publish(
-                &lock,
-                &first.artifact,
-                &first.receipt,
-                DecodeLimits::M23_DEFAULT,
-            )
-            .unwrap(),
+        equivalent,
         CompileCachePublishV1::ExistingEquivalent(_)
     ));
+    assert_eq!(equivalent.receipt_decode_usages().len(), 2);
     assert!(matches!(
         store.publish(
             &lock,

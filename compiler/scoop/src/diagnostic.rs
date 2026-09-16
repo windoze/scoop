@@ -5,10 +5,11 @@ use std::fmt;
 use scoop_protocol::StructuredDiagnosticV1;
 
 use crate::{
-    BuildGraphDiscoveryError, BuildGraphExecutionError, BuildGraphRequestError, CacheIoOperation,
-    ChildTransportError, CompileCacheStoreError, CoreBootstrapExecutionError,
-    DependencyLocatorError, LoadBuildRootError, OrdinarySourceExecutionError,
-    PrebuiltCompletionError, PrepareBuildGraphError, ResolveBuildGraphError,
+    BuildGraphDiscoveryError, BuildGraphExecutionError, BuildGraphRequestError,
+    CacheCompletionError, CacheIoOperation, ChildTransportError, CompileCacheStoreError,
+    CoreBootstrapExecutionError, DependencyLocatorError, LoadBuildRootError,
+    OrdinarySourceExecutionError, PrebuiltCompletionError, PrepareBuildGraphError,
+    ResolveBuildGraphError,
 };
 
 /// Canonical order in which build orchestration failures are reported.
@@ -460,6 +461,10 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::CacheStore(source) => source.classification(),
+            Self::CacheCompletion(CacheCompletionError::Resource(_)) => classified(
+                BuildFailurePhase::Cache,
+                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
+            ),
             Self::CacheCompletion(_) => classified(
                 BuildFailurePhase::Cache,
                 BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
