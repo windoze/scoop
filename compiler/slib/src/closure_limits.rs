@@ -152,7 +152,8 @@ struct ArtifactDecodeChargeKey {
 pub struct SlibClosureDecodeMeterV1 {
     limits: SlibClosureDecodeLimitsV1,
     usage: SlibClosureDecodeUsageV1,
-    physical_artifacts: HashSet<ArtifactSnapshotChargeKey>,
+    physical_snapshots: HashSet<Digest256>,
+    structural_artifacts: HashSet<ArtifactSnapshotChargeKey>,
     decoded_artifacts: HashSet<ArtifactDecodeChargeKey>,
 }
 
@@ -161,7 +162,8 @@ impl SlibClosureDecodeMeterV1 {
         Self {
             limits,
             usage: SlibClosureDecodeUsageV1::default(),
-            physical_artifacts: HashSet::new(),
+            physical_snapshots: HashSet::new(),
+            structural_artifacts: HashSet::new(),
             decoded_artifacts: HashSet::new(),
         }
     }
@@ -283,17 +285,14 @@ impl SlibClosureDecodeMeterV1 {
         summary: &crate::PrebuiltManifestSummaryV1,
         snapshot: Digest256,
     ) -> Result<(), SlibClosureResourceErrorV1> {
+        self.observe_raw_artifact_snapshot(snapshot, summary.archive_length())?;
         let key = ArtifactSnapshotChargeKey {
             artifact: summary.artifact_fingerprint(),
             snapshot,
         };
-        if self.physical_artifacts.contains(&key) {
+        if self.structural_artifacts.contains(&key) {
             return Ok(());
         }
-        self.charge(
-            SlibClosureResourceKindV1::ArtifactSnapshotBytes,
-            summary.archive_length(),
-        )?;
         self.charge(
             SlibClosureResourceKindV1::ArchiveMembers,
             summary.member_count(),
@@ -302,7 +301,26 @@ impl SlibClosureDecodeMeterV1 {
             SlibClosureResourceKindV1::DirectoryCarrierBytes,
             summary.manifest_length(),
         )?;
-        self.physical_artifacts.insert(key);
+        self.structural_artifacts.insert(key);
+        Ok(())
+    }
+
+    /// Charges immutable artifact bytes before any manifest or fingerprint can
+    /// be trusted. Invalid artifacts therefore cannot evade the build-wide
+    /// physical snapshot budget.
+    pub fn observe_raw_artifact_snapshot(
+        &mut self,
+        snapshot: Digest256,
+        byte_length: u64,
+    ) -> Result<(), SlibClosureResourceErrorV1> {
+        if self.physical_snapshots.contains(&snapshot) {
+            return Ok(());
+        }
+        self.charge(
+            SlibClosureResourceKindV1::ArtifactSnapshotBytes,
+            byte_length,
+        )?;
+        self.physical_snapshots.insert(snapshot);
         Ok(())
     }
 
@@ -555,6 +573,17 @@ mod tests {
             meter.usage().validation_work_units,
             once.validation_work_units * 2
         );
+    }
+
+    #[test]
+    fn invalid_raw_snapshots_are_charged_before_manifest_decode() {
+        let snapshot = sha256(b"not an slib");
+        let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
+        meter.observe_raw_artifact_snapshot(snapshot, 11).unwrap();
+        meter.observe_raw_artifact_snapshot(snapshot, 11).unwrap();
+
+        assert_eq!(meter.usage().artifact_snapshot_bytes, 11);
+        assert_eq!(meter.usage().archive_members, 0);
     }
 
     #[test]
