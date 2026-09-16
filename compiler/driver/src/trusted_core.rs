@@ -5,14 +5,11 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{LoadedConeManifest, ManifestRootError, ManifestRootLocator};
 use scoop_slib::{CompositeIdentityAbiFingerprint, IdentityAbiDescriptor};
+use scoop_toolchain::TrustedCoreSlotLayoutV1;
 use scoop_wire::HashError;
 
 mod artifact;
 pub use artifact::*;
-
-const CORE_SOURCE_RELATIVE_PATH: &str = "lib/scoop.core";
-const CORE_ARTIFACTS_RELATIVE_PATH: &str = "artifacts";
-const CORE_ARTIFACT_FILE_NAME: &str = "scoop.core.slib";
 
 #[derive(Debug)]
 pub struct TrustedCoreSourceSlot {
@@ -370,7 +367,8 @@ pub(crate) fn resolve_trusted_core_slot_at(
         ));
     }
 
-    let source_path = real_sysroot.join(CORE_SOURCE_RELATIVE_PATH);
+    let layout = TrustedCoreSlotLayoutV1::new(&real_sysroot, target);
+    let source_path = layout.source_root().to_path_buf();
     let source = scoop_manifest::load_trusted_core_manifest(&ManifestRootLocator::cone_directory(
         &source_path,
     ))
@@ -385,10 +383,7 @@ pub(crate) fn resolve_trusted_core_slot_at(
                 TrustedCoreSlotErrorKind::ToolchainCompatibility(error),
             )
         })?;
-    let artifact_path = real_sysroot
-        .join(CORE_ARTIFACTS_RELATIVE_PATH)
-        .join(target.target().id().canonical_name())
-        .join(CORE_ARTIFACT_FILE_NAME);
+    let artifact_path = layout.artifact().to_path_buf();
 
     Ok(TrustedCoreSlot {
         source: TrustedCoreSourceSlot { manifest: source },
@@ -440,7 +435,9 @@ mod tests {
         }
 
         fn write_core_manifest(&self, coordinate: (&str, &str, &str)) {
-            let source = self.0.join(CORE_SOURCE_RELATIVE_PATH);
+            let source = TrustedCoreSlotLayoutV1::new(&self.0, target())
+                .source_root()
+                .to_path_buf();
             std::fs::create_dir_all(&source).unwrap();
             std::fs::write(
                 source.join("Cone.toml"),
@@ -453,10 +450,9 @@ mod tests {
         }
 
         fn artifact_path(&self) -> PathBuf {
-            self.0
-                .join(CORE_ARTIFACTS_RELATIVE_PATH)
-                .join("darwin-aarch64")
-                .join(CORE_ARTIFACT_FILE_NAME)
+            TrustedCoreSlotLayoutV1::new(&self.0, target())
+                .artifact()
+                .to_path_buf()
         }
     }
 

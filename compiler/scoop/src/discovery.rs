@@ -80,8 +80,11 @@ impl BuildGraphRequest {
             )),
             BuildRootInputKind::SingleFile(locator) => LoadedRootInput::SingleFile(locator),
         };
-        let core_locator =
-            ManifestRootLocator::cone_directory(sysroot.as_path().join("lib").join("scoop.core"));
+        let core_layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+            sysroot.as_path(),
+            target.lir_target_selection(),
+        );
+        let core_locator = ManifestRootLocator::cone_directory(core_layout.source_root());
         let trusted_core = load_trusted_core_manifest(&core_locator)
             .map_err(LoadBuildRootError::TrustedCoreManifest)?;
         Ok(LoadedBuildRoot {
