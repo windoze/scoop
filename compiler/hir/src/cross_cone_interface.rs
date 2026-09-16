@@ -1,9 +1,19 @@
 //! Canonical public semantic interface shared across Cone boundaries.
 
+mod binders;
 mod declaration_references;
 mod public_bindings;
 mod route_closure;
 
+pub use binders::{
+    BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1,
+    DecodedCanonicalBinderListV1, DecodedCanonicalSignatureTypesV1,
+    DecodedNominalTypeParameterBoundsV1, DecodedTypeParameterBinderV1,
+    DecodedTypeParameterBoundsV1, NominalTypeParameterBoundsV1, SignatureTypeReferenceResolver,
+    SignatureTypeSetBuildError, SignatureTypeSetValidationError, TypeParameterBinderBuildError,
+    TypeParameterBinderResolutionError, TypeParameterBinderV1, TypeParameterBoundsBuildError,
+    TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
+};
 pub use declaration_references::{
     CallableDeclarationId, CanonicalPublicMemberRefsV1, DecodedCallableDeclarationId,
     DecodedCanonicalPublicMemberRefsV1, DecodedPropertyDeclarationId, DecodedPublicMemberRefV1,
