@@ -38,10 +38,12 @@ pub use declaration_references::{
     SourceNominalIdResolver,
 };
 pub use nominal_interfaces::{
+    CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
     DecodedNominalInterfaceRecordV1, ExactSupertypeSemanticError, NominalInterfaceRecordBuildError,
     NominalInterfaceRecordResolutionError, NominalInterfaceRecordResolver,
     NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
-    NominalInterfaceSemanticValidationError,
+    NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
+    NominalInterfaceSetValidationError,
 };
 pub use nominal_shapes::{
     DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceShapeV1,

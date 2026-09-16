@@ -17,11 +17,16 @@ use crate::BinderListValidationError;
 
 mod errors;
 mod semantics;
+mod table;
 
 pub use errors::{NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError};
 pub use semantics::{
     ExactSupertypeSemanticError, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError,
+};
+pub use table::{
+    CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
+    NominalInterfaceSetBuildError, NominalInterfaceSetValidationError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
