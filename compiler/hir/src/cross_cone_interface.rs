@@ -11,6 +11,7 @@ mod nominal_shapes;
 mod property_interfaces;
 mod public_bindings;
 mod route_closure;
+mod type_alias_interfaces;
 
 pub use binders::{
     BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1,
@@ -99,4 +100,7 @@ pub use public_bindings::{
 };
 pub use route_closure::{
     PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
+};
+pub use type_alias_interfaces::{
+    DecodedTypeAliasTargetV1, TypeAliasTargetResolutionError, TypeAliasTargetV1,
 };
