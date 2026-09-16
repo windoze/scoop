@@ -1,0 +1,243 @@
+use scoop_identity::{Effect, GcEffect};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+
+use super::CallableOperatorRoleV1;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CallableSafetyV1 {
+    Safe,
+    Unsafe,
+}
+
+impl WireEncode for CallableSafetyV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Safe => 1,
+            Self::Unsafe => 2,
+        })
+    }
+}
+
+impl WireDecode for CallableSafetyV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::Safe),
+            2 => Ok(Self::Unsafe),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CallableImplementationV1 {
+    Scoop,
+    Intrinsic,
+    SourceExternScoop,
+    SourceExternC,
+}
+
+impl WireEncode for CallableImplementationV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Scoop => 1,
+            Self::Intrinsic => 2,
+            Self::SourceExternScoop => 3,
+            Self::SourceExternC => 4,
+        })
+    }
+}
+
+impl WireDecode for CallableImplementationV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::Scoop),
+            2 => Ok(Self::Intrinsic),
+            3 => Ok(Self::SourceExternScoop),
+            4 => Ok(Self::SourceExternC),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CallableInfixV1 {
+    Ordinary,
+    Infix,
+}
+
+impl WireEncode for CallableInfixV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Ordinary => 1,
+            Self::Infix => 2,
+        })
+    }
+}
+
+impl WireDecode for CallableInfixV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::Ordinary),
+            2 => Ok(Self::Infix),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CallableModalityV1 {
+    Final,
+    Open,
+    Abstract,
+    InterfaceDefault,
+}
+
+impl WireEncode for CallableModalityV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Final => 1,
+            Self::Open => 2,
+            Self::Abstract => 3,
+            Self::InterfaceDefault => 4,
+        })
+    }
+}
+
+impl WireDecode for CallableModalityV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::Final),
+            2 => Ok(Self::Open),
+            3 => Ok(Self::Abstract),
+            4 => Ok(Self::InterfaceDefault),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PublicLookupAccessV1 {
+    DirectOnly,
+    PublicSlot,
+}
+
+impl WireEncode for PublicLookupAccessV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::DirectOnly => 1,
+            Self::PublicSlot => 2,
+        })
+    }
+}
+
+impl WireDecode for PublicLookupAccessV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::DirectOnly),
+            2 => Ok(Self::PublicSlot),
+            tag => Err(unknown_tag(decoder, tag)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CallableSourceEffectsV1 {
+    execution: Effect,
+    safety: CallableSafetyV1,
+    gc_effect: GcEffect,
+    implementation: CallableImplementationV1,
+    operator_role: CallableOperatorRoleV1,
+    infix: CallableInfixV1,
+}
+
+impl CallableSourceEffectsV1 {
+    pub const fn new(
+        execution: Effect,
+        safety: CallableSafetyV1,
+        gc_effect: GcEffect,
+        implementation: CallableImplementationV1,
+        operator_role: CallableOperatorRoleV1,
+        infix: CallableInfixV1,
+    ) -> Self {
+        Self {
+            execution,
+            safety,
+            gc_effect,
+            implementation,
+            operator_role,
+            infix,
+        }
+    }
+
+    pub const fn execution(self) -> Effect {
+        self.execution
+    }
+
+    pub const fn safety(self) -> CallableSafetyV1 {
+        self.safety
+    }
+
+    pub const fn gc_effect(self) -> GcEffect {
+        self.gc_effect
+    }
+
+    pub const fn implementation(self) -> CallableImplementationV1 {
+        self.implementation
+    }
+
+    pub const fn operator_role(self) -> CallableOperatorRoleV1 {
+        self.operator_role
+    }
+
+    pub const fn infix(self) -> CallableInfixV1 {
+        self.infix
+    }
+}
+
+impl WireEncode for CallableSourceEffectsV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(6)?;
+        encoder.field(1)?;
+        self.execution.encode(encoder)?;
+        encoder.field(2)?;
+        self.safety.encode(encoder)?;
+        encoder.field(3)?;
+        self.gc_effect.encode(encoder)?;
+        encoder.field(4)?;
+        self.implementation.encode(encoder)?;
+        encoder.field(5)?;
+        self.operator_role.encode(encoder)?;
+        encoder.field(6)?;
+        self.infix.encode(encoder)
+    }
+}
+
+impl WireDecode for CallableSourceEffectsV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(6)?;
+        Ok(Self {
+            execution: decoder.field(1, decode_effect)?,
+            safety: decoder.field(2, CallableSafetyV1::decode)?,
+            gc_effect: decoder.field(3, GcEffect::decode)?,
+            implementation: decoder.field(4, CallableImplementationV1::decode)?,
+            operator_role: decoder.field(5, CallableOperatorRoleV1::decode)?,
+            infix: decoder.field(6, CallableInfixV1::decode)?,
+        })
+    }
+}
+
+fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
+    match decoder.unsigned()? {
+        1 => Ok(Effect::Ordinary),
+        2 => Ok(Effect::Suspend),
+        tag => Err(unknown_tag(decoder, tag)),
+    }
+}
+
+fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+    WireError::new(
+        WireErrorKind::UnknownTag { tag },
+        decoder.path().clone(),
+        Some(decoder.position()),
+    )
+}

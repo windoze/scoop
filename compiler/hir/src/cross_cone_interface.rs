@@ -1,6 +1,7 @@
 //! Canonical public semantic interface shared across Cone boundaries.
 
 mod binders;
+mod callable_interfaces;
 mod canonical_ids;
 mod declaration_common;
 mod declaration_references;
@@ -21,6 +22,14 @@ pub use binders::{
     TypeParameterBinderResolutionError, TypeParameterBinderScopeValidationError,
     TypeParameterBinderSemanticValidationError, TypeParameterBinderV1, TypeParameterBoundLocation,
     TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
+};
+pub use callable_interfaces::{
+    CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
+    CallableOperatorV1, CallableSafetyV1, CallableSourceEffectsV1,
+    CanonicalSourceParameterShapesV1, DecodedCanonicalSourceParameterShapesV1,
+    DecodedSourceParameterShapeV1, PropertyDelegateOperatorV1, PublicLookupAccessV1,
+    SourceParameterListBuildError, SourceParameterListValidationError,
+    SourceParameterShapeResolutionError, SourceParameterShapeV1,
 };
 pub use canonical_ids::{
     CanonicalPersistentIdSetBuildError, CanonicalPersistentIdSetValidationError,
