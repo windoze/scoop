@@ -5,8 +5,9 @@ use crate::{ConstPropertyValue, HirIntegerConstant, IntegerKind};
 mod record;
 
 pub use record::{
-    DecodedExportConstValueV1, ExportConstValueResolutionError, ExportConstValueResolver,
-    ExportConstValueV1,
+    ConstPropertyDeclarationSourceV1, DecodedExportConstValueV1, ExportConstValueResolutionError,
+    ExportConstValueResolver, ExportConstValueSemanticAuthority,
+    ExportConstValueSemanticValidationError, ExportConstValueV1,
 };
 
 /// A width-exact integer constant in the cross-Cone interface.
@@ -172,6 +173,23 @@ pub enum CanonicalConstValueV1 {
     Integer(CanonicalIntegerConstantV1),
     Boolean(CanonicalBooleanV1),
     String(String),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CanonicalConstValueKindV1 {
+    Integer(IntegerKind),
+    Boolean,
+    String,
+}
+
+impl CanonicalConstValueV1 {
+    pub const fn kind(&self) -> CanonicalConstValueKindV1 {
+        match self {
+            Self::Integer(value) => CanonicalConstValueKindV1::Integer(value.kind()),
+            Self::Boolean(_) => CanonicalConstValueKindV1::Boolean,
+            Self::String(_) => CanonicalConstValueKindV1::String,
+        }
+    }
 }
 
 impl WireEncode for CanonicalConstValueV1 {

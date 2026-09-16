@@ -47,9 +47,10 @@ pub use canonical_ids::{
     CanonicalPersistentIdsV1, DecodedCanonicalPersistentIdsV1,
 };
 pub use const_values::{
-    CanonicalBooleanV1, CanonicalConstValueV1, CanonicalIntegerConstantV1,
-    DecodedExportConstValueV1, ExportConstValueResolutionError, ExportConstValueResolver,
-    ExportConstValueV1,
+    CanonicalBooleanV1, CanonicalConstValueKindV1, CanonicalConstValueV1,
+    CanonicalIntegerConstantV1, ConstPropertyDeclarationSourceV1, DecodedExportConstValueV1,
+    ExportConstValueResolutionError, ExportConstValueResolver, ExportConstValueSemanticAuthority,
+    ExportConstValueSemanticValidationError, ExportConstValueV1,
 };
 pub use declaration_common::{
     DecodedPublicDeclarationOwnerV1, PublicDeclarationOwnerV1, PublicNominalKindV1,

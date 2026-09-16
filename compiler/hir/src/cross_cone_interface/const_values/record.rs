@@ -12,6 +12,13 @@ use crate::{
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceV1, SignatureTypeReferenceResolver,
 };
 
+mod semantics;
+
+pub use semantics::{
+    ConstPropertyDeclarationSourceV1, ExportConstValueSemanticAuthority,
+    ExportConstValueSemanticValidationError,
+};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExportConstValueV1 {
     property: PersistentPropertyId,
