@@ -1,6 +1,7 @@
 //! Owned immutable artifact backing with purpose-preserving re-open proofs.
 
 use std::fmt;
+use std::io::{self, Write};
 use std::sync::Arc;
 
 use scoop_identity::{ArtifactCapabilityProfileId, SemanticIdentitySession};
@@ -43,8 +44,26 @@ impl ArtifactSnapshot {
         self.bytes.len()
     }
 
-    pub(crate) fn bytes(&self) -> &[u8] {
+    /// Returns the immutable snapshot bytes. Possessing these bytes grants no
+    /// Graph, Compile, Link, or publication authority.
+    pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
+    }
+
+    pub fn probe_prebuilt_summary(
+        &self,
+        limits: DecodeLimits,
+        target: ValidatedLirTargetSelection,
+    ) -> Result<crate::PrebuiltManifestSummaryV1, PrebuiltManifestSummaryError> {
+        probe_prebuilt_manifest_summary(self.as_bytes(), limits, target)
+    }
+
+    pub fn write_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        writer.write_all(self.as_bytes())
+    }
+
+    pub(crate) fn bytes(&self) -> &[u8] {
+        self.as_bytes()
     }
 }
 
@@ -417,6 +436,23 @@ impl std::error::Error for DualValidatedArtifactReopenError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn immutable_snapshot_can_be_reprobed_and_materialized_without_authority() {
+        let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
+        let snapshot = ArtifactSnapshot::from_bytes(bytes.clone());
+        let summary = snapshot
+            .probe_prebuilt_summary(
+                DecodeLimits::default(),
+                ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            )
+            .unwrap();
+        let mut materialized = Vec::new();
+        snapshot.write_to(&mut materialized).unwrap();
+
+        assert_eq!(materialized, bytes);
+        assert_eq!(summary.artifact_fingerprint().as_array().len(), 32);
+    }
 
     #[test]
     fn immutable_snapshot_retains_independent_compile_and_link_certificates() {
