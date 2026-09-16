@@ -47,13 +47,16 @@ pub use callable_interfaces::{
 pub use callable_source_interfaces::{
     CallableParameterCallingResolutionError, CallableParameterCallingV1,
     CallableSourceInterfaceBuildError, CallableSourceInterfaceIndexError,
-    CallableSourceInterfaceResolutionError, CallableSourceInterfaceV1,
-    CallableSourceParameterListBuildError, CallableSourceParameterListResolutionError,
-    CallableSourceParameterResolutionError, CallableSourceParameterV1,
+    CallableSourceInterfaceResolutionError, CallableSourceInterfaceSetBuildError,
+    CallableSourceInterfaceSetIndexError, CallableSourceInterfaceSetValidationError,
+    CallableSourceInterfaceV1, CallableSourceParameterListBuildError,
+    CallableSourceParameterListResolutionError, CallableSourceParameterResolutionError,
+    CallableSourceParameterV1, CanonicalCallableSourceInterfacesV1,
     CanonicalCallableSourceParametersV1, DecodedCallableParameterCallingV1,
     DecodedCallableSourceInterfaceV1, DecodedCallableSourceParameterV1,
-    DecodedCanonicalCallableSourceParametersV1, ExportDefaultTemplateIndexResolver,
-    ExportDefaultTemplateKeyResolver, IndexedCallableSourceInterfaceV1,
+    DecodedCanonicalCallableSourceInterfacesV1, DecodedCanonicalCallableSourceParametersV1,
+    ExportDefaultTemplateIndexResolver, ExportDefaultTemplateKeyResolver,
+    IndexedCallableSourceInterfaceV1, IndexedCanonicalCallableSourceInterfacesV1,
 };
 pub use canonical_ids::{
     CanonicalPersistentIdSetBuildError, CanonicalPersistentIdSetValidationError,

@@ -1,5 +1,6 @@
 mod parameters;
 mod record;
+mod table;
 
 pub use parameters::{
     CallableParameterCallingResolutionError, CallableParameterCallingV1,
@@ -13,4 +14,9 @@ pub use record::{
     CallableSourceInterfaceBuildError, CallableSourceInterfaceIndexError,
     CallableSourceInterfaceResolutionError, CallableSourceInterfaceV1,
     DecodedCallableSourceInterfaceV1, IndexedCallableSourceInterfaceV1,
+};
+pub use table::{
+    CallableSourceInterfaceSetBuildError, CallableSourceInterfaceSetIndexError,
+    CallableSourceInterfaceSetValidationError, CanonicalCallableSourceInterfacesV1,
+    DecodedCanonicalCallableSourceInterfacesV1, IndexedCanonicalCallableSourceInterfacesV1,
 };
