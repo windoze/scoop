@@ -46,6 +46,10 @@ impl fmt::Display for CacheReceiptFingerprintV1 {
 pub struct CacheArtifactFingerprintClaimV1([u8; 32]);
 
 impl CacheArtifactFingerprintClaimV1 {
+    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
     }
@@ -484,7 +488,7 @@ impl WireEncode for WarningKey<'_> {
     }
 }
 
-fn canonical_warnings(
+pub(crate) fn canonical_warnings(
     mut warnings: Vec<StructuredDiagnosticV1>,
 ) -> Result<Vec<StructuredDiagnosticV1>, CacheReceiptValidationError> {
     if warnings.len() > MAX_RECEIPT_WARNINGS {
@@ -502,7 +506,7 @@ fn canonical_warnings(
     Ok(keyed.into_iter().map(|(_, warning)| warning).collect())
 }
 
-fn validate_warning_order(
+pub(crate) fn validate_warning_order(
     warnings: &[StructuredDiagnosticV1],
     mut meter: Option<&mut BudgetMeter>,
 ) -> Result<(), CacheReceiptValidationError> {
@@ -606,7 +610,7 @@ fn validate_dependency_order(
     Ok(())
 }
 
-fn validate_profile(
+pub(crate) fn validate_profile(
     profile: &ArtifactCapabilityProfileId,
 ) -> Result<(), CacheReceiptValidationError> {
     if profile != &ArtifactCapabilityProfileId::single_cone_strong() {

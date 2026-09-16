@@ -1062,6 +1062,40 @@ artifact与receipt不能用两个独立rename“近似原子”发布。M23-4不
 
 trusted core artifact必须位于configured sysroot slot，普通cache path不能授予`IntrinsicAuthority::Core`。core使用相邻、由toolchain拥有的versioned slot receipt记录`CoreSourceSnapshotKey`、target/toolchain、artifact fingerprint和warnings；reuse仍完整双视图验证。
 
+slot布局和receipt wire固定为：
+
+```text
+<target-qualified-core-artifact-root>/
+    scoop.core.slib
+    scoop.core.receipt.cbor
+    scoop.core.lock
+
+CoreSourceSnapshotKeyV1 =
+    DomainSeparatedCborHash("scoop-core-source-snapshot-v1",
+                            ConeCompileCacheKeyV1)
+
+TrustedCoreSlotReceiptV1 = map(2) {
+    1: body,
+    2: fingerprint,
+}
+
+TrustedCoreSlotReceiptBodyV1 = map(7) {
+    1: schema (= 1),
+    2: source_snapshot_key,
+    3: artifact_fingerprint,
+    4: target_selection,
+    5: compiler_fingerprint,
+    6: artifact_profile,
+    7: structured_warnings,
+}
+
+TrustedCoreSlotReceiptFingerprintV1 =
+    DomainSeparatedCborHash("scoop-trusted-core-slot-receipt-v1",
+                            TrustedCoreSlotReceiptBodyV1)
+```
+
+`target_selection`、`compiler_fingerprint`、`artifact_profile`和warning canonical规则与8.2～8.3节普通compile cache中的同名typed record完全相同，但slot receipt是独立closed product，不能编码或解码为`CacheReceiptV1`。`CoreSourceSnapshotKeyV1`从core bootstrap分支的完整`ConeCompileCacheKeyV1`再经独立domain派生，因此绑定source bytes、bootstrap profile、paired compiler、protocol、schema/ABI及实际消费的target/toolchain projection；它不是裸source digest。receipt只在exclusive core-slot lock内、父进程完成child后source key复核及artifact双视图验证之后，以同目录temporary file + flush/sync + atomic replace更新；先出现的新artifact配旧receipt只能是miss，不能短暂成为fresh authority。读取时receipt和artifact都用no-follow、bounded snapshot；missing、wrong type、symlink、decode/fingerprint/binding不符均使slot miss，随后由trusted bootstrap authority重建，而不是查询普通compile cache。
+
 M23-4不从普通compile cache把任意同coordinateartifact直接复制成trusted core。若未来要复用core cache，必须先有由bootstrap authority签发并验证的attestation协议；当前miss直接调用trusted bootstrap child。这样本地cache被篡改不会提升为core authority。
 
 ## 9. scheduler

@@ -6,6 +6,7 @@ use scoop_wire::{Encoder, WireEncode};
 const CORE_SOURCE_RELATIVE_PATH: &str = "lib/scoop.core";
 const CORE_ARTIFACTS_RELATIVE_PATH: &str = "artifacts";
 const CORE_ARTIFACT_FILE_NAME: &str = "scoop.core.slib";
+const CORE_RECEIPT_FILE_NAME: &str = "scoop.core.receipt.cbor";
 const CORE_LOCK_FILE_NAME: &str = "scoop.core.lock";
 const CORE_BOOTSTRAP_PROFILE_MAGIC: &str = "scoop-trusted-core-bootstrap";
 
@@ -36,6 +37,7 @@ pub struct TrustedCoreSlotLayoutV1 {
     source_root: PathBuf,
     artifact_root: PathBuf,
     artifact: PathBuf,
+    receipt: PathBuf,
     lock: PathBuf,
 }
 
@@ -47,6 +49,7 @@ impl TrustedCoreSlotLayoutV1 {
         Self {
             source_root: sysroot.join(CORE_SOURCE_RELATIVE_PATH),
             artifact: artifact_root.join(CORE_ARTIFACT_FILE_NAME),
+            receipt: artifact_root.join(CORE_RECEIPT_FILE_NAME),
             lock: artifact_root.join(CORE_LOCK_FILE_NAME),
             artifact_root,
         }
@@ -62,6 +65,10 @@ impl TrustedCoreSlotLayoutV1 {
 
     pub fn artifact(&self) -> &Path {
         &self.artifact
+    }
+
+    pub fn receipt(&self) -> &Path {
+        &self.receipt
     }
 
     pub fn lock(&self) -> &Path {
@@ -87,6 +94,10 @@ mod tests {
         assert_eq!(
             layout.artifact(),
             Path::new("/opt/scoop/artifacts/darwin-aarch64/scoop.core.slib")
+        );
+        assert_eq!(
+            layout.receipt(),
+            Path::new("/opt/scoop/artifacts/darwin-aarch64/scoop.core.receipt.cbor")
         );
         assert_eq!(
             layout.lock(),
