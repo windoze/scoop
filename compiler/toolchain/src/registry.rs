@@ -120,6 +120,11 @@ impl ResolvedTargetProfile {
         self.lir_target.target().id()
     }
 
+    /// Returns the unique target spelling transported to the paired compiler.
+    pub const fn canonical_triple(&self) -> &'static str {
+        self.runtime_build.canonical_triple
+    }
+
     pub const fn lir_target(&self) -> LirTargetProfile {
         self.lir_target.target()
     }
@@ -204,6 +209,7 @@ mod tests {
             let profile = ResolvedTargetProfile::resolve(triple).unwrap();
             assert_eq!(profile, expected);
             assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
+            assert_eq!(profile.canonical_triple(), "aarch64-apple-darwin");
             assert_eq!(
                 profile.lir_target_selection(),
                 ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1

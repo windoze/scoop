@@ -1,0 +1,15 @@
+[package]
+name = "scoop"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-manifest.workspace = true
+scoop-protocol.workspace = true
+scoop-slib.workspace = true
+scoop-toolchain.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
