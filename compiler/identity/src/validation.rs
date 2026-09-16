@@ -192,6 +192,55 @@ impl<'meter> PendingIdentityValidation<'meter> {
         self.insert_resolved_leaf(id)
     }
 
+    /// Imports one complete canonical identity record from an already
+    /// validated external authority.
+    ///
+    /// Unlike [`Self::register_authority`], this retains the canonical key so
+    /// identities declared by the current artifact can safely validate
+    /// kind-sensitive references to the external entity. The imported record
+    /// remains an authority leaf and is therefore excluded from this
+    /// artifact's declared identity delta and later session remap.
+    pub fn register_external_canonical_authority<I, K>(
+        &mut self,
+        record: CborIdentityRecord<I, K>,
+    ) -> Result<(), IdentityValidationError>
+    where
+        I: PersistentId + 'static,
+        K: CborIdentityKey<I> + Eq + Send + Sync + 'static,
+    {
+        self.require_registration_phase()?;
+        let node = IdentityNode::trusted(record.id());
+        if self.candidates.contains_key(&node) {
+            return self.fail(IdentityValidationError::DuplicateIdentity {
+                kind: node.kind,
+                id: node.bytes,
+            });
+        }
+
+        let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
+        if self.canonical_keys.contains_key(&slot) {
+            return self.fail(IdentityValidationError::IdentityCollision {
+                kind: node.kind,
+                id: node.bytes,
+            });
+        }
+
+        self.reserve_candidate_slot()?;
+        self.reserve_canonical_key_slot()?;
+        self.candidates.insert(
+            node,
+            Candidate {
+                trusted_id: Arc::new(record.id()),
+                layer: None,
+                resolved: true,
+                dependency_count: 0,
+                dependents: Vec::new(),
+            },
+        );
+        self.canonical_keys.insert(slot, record.into_shared_key());
+        Ok(())
+    }
+
     /// Registers one typed external reference whose canonical key is owned by
     /// another artifact in the already validated dependency graph.
     ///

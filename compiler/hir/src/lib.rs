@@ -108,6 +108,9 @@ pub use persistent_dispatch::*;
 mod persistent_export_bindings;
 pub use persistent_export_bindings::*;
 
+mod reexports;
+pub use reexports::*;
+
 mod persistent_local_bindings;
 pub use persistent_local_bindings::*;
 

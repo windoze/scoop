@@ -5,16 +5,18 @@ use scoop_wire::{
 
 use super::*;
 use crate::{
-    CanonicalCAbiFunctionSignature, CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprintRecord,
-    CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity, DeclarationScope,
-    DecodedCanonicalCAbiSignatureFingerprintRecord, DecodedCborIdentityRecord, DecodedExactTypeKey,
+    BindingTarget, CanonicalCAbiFunctionSignature, CanonicalCAbiReturn,
+    CanonicalCAbiSignatureFingerprintRecord, CanonicalIdentifier, CborIdentityRecord,
+    ConeCoordinate, ConeIdentity, DeclarationScope, DecodedCanonicalCAbiSignatureFingerprintRecord,
+    DecodedCborIdentityRecord, DecodedExactTypeKey, DecodedExportBindingKey,
     DecodedNativeExternalContractRecord, DecodedSourceDeclarationKey,
     DecodedSourceNativeExternalContractRecord, DefinitionOwnerChain, ExactTypeKey,
-    NativeExternalContract, NativeExternalContractRecord, NativeExternalSymbolKey,
-    NativeLibraryBinding, PackagePath, PersistentExactTypeId, PersistentFunctionId,
-    PersistentSourceNativeExternalContractId, PersistentTypeId, SourceCAbiFunctionSignature,
-    SourceCAbiReturn, SourceCallingConvention, SourceDeclarationKey, SourceDeclarationSite,
-    SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractKey,
+    ExportBindingKey, NativeExternalContract, NativeExternalContractRecord,
+    NativeExternalSymbolKey, NativeLibraryBinding, PackagePath, PersistentExactTypeId,
+    PersistentExportBindingId, PersistentFunctionId, PersistentSourceNativeExternalContractId,
+    PersistentTypeId, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention,
+    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
+    SourceNativeExternalContract, SourceNativeExternalContractKey,
     SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
     SourceNominalKind,
 };
@@ -111,6 +113,87 @@ fn commits_a_complete_identity_transaction() {
         )
         .unwrap();
     assert_eq!(records, vec![source_type_record()]);
+}
+
+#[test]
+fn external_canonical_authority_resolves_a_reexport_binding_without_redeclaring_target() {
+    let function = source_function_record();
+    let binding =
+        CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            CanonicalIdentifier::new("forwarded").unwrap(),
+            BindingTarget::function(function.key()).unwrap(),
+        ))
+        .unwrap();
+    let decoded = decode_canonical::<
+        DecodedCborIdentityRecord<PersistentExportBindingId, DecodedExportBindingKey>,
+    >(&encode(&binding).unwrap(), DecodeLimits::default())
+    .unwrap();
+
+    let mut pending = PendingIdentityValidation::new();
+    pending
+        .register_authority(ConeIdentity::SINGLE_FILE)
+        .unwrap();
+    pending
+        .register_external_canonical_authority(function)
+        .unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending.resolve(&decoded).unwrap();
+    let graph = pending.finish().unwrap();
+
+    assert_eq!(graph.declared_identity_count(), 1);
+    let mut meter = BudgetMeter::new(DecodeLimits::default());
+    assert_eq!(
+        graph
+            .records::<PersistentExportBindingId, ExportBindingKey>(
+                IdentityLayer::Hir,
+                &mut meter,
+                &WirePath::root(),
+            )
+            .unwrap(),
+        vec![binding]
+    );
+    assert!(
+        graph
+            .records::<PersistentFunctionId, SourceDeclarationKey>(
+                IdentityLayer::Hir,
+                &mut meter,
+                &WirePath::root(),
+            )
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn raw_external_id_cannot_replace_canonical_authority_for_a_reexport_binding() {
+    let function = source_function_record();
+    let binding =
+        CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            CanonicalIdentifier::new("forwarded").unwrap(),
+            BindingTarget::function(function.key()).unwrap(),
+        ))
+        .unwrap();
+    let decoded = decode_canonical::<
+        DecodedCborIdentityRecord<PersistentExportBindingId, DecodedExportBindingKey>,
+    >(&encode(&binding).unwrap(), DecodeLimits::default())
+    .unwrap();
+
+    let mut pending = PendingIdentityValidation::new();
+    pending
+        .register_authority(ConeIdentity::SINGLE_FILE)
+        .unwrap();
+    pending.register_authority(function.id()).unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+
+    assert!(matches!(
+        pending.resolve(&decoded),
+        Err(IdentityValidationError::InvalidRecord { ref reason, .. })
+            if reason.contains("canonical key for function identity")
+    ));
 }
 
 #[test]
