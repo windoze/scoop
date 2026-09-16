@@ -92,3 +92,35 @@ fn core_receipt_rejects_tampering_and_bounded_decode() {
         Err(TrustedCoreSlotReceiptDecodeError::Wire(_))
     ));
 }
+
+#[test]
+fn core_receipt_is_atomically_replaced_and_reopened() {
+    let directory = tempfile::tempdir().unwrap();
+    let destination = directory.path().join("scoop.core.receipt.cbor");
+    std::fs::write(&destination, b"stale").unwrap();
+    let expected = receipt();
+
+    publish_trusted_core_slot_receipt_v1(&destination, &expected, DecodeLimits::M23_DEFAULT)
+        .unwrap();
+
+    let bytes = std::fs::read(&destination).unwrap();
+    let (actual, _) =
+        decode_trusted_core_slot_receipt_v1(&bytes, DecodeLimits::M23_DEFAULT).unwrap();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn core_receipt_publication_requires_a_real_parent_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let parent = directory.path().join("not-a-directory");
+    std::fs::write(&parent, b"file").unwrap();
+
+    assert!(matches!(
+        publish_trusted_core_slot_receipt_v1(
+            &parent.join("receipt.cbor"),
+            &receipt(),
+            DecodeLimits::M23_DEFAULT,
+        ),
+        Err(TrustedCoreReceiptPublishError::ParentNotDirectory(path)) if path == parent
+    ));
+}

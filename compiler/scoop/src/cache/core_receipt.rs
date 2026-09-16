@@ -1,4 +1,7 @@
 use std::fmt;
+use std::fs::File;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityIdError, DecodedCapabilityId};
 use scoop_lir::ValidatedLirTargetSelection;
@@ -6,7 +9,7 @@ use scoop_protocol::StructuredDiagnosticV1;
 use scoop_wire::{
     BudgetMeter, DecodeLimits, DecodeUsage, Decoder, Digest256, Encoder, HashError, WireDecode,
     WireEncode, WireError, WirePath, decode_canonical_with_meter, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
+    domain_separated_cbor_hash_stream_length, encode,
 };
 
 use super::{
@@ -14,6 +17,7 @@ use super::{
     ConeCompileCacheKeyV1, canonical_warnings, validate_profile, validate_warning_order,
 };
 use crate::PairedCompilerFingerprintV1;
+use crate::{ImmutableInputSnapshot, SnapshotFileError};
 
 const CORE_SOURCE_KEY_DOMAIN: &str = "scoop-core-source-snapshot-v1";
 const CORE_RECEIPT_FINGERPRINT_DOMAIN: &str = "scoop-trusted-core-slot-receipt-v1";
@@ -187,6 +191,220 @@ pub fn decode_trusted_core_slot_receipt_v1(
             .map_err(TrustedCoreSlotReceiptDecodeError::Wire)?;
     let receipt = decoded.validate(&mut meter)?;
     Ok((receipt, meter.usage()))
+}
+
+pub(crate) fn publish_trusted_core_slot_receipt_v1(
+    destination: &Path,
+    receipt: &TrustedCoreSlotReceiptV1,
+    limits: DecodeLimits,
+) -> Result<(), TrustedCoreReceiptPublishError> {
+    let parent = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .ok_or_else(|| TrustedCoreReceiptPublishError::MissingParent(destination.to_path_buf()))?;
+    let parent_metadata = std::fs::symlink_metadata(parent).map_err(|source| {
+        TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::Inspect, parent, source)
+    })?;
+    if !parent_metadata.file_type().is_dir() {
+        return Err(TrustedCoreReceiptPublishError::ParentNotDirectory(
+            parent.to_path_buf(),
+        ));
+    }
+    let bytes = encode(receipt).map_err(TrustedCoreReceiptPublishError::Encode)?;
+    let length = u64::try_from(bytes.len()).map_err(|_| TrustedCoreReceiptPublishError::Length)?;
+    if length > limits.owned_bytes {
+        return Err(TrustedCoreReceiptPublishError::TooLarge {
+            limit: limits.owned_bytes,
+            observed: length,
+        });
+    }
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".scoop-core-receipt-")
+        .suffix(".cbor.tmp")
+        .tempfile_in(parent)
+        .map_err(|source| {
+            TrustedCoreReceiptPublishError::io(
+                CoreReceiptIoOperation::CreateTemporary,
+                parent,
+                source,
+            )
+        })?;
+    temporary.write_all(&bytes).map_err(|source| {
+        TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::Write, temporary.path(), source)
+    })?;
+    temporary.flush().map_err(|source| {
+        TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::Flush, temporary.path(), source)
+    })?;
+    temporary.as_file().sync_all().map_err(|source| {
+        TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::Sync, temporary.path(), source)
+    })?;
+    set_read_only_permissions(temporary.path())?;
+    verify_published_receipt(temporary.path(), receipt, limits)?;
+    temporary.persist(destination).map_err(|error| {
+        TrustedCoreReceiptPublishError::io(
+            CoreReceiptIoOperation::Publish,
+            destination,
+            error.error,
+        )
+    })?;
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|source| {
+            TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::Sync, parent, source)
+        })?;
+    verify_published_receipt(destination, receipt, limits)
+}
+
+fn verify_published_receipt(
+    path: &Path,
+    expected: &TrustedCoreSlotReceiptV1,
+    limits: DecodeLimits,
+) -> Result<(), TrustedCoreReceiptPublishError> {
+    let snapshot = ImmutableInputSnapshot::capture_no_follow(path, limits.owned_bytes)
+        .map_err(TrustedCoreReceiptPublishError::Snapshot)?;
+    let (actual, _) = decode_trusted_core_slot_receipt_v1(snapshot.as_bytes(), limits)
+        .map_err(|source| TrustedCoreReceiptPublishError::Decode(Box::new(source)))?;
+    if &actual != expected {
+        return Err(TrustedCoreReceiptPublishError::VerificationMismatch(
+            path.to_path_buf(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn set_read_only_permissions(path: &Path) -> Result<(), TrustedCoreReceiptPublishError> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o400)).map_err(|source| {
+        TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::SetPermissions, path, source)
+    })
+}
+
+#[cfg(not(unix))]
+fn set_read_only_permissions(path: &Path) -> Result<(), TrustedCoreReceiptPublishError> {
+    let mut permissions = std::fs::metadata(path)
+        .map_err(|source| {
+            TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::Inspect, path, source)
+        })?
+        .permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(path, permissions).map_err(|source| {
+        TrustedCoreReceiptPublishError::io(CoreReceiptIoOperation::SetPermissions, path, source)
+    })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoreReceiptIoOperation {
+    Inspect,
+    CreateTemporary,
+    Write,
+    Flush,
+    Sync,
+    SetPermissions,
+    Publish,
+}
+
+impl fmt::Display for CoreReceiptIoOperation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Inspect => "inspect",
+            Self::CreateTemporary => "create temporary file in",
+            Self::Write => "write",
+            Self::Flush => "flush",
+            Self::Sync => "synchronize",
+            Self::SetPermissions => "set permissions on",
+            Self::Publish => "publish",
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum TrustedCoreReceiptPublishError {
+    MissingParent(PathBuf),
+    ParentNotDirectory(PathBuf),
+    Encode(scoop_wire::cbor::EncodeError),
+    Length,
+    TooLarge {
+        limit: u64,
+        observed: u64,
+    },
+    Io {
+        operation: CoreReceiptIoOperation,
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    Snapshot(SnapshotFileError),
+    Decode(Box<TrustedCoreSlotReceiptDecodeError>),
+    VerificationMismatch(PathBuf),
+}
+
+impl TrustedCoreReceiptPublishError {
+    fn io(operation: CoreReceiptIoOperation, path: &Path, source: std::io::Error) -> Self {
+        Self::Io {
+            operation,
+            path: path.to_path_buf(),
+            source,
+        }
+    }
+}
+
+impl fmt::Display for TrustedCoreReceiptPublishError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingParent(path) => {
+                write!(
+                    formatter,
+                    "trusted-core receipt {} has no parent",
+                    path.display()
+                )
+            }
+            Self::ParentNotDirectory(path) => write!(
+                formatter,
+                "trusted-core receipt parent {} is not a directory",
+                path.display()
+            ),
+            Self::Encode(source) => {
+                write!(formatter, "cannot encode trusted-core receipt: {source}")
+            }
+            Self::Length => formatter.write_str("trusted-core receipt length does not fit u64"),
+            Self::TooLarge { limit, observed } => write!(
+                formatter,
+                "trusted-core receipt exceeds byte limit {limit}: observed {observed}"
+            ),
+            Self::Io {
+                operation,
+                path,
+                source,
+            } => write!(
+                formatter,
+                "cannot {operation} trusted-core receipt {}: {source}",
+                path.display()
+            ),
+            Self::Snapshot(source) => {
+                write!(formatter, "cannot snapshot trusted-core receipt: {source}")
+            }
+            Self::Decode(source) => {
+                write!(formatter, "cannot reopen trusted-core receipt: {source}")
+            }
+            Self::VerificationMismatch(path) => write!(
+                formatter,
+                "published trusted-core receipt {} differs from the verified value",
+                path.display()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TrustedCoreReceiptPublishError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Encode(source) => Some(source),
+            Self::Io { source, .. } => Some(source),
+            Self::Snapshot(source) => Some(source),
+            Self::Decode(source) => Some(source),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -7,8 +7,9 @@ use std::process::{Command, ExitStatus, Stdio};
 
 use scoop_protocol::{
     ProtocolReadError, ProtocolWriteError, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1,
-    decode_response_frame, encode_request_frame,
+    ScoopcSuccessV1, decode_response_frame, encode_request_frame,
 };
+use scoop_slib::{DualValidatedArtifactHandle, FingerprintAvailability};
 
 use crate::{PairedCompilerError, ResolvedPairedScoopc};
 
@@ -19,8 +20,16 @@ const COMPILER_FAILURE_EXIT_CODE: i32 = 1;
 #[derive(Debug, Default)]
 pub struct ProductionSingleConeCompilerRunner;
 
-impl ProductionSingleConeCompilerRunner {
-    pub fn invoke(
+pub trait SingleConeCompilerRunner {
+    fn invoke(
+        &mut self,
+        tool: &ResolvedPairedScoopc,
+        request: &ScoopcRequestEnvelopeV1,
+    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError>;
+}
+
+impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
+    fn invoke(
         &mut self,
         tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
@@ -97,6 +106,115 @@ impl ProductionSingleConeCompilerRunner {
         }
         validate_exit(status, &response)?;
         Ok(response)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ChildSuccessArtifactField {
+    ArtifactFingerprint,
+    ConeIdentity,
+    HirFingerprint,
+    MirFingerprint,
+    LirFingerprint,
+    CodeFingerprint,
+    RuntimeImageFingerprint,
+    EmittedDumpDescriptors,
+}
+
+impl fmt::Display for ChildSuccessArtifactField {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::ArtifactFingerprint => "artifact fingerprint",
+            Self::ConeIdentity => "Cone identity",
+            Self::HirFingerprint => "HIR fingerprint",
+            Self::MirFingerprint => "MIR fingerprint",
+            Self::LirFingerprint => "LIR fingerprint",
+            Self::CodeFingerprint => "Code fingerprint",
+            Self::RuntimeImageFingerprint => "runtime-image fingerprint",
+            Self::EmittedDumpDescriptors => "emitted dump descriptors",
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ChildSuccessArtifactMismatch {
+    field: ChildSuccessArtifactField,
+}
+
+impl ChildSuccessArtifactMismatch {
+    pub const fn field(self) -> ChildSuccessArtifactField {
+        self.field
+    }
+}
+
+impl fmt::Display for ChildSuccessArtifactMismatch {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "child success response disagrees with validated {}",
+            self.field
+        )
+    }
+}
+
+impl std::error::Error for ChildSuccessArtifactMismatch {}
+
+pub(crate) fn validate_child_success_artifact(
+    success: &ScoopcSuccessV1,
+    artifact: &DualValidatedArtifactHandle,
+) -> Result<(), ChildSuccessArtifactMismatch> {
+    let publication = artifact.publication();
+    let semantic = publication.compile_summary().semantic_fingerprints();
+    check_child_field(
+        success.artifact_fingerprint().as_array() == publication.artifact_fingerprint().as_array(),
+        ChildSuccessArtifactField::ArtifactFingerprint,
+    )?;
+    check_child_field(
+        success.cone_identity().as_array() == publication.identity().as_array(),
+        ChildSuccessArtifactField::ConeIdentity,
+    )?;
+    check_child_field(
+        success.hir_fingerprint().as_array() == semantic.hir().as_array(),
+        ChildSuccessArtifactField::HirFingerprint,
+    )?;
+    check_child_field(
+        success.mir_fingerprint().as_array() == semantic.mir().as_array(),
+        ChildSuccessArtifactField::MirFingerprint,
+    )?;
+    check_child_field(
+        success.lir_fingerprint().as_array() == semantic.lir().as_array(),
+        ChildSuccessArtifactField::LirFingerprint,
+    )?;
+    check_child_field(
+        matches!(
+            semantic.code(),
+            FingerprintAvailability::Available(value)
+                if success.code_fingerprint().as_array() == value.as_array()
+        ),
+        ChildSuccessArtifactField::CodeFingerprint,
+    )?;
+    check_child_field(
+        matches!(
+            semantic.runtime_image(),
+            FingerprintAvailability::Available(value)
+                if success.runtime_image_fingerprint().as_array() == value.as_array()
+        ),
+        ChildSuccessArtifactField::RuntimeImageFingerprint,
+    )?;
+    check_child_field(
+        success.emitted_dump_descriptors().is_empty(),
+        ChildSuccessArtifactField::EmittedDumpDescriptors,
+    )
+}
+
+fn check_child_field(
+    matches: bool,
+    field: ChildSuccessArtifactField,
+) -> Result<(), ChildSuccessArtifactMismatch> {
+    if matches {
+        Ok(())
+    } else {
+        Err(ChildSuccessArtifactMismatch { field })
     }
 }
 

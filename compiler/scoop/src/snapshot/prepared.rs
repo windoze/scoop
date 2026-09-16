@@ -23,9 +23,11 @@ use crate::graph::ResolvedGraphParts;
 use crate::locator::{PrebuiltArtifactCandidate, PrebuiltArtifactProjection};
 use crate::{ImmutableInputSnapshot, ResolvedBuildGraph, ResolvedPairedScoopc};
 
+mod core_execution;
 mod error;
 mod model;
 
+pub use core_execution::CoreBootstrapExecutionError;
 pub use error::{CoreLockOperation, PrepareBuildGraphError};
 
 pub use model::{

@@ -7,7 +7,11 @@ use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::{
-    CurrentConeRequestV1, DiagnosticOutputPolicyV1, RequestCorrelationId, StageDumpPolicyV1,
+    CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
+    ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
+    ProtocolHirFingerprint, ProtocolLirFingerprint, ProtocolMirFingerprint,
+    ProtocolRuntimeImageFingerprint, RequestCorrelationId, ScoopcRequestEnvelopeV1,
+    ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpPolicyV1, StructuredDiagnosticV1,
     TargetSelectionRequestV1, TrustedCoreRequestV1, encode_machine_capability_frame,
 };
 use scoop_slib::{
@@ -18,10 +22,81 @@ use scoop_wire::{DecodeLimits, encode};
 
 use super::*;
 use crate::{
-    ArtifactCacheRoot, BuildGraphRequest, BuildLimitsProfileV1, BuildRootInput, DiagnosticsPolicy,
-    PairedScoopcLocator, TrustedCoreCompletionError, TrustedCoreSlotReceiptBodyV1,
+    ArtifactCacheRoot, BuildGraphRequest, BuildLimitsProfileV1, BuildRootInput,
+    ChildTransportError, DiagnosticsPolicy, PairedScoopcLocator, ResolvedPairedScoopc,
+    SingleConeCompilerRunner, TrustedCoreCompletionError, TrustedCoreSlotReceiptBodyV1,
     TrustedCoreSlotReceiptV1, TrustedSysrootRoot,
 };
+
+struct FailureRunner;
+
+impl SingleConeCompilerRunner for FailureRunner {
+    fn invoke(
+        &mut self,
+        _tool: &ResolvedPairedScoopc,
+        request: &ScoopcRequestEnvelopeV1,
+    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
+        let diagnostic = StructuredDiagnosticV1::new(
+            DiagnosticSeverityV1::Error,
+            "SCOOPC_TEST_CORE_FAILURE".to_owned(),
+            "core failed".to_owned(),
+            DiagnosticOriginV1::None,
+            Vec::new(),
+        )
+        .unwrap();
+        Ok(ScoopcResponseEnvelopeV1::failure(request.request_id(), vec![diagnostic]).unwrap())
+    }
+}
+
+struct InvalidArtifactSuccessRunner;
+
+impl SingleConeCompilerRunner for InvalidArtifactSuccessRunner {
+    fn invoke(
+        &mut self,
+        _tool: &ResolvedPairedScoopc,
+        request: &ScoopcRequestEnvelopeV1,
+    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
+        std::fs::write(
+            request.build().out_slib().to_path_buf().unwrap(),
+            foundation_core_artifact(),
+        )
+        .unwrap();
+        Ok(test_success(request.request_id()))
+    }
+}
+
+struct SourceChangingSuccessRunner {
+    source: std::path::PathBuf,
+}
+
+impl SingleConeCompilerRunner for SourceChangingSuccessRunner {
+    fn invoke(
+        &mut self,
+        _tool: &ResolvedPairedScoopc,
+        request: &ScoopcRequestEnvelopeV1,
+    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
+        std::fs::write(&self.source, "class Any\nclass Unit\n").unwrap();
+        Ok(test_success(request.request_id()))
+    }
+}
+
+fn test_success(request_id: RequestCorrelationId) -> ScoopcResponseEnvelopeV1 {
+    ScoopcResponseEnvelopeV1::success(
+        request_id,
+        ScoopcSuccessV1::new(
+            ProtocolArtifactFingerprint::from_array([1; 32]),
+            ProtocolConeIdentity::from_array(*ConeIdentity::CORE.as_array()),
+            ProtocolHirFingerprint::from_array([2; 32]),
+            ProtocolMirFingerprint::from_array([3; 32]),
+            ProtocolLirFingerprint::from_array([4; 32]),
+            ProtocolCodeFingerprint::from_array([5; 32]),
+            ProtocolRuntimeImageFingerprint::from_array([6; 32]),
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap(),
+    )
+}
 
 fn write_manifest(root: &Path, name: &str, dependencies: &str) {
     std::fs::create_dir_all(root.join("src")).unwrap();
@@ -470,6 +545,87 @@ fn prepared_receipt_cannot_bypass_the_core_dual_view_gate() {
         prepared.complete_trusted_core_node(),
         Err(TrustedCoreCompletionError::Artifact(_))
     ));
+}
+
+#[test]
+fn core_bootstrap_child_failure_never_writes_a_receipt() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+        &sysroot,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    );
+
+    let mut prepared = prepare(&root, workspace).unwrap();
+    assert!(matches!(
+        prepared.execute_trusted_core_bootstrap(
+            &mut FailureRunner,
+            RequestCorrelationId::from_array([31; 16]),
+        ),
+        Err(CoreBootstrapExecutionError::ChildFailure(diagnostics))
+            if diagnostics.len() == 1
+    ));
+    assert!(!layout.receipt().exists());
+}
+
+#[test]
+fn core_bootstrap_source_change_precedes_output_authority() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+        &sysroot,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    );
+    let mut runner = SourceChangingSuccessRunner {
+        source: sysroot.join("lib/scoop.core/src/core.scoop"),
+    };
+
+    let mut prepared = prepare(&root, workspace).unwrap();
+    assert!(matches!(
+        prepared.execute_trusted_core_bootstrap(
+            &mut runner,
+            RequestCorrelationId::from_array([32; 16]),
+        ),
+        Err(CoreBootstrapExecutionError::SourceChanged { .. })
+    ));
+    assert!(!layout.receipt().exists());
+}
+
+#[test]
+fn core_bootstrap_invalid_output_never_writes_a_receipt() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+        &sysroot,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    );
+
+    let mut prepared = prepare(&root, workspace).unwrap();
+    assert!(matches!(
+        prepared.execute_trusted_core_bootstrap(
+            &mut InvalidArtifactSuccessRunner,
+            RequestCorrelationId::from_array([33; 16]),
+        ),
+        Err(CoreBootstrapExecutionError::Completion(
+            TrustedCoreCompletionError::Artifact(_)
+        ))
+    ));
+    assert!(!layout.receipt().exists());
 }
 
 #[test]
