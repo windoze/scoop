@@ -216,6 +216,63 @@ fn exact_key_corruption_is_not_a_miss() {
     ));
 }
 
+#[test]
+fn exact_key_missing_or_truncated_files_are_not_misses() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = store(temp.path());
+
+    for (seed, producer, missing_file) in [
+        (
+            b"missing-receipt".as_slice(),
+            "cache-missing-receipt",
+            RECEIPT_FILE_NAME,
+        ),
+        (
+            b"missing-artifact".as_slice(),
+            "cache-missing-artifact",
+            ARTIFACT_FILE_NAME,
+        ),
+    ] {
+        let key = key(seed);
+        let fixture = fixture(temp.path(), key, producer);
+        let lock = store.acquire_exclusive(key).unwrap();
+        store
+            .publish(
+                &lock,
+                &fixture.artifact,
+                &fixture.receipt,
+                DecodeLimits::M23_DEFAULT,
+            )
+            .unwrap();
+        std::fs::remove_file(store.entry_path(key).join(missing_file)).unwrap();
+
+        assert!(matches!(
+            store.lookup(&lock, DecodeLimits::M23_DEFAULT),
+            Err(CompileCacheStoreError::UnexpectedEntryContents { .. })
+        ));
+    }
+
+    let key = key(b"truncated-receipt");
+    let fixture = fixture(temp.path(), key, "cache-truncated-receipt");
+    let lock = store.acquire_exclusive(key).unwrap();
+    store
+        .publish(
+            &lock,
+            &fixture.artifact,
+            &fixture.receipt,
+            DecodeLimits::M23_DEFAULT,
+        )
+        .unwrap();
+    let receipt_path = store.entry_path(key).join(RECEIPT_FILE_NAME);
+    std::fs::remove_file(&receipt_path).unwrap();
+    std::fs::write(receipt_path, [0xa1]).unwrap();
+
+    assert!(matches!(
+        store.lookup(&lock, DecodeLimits::M23_DEFAULT),
+        Err(CompileCacheStoreError::ReceiptDecode(_))
+    ));
+}
+
 #[cfg(unix)]
 #[test]
 fn cache_rejects_symlinked_payloads_and_lock_files() {
