@@ -26,6 +26,7 @@ mod cache_key;
 mod child_request;
 
 pub use cache_key::CompileCacheKeyError;
+pub(super) use cache_key::trusted_core_source_key;
 pub use child_request::{ChildInvocationPlanV1, ChildRequestPlanError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -220,9 +221,12 @@ pub(super) struct PreparedPrebuiltArtifactNode {
 #[derive(Debug)]
 pub(super) struct PreparedTrustedCoreNode {
     pub(super) snapshot: ManifestSourceSnapshot,
+    pub(super) source_key: crate::CoreSourceSnapshotKeyV1,
     pub(super) preparation: TrustedCorePreparation,
     pub(super) existing: Option<PreparedArtifactCandidate>,
+    pub(super) receipt: Option<crate::TrustedCoreSlotReceiptV1>,
     pub(super) artifact_slot: PathBuf,
+    pub(super) receipt_slot: PathBuf,
 }
 
 #[derive(Debug)]
@@ -373,6 +377,27 @@ impl PreparedBuildGraph {
         match self.nodes.get(&ConeIdentity::CORE) {
             Some(PreparedGraphNode::TrustedCore(node)) => &node.artifact_slot,
             _ => unreachable!("resolved graph structurally contains trusted core"),
+        }
+    }
+
+    pub fn trusted_core_receipt_slot(&self) -> &Path {
+        match self.nodes.get(&ConeIdentity::CORE) {
+            Some(PreparedGraphNode::TrustedCore(node)) => &node.receipt_slot,
+            _ => unreachable!("resolved graph structurally contains trusted core"),
+        }
+    }
+
+    pub fn trusted_core_source_key(&self) -> crate::CoreSourceSnapshotKeyV1 {
+        match self.nodes.get(&ConeIdentity::CORE) {
+            Some(PreparedGraphNode::TrustedCore(node)) => node.source_key,
+            _ => unreachable!("resolved graph structurally contains trusted core"),
+        }
+    }
+
+    pub fn trusted_core_receipt(&self) -> Option<&crate::TrustedCoreSlotReceiptV1> {
+        match self.nodes.get(&ConeIdentity::CORE) {
+            Some(PreparedGraphNode::TrustedCore(node)) => node.receipt.as_ref(),
+            _ => None,
         }
     }
 

@@ -30,6 +30,7 @@ impl fmt::Display for CoreLockOperation {
 #[derive(Debug)]
 pub enum PrepareBuildGraphError {
     PairedCompiler(PairedCompilerError),
+    CoreSourceKey(Box<super::CompileCacheKeyError>),
     Staging(StagingError),
     CoreLockIo {
         operation: CoreLockOperation,
@@ -64,6 +65,9 @@ impl fmt::Display for PrepareBuildGraphError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PairedCompiler(error) => error.fmt(formatter),
+            Self::CoreSourceKey(error) => {
+                write!(formatter, "cannot derive trusted-core source key: {error}")
+            }
             Self::Staging(error) => error.fmt(formatter),
             Self::CoreLockIo {
                 operation,
@@ -139,6 +143,7 @@ impl std::error::Error for PrepareBuildGraphError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::PairedCompiler(error) => Some(error),
+            Self::CoreSourceKey(error) => Some(error.as_ref()),
             Self::Staging(error) => Some(error),
             Self::CoreLockIo { source, .. } => Some(source),
             Self::ManifestSnapshot(error) => Some(error),

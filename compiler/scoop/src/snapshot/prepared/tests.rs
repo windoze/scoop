@@ -2,7 +2,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use scoop_hir::CanonicalHirFoundation;
-use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
 use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_mir::CanonicalMirFoundation;
@@ -14,12 +14,13 @@ use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
     IdentityFoundationArtifactInput, ProducerRecord, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::DecodeLimits;
+use scoop_wire::{DecodeLimits, encode};
 
 use super::*;
 use crate::{
     ArtifactCacheRoot, BuildGraphRequest, BuildLimitsProfileV1, BuildRootInput, DiagnosticsPolicy,
-    PairedScoopcLocator, TrustedSysrootRoot,
+    PairedScoopcLocator, TrustedCoreSlotReceiptBodyV1, TrustedCoreSlotReceiptV1,
+    TrustedSysrootRoot,
 };
 
 fn write_manifest(root: &Path, name: &str, dependencies: &str) {
@@ -352,6 +353,92 @@ fn valid_but_unreceipted_core_slot_is_snapshotted_but_not_reused() {
             .materialized_path()
             .starts_with(prepared.staging_root())
     );
+}
+
+#[test]
+fn core_receipt_binding_requires_the_actual_artifact_to_use_the_strong_profile() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+        &sysroot,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    );
+    std::fs::create_dir_all(layout.artifact_root()).unwrap();
+    std::fs::write(layout.artifact(), foundation_core_artifact()).unwrap();
+
+    let prepared = prepare(&root, workspace).unwrap();
+    let source_key = prepared.trusted_core_source_key();
+    let compiler = prepared.compiler().fingerprint();
+    let artifact = prepared
+        .existing_trusted_core_candidate()
+        .unwrap()
+        .summary()
+        .artifact_fingerprint();
+    let receipt = TrustedCoreSlotReceiptV1::new(
+        TrustedCoreSlotReceiptBodyV1::new(
+            source_key,
+            artifact,
+            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            compiler,
+            ArtifactCapabilityProfileId::single_cone_strong(),
+            Vec::new(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(core_receipt_matches(
+        &receipt,
+        source_key,
+        compiler,
+        artifact,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        &ArtifactCapabilityProfileId::single_cone_strong(),
+    ));
+    assert!(!core_receipt_matches(
+        &receipt,
+        source_key,
+        compiler,
+        artifact,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        &ArtifactCapabilityProfileId::identity_foundation(),
+    ));
+    drop(prepared);
+    std::fs::write(layout.receipt(), encode(&receipt).unwrap()).unwrap();
+
+    let prepared = prepare(&root, workspace).unwrap();
+    assert_eq!(
+        prepared.trusted_core_preparation(),
+        TrustedCorePreparation::Bootstrap(CoreBootstrapReason::ReceiptUnavailable)
+    );
+    assert!(prepared.trusted_core_receipt().is_none());
+}
+
+#[test]
+fn core_source_key_changes_with_the_locked_source_snapshot() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+
+    let prepared = prepare(&root, workspace).unwrap();
+    let initial = prepared.trusted_core_source_key();
+    drop(prepared);
+    std::fs::write(
+        sysroot.join("lib/scoop.core/src/core.scoop"),
+        "class Any\nclass Unit\n",
+    )
+    .unwrap();
+
+    let prepared = prepare(&root, workspace).unwrap();
+    assert_ne!(prepared.trusted_core_source_key(), initial);
 }
 
 #[test]

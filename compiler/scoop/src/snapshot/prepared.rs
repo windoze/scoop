@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use fs4::FileExt;
-use scoop_identity::{ConeCoordinate, ConeIdentity, SourceContentDigest};
+use scoop_identity::{
+    ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity, SourceContentDigest,
+};
 use scoop_manifest::{
     LoadedConeManifest, SourceDiscoveryLimits, discover_manifest_sources_with_limits,
     load_single_file_source_with_limit,
@@ -35,7 +37,7 @@ pub use model::{
 use model::{
     NonEmptyPreparedArtifactCandidates, NonEmptySourceSnapshots, PreparedGraphNode,
     PreparedManifestSourceNode, PreparedPrebuiltArtifactNode, PreparedSingleFileNode,
-    PreparedTrustedCoreNode,
+    PreparedTrustedCoreNode, trusted_core_source_key,
 };
 
 impl ResolvedBuildGraph {
@@ -88,8 +90,18 @@ impl Preparer {
                 .artifact_decode()
                 .semantic_leaf_bytes,
         )?;
-        let (preparation, existing) = prepare_core_artifact(
+        let core_source_key = trusted_core_source_key(
+            &core_snapshot,
+            &self.compiler,
+            &self.parts.context,
+            self.parts.target_selection,
+        )
+        .map_err(|source| PrepareBuildGraphError::CoreSourceKey(Box::new(source)))?;
+        let (preparation, existing, receipt) = prepare_core_artifact(
             core_layout.artifact(),
+            core_layout.receipt(),
+            core_source_key,
+            self.compiler.fingerprint(),
             &mut self.parts.meter,
             &self.parts.context,
             &mut self.staging,
@@ -99,9 +111,12 @@ impl Preparer {
             ConeIdentity::CORE,
             PreparedGraphNode::TrustedCore(Box::new(PreparedTrustedCoreNode {
                 snapshot: core_snapshot,
+                source_key: core_source_key,
                 preparation,
                 existing,
+                receipt,
                 artifact_slot: core_layout.artifact().to_path_buf(),
+                receipt_slot: core_layout.receipt().to_path_buf(),
             })),
         );
 
@@ -392,15 +407,26 @@ fn prepare_artifact_candidate(
 
 fn prepare_core_artifact(
     artifact_slot: &Path,
+    receipt_slot: &Path,
+    expected_source_key: crate::CoreSourceSnapshotKeyV1,
+    expected_compiler: crate::PairedCompilerFingerprintV1,
     meter: &mut SlibClosureDecodeMeterV1,
     context: &BuildContext,
     staging: &mut PreparedStaging,
-) -> Result<(TrustedCorePreparation, Option<PreparedArtifactCandidate>), PrepareBuildGraphError> {
+) -> Result<
+    (
+        TrustedCorePreparation,
+        Option<PreparedArtifactCandidate>,
+        Option<crate::TrustedCoreSlotReceiptV1>,
+    ),
+    PrepareBuildGraphError,
+> {
     let metadata = match std::fs::symlink_metadata(artifact_slot) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return Ok((
                 TrustedCorePreparation::Bootstrap(CoreBootstrapReason::Missing),
+                None,
                 None,
             ));
         }
@@ -408,12 +434,14 @@ fn prepare_core_artifact(
             return Ok((
                 TrustedCorePreparation::Bootstrap(CoreBootstrapReason::Unreadable),
                 None,
+                None,
             ));
         }
     };
     if !metadata.file_type().is_file() {
         return Ok((
             TrustedCorePreparation::Bootstrap(CoreBootstrapReason::WrongFileType),
+            None,
             None,
         ));
     }
@@ -425,6 +453,7 @@ fn prepare_core_artifact(
         Err(_) => {
             return Ok((
                 TrustedCorePreparation::Bootstrap(CoreBootstrapReason::Corrupt),
+                None,
                 None,
             ));
         }
@@ -443,6 +472,7 @@ fn prepare_core_artifact(
         Err(_) => {
             return Ok((
                 TrustedCorePreparation::Bootstrap(CoreBootstrapReason::Corrupt),
+                None,
                 None,
             ));
         }
@@ -466,6 +496,7 @@ fn prepare_core_artifact(
         return Ok((
             TrustedCorePreparation::Bootstrap(CoreBootstrapReason::Incompatible),
             None,
+            None,
         ));
     }
     let materialized_path = staging
@@ -482,13 +513,76 @@ fn prepare_core_artifact(
         snapshot,
         summary,
     };
-    // A valid artifact without the source/compiler receipt required by M23-4
-    // is deliberately a miss. The scheduler may bootstrap it but cannot reuse
-    // this summary as completed authority.
-    Ok((
-        TrustedCorePreparation::Bootstrap(CoreBootstrapReason::ReceiptUnavailable),
-        Some(candidate),
-    ))
+    let receipt = read_matching_core_receipt(
+        receipt_slot,
+        expected_source_key,
+        expected_compiler,
+        &candidate,
+        context,
+    );
+    Ok(match receipt {
+        Some(receipt) => (
+            TrustedCorePreparation::ReuseVerifiedSlot,
+            Some(candidate),
+            Some(receipt),
+        ),
+        None => (
+            TrustedCorePreparation::Bootstrap(CoreBootstrapReason::ReceiptUnavailable),
+            Some(candidate),
+            None,
+        ),
+    })
+}
+
+fn read_matching_core_receipt(
+    receipt_slot: &Path,
+    expected_source_key: crate::CoreSourceSnapshotKeyV1,
+    expected_compiler: crate::PairedCompilerFingerprintV1,
+    candidate: &PreparedArtifactCandidate,
+    context: &BuildContext,
+) -> Option<crate::TrustedCoreSlotReceiptV1> {
+    let snapshot = ImmutableInputSnapshot::capture_no_follow(
+        receipt_slot,
+        context.limits.artifact_decode().owned_bytes,
+    )
+    .ok()?;
+    let (receipt, _) = crate::decode_trusted_core_slot_receipt_v1(
+        snapshot.as_bytes(),
+        context.limits.artifact_decode(),
+    )
+    .ok()?;
+    let summary = candidate.summary();
+    if !core_receipt_matches(
+        &receipt,
+        expected_source_key,
+        expected_compiler,
+        summary.artifact_fingerprint(),
+        context.target.lir_target_selection(),
+        summary.profile(),
+    ) {
+        return None;
+    }
+    Some(receipt)
+}
+
+fn core_receipt_matches(
+    receipt: &crate::TrustedCoreSlotReceiptV1,
+    expected_source_key: crate::CoreSourceSnapshotKeyV1,
+    expected_compiler: crate::PairedCompilerFingerprintV1,
+    expected_artifact: scoop_slib::ArtifactFingerprint,
+    expected_target: scoop_lir::ValidatedLirTargetSelection,
+    actual_profile: &ArtifactCapabilityProfileId,
+) -> bool {
+    let body = receipt.body();
+    let expected_profile = ArtifactCapabilityProfileId::single_cone_strong();
+    body.source_snapshot_key() == expected_source_key
+        && body.artifact_fingerprint().matches(expected_artifact)
+        && body.target_selection().selection() == expected_target
+        && body.compiler() == expected_compiler
+        && body.artifact_profile() == &expected_profile
+        && actual_profile == &expected_profile
+        && crate::validate_warning_origins(body.structured_warnings(), &[ConeIdentity::CORE])
+            .is_ok()
 }
 
 fn digest_from_source(digest: SourceContentDigest) -> Digest256 {

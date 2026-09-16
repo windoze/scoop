@@ -157,7 +157,7 @@ pub(crate) fn validate_cache_entry(
     })
 }
 
-fn validate_warning_origins(
+pub(crate) fn validate_warning_origins(
     warnings: &[StructuredDiagnosticV1],
     closure: &[ConeIdentity],
 ) -> Result<(), CacheCompletionError> {
