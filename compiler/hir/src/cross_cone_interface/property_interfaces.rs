@@ -7,7 +7,9 @@ pub use common::{
     PropertySetterPublicAccessV1,
 };
 pub use record::{
-    DecodedPropertyInterfaceRecordV1, PropertyInterfaceRecordBuildError,
+    DecodedPropertyInterfaceRecordV1, PropertyDeclarationIdentityShapeV1,
+    PropertyDeclarationSourceShapeV1, PropertyInterfaceRecordBuildError,
     PropertyInterfaceRecordResolutionError, PropertyInterfaceRecordResolver,
-    PropertyInterfaceRecordV1,
+    PropertyInterfaceRecordV1, PropertyInterfaceSemanticAuthority,
+    PropertyInterfaceSemanticValidationError,
 };

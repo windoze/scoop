@@ -15,8 +15,13 @@ use crate::{
 };
 
 mod errors;
+mod semantics;
 
 pub use errors::{PropertyInterfaceRecordBuildError, PropertyInterfaceRecordResolutionError};
+pub use semantics::{
+    PropertyDeclarationIdentityShapeV1, PropertyDeclarationSourceShapeV1,
+    PropertyInterfaceSemanticAuthority, PropertyInterfaceSemanticValidationError,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PropertyInterfaceRecordV1 {
