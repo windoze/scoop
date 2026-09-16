@@ -70,8 +70,8 @@ fn decoded_parameter_list_validates_names_types_and_duplicates() {
 
 #[test]
 fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
-    let effects = CallableSourceEffectsV1::new(
-        Effect::Suspend,
+    let effects = CallableSourceEffectsV1::try_new(
+        Effect::Ordinary,
         CallableSafetyV1::Unsafe,
         GcEffect::NoGc,
         CallableImplementationV1::SourceExternC,
@@ -79,16 +79,19 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
             index: NonZeroU32::new(3).unwrap(),
         }),
         CallableInfixV1::Infix,
-    );
+    )
+    .unwrap();
     assert_eq!(
         encode(&effects).unwrap(),
-        hex("a6010202020302040405a2000201a200181801030602")
+        hex("a6010102020302040405a2000201a200181801030602")
     );
     assert_eq!(
-        decode_canonical::<CallableSourceEffectsV1>(
+        decode_canonical::<DecodedCallableSourceEffectsV1>(
             &encode(&effects).unwrap(),
             DecodeLimits::default()
         )
+        .unwrap()
+        .validate()
         .unwrap(),
         effects
     );
@@ -107,6 +110,67 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
     assert_eq!(
         encode(&PropertyDelegateOperatorV1::GetValue).unwrap(),
         vec![2]
+    );
+}
+
+#[test]
+fn callable_effects_reject_impossible_semantic_combinations() {
+    let ordinary_role = CallableOperatorRoleV1::None;
+    assert_eq!(
+        CallableSourceEffectsV1::try_new(
+            Effect::Suspend,
+            CallableSafetyV1::Safe,
+            GcEffect::NoGc,
+            CallableImplementationV1::Scoop,
+            ordinary_role,
+            CallableInfixV1::Ordinary,
+        ),
+        Err(CallableSourceEffectsBuildError::NoGcSuspend)
+    );
+    assert_eq!(
+        CallableSourceEffectsV1::try_new(
+            Effect::Suspend,
+            CallableSafetyV1::Safe,
+            GcEffect::Managed,
+            CallableImplementationV1::SourceExternScoop,
+            ordinary_role,
+            CallableInfixV1::Ordinary,
+        ),
+        Err(CallableSourceEffectsBuildError::SuspendExtern(
+            CallableImplementationV1::SourceExternScoop
+        ))
+    );
+    assert_eq!(
+        CallableSourceEffectsV1::try_new(
+            Effect::Ordinary,
+            CallableSafetyV1::Safe,
+            GcEffect::NoGc,
+            CallableImplementationV1::SourceExternC,
+            ordinary_role,
+            CallableInfixV1::Ordinary,
+        ),
+        Err(CallableSourceEffectsBuildError::SafeCExtern)
+    );
+    assert_eq!(
+        CallableSourceEffectsV1::try_new(
+            Effect::Ordinary,
+            CallableSafetyV1::Unsafe,
+            GcEffect::Managed,
+            CallableImplementationV1::SourceExternC,
+            ordinary_role,
+            CallableInfixV1::Ordinary,
+        ),
+        Err(CallableSourceEffectsBuildError::ManagedCExtern)
+    );
+
+    let decoded = decode_canonical::<DecodedCallableSourceEffectsV1>(
+        &hex("a6010202010302040105a100010601"),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        decoded.validate(),
+        Err(CallableSourceEffectsBuildError::NoGcSuspend)
     );
 }
 

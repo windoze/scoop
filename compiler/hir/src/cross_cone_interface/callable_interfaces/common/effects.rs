@@ -1,3 +1,5 @@
+use std::fmt;
+
 use scoop_identity::{Effect, GcEffect};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -151,22 +153,48 @@ pub struct CallableSourceEffectsV1 {
 }
 
 impl CallableSourceEffectsV1 {
-    pub const fn new(
+    pub fn try_new(
         execution: Effect,
         safety: CallableSafetyV1,
         gc_effect: GcEffect,
         implementation: CallableImplementationV1,
         operator_role: CallableOperatorRoleV1,
         infix: CallableInfixV1,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, CallableSourceEffectsBuildError> {
+        if execution == Effect::Suspend && gc_effect == GcEffect::NoGc {
+            return Err(CallableSourceEffectsBuildError::NoGcSuspend);
+        }
+        match implementation {
+            CallableImplementationV1::SourceExternScoop => {
+                if execution == Effect::Suspend {
+                    return Err(CallableSourceEffectsBuildError::SuspendExtern(
+                        implementation,
+                    ));
+                }
+            }
+            CallableImplementationV1::SourceExternC => {
+                if execution == Effect::Suspend {
+                    return Err(CallableSourceEffectsBuildError::SuspendExtern(
+                        implementation,
+                    ));
+                }
+                if safety != CallableSafetyV1::Unsafe {
+                    return Err(CallableSourceEffectsBuildError::SafeCExtern);
+                }
+                if gc_effect != GcEffect::NoGc {
+                    return Err(CallableSourceEffectsBuildError::ManagedCExtern);
+                }
+            }
+            CallableImplementationV1::Scoop | CallableImplementationV1::Intrinsic => {}
+        }
+        Ok(Self {
             execution,
             safety,
             gc_effect,
             implementation,
             operator_role,
             infix,
-        }
+        })
     }
 
     pub const fn execution(self) -> Effect {
@@ -212,7 +240,48 @@ impl WireEncode for CallableSourceEffectsV1 {
     }
 }
 
-impl WireDecode for CallableSourceEffectsV1 {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DecodedCallableSourceEffectsV1 {
+    execution: Effect,
+    safety: CallableSafetyV1,
+    gc_effect: GcEffect,
+    implementation: CallableImplementationV1,
+    operator_role: CallableOperatorRoleV1,
+    infix: CallableInfixV1,
+}
+
+impl DecodedCallableSourceEffectsV1 {
+    pub fn validate(self) -> Result<CallableSourceEffectsV1, CallableSourceEffectsBuildError> {
+        CallableSourceEffectsV1::try_new(
+            self.execution,
+            self.safety,
+            self.gc_effect,
+            self.implementation,
+            self.operator_role,
+            self.infix,
+        )
+    }
+}
+
+impl WireEncode for DecodedCallableSourceEffectsV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(6)?;
+        encoder.field(1)?;
+        self.execution.encode(encoder)?;
+        encoder.field(2)?;
+        self.safety.encode(encoder)?;
+        encoder.field(3)?;
+        self.gc_effect.encode(encoder)?;
+        encoder.field(4)?;
+        self.implementation.encode(encoder)?;
+        encoder.field(5)?;
+        self.operator_role.encode(encoder)?;
+        encoder.field(6)?;
+        self.infix.encode(encoder)
+    }
+}
+
+impl WireDecode for DecodedCallableSourceEffectsV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
@@ -225,6 +294,29 @@ impl WireDecode for CallableSourceEffectsV1 {
         })
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CallableSourceEffectsBuildError {
+    NoGcSuspend,
+    SuspendExtern(CallableImplementationV1),
+    SafeCExtern,
+    ManagedCExtern,
+}
+
+impl fmt::Display for CallableSourceEffectsBuildError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoGcSuspend => formatter.write_str("suspend callable cannot be NoGc"),
+            Self::SuspendExtern(implementation) => {
+                write!(formatter, "{implementation:?} callable cannot be suspend")
+            }
+            Self::SafeCExtern => formatter.write_str("C extern callable must be unsafe"),
+            Self::ManagedCExtern => formatter.write_str("C extern callable must be NoGc"),
+        }
+    }
+}
+
+impl std::error::Error for CallableSourceEffectsBuildError {}
 
 fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
     match decoder.unsigned()? {

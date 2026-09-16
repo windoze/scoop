@@ -200,25 +200,43 @@ impl WireDecode for DecodedCanonicalPublicMemberRefsV1 {
     }
 }
 
-pub trait PublicMemberRefResolver<E>:
+pub trait CallableDeclarationIdResolver<E>:
     PersistentIdResolver<PersistentFunctionId, Error = E>
     + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
     + PersistentIdResolver<PersistentConstructorId, Error = E>
     + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
     + PersistentIdResolver<PersistentEnumVariantId, Error = E>
-    + PersistentIdResolver<PersistentPropertyId, Error = E>
-    + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
 {
 }
 
-impl<R, E> PublicMemberRefResolver<E> for R where
+impl<R, E> CallableDeclarationIdResolver<E> for R where
     R: PersistentIdResolver<PersistentFunctionId, Error = E>
         + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
         + PersistentIdResolver<PersistentConstructorId, Error = E>
         + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
         + PersistentIdResolver<PersistentEnumVariantId, Error = E>
-        + PersistentIdResolver<PersistentPropertyId, Error = E>
+{
+}
+
+pub trait PropertyDeclarationIdResolver<E>:
+    PersistentIdResolver<PersistentPropertyId, Error = E>
+    + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
+{
+}
+
+impl<R, E> PropertyDeclarationIdResolver<E> for R where
+    R: PersistentIdResolver<PersistentPropertyId, Error = E>
         + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
+{
+}
+
+pub trait PublicMemberRefResolver<E>:
+    CallableDeclarationIdResolver<E> + PropertyDeclarationIdResolver<E>
+{
+}
+
+impl<R, E> PublicMemberRefResolver<E> for R where
+    R: CallableDeclarationIdResolver<E> + PropertyDeclarationIdResolver<E>
 {
 }
 

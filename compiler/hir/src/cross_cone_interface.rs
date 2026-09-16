@@ -24,9 +24,12 @@ pub use binders::{
     TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
 };
 pub use callable_interfaces::{
-    CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
-    CallableOperatorV1, CallableSafetyV1, CallableSourceEffectsV1,
-    CanonicalSourceParameterShapesV1, DecodedCanonicalSourceParameterShapesV1,
+    CallableImplementationV1, CallableInfixV1, CallableInterfaceRecordBuildError,
+    CallableInterfaceRecordResolutionError, CallableInterfaceRecordResolver,
+    CallableInterfaceRecordV1, CallableModalityV1, CallableOperatorRoleV1, CallableOperatorV1,
+    CallableSafetyV1, CallableSourceEffectsBuildError, CallableSourceEffectsV1,
+    CanonicalSourceParameterShapesV1, DecodedCallableInterfaceRecordV1,
+    DecodedCallableSourceEffectsV1, DecodedCanonicalSourceParameterShapesV1,
     DecodedSourceParameterShapeV1, PropertyDelegateOperatorV1, PublicLookupAccessV1,
     SourceParameterListBuildError, SourceParameterListValidationError,
     SourceParameterShapeResolutionError, SourceParameterShapeV1,
@@ -40,11 +43,11 @@ pub use declaration_common::{
     UnsupportedPublicNominalKind,
 };
 pub use declaration_references::{
-    CallableDeclarationId, CanonicalPublicMemberRefsV1, DecodedCallableDeclarationId,
-    DecodedCanonicalPublicMemberRefsV1, DecodedPropertyDeclarationId, DecodedPublicMemberRefV1,
-    DecodedSourceNominalId, PropertyDeclarationId, PublicMemberRefBuildError,
-    PublicMemberRefResolver, PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId,
-    SourceNominalIdResolver,
+    CallableDeclarationId, CallableDeclarationIdResolver, CanonicalPublicMemberRefsV1,
+    DecodedCallableDeclarationId, DecodedCanonicalPublicMemberRefsV1, DecodedPropertyDeclarationId,
+    DecodedPublicMemberRefV1, DecodedSourceNominalId, PropertyDeclarationId,
+    PropertyDeclarationIdResolver, PublicMemberRefBuildError, PublicMemberRefResolver,
+    PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId, SourceNominalIdResolver,
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,

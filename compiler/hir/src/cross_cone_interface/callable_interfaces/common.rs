@@ -5,7 +5,8 @@ mod parameters;
 
 pub use effects::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableSafetyV1,
-    CallableSourceEffectsV1, PublicLookupAccessV1,
+    CallableSourceEffectsBuildError, CallableSourceEffectsV1, DecodedCallableSourceEffectsV1,
+    PublicLookupAccessV1,
 };
 pub use errors::{
     SourceParameterListBuildError, SourceParameterListValidationError,
