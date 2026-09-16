@@ -5,6 +5,7 @@ mod callable_interfaces;
 mod canonical_ids;
 mod declaration_common;
 mod declaration_references;
+mod definition_sources;
 mod nominal_interfaces;
 mod nominal_shapes;
 mod property_interfaces;
@@ -53,6 +54,11 @@ pub use declaration_references::{
     DecodedPublicMemberRefV1, DecodedSourceNominalId, PropertyDeclarationId,
     PropertyDeclarationIdResolver, PublicMemberRefBuildError, PublicMemberRefResolver,
     PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId, SourceNominalIdResolver,
+};
+pub use definition_sources::{
+    CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
+    DecodedExportDefinitionSourceV1, ExportDefinitionSourceSetBuildError,
+    ExportDefinitionSourceSetValidationError, ExportDefinitionSourceV1,
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
