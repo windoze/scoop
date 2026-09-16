@@ -1,7 +1,12 @@
+mod expansion;
 mod record;
 mod table;
 mod target;
 
+pub use expansion::{
+    CanonicalTypeAliasExpansionsV1, TypeAliasClosureAuthority, TypeAliasExpansionError,
+    TypeAliasExpansionV1,
+};
 pub use record::{
     DecodedTypeAliasInterfaceRecordV1, TypeAliasDeclarationSourceV1,
     TypeAliasInterfaceRecordBuildError, TypeAliasInterfaceRecordResolutionError,
