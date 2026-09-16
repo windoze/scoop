@@ -16,6 +16,7 @@ const CHILD_COMPILER_FAILURE_EXIT: u8 = 1;
 const CHILD_TRANSPORT_FAILURE_EXIT: u8 = 2;
 const CHILD_REQUEST_ERROR_CODE: &str = "SCOOPC_CHILD_REQUEST_INVALID";
 const CHILD_BUILD_ERROR_CODE: &str = "SCOOPC_BUILD_FAILED";
+const GRAPH_RESOURCE_ERROR_CODE: &str = "SCOOP_GRAPH_RESOURCE_LIMIT";
 const CHILD_WARNING_CODE: &str = "SCOOPC_COMPILER_WARNING";
 const FRAME_PREFIX_BYTES: usize = 8;
 
@@ -108,6 +109,39 @@ fn execute_request(
 
 fn production_error_code(error: &scoopc::SingleConeProductionError) -> &'static str {
     match error {
+        scoopc::SingleConeProductionError::Preflight(
+            scoopc::SingleConePreflightError::ExplicitDependencyLoad(source),
+        ) if matches!(
+            source.as_ref(),
+            scoopc::ExplicitDependencyLoadError::Resource(_)
+        ) =>
+        {
+            GRAPH_RESOURCE_ERROR_CODE
+        }
+        scoopc::SingleConeProductionError::Preflight(
+            scoopc::SingleConePreflightError::TrustedCoreLoad(source),
+        ) if matches!(
+            source.as_ref(),
+            scoopc::TrustedCoreArtifactLoadError::Resource(_)
+        ) =>
+        {
+            GRAPH_RESOURCE_ERROR_CODE
+        }
+        scoopc::SingleConeProductionError::Validation(
+            scoopc::CoreOnlyRequestValidationError::Resource(_),
+        ) => GRAPH_RESOURCE_ERROR_CODE,
+        scoopc::SingleConeProductionError::Validation(
+            scoopc::CoreOnlyRequestValidationError::ExplicitDependencies(source),
+        ) if matches!(
+            source.as_ref(),
+            scoopc::ExplicitDependencyValidationError::Resource(_)
+        ) =>
+        {
+            GRAPH_RESOURCE_ERROR_CODE
+        }
+        scoopc::SingleConeProductionError::Sources(source) if source.is_resource_limit() => {
+            GRAPH_RESOURCE_ERROR_CODE
+        }
         scoopc::SingleConeProductionError::Validation(
             scoopc::CoreOnlyRequestValidationError::ExplicitDependencies(source),
         ) if matches!(
@@ -356,5 +390,20 @@ mod tests {
             Err(ChildProtocolError::RequestTooLarge { .. })
         ));
         assert!(response.is_empty());
+    }
+
+    #[test]
+    fn build_wide_resource_failures_keep_the_stable_graph_code() {
+        let error = scoopc::SingleConeProductionError::Sources(
+            scoopc::CurrentConeSourceStageError::Resource(
+                scoop_slib::SlibClosureResourceErrorV1::LimitExceeded {
+                    resource: scoop_slib::SlibClosureResourceKindV1::SourceBytes,
+                    limit: 3,
+                    observed: 14,
+                },
+            ),
+        );
+
+        assert_eq!(production_error_code(&error), GRAPH_RESOURCE_ERROR_CODE);
     }
 }

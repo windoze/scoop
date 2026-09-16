@@ -2,7 +2,10 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_slib::{ConeKind, ConeSourceForm, PublishableArtifactValidationError};
+use scoop_slib::{
+    ConeKind, ConeSourceForm, PrebuiltManifestSummaryError, PublishableArtifactValidationError,
+    SlibClosureResourceErrorV1,
+};
 use scoop_wire::{DecodeLimits, HashError};
 
 use super::NonCoreDependencyInput;
@@ -101,6 +104,7 @@ pub enum ExplicitDependencyLoadError {
         actual: u64,
         limit: u64,
     },
+    Resource(SlibClosureResourceErrorV1),
 }
 
 impl fmt::Display for ExplicitDependencyLoadError {
@@ -122,6 +126,7 @@ impl fmt::Display for ExplicitDependencyLoadError {
                 formatter,
                 "dependency {input} has {actual} bytes, exceeding the {limit}-byte input limit"
             ),
+            Self::Resource(source) => source.fmt(formatter),
         }
     }
 }
@@ -130,6 +135,7 @@ impl std::error::Error for ExplicitDependencyLoadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
+            Self::Resource(source) => Some(source),
             Self::NotRegularFile(_) | Self::ArtifactTooLarge { .. } => None,
         }
     }
@@ -151,6 +157,11 @@ type DependencyValidationResult<T> = Result<T, Box<ExplicitDependencyValidationE
 
 #[derive(Debug)]
 pub enum ExplicitDependencyValidationError {
+    Resource(SlibClosureResourceErrorV1),
+    Summary {
+        input: ExplicitDependencyArtifactInput,
+        source: Box<PrebuiltManifestSummaryError>,
+    },
     Artifact {
         input: ExplicitDependencyArtifactInput,
         source: Box<PublishableArtifactValidationError>,
@@ -223,6 +234,10 @@ pub enum ExplicitDependencyValidationError {
 impl fmt::Display for ExplicitDependencyValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
+            Self::Summary { input, source } => {
+                write!(formatter, "cannot summarize dependency {input}: {source}")
+            }
             Self::Artifact { input, source } => write!(
                 formatter,
                 "dependency {input} is not a valid strong artifact: {source}"
@@ -329,6 +344,8 @@ impl fmt::Display for ExplicitDependencyValidationError {
 impl std::error::Error for ExplicitDependencyValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(source) => Some(source),
+            Self::Summary { source, .. } => Some(source.as_ref()),
             Self::Artifact { source, .. } => Some(source.as_ref()),
             Self::ManifestIdentity { source, .. } => Some(source),
             Self::ReservedCoreArtifact { .. }

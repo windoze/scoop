@@ -6,10 +6,14 @@ use scoop_hir::CoreInterfaceImportError;
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
-    ManifestSpan, SingleFileInputError, SingleFileLocator, SourceDiscoveryError,
-    discover_manifest_sources, load_cone_manifest, load_single_file_source,
+    ManifestSpan, SingleFileInputError, SingleFileInputErrorKind, SingleFileLocator,
+    SourceDiscoveryError, SourceDiscoveryErrorKind, discover_manifest_sources, load_cone_manifest,
+    load_single_file_source,
 };
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
+use scoop_slib::{PrebuiltManifestSummaryError, SlibClosureResourceErrorV1};
+#[cfg(test)]
+use scoop_slib::{SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1};
 use scoop_wire::DecodeLimits;
 
 use super::{
@@ -26,6 +30,7 @@ use crate::{
 mod dependencies;
 #[cfg(test)]
 mod end_to_end_tests;
+mod metering;
 mod ordinary;
 use dependencies::LoadedExplicitDependencyInputs;
 pub use dependencies::{
@@ -84,32 +89,7 @@ impl SingleConeBuildRequest {
         self,
         limits: DecodeLimits,
     ) -> Result<SingleConeProductionSuccess, SingleConeProductionError> {
-        let temporary_parent = self
-            .output
-            .as_path()
-            .parent()
-            .expect("an absolute output path always has a parent");
-        let temporary = tempfile::Builder::new()
-            .prefix(".scoopc-")
-            .tempdir_in(temporary_parent)
-            .map_err(SingleConeProductionError::TemporaryWorkspace)?;
-        let loaded = self
-            .load_preflight(limits)
-            .map_err(SingleConeProductionError::Preflight)?;
-        let validated = loaded
-            .validate()
-            .map_err(SingleConeProductionError::Validation)?;
-        let parsed = validated
-            .parse_current_sources()
-            .map_err(SingleConeProductionError::Sources)?;
-        match parsed {
-            ParsedSingleConeBuildRequest::Ordinary(parsed) => parsed
-                .build_and_publish(temporary.path(), limits)
-                .map_err(SingleConeProductionError::Ordinary),
-            ParsedSingleConeBuildRequest::TrustedCoreBootstrap(parsed) => parsed
-                .build_and_publish(temporary.path(), limits)
-                .map_err(SingleConeProductionError::CoreBootstrap),
-        }
+        self.build_and_publish_with_closure_limits(limits, metering::production_closure_limits())
     }
 
     /// Loads the current manifest, every explicit dependency artifact, and
@@ -119,41 +99,7 @@ impl SingleConeBuildRequest {
         self,
         limits: DecodeLimits,
     ) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
-        let Self {
-            current,
-            dependencies,
-            trusted_core,
-            target,
-            output,
-            diagnostics,
-            emit,
-        } = self;
-        let current = load_current_input(current)?;
-        let dependencies = LoadedExplicitDependencyInputs::load(
-            dependencies.direct(),
-            dependencies.support(),
-            limits,
-        )
-        .map_err(|source| SingleConePreflightError::ExplicitDependencyLoad(Box::new(source)))?;
-        let trusted_core = match trusted_core {
-            TrustedCoreInput::Artifact(input) => {
-                LoadedTrustedCoreInput::Artifact(input.load(limits).map_err(|source| {
-                    SingleConePreflightError::TrustedCoreLoad(Box::new(source))
-                })?)
-            }
-            TrustedCoreInput::BootstrapSelf { artifact_slot } => {
-                LoadedTrustedCoreInput::BootstrapSelf { artifact_slot }
-            }
-        };
-        Ok(LoadedSingleConeBuildRequest {
-            current,
-            dependencies,
-            trusted_core,
-            target,
-            output,
-            diagnostics,
-            emit,
-        })
+        self.load_preflight_inner(limits, None)
     }
 }
 
@@ -232,80 +178,7 @@ impl LoadedSingleConeBuildRequest {
     pub fn validate(
         &self,
     ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
-        let (current, dependencies) = match (&self.current, &self.trusted_core) {
-            (
-                LoadedCurrentConeInput::Manifest { manifest },
-                LoadedTrustedCoreInput::Artifact(artifact),
-            ) => {
-                let trusted_core = Box::new(artifact.validate(&self.target).map_err(|source| {
-                    CoreOnlyRequestValidationError::TrustedCore(Box::new(source))
-                })?);
-                let current_identity = manifest
-                    .parsed()
-                    .semantic()
-                    .coordinate()
-                    .identity()
-                    .map_err(CoreOnlyRequestValidationError::CurrentIdentity)?;
-                let dependencies = self
-                    .dependencies
-                    .validate(
-                        Some(manifest),
-                        current_identity,
-                        trusted_core.as_ref(),
-                        &self.target,
-                    )
-                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-                (
-                    ValidatedCurrentConeInput::Manifest {
-                        manifest,
-                        trusted_core,
-                    },
-                    dependencies,
-                )
-            }
-            (
-                LoadedCurrentConeInput::SingleFile { source },
-                LoadedTrustedCoreInput::Artifact(artifact),
-            ) => {
-                let trusted_core = Box::new(artifact.validate(&self.target).map_err(|source| {
-                    CoreOnlyRequestValidationError::TrustedCore(Box::new(source))
-                })?);
-                let dependencies = self
-                    .dependencies
-                    .validate(
-                        None,
-                        ConeIdentity::SINGLE_FILE,
-                        trusted_core.as_ref(),
-                        &self.target,
-                    )
-                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-                (
-                    ValidatedCurrentConeInput::SingleFile {
-                        source,
-                        trusted_core,
-                    },
-                    dependencies,
-                )
-            }
-            (
-                LoadedCurrentConeInput::TrustedCoreBootstrap { input },
-                LoadedTrustedCoreInput::BootstrapSelf { artifact_slot },
-            ) => (
-                ValidatedCurrentConeInput::TrustedCoreBootstrap {
-                    input,
-                    artifact_slot,
-                },
-                self.dependencies
-                    .validate_bootstrap_empty()
-                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?,
-            ),
-            _ => return Err(CoreOnlyRequestValidationError::InvalidLoadedInputPair),
-        };
-        Ok(ValidatedCoreOnlyBuildRequest {
-            request: self,
-            current,
-            dependencies,
-        })
+        self.validate_inner(None)
     }
 }
 
@@ -313,6 +186,8 @@ impl LoadedSingleConeBuildRequest {
 pub enum CoreOnlyRequestValidationError {
     InvalidLoadedInputPair,
     CurrentIdentity(scoop_wire::HashError),
+    Resource(SlibClosureResourceErrorV1),
+    TrustedCoreSummary(Box<PrebuiltManifestSummaryError>),
     TrustedCore(Box<TrustedCoreArtifactValidationError>),
     ExplicitDependencies(Box<ExplicitDependencyValidationError>),
 }
@@ -323,6 +198,8 @@ impl fmt::Display for CoreOnlyRequestValidationError {
             Self::InvalidLoadedInputPair => formatter
                 .write_str("loaded current Cone and trusted core inputs are not a permitted pair"),
             Self::CurrentIdentity(source) => source.fmt(formatter),
+            Self::Resource(source) => source.fmt(formatter),
+            Self::TrustedCoreSummary(source) => source.fmt(formatter),
             Self::TrustedCore(source) => source.fmt(formatter),
             Self::ExplicitDependencies(source) => source.fmt(formatter),
         }
@@ -334,6 +211,8 @@ impl std::error::Error for CoreOnlyRequestValidationError {
         match self {
             Self::InvalidLoadedInputPair => None,
             Self::CurrentIdentity(source) => Some(source),
+            Self::Resource(source) => Some(source),
+            Self::TrustedCoreSummary(source) => Some(source.as_ref()),
             Self::TrustedCore(source) => Some(source.as_ref()),
             Self::ExplicitDependencies(source) => Some(source.as_ref()),
         }
@@ -1051,16 +930,40 @@ fn parser_source_input(source: &DiscoveredSource) -> CurrentConeSourceInput<'_> 
 
 #[derive(Debug)]
 pub enum CurrentConeSourceStageError {
+    Resource(SlibClosureResourceErrorV1),
     Discovery(Box<SourceDiscoveryError>),
     SingleFile(Box<SingleFileInputError>),
+    SourceLengthOverflow,
     Parser(Box<ParseCurrentConeError>),
+}
+
+impl CurrentConeSourceStageError {
+    pub fn is_resource_limit(&self) -> bool {
+        match self {
+            Self::Resource(_) => true,
+            Self::Discovery(source) => matches!(
+                source.kind(),
+                SourceDiscoveryErrorKind::FileLimitExceeded { .. }
+                    | SourceDiscoveryErrorKind::ByteLimitExceeded { .. }
+            ),
+            Self::SingleFile(source) => matches!(
+                source.kind(),
+                SingleFileInputErrorKind::ByteLimitExceeded { .. }
+            ),
+            Self::SourceLengthOverflow | Self::Parser(_) => false,
+        }
+    }
 }
 
 impl fmt::Display for CurrentConeSourceStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
             Self::Discovery(source) => source.fmt(formatter),
             Self::SingleFile(source) => source.fmt(formatter),
+            Self::SourceLengthOverflow => {
+                formatter.write_str("current source length does not fit u64")
+            }
             Self::Parser(source) => source.fmt(formatter),
         }
     }
@@ -1068,11 +971,13 @@ impl fmt::Display for CurrentConeSourceStageError {
 
 impl std::error::Error for CurrentConeSourceStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::Discovery(source) => source.as_ref(),
-            Self::SingleFile(source) => source.as_ref(),
-            Self::Parser(source) => source.as_ref(),
-        })
+        match self {
+            Self::Resource(source) => Some(source),
+            Self::Discovery(source) => Some(source.as_ref()),
+            Self::SingleFile(source) => Some(source.as_ref()),
+            Self::Parser(source) => Some(source.as_ref()),
+            Self::SourceLengthOverflow => None,
+        }
     }
 }
 
@@ -1286,6 +1191,32 @@ mod tests {
             warnings.render_human(),
             format!("{}:1:5: warning: entry warning", path.display())
         );
+    }
+
+    #[test]
+    fn metered_single_file_parse_enforces_the_shared_source_budget() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("bounded.scoop");
+        std::fs::write(&path, "fun main() {}\n").unwrap();
+        let locator = SingleFileLocator::from_path(&path).unwrap();
+        let mut values = SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
+        values.source_bytes = 3;
+        let limits = SlibClosureDecodeLimitsV1::new(values).unwrap();
+        let mut meter = SlibClosureDecodeMeterV1::new(limits);
+
+        assert!(matches!(
+            metering::parse_single_file_current_metered(&locator, &mut meter),
+            Err(CurrentConeSourceStageError::SingleFile(source))
+                if matches!(
+                    source.kind(),
+                    SingleFileInputErrorKind::ByteLimitExceeded {
+                        limit: 3,
+                        observed: 14,
+                    }
+                )
+        ));
+        assert_eq!(meter.usage().source_files, 1);
+        assert_eq!(meter.usage().source_bytes, 0);
     }
 
     #[test]

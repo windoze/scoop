@@ -25,13 +25,14 @@ use scoop_mir::{
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CompositeIdentityAbiFingerprint, ConeKind,
     ConeSourceForm, DecodedSlibEnvelope, GraphValidationError, PublishViewMismatchError,
-    PublishableSingleConeArtifact, SingleConeStrongProfile, SlibReadError,
-    StrongCompileArtifactValidationError, StrongLinkArtifactValidationError,
-    ValidatedCompileArtifact, ValidatedGraphArtifact, ValidatedSingleConeStrongLinkArtifact,
-    validate_single_cone_strong_compile_artifact, validate_single_cone_strong_link_artifact,
+    PublishableSingleConeArtifact, SingleConeStrongProfile, SlibClosureDecodeMeterV1,
+    SlibClosureResourceErrorV1, SlibReadError, StrongCompileArtifactValidationError,
+    StrongLinkArtifactValidationError, ValidatedCompileArtifact, ValidatedGraphArtifact,
+    ValidatedSingleConeStrongLinkArtifact, validate_single_cone_strong_compile_artifact,
+    validate_single_cone_strong_link_artifact,
 };
 use scoop_toolchain::ResolvedTargetProfile;
-use scoop_wire::DecodeLimits;
+use scoop_wire::{DecodeLimits, sha256};
 
 use super::TrustedCoreArtifactInput;
 
@@ -65,6 +66,7 @@ pub enum TrustedCoreArtifactLoadError {
         actual: u64,
         limit: u64,
     },
+    Resource(SlibClosureResourceErrorV1),
 }
 
 impl fmt::Display for TrustedCoreArtifactLoadError {
@@ -93,6 +95,7 @@ impl fmt::Display for TrustedCoreArtifactLoadError {
                 "trusted core artifact {} has {actual} bytes, exceeding the {limit}-byte input limit",
                 path.display()
             ),
+            Self::Resource(source) => source.fmt(formatter),
         }
     }
 }
@@ -101,6 +104,7 @@ impl std::error::Error for TrustedCoreArtifactLoadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
+            Self::Resource(source) => Some(source),
             Self::NotRegularFile(_) | Self::ArtifactTooLarge { .. } => None,
         }
     }
@@ -152,6 +156,19 @@ impl TrustedCoreArtifactInput {
             limits,
         })
     }
+
+    pub(crate) fn load_metered(
+        self,
+        limits: DecodeLimits,
+        meter: &mut SlibClosureDecodeMeterV1,
+    ) -> Result<LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError> {
+        let loaded = self.load(limits)?;
+        let byte_length = u64::try_from(loaded.bytes.len()).unwrap_or(u64::MAX);
+        meter
+            .observe_raw_artifact_snapshot(sha256(&loaded.bytes), byte_length)
+            .map_err(TrustedCoreArtifactLoadError::Resource)?;
+        Ok(loaded)
+    }
 }
 
 fn require_input_size(
@@ -177,6 +194,10 @@ impl LoadedTrustedCoreArtifact {
 
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
+    }
+
+    pub(crate) const fn limits(&self) -> DecodeLimits {
+        self.limits
     }
 
     pub fn validate<'input>(

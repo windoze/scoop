@@ -1,7 +1,8 @@
 use std::fs::File;
 use std::io::Read;
 
-use scoop_wire::DecodeLimits;
+use scoop_slib::SlibClosureDecodeMeterV1;
+use scoop_wire::{DecodeLimits, sha256};
 
 use super::{
     ExplicitDependencyArtifactInput, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,
@@ -15,6 +16,24 @@ impl LoadedExplicitDependencyInputs {
         support: &[HostArtifactLocator],
         limits: DecodeLimits,
     ) -> Result<Self, ExplicitDependencyLoadError> {
+        Self::load_inner(direct, support, limits, None)
+    }
+
+    pub(crate) fn load_metered(
+        direct: &[HostArtifactLocator],
+        support: &[HostArtifactLocator],
+        limits: DecodeLimits,
+        meter: &mut SlibClosureDecodeMeterV1,
+    ) -> Result<Self, ExplicitDependencyLoadError> {
+        Self::load_inner(direct, support, limits, Some(meter))
+    }
+
+    fn load_inner(
+        direct: &[HostArtifactLocator],
+        support: &[HostArtifactLocator],
+        limits: DecodeLimits,
+        mut meter: Option<&mut SlibClosureDecodeMeterV1>,
+    ) -> Result<Self, ExplicitDependencyLoadError> {
         let mut artifacts = Vec::with_capacity(direct.len() + support.len());
         for (role, locators) in [
             (ExplicitDependencyRole::Direct, direct),
@@ -27,6 +46,12 @@ impl LoadedExplicitDependencyInputs {
                     path: locator.as_path().to_path_buf(),
                 };
                 let bytes = load_artifact_bytes(&input, limits)?;
+                if let Some(meter) = meter.as_deref_mut() {
+                    let byte_length = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+                    meter
+                        .observe_raw_artifact_snapshot(sha256(&bytes), byte_length)
+                        .map_err(ExplicitDependencyLoadError::Resource)?;
+                }
                 artifacts.push(LoadedExplicitDependencyArtifact { input, bytes });
             }
         }
@@ -127,6 +152,34 @@ mod tests {
                 actual: 9,
                 limit: 3,
             }) if input.path() == path
+        ));
+    }
+
+    #[test]
+    fn metered_loader_enforces_the_build_wide_snapshot_budget() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("dependency.slib");
+        std::fs::write(&path, b"too large").unwrap();
+        let locator = HostArtifactLocator::new(&path).unwrap();
+        let mut values = scoop_slib::SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
+        values.artifact_snapshot_bytes = 3;
+        let limits = scoop_slib::SlibClosureDecodeLimitsV1::new(values).unwrap();
+        let mut meter = SlibClosureDecodeMeterV1::new(limits);
+
+        assert!(matches!(
+            LoadedExplicitDependencyInputs::load_metered(
+                &[locator],
+                &[],
+                DecodeLimits::default(),
+                &mut meter,
+            ),
+            Err(ExplicitDependencyLoadError::Resource(
+                scoop_slib::SlibClosureResourceErrorV1::LimitExceeded {
+                    resource: scoop_slib::SlibClosureResourceKindV1::ArtifactSnapshotBytes,
+                    limit: 3,
+                    observed: 9,
+                }
+            ))
         ));
     }
 }

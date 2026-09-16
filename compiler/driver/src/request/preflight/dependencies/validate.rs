@@ -4,9 +4,12 @@ use scoop_identity::ConeIdentity;
 use scoop_manifest::LoadedConeManifest;
 use scoop_slib::{
     ConeKind, ConeSourceForm, DecodedSlibEnvelope, PublishableArtifactValidationError,
-    PublishableSingleConeArtifact, validate_self_describing_publishable_single_cone_artifact,
+    PublishableSingleConeArtifact, SlibClosureDecodeMeterV1, SlibClosureDecodePurposeV1,
+    SlibClosureResourceErrorV1, SlibClosureResourceKindV1, probe_prebuilt_manifest_summary,
+    validate_self_describing_publishable_single_cone_artifact,
 };
 use scoop_toolchain::ResolvedTargetProfile;
+use scoop_wire::sha256;
 
 use super::{
     DependencyValidationResult, ExplicitDependencyArtifactInput, ExplicitDependencyRole,
@@ -22,6 +25,53 @@ impl LoadedExplicitDependencyInputs {
         trusted_core: &ValidatedTrustedCoreArtifact<'_>,
         target: &ResolvedTargetProfile,
     ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
+        self.validate_inner(manifest, current_identity, trusted_core, target, None)
+    }
+
+    pub(crate) fn validate_metered(
+        &self,
+        manifest: Option<&LoadedConeManifest>,
+        current_identity: ConeIdentity,
+        trusted_core: &ValidatedTrustedCoreArtifact<'_>,
+        target: &ResolvedTargetProfile,
+        meter: &mut SlibClosureDecodeMeterV1,
+    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
+        self.validate_inner(
+            manifest,
+            current_identity,
+            trusted_core,
+            target,
+            Some(meter),
+        )
+    }
+
+    fn validate_inner(
+        &self,
+        manifest: Option<&LoadedConeManifest>,
+        current_identity: ConeIdentity,
+        trusted_core: &ValidatedTrustedCoreArtifact<'_>,
+        target: &ResolvedTargetProfile,
+        mut meter: Option<&mut SlibClosureDecodeMeterV1>,
+    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
+        if let Some(meter) = meter.as_deref_mut() {
+            let dependency_nodes = u64::try_from(self.artifacts.len()).map_err(|_| {
+                Box::new(ExplicitDependencyValidationError::Resource(
+                    SlibClosureResourceErrorV1::Overflow {
+                        resource: SlibClosureResourceKindV1::ConeNodes,
+                    },
+                ))
+            })?;
+            let nodes = dependency_nodes.checked_add(2).ok_or_else(|| {
+                Box::new(ExplicitDependencyValidationError::Resource(
+                    SlibClosureResourceErrorV1::Overflow {
+                        resource: SlibClosureResourceKindV1::ConeNodes,
+                    },
+                ))
+            })?;
+            meter
+                .charge_graph(nodes, 0, 1)
+                .map_err(|source| Box::new(ExplicitDependencyValidationError::Resource(source)))?;
+        }
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode>::new();
         let mut group_names = BTreeMap::<(String, String), (String, ConeIdentity)>::new();
         if let Some(manifest) = manifest {
@@ -33,6 +83,35 @@ impl LoadedExplicitDependencyInputs {
         }
 
         for loaded in &self.artifacts {
+            let snapshot = sha256(&loaded.bytes);
+            if let Some(meter) = meter.as_deref_mut() {
+                let summary = probe_prebuilt_manifest_summary(
+                    &loaded.bytes,
+                    self.limits,
+                    target.lir_target_selection(),
+                )
+                .map_err(|source| {
+                    Box::new(ExplicitDependencyValidationError::Summary {
+                        input: loaded.input.clone(),
+                        source: Box::new(source),
+                    })
+                })?;
+                meter
+                    .observe_artifact_snapshot(&summary, snapshot)
+                    .map_err(|source| {
+                        Box::new(ExplicitDependencyValidationError::Resource(source))
+                    })?;
+                meter
+                    .charge_artifact_decode(
+                        SlibClosureDecodePurposeV1::GraphSummary,
+                        summary.artifact_fingerprint(),
+                        snapshot,
+                        summary.decode_usage(),
+                    )
+                    .map_err(|source| {
+                        Box::new(ExplicitDependencyValidationError::Resource(source))
+                    })?;
+            }
             let graph = DecodedSlibEnvelope::open(
                 &loaded.bytes,
                 self.limits,
@@ -76,6 +155,28 @@ impl LoadedExplicitDependencyInputs {
                 input: loaded.input.clone(),
                 source: Box::new(source),
             })?;
+            if let Some(meter) = meter.as_deref_mut() {
+                meter
+                    .charge_artifact_decode(
+                        SlibClosureDecodePurposeV1::Compile,
+                        artifact.artifact_fingerprint(),
+                        snapshot,
+                        artifact.compile_summary().decode_usage(),
+                    )
+                    .map_err(|source| {
+                        Box::new(ExplicitDependencyValidationError::Resource(source))
+                    })?;
+                meter
+                    .charge_artifact_decode(
+                        SlibClosureDecodePurposeV1::Link,
+                        artifact.artifact_fingerprint(),
+                        snapshot,
+                        artifact.link_summary().decode_usage(),
+                    )
+                    .map_err(|source| {
+                        Box::new(ExplicitDependencyValidationError::Resource(source))
+                    })?;
+            }
             validate_artifact_shape(&loaded.input, &artifact, current_identity)?;
 
             let identity = artifact.identity();
@@ -120,8 +221,11 @@ impl LoadedExplicitDependencyInputs {
 
         validate_manifest_direct_set(manifest, &nodes)?;
         validate_dependency_records(current_identity, trusted_core, &nodes)?;
-        validate_acyclic(&nodes)?;
+        let dependency_depth = validate_acyclic(&nodes)?;
         validate_support_closure(&nodes)?;
+        if let Some(meter) = meter {
+            charge_graph_edges_and_depth(meter, manifest, &nodes, dependency_depth)?;
+        }
 
         let capability = manifest
             .map(manifest_capability_input)
@@ -151,6 +255,84 @@ impl LoadedExplicitDependencyInputs {
         }
         Ok(ValidatedExplicitDependencyInputSet { _core_only: () })
     }
+
+    pub(crate) fn validate_bootstrap_empty_metered(
+        &self,
+        meter: &mut SlibClosureDecodeMeterV1,
+    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
+        let dependency_nodes = u64::try_from(self.artifacts.len()).map_err(|_| {
+            Box::new(ExplicitDependencyValidationError::Resource(
+                SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::ConeNodes,
+                },
+            ))
+        })?;
+        let nodes = dependency_nodes.checked_add(1).ok_or_else(|| {
+            Box::new(ExplicitDependencyValidationError::Resource(
+                SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::ConeNodes,
+                },
+            ))
+        })?;
+        meter
+            .charge_graph(nodes, 0, 1)
+            .map_err(|source| Box::new(ExplicitDependencyValidationError::Resource(source)))?;
+        self.validate_bootstrap_empty()
+    }
+}
+
+fn charge_graph_edges_and_depth(
+    meter: &mut SlibClosureDecodeMeterV1,
+    manifest: Option<&LoadedConeManifest>,
+    nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode>,
+    dependency_depth: u64,
+) -> DependencyValidationResult<()> {
+    let artifact_edges = nodes.values().try_fold(0_u64, |total, node| {
+        let count = u64::try_from(node.artifact.direct_dependencies().len()).map_err(|_| {
+            Box::new(ExplicitDependencyValidationError::Resource(
+                SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::DependencyEdges,
+                },
+            ))
+        })?;
+        total.checked_add(count).ok_or_else(|| {
+            Box::new(ExplicitDependencyValidationError::Resource(
+                SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::DependencyEdges,
+                },
+            ))
+        })
+    })?;
+    let declared = manifest
+        .map(|manifest| manifest.parsed().semantic().dependency_iter().count())
+        .unwrap_or(0);
+    let current_edges = u64::try_from(declared)
+        .ok()
+        .and_then(|count| count.checked_add(1))
+        .ok_or_else(|| {
+            Box::new(ExplicitDependencyValidationError::Resource(
+                SlibClosureResourceErrorV1::Overflow {
+                    resource: SlibClosureResourceKindV1::DependencyEdges,
+                },
+            ))
+        })?;
+    let edges = artifact_edges.checked_add(current_edges).ok_or_else(|| {
+        Box::new(ExplicitDependencyValidationError::Resource(
+            SlibClosureResourceErrorV1::Overflow {
+                resource: SlibClosureResourceKindV1::DependencyEdges,
+            },
+        ))
+    })?;
+    let depth = dependency_depth.checked_add(2).ok_or_else(|| {
+        Box::new(ExplicitDependencyValidationError::Resource(
+            SlibClosureResourceErrorV1::Overflow {
+                resource: SlibClosureResourceKindV1::GraphDepth,
+            },
+        ))
+    })?;
+    meter
+        .charge_graph(0, edges, depth)
+        .map_err(|source| Box::new(ExplicitDependencyValidationError::Resource(source)))
 }
 
 #[derive(Debug)]
@@ -276,14 +458,16 @@ fn validate_dependency_records(
 
 fn validate_acyclic(
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode>,
-) -> DependencyValidationResult<()> {
+) -> DependencyValidationResult<u64> {
     let mut complete = BTreeSet::new();
+    let mut maximum_depth = 0_u64;
     for start in nodes.keys().copied() {
         if complete.contains(&start) {
             continue;
         }
         let mut visiting = BTreeMap::<ConeIdentity, usize>::new();
         let mut stack = vec![(start, 0_usize)];
+        maximum_depth = maximum_depth.max(1);
         visiting.insert(start, 0);
         while let Some((identity, next_index)) = stack.last_mut() {
             let dependencies = nodes[identity].artifact.direct_dependencies();
@@ -313,10 +497,11 @@ fn validate_acyclic(
             if !complete.contains(&next) {
                 visiting.insert(next, stack.len());
                 stack.push((next, 0));
+                maximum_depth = maximum_depth.max(u64::try_from(stack.len()).unwrap_or(u64::MAX));
             }
         }
     }
-    Ok(())
+    Ok(maximum_depth)
 }
 
 fn validate_support_closure(
