@@ -6,6 +6,12 @@ use std::fmt;
 use scoop_identity::{ConeIdentity, PersistentExportBindingId};
 use scoop_wire::{Encoder, WireEncode};
 
+mod wire;
+pub use wire::{
+    DecodedCanonicalReexportRoutesV1, DecodedReexportRouteHopV1, DecodedReexportRouteV1,
+    ReexportRouteResolutionError, ReexportRouteSetValidationError,
+};
+
 /// One public binding followed while resolving a re-export route.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ReexportRouteHopV1 {
@@ -191,7 +197,7 @@ mod tests {
         ExportBindingKey, PackagePath, PersistentExportBindingId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
-    use scoop_wire::encode;
+    use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
 
     use super::*;
 
@@ -240,23 +246,11 @@ mod tests {
 
     #[test]
     fn route_set_is_non_empty_sorted_deduplicated_and_has_fixed_wire() {
-        let first = cone("example:first:1.0.0");
-        let second = cone("example:second:1.0.0");
-        let route_a = ReexportRouteV1::try_new(
-            first,
-            vec![ReexportRouteHopV1::new(first, binding(first, "first"))],
-        )
-        .unwrap();
-        let route_b = ReexportRouteV1::try_new(
-            second,
-            vec![ReexportRouteHopV1::new(second, binding(second, "second"))],
-        )
-        .unwrap();
-
         assert_eq!(
             CanonicalReexportRoutesV1::try_new(Vec::new()),
             Err(ReexportRouteSetBuildError::Empty)
         );
+        let (route_a, route_b) = route_pair();
         let routes = CanonicalReexportRoutesV1::try_new(vec![
             route_b.clone(),
             route_a.clone(),
@@ -271,6 +265,99 @@ mod tests {
             hex(&encode(&routes).unwrap()),
             "82a20158209c205a1d1dbd9cbb5211528a6af90a8a33be6ec4725e040c1da4c46fb00e74e50281a20158209c205a1d1dbd9cbb5211528a6af90a8a33be6ec4725e040c1da4c46fb00e74e50258200bc1ff1de84f94a8fa8a02a536466d62994ccae22fc08c607e352d61252dc9eaa2015820f243a0c14d36267059927864f8e9f0faa48e5eff8e33618d1600dfb9300c5e4b0281a2015820f243a0c14d36267059927864f8e9f0faa48e5eff8e33618d1600dfb9300c5e4b0258209bbfa7cea3a60e0ea8557dd370bc6a93d995176d949b26baa3efd19a3e1ab3d7"
         );
+    }
+
+    #[test]
+    fn decoded_routes_resolve_only_through_typed_authority() {
+        let (route_a, route_b) = route_pair();
+        let expected = CanonicalReexportRoutesV1::try_new(vec![route_a, route_b]).unwrap();
+        let decoded = decode_canonical::<DecodedCanonicalReexportRoutesV1>(
+            &encode(&expected).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let mut authority = route_authority(&expected);
+
+        assert_eq!(decoded.resolve(&mut authority).unwrap(), expected);
+    }
+
+    #[test]
+    fn decoded_routes_reject_duplicate_and_noncanonical_order() {
+        let (route_a, route_b) = route_pair();
+        let canonical =
+            CanonicalReexportRoutesV1::try_new(vec![route_a.clone(), route_b.clone()]).unwrap();
+        let mut authority = route_authority(&canonical);
+        let first = canonical.routes()[0].clone();
+        let second = canonical.routes()[1].clone();
+
+        let duplicate = decode_canonical::<DecodedCanonicalReexportRoutesV1>(
+            &encode(&RouteSequence(vec![first.clone(), first])).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        assert!(matches!(
+            duplicate.resolve(&mut authority),
+            Err(ReexportRouteSetValidationError::Duplicate { index: 1 })
+        ));
+
+        let reversed = decode_canonical::<DecodedCanonicalReexportRoutesV1>(
+            &encode(&RouteSequence(vec![second, canonical.routes()[0].clone()])).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        assert!(matches!(
+            reversed.resolve(&mut authority),
+            Err(ReexportRouteSetValidationError::NonCanonicalOrder { index: 1 })
+        ));
+    }
+
+    fn route_pair() -> (ReexportRouteV1, ReexportRouteV1) {
+        let first = cone("example:first:1.0.0");
+        let second = cone("example:second:1.0.0");
+        let route_a = ReexportRouteV1::try_new(
+            first,
+            vec![ReexportRouteHopV1::new(first, binding(first, "first"))],
+        )
+        .unwrap();
+        let route_b = ReexportRouteV1::try_new(
+            second,
+            vec![ReexportRouteHopV1::new(second, binding(second, "second"))],
+        )
+        .unwrap();
+        (route_a, route_b)
+    }
+
+    fn route_authority(
+        routes: &CanonicalReexportRoutesV1,
+    ) -> scoop_identity::ValidatedIdentityGraph {
+        let mut pending = scoop_identity::PendingIdentityValidation::new();
+        for route in routes.routes() {
+            pending
+                .register_authority(route.immediate_provider())
+                .unwrap();
+            for hop in route.hops() {
+                if hop.exporter() != route.immediate_provider() {
+                    pending.register_authority(hop.exporter()).unwrap();
+                }
+                pending.register_authority(hop.binding()).unwrap();
+            }
+        }
+        pending.finish().unwrap()
+    }
+
+    struct RouteSequence(Vec<ReexportRouteV1>);
+
+    impl WireEncode for RouteSequence {
+        fn encode(
+            &self,
+            encoder: &mut scoop_wire::Encoder,
+        ) -> Result<(), scoop_wire::cbor::EncodeError> {
+            encoder.array(self.0.len() as u64)?;
+            for route in &self.0 {
+                route.encode(encoder)?;
+            }
+            Ok(())
+        }
     }
 
     fn cone(value: &str) -> ConeIdentity {
