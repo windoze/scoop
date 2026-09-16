@@ -16,6 +16,18 @@ pub type DecodedCallableDeclarationId = DecodedCallableTemplateOrigin;
 pub type PropertyDeclarationId = PropertyOwner;
 pub type DecodedPropertyDeclarationId = DecodedPropertyOwner;
 
+pub trait SourceNominalIdResolver<E>:
+    PersistentIdResolver<scoop_identity::PersistentTypeId, Error = E>
+    + PersistentIdResolver<scoop_identity::PersistentGenericTypeId, Error = E>
+{
+}
+
+impl<R, E> SourceNominalIdResolver<E> for R where
+    R: PersistentIdResolver<scoop_identity::PersistentTypeId, Error = E>
+        + PersistentIdResolver<scoop_identity::PersistentGenericTypeId, Error = E>
+{
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PublicMemberRefV1 {
     Callable(CallableDeclarationId),

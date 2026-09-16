@@ -2,10 +2,11 @@ use std::collections::BTreeSet;
 
 use scoop_identity::{
     CanonicalIdentifier, DecodedCanonicalIdentifier, DecodedOptionalSignatureType,
-    DecodedSignatureTypeKey, OptionalSignatureType, PersistentGenericTypeId, PersistentIdResolver,
-    PersistentTypeId, SignatureTypeKey,
+    DecodedSignatureTypeKey, OptionalSignatureType, SignatureTypeKey,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+
+use super::SourceNominalIdResolver;
 
 mod errors;
 mod scope;
@@ -108,17 +109,9 @@ impl WireDecode for DecodedCanonicalSignatureTypesV1 {
     }
 }
 
-pub trait SignatureTypeReferenceResolver<E>:
-    PersistentIdResolver<PersistentTypeId, Error = E>
-    + PersistentIdResolver<PersistentGenericTypeId, Error = E>
-{
-}
+pub trait SignatureTypeReferenceResolver<E>: SourceNominalIdResolver<E> {}
 
-impl<R, E> SignatureTypeReferenceResolver<E> for R where
-    R: PersistentIdResolver<PersistentTypeId, Error = E>
-        + PersistentIdResolver<PersistentGenericTypeId, Error = E>
-{
-}
+impl<R, E> SignatureTypeReferenceResolver<E> for R where R: SourceNominalIdResolver<E> {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalTypeParameterBoundsV1 {
