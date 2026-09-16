@@ -1,5 +1,6 @@
 mod common;
 mod record;
+mod table;
 
 pub use common::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
@@ -15,4 +16,9 @@ pub use record::{
     CallableInterfaceRecordResolutionError, CallableInterfaceRecordResolver,
     CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
     CallableInterfaceSemanticValidationError, DecodedCallableInterfaceRecordV1,
+};
+pub use table::{
+    CallableInterfaceSetBuildError, CallableInterfaceSetSemanticValidationError,
+    CallableInterfaceSetValidationError, CanonicalCallableInterfacesV1,
+    DecodedCanonicalCallableInterfacesV1,
 };
