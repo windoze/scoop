@@ -447,13 +447,14 @@ CallableInterfaceRecordV1 {
 PropertyInterfaceRecordV1 {
     declaration: PropertyDeclarationId,   // field 1
     owner: TopLevel | Nominal(SourceNominalId) | Extension, // field 2
-    receiver: None | SignatureTypeKey,    // field 3
-    value_type: SignatureTypeKey,          // field 4
-    mutability: Val | Var,                 // field 5
-    getter: PersistentPropertyAccessorId,  // field 6
-    setter: None | PersistentPropertyAccessorId, // field 7
-    representation: Const | RuntimeAccessor | AbstractSlot, // field 8
-    access: PropertyPublicAccessV1,        // field 9
+    type_parameters: CanonicalBinderList, // field 3
+    receiver: None | SignatureTypeKey,    // field 4
+    value_type: SignatureTypeKey,          // field 5
+    mutability: Val | Var,                 // field 6
+    getter: PersistentPropertyAccessorId,  // field 7
+    setter: None | PersistentPropertyAccessorId, // field 8
+    representation: Const | RuntimeAccessor | AbstractSlot, // field 9
+    access: PropertyPublicAccessV1,        // field 10
 }
 ```
 
@@ -488,6 +489,28 @@ PublicMemberRefV1 =
 - `exact_supertypes`按完整`SignatureTypeKey` canonical bytes排序去重；`constructors`与`nested_bindings`按raw id bytes排序去重；`members`按`PublicMemberRefV1`的`(tag, nested tag, raw id bytes)`排序去重；
 - binder、callable parameter、struct field、enum variant及variant field是declaration-order序列，不按名称或类型排序；其数量和position必须可表示为`u32`，同一owner内的source name遵守各自语言重复声明规则；
 - 每个member/constructor/nested binding必须由当前nominal直接拥有；每个callable/property的`owner`必须与其canonical declaration key及nominal record一致。consumer不能扫描FQN、其他table或arena ordinal猜测owner。
+
+`CanonicalBinderList`不是集合，而是以下declaration-order product：
+
+```text
+TypeParameterBinderV1 {
+    name: CanonicalIdentifier,             // field 1
+    bounds: TypeParameterBoundsV1,         // field 2
+}
+
+TypeParameterBoundsV1 =
+    Unconstrained                          // tag 1
+  | Value                                  // tag 2
+  | Ref                                    // tag 3
+  | Nominal {                              // tag 4
+        class: None | SignatureTypeKey,    // field 1
+        interfaces: CanonicalVec<SignatureTypeKey>, // field 2
+    }
+```
+
+`Nominal`必须至少包含class或一个interface；interface bounds按完整`SignatureTypeKey`的结构序严格递增并拒绝重复，class最多一个。closure validator根据被引用nominal interface重放class/interface kind、reference kind与完整application约束；reader不能仅因它能解析为一个type id就接受。`Value`/`Ref`与`Nominal`结构互斥，因此wire不能表达两类bound混合。
+
+binder list长度必须可表示为`u32`，name必须canonical且在同一list唯一，position就是binder index。nominal自身的签名和bound以该list为depth 0；top-level/extension callable或property自己的binder也为depth 0。nominal member若没有自己的binder，owner binder为depth 0；若有自己的binder，则own binder为depth 0、owner binder为depth 1。callable record只保存callable自己声明的binder，property record只保存extension property自己声明的binder，不复制owner nominal binder；constructor、variant constructor和property accessor不声明独立binder。所有`SignatureTypeKey::Binder { depth, index }`必须在上述封闭scope stack内，reader对越界depth/index硬失败。
 
 `SourceNominalId`、`CallableDeclarationId`、`PropertyDeclarationId`和`PublicMemberRefV1`因此都是kind-specific closed sum，不能用裸digest union。struct/enum的declaration-order fields/variants、class constructor source shape、object type/value relation、operator/infix标志、property accessor effect及annotation的语义部分通过各自closed constituent进入上述record；它们只支撑HIR lookup/type checking，不授权layout或dispatch。
 
