@@ -18,10 +18,10 @@ const MAX_CHILD_STDERR_BYTES: u64 = 65_536;
 const COMPILER_FAILURE_EXIT_CODE: i32 = 1;
 
 #[derive(Debug, Default)]
-pub struct ProductionSingleConeCompilerRunner;
+pub(crate) struct ProductionSingleConeCompilerRunner;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ChildIoPlan {
+pub(crate) struct ChildIoPlan {
     trusted_sysroot: PathBuf,
 }
 
@@ -30,12 +30,12 @@ impl ChildIoPlan {
         Self { trusted_sysroot }
     }
 
-    pub fn trusted_sysroot(&self) -> &std::path::Path {
+    pub(crate) fn trusted_sysroot(&self) -> &std::path::Path {
         &self.trusted_sysroot
     }
 }
 
-pub trait SingleConeCompilerRunner {
+pub(crate) trait SingleConeCompilerRunner {
     fn invoke(
         &mut self,
         tool: &ResolvedPairedScoopc,

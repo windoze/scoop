@@ -18,6 +18,7 @@ mod snapshot;
 pub use artifact::*;
 pub use cache::*;
 pub use child::*;
+pub(crate) use child::{ChildIoPlan, ProductionSingleConeCompilerRunner, SingleConeCompilerRunner};
 pub use compiler::*;
 pub use discovery::*;
 pub use graph::*;

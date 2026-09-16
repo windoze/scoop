@@ -28,7 +28,7 @@ impl PreparedBuildGraph {
     /// Bootstraps the locked trusted-core slot, then grants completed authority
     /// only after source freshness, dual artifact views, graph shape, child
     /// response, and the newly published receipt all agree.
-    pub fn execute_trusted_core_bootstrap(
+    pub(crate) fn execute_trusted_core_bootstrap(
         &mut self,
         runner: &mut impl SingleConeCompilerRunner,
         request_id: RequestCorrelationId,

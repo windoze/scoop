@@ -33,9 +33,9 @@ pub use error::{CoreLockOperation, PrepareBuildGraphError};
 pub use ordinary_execution::OrdinarySourceExecutionError;
 
 pub use model::{
-    ChildInvocationPlanV1, ChildRequestPlanError, CompileCacheKeyError, CoreBootstrapReason,
-    ManifestSourceSnapshot, PreparedArtifactCandidate, PreparedBuildGraph,
-    PreparedNodeRepresentation, SingleFileSourceSnapshot, SourceSnapshot, TrustedCorePreparation,
+    ChildRequestPlanError, CompileCacheKeyError, CoreBootstrapReason, ManifestSourceSnapshot,
+    PreparedArtifactCandidate, PreparedBuildGraph, PreparedNodeRepresentation,
+    SingleFileSourceSnapshot, SourceSnapshot, TrustedCorePreparation,
 };
 
 use model::{

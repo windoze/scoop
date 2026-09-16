@@ -6,7 +6,7 @@ use crate::{CacheCompletionError, CompletedNode, RawCompileCacheEntryV1, validat
 impl PreparedBuildGraph {
     /// Promotes a raw cache pair only after the exact current graph, receipt,
     /// dual artifact views, and both purpose closures agree.
-    pub fn complete_cache_hit(
+    pub(crate) fn complete_cache_hit(
         &mut self,
         identity: ConeIdentity,
         entry: RawCompileCacheEntryV1,

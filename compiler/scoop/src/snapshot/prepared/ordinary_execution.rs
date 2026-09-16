@@ -19,7 +19,7 @@ impl PreparedBuildGraph {
     /// Resolves one ordinary source node through the content-addressed cache
     /// or exactly one paired compiler child while the exclusive key lock is
     /// held across the miss, validation, and atomic publication.
-    pub fn execute_ordinary_source(
+    pub(crate) fn execute_ordinary_source(
         &mut self,
         identity: ConeIdentity,
         completed: &[&CompletedNode],

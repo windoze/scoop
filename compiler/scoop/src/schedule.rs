@@ -163,7 +163,7 @@ impl PreparedBuildGraph {
         self.execute_with_runner(&mut ProductionSingleConeCompilerRunner)
     }
 
-    pub fn execute_with_runner(
+    pub(crate) fn execute_with_runner(
         mut self,
         runner: &mut impl SingleConeCompilerRunner,
     ) -> Result<ExecutedBuildGraph, BuildGraphExecutionError> {

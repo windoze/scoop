@@ -13,7 +13,8 @@ use super::{PreparedBuildGraph, PreparedGraphNode};
 use crate::{ChildIoPlan, CompletedNode, CompletedNodeOrigin};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ChildInvocationPlanV1 {
+pub(crate) struct ChildInvocationPlanV1 {
+    #[cfg(test)]
     identity: ConeIdentity,
     request: ScoopcRequestEnvelopeV1,
     output_path: PathBuf,
@@ -21,24 +22,21 @@ pub struct ChildInvocationPlanV1 {
 }
 
 impl ChildInvocationPlanV1 {
-    pub const fn identity(&self) -> ConeIdentity {
+    #[cfg(test)]
+    pub(crate) const fn identity(&self) -> ConeIdentity {
         self.identity
     }
 
-    pub const fn request(&self) -> &ScoopcRequestEnvelopeV1 {
+    pub(crate) const fn request(&self) -> &ScoopcRequestEnvelopeV1 {
         &self.request
     }
 
-    pub fn output_path(&self) -> &Path {
+    pub(crate) fn output_path(&self) -> &Path {
         &self.output_path
     }
 
-    pub const fn io(&self) -> &ChildIoPlan {
+    pub(crate) const fn io(&self) -> &ChildIoPlan {
         &self.io
-    }
-
-    pub fn into_request(self) -> ScoopcRequestEnvelopeV1 {
-        self.request
     }
 }
 
@@ -46,7 +44,7 @@ impl PreparedBuildGraph {
     /// Constructs the only machine request shape accepted for one prepared
     /// source node. Every artifact path comes from an already completed node
     /// or the locked trusted-core slot.
-    pub fn child_invocation_plan(
+    pub(crate) fn child_invocation_plan(
         &self,
         identity: ConeIdentity,
         request_id: RequestCorrelationId,
@@ -121,6 +119,7 @@ impl PreparedBuildGraph {
         )
         .map_err(ChildRequestPlanError::Protocol)?;
         Ok(ChildInvocationPlanV1 {
+            #[cfg(test)]
             identity,
             request: ScoopcRequestEnvelopeV1::new(request_id, build),
             output_path,

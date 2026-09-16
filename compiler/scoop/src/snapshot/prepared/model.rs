@@ -30,7 +30,7 @@ mod child_request;
 
 pub use cache_key::CompileCacheKeyError;
 pub(super) use cache_key::trusted_core_source_key;
-pub use child_request::{ChildInvocationPlanV1, ChildRequestPlanError};
+pub use child_request::ChildRequestPlanError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceSnapshot {
@@ -490,7 +490,7 @@ impl PreparedBuildGraph {
     /// Fully validates every immutable candidate for one prebuilt node after
     /// its transitive dependencies have completed. The scheduler may commit
     /// the returned node only after this method succeeds.
-    pub fn complete_prebuilt_node(
+    pub(crate) fn complete_prebuilt_node(
         &mut self,
         identity: ConeIdentity,
         completed: &[&CompletedNode],
@@ -518,7 +518,7 @@ impl PreparedBuildGraph {
 
     /// Reopens the receipt-bound immutable core slot snapshot through both
     /// strong artifact views before granting completed-node authority.
-    pub fn complete_trusted_core_node(
+    pub(crate) fn complete_trusted_core_node(
         &mut self,
     ) -> Result<CompletedNode, TrustedCoreCompletionError> {
         let (candidate, receipt, source_key) = match self.nodes.get(&ConeIdentity::CORE) {
