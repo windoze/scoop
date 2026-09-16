@@ -543,6 +543,8 @@ PublicMemberRefV1 =
 - binder、callable parameter、struct field、enum variant及variant field是declaration-order序列，不按名称或类型排序；其数量和position必须可表示为`u32`，同一owner内的source name遵守各自语言重复声明规则；
 - 每个member/constructor/nested binding必须由当前nominal直接拥有；每个callable/property的`owner`必须与其canonical declaration key及nominal record一致。consumer不能扫描FQN、其他table或arena ordinal猜测owner。
 
+`exact_supertypes`中的每一项必须以`Nominal`或`NominalApplication`为根，不能用tuple、function、pointer或裸binder冒充父类型；generic application必须覆盖目标声明的全部参数。其内部类型实参只使用当前nominal binder list作为唯一depth 0 scope，并递归通过同一closure中的nominal interface校验。目标kind只能是class或interface：class/object至多列出一个class，其余为interface；interface/struct/enum只能列出interface。reader必须重放这些规则，不能把“typed id存在”当成合法继承证明；继承环和dispatch/slot完备性仍由M23-6的required inheritance capability闭合。
+
 `CanonicalBinderList`不是集合，而是以下declaration-order product：
 
 ```text
