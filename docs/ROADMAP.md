@@ -202,7 +202,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 引入`Cone.toml`、source discovery、library/executable entry sum及manifest/protocol边界；`scoopc`每次只消费显式上游`.slib`闭包并产生当前Cone `.slib`，不搜索、递归、构建runtime或最终链接。
 - `scoop.core`成为trusted独立library artifact；先闭环core-only编译，其他Cone dependency稳定拒绝到M23-5。实现compiler侧per-Cone image producer、strong-only六类registration/image digest、member-aware definition/undefined requirement、当前Scoop/generated `LinkObject` verifier与基础Link view，使本阶段成功artifact已通过Compile/Link双view；core中可跨Cone引用的param-free source nominal同时验证并物化M23-2冻结的有限shape-support closure。production profile必须拒绝任意ODR group/member/body/symbol，直到M23-7具备完整证明。single-file synthetic request固定为一个source、executable、core-only Cone dependency，其`.slib`只能作为local executable root artifact。
 
-### M23-4 resolved build graph与调度
+### M23-4 resolved build graph与调度 ✅（2026-09-16 完成）
 
 总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage4/DESIGN.md`。
 
