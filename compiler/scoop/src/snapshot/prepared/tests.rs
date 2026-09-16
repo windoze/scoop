@@ -19,8 +19,8 @@ use scoop_wire::{DecodeLimits, encode};
 use super::*;
 use crate::{
     ArtifactCacheRoot, BuildGraphRequest, BuildLimitsProfileV1, BuildRootInput, DiagnosticsPolicy,
-    PairedScoopcLocator, TrustedCoreSlotReceiptBodyV1, TrustedCoreSlotReceiptV1,
-    TrustedSysrootRoot,
+    PairedScoopcLocator, TrustedCoreCompletionError, TrustedCoreSlotReceiptBodyV1,
+    TrustedCoreSlotReceiptV1, TrustedSysrootRoot,
 };
 
 fn write_manifest(root: &Path, name: &str, dependencies: &str) {
@@ -340,7 +340,7 @@ fn valid_but_unreceipted_core_slot_is_snapshotted_but_not_reused() {
     let artifact = foundation_core_artifact();
     std::fs::write(layout.artifact(), &artifact).unwrap();
 
-    let prepared = prepare(&root, workspace).unwrap();
+    let mut prepared = prepare(&root, workspace).unwrap();
 
     assert_eq!(
         prepared.trusted_core_preparation(),
@@ -353,6 +353,10 @@ fn valid_but_unreceipted_core_slot_is_snapshotted_but_not_reused() {
             .materialized_path()
             .starts_with(prepared.staging_root())
     );
+    assert!(matches!(
+        prepared.complete_trusted_core_node(),
+        Err(TrustedCoreCompletionError::BootstrapRequired)
+    ));
 }
 
 #[test]
@@ -416,6 +420,56 @@ fn core_receipt_binding_requires_the_actual_artifact_to_use_the_strong_profile()
         TrustedCorePreparation::Bootstrap(CoreBootstrapReason::ReceiptUnavailable)
     );
     assert!(prepared.trusted_core_receipt().is_none());
+}
+
+#[test]
+fn prepared_receipt_cannot_bypass_the_core_dual_view_gate() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+        &sysroot,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    );
+    std::fs::create_dir_all(layout.artifact_root()).unwrap();
+    std::fs::write(layout.artifact(), foundation_core_artifact()).unwrap();
+
+    let mut prepared = prepare(&root, workspace).unwrap();
+    let source_key = prepared.trusted_core_source_key();
+    let compiler = prepared.compiler().fingerprint();
+    let artifact = prepared
+        .existing_trusted_core_candidate()
+        .unwrap()
+        .summary()
+        .artifact_fingerprint();
+    let receipt = TrustedCoreSlotReceiptV1::new(
+        TrustedCoreSlotReceiptBodyV1::new(
+            source_key,
+            artifact,
+            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            compiler,
+            ArtifactCapabilityProfileId::single_cone_strong(),
+            Vec::new(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    match prepared.nodes.get_mut(&ConeIdentity::CORE).unwrap() {
+        PreparedGraphNode::TrustedCore(node) => {
+            node.preparation = TrustedCorePreparation::ReuseVerifiedSlot;
+            node.receipt = Some(receipt);
+        }
+        _ => unreachable!(),
+    }
+
+    assert!(matches!(
+        prepared.complete_trusted_core_node(),
+        Err(TrustedCoreCompletionError::Artifact(_))
+    ));
 }
 
 #[test]

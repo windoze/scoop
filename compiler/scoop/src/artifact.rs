@@ -15,10 +15,11 @@ use scoop_slib::{
     ValidatedSingleConeStrongLinkArtifact,
 };
 
-pub(crate) use completion::complete_prebuilt_candidates;
 pub use completion::{
     CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError, PrivateArtifactPath,
+    TrustedCoreCompletionError, TrustedCoreReceiptBindingField,
 };
+pub(crate) use completion::{complete_prebuilt_candidates, complete_trusted_core_candidate};
 pub use error::{ArtifactClosureValidationError, ArtifactPlanField};
 
 #[derive(Clone, Debug)]

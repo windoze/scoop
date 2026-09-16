@@ -17,7 +17,10 @@ use super::super::staging::PreparedStaging;
 use super::CoreSlotLock;
 use crate::ResolvedPairedScoopc;
 use crate::artifact::{ArtifactClosurePlan, PlannedArtifactEdge, PlannedArtifactNode};
-use crate::artifact::{CompletedNode, PrebuiltCompletionError, complete_prebuilt_candidates};
+use crate::artifact::{
+    CompletedNode, PrebuiltCompletionError, TrustedCoreCompletionError,
+    complete_prebuilt_candidates, complete_trusted_core_candidate,
+};
 use crate::discovery::BuildContext;
 use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
@@ -506,6 +509,44 @@ impl PreparedBuildGraph {
             identity,
             candidates,
             completed,
+            limits,
+            self.target_selection,
+            &c_bridge_profile,
+            &mut self.meter,
+        )
+    }
+
+    /// Reopens the receipt-bound immutable core slot snapshot through both
+    /// strong artifact views before granting completed-node authority.
+    pub fn complete_trusted_core_node(
+        &mut self,
+    ) -> Result<CompletedNode, TrustedCoreCompletionError> {
+        let (candidate, receipt, source_key) = match self.nodes.get(&ConeIdentity::CORE) {
+            Some(PreparedGraphNode::TrustedCore(node)) => {
+                if !matches!(node.preparation, TrustedCorePreparation::ReuseVerifiedSlot) {
+                    return Err(TrustedCoreCompletionError::BootstrapRequired);
+                }
+                let candidate = node
+                    .existing
+                    .clone()
+                    .ok_or(TrustedCoreCompletionError::MissingPreparedCandidate)?;
+                let receipt = node
+                    .receipt
+                    .clone()
+                    .ok_or(TrustedCoreCompletionError::MissingPreparedReceipt)?;
+                (candidate, receipt, node.source_key)
+            }
+            _ => unreachable!("resolved graph structurally contains trusted core"),
+        };
+        let plan = self.artifact_closure_plan();
+        let limits = self.context.limits.artifact_decode();
+        let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
+        complete_trusted_core_candidate(
+            &plan,
+            candidate,
+            receipt,
+            source_key,
+            self.compiler.fingerprint(),
             limits,
             self.target_selection,
             &c_bridge_profile,
