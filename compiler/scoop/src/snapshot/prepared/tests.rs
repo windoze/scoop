@@ -257,6 +257,39 @@ fn real_single_file_request(
     .unwrap()
 }
 
+fn assert_manual_scoopc_matches(
+    executed: &crate::ExecutedBuildGraph,
+    identity: ConeIdentity,
+    compiler: &Path,
+    sysroot: &Path,
+    input: &Path,
+    output: &Path,
+) {
+    let result = std::process::Command::new(compiler)
+        .arg("build")
+        .arg(input)
+        .arg("--out-slib")
+        .arg(output)
+        .env_clear()
+        .env("SCOOP_SYSROOT", sysroot)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "manual scoopc failed: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(
+        executed
+            .completed(identity)
+            .unwrap()
+            .artifact()
+            .snapshot()
+            .as_bytes(),
+        std::fs::read(output).unwrap()
+    );
+}
+
 fn single_file_request(source: &Path, workspace: &Path) -> BuildGraphRequest {
     let sysroot = workspace.join("sysroot");
     let compiler = workspace.join("bin/scoopc");
@@ -747,6 +780,14 @@ fn real_process_bootstrap_then_reuses_core_and_source_cache() {
         first.completed(root_identity).unwrap().origin(),
         CompletedNodeOrigin::Compiled
     );
+    assert_manual_scoopc_matches(
+        &first,
+        root_identity,
+        &compiler,
+        &sysroot,
+        &root,
+        &workspace.join("manual-library.slib"),
+    );
     assert!(matches!(
         first.into_outcome(),
         BuildGraphOutcome::Library { .. }
@@ -807,6 +848,14 @@ fn real_process_builds_and_reuses_manifest_executable() {
         first.observations().child_invocations(),
         &[ConeIdentity::CORE, root_identity]
     );
+    assert_manual_scoopc_matches(
+        &first,
+        root_identity,
+        &compiler,
+        &sysroot,
+        &root,
+        &workspace.join("manual-executable.slib"),
+    );
     assert!(matches!(
         first.into_outcome(),
         BuildGraphOutcome::ExecutableArtifact { .. }
@@ -859,6 +908,14 @@ fn real_process_builds_and_reuses_single_file() {
     assert_eq!(
         first.observations().child_invocations(),
         &[ConeIdentity::CORE, ConeIdentity::SINGLE_FILE]
+    );
+    assert_manual_scoopc_matches(
+        &first,
+        ConeIdentity::SINGLE_FILE,
+        &compiler,
+        &sysroot,
+        &source,
+        &workspace.join("manual-single-file.slib"),
     );
     assert!(matches!(
         first.into_outcome(),
