@@ -211,7 +211,9 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-5 多Cone名称语义
 
-- 落地direct/support closure、cross-Cone exact/star/alias import、re-export、public/internal/private access provenance、default、non-generic alias与selected HIR/MIR/LIR metadata；本阶段记录M23-2冻结的shape-support owner/identity，凡需尚未具备的跨Cone layout/dispatch或物化证明的使用稳定拒绝到M23-6，不由consumer临时发Strong定义。receiver-dependent protected access或generic能力同样稳定拒绝，不产生残缺IR。
+总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage5/DESIGN.md`。
+
+- 落地direct/support closure、cross-Cone exact/star/alias import、re-export、public/internal/private access provenance、default、non-generic alias与selected HIR/MIR/LIR metadata；新增cross-Cone strong profile，成功machine-use只开放core-closed const及签名完全由trusted-core param-free leaf构成的非generic top-level/extension callable或property accessor。凡需尚未具备的cross-Cone layout/dispatch或物化证明的使用稳定拒绝到M23-6，不由consumer临时发Strong定义；receiver-dependent protected、generic或direct source-extern能力分别拒绝到M23-6、M23-7或M23-10，不产生残缺IR。
 - 完成direct/transitive可见性、split package、链式re-export、negative lookup observation及semantic cache失效矩阵；每个成功用例仍产生双view有效artifact。
 
 ### M23-6 跨Cone layout、typed ABI与ZST
