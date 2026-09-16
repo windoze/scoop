@@ -747,7 +747,33 @@ TypeAliasTargetV1 =
   | Alias { alias: PersistentTypeAliasId } // { 0: 2, 1: alias }
 ```
 
-const table精确覆盖public const property，不含ordinary property storage/initializer。consumer内联value并使用当前usage evaluation origin；String等需要本地materialization的常量由当前Cone按既有literal规则拥有，不引用provider storage。
+`CanonicalConstValueV1`的v1 wire只覆盖当前HIR已经能够产生的三类编译期值，并固定为以下封闭sum：
+
+```text
+CanonicalConstValueV1 =
+    Integer { value: CanonicalIntegerConstantV1 } // { 0: 1, 1: value }
+  | Boolean { value: CanonicalBooleanV1 }         // { 0: 2, 1: value }
+  | String { utf8: text }                         // { 0: 3, 1: utf8 }
+
+CanonicalIntegerConstantV1 =
+    Signed8 { raw_bits: u8 }     // { 0: 1, 1: raw_bits }
+  | Signed16 { raw_bits: u16 }   // { 0: 2, 1: raw_bits }
+  | Signed32 { raw_bits: u32 }   // { 0: 3, 1: raw_bits }
+  | Signed64 { raw_bits: u64 }   // { 0: 4, 1: raw_bits }
+  | Unsigned8 { raw_bits: u8 }   // { 0: 5, 1: raw_bits }
+  | Unsigned16 { raw_bits: u16 } // { 0: 6, 1: raw_bits }
+  | Unsigned32 { raw_bits: u32 } // { 0: 7, 1: raw_bits }
+  | Unsigned64 { raw_bits: u64 } // { 0: 8, 1: raw_bits }
+
+CanonicalBooleanV1 = False // unsigned 1
+                   | True  // unsigned 2
+```
+
+signed integer payload继续保存对应宽度的二进制补码raw bits；reader必须在构造variant前检查payload可由对应`u8/u16/u32/u64`表示，不能截断、符号扩展或按数值大小改写variant。String是解码后拥有的有效UTF-8字节序列，保持源码求值结果的byte identity，不做Unicode normalization、NUL过滤或host编码转换，并服从semantic-leaf与owned-byte累计budget。Wire CBOR v1不接受native boolean，因此boolean payload必须使用上述显式unsigned枚举。当前尚未开放的`Char`与floating const没有保留的伪variant；开放对应语言能力前必须显式修订该versioned schema与profile。
+
+const table精确覆盖public const property，不含ordinary property storage/initializer。每条record的property必须是当前artifact foundation中的canonical ordinary property，且同id的property interface必须为`Const + ReadOnly + DirectOnly`；`value_type`逐结构等于property interface的类型。definition origin逐字段等于foundation中`DefinitionOriginSubject::Property(property)`，并属于当前Cone。value/type一致性由trusted core const-type authority证明：八种integer variant分别只匹配其canonical fixed-width有/无符号core nominal，Boolean与String只匹配各自canonical non-generic core nominal；不能按显示名称、bit width或同布局用户类型接受。const table按property raw id严格递增、拒绝重复，并与property interface中全部且仅有的`Const`记录形成双向精确闭包。
+
+consumer内联value并使用当前usage evaluation origin；String等需要本地materialization的常量由当前Cone按既有literal规则拥有，不引用provider storage。
 
 alias在M23-5仍只允许top-level、non-generic声明，因此record的`access`必须是`DirectOnly`；`PublicSlot`、nested/local identity、非`ConeWide` declaration scope或target中的`Binder`一律拒绝。`alias`必须解析为当前artifact foundation中的canonical `TypeAlias` source declaration，`definition_origin`必须逐字段等于同foundation `DefinitionOriginSubject::TypeAlias(alias)`的记录；仅凭raw digest或来自另一Cone的origin不能构造记录。
 
