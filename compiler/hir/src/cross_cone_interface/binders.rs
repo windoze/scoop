@@ -8,11 +8,16 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 mod errors;
+mod scope;
 
 pub use errors::{
     BinderListValidationError, SignatureTypeSetBuildError, SignatureTypeSetValidationError,
     TypeParameterBinderBuildError, TypeParameterBinderResolutionError,
     TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError,
+};
+pub use scope::{
+    SignatureBinderScopeError, SignatureBinderScopeV1, TypeParameterBinderScopeValidationError,
+    TypeParameterBoundLocation,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -9,9 +9,11 @@ pub use binders::{
     BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1,
     DecodedCanonicalBinderListV1, DecodedCanonicalSignatureTypesV1,
     DecodedNominalTypeParameterBoundsV1, DecodedTypeParameterBinderV1,
-    DecodedTypeParameterBoundsV1, NominalTypeParameterBoundsV1, SignatureTypeReferenceResolver,
-    SignatureTypeSetBuildError, SignatureTypeSetValidationError, TypeParameterBinderBuildError,
-    TypeParameterBinderResolutionError, TypeParameterBinderV1, TypeParameterBoundsBuildError,
+    DecodedTypeParameterBoundsV1, NominalTypeParameterBoundsV1, SignatureBinderScopeError,
+    SignatureBinderScopeV1, SignatureTypeReferenceResolver, SignatureTypeSetBuildError,
+    SignatureTypeSetValidationError, TypeParameterBinderBuildError,
+    TypeParameterBinderResolutionError, TypeParameterBinderScopeValidationError,
+    TypeParameterBinderV1, TypeParameterBoundLocation, TypeParameterBoundsBuildError,
     TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
 };
 pub use declaration_references::{
