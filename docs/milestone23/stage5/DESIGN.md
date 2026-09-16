@@ -450,11 +450,9 @@ PropertyInterfaceRecordV1 {
     type_parameters: CanonicalBinderList, // field 3
     receiver: None | SignatureTypeKey,    // field 4
     value_type: SignatureTypeKey,          // field 5
-    mutability: Val | Var,                 // field 6
-    getter: PersistentPropertyAccessorId,  // field 7
-    setter: None | PersistentPropertyAccessorId, // field 8
-    representation: Const | RuntimeAccessor | AbstractSlot, // field 9
-    access: PropertyPublicAccessV1,        // field 10
+    capability: PropertyCapabilityV1,     // field 6
+    representation: PropertyRepresentationV1, // field 7
+    access: PropertyPublicAccessV1,        // field 8
 }
 ```
 
@@ -535,6 +533,28 @@ CallableModalityV1 =
 PublicLookupAccessV1 =
     DirectOnly // unsigned 1
   | PublicSlot // unsigned 2
+
+PropertyCapabilityV1 =
+    ReadOnly { getter: PersistentPropertyAccessorId }
+        // { 0: 1, 1: getter }
+  | ReadWrite {
+        getter: PersistentPropertyAccessorId,
+        setter: PersistentPropertyAccessorId,
+        setter_access: PropertySetterPublicAccessV1,
+    }   // { 0: 2, 1: getter, 2: setter, 3: setter_access }
+
+PropertySetterPublicAccessV1 =
+    Restricted // unsigned 1
+  | Public     // unsigned 2
+
+PropertyRepresentationV1 =
+    Const           // unsigned 1
+  | RuntimeAccessor // unsigned 2
+  | AbstractSlot    // unsigned 3
+
+PropertyPublicAccessV1 =
+    DirectOnly // unsigned 1
+  | PublicSlot // unsigned 2
 ```
 
 `Effect`与`GcEffect`逐byte复用identity wire已经冻结的`Ordinary = 1 | Suspend = 2`和`Managed = 1 | NoGc = 2`，不得另分配近义tag。`SourceParameterShapeV1.value_type`是callee实际接收的完整参数type；对vararg它是`Array<element>`，element type及`Empty | Default` omission由5.4记录并与该array application交叉验证。参数列表保持声明顺序、长度必须可表示为`u32`且name在同一callable内唯一；reader以该顺序逐项核对canonical declaration key的parameter signature，不能排序或只比较数量。
@@ -545,9 +565,19 @@ PublicLookupAccessV1 =
 
 `PublicLookupAccessV1`只是一种已经收窄到foreign public surface的证明，不是通用visibility枚举：两种variant都要求declaration显式public且owner effective lookup domain为universal；`PublicSlot`额外声明该callable承担public slot contract，因而可区分普通final callable与final override。`Open`、`Abstract`和`InterfaceDefault`必须使用`PublicSlot`；top-level、extension、constructor及variant constructor必须是`Final + DirectOnly`。protected/internal/private没有variant，也不能用`PublicSlot`冒充M23-6 inheritance authority。
 
+property能力沿用M21的封闭sum；wire中不存在`is_var + Option<setter>`、独立`mutability`或用缺字段表示`val`。`ReadOnly`恰有getter；`ReadWrite`恰有getter、setter及setter的foreign public access分类。两种accessor id必须分别解析为同一property的`Getter`/`Setter` `PropertyAccessorKey`，不能按arena位置、名称或另一accessor推导。`Restricted`表示setter确实存在，但其declared/effective access没有形成foreign universal lookup witness；它不暴露private/internal/protected的具体类别，且对应setter不能进入public callable interface table。`Public`要求setter显式public、effective lookup domain为universal，并要求同id的callable interface record存在。getter visibility恒等于property visibility，因此每个property的getter都必须有对应public callable interface record。
+
+`PropertyPublicAccessV1`是逻辑property及其getter的typed public proof；`DirectOnly`与`PublicSlot`的含义逐项对应`PublicLookupAccessV1`，但两者类型不可互换。top-level与extension property只能是`DirectOnly`；nominal property承担public slot contract时必须是`PublicSlot`，包括final public override。`ReadWrite + Public`的setter继承同一slot分类；`ReadWrite + Restricted`没有foreign setter slot/lookup witness。reader必须把property access与getter callable access逐项交叉验证，并在public setter存在时同样核对setter callable access。
+
+`PropertyRepresentationV1`是cross-Cone访问类别，不复制provider storage布局。`Const`要求`ReadOnly + DirectOnly`、无extension receiver及own binder，并由同property的`ExportConstValueV1`给出typed值；其合法owner仍精确为M21允许的top-level或object。`AbstractSlot`要求nominal owner、`PublicSlot`，且全部required accessor callable record均为`Abstract`。其余非const形态统一为`RuntimeAccessor`：stored、accessor-only、delegated与native storage都不向consumer泄漏field/global/delegate identity；interface中default/abstract混合也属于`RuntimeAccessor`，每个accessor究竟是`Final`、`Open`、`Abstract`还是`InterfaceDefault`只由对应callable record表达。`RuntimeAccessor`不得伪装一个全部accessor均为`Abstract`的property。native storage仍由typed native contract/definition source识别，并按1.4拒绝取得M23-5 executable bridge，不能因折叠为`RuntimeAccessor`绕过M23-10。
+
 callable closure validator必须从kind-specific canonical identity及已验证的相邻record重放一个非wire的`CallableDeclarationIdentityShapeV1 { owner, own_type_parameter_arity, outer_type_parameter_arity, receiver, parameter_types }`，再与callable record逐项比较。普通/generic function与constructor的source declaration key直接给出receiver、own arity和parameter type sequence；property accessor由`PropertyAccessorKey`、对应property record及getter/setter role给出owner、receiver和参数；variant constructor由source `EnumVariantIdentityKey`及对应nominal source-shape variant给出owner和declaration-order payload参数。任一来源缺失、kind不匹配或同一事实不一致都失败，不能按FQN、源码名称或table位置补猜。function result及binder name/bound不属于duplicate-declaration identity，仍以本record为canonical interface并进入HIR fingerprint；reader必须验证其闭合性，但不得把它们错误加入persistent declaration id。
 
 signature scope固定由`own_type_parameter_arity`和`outer_type_parameter_arity`两层压缩规则构造：own arity非零时own binder位于depth 0，outer arity非零时位于其后的depth；任一arity为零都不创建空frame。普通nominal member的outer frame来自nominal owner；constructor和variant constructor只有该outer frame；property accessor不声明own binder，其outer frame来自所属property的可见binder namespace——generic extension property使用property binder，generic nominal member property使用nominal owner binder。top-level/extension function只有自己的binder frame。validator以该封闭scope递归验证binder bound、receiver、全部parameter与result中的每个`SignatureTypeKey`，同时重放所有nominal reference kind与application arity。constructor、variant constructor与property accessor的own arity必须为零；extension必须恰有receiver且非extension不得伪造receiver。modality、implementation、slot access、operator/infix legality及source interface长度必须与定义方typed Export HIR逐项一致。
+
+property closure validator同样必须从canonical ordinary/extension property identity重放非wire的`PropertyDeclarationIdentityShapeV1 { owner, own_type_parameter_arity, outer_type_parameter_arity, receiver }`。ordinary top-level/member property的own arity恒为0且没有receiver；generic extension property的own arity与receiver来自其source declaration key；nominal member的outer arity只来自已验证nominal interface，不能复制进property binder list。validator用相同的压缩scope验证binder bound、receiver与`value_type`，再验证capability中的每个accessor key。
+
+closure随后以property record为唯一签名来源交叉验证accessor callable：getter没有value parameter且result exact等于`value_type`；setter恰有一个`value_type`参数且result是canonical core `Unit`；两者own binder arity恒为0，outer frame取property own binder或nominal owner binder。所有property accessor都必须ordinary/non-infix且没有language/delegate operator role。representation、property/accessor access、modality、safety、GC effect、implementation与定义方typed Export HIR必须逐项一致；缺少required public accessor record、为`Restricted` setter伪造public callable record、role/owner/signature不一致或const/abstract分类不一致都在world commit前拒绝。
 
 其中两个公共闭合类型的wire固定为：
 
