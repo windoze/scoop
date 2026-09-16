@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::{io, io::Write};
 
 use clap::{Parser, Subcommand, ValueEnum};
 
@@ -31,6 +32,9 @@ enum Command {
         #[arg(long, value_enum)]
         emit: Option<Emit>,
     },
+    /// Report the exact machine protocol understood by this compiler.
+    #[command(name = "__machine-capability", hide = true)]
+    MachineCapability,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -51,7 +55,25 @@ fn main() -> ExitCode {
             out_slib,
             emit,
         } => build(input, direct_slibs, support_slibs, out_slib, emit),
+        Command::MachineCapability => write_machine_capability(),
     }
+}
+
+fn write_machine_capability() -> ExitCode {
+    let capability = scoop_protocol::ScoopcProtocolCapabilityV1::current();
+    let frame = match scoop_protocol::encode_capability_frame(&capability) {
+        Ok(frame) => frame,
+        Err(error) => {
+            eprintln!("error: cannot encode scoopc machine capability: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let mut stdout = io::stdout().lock();
+    if let Err(error) = stdout.write_all(&frame).and_then(|()| stdout.flush()) {
+        eprintln!("error: cannot write scoopc machine capability: {error}");
+        return ExitCode::FAILURE;
+    }
+    ExitCode::SUCCESS
 }
 
 fn build(
@@ -127,7 +149,10 @@ mod tests {
             support_slibs,
             out_slib,
             emit,
-        } = cli.command;
+        } = cli.command
+        else {
+            panic!("expected build command");
+        };
         assert_eq!(input, PathBuf::from("Cone.toml"));
         assert_eq!(direct_slibs, [PathBuf::from("direct.slib")]);
         assert_eq!(support_slibs, [PathBuf::from("support.slib")]);
@@ -161,5 +186,12 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn machine_capability_is_a_unique_hidden_command() {
+        let cli = Cli::try_parse_from(["scoopc", "__machine-capability"]).unwrap();
+        assert!(matches!(cli.command, Command::MachineCapability));
+        assert!(Cli::try_parse_from(["scoopc", "__machine-capability", "unexpected"]).is_err());
     }
 }
