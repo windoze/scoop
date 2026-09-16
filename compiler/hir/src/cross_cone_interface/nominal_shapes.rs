@@ -10,11 +10,17 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{PublicNominalKindV1, SignatureTypeReferenceResolver};
 
 mod errors;
+mod semantics;
 
 pub use errors::{
     EnumSourceFieldResolutionError, EnumSourceVariantBuildError, EnumSourceVariantResolutionError,
     NominalSourceShapeBuildError, NominalSourceShapeResolutionError,
     StructSourceFieldResolutionError,
+};
+pub use semantics::{
+    EnumSourceFieldSelectorV1, EnumSourceFieldSemanticError, EnumSourceVariantSemanticError,
+    NominalSourceShapeSemanticAuthority, NominalSourceShapeSemanticError,
+    ObjectSourceShapeSemanticError, StructSourceFieldSemanticError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]

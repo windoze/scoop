@@ -38,12 +38,14 @@ pub use declaration_references::{
 };
 pub use nominal_shapes::{
     DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceShapeV1,
-    DecodedStructSourceFieldV1, EnumSourceFieldResolutionError, EnumSourceFieldV1,
-    EnumSourceShapeV1, EnumSourceVariantBuildError, EnumSourceVariantResolutionError,
+    DecodedStructSourceFieldV1, EnumSourceFieldResolutionError, EnumSourceFieldSelectorV1,
+    EnumSourceFieldSemanticError, EnumSourceFieldV1, EnumSourceShapeV1,
+    EnumSourceVariantBuildError, EnumSourceVariantResolutionError, EnumSourceVariantSemanticError,
     EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalSourceShapeBuildError,
-    NominalSourceShapeResolutionError, NominalSourceShapeResolver, NominalSourceShapeV1,
-    ObjectSourceShapeV1, StructSourceFieldResolutionError, StructSourceFieldV1,
-    StructSourceShapeV1,
+    NominalSourceShapeResolutionError, NominalSourceShapeResolver,
+    NominalSourceShapeSemanticAuthority, NominalSourceShapeSemanticError, NominalSourceShapeV1,
+    ObjectSourceShapeSemanticError, ObjectSourceShapeV1, StructSourceFieldResolutionError,
+    StructSourceFieldSemanticError, StructSourceFieldV1, StructSourceShapeV1,
 };
 pub use public_bindings::{
     CanonicalPublicExportBindingsV1, DecodedCanonicalPublicExportBindingsV1,
